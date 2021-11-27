@@ -6,5 +6,7 @@
     name: "{{ item }}"
   loop:
     - gh
-    - pre-commit
     - gitui
+
+- name: Install pre-commit
+  ansible.builtin.command: pip3 install pre_commit
