@@ -1,0 +1,8 @@
+- name: Install tools
+  community.general.homebrew:
+    name: "{{ item }}"
+  loop:
+    - tfenv
+    - tflint
+    - tfsec
+    - terraform-docs

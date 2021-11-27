@@ -1,0 +1,8 @@
+- name: Install tools
+  community.general.homebrew:
+    name: "{{ item }}"
+  loop:
+    - kubectx
+    - stern
+    - k9s
+    - helm

@@ -1,0 +1,19 @@
+- import_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Install tools
+  community.general.homebrew:
+    name: "{{ item }}"
+  loop:
+    - starship
+    - ripgrep
+    - fd
+    - bat
+    - lsd
+    - git-delta
+    - dust
+
+- name: Install fzf
+  ansible.builtin.command: /home/linuxbrew/.linuxbrew/opt/fzf/install
+  register: fzf
+  changed_when: fzf.rc != 0

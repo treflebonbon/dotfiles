@@ -1,0 +1,55 @@
+[core]
+	editor = vim
+	autocrlf = input
+	filemode = false
+	ignorecase = false
+	quotepath = false
+
+[color]
+	ui = true
+	diff = auto
+	status = auto
+	branch = auto
+
+[push]
+	default = current
+
+[merge]
+	ff = false
+
+[pull]
+	ff = only
+
+[init]
+	defaultBranch = main
+
+[alias]
+	push-f = push --force-with-lease
+
+[pager]
+	diff = delta
+	show = delta
+	log = delta
+	blame = delta
+	reflog = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	features = side-by-side line-numbers decorations
+	syntax-theme = Dracula
+	plus-style = syntax "#003800"
+	minus-style = syntax "#3f0001"
+
+[delta "decorations"]
+	commit-decoration-style = bold yellow box ul
+	file-style = bold yellow ul
+	file-decoration-style = none
+	hunk-header-decoration-style = cyan box ul
+
+[delta "line-numbers"]
+	line-numbers-left-style = cyan
+	line-numbers-right-style = cyan
+	line-numbers-minus-style = 124
+	line-numbers-plus-style = 28

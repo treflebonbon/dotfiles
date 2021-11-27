@@ -1,0 +1,12 @@
+- name: Install tools
+  ansible.builtin.apt:
+    pkg:
+      - build-essential
+      - procps
+      - curl
+      - file
+      - git
+      - unzip
+      - socat
+    update_cache: true
+  become: true

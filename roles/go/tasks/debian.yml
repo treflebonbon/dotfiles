@@ -1,0 +1,24 @@
+- name: Create temporary go directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: go
+  register: go_tempfile
+
+- name: Install go
+  block:
+    - name: Download go
+      ansible.builtin.get_url:
+        url: "https://golang.org/dl/go{{ go_version }}.linux-amd64.tar.gz"
+        dest: "{{ go_tempfile.path }}"
+
+    - name: Unarchive go
+      ansible.builtin.unarchive:
+        src: "{{ go_tempfile.path }}/go{{ go_version }}.linux-amd64.tar.gz"
+        dest: /usr/local
+      become: true
+
+    - name: Remove temporary go directory
+      ansible.builtin.file:
+        path: "{{ go_tempfile.path }}"
+        state: absent
+  when: go_tempfile.path is defined

@@ -1,0 +1,68 @@
+- name: Install packages
+  ansible.builtin.apt:
+    pkg:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    update_cache: true
+  become: true
+
+- name: Add GPG key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+  become: true
+
+- name: Add apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+  become: true
+
+- name: Install docker
+  ansible.builtin.apt:
+    pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    update_cache: true
+  become: true
+
+- name: Add group
+  ansible.builtin.group:
+    name: "{{ docker_group }}"
+  become: true
+
+- name: Execute whoami
+  ansible.builtin.command: whoami
+  register: whoami
+  changed_when: whoami.rc != 0
+
+- name: Append group
+  ansible.builtin.user:
+    name: "{{ whoami.stdout }}"
+    groups:
+      - "{{ docker_group }}"
+    append: true
+  become: true
+
+# - name: Start docker
+#   ansible.builtin.service:
+#     name: docker
+#     state: started
+#     enabled: true
+#   become: true
+
+- name: Install docker-compose
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/{{ compose_version }}/docker-compose-{{ ansible_system }}-{{ ansible_architecture }}"
+    dest: /usr/local/bin/docker-compose
+    mode: +x
+  become: true
+
+- name: Install tools
+  community.general.homebrew:
+    name: "{{ item }}"
+  loop:
+    - hadolint
+    - dive
+    - aquasecurity/trivy/trivy

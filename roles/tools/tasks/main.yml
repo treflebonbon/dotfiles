@@ -1,0 +1,39 @@
+- import_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Create temporary brew directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: brew
+  register: brew_tempfile
+
+- name: Install brew
+  block:
+    - name: Download brew
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
+        dest: "{{ brew_tempfile.path }}"
+        mode: +x
+
+    - name: Execute install
+      ansible.builtin.command:
+        cmd: "{{ brew_tempfile.path }}/install.sh"
+        stdin: ""
+
+    - name: Remove temporary brew directory
+      ansible.builtin.file:
+        path: "{{ brew_tempfile.path }}"
+        state: absent
+  when: brew_tempfile.path is defined
+
+- name: Install tools
+  community.general.homebrew:
+    name: "{{ item }}"
+  loop:
+    - jq
+    - nkf
+    - fzf
+    - direnv
+    - pgcli
+    - packer
+    - shellcheck
