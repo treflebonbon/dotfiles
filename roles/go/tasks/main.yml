@@ -33,6 +33,6 @@
 
 - name: Create symlink
   ansible.builtin.file:
-    src: ~/go/bin/gazelle
+    src: ~/go/bin/bazelisk
     dest: ~/go/bin/bazel
     state: link
