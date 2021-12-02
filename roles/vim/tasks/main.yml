@@ -11,3 +11,11 @@
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
     dest: ~/.vim/autoload/plug.vim
+
+- name: Copy dotfiles
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/roles/vim/files/{{ item }}"
+    dest: "~/{{ item }}"
+    mode: "0644"
+  loop:
+    - .vimrc

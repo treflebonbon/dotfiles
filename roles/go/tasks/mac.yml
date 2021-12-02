@@ -1,0 +1,9 @@
+- name: Install tools
+  community.general.homebrew:
+    name: go
+
+- name: Install tools
+  ansible.builtin.command: "go install {{ item }}"
+  loop: "{{ go_packages }}"
+  register: tools
+  changed_when: tools.rc != 0

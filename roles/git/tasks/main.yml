@@ -7,6 +7,13 @@
   loop:
     - gh
     - gitui
+    - pre-commit
 
-- name: Install pre-commit
-  ansible.builtin.command: pip3 install pre_commit
+- name: Copy dotfiles
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/roles/git/files/{{ item }}"
+    dest: "~/{{ item }}"
+    mode: "0644"
+  loop:
+    - .czrc
+    - .gitconfig

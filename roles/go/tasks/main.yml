@@ -1,35 +1,8 @@
 - import_tasks: debian.yml
   when: ansible_os_family == "Debian"
 
-- name: Install tools
-  ansible.builtin.command: "go install {{ item }}"
-  loop:
-    - github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
-    - github.com/ramya-rao-a/go-outline@latest
-    - github.com/cweill/gotests/gotests@latest
-    - github.com/fatih/gomodifytags@latest
-    - github.com/josharian/impl@latest
-    - github.com/haya14busa/goplay/cmd/goplay@latest
-    - github.com/go-delve/delve/cmd/dlv@latest
-    - github.com/go-delve/delve/cmd/dlv@master
-    - honnef.co/go/tools/cmd/staticcheck@latest
-    - golang.org/x/tools/gopls@latest
-    - github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-    - github.com/cosmtrek/air@latest
-    - github.com/google/wire/cmd/wire@latest
-    - golang.org/x/tools/cmd/godoc@latest
-    - golang.org/x/tools/cmd/goimports@latest
-    - github.com/go-critic/go-critic/cmd/gocritic@latest
-    - github.com/fzipp/gocyclo/cmd/gocyclo@latest
-    - github.com/BurntSushi/toml/cmd/tomlv@latest
-    - google.golang.org/protobuf/cmd/protoc-gen-go@v1.26
-    - google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
-    - github.com/bazelbuild/bazelisk@latest
-    - github.com/bazelbuild/bazel-gazelle/cmd/gazelle@latest
-    - github.com/bazelbuild/buildtools/buildifier@latest
-    - mvdan.cc/sh/v3/cmd/shfmt@latest
-  register: tools
-  changed_when: tools.rc != 0
+- import_tasks: mac.yml
+  when: ansible_os_family == "Darwin"
 
 - name: Create symlink
   ansible.builtin.file:

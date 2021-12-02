@@ -14,6 +14,15 @@
     - dust
 
 - name: Install fzf
-  ansible.builtin.command: /home/linuxbrew/.linuxbrew/opt/fzf/install
+  ansible.builtin.shell: $(brew --prefix)/opt/fzf/install
   register: fzf
   changed_when: fzf.rc != 0
+
+- name: Template a file to ~/.zshenv
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/roles/zsh/templates/{{ item }}.j2"
+    dest: "~/{{ item }}"
+    mode: "0644"
+  loop:
+    - .zshenv
+    - .zshrc

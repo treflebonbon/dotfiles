@@ -1,16 +1,2 @@
-- name: Check docker
-  ansible.builtin.stat:
-    path: /.dockerenv
-  register: dockerenv
-
-- name: Set timezone
-  community.general.timezone:
-    name: "{{ timezone }}"
-  become: true
-  when: not dockerenv.stat.exists
-
-- name: Set editor
-  community.general.alternatives:
-    name: editor
-    path: /usr/bin/vim.basic
-  become: true
+- import_tasks: debian.yml
+  when: ansible_os_family == "Debian"

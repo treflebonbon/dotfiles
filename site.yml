@@ -1,8 +1,5 @@
 - hosts: localhost
   connection: local
-  environment:
-    GOROOT: /usr/local/go
-    PATH: "{{ ansible_env.PATH }}:/home/linuxbrew/.linuxbrew/bin:/usr/local/go/bin:{{ lookup('env','HOME') }}/.volta/bin"
   roles:
     - tools
     - git
@@ -13,5 +10,4 @@
     - terraform
     - docker
     - k8s
-    - dotfiles
     - zsh
