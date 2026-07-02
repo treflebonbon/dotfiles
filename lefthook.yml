@@ -1,0 +1,106 @@
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: pinact
+      run: pinact run {staged_files}
+      glob: ".github/**/*.{yaml,yml}"
+      stage_fixed: true
+    - name: shfmt
+      run: shfmt -w {staged_files}
+      glob: "**/*.sh"
+      exclude:
+        - ".agents/skills/**"
+        - "private_dot_config/bash/bash-preexec.sh" # vendored third-party
+      stage_fixed: true
+    - name: oxfmt
+      run: bunx oxfmt --write {staged_files}
+      glob:
+        - "**/*.js"
+        - "**/*.jsx"
+        - "**/*.ts"
+        - "**/*.tsx"
+        - "**/*.json"
+        - "**/*.jsonc"
+        - "**/*.css"
+        - "**/*.md"
+        - "**/*.yaml"
+        - "**/*.yml"
+        - "**/*.toml"
+      exclude:
+        - "**/dist/**"
+        - ".agents/skills/**"
+        - ".claude/skills/**"
+        - ".claude/worktrees/**"
+        - ".worktrees/**"
+        - "CHANGELOG.md"
+      stage_fixed: true
+    - name: oxlint
+      run: bunx oxlint --fix {staged_files}
+      glob:
+        - "**/*.js"
+        - "**/*.jsx"
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - ".agents/skills/**"
+        - ".claude/skills/**"
+        - ".claude/worktrees/**"
+        - ".worktrees/**"
+      stage_fixed: true
+    - name: ghalint
+      run: ghalint run {staged_files}
+      glob: ".github/workflows/*.{yaml,yml}"
+      depends:
+        - pinact
+        - shfmt
+        - oxfmt
+        - oxlint
+    - name: actionlint
+      run: actionlint {staged_files}
+      glob: ".github/workflows/*.{yaml,yml}"
+      depends:
+        - pinact
+        - shfmt
+        - oxfmt
+        - oxlint
+    - name: shellcheck
+      run: shellcheck {staged_files}
+      glob: "**/*.sh"
+      exclude:
+        - ".agents/skills/**"
+        - "private_dot_config/bash/bash-preexec.sh" # vendored third-party
+      depends:
+        - pinact
+        - shfmt
+        - oxfmt
+        - oxlint
+    - name: gitleaks
+      run: gitleaks protect --staged -v
+      exclude:
+        - "node_modules/**"
+      depends:
+        - pinact
+        - shfmt
+        - oxfmt
+        - oxlint
+    - name: typecheck
+      run: bunx tsc --noEmit
+      # tsconfig.json の include (ルート *.ts のみ) と揃える。glob を広げる場合は
+      # tsconfig 側も広げないと tsc が対象を読まず green で素通りする。
+      glob:
+        - "*.ts"
+        - "*.tsx"
+      exclude:
+        - "node_modules/**"
+      depends:
+        - pinact
+        - shfmt
+        - oxfmt
+        - oxlint
+
+commit-msg:
+  jobs:
+    - run: cog verify --file {1}

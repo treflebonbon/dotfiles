@@ -1,0 +1,32 @@
+# Installed by treflebonbon/dotfiles (chezmoi)
+# ~/.bash_profile - bash login shell configuration
+
+# ~/.local/bin を PATH に追加（chezmoi, claude 等）。重複ガード付き。
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+# XDG_RUNTIME_DIR フォールバックは ~/.bashrc の対話ガード前ブロックが担う
+# （本ファイル末尾の source で login shell にも適用される）。
+
+# Nix（login shell で早期読み込み）
+if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+  if ! command -v nix >/dev/null 2>&1; then
+    unset __ETC_PROFILE_NIX_SOURCED
+  fi
+  # shellcheck source=/dev/null
+  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+fi
+
+# Codex Desktop on WSL: keep app runtime state on the Linux filesystem.
+if [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
+  export CODEX_HOME="$HOME/.codex-app"
+  mkdir -p "$CODEX_HOME/sessions" "$CODEX_HOME/worktrees"
+fi
+
+# login shell でも対話設定を読み込む（bash の標準作法）
+if [ -n "$BASH_VERSION" ] && [ -f "$HOME/.bashrc" ]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.bashrc"
+fi

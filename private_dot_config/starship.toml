@@ -1,0 +1,158 @@
+# Starship configuration
+# Theme: Dracula (Official)
+# https://draculatheme.com/starship
+
+# =============================================================================
+# Dracula カラーパレット（公式）
+# =============================================================================
+palette = "dracula"
+
+# =============================================================================
+# プロンプトフォーマット
+# =============================================================================
+format = """
+[](purple)\
+$os\
+$username\
+[](bg:pink fg:purple)\
+$directory\
+[](fg:pink bg:current_line)\
+$git_branch\
+$git_status\
+[](fg:current_line bg:background)\
+$golang\
+$nodejs\
+$python\
+$rust\
+$gcloud\
+[](fg:background)\
+$fill\
+$cmd_duration\
+$time\
+\n$character"""
+right_format = ""
+
+[palettes.dracula]
+background = "#282a36"
+current_line = "#44475a"
+foreground = "#f8f8f2"
+comment = "#6272a4"
+cyan = "#8be9fd"
+green = "#50fa7b"
+orange = "#ffb86c"
+pink = "#ff79c6"
+purple = "#bd93f9"
+red = "#ff5555"
+yellow = "#f1fa8c"
+
+# =============================================================================
+# プロンプト文字
+# =============================================================================
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+
+# =============================================================================
+# OS アイコン
+# =============================================================================
+[os]
+disabled = false
+style = "bg:purple fg:background"
+format = "[$symbol ]($style)"
+
+[os.symbols]
+Macos = ""
+Linux = ""
+Windows = ""
+
+# =============================================================================
+# ユーザー名
+# =============================================================================
+[username]
+show_always = true
+style_user = "bg:purple fg:background"
+style_root = "bg:red fg:background"
+format = "[$user ]($style)"
+
+# =============================================================================
+# ディレクトリ
+# =============================================================================
+[directory]
+style = "bg:pink fg:background"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+
+# =============================================================================
+# Git
+# =============================================================================
+[git_branch]
+symbol = ""
+style = "bg:current_line fg:foreground"
+format = "[ $symbol $branch ]($style)"
+
+[git_status]
+style = "bg:current_line fg:foreground"
+format = "[$all_status$ahead_behind ]($style)"
+conflicted = "="
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+up_to_date = ""
+untracked = "?${count}"
+stashed = ""
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+# =============================================================================
+# 言語バージョン
+# =============================================================================
+[golang]
+symbol = ""
+style = "bg:background fg:cyan"
+format = "[ $symbol ($version) ]($style)"
+
+[nodejs]
+symbol = ""
+style = "bg:background fg:green"
+format = "[ $symbol ($version) ]($style)"
+
+[python]
+symbol = ""
+style = "bg:background fg:yellow"
+format = "[ $symbol ($version) ]($style)"
+
+[rust]
+symbol = ""
+style = "bg:background fg:orange"
+format = "[ $symbol ($version) ]($style)"
+
+# =============================================================================
+# その他
+# =============================================================================
+[gcloud]
+symbol = "󱇶"
+style = "bg:background fg:cyan"
+format = "[ $symbol $project]($style)"
+
+[cmd_duration]
+min_time = 500
+style = "fg:comment"
+format = "[ $duration]($style)"
+
+[time]
+disabled = false
+style = "fg:purple"
+format = "[ $time]($style)"
+time_format = "%H:%M"
+
+[fill]
+symbol = " "

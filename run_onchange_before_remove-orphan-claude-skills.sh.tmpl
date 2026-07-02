@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+skills_dir="${HOME}/.claude/skills"
+
+cleanup_repo_local_apm_targets() {
+  local repo="${HOME}/.local/share/chezmoi"
+  [ -d "$repo" ] || return 0
+
+  local removed=0
+  local entry
+  for entry in \
+    "$repo/.agents" \
+    "$repo/.codex/agents" \
+    "$repo/.codex/hooks.json" \
+    "$repo/.codex/skills" \
+    "$repo/.claude/agents" \
+    "$repo/.claude/commands" \
+    "$repo/.claude/hooks" \
+    "$repo/.claude/skills" \
+    "$repo/.claude/apm-hooks.json"; do
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+
+    if mountpoint -q "$entry"; then
+      printf 'orphan-claude-skills: skipping mounted repo-local APM target %s\n' "$entry" >&2
+      continue
+    fi
+
+    rm -rf -- "$entry"
+    removed=$((removed + 1))
+  done
+
+  if [ "$removed" -gt 0 ]; then
+    printf 'orphan-claude-skills: removed %d repo-local APM deploy targets from %s\n' \
+      "$removed" "$repo" >&2
+  fi
+}
+
+cleanup_repo_local_apm_targets
+
+if [ -d "$skills_dir" ]; then
+  removed=0
+  while IFS= read -r -d '' entry; do
+    rm -rf -- "$entry"
+    removed=$((removed + 1))
+  done < <(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+
+  if [ "$removed" -gt 0 ]; then
+    printf 'orphan-claude-skills: removed %d real directory entries from %s\n' \
+      "$removed" "$skills_dir" >&2
+  fi
+fi
+
+# Symlink 化石の常時除去:
+# APM_LEGACY_SKILL_PATHS=1 で apm が ~/.claude/skills/ や ~/.codex/skills/ に
+# real directory を deploy する際、symlink が残っていると
+# "Skill destination is a symlink -- refusing to deploy" で失敗する。
+#
+# 以下のいずれかに該当する symlink を除去 (narrow に絞り、ユーザー作成の
+# 正当な symlink には触らない):
+#   - target が /nix/store/ 配下 (旧 ai.nix shellHook の nix-store 直接参照)
+#   - target が ../../.agents/skills/ 配下 (旧 ai.nix の companion 経由)
+#   - dangling (target が存在しない壊れた symlink)
+#
+# 過去は ~/.agents/skills/.managed-by-ai-nix marker 依存だったが、現 ai.nix が
+# marker を作らないため発火せず symlink 残骸が永遠に放置される問題への対応。
+# 削除した symlink は target 込みで stderr に出力 (発生源調査の forensic 用途)。
+
+cleanup_symlinks() {
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+
+  local removed=0
+  while IFS= read -r -d '' link; do
+    local target
+    target=$(readlink -- "$link" 2>/dev/null || true)
+    local should_remove=0
+    case "$target" in
+      /nix/store/* | ../../.agents/skills/*)
+        should_remove=1
+        ;;
+      *)
+        if [ ! -e "$link" ]; then
+          should_remove=1
+        fi
+        ;;
+    esac
+    if [ "$should_remove" -eq 1 ]; then
+      printf 'orphan-claude-skills: removing %s -> %s\n' "$link" "$target" >&2
+      rm -f -- "$link"
+      removed=$((removed + 1))
+    fi
+  done < <(find "$dir" -mindepth 1 -maxdepth 1 -type l -print0)
+
+  if [ "$removed" -gt 0 ]; then
+    printf 'orphan-claude-skills: removed %d symlinks from %s\n' \
+      "$removed" "$dir" >&2
+  fi
+}
+
+cleanup_symlinks "${HOME}/.agents/skills"
+cleanup_symlinks "$skills_dir"
+cleanup_symlinks "${HOME}/.codex/skills"
+cleanup_symlinks "${HOME}/.copilot/skills"
+
+retired_apm_skills=(
+  agent-browser
+  baseline-ui
+  dogfood
+  fixing-accessibility
+  fixing-metadata
+  fixing-motion-performance
+  grill-me
+  webapp-testing
+)
+
+remove_named_skill_entries() {
+  local dir="$1"
+  local label="$2"
+  shift 2
+  [ -d "$dir" ] || return 0
+
+  local removed=0
+  local skill
+  for skill in "$@"; do
+    local entry="$dir/$skill"
+    if [ -e "$entry" ] || [ -L "$entry" ]; then
+      rm -rf -- "$entry"
+      removed=$((removed + 1))
+    fi
+  done
+
+  if [ "$removed" -gt 0 ]; then
+    printf "orphan-claude-skills: removed %d retired %s skill entries from %s\n" \
+      "$removed" "$label" "$dir" >&2
+  fi
+}
+
+remove_retired_apm_skill_dirs() {
+  remove_named_skill_entries "$1" "apm" "${retired_apm_skills[@]}"
+}
+
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+
+remove_retired_apm_skill_dirs "${HOME}/.agents/skills"
+remove_retired_apm_skill_dirs "$skills_dir"
+remove_retired_apm_skill_dirs "${HOME}/.codex/skills"
+if [ "$codex_home" != "$HOME/.codex" ]; then
+  remove_retired_apm_skill_dirs "$codex_home/skills"
+fi
+remove_retired_apm_skill_dirs "${HOME}/.gemini/skills"
+remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
+
+# 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)
+marker="${HOME}/.agents/skills/.managed-by-ai-nix"
+if [ -f "$marker" ]; then
+  rm -f -- "$marker"
+fi

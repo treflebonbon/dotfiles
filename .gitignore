@@ -1,0 +1,36 @@
+.env*
+!.envrc
+!.env.example
+.direnv/
+/tmp/
+node_modules/
+.worktrees/
+erl_crash.dump
+
+# Database files
+*.db
+
+# Claude Code runtime files
+private_dot_claude/plugins/installed_plugins.json
+.claude/worktrees/
+.claude/settings.local.json
+
+# Codex
+.codex
+
+# APM (Microsoft apm) dependencies and deploy targets
+# apm_modules/ is the cache, .agents/ and .claude/{agents,commands,hooks,skills}/
+# are deploy targets generated from apm_modules/ at `apm install` time.
+apm_modules/
+/.agents/
+/.claude/agents/
+/.claude/commands/
+/.claude/hooks/
+/.claude/skills/
+/.claude/apm-hooks.json
+
+# Local scratch / WIP dirs (debug artifacts from chezmoi / apm / git experiments)
+/.tmp/
+/.tmp-*/
+/a/
+/b/

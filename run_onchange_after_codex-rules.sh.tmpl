@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Codex managed rules hash: {{ include "private_dot_config/codex/rules/default.rules" | sha256sum }}
+set -euo pipefail
+
+managed_rules="$HOME/.config/codex/rules/default.rules"
+
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+codex_rules="$codex_home/rules/default.rules"
+
+if [ ! -f "$managed_rules" ]; then
+  echo "WARN: Codex managed rules not found: $managed_rules" >&2
+  exit 0
+fi
+
+mkdir -p "$(dirname "$codex_rules")"
+tmp="$(mktemp "$codex_rules.tmp.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+
+cp "$managed_rules" "$tmp"
+chmod 600 "$tmp"
+mv "$tmp" "$codex_rules"
+trap - EXIT

@@ -1,0 +1,223 @@
+# Block privilege escalation and direct access to privileged cloud CLIs.
+prefix_rule(
+    pattern = [["sudo", "su"]],
+    decision = "forbidden",
+    justification = "Privilege escalation must be reviewed outside Codex automation.",
+    match = [
+        "sudo apt update",
+        "su root",
+    ],
+    not_match = [
+        "systemctl status ssh",
+    ],
+)
+
+prefix_rule(
+    pattern = ["chmod", "777"],
+    decision = "forbidden",
+    justification = "Avoid world-writable permissions; use the minimum required mode instead.",
+    match = [
+        "chmod 777 /tmp/example",
+    ],
+    not_match = [
+        "chmod 755 scripts/tool.sh",
+    ],
+)
+
+prefix_rule(
+    pattern = [["nc", "gcloud", "aws"]],
+    decision = "forbidden",
+    justification = "Network probes and cloud CLIs can affect shared infrastructure; request explicit user direction first.",
+    match = [
+        "nc -zv example.com 443",
+        "gcloud projects list",
+        "aws s3 ls",
+    ],
+    not_match = [
+        "gh pr view 1",
+    ],
+)
+
+# Block destructive infrastructure and publishing commands.
+prefix_rule(
+    pattern = ["terraform", ["apply", "destroy"]],
+    decision = "forbidden",
+    justification = "Terraform mutations affect shared infrastructure and must be run manually.",
+    match = [
+        "terraform apply",
+        "terraform destroy -auto-approve",
+    ],
+    not_match = [
+        "terraform plan",
+    ],
+)
+
+prefix_rule(
+    pattern = ["kubectl", "delete"],
+    decision = "forbidden",
+    justification = "Deleting Kubernetes resources affects shared infrastructure; inspect resources first.",
+    match = [
+        "kubectl delete pod example",
+    ],
+    not_match = [
+        "kubectl get pods",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "repo", "delete"],
+    decision = "forbidden",
+    justification = "Repository deletion is destructive and must be performed manually.",
+    match = [
+        "gh repo delete owner/repo",
+    ],
+    not_match = [
+        "gh repo view owner/repo",
+    ],
+)
+
+prefix_rule(
+    pattern = ["npm", "publish"],
+    decision = "forbidden",
+    justification = "Package publishing is visible to others and must be performed manually.",
+    match = [
+        "npm publish",
+    ],
+    not_match = [
+        "npm pack",
+    ],
+)
+
+prefix_rule(
+    pattern = ["mix", "hex.publish"],
+    decision = "forbidden",
+    justification = "Package publishing is visible to others and must be performed manually.",
+    match = [
+        "mix hex.publish",
+    ],
+    not_match = [
+        "mix test",
+    ],
+)
+
+# Block common force-push forms.
+prefix_rule(
+    pattern = ["git", "push", ["-f", "--force", "--force-with-lease"]],
+    decision = "forbidden",
+    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
+    match = [
+        "git push -f",
+        "git push --force",
+        "git push --force-with-lease",
+    ],
+    not_match = [
+        "git push",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "origin", ["-f", "--force", "--force-with-lease"]],
+    decision = "forbidden",
+    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
+    match = [
+        "git push origin --force",
+    ],
+    not_match = [
+        "git push origin main",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "origin", ["main", "master"], ["-f", "--force", "--force-with-lease"]],
+    decision = "forbidden",
+    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
+    match = [
+        "git push origin main --force",
+        "git push origin master --force-with-lease",
+    ],
+    not_match = [
+        "git push origin main",
+    ],
+)
+
+# Block direct deletion of root or home, and require approval for recursive deletes.
+prefix_rule(
+    pattern = ["rm", ["/", "~"]],
+    decision = "forbidden",
+    justification = "Deleting root or home is catastrophic; inspect the target instead.",
+    match = [
+        "rm /",
+        "rm ~",
+    ],
+    not_match = [
+        "rm ./file",
+    ],
+)
+
+prefix_rule(
+    pattern = ["rm", ["-r", "-R", "-rf", "-fr"], ["/", "~"]],
+    decision = "forbidden",
+    justification = "Recursive deletion of root or home is catastrophic; inspect the target instead.",
+    match = [
+        "rm -r /",
+        "rm -rf ~",
+        "rm -fr /",
+    ],
+    not_match = [
+        "rm -rf ./tmp",
+    ],
+)
+
+prefix_rule(
+    pattern = ["rm", ["-r", "-R", "-rf", "-fr"], "--", ["/", "~"]],
+    decision = "forbidden",
+    justification = "Recursive deletion of root or home is catastrophic; inspect the target instead.",
+    match = [
+        "rm -rf -- /",
+        "rm -r -- ~",
+    ],
+    not_match = [
+        "rm -rf -- ./tmp",
+    ],
+)
+
+prefix_rule(
+    pattern = ["rm", ["-r", "-R", "-rf", "-fr"]],
+    decision = "prompt",
+    justification = "Recursive deletes require explicit approval.",
+    match = [
+        "rm -rf ./tmp",
+        "rm -r build",
+    ],
+    not_match = [
+        "rm ./file",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["view", "list", "create", "comment"]],
+    decision = "allow",
+    justification = "issue 操作の定型 (to-issues / triage 等)。",
+    match = ["gh issue create --title t", "gh issue view 904"],
+)
+
+prefix_rule(
+    pattern = ["gh", "search", "issues"],
+    decision = "allow",
+    justification = "dedup preflight (dogfood-to-issues / design-to-issues)。",
+    match = ["gh search issues query"],
+)
+
+prefix_rule(
+    pattern = ["gh", "label", "list"],
+    decision = "allow",
+    justification = "label preflight (dogfood-to-issues / setup-repo)。",
+    match = ["gh label list"],
+)
+
+prefix_rule(
+    pattern = ["gh", "api", "rate_limit"],
+    decision = "allow",
+    justification = "preflight の network probe。",
+    match = ["gh api rate_limit"],
+)

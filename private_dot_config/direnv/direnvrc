@@ -1,0 +1,30 @@
+# shellcheck shell=bash
+# nix-direnv: cache flake evaluation results
+if [ -f "$HOME/.nix-profile/share/nix-direnv/direnvrc" ]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.nix-profile/share/nix-direnv/direnvrc"
+fi
+
+_df_normalize_tmpdir_for_chrome() {
+  case "${TMPDIR:-}" in
+  /tmp/nix-shell.*)
+    export TMPDIR=/tmp
+    ;;
+  esac
+}
+
+if declare -f use_flake >/dev/null && ! declare -f use_flake | grep -q '_df_normalize_tmpdir_for_chrome'; then
+  eval "$(declare -f use_flake | sed '1s/use_flake/_df_original_use_flake/')"
+  use_flake() {
+    _df_original_use_flake "$@" || return
+    _df_normalize_tmpdir_for_chrome
+  }
+fi
+
+if declare -f use_nix >/dev/null && ! declare -f use_nix | grep -q '_df_normalize_tmpdir_for_chrome'; then
+  eval "$(declare -f use_nix | sed '1s/use_nix/_df_original_use_nix/')"
+  use_nix() {
+    _df_original_use_nix "$@" || return
+    _df_normalize_tmpdir_for_chrome
+  }
+fi

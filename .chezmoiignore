@@ -1,0 +1,39 @@
+# Codex CLI plugin のランタイムファイル（chezmoi 管理外）
+.codex
+
+# APM cache / deploy targets（apm install が生成する runtime state）
+apm_modules/**
+.agents/**
+.claude/agents/**
+.claude/commands/**
+.claude/hooks/**
+.claude/skills/**
+.claude/apm-hooks.json
+.claude/worktrees/**
+
+# 開発用テスト (lefthook / bats)。chezmoi の deploy / run-once 解釈から除外する。
+# 特に tests/run_once_before_*.bats は chezmoi が script と解釈して毎 apply で実行を試み、
+# test_helper が temp dir で見つからず失敗するため除外必須。
+tests/**
+
+# リポジトリ開発用メタ。chezmoi deploy 対象ではない。
+node_modules/**
+package.json
+bun.lock
+bunfig.toml
+tsconfig.json
+scripts/**
+
+# implement-issue runtime artifacts. chezmoi は dot_ / private_ prefix のないトップ
+# レベルディレクトリを deploy 対象としないため本来スルーされるが、保険として明示。
+tmp/**
+
+# `.tmp/` は deploy/test の scratch 置き場。`tmp/**` と同様 dot-dir で本来スルーされるが
+# 保険として明示 (`tmp/**` は `.tmp/**` をカバーしない)。なお scratch に renamed bin への
+# broken symlink が残ると `chezmoi execute-template` が stat エラーで詰まるため、溜めずに掃除する。
+.tmp/**
+
+# flake templates（per-repo flake の雛形）。chezmoi deploy 対象ではない。
+# リポジトリルートの非 prefix エントリは ~/ に配備されるため明示除外する。
+templates
+templates/**

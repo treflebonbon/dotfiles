@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# apm.yml hash:                {{ include "apm.yml" | sha256sum }}
+# apm.lock.yaml hash:          {{ include "apm.lock.yaml" | sha256sum }}
+# orphan-cleanup script hash:  {{ include "run_onchange_before_remove-orphan-claude-skills.sh.tmpl" | sha256sum }}
+#
+# manifest / lockfile / orphan-cleanup の hash が変わった時のみ chezmoi apply
+# で再実行される。orphan-cleanup は run_onchange_before_* として apm-install の
+# 前に走り、~/.claude/skills/ の real dir を全削除する仕様。再実行を連動
+# させないと apm-managed の skill が消えたまま残るため hash を引用する。
+# ネットワーク失敗時の retry: chezmoi apply
+#
+set -euo pipefail
+
+LIB="$HOME/.config/nix-devshell/lib/ensure-env.sh"
+# shellcheck disable=SC1090
+[ -f "$LIB" ] && . "$LIB" && ensure_nix_devshell_env
+
+if ! command -v apm >/dev/null 2>&1; then
+  echo "WARN: apm CLI が見つかりません。nix-devshell cache 未生成の可能性。" >&2
+  echo "      復旧: cd ~/.config/nix-devshell && direnv reload && chezmoi apply" >&2
+  exit 0
+fi
+
+cd "$HOME"
+apm install --frozen

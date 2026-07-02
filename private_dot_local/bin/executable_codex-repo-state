@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+apply=0
+root="${CODEX_REPO_STATE_ROOT:-$HOME/ghq}"
+
+usage() {
+  cat <<'EOF'
+Usage: codex-repo-state [--apply] [root]
+
+Find repo-local zero-byte .codex files that block Codex Desktop environment saves.
+Dry-run is the default. Use --apply to replace untracked zero-byte .codex files
+with .codex/environments directories. Tracked .codex files are never changed.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --apply)
+    apply=1
+    shift
+    ;;
+  -h | --help | help)
+    usage
+    exit 0
+    ;;
+  *)
+    root="$1"
+    shift
+    ;;
+  esac
+done
+
+if [ ! -d "$root" ]; then
+  echo "ERROR root not found: $root" >&2
+  exit 1
+fi
+
+is_tracked() {
+  local repo="$1"
+  git -C "$repo" ls-files --error-unmatch .codex >/dev/null 2>&1
+}
+
+is_ignored() {
+  local repo="$1"
+  git -C "$repo" check-ignore -q .codex >/dev/null 2>&1
+}
+
+repair_file() {
+  local repo="$1"
+  local codex_path="$repo/.codex"
+  local ignored_state="$2"
+
+  if [ "$apply" -eq 1 ]; then
+    rm "$codex_path"
+    mkdir -p "$codex_path/environments"
+    echo "FIXED $ignored_state untracked 0-byte file: $codex_path"
+  else
+    echo "DRY-RUN fix $ignored_state untracked 0-byte file: $codex_path"
+  fi
+}
+
+while IFS= read -r git_dir; do
+  repo="$(dirname "$git_dir")"
+  codex_path="$repo/.codex"
+
+  if [ -d "$codex_path" ]; then
+    echo "OK .codex directory: $codex_path"
+    continue
+  fi
+
+  if [ ! -f "$codex_path" ]; then
+    continue
+  fi
+
+  if [ -s "$codex_path" ]; then
+    echo "SKIP non-empty .codex file: $codex_path"
+    continue
+  fi
+
+  if is_tracked "$repo"; then
+    echo "SKIP tracked .codex file: $codex_path"
+    continue
+  fi
+
+  if is_ignored "$repo"; then
+    repair_file "$repo" ignored
+  else
+    repair_file "$repo" unignored
+    echo "WARN add .codex to .gitignore: $repo"
+  fi
+done < <(find "$root" -mindepth 2 -maxdepth 5 -type d -name .git -print | sort)

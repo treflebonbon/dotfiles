@@ -1,0 +1,36 @@
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+sandbox_mode = "workspace-write"
+default_permissions = "dotfiles-secure"
+
+[features]
+hooks = true
+goals = true
+
+[mcp_servers.context7]
+command = "bunx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.serena]
+command = "uvx"
+args = [
+  "--from",
+  "git+https://github.com/oraios/serena",
+  "serena",
+  "start-mcp-server",
+  "--enable-web-dashboard",
+  "false",
+]
+
+[permissions."dotfiles-secure".filesystem]
+glob_scan_max_depth = 4
+":workspace_roots" = { "." = "write", "**/.env*" = "none", "**/*.pem" = "none", "**/*.key" = "none", "**/*.pfx" = "none", "**/*.p12" = "none", "**/credentials.json" = "none", "**/credentials.*.json" = "none", "**/secret.json" = "none", "**/secrets.json" = "none", "**/service-account*.json" = "none" }
+"~/.ssh/**" = "none"
+"~/.aws/**" = "none"
+"~/.config/gcloud/**" = "none"
+
+[plugins."github@openai-curated"]
+enabled = true

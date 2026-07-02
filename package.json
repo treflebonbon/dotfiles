@@ -1,0 +1,19 @@
+{
+  "name": "treflebonbon-dotfiles",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun install --frozen-lockfile && bats tests/",
+    "claude:yolo": "claude --permission-mode bypassPermissions",
+    "claude:auto": "claude --permission-mode auto",
+    "codex:yolo": "codex --yolo",
+    "codex:auto": "codex --sandbox workspace-write --ask-for-approval on-request -c approvals_reviewer=auto_review"
+  },
+  "devDependencies": {
+    "bun-types": "^1.1.30",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.71.0",
+    "typescript": "^6.0.3",
+    "ultracite": "^7.8.3"
+  }
+}

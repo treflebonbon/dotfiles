@@ -1,0 +1,42 @@
+name: treflebonbon-dotfiles
+version: 0.1.0
+targets:
+  - claude
+  - codex
+dependencies:
+  apm:
+    # vercel-labs/agent-skills
+    - vercel-labs/agent-skills/skills/web-design-guidelines
+    - vercel-labs/agent-skills/skills/react-best-practices
+    - vercel-labs/agent-skills/skills/composition-patterns
+    - vercel-labs/agent-skills/skills/react-view-transitions
+    # shadcn-ui/ui
+    - shadcn-ui/ui/skills/shadcn
+    # vercel-labs/skills
+    - vercel-labs/skills/skills/find-skills
+    # anthropics/skills
+    - anthropics/skills/skills/skill-creator
+    - anthropics/skills/skills/pdf
+    - anthropics/skills/skills/frontend-design
+    # supabase/agent-skills
+    - supabase/agent-skills/skills/supabase-postgres-best-practices
+    # remotion-dev/skills
+    - remotion-dev/skills/skills/remotion
+    # GoogleChrome/modern-web-guidance
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance
+    # gotalab/uxaudit
+    - gotalab/uxaudit/skills/uxaudit
+    # coderabbitai/skills
+    - coderabbitai/skills
+    # mizchi/skills
+    - mizchi/skills/meta/empirical-prompt-tuning
+    # mattpocock/skills — 設計→実装ワークフロー (setup-matt-pocock-skills が per-repo で
+    # issue tracker / triage label 語彙 / domain doc レイアウトを構成する必須エントリポイント)
+    - mattpocock/skills/skills/engineering/setup-matt-pocock-skills
+    - mattpocock/skills/skills/engineering/grill-with-docs
+    - mattpocock/skills/skills/engineering/to-prd
+    - mattpocock/skills/skills/engineering/to-issues
+    - mattpocock/skills/skills/engineering/triage
+    - mattpocock/skills/skills/engineering/tdd
+    # Effect-TS/skills
+    - Effect-TS/skills/skills/effect-ts

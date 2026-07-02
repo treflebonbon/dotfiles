@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Codex managed hooks hash: {{ include "private_dot_config/codex/hooks.json" | sha256sum }}
+set -euo pipefail
+
+managed_hooks="$HOME/.config/codex/hooks.json"
+
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+codex_hooks="$codex_home/hooks.json"
+
+if [ ! -f "$managed_hooks" ]; then
+  echo "WARN: Codex managed hooks not found: $managed_hooks" >&2
+  exit 0
+fi
+
+mkdir -p "$codex_home"
+tmp="$(mktemp "$codex_hooks.tmp.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+
+cp "$managed_hooks" "$tmp"
+chmod 600 "$tmp"
+mv "$tmp" "$codex_hooks"
+trap - EXIT

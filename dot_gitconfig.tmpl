@@ -1,0 +1,52 @@
+# Git configuration managed by chezmoi (treflebonbon/dotfiles)
+
+{{ if or .git_user_name .git_user_email -}}
+[user]
+{{ if .git_user_name }}    name = {{ .git_user_name }}
+{{ end -}}
+{{ if .git_user_email }}    email = {{ .git_user_email }}
+{{ end -}}
+{{ end -}}
+[core]
+    editor = vim
+    autocrlf = input
+    filemode = false
+    ignorecase = false
+    quotepath = false
+    excludesfile = ~/.gitignore_global
+
+[color]
+    ui = true
+    diff = auto
+    status = auto
+    branch = auto
+
+[push]
+    default = current
+
+[merge]
+    ff = false
+
+[pull]
+    ff = only
+    autostash = true
+
+[rebase]
+    autoStash = true
+
+[init]
+    defaultBranch = main
+
+{{ $gh := lookPath "gh" -}}
+{{ if $gh -}}
+[credential "https://github.com"]
+    helper =
+    helper = !{{ $gh }} auth git-credential
+
+[credential "https://gist.github.com"]
+    helper =
+    helper = !{{ $gh }} auth git-credential
+{{ end -}}
+
+[coderabbit]
+	machineId = cli/9359eccbc5da4fa6ad62a44c7950b1fe

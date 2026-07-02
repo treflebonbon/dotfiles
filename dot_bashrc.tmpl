@@ -1,0 +1,259 @@
+# Installed by treflebonbon/dotfiles (chezmoi)
+# bash configuration managed by chezmoi
+# 変数: workspace_folder={{ .workspace_folder }}
+
+# XDG_RUNTIME_DIR が存在しない場合（WSL2 without systemd など）、~/.local/run へフォールバック。
+# non-login 対話シェル（VS Code / Zed 統合ターミナル等）でも必要なため、対話ガードより
+# 前に置く。login shell は ~/.bash_profile が本ファイルを source するためここでカバーされる。
+_xdg_run="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [ ! -d "$_xdg_run" ]; then
+  mkdir -p "$_xdg_run" 2>/dev/null || _xdg_run="${HOME}/.local/run"
+  mkdir -p "$_xdg_run"
+  chmod 700 "$_xdg_run"
+fi
+export XDG_RUNTIME_DIR="$_xdg_run"
+unset _xdg_run
+
+# 非対話シェルでは以降の対話設定を読まない
+case $- in
+  *i*) ;;
+  *) return ;;
+esac
+
+# ~/.local/bin を PATH に追加（chezmoi などのツール用）。
+# 入れ子シェル・再 source での重複蓄積を防ぐガード付き（旧 zsh の typeset -U 相当）。
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+# Nix（/etc/profile に無い環境・壊れた継承 PATH 向けのフォールバック）
+if { [ -z "$NIX_PROFILES" ] || ! command -v nix >/dev/null 2>&1; } && [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+  unset __ETC_PROFILE_NIX_SOURCED
+  # shellcheck source=/dev/null
+  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+fi
+
+# Zed on Windows は wsl.exe 経由でターミナル env を渡す。PATH は残し、mkShell 内部変数を落とす。
+_nix_devshell_prune_zed_env() {
+  case "$TERM_PROGRAM" in zed) ;; *) [ -n "$ZED_TERM" ] || [ -n "$ZED_ENVIRONMENT" ] || return ;; esac
+  unset PYTHONPATH PERL5LIB XDG_DATA_DIRS HOST_PATH
+  unset nativeBuildInputs buildInputs buildPhase defaultBuildInputs defaultNativeBuildInputs
+  unset NIX_BUILD_TOP
+  # zsh 版 `unset -m 'NIX_CFLAGS_*' 'NIX_LDFLAGS*' 'deps*' '*_FOR_BUILD'` の移植
+  local _v
+  while IFS= read -r _v; do
+    unset "$_v"
+  done < <(compgen -v | grep -E '^(NIX_CFLAGS_|NIX_LDFLAGS|deps)|_FOR_BUILD$' || true)
+}
+
+# nix-devshell グローバル環境を有効化（stale-while-revalidate キャッシュ）
+# ~/.config/nix-devshell のツールをホームなど direnv 管轄外でも利用可能にする。
+# キャッシュ実体は `nix print-dev-env` 出力で bash として source 可能。
+if [ -d "$HOME/.config/nix-devshell" ] && command -v nix >/dev/null 2>&1; then
+  _nd_cache="$HOME/.cache/nix-devshell-global-env.bash"
+  _nd_lib="$HOME/.config/nix-devshell/lib"
+
+  # ensure-env lib を読み込み関数を定義（cache 未作成でも下の PROMPT_COMMAND
+  # reload を登録できるよう、cache の有無に依らず source する）。cache があれば即反映。
+  if [ -f "$_nd_lib/ensure-env.sh" ]; then
+    # shellcheck source=/dev/null
+    . "$_nd_lib/ensure-env.sh"
+    if [ -f "$_nd_cache" ]; then
+      ensure_nix_devshell_env "$_nd_cache"
+      _nix_devshell_prune_zed_env
+      _ND_CACHE_MTIME="$(stat -c %Y "$_nd_cache" 2>/dev/null || echo 0)"
+    fi
+  fi
+
+  # 次回シェル向けに背景で stale-while-revalidate 再生成
+  if [ -f "$_nd_lib/refresh-cache.sh" ]; then
+    ( # shellcheck source=/dev/null
+      . "$_nd_lib/refresh-cache.sh" && refresh_nix_devshell_cache >/dev/null 2>&1 ) &
+    disown 2>/dev/null || true
+  fi
+  unset _nd_cache _nd_lib
+fi
+
+# nix-devshell キャッシュ更新を次プロンプトで自動反映（chezmoi apply 連携）
+_nix_devshell_global_reload() {
+  local cache="$HOME/.cache/nix-devshell-global-env.bash"
+  [ -f "$cache" ] || return
+  local mt
+  mt="$(stat -c %Y "$cache" 2>/dev/null)" || return
+  if [ "${_ND_CACHE_MTIME:-0}" != "$mt" ]; then
+    ensure_nix_devshell_env "$cache" 2>/dev/null
+    _nix_devshell_prune_zed_env
+    _ND_CACHE_MTIME="$mt"
+  fi
+}
+if declare -F ensure_nix_devshell_env >/dev/null 2>&1; then
+  case ";${PROMPT_COMMAND};" in
+    *";_nix_devshell_global_reload;"*) ;;
+    *) PROMPT_COMMAND="_nix_devshell_global_reload${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+  esac
+fi
+
+# ワークスペースを Git ルートから動的に解決（サブモジュール対応）
+if command -v git >/dev/null 2>&1; then
+  _detected_root="$(git -C "{{ .workspace_folder }}" rev-parse --show-toplevel 2>/dev/null)"
+fi
+export WORKSPACE_FOLDER="${_detected_root:-{{ .workspace_folder }}}"
+unset _detected_root
+
+# 履歴設定
+if [ -f /commandhistory/.bash_history ]; then
+  export HISTFILE=/commandhistory/.bash_history
+else
+  export HISTFILE="$HOME/.bash_history"
+fi
+export HISTSIZE=10000
+export HISTFILESIZE=20000
+export HISTCONTROL=ignoredups:ignorespace
+shopt -s histappend
+
+# bash オプション
+shopt -s autocd 2>/dev/null || true    # ディレクトリ名だけで cd
+shopt -s cdspell 2>/dev/null || true   # cd のタイプミス補正
+shopt -s dirspell 2>/dev/null || true
+shopt -s checkwinsize 2>/dev/null || true
+
+# bash-completion（OS パッケージ優先、無ければ nix devshell 供給の本体を XDG_DATA_DIRS から探索）
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    # shellcheck source=/dev/null
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    # shellcheck source=/dev/null
+    . /etc/bash_completion
+  else
+    IFS=: read -r -a _bc_dirs <<<"${XDG_DATA_DIRS:-}"
+    for _bc in "${_bc_dirs[@]}"; do
+      if [ -f "$_bc/bash-completion/bash_completion" ]; then
+        # shellcheck source=/dev/null
+        . "$_bc/bash-completion/bash_completion"
+        break
+      fi
+    done
+    unset _bc_dirs _bc
+  fi
+fi
+
+# --- ツール init（軽量: 直接初期化）---
+
+# direnv: ディレクトリごとの環境変数管理
+command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
+
+# bash-preexec: precmd/preexec hook 基盤（vendored, rcaloras/bash-preexec 0.6.0）。
+# atuin の履歴記録と starship のプロンプト描画は precmd_functions/preexec_functions
+# 経由で動くため、両者の init より前に source することが必須。
+# shellcheck source=/dev/null
+[ -f "$HOME/.config/bash/bash-preexec.sh" ] && . "$HOME/.config/bash/bash-preexec.sh"
+
+# fzf: キーバインド + 補完（+ Dracula カラー公式）
+# atuin より先に init する — Ctrl-R は後勝ちのため、この順序で atuin が履歴検索を取る。
+if command -v fzf >/dev/null 2>&1; then
+  eval "$(fzf --bash)"
+  export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
+fi
+
+# atuin: シェル履歴管理（Ctrl-R）。bash-preexec と fzf の後に init する。
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init bash)"
+
+# zoxide: スマート cd
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash --cmd cd)"
+
+# eza エイリアス
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons --git'
+  alias ll='eza -l --icons --git'
+  alias la='eza -la --icons --git'
+  alias lt='eza --tree --icons --git'
+fi
+
+# copilot CLI: Node.js ExperimentalWarning (node:sqlite) を抑制
+command -v copilot >/dev/null 2>&1 && alias copilot='NODE_OPTIONS="--disable-warning=ExperimentalWarning" copilot'
+
+# --- ghq + fzf リポジトリ管理 ---
+if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
+  # リポジトリ選択ピッカー（共通）
+  _ghq_fzf_select() {
+    ghq list | fzf --height=50% --reverse \
+      --preview="git --no-pager -C $(ghq root)/{} log --oneline -5 2>/dev/null || echo 'no commits'" \
+      --preview-window=down:5:wrap
+  }
+
+  # gcd: リポジトリへ cd
+  gcd() {
+    local repo
+    repo=$(_ghq_fzf_select) || return
+    cd "$(ghq root)/$repo" || return
+  }
+
+  # Ctrl-G: gcd のキーバインド版
+  bind -x '"\C-g": gcd' 2>/dev/null || true
+
+  # gclone: 引数ありで ghq get、なしで gh repo list（ユーザー + 所属 Org）→ fzf → clone
+  gclone() {
+    if [ $# -gt 0 ]; then
+      ghq get "$@"
+    else
+      local repo
+      repo=$(
+        {
+          gh repo list --limit 100 --json nameWithOwner --jq '.[].nameWithOwner'
+          gh api /user/orgs --jq '.[].login' 2>/dev/null | while read -r org; do
+            gh repo list "$org" --limit 100 --json nameWithOwner --jq '.[].nameWithOwner'
+          done
+        } | sort -u | fzf --height=50% --reverse
+      ) || return
+      ghq get "$repo"
+    fi
+  }
+
+  # gedit: リポジトリを $EDITOR で開く
+  gedit() {
+    local repo
+    repo=$(_ghq_fzf_select) || return
+    "${EDITOR:-vim}" "$(ghq root)/$repo"
+  }
+
+  # gweb: リポジトリを gh browse でブラウザ表示
+  gweb() {
+    local repo
+    repo=$(_ghq_fzf_select) || return
+    gh browse --repo "$repo"
+  }
+
+  # ginit: ghq 管理下にローカルリポジトリを作成
+  # 使い方: ginit owner/repo (例: ginit treflebonbon/new-app)
+  ginit() {
+    if [ $# -eq 0 ] || [[ "$1" != */* ]]; then
+      echo "Usage: ginit <owner>/<repo>" >&2
+      echo "Example: ginit treflebonbon/new-app" >&2
+      return 1
+    fi
+    local dir
+    dir="$(ghq root)/github.com/$1"
+    if [ -d "$dir" ]; then
+      echo "Already exists: $dir" >&2
+      return 1
+    fi
+    mkdir -p "$dir" && git init "$dir" && cd "$dir" || return
+  }
+fi
+
+# starship プロンプト
+command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"
+
+# プロジェクト固有設定を読み込み（優先順位順）
+for _cfg in \
+  "${WORKSPACE_FOLDER}/.devcontainer/dotfiles/bash/.bashrc.local" \
+  "${WORKSPACE_FOLDER}/.bashrc.local"; do
+  if [ -f "$_cfg" ]; then
+    # shellcheck source=/dev/null
+    . "$_cfg"
+    break
+  fi
+done
+unset _cfg

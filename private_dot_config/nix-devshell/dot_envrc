@@ -1,0 +1,7 @@
+# .envrc - direnv configuration for flake devShell
+if ! has nix; then
+  echo "Nix is not installed. Please run install.sh first."
+  exit 1
+fi
+
+use flake

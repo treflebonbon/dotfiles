@@ -1,0 +1,26 @@
+# chezmoi configuration
+# 環境変数から設定値を取得（デフォルト値付き）
+
+[data]
+    workspace_folder = {{ env "CHEZMOI_WORKSPACE_FOLDER" | default "/workspace" | quote }}
+{{- $gitName := env "GIT_AUTHOR_NAME" }}
+{{- $gitEmail := env "GIT_AUTHOR_EMAIL" }}
+{{- if not $gitName }}
+{{-   if stdinIsATTY }}
+{{-     $gitName = promptStringOnce . "git_user_name" "Git user name" }}
+{{-   else }}
+{{-     $gitName = "dev" }}
+{{-   end }}
+{{- end }}
+{{- if not $gitEmail }}
+{{-   if stdinIsATTY }}
+{{-     $gitEmail = promptStringOnce . "git_user_email" "Git email" }}
+{{-   else }}
+{{-     $gitEmail = "dev@localhost" }}
+{{-   end }}
+{{- end }}
+    git_user_name = {{ $gitName | quote }}
+    git_user_email = {{ $gitEmail | quote }}
+
+[cd]
+    command = "bash"
