@@ -9,9 +9,10 @@ let
   llm = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
 
   # AI ツールの baseline は llm-agents flake の pin (flake.lock) で固定する。
-  # claude-code の最低バージョンは Claude Sonnet 5 を default モデルに昇格した 2.1.197。
+  # 判断軸: モデル品質床（Sonnet 5 default = 2.1.197）を保ちつつ、この repo が多用する
+  #         subagent / teammate / workflow の error 伝搬・background daemon 安定化を強制する 2.1.199 を新フロアに据える。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
-  minClaudeCode = "2.1.197";
+  minClaudeCode = "2.1.199";
 
   claudeCode =
     let
@@ -19,7 +20,10 @@ let
       ok = v != null && lib.versionAtLeast v minClaudeCode;
       msg = ''
         claude-code ${toString v} は最低バージョン ${minClaudeCode} を満たしていません。
-        Claude Sonnet 5（claude-sonnet-5）を Claude Code の default モデルに昇格した 2.1.197 を品質ベースラインとして固定しています（native 1M context、加えて 2.1.196 の background job data-loss 修正・/code-review token 削減・MCP/security 修正を同梱）。
+        Claude Sonnet 5（claude-sonnet-5）を default モデルに昇格した 2.1.197 をモデル品質床として保持しつつ、
+        subagent / teammate / workflow の error 伝搬（rate-limit / API error を親へ正確に伝達）と
+        background daemon の安定化（~50s ごとの自死・claude stop の respawn 敗け・partial 応答の破棄を修正）を強制する
+        2.1.199 を品質ベースラインとして固定しています。この repo は多 agent ワークフローを主用するため床の根拠に据えます。
         修復手順:
           cd ~/.config/nix-devshell
           nix flake update llm-agents
