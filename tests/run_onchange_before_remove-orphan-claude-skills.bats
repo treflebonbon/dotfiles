@@ -45,6 +45,17 @@ run_script() {
   [ ! -e "$FAKE_HOME/.claude/skills/orphan-skill" ]
 }
 
+@test "resolves repo-local APM deploy targets via CHEZMOI_SOURCE_DIR when set" {
+  local repo="$BATS_TEST_TMPDIR/ghq-source"
+  mkdir -p "$repo/.agents/skills/frontend-design" "$repo/.claude/commands"
+  printf 'stub\n' >"$repo/.agents/skills/frontend-design/SKILL.md"
+
+  HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR="$repo" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [ ! -e "$repo/.agents" ]
+  [ ! -e "$repo/.claude/commands" ]
+}
+
 @test "removes repo-local APM deploy targets when they are not mounted" {
   local repo="$FAKE_HOME/.local/share/chezmoi"
   mkdir -p \
@@ -60,7 +71,7 @@ run_script() {
   printf '{}\n' >"$repo/.codex/hooks.json"
   printf '{}\n' >"$repo/.claude/apm-hooks.json"
 
-  run run_script
+  HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR= run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   [ ! -e "$repo/.agents" ]
