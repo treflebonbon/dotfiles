@@ -27,7 +27,8 @@ Accepted (2026-07-03)
 - `apm.yml` を上流 README の promoted セット（User-invoked / Model-invoked の公式分類）に整合させる:
   - User-invoked: `setup-matt-pocock-skills` / `grill-with-docs` / `to-prd` / `to-issues` / `triage` / `ask-matt` / `improve-codebase-architecture`
   - Model-invoked: `tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling`（依存の抜け修正）/ `codebase-design` / `prototype` / `research`
-  - ワークフローチェーンは **`grill-with-docs → to-prd → to-issues → triage → to-pr`**。実装フェーズに user-invoked skill は無く、model-invoked 層が自動発火する（上流ルール: user-invoked は他の user-invoked を呼ばない）
+  - ワークフローチェーンは **`to-worktree → grill-with-docs → to-prd → to-issues → triage → to-pr`**。実装フェーズに user-invoked skill は無く、model-invoked 層が自動発火する（上流ルール: user-invoked は他の user-invoked を呼ばない）
+  - チェーン入口の worktree 隔離は **`to-worktree`** skill として追加（Claude Code は `EnterWorktree` 優先、他ランタイムは `git worktree add .worktrees/<topic>`。2026-07-02 決定の「worktree は自律判断に委譲」を入口 skill として具体化。skill 層は薄く保ち、tdd / to-pr 等の実装系 skill には worktree 手順を組み込まない）
   - 非導入: `implement` / `resolving-merge-conflicts`（README 非掲載の unlisted。`implement` は一度導入したが model-invoked 発火で冗長な5行の糊と判明し除去）、`grilling`（fail-soft、model native に委譲）
 - `apm.yml` `targets` は `claude` / `codex`（apm の `install` は `antigravity` target 非対応）。ただし apm は全 skill を APM-native の共有ハブ `~/.agents/skills/` へ target 非依存で materialize し、そこが Antigravity のグローバル skill dir でもあるため、追加スキルは target 指定なしで 3 ランタイムに可視
 - 実装後のブラウザ AC 検証 + PR 作成は、軽量 chezmoi ローカル skill **`to-pr`** で補完する:
