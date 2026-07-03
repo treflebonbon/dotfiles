@@ -43,3 +43,17 @@ user-invoked チェーン（`to-worktree` → `grill-with-docs` → `to-prd` →
 ## Resources
 
 詳細は `~/okf/`（architecture, shell-environment, skill-harness, ai-runtimes, conventions, decisions）を参照。
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues（`gh` CLI）。外部 PR は triage 対象外。See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+5役割ともラベル名 = 役割名（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）。See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context（`CONTEXT.md` + `docs/adr/`、必要になり次第 lazy に作成）。`okf/` とは別レイヤー（`okf/` はシステム/infra 決定、`docs/adr/` は機能単位の決定）。See `docs/agents/domain.md`.
