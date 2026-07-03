@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# local skills tree hash: {{ output "sh" "-c" (printf "find '%s/local-skills' \\( -type f -exec sha256sum {} + -o -type l -printf '%%p -> %%l\\n' \\) | LC_ALL=C sort | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+#
+# chezmoi 配布のローカル skill を各ランタイムの skill dir へ materialize する。
+# ソースは {{ .chezmoi.sourceDir }}/local-skills/<name>/（.chezmoiignore で ~/ 非 deploy）。
+# 配備先:
+#   - ~/.agents/skills/<name>/         … Antigravity のグローバル skill dir（共有ハブ）
+#   - ~/.claude/skills/<name>/         … Claude
+#   - ${CODEX_HOME:-~/.codex}/skills/<name>/ … Codex
+# run_onchange_after_apm-install (alphabetical 'a' < 'd') の後に走るため、apm 配備を
+# 上書きしない。orphan-cleanup の wipe には preserve allowlist で保護済み（→
+# run_onchange_before_remove-orphan-claude-skills.sh.tmpl）。
+set -euo pipefail
+
+src_root="{{ .chezmoi.sourceDir }}/local-skills"
+codex_home="${CODEX_HOME:-$HOME/.codex}"
+
+# 配備するローカル skill 名。orphan-cleanup の preserve allowlist と一致させること。
+local_skills=(
+  to-pr
+  dogfood-to-issues
+  harness-feedback
+  marp
+  md-agents-review
+  md-claude-review
+  rop
+  worktree-gc
+)
+
+deploy_skill() {
+  local name="$1"
+  local src="$src_root/$name"
+
+  if [ ! -d "$src" ]; then
+    echo "ERROR: local skill source missing: $src" >&2
+    exit 1
+  fi
+
+  local target
+  for target in \
+    "$HOME/.agents/skills/$name" \
+    "$HOME/.claude/skills/$name" \
+    "$codex_home/skills/$name"; do
+
+    mkdir -p "$(dirname "$target")"
+    local tmp
+    tmp="$(mktemp -d "${target}.tmp.XXXXXX")"
+
+    # -L: symlink を実ファイル化 / --delete: 撤去分を反映 / .gitkeep は除外
+    if ! rsync -a -L --delete --exclude '.gitkeep' "$src/" "$tmp/"; then
+      rm -rf "$tmp"
+      echo "ERROR: rsync failed for $name -> $target" >&2
+      exit 1
+    fi
+
+    local old="${target}.old.$$"
+    if [ -e "$target" ] || [ -L "$target" ]; then
+      mv "$target" "$old"
+    fi
+    if mv "$tmp" "$target"; then
+      rm -rf "$old"
+    else
+      rm -rf "$tmp"
+      [ -e "$old" ] && mv "$old" "$target"
+      echo "ERROR: could not place $target" >&2
+      exit 1
+    fi
+  done
+}
+
+for skill in "${local_skills[@]}"; do
+  deploy_skill "$skill"
+done

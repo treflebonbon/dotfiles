@@ -32,7 +32,8 @@ chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。
 
 ## Skill 配布経路の選択
 
-- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`~/.claude/skills/` へ展開
+- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock 再生成は `cd ~ && apm lock`（詳細は `okf/skill-harness.md`）
+- **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-pr`（実装完了後に条件付きブラウザ AC 検証 + draft PR 作成。Codex / Antigravity からも利用可）
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
 
 Codex 固有の設定（config.toml / rules / hooks / environments）は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-*.sh.tmpl` が `~/.codex/`（`$CODEX_HOME`）へマージ配置する。

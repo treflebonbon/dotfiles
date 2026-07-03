@@ -48,3 +48,10 @@ tmp/**
 # リポジトリルートの非 prefix エントリは ~/ に配備されるため明示除外する。
 templates
 templates/**
+
+# chezmoi 配布のローカル skill ソース (SoT)。~/ へ直接 deploy せず、
+# run_onchange_after_deploy-local-skills.sh.tmpl が各ランタイムの skill dir
+# (~/.agents/skills, ~/.claude/skills, ~/.codex/skills) へ materialize する。
+# templates と同様、非 prefix トップレベルエントリなので明示除外する。
+local-skills
+local-skills/**

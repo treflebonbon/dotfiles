@@ -26,13 +26,25 @@ dependencies:
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance
     # mizchi/skills
     - mizchi/skills/meta/empirical-prompt-tuning
-    # mattpocock/skills — 設計→実装ワークフロー (setup-matt-pocock-skills が per-repo で
-    # issue tracker / triage label 語彙 / domain doc レイアウトを構成する必須エントリポイント)
+    # mattpocock/skills — 設計→実装ワークフロー。上流 README の promoted セットに整合
+    # (User-invoked / Model-invoked の公式分類。README 非掲載の implement /
+    #  resolving-merge-conflicts は非導入。grilling も非導入 = fail-soft で model が
+    #  inline 対話、okf が同系 grill-me を軽量化除去済み)。
+    # User-invoked (チェーン: grill-with-docs → to-prd → to-issues → triage → to-pr):
     - mattpocock/skills/skills/engineering/setup-matt-pocock-skills
     - mattpocock/skills/skills/engineering/grill-with-docs
     - mattpocock/skills/skills/engineering/to-prd
     - mattpocock/skills/skills/engineering/to-issues
     - mattpocock/skills/skills/engineering/triage
+    - mattpocock/skills/skills/engineering/ask-matt
+    - mattpocock/skills/skills/engineering/improve-codebase-architecture
+    # Model-invoked (実装フェーズで自動発火する discipline 層):
     - mattpocock/skills/skills/engineering/tdd
+    - mattpocock/skills/skills/engineering/code-review
+    - mattpocock/skills/skills/engineering/diagnosing-bugs
+    - mattpocock/skills/skills/engineering/domain-modeling
+    - mattpocock/skills/skills/engineering/codebase-design
+    - mattpocock/skills/skills/engineering/prototype
+    - mattpocock/skills/skills/engineering/research
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts

@@ -1,6 +1,10 @@
 # chezmoi configuration
 # 環境変数から設定値を取得（デフォルト値付き）
 
+# init 時の --source (ghq チェックアウト等) を永続化し、無指定 chezmoi apply でも
+# 同じソースを使う。install.sh の `chezmoi init --source="$DOTFILES_DIR"` モデルと整合。
+sourceDir = {{ .chezmoi.sourceDir | quote }}
+
 [data]
     workspace_folder = {{ env "CHEZMOI_WORKSPACE_FOLDER" | default "/workspace" | quote }}
 {{- $gitName := env "GIT_AUTHOR_NAME" }}

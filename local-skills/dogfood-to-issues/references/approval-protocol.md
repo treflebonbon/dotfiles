@@ -1,0 +1,71 @@
+---
+depends_on:
+  - skills/dogfood-to-issues/SKILL.md
+topics: [approval, dedup, github-issues]
+source: human
+---
+
+# Approval Protocol
+
+Every GitHub Issue is user-approved unless the user explicitly selects the batch escape hatch.
+
+## Dedup Preflight
+
+Before approval, search open issues for likely duplicates:
+
+```bash
+gh search issues --repo "$REPO" --state open "$TITLE_KEYWORDS" --json number,title,url,labels
+```
+
+Use the finding title's meaningful words for `TITLE_KEYWORDS`. Include dedup matches in the approval preview. When likely duplicates exist, make `Skip` the recommended option.
+
+## Per-Finding Question
+
+Use `AskUserQuestion` with a preview containing:
+
+- title
+- severity/category
+- URL
+- dedup hits
+- rendered issue body preview
+- evidence count and source report link
+
+Options:
+
+- `Keep (Recommended)` when there are no dedup hits.
+- `Skip (Recommended)` when dedup hits exist.
+- `Edit` to revise title, severity, category, or body, then show the preview again.
+- `Open all remaining as-is` to approve this and every remaining non-duplicate candidate without further prompts.
+
+If the runtime supports only 2-4 choices, fold edit targets into a single `Edit` option and ask a follow-up preview question after applying edits.
+
+## Edit Rules
+
+- Edits apply only to the current candidate unless the user selects the batch escape hatch after editing.
+- Re-run label mapping after severity/category edits.
+- Preserve original dogfood evidence links.
+
+## Create Issues
+
+For each approved candidate:
+
+```bash
+gh issue create --repo "$REPO" --title "$TITLE" --body-file "$BODY_FILE" --label "$LABELS"
+```
+
+If `--parent #N` was explicitly supplied, append a line to the parent issue body after successful creation:
+
+```text
+- [ ] #123 - Submit button is hidden on mobile
+```
+
+Do not infer a parent from repository state, branch names, or titles.
+
+## Failure Handling
+
+If issue creation fails, stop. Print:
+
+- issue numbers created so far
+- the failed candidate ID and title
+- the body file path
+- rollback commands such as `gh issue close <N> --reason "not planned"`

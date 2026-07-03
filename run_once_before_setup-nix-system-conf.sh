@@ -12,6 +12,20 @@ SYSTEMD_RUNTIME_DIR="${SYSTEMD_RUNTIME_DIR:-/run/systemd/system}"
 # Nix 未インストール環境はスキップ
 [ -f "$NIX_CONF" ] || exit 0
 
+# 非対話 sudo が使えない環境 (CI / sudo 未設定コンテナ / TTY 無しの apply) では、
+# sudo を要する system conf 書き込みを graceful に degrade する。下部の
+# restart_nix_daemon と同じ方針。install.sh は対話実行のため sudo プロンプトが出て
+# 通常経路を通る。exit 0 で apply 全体は止めない (run_once_before の失敗が
+# chezmoi apply を abort させないため)。
+if ! sudo -n true 2>/dev/null; then
+  if [ -f "$CUSTOM_CONF" ] && grep -q '^!include nix\.custom\.conf$' "$NIX_CONF" 2>/dev/null; then
+    echo "nix: 非対話 sudo 不可。$CUSTOM_CONF は既に整備済みのため system conf 更新をスキップ"
+  else
+    echo "nix: 非対話 sudo 不可かつ $CUSTOM_CONF 未整備。install.sh を対話実行するか手動で nix system conf を設定してください" >&2
+  fi
+  exit 0
+fi
+
 # nix.custom.conf を sudo touch で作成 (存在しない場合)
 [ -f "$CUSTOM_CONF" ] || sudo touch "$CUSTOM_CONF"
 
