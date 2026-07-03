@@ -27,7 +27,7 @@ chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。
 
 ## 設計→実装ワークフロー
 
-mattpocock skills の user-invoked チェーン（`grill-with-docs` → `to-prd` → `to-issues` → `triage` → `to-pr`）を使う。実装フェーズに user-invoked skill は無く、`triage` で ready にした issue を渡すと `tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `okf/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + draft PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
+user-invoked チェーン（`to-worktree` → `grill-with-docs` → `to-prd` → `to-issues` → `triage` → `to-pr`）を使う。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（Claude Code は `EnterWorktree` ツール優先。カレント checkout を汚さない）。実装フェーズに user-invoked skill は無く、`triage` で ready にした issue を渡すと `tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `okf/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + draft PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
 
 ## ブラウザ操作ツール
 
