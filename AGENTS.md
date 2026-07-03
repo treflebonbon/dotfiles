@@ -2,7 +2,7 @@
 
 chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。テーマは Dracula 統一。ログインシェルは bash。
 
-**重要**: ファイル編集は `~/.local/share/chezmoi/` 内で行う。`chezmoi apply` で `~/` に反映。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で反映。
+**重要**: ファイル編集は chezmoi source（`chezmoi source-path` で確認。init 時の `--source` が chezmoi.toml の `sourceDir` に永続化される）内で行う。`chezmoi apply` で `~/` に反映。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で反映。
 
 `AGENTS.md` is the Codex / OpenCode / Zed / Cursor-facing instruction file. `CLAUDE.md` is maintained separately for Claude Code-specific guidance.
 
@@ -12,7 +12,7 @@ chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。
 
 2 種類の flake devShell がある。混同しないこと:
 
-- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（lint / format / test 一式）。`cd ~/.local/share/chezmoi` で direnv が自動ロード。
+- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（lint / format / test 一式）。`cd "$(chezmoi source-path)"` で direnv が自動ロード。
 - **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix` → `~/.config/nix-devshell/flake.nix`) — 汎用ランタイム + 横断ツール + AI ツール。`nix-direnv` で評価結果をキャッシュ。プロジェクト言語の toolchain は per-repo `flake.nix` が供給する。
 
 新規 repo は `nix flake init -t 'github:treflebonbon/dotfiles#<lang>'`（go/rust/elixir/perl/gleam/bun）で展開する。
