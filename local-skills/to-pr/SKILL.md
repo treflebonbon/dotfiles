@@ -52,9 +52,15 @@ Do not fail-close or gate on screenshots. Record what you saw and move on.
 ## 4. Open the draft PR
 
 1. Push the branch if needed (ask before pushing — it is outward-facing).
-2. Write the PR body to a temp file: a short change summary plus the acceptance-criteria
-   results (each criterion with its label from step 3, or the plain summary for non-UI
-   work). Reference the issue it closes (`Fixes #N`) when there is one.
+2. Write the PR body to a **fresh** temp file (use `mktemp` or a branch-scoped name —
+   a fixed name like `pr-body.md` collides with stale content from previous runs). Write
+   it in the language of the conversation / repo. Canonical format for both cases: a short change
+   summary, then the acceptance criteria listed one per line with a label each — the
+   step 3 label for verified criteria, or `対象外(非UI)` for every criterion of a
+   non-browser-observable change (plus one line noting browser verification was skipped
+   as not applicable). Reference the issue it closes (`Fixes #N`) when there is one; when
+   there is no issue, omit the `Fixes` line and mention where the acceptance criteria
+   came from (conversation, PRD) in the summary instead.
 3. Create the PR as a draft:
 
    ```bash
@@ -79,4 +85,6 @@ Keep it to a few representative images. No hero-selection rules, no size gating.
 
 Wiki / ADR generation, change-effect graphs, epic-branch reconciliation, auto-merge,
 closing issues, verdict gates, evidence JSON schemas, mandatory trace/video capture.
+Also out of scope: running tests or any non-browser AC verification — that is assumed
+done by the implementation work (e.g. the `/tdd` cycle) that precedes this skill.
 This skill opens a draft PR with an honest, lightweight verification note — nothing more.
