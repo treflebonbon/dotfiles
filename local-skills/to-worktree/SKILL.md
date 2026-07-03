@@ -18,22 +18,33 @@ the final PR naturally.
    the conversation and confirm it. Branch name follows Conventional style:
    `feat/<topic>` (or `fix/<topic>` etc. when clearly not a feature).
 
-2. **Handle a dirty working tree.** If `git status` shows uncommitted changes, ask the
-   user: stash them, leave them in the current checkout (default), or abort.
+2. **Handle a dirty working tree.** "Dirty" means anything `git status` reports —
+   tracked modifications, staged changes, and untracked files alike. Ask the user: stash
+   them (`git stash -u` so untracked files are included), leave them in the current
+   checkout (default; leaves every category untouched), or abort. If the user cannot be
+   asked (non-interactive run), apply the default and say so in the report.
 
-3. **Create and enter the worktree.**
-   - **Claude Code**: prefer the native `EnterWorktree` tool — it moves the session into
-     an isolated worktree and cleans up automatically if unchanged.
-   - **Other runtimes** (Codex, Antigravity, plain shell): create it manually and run all
-     subsequent commands inside it:
+3. **Create and enter the worktree.** Two paths; pick by precondition, not preference:
+   - **`EnterWorktree` tool (Claude Code)** — use it **only when the target repo is the
+     session's current repository** (the repo the harness was launched in, not merely the
+     shell's cwd). It places the worktree in a harness-managed location
+     (`.claude/worktrees/`, also covered by `worktree-gc` roots) and auto-removes it if
+     it ends up unchanged. Both properties are fine for normal feature work.
+   - **Manual path (other runtimes, a different target repo, or when the worktree must
+     persist regardless of changes)**:
 
      ```bash
      git worktree add .worktrees/<topic> -b feat/<topic>
      cd .worktrees/<topic>
      ```
 
-   Keep worktrees under `.worktrees/` — this matches the roots the `worktree-gc` skill
-   collects, so abandoned worktrees get reclaimed later.
+   When in doubt about which path applies, take the manual path — it is always correct.
+   Naming: the worktree directory uses the bare slug (`.worktrees/<topic>`), the branch
+   uses the type-prefixed slug (`feat/<topic>`).
+
+   Either location is collected by the `worktree-gc` skill later. Do not edit
+   `.gitignore` to hide `.worktrees/` — if the repo doesn't ignore it already, it showing
+   up as untracked in the parent checkout is acceptable noise.
 
 4. **Report and hand off.** Confirm the worktree path and branch, then point to the next
    step: `/grill-with-docs` when the work starts from design, or the ready issue /
