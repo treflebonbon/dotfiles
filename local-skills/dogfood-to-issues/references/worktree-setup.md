@@ -25,12 +25,15 @@ If the slug is empty, stop and ask for a concrete target URL.
 ## Create
 
 ```bash
-git fetch origin main
-git worktree add -b "$BRANCH" "$WT_DIR" origin/main
+BASE_BRANCH="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null \
+  || git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' \
+  || echo main)"
+git fetch origin "$BASE_BRANCH"
+git worktree add -b "$BRANCH" "$WT_DIR" "origin/$BASE_BRANCH"
 mkdir -p "$WT_DIR/$OUTPUT_DIR"
 ```
 
-`origin/main` is the base because the worktree exists only to isolate the dogfood run from the caller's branch. The branch is never pushed; evidence lives under the `.worktrees/` worktree, which is gitignored, so it stays local.
+The repo's default branch (`origin/$BASE_BRANCH` — do not hardcode `main`; targets may use `master` or `develop`) is the base because the worktree exists only to isolate the dogfood run from the caller's branch. The branch is never pushed; evidence lives under the `.worktrees/` worktree, which is gitignored, so it stays local.
 
 > **Note on paths**: `WT_DIR` is relative to the repo root (inside the repository at `.worktrees/`). `OUTPUT_DIR` is relative to `WT_DIR`. All dogfood artifacts therefore live under `.worktrees/`, which is gitignored, so they stay a local-only audit trail (the `dogfood-output/` subtree is covered transitively by `.worktrees/`, not by a `dogfood-output/` entry).
 
