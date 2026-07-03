@@ -35,4 +35,16 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
+baseline は `modules/ai.nix` の `minClaudeCode` assert で床固定する（現 `2.1.199`）。床の根拠はモデル品質（Sonnet 5 default）＋ 多 agent ワークフローの信頼性（error 伝搬・background daemon 安定化）。
+
+## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
+
+`settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
+
+- **subagent が既定で background 実行**（2.1.198）— 委譲中も本流が進み完了通知が来る。`teammateMode: auto` と整合。
+- **worktree 完了時に自動 commit / push / draft PR**（2.1.198）— `claude agents` 起動の background agent は worktree でのコード作業を終えると停止して尋ねず自動で draft PR を開く。`to-worktree` → `to-pr` の想定と重なるので二重 PR に注意。
+- **stacked slash-skill が先頭 5 個までロード**（2.1.199）— `/skill-a /skill-b ...` で先頭 skill だけでなく先頭 5 個を全ロード。user-invoked チェーンの連結起動に効く。
+- **subagent の error 伝搬修正**（2.1.199）— rate-limit / API error を「成功」と誤報せず親へ正確に伝える。多 agent 実行の信頼性が上がる。
+- **Explore agent が main model を継承**（opus cap, 2.1.198）／**`/agents` wizard 削除**（`.claude/agents/` 直接編集 or Claude に依頼）。
+
 関連: [architecture](architecture.md) / [skill-harness](skill-harness.md)
