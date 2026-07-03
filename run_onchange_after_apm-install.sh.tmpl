@@ -23,3 +23,7 @@ fi
 
 cd "$HOME"
 apm install --frozen
+# apm.yml から除去されたパッケージ（撤去済み skill/plugin）の deployed_files を
+# 削除する。apm install --frozen は新規/更新分の反映のみで、不要になった
+# パッケージの実体（skills/agents/commands 配下）は自動削除しないため必須。
+apm prune

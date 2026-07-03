@@ -24,10 +24,6 @@ dependencies:
     - remotion-dev/skills/skills/remotion
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance
-    # gotalab/uxaudit
-    - gotalab/uxaudit/skills/uxaudit
-    # coderabbitai/skills
-    - coderabbitai/skills
     # mizchi/skills
     - mizchi/skills/meta/empirical-prompt-tuning
     # mattpocock/skills — 設計→実装ワークフロー (setup-matt-pocock-skills が per-repo で

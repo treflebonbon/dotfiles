@@ -48,9 +48,6 @@ in
     # --- Token Optimization ---
     llm.rtk
 
-    # --- Code Review ---
-    llm.coderabbit-cli
-
     # --- Specification & Design ---
     design-md-cli
 

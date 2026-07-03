@@ -173,7 +173,7 @@ run_script() {
     "$FAKE_HOME/.agents/skills/pdf" \
     "$FAKE_HOME/.agents/skills/react-view-transitions" \
     "$FAKE_HOME/.agents/skills/shadcn" \
-    "$FAKE_HOME/.agents/skills/uxaudit" \
+    "$FAKE_HOME/.agents/skills/remotion" \
     "$FAKE_HOME/.codex/skills/effect-ts" \
     "$FAKE_HOME/.codex/skills/frontend-design" \
     "$FAKE_HOME/.codex/skills/react-view-transitions" \
@@ -191,7 +191,7 @@ run_script() {
   [ -d "$FAKE_HOME/.agents/skills/pdf" ]
   [ -d "$FAKE_HOME/.agents/skills/react-view-transitions" ]
   [ -d "$FAKE_HOME/.agents/skills/shadcn" ]
-  [ -d "$FAKE_HOME/.agents/skills/uxaudit" ]
+  [ -d "$FAKE_HOME/.agents/skills/remotion" ]
   [ -d "$FAKE_HOME/.codex/skills/effect-ts" ]
   [ -d "$FAKE_HOME/.codex/skills/frontend-design" ]
   [ -d "$FAKE_HOME/.codex/skills/react-view-transitions" ]
@@ -212,6 +212,23 @@ run_script() {
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
     [ ! -e "$dir/agent-browser" ]
     [ ! -e "$dir/grill-me" ]
+    [ -d "$dir/modern-web-guidance" ]
+  done
+}
+
+@test "removes retired coderabbit (autofix/code-review) and uxaudit skills from agent runtime skill dirs" {
+  local codex_home="$BATS_TEST_TMPDIR/codex-home"
+  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
+    mkdir -p "$dir/autofix" "$dir/code-review" "$dir/uxaudit" "$dir/modern-web-guidance"
+  done
+
+  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+
+  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
+    [ ! -e "$dir/autofix" ]
+    [ ! -e "$dir/code-review" ]
+    [ ! -e "$dir/uxaudit" ]
     [ -d "$dir/modern-web-guidance" ]
   done
 }

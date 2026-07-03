@@ -21,6 +21,12 @@ setup() {
   ! grep -q 'APM_LEGACY_SKILL_PATHS=1' "$script"
 }
 
+@test "APM install prunes packages removed from apm.yml" {
+  local script="$PROJECT_ROOT/run_onchange_after_apm-install.sh.tmpl"
+
+  grep -q '^apm prune$' "$script"
+}
+
 @test "APM targets do not add a duplicate explicit agent-skills target" {
   ! grep -q '^  - agent-skills$' "$PROJECT_ROOT/apm.yml"
 }

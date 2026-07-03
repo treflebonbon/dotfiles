@@ -24,7 +24,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code]
 
 このワークフローは per-repo で完結する。ラベル provisioning は dotfiles では持たず、各 repo で `gh label create` または skill のランタイム挙動に任せる。domain doc は mattpocock ネイティブの `CONTEXT.md`/`docs/adr` を使い、この `okf/` バンドルとは混ぜない（OKF は dotfiles repo 専用）。
 
-**その他 apm skill（保持）**: web-design-guidelines, react-best-practices, composition-patterns, react-view-transitions, shadcn, find-skills, skill-creator, pdf, frontend-design, supabase-postgres-best-practices, remotion, modern-web-guidance, uxaudit, coderabbitai/skills, empirical-prompt-tuning, effect-ts。
+**その他 apm skill（保持）**: web-design-guidelines, react-best-practices, composition-patterns, react-view-transitions, shadcn, find-skills, skill-creator, pdf, frontend-design, supabase-postgres-best-practices, remotion, modern-web-guidance, empirical-prompt-tuning, effect-ts。
 
 ## playwright-cli
 

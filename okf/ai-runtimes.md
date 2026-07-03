@@ -12,7 +12,6 @@ tags: [ai, claude-code, codex, nix, llm-agents]
 AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`modules/ai.nix`）:
 
 - **LLM CLI**: claude-code, codex, copilot-cli, antigravity
-- **コードレビュー**: coderabbit-cli
 - **ワークフロー**: rtk
 
 外部 skill / plugin は apm が担当する（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。
@@ -31,7 +30,7 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 | 経路 | 対象 | 管理ファイル |
 | ---- | ---- | ------------ |
-| nix devshell binary | claude-code / codex / copilot-cli / coderabbit-cli / rtk 等 | `private_dot_config/nix-devshell/{flake.nix,modules/ai.nix,packages/*}` |
+| nix devshell binary | claude-code / codex / copilot-cli / rtk 等 | `private_dot_config/nix-devshell/{flake.nix,modules/ai.nix,packages/*}` |
 | APM skill / plugin | 外部 skill / Claude marketplace plugin | `apm.yml` / `apm.lock.yaml` |
 
 「AI ツールを更新したい」ときは両経路を確認する。
