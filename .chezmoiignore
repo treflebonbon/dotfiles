@@ -17,12 +17,23 @@ apm_modules/**
 tests/**
 
 # リポジトリ開発用メタ。chezmoi deploy 対象ではない。
+# CLAUDE.md / AGENTS.md はここに含めない: chezmoi が ~/CLAUDE.md, ~/AGENTS.md として
+# 配備するグローバル agent 指示ファイルであり、意図した deploy 対象（→ okf/architecture.md）。
 node_modules/**
 package.json
 bun.lock
 bunfig.toml
 tsconfig.json
 scripts/**
+README.md
+LICENSE
+flake.nix
+flake.lock
+install.sh
+lefthook.yml
+oxfmt.config.ts
+oxlint.config.ts
+project-ignore-patterns.ts
 
 # implement-issue runtime artifacts. chezmoi は dot_ / private_ prefix のないトップ
 # レベルディレクトリを deploy 対象としないため本来スルーされるが、保険として明示。
