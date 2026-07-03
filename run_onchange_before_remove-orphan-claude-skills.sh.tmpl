@@ -3,6 +3,27 @@ set -euo pipefail
 
 skills_dir="${HOME}/.claude/skills"
 
+# chezmoi 配布のローカル skill（apm 非管理）。real-dir wipe から除外する。
+# run_onchange_after_deploy-local-skills.sh.tmpl の local_skills=() と一致させること。
+preserve_local_skills=(
+  to-pr
+  dogfood-to-issues
+  harness-feedback
+  marp
+  md-agents-review
+  md-claude-review
+  rop
+  worktree-gc
+)
+
+is_preserved_local_skill() {
+  local name="$1" p
+  for p in "${preserve_local_skills[@]}"; do
+    [ "$name" = "$p" ] && return 0
+  done
+  return 1
+}
+
 cleanup_repo_local_apm_targets() {
   local repo="${HOME}/.local/share/chezmoi"
   [ -d "$repo" ] || return 0
@@ -41,6 +62,9 @@ cleanup_repo_local_apm_targets
 if [ -d "$skills_dir" ]; then
   removed=0
   while IFS= read -r -d '' entry; do
+    if is_preserved_local_skill "$(basename "$entry")"; then
+      continue
+    fi
     rm -rf -- "$entry"
     removed=$((removed + 1))
   done < <(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)

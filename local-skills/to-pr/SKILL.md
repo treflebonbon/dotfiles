@@ -1,0 +1,82 @@
+---
+name: to-pr
+description: "Turn finished work into a draft pull request. When the change is browser-observable, verify its acceptance criteria in a real browser and record the result; otherwise open the PR with a written summary. Use after implementation work (e.g. a /tdd cycle) to publish it for review."
+disable-model-invocation: true
+---
+
+# to-pr
+
+Publish completed work as a **draft** pull request for human review. This closes the
+gap left after implementation (a `/tdd` cycle stops at commit-to-branch): it opens the
+PR and, when the change is browser-observable, verifies the acceptance criteria in a
+real browser and folds the result into the PR body.
+
+Browser verification is **conditional**, not the point of the skill — non-UI changes
+skip it entirely. Keep the flow light: no evidence schemas, no verdict gates, no
+required traces/videos.
+
+## 1. Establish the context
+
+- Determine the base ref and the current branch. If the branch is not pushed, that is
+  handled in step 4.
+- Find the acceptance criteria: from the linked issue (`gh issue view`), the PRD, or the
+  conversation. If there are none, summarise what the change does instead.
+
+## 2. Decide whether the change is browser-observable
+
+A change is browser-observable when an acceptance criterion is about something you can
+see or exercise in a browser (a page, a URL, a UI behaviour, a rendered output).
+
+- **Browser-observable → verify (step 3).**
+- **Not browser-observable (pure library / CLI / infra / refactor) → skip to step 4**
+  and record `対象外(非UI)` for the criteria.
+
+## 3. Verify in the browser (only when step 2 says so)
+
+Use the `playwright-cli` skill for all browser interaction.
+
+1. Start the dev server if the repo defines one: `package.json` `scripts.dev`
+   (`npm run dev` / `bun dev`), or a `dev` target in the `Makefile` (`make dev`). If no
+   dev command exists, do not verify — mark the UI criteria `未確認` and note why.
+2. For each browser-observable criterion: open the relevant URL, drive the flow, take a
+   `snapshot`, and — where it helps a reviewer — a `screenshot`. Check the console and
+   network for errors.
+3. Assign each criterion one lightweight label:
+   - `確認済み` — observed working
+   - `未確認` — could not be exercised (no dev server, blocked path)
+   - `要人間確認` — ambiguous; needs a human to judge
+   - `対象外(非UI)` — not browser-observable
+
+Do not fail-close or gate on screenshots. Record what you saw and move on.
+
+## 4. Open the draft PR
+
+1. Push the branch if needed (ask before pushing — it is outward-facing).
+2. Write the PR body to a temp file: a short change summary plus the acceptance-criteria
+   results (each criterion with its label from step 3, or the plain summary for non-UI
+   work). Reference the issue it closes (`Fixes #N`) when there is one.
+3. Create the PR as a draft:
+
+   ```bash
+   gh pr create --draft --title "<conventional title>" --body-file <tmp>
+   ```
+
+## 5. Screenshots in the PR body (default: none)
+
+By default the PR body carries **text results only** — do not commit images.
+
+Embed screenshots **only when the user explicitly confirms** they should be kept in
+history. If confirmed:
+
+1. Commit the images under `.github/pr-assets/<branch>/` (confirm the commit and any
+   push first — both are outward-facing).
+2. Reference them from the PR body with SHA-pinned raw blob URLs:
+   `https://github.com/<owner>/<repo>/blob/<sha>/.github/pr-assets/<branch>/<file>?raw=true`
+
+Keep it to a few representative images. No hero-selection rules, no size gating.
+
+## Out of scope
+
+Wiki / ADR generation, change-effect graphs, epic-branch reconciliation, auto-merge,
+closing issues, verdict gates, evidence JSON schemas, mandatory trace/video capture.
+This skill opens a draft PR with an honest, lightweight verification note — nothing more.

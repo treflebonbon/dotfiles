@@ -35,6 +35,9 @@ pre-commit:
         - ".claude/worktrees/**"
         - ".worktrees/**"
         - "CHANGELOG.md"
+        # apm 生成の lockfile。oxfmt で再整形すると apm install が runtime で
+        # native 形式に書き戻し chezmoi と永続 drift するため除外する。
+        - "apm.lock.yaml"
       stage_fixed: true
     - name: oxlint
       run: bunx oxlint --fix {staged_files}
