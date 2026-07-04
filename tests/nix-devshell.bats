@@ -18,7 +18,7 @@ setup() {
 }
 
 @test "nix-devshell requires Claude Code with goal support" {
-  grep -q 'minClaudeCode = "2\.1\.199";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.200";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "nix-devshell includes Google Antigravity CLI" {

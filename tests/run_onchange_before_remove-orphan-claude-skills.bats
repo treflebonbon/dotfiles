@@ -152,6 +152,19 @@ run_script() {
   [ ! -e "$FAKE_HOME/.codex/skills/find-skills" ]
 }
 
+@test "removes ai-nix companion symlinks under custom CODEX_HOME/skills too" {
+  local codex_home="$BATS_TEST_TMPDIR/codex-home"
+  mkdir -p "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills"
+  ln -s "../../.agents/skills/find-skills" "$FAKE_HOME/.codex/skills/find-skills"
+  ln -s "../../.agents/skills/find-skills" "$codex_home/skills/find-skills"
+  : >"$FAKE_HOME/.agents/skills/.managed-by-ai-nix"
+
+  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [ ! -e "$FAKE_HOME/.codex/skills/find-skills" ]
+  [ ! -e "$codex_home/skills/find-skills" ]
+}
+
 @test "removes retired APM UI skill real directories from agent runtimes" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
