@@ -13,7 +13,7 @@ let
   #         error 伝搬・background daemon 安定化（2.1.199）を保ちつつ、background session の
   #         クラッシュ修正（sleep/resume・stale daemon 乗っ取り防止）を追加で強制する 2.1.200 を新フロアに据える。
   # 注意: 2.1.200 で default permission mode が "default" → "Manual" へ変更。settings.json.tmpl は
-  #       defaultMode を明示していないため影響を受ける（詳細は okf/ai-runtimes.md）。
+  #       defaultMode を明示していないため影響を受ける（詳細は runtime/ai-runtimes.md）。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
   minClaudeCode = "2.1.200";
 
@@ -28,7 +28,7 @@ let
         background daemon の安定化（~50s ごとの自死・claude stop の respawn 敗け・partial 応答の破棄を修正）を強制する 2.1.199 に加え、
         background session のクラッシュ修正（sleep/resume 後や stale セッション再開時の途中終了、stale daemon による乗っ取り防止）を
         強制する 2.1.200 を品質ベースラインとして固定しています。この repo は多 agent ワークフローを主用するため床の根拠に据えます。
-        2.1.200 は default permission mode を "default" から "Manual" へ変更しています（okf/ai-runtimes.md 参照）。
+        2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
           cd ~/.config/nix-devshell
           nix flake update llm-agents

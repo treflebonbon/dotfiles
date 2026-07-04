@@ -14,7 +14,7 @@ Accepted (2026-07-03)
 
 ## Context
 
-[decisions/2026-07-02-mattpocock-over-superpowers](2026-07-02-mattpocock-over-superpowers.md) の軽量化で、移行前の旧ワークフロー基盤が担っていた 3 領域のうち以下が抜けた:
+[ADR-0002](0002-mattpocock-over-superpowers.md) の軽量化で、移行前の旧ワークフロー基盤が担っていた 3 領域のうち以下が抜けた:
 
 - **ブラウザ AC 検証**（旧 `active-evaluator`）— `tdd` はコードの behavior test のみ
 - **実装後の PR 成果物**（旧 `finalize-epic`）— 上流 `implement` すら末尾は commit-to-branch で PR を作らない
@@ -45,4 +45,4 @@ Accepted (2026-07-03)
 - chezmoi ローカル skill が第 4 の配布経路として確立（apm が唯一の管理点ではなくなった）
 - apm.lock 上、mattpocock 追加 4 skill は上流 HEAD (`e9dea69`) に解決されるが、対象 4 skill は既存 pin (`7a83a3a`) と内容同一のため実害なし
 
-関連: [skill-harness](../skill-harness.md) / [2026-07-02-mattpocock-over-superpowers](2026-07-02-mattpocock-over-superpowers.md)
+関連: [skill-harness](../../runtime/skill-harness.md) / [ADR-0002](0002-mattpocock-over-superpowers.md)

@@ -22,13 +22,13 @@ Single-context repo:
 └── ...
 ```
 
-## Relationship to `okf/`
+## Relationship to `runtime/`
 
-This repo also maintains **`okf/`** — a separate, pre-existing knowledge bundle (chezmoi-deployed to `~/okf/`) describing the *dotfiles system itself*: chezmoi layout, nix devshells, skill harness, AI runtimes, and the architecture decisions behind them (`okf/decisions/`). `okf/` is consumed by any agent running in the home directory, across all repos — it is not scoped to feature work in this repo.
+This repo also maintains **`runtime/`** — a pre-existing knowledge bundle (chezmoi-deployed to `~/runtime/`) describing the environment every agent shares regardless of which repo it's working in: shell environment, skill deployment, AI runtime config. It's named `runtime/`, not `okf/` — OKF (Open Knowledge Format) is the markdown+frontmatter *format* these files are written in, not a description of their content, so it doesn't belong in the directory name.
 
-`CONTEXT.md` / `docs/adr/` (once they exist) are scoped to feature-level engineering-skill work *in this repo* (`tdd`, `diagnosing-bugs`, `improve-codebase-architecture`, `domain-modeling`) — glossary terms and decisions that arise from building or fixing something here, as opposed to decisions about the dotfiles system's own architecture.
+`runtime/` is scoped strictly to content with genuine cross-repo value (see [ADR-0007](../adr/0007-split-okf-by-cross-repo-value.md)). Two docs that used to live there — `architecture` (this repo's own chezmoi/nix layout) and `conventions` (this repo's own commit/lint rules) — provide no value to an agent working in an unrelated repo, so they live in `docs/architecture.md` / `docs/conventions.md` instead (repo-local, not chezmoi-deployed).
 
-**This split is provisional and flagged for reconsideration** — if `docs/adr/` and `okf/decisions/` start accumulating overlapping or contradicting entries, that's the signal to consolidate. Until then: system/infra-level decisions go in `okf/decisions/`, feature-level decisions arising from engineering-skill work go in `docs/adr/`.
+**Decision records are unified in `docs/adr/`** (see [ADR-0006](../adr/0006-consolidate-decisions-into-docs-adr.md)) — there is no separate `runtime/decisions/` (formerly `okf/decisions/`). All ADRs for this repo, whether about the dotfiles system's own architecture or about feature-level engineering-skill work, live in `docs/adr/` with sequential numbering (`000N-slug.md`). They keep the OKF-style frontmatter (`type` / `description` / `tags` / `timestamp`) as useful metadata, but otherwise follow the lightweight mattpocock ADR-FORMAT.md template.
 
 ## Use the glossary's vocabulary
 
@@ -38,6 +38,6 @@ If the concept you need isn't in the glossary yet, that's a signal — either yo
 
 ## Flag ADR conflicts
 
-If your output contradicts an existing ADR (in `docs/adr/` or `okf/decisions/`), surface it explicitly rather than silently overriding:
+If your output contradicts an existing ADR in `docs/adr/`, surface it explicitly rather than silently overriding:
 
-> _Contradicts ADR-0007 (event-sourced orders) — but worth reopening because…_
+> _Contradicts ADR-0003 (event-sourced orders) — but worth reopening because…_

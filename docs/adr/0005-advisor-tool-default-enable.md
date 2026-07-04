@@ -32,7 +32,7 @@ Anthropic の Advisor tool（`advisor_20260301`、beta）は、実行役の exec
 ## Consequences
 
 - advisor 呼び出しは advisor モデル（Fable 5）のレートで別課金され、コスト・レイテンシが増える。`effortLevel: xhigh` と方向性が重なり、コスト増が二重に積み上がる。
-- undocumented 機能のため、将来の claude-code アップデートで env var 名や挙動が変わる、または機能自体が削除されるリスクがある。floor bump 時はこの ADR と [ai-runtimes](../ai-runtimes.md) の該当節を再確認する。
+- undocumented 機能のため、将来の claude-code アップデートで env var 名や挙動が変わる、または機能自体が削除されるリスクがある。floor bump 時はこの ADR と [ai-runtimes](../../runtime/ai-runtimes.md) の該当節を再確認する。
 - advisor モデルに Fable 5 を選んだが、Anthropic ドキュメントは Opus 系（Opus 4.8 等）を主要ユースケースとして推奨しており、Fable 5 の実績情報は少ない。効果が薄い、またはコストに見合わない場合は `advisorModel` の値を差し替えるだけでよく、この選択自体は容易に反転できる。
 
-関連: [ai-runtimes](../ai-runtimes.md)
+関連: [ai-runtimes](../../runtime/ai-runtimes.md)

@@ -10,6 +10,8 @@ timestamp: 2026-07-02
 
 ## Status
 
+Superseded by [ADR-0006](0006-consolidate-decisions-into-docs-adr.md)（決定記録の置き場を `docs/adr/` へ一本化）と [ADR-0007](0007-split-okf-by-cross-repo-value.md)（ディレクトリ名を `okf/` から `runtime/` へ改名、concept 文書を cross-repo 価値の有無で分割）(いずれも 2026-07-04)。
+
 Accepted (2026-07-02)
 
 ## Context
@@ -27,5 +29,7 @@ upstream は独自の知識グラフ（CEG frontmatter の depends_on/topics、`
 
 - 知識は現実のアーキと一致し、agent が follow-link で辿れる
 - OKF は構造の標準であり意味論は与えない（producer が type 語彙を決める）
+- (2026-07-04 追記) 決定記録の置き場については、mattpocock skills の標準（`docs/adr/`）に一本化する方向で見直した。詳細は ADR-0006。
+- (2026-07-04 追記) ディレクトリ名 `okf/` は OKF という*書式*の名前であり内容を表さないため、`runtime/` へ改名した。加えて、concept 文書のうち dotfiles repo 自身にしか関係しないもの（architecture / conventions）は home-wide 配備の対象から外し `docs/` へ移した。詳細は ADR-0007。
 
-関連: [index](../index.md) / [skill-harness](../skill-harness.md)
+関連: [index](../../runtime/index.md) / [skill-harness](../../runtime/skill-harness.md)

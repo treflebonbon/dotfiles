@@ -30,4 +30,4 @@ superpowers plugin は TDD / 計画 / コードレビュー等のプロセスを
 - workflow は Claude Code の Skill tool 前提（Codex は汎用コーディングのみ）
 - mattpocock ワークフローは per-repo で `setup-matt-pocock-skills` が構成する
 
-関連: [skill-harness](../skill-harness.md)
+関連: [skill-harness](../../runtime/skill-harness.md)

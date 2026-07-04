@@ -7,7 +7,7 @@ tags: [bash, shell, starship, atuin, ghq]
 
 # Shell environment
 
-ログインシェルは **bash**（zsh は使わない → [decisions/2026-07-02-bash-over-zsh](decisions/2026-07-02-bash-over-zsh.md)）。
+ログインシェルは **bash**（zsh は使わない → [ADR-0001](../docs/adr/0001-bash-over-zsh.md)）。
 
 - `dot_bash_profile.tmpl` → `~/.bash_profile` — login shell。PATH / XDG_RUNTIME_DIR フォールバック / nix-daemon 読み込み / Codex Desktop 用 CODEX_HOME、末尾で `~/.bashrc` を source。
 - `dot_bashrc.tmpl` → `~/.bashrc` — 対話 shell。ツール init と関数を定義。
@@ -52,4 +52,4 @@ zsh 専用の対話プラグイン（autosuggestions / syntax-highlighting）は
 - **neovim (lazy.nvim)** — LSP は flake devShell 管理のものを PATH 経由で利用
 - **wezterm** — ターミナル（Dracula テーマ、WSL 対応）
 
-関連: [architecture](architecture.md) / [ai-runtimes](ai-runtimes.md)
+関連: [architecture](../docs/architecture.md) / [ai-runtimes](ai-runtimes.md)
