@@ -15,4 +15,4 @@ tags: [conventions, git, lint, lefthook]
 
 `tests/` の bats で install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証（`bun run test` = `bats tests/`）。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、bats 非対象）。`.chezmoiignore` で home には非配備。
 
-関連: [architecture](architecture.md)
+関連: [architecture](architecture.md)（本ファイルも repo ローカル専用、`.chezmoiignore` で `~/docs/` へは非配備）

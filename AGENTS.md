@@ -6,7 +6,7 @@ chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。
 
 `AGENTS.md` is the Codex / OpenCode / Zed / Cursor-facing instruction file. `CLAUDE.md` is maintained separately for Claude Code-specific guidance.
 
-アーキテクチャ・意思決定の詳細は `~/okf/`（Open Knowledge Format バンドル、`okf/index.md` が入口）を参照する。
+home 配下のどの repo でも共通するシェル環境・skill 配備・AI ランタイムの詳細は `~/runtime/`（Open Knowledge Format で書かれた知識バンドル、`runtime/index.md` が入口）を参照する。dotfiles repo 自身の構造・規約は `docs/architecture.md` / `docs/conventions.md`、意思決定記録（ADR）は `docs/adr/`（いずれも repo ローカル）を参照する。
 
 ## Architecture
 
@@ -32,7 +32,7 @@ chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。
 
 ## Skill 配布経路の選択
 
-- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock 再生成は `cd ~ && apm lock`（詳細は `okf/skill-harness.md`）
+- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock 再生成は `cd ~ && apm lock`（詳細は `runtime/skill-harness.md`）
 - **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-worktree`（機能作業の入口で `git worktree add .worktrees/<topic>` により隔離。カレント checkout を汚さない）/ `to-pr`（実装完了後に条件付きブラウザ AC 検証 + draft PR 作成。Codex / Antigravity からも利用可）
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
 
@@ -40,4 +40,4 @@ Codex 固有の設定（config.toml / rules / hooks / environments）は `privat
 
 ## Resources
 
-詳細は `~/okf/`（architecture, shell-environment, skill-harness, ai-runtimes, conventions, decisions）を参照。
+詳細は `~/runtime/`（shell-environment, skill-harness, ai-runtimes）、`docs/`（architecture, conventions）、`docs/adr/`（意思決定記録）を参照。

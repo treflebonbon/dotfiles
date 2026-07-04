@@ -173,15 +173,17 @@ chezmoi update            # リモートから更新
 - **Bootstrap**: `install.sh`（エントリーポイント）、`.chezmoi.toml.tmpl`
 - **Dotfiles**（`dot_*` → `~/.*`）: `dot_bashrc.tmpl`, `dot_bash_profile.tmpl`, `dot_gitconfig.tmpl`, `dot_tmux.conf`
 - **Scripts**（`run_*`）: `run_after_setup-gh.sh`, `run_onchange_after_codex-*.sh.tmpl`, `run_onchange_after_apm-install.sh.tmpl` など
-- **Docs / Knowledge**: `CLAUDE.md` / `AGENTS.md`、`okf/`（Open Knowledge Format バンドル）
+- **Docs / Knowledge**: `CLAUDE.md` / `AGENTS.md`、`runtime/`（Open Knowledge Format で書かれた home-wide 知識バンドル）、`docs/`（repo ローカルな architecture/conventions/ADR）
 - `private_dot_claude/` → `~/.claude/`: `settings.json.tmpl`
 - `private_dot_config/` → `~/.config/`: `starship.toml`, `nvim/`, `wezterm/`, `codex/`, `nix-devshell/`（`flake.nix` / `modules/` / `packages/` / `lib/`）
 - **APM**: `apm.yml` / `apm.lock.yaml`（外部 skill / plugin）
 - **Templates**: `templates/<lang>/`（per-repo flake 雛形、home には非配備）
 
-## 知識バンドル（OKF）
+## 知識バンドル（runtime/）
 
-アーキテクチャと意思決定は [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) バンドルとして `okf/` に置き、chezmoi が `~/okf/` へ配備します。agent は `okf/index.md` を入口に markdown リンクで辿れます。
+home 配下のどの repo でも共通するシェル環境・skill 配備・AI ランタイムの知識は [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) で書かれたバンドルとして `runtime/` に置き、chezmoi が `~/runtime/` へ配備します。agent は `runtime/index.md` を入口に markdown リンクで辿れます（OKF はここで使う markdown+frontmatter の *形式* であり、ディレクトリ名には使いません）。
+
+dotfiles repo 自身の構造・規約（`docs/architecture.md` / `docs/conventions.md`）と意思決定記録（`docs/adr/`）は repo ローカルで、home へは配備されません。他 repo で作業中の agent には価値が無いためです。
 
 ## Dracula カラーパレット
 
