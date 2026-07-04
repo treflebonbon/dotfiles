@@ -53,3 +53,9 @@ dependencies:
     - mattpocock/skills/skills/productivity/grilling
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
+    # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
+    # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
+    # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
+    - stablyai/orca/skills/orca-cli
+    - stablyai/orca/skills/orchestration
+    - stablyai/orca/skills/computer-use
