@@ -2,6 +2,7 @@
 set -euo pipefail
 
 skills_dir="${HOME}/.claude/skills"
+codex_home="${CODEX_HOME:-$HOME/.codex}"
 
 # chezmoi 配布のローカル skill（apm 非管理）。real-dir wipe から除外する。
 # run_onchange_after_deploy-local-skills.sh.tmpl の local_skills=() と一致させること。
@@ -128,6 +129,9 @@ cleanup_symlinks() {
 cleanup_symlinks "${HOME}/.agents/skills"
 cleanup_symlinks "$skills_dir"
 cleanup_symlinks "${HOME}/.codex/skills"
+if [ "$codex_home" != "$HOME/.codex" ]; then
+  cleanup_symlinks "$codex_home/skills"
+fi
 cleanup_symlinks "${HOME}/.copilot/skills"
 
 retired_apm_skills=(
@@ -169,8 +173,6 @@ remove_named_skill_entries() {
 remove_retired_apm_skill_dirs() {
   remove_named_skill_entries "$1" "apm" "${retired_apm_skills[@]}"
 }
-
-codex_home="${CODEX_HOME:-$HOME/.codex}"
 
 remove_retired_apm_skill_dirs "${HOME}/.agents/skills"
 remove_retired_apm_skill_dirs "$skills_dir"
