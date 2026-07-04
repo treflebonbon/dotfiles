@@ -10,14 +10,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 ## Architecture
 
-2 種類の flake devShell がある。混同しないこと:
-
-- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（lint / format / test 一式）。`cd "$(chezmoi source-path)"` で direnv が自動ロード。
-- **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix` → `~/.config/nix-devshell/flake.nix`) — 汎用ランタイム + 横断ツール + AI ツール。`nix-direnv` で評価結果をキャッシュ。プロジェクト言語の toolchain は per-repo `flake.nix` が供給する。
-
-新規 repo は `nix flake init -t 'github:treflebonbon/dotfiles#<lang>'`（go/rust/elixir/perl/gleam/bun）で展開する。
-
-ツール追加は用途で使い分ける: chezmoi リポジトリ編集向け（lefthook hooks 等）→ `./flake.nix`、横断ツール・汎用ランタイム → `private_dot_config/nix-devshell/`、プロジェクト言語ツール → per-repo flake / `templates/<lang>/`。
+2 種類の flake devShell がある。混同しないこと: **リポジトリ自体** (`./flake.nix`, chezmoi 編集用) と **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix`, 汎用ランタイム+横断ツール)。詳細な役割分担・ツール追加先の判断は `docs/architecture.md` を参照。
 
 ## Conventions
 
@@ -37,7 +30,3 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
 
 Codex 固有の設定（config.toml / rules / hooks / environments）は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-*.sh.tmpl` が `~/.codex/`（`$CODEX_HOME`）へマージ配置する。
-
-## Resources
-
-詳細は `~/runtime/`（shell-environment, skill-harness, ai-runtimes）、`docs/`（architecture, conventions）、`docs/adr/`（意思決定記録）を参照。
