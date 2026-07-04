@@ -1,5 +1,5 @@
 lockfile_version: '1'
-generated_at: '2026-07-04T01:20:49.554218+00:00'
+generated_at: '2026-07-04T07:41:14.178471+00:00'
 apm_version: 0.23.1
 dependencies:
 - repo_url: Effect-TS/skills
@@ -1427,6 +1427,57 @@ dependencies:
     .claude/skills/shadcn/rules/icons.md: sha256:d4a58266648872d9ee07d0c2368843a1cb88b8253b7f528dd7bda9d68b6c2535
     .claude/skills/shadcn/rules/styling.md: sha256:4a71da3fc53d8efbedac26946e5b13b53d1edf71583d62088ccc2b8cc7b5fef7
   content_hash: sha256:8bd5bd4156a6d36d6a15f117b7a16cbb2d506d56921da59524a9e4ef3058e4d4
+- repo_url: stablyai/orca
+  name: orca
+  host: github.com
+  resolved_commit: 8070e657787f0d76fc4a56dfd29d6bfcc6140bca
+  version: unknown
+  virtual_path: skills/computer-use
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/computer-use
+  - .agents/skills/computer-use/SKILL.md
+  - .claude/skills/computer-use
+  - .claude/skills/computer-use/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/computer-use/SKILL.md: sha256:7f5a7bbe8b2fb51a9637e8df71cd1dca1a84b213ffe5bf56dcdd3417d7fb1601
+    .claude/skills/computer-use/SKILL.md: sha256:7f5a7bbe8b2fb51a9637e8df71cd1dca1a84b213ffe5bf56dcdd3417d7fb1601
+  content_hash: sha256:869b5b9345b7146e2cfb89b0e07768c191d5c3f200ed9e5119935ec9e235aef3
+- repo_url: stablyai/orca
+  name: orca
+  host: github.com
+  resolved_commit: 8070e657787f0d76fc4a56dfd29d6bfcc6140bca
+  version: unknown
+  virtual_path: skills/orca-cli
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/orca-cli
+  - .agents/skills/orca-cli/SKILL.md
+  - .claude/skills/orca-cli
+  - .claude/skills/orca-cli/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/orca-cli/SKILL.md: sha256:65dddf473219f4324d6b81ece2af29d512948dd9ebd67f15b424a1b205ea814e
+    .claude/skills/orca-cli/SKILL.md: sha256:65dddf473219f4324d6b81ece2af29d512948dd9ebd67f15b424a1b205ea814e
+  content_hash: sha256:05082e104941ca59933153cb82df1d599f6aa323688ff5a8d54ef0a36068a65f
+- repo_url: stablyai/orca
+  name: orca
+  host: github.com
+  resolved_commit: 8070e657787f0d76fc4a56dfd29d6bfcc6140bca
+  version: unknown
+  virtual_path: skills/orchestration
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/orchestration
+  - .agents/skills/orchestration/SKILL.md
+  - .claude/skills/orchestration
+  - .claude/skills/orchestration/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/orchestration/SKILL.md: sha256:e72ecaf625b4a839189e8f13717b0c5b7a309fc82c9ed0dbfb8e861e31a2124a
+    .claude/skills/orchestration/SKILL.md: sha256:e72ecaf625b4a839189e8f13717b0c5b7a309fc82c9ed0dbfb8e861e31a2124a
+  content_hash: sha256:41ed7dcd9830115694d0fd12145c597a31d5040e920753767add82c4154e281a
 - repo_url: supabase/agent-skills
   name: agent-skills
   host: github.com
