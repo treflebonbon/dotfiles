@@ -13,7 +13,7 @@ If either doesn't exist yet, **proceed silently**. Don't flag their absence; don
 
 Single-context repo:
 
-```
+```text
 /
 ├── CONTEXT.md
 ├── docs/adr/
