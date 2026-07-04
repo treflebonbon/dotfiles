@@ -28,8 +28,10 @@ dependencies:
     - mizchi/skills/meta/empirical-prompt-tuning
     # mattpocock/skills — 設計→実装ワークフロー。上流 README の promoted セットに整合
     # (User-invoked / Model-invoked の公式分類。README 非掲載の implement /
-    #  resolving-merge-conflicts は非導入。grilling も非導入 = fail-soft で model が
-    #  inline 対話、okf が同系 grill-me を軽量化除去済み)。
+    #  resolving-merge-conflicts は非導入。grill-me は okf が軽量化のため除去済み。
+    #  grilling は productivity カテゴリの Model-invoked skill で
+    #  grill-with-docs/grill-me の共通ループ — ADR-0009 参照。
+    #  productivity の teach は「設計→実装ワークフロー」スコープ外のため非導入 — ADR-0010 参照)。
     # User-invoked (チェーン: grill-with-docs → to-prd → to-issues → triage → to-pr):
     - mattpocock/skills/skills/engineering/setup-matt-pocock-skills
     - mattpocock/skills/skills/engineering/grill-with-docs
@@ -38,6 +40,8 @@ dependencies:
     - mattpocock/skills/skills/engineering/triage
     - mattpocock/skills/skills/engineering/ask-matt
     - mattpocock/skills/skills/engineering/improve-codebase-architecture
+    - mattpocock/skills/skills/productivity/handoff
+    - mattpocock/skills/skills/productivity/writing-great-skills
     # Model-invoked (実装フェーズで自動発火する discipline 層):
     - mattpocock/skills/skills/engineering/tdd
     - mattpocock/skills/skills/engineering/code-review
@@ -46,5 +50,6 @@ dependencies:
     - mattpocock/skills/skills/engineering/codebase-design
     - mattpocock/skills/skills/engineering/prototype
     - mattpocock/skills/skills/engineering/research
+    - mattpocock/skills/skills/productivity/grilling
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
