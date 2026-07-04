@@ -28,7 +28,7 @@ dependencies:
     - mizchi/skills/meta/empirical-prompt-tuning
     # mattpocock/skills — 設計→実装ワークフロー。上流 README の promoted セットに整合
     # (User-invoked / Model-invoked の公式分類。README 非掲載の implement /
-    #  resolving-merge-conflicts は非導入。grill-me は okf が軽量化のため除去済み。
+    #  resolving-merge-conflicts は非導入。grill-me は ADR-0002 により軽量化のため除去済み。
     #  grilling は productivity カテゴリの Model-invoked skill で
     #  grill-with-docs/grill-me の共通ループ — ADR-0009 参照。
     #  productivity の teach は「設計→実装ワークフロー」スコープ外のため非導入 — ADR-0010 参照)。
