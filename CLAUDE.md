@@ -10,14 +10,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 ## Architecture
 
-2 種類の flake devShell がある。混同しないこと:
-
-- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（lint / format / test 一式）。`cd "$(chezmoi source-path)"` で direnv が自動ロード。加えて per-repo flake の `templates` output（go/rust/elixir/perl/gleam/bun）を公開する。
-- **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix` → `~/.config/nix-devshell/flake.nix`) — 汎用ランタイム（node / python3 / bun）+ 横断ツール + AI ツール。`nix-direnv` で評価結果をキャッシュ。プロジェクト言語の toolchain（go/rust/elixir/perl/gleam）は持たず、per-repo `flake.nix` が供給する。
-
-新規 repo は `nix flake init -t 'github:treflebonbon/dotfiles#<lang>'`（go/rust/elixir/perl/gleam/bun）で展開する。テンプレ実体は `templates/<lang>/`。
-
-ツール追加は用途で使い分ける: chezmoi リポジトリ編集向け（lefthook hooks 等）→ `./flake.nix`、横断ツール・汎用ランタイム → `private_dot_config/nix-devshell/`、プロジェクト言語ツール → per-repo flake / `templates/<lang>/`。
+2 種類の flake devShell がある。混同しないこと: **リポジトリ自体** (`./flake.nix`, chezmoi 編集用) と **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix`, 汎用ランタイム+横断ツール)。詳細な役割分担・ツール追加先の判断は `docs/architecture.md` を参照。
 
 ## Conventions
 
@@ -39,10 +32,6 @@ user-invoked チェーン（`to-worktree` → `grill-with-docs` → `to-prd` →
 - **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が `~/.agents/skills` / `~/.claude/skills` / `~/.codex/skills` へ配備（orphan-cleanup の `preserve_local_skills` で保護）。例: `to-pr`
 - **settings.json `enabledPlugins`**: hook を含む plugin（security-guidance / LSP / codex）の runtime 有効化
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
-
-## Resources
-
-詳細は `~/runtime/`（shell-environment, skill-harness, ai-runtimes — home-wide 配備）、`docs/`（architecture, conventions — repo ローカル）、`docs/adr/`（意思決定記録）を参照。
 
 ## Agent skills
 
