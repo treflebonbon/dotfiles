@@ -10,7 +10,7 @@ timestamp: 2026-07-04
 
 ## Status
 
-Accepted (2026-07-04)
+Accepted (2026-07-04)。2026-07-06、[Issue #13](https://github.com/treflebonbon/dotfiles/issues/13) を受けて `advisorModel` を `fable` から `opus` に変更。Anthropic 公式ドキュメントが Opus 系を主要ユースケースとして推奨している点に合わせた、本 ADR が想定していた低コストな反転（Decision/Consequences 本文は当時の判断記録として変更しない）。
 
 ## Context
 
