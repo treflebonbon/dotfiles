@@ -33,17 +33,45 @@ see or exercise in a browser (a page, a URL, a UI behaviour, a rendered output).
 
 ## 3. Verify in the browser (only when step 2 says so)
 
-Use the `playwright-cli` skill for all browser interaction.
+Use the `playwright-cli` skill for all browser interaction, with two exceptions:
+
+- **Criteria needing the user's real logged-in session** (no seeded fixture — a real
+  account, real data, or a real payment/irreversible action): playwright-cli's context
+  has no login. Use the `claude-in-chrome` skill instead so verification runs in the
+  user's actual browser. If its site permission hasn't been granted, ask the user rather
+  than silently verifying against playwright-cli's anonymous context. If driving the
+  criterion would itself perform a real, costly, or hard-to-reverse action (e.g. an
+  actual payment), ask before that specific step — the same bar as asking before `git
+  push`.
+- **This machine may run other Orca workspaces/agents concurrently.** Give playwright-cli
+  a workspace-scoped session name (`-s=<branch-or-workspace-name>`) — never the shared
+  `default` session, and never `close-all` / `kill-all`. Before starting a dev server, do
+  one check: is the port already bound, and if so does the owning process's `cwd` match
+  your own worktree? If it does not, stop there (do not investigate further or try to
+  resolve the conflict) — mark the criterion `未確認` noting the port conflict and move
+  on.
 
 1. Start the dev server if the repo defines one: `package.json` `scripts.dev`
    (`npm run dev` / `bun dev`), or a `dev` target in the `Makefile` (`make dev`). If no
    dev command exists, do not verify — mark the UI criteria `未確認` and note why.
 2. For each browser-observable criterion: open the relevant URL, drive the flow, take a
    `snapshot`, and — where it helps a reviewer — a `screenshot`. Check the console and
-   network for errors.
+   network for errors. For timing- or count-sensitive criteria, measure inside a single
+   `run-code` script rather than chaining separate CLI calls (each call's own round-trip
+   can itself exceed the window you're measuring), e.g.:
+
+   ```js
+   async page => {
+     await page.getByRole('button', { name: '<trigger>' }).click()
+     const t0 = Date.now()
+     await page.getByText('<criterion text>').waitFor({ state: 'visible' })
+     await page.getByText('<criterion text>').waitFor({ state: 'hidden' })
+     return Date.now() - t0
+   }
+   ```
 3. Assign each criterion one lightweight label:
    - `確認済み` — observed working
-   - `未確認` — could not be exercised (no dev server, blocked path)
+   - `未確認` — could not be exercised (no dev server, blocked path, port conflict)
    - `要人間確認` — ambiguous; needs a human to judge
    - `対象外(非UI)` — not browser-observable
 
