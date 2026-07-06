@@ -6,8 +6,7 @@ disable-model-invocation: true
 
 # to-worktree
 
-Entry point of every workflow chain. Which chain follows depends on the scenario (see
-ADR-0012 in the project's `docs/adr/`):
+Entry point of every workflow chain. Which chain follows depends on the scenario:
 
 - Requirements undetermined: `to-worktree → grill-with-docs → to-prd → to-issues → triage`
 - Requirements already decided: `to-worktree → tdd → code-review → to-pr`
