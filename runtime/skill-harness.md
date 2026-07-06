@@ -15,7 +15,11 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 **mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。上流 README の promoted セット（User-invoked / Model-invoked の公式分類）に整合させて導入している。
 
-_User-invoked_（明示起動のみ、orchestration 層。チェーン: `to-worktree → grill-with-docs → to-prd → to-issues → triage → to-pr`）:
+_User-invoked_（明示起動のみ、orchestration 層。チェーンはシナリオ別に3分岐する — 詳細は [ADR-0012](../docs/adr/0012-branch-workflow-chain-by-scenario.md)）:
+
+- 要件未確定: `to-worktree → grill-with-docs → to-prd → to-issues → triage`
+- 要件確定済み実装: `to-worktree → tdd → code-review → to-pr`（to-issues/triage を経由しない）
+- バグ修正: `to-worktree → diagnosing-bugs → code-review → to-pr`（同上）
 
 - `setup-matt-pocock-skills` — **必須エントリポイント**。per-repo で issue tracker（GitHub / GitLab / local markdown / その他）、triage label 語彙、domain doc レイアウト（`CONTEXT.md` + `docs/adr/`）を構成し `docs/agents/*.md` を生成
 - `grill-with-docs` — 対話しつつ `CONTEXT.md` と ADR を更新（`domain-modeling` に委譲）
