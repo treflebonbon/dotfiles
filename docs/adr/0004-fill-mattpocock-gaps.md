@@ -10,7 +10,7 @@ timestamp: 2026-07-03
 
 ## Status
 
-Accepted (2026-07-03)。ワークフローチェーンを単一チェーンとした部分は [ADR-0012](0012-branch-workflow-chain-by-scenario.md)（2026-07-06）でシナリオ別3分岐に amend 済み。
+Accepted (2026-07-03)。ワークフローチェーンを単一チェーンとした部分は [ADR-0012](0012-branch-workflow-chain-by-scenario.md)（2026-07-06）でシナリオ別3分岐に amend 済み。to-pr が draft PR を開く部分は [ADR-0013](0013-to-pr-ready-for-review.md)（2026-07-07）で ready-for-review に amend 済み。
 
 ## Context
 
