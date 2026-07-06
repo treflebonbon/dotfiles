@@ -14,6 +14,7 @@ let
   #         クラッシュ修正（sleep/resume・stale daemon 乗っ取り防止）を追加で強制する 2.1.200 を新フロアに据える。
   # 注意: 2.1.200 で default permission mode が "default" → "Manual" へ変更。settings.json.tmpl は
   #       defaultMode を明示していないため影響を受ける（詳細は runtime/ai-runtimes.md）。
+  # 2.1.201: harness reminder の system role 廃止のみで settings/workflow に影響なし。フロア据え置き。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
   minClaudeCode = "2.1.200";
 

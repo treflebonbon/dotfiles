@@ -37,6 +37,8 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 baseline は `modules/ai.nix` の `minClaudeCode` assert で床固定する（現 `2.1.200`）。床の根拠はモデル品質（Sonnet 5 default）＋ 多 agent ワークフローの信頼性（error 伝搬・background daemon 安定化）。
 
+`llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
+
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
 `settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
