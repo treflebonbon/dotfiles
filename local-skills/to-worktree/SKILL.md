@@ -6,8 +6,13 @@ disable-model-invocation: true
 
 # to-worktree
 
-Entry point of the workflow chain
-(`to-worktree → grill-with-docs → to-prd → to-issues → triage → implementation → to-pr`).
+Entry point of every workflow chain. Which chain follows depends on the scenario (see
+ADR-0012 in the project's `docs/adr/`):
+
+- Requirements undetermined: `to-worktree → grill-with-docs → to-prd → to-issues → triage`
+- Requirements already decided: `to-worktree → tdd → code-review → to-pr`
+- Bug fix: `to-worktree → diagnosing-bugs → code-review → to-pr`
+
 Isolate the upcoming work in a worktree so the current checkout is never dirtied. Design
 artifacts written along the way (`CONTEXT.md`, ADRs) land on the same branch and ride into
 the final PR naturally.

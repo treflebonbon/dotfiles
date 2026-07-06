@@ -10,7 +10,7 @@ timestamp: 2026-07-03
 
 ## Status
 
-Accepted (2026-07-03)
+Accepted (2026-07-03)。ワークフローチェーンを単一チェーンとした部分は [ADR-0012](0012-branch-workflow-chain-by-scenario.md)（2026-07-06）でシナリオ別3分岐に amend 済み。
 
 ## Context
 
@@ -45,4 +45,4 @@ Accepted (2026-07-03)
 - chezmoi ローカル skill が第 4 の配布経路として確立（apm が唯一の管理点ではなくなった）
 - apm.lock 上、mattpocock 追加 4 skill は上流 HEAD (`e9dea69`) に解決されるが、対象 4 skill は既存 pin (`7a83a3a`) と内容同一のため実害なし
 
-関連: [skill-harness](../../runtime/skill-harness.md) / [ADR-0002](0002-mattpocock-over-superpowers.md)
+関連: [skill-harness](../../runtime/skill-harness.md) / [ADR-0002](0002-mattpocock-over-superpowers.md) / [ADR-0012](0012-branch-workflow-chain-by-scenario.md)（ワークフローチェーンを amend）
