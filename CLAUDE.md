@@ -20,13 +20,14 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 ## 設計→実装ワークフロー
 
-シナリオに応じて3つのチェーンを使い分ける（ADR-0012）。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（Claude Code は `EnterWorktree` ツール優先。カレント checkout を汚さない）。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先し、`/to-worktree` はそれ以外の環境で使う（ADR-0011）。
+メインフロー1本 + on-ramp 2つで構成する（ADR-0014、上流 `ask-matt` の main-flow/on-ramp 構造に整合）。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（Claude Code は `EnterWorktree` ツール優先。カレント checkout を汚さない）。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先し、`/to-worktree` はそれ以外の環境で使う（ADR-0011）。**worktree は一度だけ入る** — 以降のスキルは同一 worktree/セッション内で連続実行し、都度 `to-worktree` には戻らない。
 
-- **要件未確定**: `to-worktree` → `grill-with-docs` → `to-prd` → `to-issues` → `triage` で issue を ready-for-agent にする（実装は下記いずれかのチェーンへ引き継ぐ）
-- **要件確定済み実装**: `to-worktree` → `tdd` → `code-review` → `to-pr`（`to-issues` / `triage` を経由せず直接実装に入る）
-- **バグ修正**: `to-worktree` → `diagnosing-bugs` → `code-review` → `to-pr`（同上）
+- **メインフロー**: `grill-with-docs` → `to-prd` → `to-issues` → `tdd` → `code-review` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-prd` / `to-issues` を省略し `tdd` から直接入ってよい。
+- **on-ramp**（メインフロー外から issue/バグが持ち込まれる入口）:
+  - raw な issue（bug report・降ってきた要望等、`to-issues` を経由していないもの）→ `triage` → ready-for-agent 化 → `tdd` へ合流。`triage` は `to-issues` の産出物には使わない（すでに ready-for-agent なため）
+  - ハードなバグ（再現・原因調査が必要）→ `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告として届いた場合はまず `triage` を通してから `diagnosing-bugs` へ
 
-いずれのチェーンも実装フェーズに user-invoked skill は無く、`tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
+いずれの経路も実装フェーズに user-invoked skill は無く、`tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
 
 ## ブラウザ操作ツール
 

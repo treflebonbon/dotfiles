@@ -10,7 +10,7 @@ timestamp: 2026-07-06
 
 ## Status
 
-Accepted (2026-07-06)
+Accepted (2026-07-06)。本 ADR の「シナリオ別3チェーン」という枠組み自体は [ADR-0014](0014-triage-not-after-to-issues.md)（2026-07-07）で、上流 `ask-matt` の main-flow/on-ramp 構造に合わせた「メインフロー1本 + on-ramp 2つ」に amend 済み（`triage` を `to-issues` 産出物に使わない、という個別の是正も含む）。
 
 ## Context
 
