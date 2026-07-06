@@ -26,7 +26,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 ## Skill 配布経路の選択
 
 - **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock 再生成は `cd ~ && apm lock`（詳細は `runtime/skill-harness.md`）
-- **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-worktree`（機能作業の入口で `git worktree add .worktrees/<topic>` により隔離。カレント checkout を汚さない。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先 — ADR-0011）/ `to-pr`（実装完了後に条件付きブラウザ AC 検証 + draft PR 作成。Codex / Antigravity からも利用可）
+- **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-worktree`（機能作業の入口で `git worktree add .worktrees/<topic>` により隔離。カレント checkout を汚さない。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先 — ADR-0011）/ `to-pr`（実装完了後に条件付きブラウザ AC 検証 + PR 作成。Codex / Antigravity からも利用可）
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
 
 Codex 固有の設定（config.toml / rules / hooks / environments）は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-*.sh.tmpl` が `~/.codex/`（`$CODEX_HOME`）へマージ配置する。
