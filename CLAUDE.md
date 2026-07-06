@@ -26,7 +26,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - **要件確定済み実装**: `to-worktree` → `tdd` → `code-review` → `to-pr`（`to-issues` / `triage` を経由せず直接実装に入る）
 - **バグ修正**: `to-worktree` → `diagnosing-bugs` → `code-review` → `to-pr`（同上）
 
-いずれのチェーンも実装フェーズに user-invoked skill は無く、`tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + draft PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
+いずれのチェーンも実装フェーズに user-invoked skill は無く、`tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
 
 ## ブラウザ操作ツール
 

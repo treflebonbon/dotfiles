@@ -1,12 +1,12 @@
 ---
 name: to-pr
-description: "Turn finished work into a draft pull request. When the change is browser-observable, verify its acceptance criteria in a real browser and record the result; otherwise open the PR with a written summary. Use after implementation work (e.g. a /tdd cycle) to publish it for review."
+description: "Turn finished work into a pull request. When the change is browser-observable, verify its acceptance criteria in a real browser and record the result; otherwise open the PR with a written summary. Use after implementation work (e.g. a /tdd cycle) to publish it for review."
 disable-model-invocation: true
 ---
 
 # to-pr
 
-Publish completed work as a **draft** pull request for human review. This closes the
+Publish completed work as a pull request for human review. This closes the
 gap left after implementation (a `/tdd` cycle stops at commit-to-branch): it opens the
 PR and, when the change is browser-observable, verifies the acceptance criteria in a
 real browser and folds the result into the PR body.
@@ -63,13 +63,13 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
    can itself exceed the window you're measuring), e.g.:
 
    ```js
-   async page => {
-     await page.getByRole('button', { name: '<trigger>' }).click()
-     const t0 = Date.now()
-     await page.getByText('<criterion text>').waitFor({ state: 'visible' })
-     await page.getByText('<criterion text>').waitFor({ state: 'hidden' })
-     return Date.now() - t0
-   }
+   async (page) => {
+     await page.getByRole("button", { name: "<trigger>" }).click();
+     const t0 = Date.now();
+     await page.getByText("<criterion text>").waitFor({ state: "visible" });
+     await page.getByText("<criterion text>").waitFor({ state: "hidden" });
+     return Date.now() - t0;
+   };
    ```
 
    Count-sensitive criteria (e.g. "exactly N items appear") follow the same pattern —
@@ -77,11 +77,12 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
    `snapshot`-ing before and after in separate CLI calls:
 
    ```js
-   async page => {
-     await page.getByRole('button', { name: '<trigger>' }).click()
-     return await page.getByRole('<item-role>').count()
-   }
+   async (page) => {
+     await page.getByRole("button", { name: "<trigger>" }).click();
+     return await page.getByRole("<item-role>").count();
+   };
    ```
+
 3. Assign each criterion one lightweight label:
    - `確認済み` — observed working
    - `未確認` — could not be exercised (no dev server, blocked path, port conflict)
@@ -90,7 +91,7 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
 
 Do not fail-close or gate on screenshots. Record what you saw and move on.
 
-## 4. Open the draft PR
+## 4. Open the PR
 
 1. Push the branch if needed (ask before pushing — it is outward-facing).
 2. Write the PR body to a **fresh** temp file (use `mktemp` or a branch-scoped name —
@@ -102,10 +103,10 @@ Do not fail-close or gate on screenshots. Record what you saw and move on.
    as not applicable). Reference the issue it closes (`Fixes #N`) when there is one; when
    there is no issue, omit the `Fixes` line and mention where the acceptance criteria
    came from (conversation, PRD) in the summary instead.
-3. Create the PR as a draft:
+3. Create the PR:
 
    ```bash
-   gh pr create --draft --title "<conventional title>" --body-file <tmp>
+   gh pr create --title "<conventional title>" --body-file <tmp>
    ```
 
 ## 5. Screenshots in the PR body (default: none)
@@ -128,4 +129,4 @@ Wiki / ADR generation, change-effect graphs, epic-branch reconciliation, auto-me
 closing issues, verdict gates, evidence JSON schemas, mandatory trace/video capture.
 Also out of scope: running tests or any non-browser AC verification — that is assumed
 done by the implementation work (e.g. the `/tdd` cycle) that precedes this skill.
-This skill opens a draft PR with an honest, lightweight verification note — nothing more.
+This skill opens a PR with an honest, lightweight verification note — nothing more.
