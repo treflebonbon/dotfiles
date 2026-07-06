@@ -69,7 +69,7 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
      await page.getByText("<criterion text>").waitFor({ state: "visible" });
      await page.getByText("<criterion text>").waitFor({ state: "hidden" });
      return Date.now() - t0;
-   };
+   }
    ```
 
    Count-sensitive criteria (e.g. "exactly N items appear") follow the same pattern —
@@ -80,7 +80,7 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
    async (page) => {
      await page.getByRole("button", { name: "<trigger>" }).click();
      return await page.getByRole("<item-role>").count();
-   };
+   }
    ```
 
 3. Assign each criterion one lightweight label:
