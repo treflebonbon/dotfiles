@@ -37,12 +37,14 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
 
 - **Criteria needing the user's real logged-in session** (no seeded fixture — a real
   account, real data, or a real payment/irreversible action): playwright-cli's context
-  has no login. Use the `claude-in-chrome` skill instead so verification runs in the
-  user's actual browser. If its site permission hasn't been granted, ask the user rather
-  than silently verifying against playwright-cli's anonymous context. If driving the
-  criterion would itself perform a real, costly, or hard-to-reverse action (e.g. an
-  actual payment), ask before that specific step — the same bar as asking before `git
-  push`.
+  has no login. If the runtime provides a way to drive the user's own logged-in browser
+  (e.g. Claude Code's `claude-in-chrome` skill), use that instead — and ask the user
+  first if its site permission hasn't been granted, rather than silently verifying
+  against playwright-cli's anonymous context. If no such path exists in this runtime, do
+  not attempt it — mark the criterion `要人間確認` and ask the user to check it
+  themselves. If driving the criterion would itself perform a real, costly, or
+  hard-to-reverse action (e.g. an actual payment), ask before that specific step — the
+  same bar as asking before `git push`.
 - **This machine may run other Orca workspaces/agents concurrently.** Give playwright-cli
   a workspace-scoped session name (`-s=<branch-or-workspace-name>`) — never the shared
   `default` session, and never `close-all` / `kill-all`. Before starting a dev server, do
@@ -67,6 +69,17 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
      await page.getByText('<criterion text>').waitFor({ state: 'visible' })
      await page.getByText('<criterion text>').waitFor({ state: 'hidden' })
      return Date.now() - t0
+   }
+   ```
+
+   Count-sensitive criteria (e.g. "exactly N items appear") follow the same pattern —
+   read the count inside the same script, after the triggering action, rather than
+   `snapshot`-ing before and after in separate CLI calls:
+
+   ```js
+   async page => {
+     await page.getByRole('button', { name: '<trigger>' }).click()
+     return await page.getByRole('<item-role>').count()
    }
    ```
 3. Assign each criterion one lightweight label:
