@@ -22,7 +22,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 メインフロー1本 + on-ramp 2つで構成する（ADR-0014、上流 `ask-matt` の main-flow/on-ramp 構造に整合）。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（Claude Code は `EnterWorktree` ツール優先。カレント checkout を汚さない）。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先し、`/to-worktree` はそれ以外の環境で使う（ADR-0011）。**worktree は一度だけ入る** — 以降のスキルは同一 worktree/セッション内で連続実行し、都度 `to-worktree` には戻らない。
 
-- **メインフロー**: `grill-with-docs` → `to-prd` → `to-issues` → `tdd` → `code-review` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-prd` / `to-issues` を省略し `tdd` から直接入ってよい。
+- **メインフロー**: `grill-with-docs` → `to-prd` → `to-issues` → `tdd` → `code-review` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-prd` / `to-issues` を省略し `tdd` から直接入ってよい。`tdd` の各 green slice ごとにユーザーに commit してよいか確認してから commit する（`code-review` は `...HEAD` の三点差分で commit 済みの diff しか見ないため、commit が無いと empty diff で fail する）。`code-review` でブロッキングな指摘が無いことを確認したら、修正差分も同様に確認のうえ commit してから `to-pr` へ進む（`to-pr` は commit 済みであることを前提にしている。ADR-0015）。
 - **on-ramp**（メインフロー外から issue/バグが持ち込まれる入口）:
   - raw な issue（bug report・降ってきた要望等、`to-issues` を経由していないもの）→ `triage` → ready-for-agent 化 → `tdd` へ合流。`triage` は `to-issues` の産出物には使わない（すでに ready-for-agent なため）
   - ハードなバグ（再現・原因調査が必要）→ `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告として届いた場合はまず `triage` を通してから `diagnosing-bugs` へ

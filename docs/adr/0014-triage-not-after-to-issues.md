@@ -10,7 +10,7 @@ timestamp: 2026-07-07
 
 ## Status
 
-Accepted (2026-07-07)
+Accepted (2026-07-07)。本 ADR の「この repo では `implement` を導入しておらず `tdd` → `code-review` に相当」という記述は、[ADR-0015](0015-add-tdd-commit-confirmation.md)（2026-07-07）でより正確な根拠（upstream issue による実証的な信頼性バグ）と、`tdd`/`code-review` 間の commit 責務の明記に補強された。
 
 ## Context
 
