@@ -21,6 +21,8 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - on-ramp（raw issue: `to-issues` の産出物には使わない）: `triage` → ready-for-agent 化 → `tdd` へ合流
 - on-ramp（ハードなバグ）: `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告ならまず `triage` を通す
 
+`ready-for-agent` ラベルを付与する際は、`triage` 経由・`to-issues` 経由のいずれでも次の6項目を最低条件とする: 目的 / AC / 非目標 / 検証方法 / 関連ファイル・入口 / 判断済み tradeoff（[CONTEXT.md](../CONTEXT.md) の Contract 参照）。`triage` / `to-issues` はいずれも apm 経由の vendored skill であり、この最低条件を skill 自体に組み込んで機械的にゲートすることはできない——ラベルを付与する運用者（実行エージェント自身）が、付与前にこの6項目が issue 本文に揃っているかを確認する doc-level discipline とする（[ADR-0015](../docs/adr/0015-add-tdd-commit-confirmation.md) の commit 確認ステップと同型。詳細は [ADR-0016](../docs/adr/0016-to-pr-shared-contract-vocabulary.md)）。
+
 - `setup-matt-pocock-skills` — **必須エントリポイント**。per-repo で issue tracker（GitHub / GitLab / local markdown / その他）、triage label 語彙、domain doc レイアウト（`CONTEXT.md` + `docs/adr/`）を構成し `docs/agents/*.md` を生成
 - `grill-with-docs` — 対話しつつ `CONTEXT.md` と ADR を更新（`domain-modeling` に委譲）
 - `to-prd` — 会話を PRD にして issue tracker へ publish
