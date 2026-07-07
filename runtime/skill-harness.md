@@ -21,6 +21,8 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - on-ramp（raw issue: `to-issues` の産出物には使わない）: `triage` → ready-for-agent 化 → `tdd` へ合流
 - on-ramp（ハードなバグ）: `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告ならまず `triage` を通す
 
+`ready-for-agent` ラベルを付与する際は、`triage` 経由・`to-issues` 経由のいずれでも次の6項目を最低条件とする: 目的 / AC / 非目標 / 検証方法 / 関連ファイル・入口 / 判断済み tradeoff（[CONTEXT.md](../CONTEXT.md) の Contract 参照）。`triage` / `to-issues` はいずれも apm 経由の vendored skill であり、この最低条件を skill 自体に組み込んで機械的にゲートすることはできない——ラベルを付与する運用者（実行エージェント自身）が確認する doc-level discipline とする。2つの経路でチェックポイントの位置は異なる: `triage` は「Apply the outcome」というラベル付与前の明示的な判断点を持つため、そこで6項目の充足を確認してから `ready-for-agent` を付与する。`to-issues` は issue の生成とラベル付与を同一ステップ（Publish the issues）で完結させ、付与前に立ち止まる地点が無いため、事前ゲートではなく**生成直後**に各 issue 本文を確認し、6項目のうち issue 本文から読み取れないものがあればその場で本文に追記する（[ADR-0015](../docs/adr/0015-add-tdd-commit-confirmation.md) の commit 確認ステップと同型のタイミング配慮。詳細は [ADR-0016](../docs/adr/0016-to-pr-shared-contract-vocabulary.md)）。
+
 - `setup-matt-pocock-skills` — **必須エントリポイント**。per-repo で issue tracker（GitHub / GitLab / local markdown / その他）、triage label 語彙、domain doc レイアウト（`CONTEXT.md` + `docs/adr/`）を構成し `docs/agents/*.md` を生成
 - `grill-with-docs` — 対話しつつ `CONTEXT.md` と ADR を更新（`domain-modeling` に委譲）
 - `to-prd` — 会話を PRD にして issue tracker へ publish
@@ -64,7 +66,7 @@ deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走
 現行のローカル skill:
 
 - `to-worktree` — ワークフローチェーンの入口。機能作業を始める前に隔離 worktree を用意する（Claude Code は `EnterWorktree` ツール優先、他ランタイムは `git worktree add .worktrees/<topic>`）。`.worktrees/` 配下に作るため放置分は `worktree-gc` が回収する
-- `to-pr` — 実装完了後（user-invoked チェーンの最後尾）に、変更が browser-observable なら `playwright-cli` で AC を検証し、そうでなければ検証を skip して PR を開く。スクリーンショットは既定で埋め込まず、ユーザーが明示確認した場合のみ `.github/pr-assets/` に commit し PR 本文へ SHA 固定 blob URL で載せる。重量級の evidence schema / verdict gate / hero 選定は持ち込まない。
+- `to-pr` — 実装完了後（user-invoked チェーンの最後尾）に、issue/会話から抽出した contract（目的/AC/非目標/検証方法/関連ファイル・入口/判断済みtradeoff）を PR body へ埋め込み、全 AC（UI/CLI/API/infra）を対象にした単一の verification matrix で検証記録を残す。UI は `playwright-cli` で検証し、非UIは既存証拠（`tdd` のテスト・commit・lefthook実行）を引用するのみで新規実行はしない。code-review 実施状況も記録する（未実施でも PR 作成はブロックしない）。スクリーンショットは既定で埋め込まず、ユーザーが明示確認した場合のみ `.github/pr-assets/` に commit し PR 本文へ SHA 固定 blob URL で載せる。重量級の evidence schema / verdict gate / hero 選定は持ち込まない。
 - `dogfood-to-issues` — 同梱の Playwright dogfood runner で web アプリ / Chrome MV3 拡張を隔離 worktree で dogfood し、承認された finding だけを GitHub Issue 化。issue 作成で完了し、実装へは続かない（triage → model-invoked フローへ）。`scripts/runtime-preflight.sh` 同梱
 - `harness-feedback` — Codex / Claude の transcript JSONL を分析し、skill/agent 指示と実際の実行の乖離パターンを検出して小さな指示修正を提案
 - `marp` — markdown を Marp CLI で PDF スライド化（marp-cli は nix devshell 配備済み）
