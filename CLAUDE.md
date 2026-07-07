@@ -33,7 +33,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 単発のブラウザ操作・スクレイピング・フォーム操作・スクリーンショット取得は `playwright-cli` skill を使う。Chrome MV3 拡張の検証は Playwright の persistent Chromium context を使う。`browser-use` は明示指定がある場合のみ（`uv tool run browser-use@<version>`）。
 
-実装中（`tdd` サイクル）に UI 要素を指差してその場で変更を指示したい場合は、実行ランタイムの要素指差しフィードバック機能を使う（Codex CLI: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）。ランタイム検出ロジックは不要 — エージェントは自身の実行ランタイムが何を持つか把握している。`playwright-cli` の代替ではなく、人間主導で UI を直接指差せる場合の追加の対話チャネル（ADR-0017）。
+実装中（`tdd` サイクル）に UI 要素を指差してその場で変更を指示したい場合は、実行ランタイムの要素指差しフィードバック機能を使う（Codex app（in-app browser）: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）。プレーンな Codex CLI（ターミナル）セッションにはこの機能は無い点に注意。ランタイム検出ロジックは不要 — エージェントは自身の実行ランタイムが何を持つか把握している。`playwright-cli` の代替ではなく、人間主導で UI を直接指差せる場合の追加の対話チャネル（ADR-0017）。
 
 ## Skill 配布経路の選択
 
