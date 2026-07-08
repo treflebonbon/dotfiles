@@ -159,10 +159,12 @@ command -v blesh-share >/dev/null 2>&1 && . "$(blesh-share)/ble.sh" --attach=non
 # fzf: キーバインド + 補完（+ Dracula カラー公式）
 # atuin より先に init する — Ctrl-R は後勝ちのため、この順序で atuin が履歴検索を取る。
 # ble.sh ロード時は ble-import 経由にし、fzf のネイティブ bash 統合との二重キーバインドを避ける。
+# fzf-key-bindings は Ctrl-R を ble-bind する側なので -d（idle queue への遅延実行）を付けない:
+# 付けると実行が atuin の eval より後にずれ、Ctrl-R の「後勝ち」前提が壊れて fzf に奪われ得る。
 if command -v fzf >/dev/null 2>&1; then
   if [ -n "${BLE_VERSION-}" ]; then
     ble-import -d integration/fzf-completion
-    ble-import -d integration/fzf-key-bindings
+    ble-import integration/fzf-key-bindings
   else
     eval "$(fzf --bash)"
   fi
