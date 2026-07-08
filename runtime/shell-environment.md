@@ -16,18 +16,17 @@ tags: [bash, shell, starship, atuin, ghq]
 
 sheldon などのプラグインマネージャは使わず、`.bashrc` で各ツールの init を直接 `eval` する（軽量化）:
 
+- **ble.sh**（`blesh` パッケージ） — 構文ハイライト・autosuggestion・リッチな Tab 補完メニュー。`--attach=none` で source しファイル末尾で `ble-attach`（[ADR-0018](../docs/adr/0018-add-blesh-to-bash.md)）。atuin/starship はロード順序に対して自己統合するため追加コード不要
 - **bash-preexec** — precmd/preexec hook 基盤（`~/.config/bash/bash-preexec.sh` に vendored, rcaloras/bash-preexec 0.6.0）。atuin の履歴記録と starship のプロンプト描画は `precmd_functions`/`preexec_functions` 経由で動くため必須
-- **starship** — プロンプト（Dracula カラーパレット）
-- **atuin** — シェル履歴管理（`Ctrl-R`）。zsh-history-substring-search の代替も兼ねる
-- **fzf** — キーバインド + 補完（`fzf --bash`）、Dracula カラー
+- **starship** — プロンプト（Dracula カラーパレット）。ble.sh ロード時は `${BLE_VERSION-}` を検出し右プロンプト（RPS1）も有効化
+- **atuin** — シェル履歴管理（`Ctrl-R`）。ble.sh の autosuggestion も atuin の履歴に基づく
+- **fzf** — キーバインド + 補完。ble.sh ロード時は `ble-import -d integration/fzf-completion` / `fzf-key-bindings`、未ロード時は `fzf --bash` にフォールバック。Dracula カラー
 - **zoxide** — スマート cd（`--cmd cd`）
 - **eza** — `ls`/`ll`/`la`/`lt` エイリアス
 - **direnv** — ディレクトリ単位の環境変数
 - **bash-completion** — 補完。OS パッケージ優先、無ければ nix-devshell 供給の本体を `XDG_DATA_DIRS` から探索
 
-**init 順序が重要**: bash-preexec → fzf → atuin → starship。Ctrl-R は後勝ちのため fzf の後に atuin を init して履歴検索を atuin に取らせる。
-
-zsh 専用の対話プラグイン（autosuggestions / syntax-highlighting）は採用せず、履歴系は atuin に一本化した。
+**init 順序が重要**: ble.sh → bash-preexec → fzf(ble-import) → atuin → starship → ble-attach。Ctrl-R は後勝ちのため fzf の後に atuin を init して履歴検索を atuin に取らせる。
 
 ## nix-devshell グローバル env キャッシュ
 
@@ -37,14 +36,14 @@ zsh 専用の対話プラグイン（autosuggestions / syntax-highlighting）は
 
 `.bashrc` の関数で提供:
 
-| コマンド | 動作 |
-| -------- | ---- |
-| `Ctrl-G` | fzf でリポジトリ選択 → cd（`bind -x` で `gcd` を起動） |
-| `gcd`    | リポジトリを選んで cd |
+| コマンド | 動作                                                                            |
+| -------- | ------------------------------------------------------------------------------- |
+| `Ctrl-G` | fzf でリポジトリ選択 → cd（`bind -x` で `gcd` を起動）                          |
+| `gcd`    | リポジトリを選んで cd                                                           |
 | `gclone` | 引数ありで `ghq get`、なしで `gh repo list`（ユーザー + 所属 Org）→ fzf → clone |
-| `gedit`  | リポジトリを `$EDITOR` で開く |
-| `gweb`   | リポジトリを `gh browse` で表示 |
-| `ginit`  | `owner/repo` 形式で ghq 管理下にローカルリポジトリを作成 |
+| `gedit`  | リポジトリを `$EDITOR` で開く                                                   |
+| `gweb`   | リポジトリを `gh browse` で表示                                                 |
+| `ginit`  | `owner/repo` 形式で ghq 管理下にローカルリポジトリを作成                        |
 
 ## その他
 

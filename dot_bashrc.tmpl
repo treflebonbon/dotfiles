@@ -147,7 +147,7 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 # ble.sh: 構文ハイライト・autosuggestion・リッチな Tab 補完（nixpkgs blesh パッケージ）。
 # bash-preexec / starship より前に --attach=none で source し、ファイル末尾で ble-attach する。
 # atuin/starship はこのロード順序に対して自己統合するため追加コードは不要（ADR-0018）。
-# shellcheck disable=SC1090
+# shellcheck source=/dev/null
 command -v blesh-share >/dev/null 2>&1 && . "$(blesh-share)/ble.sh" --attach=none
 
 # bash-preexec: precmd/preexec hook 基盤（vendored, rcaloras/bash-preexec 0.6.0）。
