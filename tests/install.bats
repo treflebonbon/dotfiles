@@ -24,6 +24,10 @@ setup() {
   stub_cmd sh
   stub_real_cmd mkdir
   stub_real_cmd grep
+  # OS 判定。既定は Linux に固定する（実ホストの uname に委譲すると、Darwin の
+  # CI ランナーで実行した場合に既存の Linux 前提テスト（--init none 等）が
+  # macOS 分岐を通ってしまい壊れるため。macOS 分岐のテストでは個別に上書きする）
+  stub_cmd_with_output uname Linux
   stub_real_cmd rm
   stub_real_cmd mv
   stub_cmd gh
@@ -163,6 +167,30 @@ STUB
   run_install
 
   assert_log_contains "--init none"
+}
+
+@test "macOS (Darwin) では nix-installer に macos プランナーを使い --init を渡さない" {
+  unstub_cmd nix
+  stub_cmd_with_output uname Darwin
+
+  run_install
+
+  assert_log_contains "install macos"
+  refute_log_contains "install linux"
+  refute_log_contains "--init none"
+  assert_log_contains "cache.numtide.com"
+}
+
+@test "Linux (uname 既定値) では linux プランナー + --init none を使う（回帰なし）" {
+  unstub_cmd nix
+  # setup() の既定 (stub_cmd_with_output uname Linux) をそのまま使う
+
+  run_install
+
+  assert_log_contains "install linux"
+  refute_log_contains "install macos"
+  assert_log_contains "--init none"
+  assert_log_contains "cache.numtide.com"
 }
 
 @test "NIX_CONFIG env で flakes をスクリプトスコープに付与" {

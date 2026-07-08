@@ -78,9 +78,13 @@ if ! command -v nix &>/dev/null; then
   # 機能しない）コンテナ環境で nix-installer が systemd-tmpfiles 呼び出しに失敗するのを
   # 防ぐ。init 統合は行わず、後続の手動 nix-daemon 起動ロジックに一本化する。
   # --init はトップレベル install 直下ではなく linux プランナーのサブコマンドオプション。
-  curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install linux \
-    --no-confirm \
-    --init none \
+  # macOS は systemd ではなく launchd を使うため --init という概念自体が無く、
+  # macos プランナーには渡さない（ADR-0020）。
+  _nix_installer_planner_args=(install linux --no-confirm --init none)
+  if [ "$(uname)" = "Darwin" ]; then
+    _nix_installer_planner_args=(install macos --no-confirm)
+  fi
+  curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- "${_nix_installer_planner_args[@]}" \
     --extra-conf "extra-experimental-features = nix-command flakes" \
     --extra-conf "extra-substituters = https://cache.numtide.com https://nix-community.cachix.org" \
     --extra-conf "extra-trusted-substituters = https://cache.numtide.com https://nix-community.cachix.org" \
