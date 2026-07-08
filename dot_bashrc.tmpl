@@ -144,6 +144,12 @@ fi
 # direnv: ディレクトリごとの環境変数管理
 command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 
+# ble.sh: 構文ハイライト・autosuggestion・リッチな Tab 補完（nixpkgs blesh パッケージ）。
+# bash-preexec / starship より前に --attach=none で source し、ファイル末尾で ble-attach する。
+# atuin/starship はこのロード順序に対して自己統合するため追加コードは不要（ADR-0018）。
+# shellcheck source=/dev/null
+command -v blesh-share >/dev/null 2>&1 && . "$(blesh-share)/ble.sh" --attach=none
+
 # bash-preexec: precmd/preexec hook 基盤（vendored, rcaloras/bash-preexec 0.6.0）。
 # atuin の履歴記録と starship のプロンプト描画は precmd_functions/preexec_functions
 # 経由で動くため、両者の init より前に source することが必須。
@@ -152,8 +158,16 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 
 # fzf: キーバインド + 補完（+ Dracula カラー公式）
 # atuin より先に init する — Ctrl-R は後勝ちのため、この順序で atuin が履歴検索を取る。
+# ble.sh ロード時は ble-import 経由にし、fzf のネイティブ bash 統合との二重キーバインドを避ける。
+# fzf-key-bindings は Ctrl-R を ble-bind する側なので -d（idle queue への遅延実行）を付けない:
+# 付けると実行が atuin の eval より後にずれ、Ctrl-R の「後勝ち」前提が壊れて fzf に奪われ得る。
 if command -v fzf >/dev/null 2>&1; then
-  eval "$(fzf --bash)"
+  if [ -n "${BLE_VERSION-}" ]; then
+    ble-import -d integration/fzf-completion
+    ble-import integration/fzf-key-bindings
+  else
+    eval "$(fzf --bash)"
+  fi
   export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
 fi
 
@@ -257,3 +271,6 @@ for _cfg in \
   fi
 done
 unset _cfg
+
+# ble.sh 最終アタッチ（.bashrc 全体の読み込み完了後、プロンプト表示前に行う）
+[ -n "${BLE_VERSION-}" ] && ble-attach
