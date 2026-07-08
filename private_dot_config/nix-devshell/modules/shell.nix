@@ -27,6 +27,7 @@
     shellcheck
     bash-completion
     direnv
+    blesh
 
     # Note-taking
     nb

@@ -10,7 +10,7 @@ timestamp: 2026-07-02
 
 ## Status
 
-Accepted (2026-07-02)
+Accepted (2026-07-02)。autosuggestions / syntax-highlighting の喪失は [ADR-0018](0018-add-blesh-to-bash.md)（2026-07-08）で部分的に見直し済み。
 
 ## Context
 
