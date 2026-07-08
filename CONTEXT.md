@@ -21,5 +21,5 @@ _Avoid_: UI verification, ブラウザ検証
 _Avoid_: 計画フェーズ, 設計フェーズ
 
 **Builder-Evaluator**:
-実装検証フェーズ（`tdd`↔`code-review`）の呼称。`to-issues` が生成した issue をまたいで、同一 worktree/branch 内であれば止まらずループしてよい。`tdd` の green slice commit・`code-review` 後の修正 commit はいずれも確認なしで自動化され、review integrity は人間の目視ではなく worktree 隔離・自動テスト・PR レビューの3層で担保する（[ADR-0018](docs/adr/0018-builder-evaluator-cross-issue-autonomy.md)）。
+実装検証フェーズ（`tdd`↔`code-review`）の呼称。`to-issues` が生成した issue をまたいで自律的にループしてよい自動化された主体（[ADR-0018](docs/adr/0018-builder-evaluator-cross-issue-autonomy.md)）。
 _Avoid_: 実装フェーズ, ビルドフェーズ
