@@ -1,0 +1,279 @@
+#!/usr/bin/env bats
+# dot_zshrc.tmpl (macOS 向け zsh config, issue #46) のツール統合を
+# 実際の zsh でファイルを source し、スタブしたツールバイナリの呼び出しを
+# 検証する。
+
+load 'test_helper'
+
+readonly SRC="$BATS_TEST_DIRNAME/../dot_zshrc.tmpl"
+
+setup() {
+  setup_test_env
+  # zsh はこの devShell (shell.nix) に含まれるが、DevPod/CI 等 zsh 未導入の
+  # Linux 環境で bats tests/ 全体を止めないよう、パスをハードコードせず
+  # 動的に発見し、無ければこのファイルのテストをまとめて skip する。
+  ZSH_BIN="$(command -v zsh)" || skip "zsh not installed in this environment"
+  export FAKE_HOME="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$FAKE_HOME"
+}
+
+run_zshrc() {
+  # 末尾に `; true` を付け、ファイル内最後の `command -v X && ...` の真偽
+  # （X が PATH に無いだけの不成立）が sourcing 全体の終了コードに漏れて
+  # 無関係なテスト失敗を起こさないようにする。
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    "$ZSH_BIN" -c "source '$SRC'; true"
+}
+
+@test "direnv が有効なら direnv hook zsh が呼ばれる" {
+  stub_cmd direnv
+  run_zshrc
+  assert_success
+  assert_log_contains "direnv hook zsh"
+}
+
+@test "starship が有効なら starship init zsh が呼ばれる" {
+  stub_cmd starship
+  run_zshrc
+  assert_success
+  assert_log_contains "starship init zsh"
+}
+
+@test "atuin が有効なら atuin init zsh が呼ばれる" {
+  stub_cmd atuin
+  run_zshrc
+  assert_success
+  assert_log_contains "atuin init zsh"
+}
+
+@test "zoxide が有効なら zoxide init zsh --cmd cd が呼ばれる" {
+  stub_cmd zoxide
+  run_zshrc
+  assert_success
+  assert_log_contains "zoxide init zsh --cmd cd"
+}
+
+@test "direnv が無ければ direnv hook は呼ばれない" {
+  run_zshrc
+  assert_success
+  refute_log_contains "direnv hook"
+}
+
+# --- nix-devshell グローバル cache（direnv 管轄外ディレクトリでも devshell ツールを検出） ---
+
+@test "nix-devshell グローバル cache がある場合、PATH に無いツールも cache 経由で検出される" {
+  stub_cmd nix
+  stub_real_cmd bash
+  mkdir -p "$FAKE_HOME/.config/nix-devshell" "$FAKE_HOME/.cache"
+  local cache_bin="$BATS_TEST_TMPDIR/cache-bin"
+  mkdir -p "$cache_bin"
+  cat >"$cache_bin/starship" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+STUB_EOF
+  chmod +x "$cache_bin/starship"
+  echo "export PATH=\"$cache_bin:\$PATH\"" >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+
+  run_zshrc
+  assert_success
+  assert_log_contains "starship init zsh"
+}
+
+@test "nix-devshell グローバル cache 経由で ZSH_*_SHARE も取り込まれ plugin が source される" {
+  stub_cmd nix
+  stub_real_cmd bash
+  mkdir -p "$FAKE_HOME/.config/nix-devshell" "$FAKE_HOME/.cache"
+  write_fake_plugin "$FAKE_HOME/fake-autosuggestions.zsh" "AUTOSUGGESTIONS_SOURCED"
+  write_fake_plugin "$FAKE_HOME/fake-syntax-highlighting.zsh" "SYNTAX_HIGHLIGHTING_SOURCED"
+  {
+    echo "export ZSH_AUTOSUGGESTIONS_SHARE=\"$FAKE_HOME/fake-autosuggestions.zsh\""
+    echo "export ZSH_SYNTAX_HIGHLIGHTING_SHARE=\"$FAKE_HOME/fake-syntax-highlighting.zsh\""
+  } >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+
+  run_zshrc
+  assert_success
+  assert_log_contains "AUTOSUGGESTIONS_SOURCED"
+  assert_log_contains "SYNTAX_HIGHLIGHTING_SOURCED"
+}
+
+@test "nix-devshell 設定ディレクトリが無ければ cache は読み込まれない（no-op）" {
+  stub_cmd nix
+  stub_real_cmd bash
+  mkdir -p "$FAKE_HOME/.cache"
+  local cache_bin="$BATS_TEST_TMPDIR/cache-bin"
+  mkdir -p "$cache_bin"
+  cat >"$cache_bin/starship" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+STUB_EOF
+  chmod +x "$cache_bin/starship"
+  echo "export PATH=\"$cache_bin:\$PATH\"" >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+
+  run_zshrc
+  assert_success
+  refute_log_contains "starship init zsh"
+}
+
+@test "atuin と fzf が両方あれば Ctrl-R (^R) は atuin に帰属する（後勝ちで fzf に奪われない）" {
+  # atuin init zsh / fzf --zsh はどちらも実際に Ctrl-R を bindkey する
+  # （実バイナリで確認済み: atuin→'atuin-search'、fzf→'fzf-history-widget'）。
+  # zsh の bindkey は後勝ちのため、bash 版（dot_bashrc.tmpl, ADR-0001: 「fzf を
+  # atuin より先に init する」）と同じく atuin を最後に source する必要がある。
+  cat >"$TEST_BIN_DIR/atuin" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo "bindkey -M emacs '^r' atuin-search"
+echo "bindkey -M viins '^r' atuin-search-viins"
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/atuin"
+  cat >"$TEST_BIN_DIR/fzf" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo "bindkey -M emacs '^R' fzf-history-widget"
+echo "bindkey -M viins '^R' fzf-history-widget"
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/fzf"
+
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    "$ZSH_BIN" -c "source '$SRC'; true; bindkey '^R'"
+  assert_success
+  assert_output --partial "atuin"
+  refute_output --partial "fzf"
+}
+
+@test "fzf が有効なら fzf --zsh が呼ばれ Dracula カラーが FZF_DEFAULT_OPTS に設定される" {
+  stub_cmd fzf
+  run_zshrc
+  assert_success
+  assert_log_contains "--zsh"
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    "$ZSH_BIN" -c "source '$SRC'; true; echo \"FZF_DEFAULT_OPTS=\$FZF_DEFAULT_OPTS\""
+  assert_success
+  assert_output --partial "bg:#282a36"
+}
+
+# --- ghq + fzf リポジトリ管理 ---
+
+query_functions_defined() {
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    "$ZSH_BIN" -c "source '$SRC'; true; whence -f gcd gclone gedit gweb ginit"
+}
+
+@test "ghq と fzf が両方あれば gcd/gclone/gedit/gweb/ginit が定義される" {
+  stub_cmd ghq
+  stub_cmd fzf
+  query_functions_defined
+  assert_success
+  assert_output --partial "gcd"
+  assert_output --partial "gclone"
+  assert_output --partial "gedit"
+  assert_output --partial "gweb"
+  assert_output --partial "ginit"
+}
+
+@test "ghq が無ければ gcd 等は定義されない" {
+  stub_cmd fzf
+  query_functions_defined
+  assert_failure
+}
+
+@test "fzf が無ければ gcd 等は定義されない" {
+  stub_cmd ghq
+  query_functions_defined
+  assert_failure
+}
+
+@test "Ctrl-G (^G) が gcd を呼ぶ widget にバインドされる" {
+  stub_cmd ghq
+  stub_cmd fzf
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    "$ZSH_BIN" -c "source '$SRC'; true; bindkey '^G'"
+  assert_success
+  assert_output --partial "gcd"
+}
+
+@test "gcd は ghq list | fzf の選択結果へ実際に cd する" {
+  stub_cmd ghq
+  # ghq list はダミーの1行、ghq root はテスト用ディレクトリを返す
+  cat >"$TEST_BIN_DIR/ghq" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+case "$1" in
+  list) echo "github.com/example/repo" ;;
+  root) echo "$GHQ_ROOT_FOR_TEST" ;;
+esac
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/ghq"
+  # fzf は標準入力の1行目をそのまま選択結果として返すダミー（隔離 PATH に
+  # head が無いため shell 内蔵の read で代用する）
+  cat >"$TEST_BIN_DIR/fzf" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+IFS= read -r line
+echo "$line"
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/fzf"
+  mkdir -p "$FAKE_HOME/repo-root/github.com/example/repo"
+
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    GHQ_ROOT_FOR_TEST="$FAKE_HOME/repo-root" \
+    "$ZSH_BIN" -c "source '$SRC'; true; gcd && pwd"
+  assert_success
+  assert_output --partial "$FAKE_HOME/repo-root/github.com/example/repo"
+}
+
+# --- zsh-autosuggestions / zsh-syntax-highlighting（nixpkgs から直接 source） ---
+
+write_fake_plugin() {
+  local path="$1" marker="$2"
+  echo "echo \"$marker\" >> \"\$TEST_LOG\"" >"$path"
+}
+
+@test "両方の env var が設定されていれば autosuggestions → syntax-highlighting の順で source される" {
+  write_fake_plugin "$FAKE_HOME/fake-autosuggestions.zsh" "AUTOSUGGESTIONS_SOURCED"
+  write_fake_plugin "$FAKE_HOME/fake-syntax-highlighting.zsh" "SYNTAX_HIGHLIGHTING_SOURCED"
+
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    ZSH_AUTOSUGGESTIONS_SHARE="$FAKE_HOME/fake-autosuggestions.zsh" \
+    ZSH_SYNTAX_HIGHLIGHTING_SHARE="$FAKE_HOME/fake-syntax-highlighting.zsh" \
+    "$ZSH_BIN" -c "source '$SRC'; true"
+  assert_success
+  assert_log_contains "AUTOSUGGESTIONS_SOURCED"
+  assert_log_contains "SYNTAX_HIGHLIGHTING_SOURCED"
+
+  local autosuggestions_line syntax_line
+  autosuggestions_line=$(grep -n "AUTOSUGGESTIONS_SOURCED" "$TEST_LOG" | cut -d: -f1)
+  syntax_line=$(grep -n "SYNTAX_HIGHLIGHTING_SOURCED" "$TEST_LOG" | cut -d: -f1)
+  [ "$autosuggestions_line" -lt "$syntax_line" ]
+}
+
+@test "env var が未設定なら何も source されない（エラーにもならない）" {
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    "$ZSH_BIN" -c "source '$SRC'; true"
+  assert_success
+  refute_log_contains "SOURCED"
+}
