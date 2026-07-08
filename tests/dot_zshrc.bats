@@ -58,6 +58,36 @@ run_zshrc() {
   refute_log_contains "direnv hook"
 }
 
+@test "atuin と fzf が両方あれば Ctrl-R (^R) は atuin に帰属する（後勝ちで fzf に奪われない）" {
+  # atuin init zsh / fzf --zsh はどちらも実際に Ctrl-R を bindkey する
+  # （実バイナリで確認済み: atuin→'atuin-search'、fzf→'fzf-history-widget'）。
+  # zsh の bindkey は後勝ちのため、bash 版（dot_bashrc.tmpl, ADR-0001: 「fzf を
+  # atuin より先に init する」）と同じく atuin を最後に source する必要がある。
+  cat >"$TEST_BIN_DIR/atuin" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo "bindkey -M emacs '^r' atuin-search"
+echo "bindkey -M viins '^r' atuin-search-viins"
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/atuin"
+  cat >"$TEST_BIN_DIR/fzf" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo "bindkey -M emacs '^R' fzf-history-widget"
+echo "bindkey -M viins '^R' fzf-history-widget"
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/fzf"
+
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    /usr/bin/zsh -c "source '$SRC'; true; bindkey '^R'"
+  assert_success
+  assert_output --partial "atuin"
+  refute_output --partial "fzf"
+}
+
 @test "fzf が有効なら fzf --zsh が呼ばれ Dracula カラーが FZF_DEFAULT_OPTS に設定される" {
   stub_cmd fzf
   run_zshrc

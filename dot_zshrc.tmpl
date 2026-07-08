@@ -7,17 +7,19 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 # starship プロンプト
 command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 
-# atuin: シェル履歴管理（Ctrl-R）
-command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
-
 # zoxide: スマート cd
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh --cmd cd)"
 
 # fzf: キーバインド + 補完（+ Dracula カラー、bash 版と共通の配色）
+# atuin より先に init する — Ctrl-R は後勝ちのため、この順序で atuin が
+# 履歴検索を取る（bash 版 dot_bashrc.tmpl / ADR-0001 と同じ理由）。
 if command -v fzf >/dev/null 2>&1; then
   eval "$(fzf --zsh)"
   export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
 fi
+
+# atuin: シェル履歴管理（Ctrl-R）。fzf の後に init する。
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
 
 # --- ghq + fzf リポジトリ管理（bash 版と同一の関数本体、キーバインドのみ zsh 向け） ---
 if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
