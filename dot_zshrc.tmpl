@@ -1,0 +1,107 @@
+# Installed by treflebonbon/dotfiles (chezmoi)
+# zsh configuration managed by chezmoi (macOS only — see ADR-0020)
+
+# direnv: ディレクトリごとの環境変数管理
+command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
+
+# starship プロンプト
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+
+# atuin: シェル履歴管理（Ctrl-R）
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
+
+# zoxide: スマート cd
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh --cmd cd)"
+
+# fzf: キーバインド + 補完（+ Dracula カラー、bash 版と共通の配色）
+if command -v fzf >/dev/null 2>&1; then
+  eval "$(fzf --zsh)"
+  export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
+fi
+
+# --- ghq + fzf リポジトリ管理（bash 版と同一の関数本体、キーバインドのみ zsh 向け） ---
+if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
+  # リポジトリ選択ピッカー（共通）
+  _ghq_fzf_select() {
+    ghq list | fzf --height=50% --reverse \
+      --preview="git --no-pager -C $(ghq root)/{} log --oneline -5 2>/dev/null || echo 'no commits'" \
+      --preview-window=down:5:wrap
+  }
+
+  # gcd: リポジトリへ cd
+  gcd() {
+    local repo
+    repo=$(_ghq_fzf_select) || return
+    cd "$(ghq root)/$repo" || return
+  }
+
+  # Ctrl-G: gcd のキーバインド版（bash の `bind -x` 相当を zle widget で実現）
+  _ghq_fzf_gcd_widget() {
+    gcd
+    zle reset-prompt
+  }
+  zle -N _ghq_fzf_gcd_widget
+  bindkey '^G' _ghq_fzf_gcd_widget
+
+  # gclone: 引数ありで ghq get、なしで gh repo list（ユーザー + 所属 Org）→ fzf → clone
+  gclone() {
+    if [ $# -gt 0 ]; then
+      ghq get "$@"
+    else
+      local repo
+      repo=$(
+        {
+          gh repo list --limit 100 --json nameWithOwner --jq '.[].nameWithOwner'
+          gh api /user/orgs --jq '.[].login' 2>/dev/null | while read -r org; do
+            gh repo list "$org" --limit 100 --json nameWithOwner --jq '.[].nameWithOwner'
+          done
+        } | sort -u | fzf --height=50% --reverse
+      ) || return
+      ghq get "$repo"
+    fi
+  }
+
+  # gedit: リポジトリを $EDITOR で開く
+  gedit() {
+    local repo
+    repo=$(_ghq_fzf_select) || return
+    "${EDITOR:-vim}" "$(ghq root)/$repo"
+  }
+
+  # gweb: リポジトリを gh browse でブラウザ表示
+  gweb() {
+    local repo
+    repo=$(_ghq_fzf_select) || return
+    gh browse --repo "$repo"
+  }
+
+  # ginit: ghq 管理下にローカルリポジトリを作成
+  # 使い方: ginit owner/repo (例: ginit treflebonbon/new-app)
+  ginit() {
+    if [ $# -eq 0 ] || [[ "$1" != */* ]]; then
+      echo "Usage: ginit <owner>/<repo>" >&2
+      echo "Example: ginit treflebonbon/new-app" >&2
+      return 1
+    fi
+    local dir
+    dir="$(ghq root)/github.com/$1"
+    if [ -d "$dir" ]; then
+      echo "Already exists: $dir" >&2
+      return 1
+    fi
+    mkdir -p "$dir" && git init "$dir" && cd "$dir" || return
+  }
+fi
+
+# zsh-autosuggestions / zsh-syntax-highlighting: nixpkgs から直接 source する
+# （sheldon 等のプラグインマネージャは ADR-0001 の方針により導入しない。
+# ble.sh 統合と同様、nixpkgs パッケージ由来のファイルを直接 source する
+# ADR-0018 の precedent に倣う）。$ZSH_AUTOSUGGESTIONS_SHARE /
+# $ZSH_SYNTAX_HIGHLIGHTING_SHARE は private_dot_config/nix-devshell の
+# shell.nix が env として供給する（対応する -share 系コマンドがこの2パッケージ
+# には存在しないため）。zsh-syntax-highlighting は他プラグインの zle widget
+# ラップに依存するため、必ず最後に source する。
+# shellcheck source=/dev/null
+[ -n "${ZSH_AUTOSUGGESTIONS_SHARE:-}" ] && [ -f "$ZSH_AUTOSUGGESTIONS_SHARE" ] && source "$ZSH_AUTOSUGGESTIONS_SHARE"
+# shellcheck source=/dev/null
+[ -n "${ZSH_SYNTAX_HIGHLIGHTING_SHARE:-}" ] && [ -f "$ZSH_SYNTAX_HIGHLIGHTING_SHARE" ] && source "$ZSH_SYNTAX_HIGHLIGHTING_SHARE"

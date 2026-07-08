@@ -1,3 +1,9 @@
+# macOS (darwin) 専用の zsh 設定。ログインシェルは既定の zsh を維持する方針
+# （ADR-0020）のため、Linux/コンテナ（bash 前提、ADR-0001/0018）では配備しない。
+{{- if ne .chezmoi.os "darwin" }}
+.zshrc
+{{- end }}
+
 # Codex CLI plugin のランタイムファイル（chezmoi 管理外）
 .codex
 
