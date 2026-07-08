@@ -17,9 +17,9 @@ _Avoid_: evidence table, 検証エビデンス, verdict
 _Avoid_: UI verification, ブラウザ検証
 
 **Planner**:
-設計協働フェーズ（`grill-with-docs`→`to-prd`→`to-issues`）の呼称。人間が対話を通じて意思決定する主体であり、確認ポイントは削減しない（[ADR-0018](docs/adr/0018-builder-evaluator-cross-issue-autonomy.md)）。
+設計協働フェーズ（`grill-with-docs`→`to-prd`→`to-issues`）の呼称。人間が対話を通じて意思決定する主体であり、確認ポイントは削減しない（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md)）。
 _Avoid_: 計画フェーズ, 設計フェーズ
 
 **Builder-Evaluator**:
-実装検証フェーズ（`tdd`↔`code-review`）の呼称。`to-issues` が生成した issue をまたいで自律的にループしてよい自動化された主体（[ADR-0018](docs/adr/0018-builder-evaluator-cross-issue-autonomy.md)）。
+実装検証フェーズ（`tdd`↔`code-review`）の呼称。`to-issues` が生成した issue をまたいで自律的にループしてよい自動化された主体（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md)）。
 _Avoid_: 実装フェーズ, ビルドフェーズ
