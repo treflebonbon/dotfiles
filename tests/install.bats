@@ -24,6 +24,8 @@ setup() {
   stub_cmd sh
   stub_real_cmd mkdir
   stub_real_cmd grep
+  # OS 判定（既定は実環境の判定を使う。macOS 分岐のテストでは個別に上書きする）
+  stub_real_cmd uname
   stub_real_cmd rm
   stub_real_cmd mv
   stub_cmd gh
@@ -163,6 +165,23 @@ STUB
   run_install
 
   assert_log_contains "--init none"
+}
+
+@test "macOS (Darwin) では nix-installer に macos プランナーを使い --init を渡さない" {
+  unstub_cmd nix
+  cat >"$TEST_BIN_DIR/uname" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo "Darwin"
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/uname"
+
+  run_install
+
+  assert_log_contains "install macos"
+  refute_log_contains "install linux"
+  refute_log_contains "--init none"
+  assert_log_contains "cache.numtide.com"
 }
 
 @test "NIX_CONFIG env で flakes をスクリプトスコープに付与" {
