@@ -80,7 +80,8 @@ _nix_devshell_global_reload() {
   local cache="$HOME/.cache/nix-devshell-global-env.bash"
   [ -f "$cache" ] || return
   local mt
-  mt="$(stat -c %Y "$cache" 2>/dev/null)" || return
+  # GNU stat (Linux) は `-c %Y`、BSD/macOS stat は `-f %m`。
+  mt="$(stat -c %Y "$cache" 2>/dev/null)" || mt="$(stat -f %m "$cache" 2>/dev/null)" || return
   if [ "${_ND_CACHE_MTIME:-0}" != "$mt" ]; then
     ensure_nix_devshell_env "$cache" 2>/dev/null
     _nix_devshell_prune_zed_env
