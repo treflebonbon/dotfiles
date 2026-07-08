@@ -71,6 +71,17 @@ unstub_cmd() {
   rm -f "$TEST_BIN_DIR/$1"
 }
 
+# ファイルから `name() { ... }` 形式の関数定義1つを抽出（呼び出し元スクリプトを
+# 丸ごと source すると副作用が出る場合に、対象関数だけを単体でテストするため）
+extract_function() {
+  local file="$1" name="$2"
+  awk -v name="$name" '
+    $0 ~ "^" name "\\(\\) \\{" { found=1 }
+    found { print }
+    found && /^}/ { exit }
+  ' "$file"
+}
+
 # ログにパターンが含まれるか確認
 assert_log_contains() {
   grep -q -- "$1" "$TEST_LOG" || {

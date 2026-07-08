@@ -116,7 +116,8 @@ remove_orphan() {
 is_older_than_days() {
   local path="$1" days="$2" now mtime
   now=$(date +%s)
-  mtime=$(stat -c %Y "$path" 2>/dev/null) || return 1
+  # GNU stat (Linux) は `-c %Y`、BSD/macOS stat は `-f %m`。
+  mtime=$(stat -c %Y "$path" 2>/dev/null) || mtime=$(stat -f %m "$path" 2>/dev/null) || return 1
   (((now - mtime) / 86400 >= days))
 }
 is_clean_worktree() {
