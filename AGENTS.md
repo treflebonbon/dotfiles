@@ -19,6 +19,17 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - Linting: lefthook pre-commit hook で自動実行（`lefthook.yml` 参照）
 - 認証: HTTPS + `gh auth git-credential`。SSH は不使用。
 
+## 設計→実装ワークフロー
+
+メインフロー1本 + on-ramp 2つで構成する（ADR-0014、上流 `ask-matt` の main-flow/on-ramp 構造に整合）。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（`git worktree add .worktrees/<topic>`。カレント checkout を汚さない）。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先し、`/to-worktree` はそれ以外の環境で使う（ADR-0011）。**worktree は一度だけ入る** — 以降のスキルは同一 worktree/セッション内で連続実行し、都度 `to-worktree` には戻らない。
+
+- **メインフロー**: `grill-with-docs` → `to-prd` → `to-issues` → `tdd` → `code-review` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-prd` / `to-issues` を省略し `tdd` から直接入ってよい。`to-issues` までを **Planner**、`tdd`↔`code-review` を **Builder-Evaluator** と呼ぶ（`CONTEXT.md`）。Planner は人間との協働を維持するが、Builder-Evaluator は `to-issues` が生成した issue をまたいで同一 worktree/branch 内なら止まらずループしてよい（**単一の連続セッションが単位ではない** — smart zone、~120k トークンに達したら `/handoff` で別セッションへ移ってよく、複数セッションが同一 worktree/branch を扱うことも許容される）: `tdd` の各 green slice、および `code-review` でブロッキングな指摘が無いことを確認した後の修正差分は、いずれも**確認なしで commit する**（permission mode による分岐は設けない。commit 確認は人間が不在の AFK 運用でこそ機能せず、安全機構として成立しないため——詳細は ADR-0019）。対象 issue の AC からシームが一意に導出できる場合は `tdd` のシーム確認も省略する（AC 単体で判断がつかない曖昧なケースや、issue を経由しない単体呼び出しでは従来どおり確認する）。review integrity は人間の目視ではなく、worktree 隔離・自動テスト（`tdd` の red-green 必須化・`lefthook` の pre-commit hook）・`to-pr` が最後に開く PR のレビューという3層で担保する。対象 worktree/branch 上の全 issue が完了したら `to-pr` を一度だけ実行する（issue ごとの個別 PR は作らない）。AFK 運用が明示指示された場合はエージェントが自律的に `to-pr` まで進めてよく、そうでない通常運用では完了報告のうえユーザーの明示的な `/to-pr` 呼び出しを待つ。push / PR 作成自体の確認は変更しない。
+- **on-ramp**（メインフロー外から issue/バグが持ち込まれる入口）:
+  - raw な issue（bug report・降ってきた要望等、`to-issues` を経由していないもの）→ `triage` → ready-for-agent 化 → `tdd` へ合流。`triage` は `to-issues` の産出物には使わない（すでに ready-for-agent なため）
+  - ハードなバグ（再現・原因調査が必要）→ `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告として届いた場合はまず `triage` を通してから `diagnosing-bugs` へ
+
+いずれの経路も実装フェーズに user-invoked skill は無く、`tdd` / `code-review` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` が **model-invoked で自動発火**する（上流ルール: user-invoked は他の user-invoked を呼ばない）。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
+
 ## ブラウザ操作ツール
 
 単発のブラウザ操作・スクレイピング・フォーム操作・スクリーンショット取得は `playwright-cli` skill を使う。Chrome MV3 拡張の検証は Playwright の persistent Chromium context を使う。`browser-use` は明示指定がある場合のみ（`uv tool run browser-use@<version>`）。
@@ -28,7 +39,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 ## Skill 配布経路の選択
 
 - **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock 再生成は `cd ~ && apm lock`（詳細は `runtime/skill-harness.md`）
-- **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-worktree`（機能作業の入口で `git worktree add .worktrees/<topic>` により隔離。カレント checkout を汚さない。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先 — ADR-0011）/ `to-pr`（実装完了後に条件付きブラウザ AC 検証 + PR 作成。Codex / Antigravity からも利用可）
+- **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-pr`（実装完了後に条件付きブラウザ AC 検証 + PR 作成。Codex / Antigravity からも利用可）。`to-worktree` の使い方は上の「設計→実装ワークフロー」節を参照
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
 
 Codex 固有の設定（config.toml / rules / hooks / environments）は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-*.sh.tmpl` が `~/.codex/`（`$CODEX_HOME`）へマージ配置する。
