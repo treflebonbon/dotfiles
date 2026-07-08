@@ -147,8 +147,21 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 # ble.sh: 構文ハイライト・autosuggestion・リッチな Tab 補完（nixpkgs blesh パッケージ）。
 # bash-preexec / starship より前に --attach=none で source し、ファイル末尾で ble-attach する。
 # atuin/starship はこのロード順序に対して自己統合するため追加コードは不要（ADR-0018）。
+# WSL 上では ble.sh が runtime dir 決定時に /run/user, /tmp を意図的にスキップし、
+# 読み取り専用の Nix store（$_ble_base/run）への mkdir を試みて必ず失敗した後
+# ~/.cache/blesh/run へフォールバックする。機能上は無害だが起動毎に Permission
+# Denied が2行出るため WSL 上でのみ stderr を抑制する（ble.sh 側の既知の
+# fallback 順序に起因、nixpkgs blesh パッケージが read-only prefix にインス
+# トールされることが引き金）。非 WSL 環境では genuine なエラーを隠さないよう
+# 抑制しない。
 # shellcheck source=/dev/null
-command -v blesh-share >/dev/null 2>&1 && . "$(blesh-share)/ble.sh" --attach=none
+command -v blesh-share >/dev/null 2>&1 && {
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    . "$(blesh-share)/ble.sh" --attach=none 2>/dev/null
+  else
+    . "$(blesh-share)/ble.sh" --attach=none
+  fi
+}
 
 # bash-preexec: precmd/preexec hook 基盤（vendored, rcaloras/bash-preexec 0.6.0）。
 # atuin の履歴記録と starship のプロンプト描画は precmd_functions/preexec_functions
