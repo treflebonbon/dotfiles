@@ -1,6 +1,31 @@
 # Installed by treflebonbon/dotfiles (chezmoi)
 # zsh configuration managed by chezmoi (macOS only — see ADR-0020)
 
+# nix-devshell グローバル環境を有効化（bash 版 dot_bashrc.tmpl と同じ
+# stale-while-revalidate キャッシュを流用）。direnv 管轄外のディレクトリ
+# （$HOME 直下等、通常の macOS ログインシェル）でも、以降の command -v
+# チェックより前に starship/atuin/fzf/zoxide/ghq 等の devshell ツールを
+# PATH に乗せる。キャッシュ実体は `nix print-dev-env` の bash 専用フォー
+# マットのため zsh へ直接 source できず、bash サブシェルで source した
+# 結果を `declare -p` 経由で zsh へ取り込む。
+if [ -d "$HOME/.config/nix-devshell" ] && command -v nix >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
+  _nd_cache="$HOME/.cache/nix-devshell-global-env.bash"
+  if [ -f "$_nd_cache" ]; then
+    _nd_env="$(bash -c '
+      set +u
+      . "$1" >/dev/null 2>&1
+      declare -p PATH ZSH_AUTOSUGGESTIONS_SHARE ZSH_SYNTAX_HIGHLIGHTING_SHARE 2>/dev/null
+    ' _ "$_nd_cache")"
+    [ -n "$_nd_env" ] && eval "$_nd_env"
+  fi
+
+  # 次回シェル向けに背景で stale-while-revalidate 再生成（bash 版と同一ロジック）
+  if [ -f "$HOME/.config/nix-devshell/lib/refresh-cache.sh" ]; then
+    ( bash -c '. "$1" && refresh_nix_devshell_cache' _ "$HOME/.config/nix-devshell/lib/refresh-cache.sh" >/dev/null 2>&1 ) &!
+  fi
+  unset _nd_cache _nd_env
+fi
+
 # direnv: ディレクトリごとの環境変数管理
 command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 

@@ -9,6 +9,10 @@ readonly SRC="$BATS_TEST_DIRNAME/../dot_zshrc.tmpl"
 
 setup() {
   setup_test_env
+  # zsh はこの devShell (shell.nix) に含まれるが、DevPod/CI 等 zsh 未導入の
+  # Linux 環境で bats tests/ 全体を止めないよう、パスをハードコードせず
+  # 動的に発見し、無ければこのファイルのテストをまとめて skip する。
+  ZSH_BIN="$(command -v zsh)" || skip "zsh not installed in this environment"
   export FAKE_HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$FAKE_HOME"
 }
@@ -21,7 +25,7 @@ run_zshrc() {
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /usr/bin/zsh -c "source '$SRC'; true"
+    "$ZSH_BIN" -c "source '$SRC'; true"
 }
 
 @test "direnv が有効なら direnv hook zsh が呼ばれる" {
@@ -58,6 +62,61 @@ run_zshrc() {
   refute_log_contains "direnv hook"
 }
 
+# --- nix-devshell グローバル cache（direnv 管轄外ディレクトリでも devshell ツールを検出） ---
+
+@test "nix-devshell グローバル cache がある場合、PATH に無いツールも cache 経由で検出される" {
+  stub_cmd nix
+  stub_real_cmd bash
+  mkdir -p "$FAKE_HOME/.config/nix-devshell" "$FAKE_HOME/.cache"
+  local cache_bin="$BATS_TEST_TMPDIR/cache-bin"
+  mkdir -p "$cache_bin"
+  cat >"$cache_bin/starship" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+STUB_EOF
+  chmod +x "$cache_bin/starship"
+  echo "export PATH=\"$cache_bin:\$PATH\"" >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+
+  run_zshrc
+  assert_success
+  assert_log_contains "starship init zsh"
+}
+
+@test "nix-devshell グローバル cache 経由で ZSH_*_SHARE も取り込まれ plugin が source される" {
+  stub_cmd nix
+  stub_real_cmd bash
+  mkdir -p "$FAKE_HOME/.config/nix-devshell" "$FAKE_HOME/.cache"
+  write_fake_plugin "$FAKE_HOME/fake-autosuggestions.zsh" "AUTOSUGGESTIONS_SOURCED"
+  write_fake_plugin "$FAKE_HOME/fake-syntax-highlighting.zsh" "SYNTAX_HIGHLIGHTING_SOURCED"
+  {
+    echo "export ZSH_AUTOSUGGESTIONS_SHARE=\"$FAKE_HOME/fake-autosuggestions.zsh\""
+    echo "export ZSH_SYNTAX_HIGHLIGHTING_SHARE=\"$FAKE_HOME/fake-syntax-highlighting.zsh\""
+  } >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+
+  run_zshrc
+  assert_success
+  assert_log_contains "AUTOSUGGESTIONS_SOURCED"
+  assert_log_contains "SYNTAX_HIGHLIGHTING_SOURCED"
+}
+
+@test "nix-devshell 設定ディレクトリが無ければ cache は読み込まれない（no-op）" {
+  stub_cmd nix
+  stub_real_cmd bash
+  mkdir -p "$FAKE_HOME/.cache"
+  local cache_bin="$BATS_TEST_TMPDIR/cache-bin"
+  mkdir -p "$cache_bin"
+  cat >"$cache_bin/starship" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+STUB_EOF
+  chmod +x "$cache_bin/starship"
+  echo "export PATH=\"$cache_bin:\$PATH\"" >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+
+  run_zshrc
+  assert_success
+  refute_log_contains "starship init zsh"
+}
+
 @test "atuin と fzf が両方あれば Ctrl-R (^R) は atuin に帰属する（後勝ちで fzf に奪われない）" {
   # atuin init zsh / fzf --zsh はどちらも実際に Ctrl-R を bindkey する
   # （実バイナリで確認済み: atuin→'atuin-search'、fzf→'fzf-history-widget'）。
@@ -82,7 +141,7 @@ STUB_EOF
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /usr/bin/zsh -c "source '$SRC'; true; bindkey '^R'"
+    "$ZSH_BIN" -c "source '$SRC'; true; bindkey '^R'"
   assert_success
   assert_output --partial "atuin"
   refute_output --partial "fzf"
@@ -97,7 +156,7 @@ STUB_EOF
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /usr/bin/zsh -c "source '$SRC'; true; echo \"FZF_DEFAULT_OPTS=\$FZF_DEFAULT_OPTS\""
+    "$ZSH_BIN" -c "source '$SRC'; true; echo \"FZF_DEFAULT_OPTS=\$FZF_DEFAULT_OPTS\""
   assert_success
   assert_output --partial "bg:#282a36"
 }
@@ -109,7 +168,7 @@ query_functions_defined() {
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /usr/bin/zsh -c "source '$SRC'; true; whence -f gcd gclone gedit gweb ginit"
+    "$ZSH_BIN" -c "source '$SRC'; true; whence -f gcd gclone gedit gweb ginit"
 }
 
 @test "ghq と fzf が両方あれば gcd/gclone/gedit/gweb/ginit が定義される" {
@@ -143,7 +202,7 @@ query_functions_defined() {
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /usr/bin/zsh -c "source '$SRC'; true; bindkey '^G'"
+    "$ZSH_BIN" -c "source '$SRC'; true; bindkey '^G'"
   assert_success
   assert_output --partial "gcd"
 }
@@ -176,7 +235,7 @@ STUB_EOF
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
     GHQ_ROOT_FOR_TEST="$FAKE_HOME/repo-root" \
-    /usr/bin/zsh -c "source '$SRC'; true; gcd && pwd"
+    "$ZSH_BIN" -c "source '$SRC'; true; gcd && pwd"
   assert_success
   assert_output --partial "$FAKE_HOME/repo-root/github.com/example/repo"
 }
@@ -198,7 +257,7 @@ write_fake_plugin() {
     TEST_LOG="$TEST_LOG" \
     ZSH_AUTOSUGGESTIONS_SHARE="$FAKE_HOME/fake-autosuggestions.zsh" \
     ZSH_SYNTAX_HIGHLIGHTING_SHARE="$FAKE_HOME/fake-syntax-highlighting.zsh" \
-    /usr/bin/zsh -c "source '$SRC'; true"
+    "$ZSH_BIN" -c "source '$SRC'; true"
   assert_success
   assert_log_contains "AUTOSUGGESTIONS_SOURCED"
   assert_log_contains "SYNTAX_HIGHLIGHTING_SOURCED"
@@ -214,7 +273,7 @@ write_fake_plugin() {
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /usr/bin/zsh -c "source '$SRC'; true"
+    "$ZSH_BIN" -c "source '$SRC'; true"
   assert_success
   refute_log_contains "SOURCED"
 }

@@ -14,6 +14,11 @@ setup() {
   grep -q 'zsh-syntax-highlighting' "$module"
 }
 
+@test "shell.nix includes zsh itself so bats tests/dot_zshrc.bats doesn't depend on host zsh (issue #46 review)" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
+  grep -qE '^\s*zsh\s*$' "$module"
+}
+
 @test "shell.nix exposes ZSH_AUTOSUGGESTIONS_SHARE / ZSH_SYNTAX_HIGHLIGHTING_SHARE via env (issue #46)" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
   grep -q 'ZSH_AUTOSUGGESTIONS_SHARE' "$module"

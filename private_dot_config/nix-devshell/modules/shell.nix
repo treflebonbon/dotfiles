@@ -28,6 +28,7 @@
     bash-completion
     direnv
     blesh
+    zsh
     zsh-autosuggestions
     zsh-syntax-highlighting
 
