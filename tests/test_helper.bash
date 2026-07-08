@@ -48,6 +48,18 @@ stub_real_cmd() {
   chmod +x "$TEST_BIN_DIR/$name"
 }
 
+# 固定の標準出力を返すスタブ（OS 判定 (uname) 等の分岐を明示的に固定してテストするため）
+stub_cmd_with_output() {
+  local name="$1" output="$2"
+  {
+    printf '%s\n' '#!/bin/bash'
+    # shellcheck disable=SC2016 # generated stub should expand these at runtime
+    printf '%s\n' 'echo "$0 $*" >> "$TEST_LOG"'
+    printf 'echo "%s"\n' "$output"
+  } >"$TEST_BIN_DIR/$name"
+  chmod +x "$TEST_BIN_DIR/$name"
+}
+
 # 実コマンドへ委譲しないスタブ。引数 2 番目以降に渡された env vars を log にも dump する
 # 例: stub_cmd_with_env nix NIX_CONFIG  → nix 呼び出し時に "NIX_CONFIG=<value>" を TEST_LOG に追記
 stub_cmd_with_env() {

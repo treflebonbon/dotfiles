@@ -169,18 +169,25 @@ STUB
 
 @test "macOS (Darwin) では nix-installer に macos プランナーを使い --init を渡さない" {
   unstub_cmd nix
-  cat >"$TEST_BIN_DIR/uname" <<'STUB_EOF'
-#!/bin/bash
-echo "$0 $*" >> "$TEST_LOG"
-echo "Darwin"
-STUB_EOF
-  chmod +x "$TEST_BIN_DIR/uname"
+  stub_cmd_with_output uname Darwin
 
   run_install
 
   assert_log_contains "install macos"
   refute_log_contains "install linux"
   refute_log_contains "--init none"
+  assert_log_contains "cache.numtide.com"
+}
+
+@test "Linux (uname 明示モック) では linux プランナー + --init none を使う（回帰なし）" {
+  unstub_cmd nix
+  stub_cmd_with_output uname Linux
+
+  run_install
+
+  assert_log_contains "install linux"
+  refute_log_contains "install macos"
+  assert_log_contains "--init none"
   assert_log_contains "cache.numtide.com"
 }
 
