@@ -1,20 +1,20 @@
 ---
 name: to-pr
-description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work (e.g. a /tdd cycle) to publish it for review."
+description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work (e.g. /implement) to publish it for review."
 disable-model-invocation: true
 ---
 
 # to-pr
 
 Publish completed work as a pull request for human review. This closes the
-gap left after implementation (a `/tdd` cycle stops at commit-to-branch): it opens the
+gap left after implementation (`/implement` stops at commit-to-branch): it opens the
 PR with a **contract** (what this change was supposed to do) and a **verification
 matrix** (what was actually checked, for every acceptance criterion — not just
 browser-observable ones) folded into the PR body.
 
 Keep the flow light: no evidence schemas, no verdict gates, no required traces/videos.
 Non-UI acceptance criteria are recorded, not newly executed — verifying them is assumed
-done by the implementation work (e.g. the `/tdd` cycle) that precedes this skill.
+done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill.
 
 ## 1. Establish the context
 
@@ -39,7 +39,7 @@ Every acceptance criterion gets one row, regardless of type — there is no sepa
   behaviour, a rendered output): verify with `playwright-cli`, per the procedure below.
 - **CLI / API / infra criteria**: do not execute new verification commands. Cite
   existing evidence in the `実行コマンドまたは理由` column instead — a test file added
-  during the `/tdd` cycle (with its commit hash), a `lefthook` pre-commit run
+  during `/implement` / the `/tdd` cycle (with its commit hash), a `lefthook` pre-commit run
   (typecheck/lint/etc.), or another already-produced artifact. If no such evidence
   exists, mark `結果` as `未確認` and state why in `未確認理由`. This keeps the matrix
   honest without turning `to-pr` into a second test runner.
@@ -157,7 +157,7 @@ Keep it to a few representative images. No hero-selection rules, no size gating.
 Wiki / ADR generation, change-effect graphs, epic-branch reconciliation, auto-merge,
 closing issues, verdict gates, evidence JSON schemas, mandatory trace/video capture.
 Also out of scope: running tests or any non-browser AC verification — that is assumed
-done by the implementation work (e.g. the `/tdd` cycle) that precedes this skill.
+done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill.
 Also out of scope: invoking `harness-feedback` from this skill. The PR body's Contract /
 Verification Matrix / Code Review sections are Markdown for a human reviewer and for
 this skill's own step-4 self-check — they are not consumed by `harness-feedback`'s

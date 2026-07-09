@@ -1,6 +1,6 @@
 lockfile_version: '1'
-generated_at: '2026-07-04T07:41:14.178471+00:00'
-apm_version: 0.23.1
+generated_at: '2026-07-09T16:02:06.900099+00:00'
+apm_version: 0.24.0
 dependencies:
 - repo_url: Effect-TS/skills
   name: skills
@@ -920,6 +920,23 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  version: unknown
+  virtual_path: skills/engineering/implement
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/implement
+  - .agents/skills/implement/SKILL.md
+  - .claude/skills/implement
+  - .claude/skills/implement/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/implement/SKILL.md: sha256:6d3fd9e83b8f36e5213854779db49b256a457a7ebb4a503e53fa7dcff696adc3
+    .claude/skills/implement/SKILL.md: sha256:6d3fd9e83b8f36e5213854779db49b256a457a7ebb4a503e53fa7dcff696adc3
+  content_hash: sha256:0d51255cab5cf937b8fe41252f00213706e0175ca9607fc00409d29562b5b839
+- repo_url: mattpocock/skills
+  name: skills
+  host: github.com
   resolved_commit: efa058a349f5ce98b6115bf8b4e0d0ef9c310e0d
   version: unknown
   virtual_path: skills/engineering/improve-codebase-architecture
@@ -980,6 +997,23 @@ dependencies:
     .agents/skills/research/SKILL.md: sha256:af378829f015775a3bcd65ff466826722e99359017ae6bae227ca4c9bd14049c
     .claude/skills/research/SKILL.md: sha256:af378829f015775a3bcd65ff466826722e99359017ae6bae227ca4c9bd14049c
   content_hash: sha256:87d17f5103899fbe179b552a85485d50f2316ca5b3128f5716af7d88817533e1
+- repo_url: mattpocock/skills
+  name: skills
+  host: github.com
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  version: unknown
+  virtual_path: skills/engineering/resolving-merge-conflicts
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/resolving-merge-conflicts
+  - .agents/skills/resolving-merge-conflicts/SKILL.md
+  - .claude/skills/resolving-merge-conflicts
+  - .claude/skills/resolving-merge-conflicts/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/resolving-merge-conflicts/SKILL.md: sha256:c7c9ba81362a786aac05d2223123bf1bd2f8a99c3243a72882ede9c68bedfb24
+    .claude/skills/resolving-merge-conflicts/SKILL.md: sha256:c7c9ba81362a786aac05d2223123bf1bd2f8a99c3243a72882ede9c68bedfb24
+  content_hash: sha256:bff6e06cec85897477759ed052410450aa91057644f5b70d888e26bc8b348847
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
@@ -1045,37 +1079,37 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 7a83a3a682adf699f24dbc06613de87f4e52a0a0
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
-  virtual_path: skills/engineering/to-issues
+  virtual_path: skills/engineering/to-spec
   is_virtual: true
   package_type: claude_skill
   deployed_files:
-  - .agents/skills/to-issues
-  - .agents/skills/to-issues/SKILL.md
-  - .claude/skills/to-issues
-  - .claude/skills/to-issues/SKILL.md
+  - .agents/skills/to-spec
+  - .agents/skills/to-spec/SKILL.md
+  - .claude/skills/to-spec
+  - .claude/skills/to-spec/SKILL.md
   deployed_file_hashes:
-    .agents/skills/to-issues/SKILL.md: sha256:f8a72a5bc88aa830ae62b323a52b08934da52851b010984c55829a644c7f6ba6
-    .claude/skills/to-issues/SKILL.md: sha256:f8a72a5bc88aa830ae62b323a52b08934da52851b010984c55829a644c7f6ba6
-  content_hash: sha256:4e2a11d35f018490d42a79234432f779d7131b9920373ef24cfbc68229bfef6c
+    .agents/skills/to-spec/SKILL.md: sha256:267638edd513b5918de626ad5605d261952abb7428cb308869c663ca924e93e7
+    .claude/skills/to-spec/SKILL.md: sha256:267638edd513b5918de626ad5605d261952abb7428cb308869c663ca924e93e7
+  content_hash: sha256:c5d294a88d00942a38dc589299423e35ea07157cf29eed21434378edb5cfafa4
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 7a83a3a682adf699f24dbc06613de87f4e52a0a0
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
-  virtual_path: skills/engineering/to-prd
+  virtual_path: skills/engineering/to-tickets
   is_virtual: true
   package_type: claude_skill
   deployed_files:
-  - .agents/skills/to-prd
-  - .agents/skills/to-prd/SKILL.md
-  - .claude/skills/to-prd
-  - .claude/skills/to-prd/SKILL.md
+  - .agents/skills/to-tickets
+  - .agents/skills/to-tickets/SKILL.md
+  - .claude/skills/to-tickets
+  - .claude/skills/to-tickets/SKILL.md
   deployed_file_hashes:
-    .agents/skills/to-prd/SKILL.md: sha256:db7e7188ac4fd47f4925ae6550e0233365b3b05be40f45235ab3a0a6b0165156
-    .claude/skills/to-prd/SKILL.md: sha256:db7e7188ac4fd47f4925ae6550e0233365b3b05be40f45235ab3a0a6b0165156
-  content_hash: sha256:5a733e19d825f22e83de52e68b8840c9fd2fa7501282277a122c1aa28a922059
+    .agents/skills/to-tickets/SKILL.md: sha256:918bdefab9313100cb1f7ccb412e2a773fe2f2801dd20d44f6b2acf7a42ca456
+    .claude/skills/to-tickets/SKILL.md: sha256:918bdefab9313100cb1f7ccb412e2a773fe2f2801dd20d44f6b2acf7a42ca456
+  content_hash: sha256:931fb4385e1f3e29bf2ae482166a86d5876e9e6c740609f3de09a6de8f2ba318
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
@@ -1101,6 +1135,23 @@ dependencies:
     .claude/skills/triage/OUT-OF-SCOPE.md: sha256:2526f998fd7ca5e956d3f6f234bcc2431a5971ee769f1148ddc60b92f04d5914
     .claude/skills/triage/SKILL.md: sha256:d45827c299c021f77b0f146fefa3ee679b13f99e9a2ffdf48e8de2347adeefe1
   content_hash: sha256:b77ea99c2e6e97815b373cc476ad4cc1835d3e736867b764602147be71f6c131
+- repo_url: mattpocock/skills
+  name: skills
+  host: github.com
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  version: unknown
+  virtual_path: skills/engineering/wayfinder
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/wayfinder
+  - .agents/skills/wayfinder/SKILL.md
+  - .claude/skills/wayfinder
+  - .claude/skills/wayfinder/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/wayfinder/SKILL.md: sha256:bef437de697fb6984a8a90b7fd82f128609148d6e02f635ce419d03555b351e1
+    .claude/skills/wayfinder/SKILL.md: sha256:bef437de697fb6984a8a90b7fd82f128609148d6e02f635ce419d03555b351e1
+  content_hash: sha256:3eb72cd9abdfaa00e10fa69f0b4410ff8639a6cf4eb9e5d187b289c3aa9be2fc
 - repo_url: mattpocock/skills
   name: skills
   host: github.com

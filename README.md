@@ -139,7 +139,7 @@ export GIT_AUTHOR_NAME="Your Name"
 `~/.claude/settings.json` を dotfiles で完全管理し、個人差分は `~/.claude/settings.local.json` に置きます（`language: japanese`、`effortLevel: xhigh`、`teammateMode: auto`、`statusLine` に bash カスタムスクリプト）。
 
 - **セキュリティ**: 機密ファイル読み取り禁止、破壊的コマンド禁止、クラウド操作禁止（deny ルール群）
-- **設計→実装ワークフロー**: mattpocock skills（`setup-matt-pocock-skills` → `grill-with-docs` → `to-prd` → `to-issues` → `triage` → `tdd`）。apm 経由で `~/.claude/skills/` へ展開
+- **設計→実装ワークフロー**: mattpocock skills（`setup-matt-pocock-skills` → `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`、raw issue は `triage` on-ramp）。apm 経由で `~/.claude/skills/` へ展開
 - **enabledPlugins**: security-guidance, LSP 群, codex, claude-code-setup
 - **ブラウザ**: `playwright-cli`
 

@@ -26,27 +26,29 @@ dependencies:
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance
     # mizchi/skills
     - mizchi/skills/meta/empirical-prompt-tuning
-    # mattpocock/skills — 設計→実装ワークフロー。上流 README の promoted セットに整合
-    # (User-invoked / Model-invoked の公式分類。README 非掲載の implement /
-    #  resolving-merge-conflicts は非導入。grill-me は ADR-0002 により軽量化のため除去済み。
+    # mattpocock/skills — 設計→実装ワークフロー。v1.1.0 の promoted セットに整合
+    # (User-invoked / Model-invoked の公式分類。grill-me は ADR-0002 により軽量化のため除去済み。
     #  grilling は productivity カテゴリの Model-invoked skill で
     #  grill-with-docs/grill-me の共通ループ — ADR-0009 参照。
     #  productivity の teach は「設計→実装ワークフロー」スコープ外のため非導入 — ADR-0010 参照)。
-    # User-invoked (メインフロー: grill-with-docs → to-prd → to-issues →
-    #  [tdd → code-review は model-invoked で自動発火] → to-pr。
-    #  triage は to-issues 産出物には使わず、raw issue 専用の on-ramp — ADR-0014 参照):
+    # User-invoked (メインフロー: grill-with-docs → to-spec → to-tickets →
+    #  implement → to-pr。triage は to-tickets 産出物には使わず、
+    #  raw issue 専用の on-ramp — ADR-0014 / ADR-0022 参照):
     - mattpocock/skills/skills/engineering/setup-matt-pocock-skills
     - mattpocock/skills/skills/engineering/grill-with-docs
-    - mattpocock/skills/skills/engineering/to-prd
-    - mattpocock/skills/skills/engineering/to-issues
+    - mattpocock/skills/skills/engineering/to-spec
+    - mattpocock/skills/skills/engineering/to-tickets
+    - mattpocock/skills/skills/engineering/implement
     - mattpocock/skills/skills/engineering/triage
     - mattpocock/skills/skills/engineering/ask-matt
     - mattpocock/skills/skills/engineering/improve-codebase-architecture
+    - mattpocock/skills/skills/engineering/wayfinder
     - mattpocock/skills/skills/productivity/handoff
     - mattpocock/skills/skills/productivity/writing-great-skills
-    # Model-invoked (実装フェーズで自動発火する discipline 層):
+    # Model-invoked (実装フェーズで implement から呼ばれる discipline 層):
     - mattpocock/skills/skills/engineering/tdd
     - mattpocock/skills/skills/engineering/code-review
+    - mattpocock/skills/skills/engineering/resolving-merge-conflicts
     - mattpocock/skills/skills/engineering/diagnosing-bugs
     - mattpocock/skills/skills/engineering/domain-modeling
     - mattpocock/skills/skills/engineering/codebase-design

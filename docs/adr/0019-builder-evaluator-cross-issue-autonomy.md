@@ -10,7 +10,7 @@ timestamp: 2026-07-08
 
 ## Status
 
-Accepted (2026-07-08)
+Accepted (2026-07-08)。[ADR-0022](0022-align-mattpocock-v1-1-workflow.md)（2026-07-10）で Builder-Evaluator の入口は `implement` に更新されたが、ticket をまたいで同一 worktree/branch 内なら停止せず連続処理してよい、commit 確認を挟まない、push/PR 作成確認は維持する、という本 ADR の安全モデルは継続する。
 
 ## Context
 
