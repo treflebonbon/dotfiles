@@ -62,6 +62,34 @@ run_bashrc() {
   refute_log_contains "blesh-share"
 }
 
+@test "bashrc strips bash prompt markers from starship prompt when bash lacks readline bind builtin" {
+  cat >"$TEST_BIN_DIR/starship" <<'STUB_EOF'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+if [ "${1:-}" = "init" ] && [ "${2:-}" = "bash" ]; then
+  cat <<'INIT_EOF'
+starship_precmd() {
+  PS1='\[\e[31m\]PROMPT\[\e[0m\] '
+}
+PROMPT_COMMAND=starship_precmd
+INIT_EOF
+fi
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/starship"
+
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR:/usr/bin:/bin" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    TERM="${TERM:-xterm}" \
+    /bin/bash --noprofile --norc -i -c "enable -n bind; source '$GENERATED_BASHRC'; starship_precmd; printf '%s' \"\$PS1\""
+
+  assert_success
+  assert_output --partial "PROMPT"
+  refute_output --partial "\\["
+  refute_output --partial "\\]"
+}
+
 @test "bash sources bash-preexec when present (issue #53)" {
   mkdir -p "$FAKE_HOME/.config/bash"
   echo 'echo "BASH_PREEXEC_SOURCED" >> "$TEST_LOG"' >"$FAKE_HOME/.config/bash/bash-preexec.sh"
