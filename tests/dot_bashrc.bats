@@ -25,6 +25,27 @@ run_bashrc() {
     /bin/bash --noprofile --norc -i -c "source '$GENERATED_BASHRC'; true"
 }
 
+@test "bashrc skips completion/keybinding init when current bash lacks programmable completion builtins" {
+  local path_bash
+  path_bash="$(command -v bash)"
+
+  run "$path_bash" -lc 'shopt -q progcomp && enable -p | grep -qx "enable complete" && enable -p | grep -qx "enable bind"'
+  if [ "$status" -eq 0 ]; then
+    skip "PATH bash has programmable completion/readline builtins"
+  fi
+
+  run /usr/bin/env -i \
+    PATH="$PATH" \
+    HOME="$FAKE_HOME" \
+    TERM="${TERM:-xterm}" \
+    "$path_bash" --noprofile --rcfile "$GENERATED_BASHRC" -ic "true"
+
+  assert_success
+  refute_output --partial "shopt: progcomp: invalid shell option name"
+  refute_output --partial "complete: command not found"
+  refute_output --partial "bind: command not found"
+}
+
 @test "bash initializes fzf/zoxide/starship and does not initialize atuin or ble.sh (issue #53)" {
   stub_cmd fzf
   stub_cmd zoxide

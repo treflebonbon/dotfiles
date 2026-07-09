@@ -119,8 +119,12 @@ shopt -s cdspell 2>/dev/null || true   # cd のタイプミス補正
 shopt -s dirspell 2>/dev/null || true
 shopt -s checkwinsize 2>/dev/null || true
 
+_bash_has_builtin() {
+  enable -p | grep -qx "enable $1"
+}
+
 # bash-completion（OS パッケージ優先、無ければ nix devshell 供給の本体を XDG_DATA_DIRS から探索）
-if ! shopt -oq posix; then
+if ! shopt -oq posix && shopt -q progcomp 2>/dev/null && _bash_has_builtin complete; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
     # shellcheck source=/dev/null
     . /usr/share/bash-completion/bash_completion
@@ -149,7 +153,7 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 # nix-devshell が供給する glibc 版 loadable builtin を使う。ABI 不一致や
 # 壊れた artifact でログインシェルを巻き込まないよう、失敗時は警告だけ出して
 # bash 標準の入力編集へフォールバックする。
-if [ -n "${FLYLINE_BASH_LOADABLE:-}" ]; then
+if [ -n "${FLYLINE_BASH_LOADABLE:-}" ] && _bash_has_builtin bind; then
   if [ -r "$FLYLINE_BASH_LOADABLE" ] && enable -f "$FLYLINE_BASH_LOADABLE" flyline 2>/dev/null; then
     flyline mouse --mode disabled >/dev/null 2>&1 || true
   else
@@ -164,7 +168,9 @@ fi
 
 # fzf: キーバインド + 補完（+ Dracula カラー公式）
 if command -v fzf >/dev/null 2>&1; then
-  eval "$(fzf --bash)"
+  if _bash_has_builtin bind && _bash_has_builtin complete; then
+    eval "$(fzf --bash)"
+  fi
   export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
 fi
 
