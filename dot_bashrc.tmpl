@@ -258,7 +258,17 @@ if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
 fi
 
 # starship プロンプト
-command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init bash)"
+  if { ! _bash_has_builtin bind || type flyline >/dev/null 2>&1; } && declare -F starship_precmd >/dev/null 2>&1; then
+    eval "$(declare -f starship_precmd | sed '1s/starship_precmd/_starship_precmd_with_bash_markers/')"
+    starship_precmd() {
+      _starship_precmd_with_bash_markers "$@"
+      PS1="${PS1//\\[/}"
+      PS1="${PS1//\\]/}"
+    }
+  fi
+fi
 
 # プロジェクト固有設定を読み込み（優先順位順）
 for _cfg in \

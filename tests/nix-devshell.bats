@@ -92,6 +92,18 @@ setup() {
   grep -q '"@playwright/cli": "0.1.14"' "$package_json"
 }
 
+@test "local skill deploy uses agents hub for Codex without native duplicate target" {
+  local deploy="$PROJECT_ROOT/run_onchange_after_deploy-local-skills.sh.tmpl"
+  local cleanup="$PROJECT_ROOT/run_onchange_before_remove-orphan-claude-skills.sh.tmpl"
+  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
+
+  grep -q '\.agents/skills/\$name' "$deploy"
+  grep -q '\.claude/skills/\$name' "$deploy"
+  ! grep -q 'codex_home/skills/\$name' "$deploy"
+  grep -q 'remove_named_skill_entries "\${HOME}/\.codex/skills" "codex local duplicate"' "$cleanup"
+  grep -q 'Codex native location.*へは配備しない' "$runtime"
+}
+
 @test "gws package uses pinned 0.22.5 release binaries" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/gws.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"

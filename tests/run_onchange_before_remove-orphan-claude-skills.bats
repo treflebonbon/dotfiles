@@ -224,6 +224,29 @@ run_script() {
   [ -d "$codex_home/skills/frontend-design" ]
 }
 
+@test "removes local skill duplicates from Codex native skill dirs" {
+  local codex_home="$BATS_TEST_TMPDIR/codex-home"
+  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills"; do
+    mkdir -p "$dir/to-pr" "$dir/to-worktree" "$dir/dogfood-to-issues" "$dir/frontend-design"
+    printf 'stub\n' >"$dir/to-pr/SKILL.md"
+    printf 'stub\n' >"$dir/frontend-design/SKILL.md"
+  done
+
+  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+
+  [ -d "$FAKE_HOME/.agents/skills/to-pr" ]
+  [ -d "$FAKE_HOME/.claude/skills/to-pr" ]
+  [ ! -e "$FAKE_HOME/.codex/skills/to-pr" ]
+  [ ! -e "$FAKE_HOME/.codex/skills/to-worktree" ]
+  [ ! -e "$FAKE_HOME/.codex/skills/dogfood-to-issues" ]
+  [ ! -e "$codex_home/skills/to-pr" ]
+  [ ! -e "$codex_home/skills/to-worktree" ]
+  [ ! -e "$codex_home/skills/dogfood-to-issues" ]
+  [ -d "$FAKE_HOME/.codex/skills/frontend-design" ]
+  [ -d "$codex_home/skills/frontend-design" ]
+}
+
 @test "removes retired agent-browser and grill-me from agent runtime skill dirs" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do

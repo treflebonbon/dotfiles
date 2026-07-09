@@ -57,7 +57,8 @@ apm 外の user-scoped private skill は chezmoi で配布する。ソースは 
 
 - `~/.agents/skills/<name>/` — 共有ハブ。Antigravity / Codex はここを直接読む
 - `~/.claude/skills/<name>/` — Claude
-- `${CODEX_HOME:-~/.codex}/skills/<name>/` — Codex native location（`~/.agents/skills/` で可視のためフェイルセーフ）
+
+Codex native location（`${CODEX_HOME:-~/.codex}/skills`）へは配備しない。Codex は `~/.agents/skills/` で同じ skill を既に発見でき、native location にも置くと `to-pr` などのローカル skill が二重表示されるため。
 
 deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走り apm 配備を上書きしない。`run_onchange_before_remove-orphan-claude-skills.sh.tmpl` は `~/.claude/skills/` の real dir を wipe するため、ローカル skill 名を同スクリプトの `preserve_local_skills` allowlist に登録して除外する（両者の skill 名リストは一致させること）。
 

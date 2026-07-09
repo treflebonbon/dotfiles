@@ -183,6 +183,14 @@ fi
 remove_retired_apm_skill_dirs "${HOME}/.gemini/skills"
 remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
 
+# Codex は ~/.agents/skills を直接読むため、同じローカル skill を
+# ~/.codex/skills や runtime CODEX_HOME/skills にも置くと二重表示になる。
+# 旧 deploy-local-skills が materialize した real dir はここで撤去する。
+remove_named_skill_entries "${HOME}/.codex/skills" "codex local duplicate" "${preserve_local_skills[@]}"
+if [ "$codex_home" != "$HOME/.codex" ]; then
+  remove_named_skill_entries "$codex_home/skills" "codex local duplicate" "${preserve_local_skills[@]}"
+fi
+
 # 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)
 marker="${HOME}/.agents/skills/.managed-by-ai-nix"
 if [ -f "$marker" ]; then
