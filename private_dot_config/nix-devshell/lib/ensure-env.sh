@@ -12,6 +12,9 @@ ensure_nix_devshell_env() {
   local CACHE="${1:-$HOME/.cache/nix-devshell-global-env.bash}"
   [ -f "$CACHE" ] || return 0
 
+  local prev_shell="${SHELL:-}"
+  local prev_bash="${BASH:-}"
+
   # cache は `nix print-dev-env` の出力で bash として source 可能。
   # set -u 環境で源 / 一部の未定義参照 (e.g. PS1, BASH_VERSION) で落ちうるため一時退避。
   local prev_u=""
@@ -19,5 +22,20 @@ ensure_nix_devshell_env() {
   set +u
   # shellcheck disable=SC1090
   . "$CACHE" 2>/dev/null || true
+
+  # nix print-dev-env は stdenv の bash を SHELL/BASH として出力することがある。
+  # その bash は readline なしのため、chezmoi cd 等の対話シェル選択に漏らさない。
+  case "$prev_shell" in /nix/store/*/bin/bash) prev_shell="" ;; esac
+  if [ -z "$prev_shell" ] && [ -n "$prev_bash" ] && [ -x "$prev_bash" ]; then
+    prev_shell="$prev_bash"
+  fi
+  if [ -n "$prev_shell" ]; then
+    export SHELL="$prev_shell"
+  fi
+  if [ -n "$prev_bash" ]; then
+    BASH="$prev_bash"
+  fi
+
   [ -n "$prev_u" ] && set -u
+  return 0
 }

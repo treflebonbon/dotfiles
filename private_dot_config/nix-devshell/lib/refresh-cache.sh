@@ -50,7 +50,7 @@ refresh_nix_devshell_cache() {
   tmp=$(mktemp "${CACHE}.tmp.XXXXXX")
   err=$(mktemp "${LOG}.err.XXXXXX")
 
-  if (cd "$DIR" && nix print-dev-env 2> >(tee -a "$err" >&2) | grep -v '^LINENO=') >"$tmp" && [ -s "$tmp" ]; then
+  if (cd "$DIR" && nix print-dev-env 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)=') >"$tmp" && [ -s "$tmp" ]; then
     mv "$tmp" "$CACHE"
     tmp=""
     [ -s "$err" ] && cat "$err" >>"$LOG"
