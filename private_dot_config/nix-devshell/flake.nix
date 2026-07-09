@@ -36,6 +36,7 @@
 
           gwq = pkgs.callPackage ./packages/gwq.nix { };
           gws = pkgs.callPackage ./packages/gws.nix { };
+          flyline = pkgs.callPackage ./packages/flyline.nix { };
 
           moduleArgs = {
             inherit
@@ -43,6 +44,7 @@
               inputs
               lib
               system
+              flyline
               ;
           };
 

@@ -10,7 +10,7 @@ timestamp: 2026-07-08
 
 ## Status
 
-Accepted (2026-07-08)。ADR-0001 の「autosuggestions / syntax-highlighting は失う」という consequence を部分的に見直す。
+Superseded by [ADR-0021](0021-replace-blesh-with-flyline.md) (2026-07-09)。ADR-0001 の「autosuggestions / syntax-highlighting は失う」という consequence を部分的に見直したが、実利用で入力遅延・描画乱れ・補完まわりの不安定さが問題になったため、bash 側は flyline 中心の構成へ移行する。
 
 ## Context
 

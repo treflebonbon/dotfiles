@@ -1,40 +1,48 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  flyline,
+  ...
+}:
 
 {
-  packages = with pkgs; [
-    # Prompt
-    starship
+  packages =
+    (with pkgs; [
+      # Prompt
+      starship
 
-    # Navigation
-    zoxide
-    atuin
+      # Navigation
+      zoxide
+      atuin
 
-    # File listing
-    eza
-    bat
-    hexyl
+      # File listing
+      eza
+      bat
+      hexyl
 
-    # Search
-    fd
-    ripgrep
-    fzf
+      # Search
+      fd
+      ripgrep
+      fzf
 
-    # Text processing
-    jq
-    sd
+      # Text processing
+      jq
+      sd
 
-    # Shell tools
-    shellcheck
-    bash-completion
-    direnv
-    blesh
-    zsh
-    zsh-autosuggestions
-    zsh-syntax-highlighting
+      # Shell tools
+      shellcheck
+      bash-completion
+      direnv
+      zsh
+      zsh-autosuggestions
+      zsh-syntax-highlighting
 
-    # Note-taking
-    nb
-  ];
+      # Note-taking
+      nb
+    ])
+    ++ lib.optionals pkgs.stdenv.isLinux [
+      flyline
+    ];
 
   # zsh-autosuggestions / zsh-syntax-highlighting は blesh の `blesh-share` の
   # ような discovery 用コマンドを持たないため（NixOS/home-manager の
@@ -44,5 +52,8 @@
   env = {
     ZSH_AUTOSUGGESTIONS_SHARE = "${pkgs.zsh-autosuggestions}/share/zsh-autosuggestions/zsh-autosuggestions.zsh";
     ZSH_SYNTAX_HIGHLIGHTING_SHARE = "${pkgs.zsh-syntax-highlighting}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh";
+  }
+  // lib.optionalAttrs pkgs.stdenv.isLinux {
+    FLYLINE_BASH_LOADABLE = "${flyline}/lib/libflyline.so";
   };
 }
