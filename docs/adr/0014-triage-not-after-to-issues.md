@@ -10,7 +10,7 @@ timestamp: 2026-07-07
 
 ## Status
 
-Accepted (2026-07-07)。本 ADR の「この repo では `implement` を導入しておらず `tdd` → `code-review` に相当」という記述は、[ADR-0015](0015-add-tdd-commit-confirmation.md)（2026-07-07）でより正確な根拠（upstream issue による実証的な信頼性バグ）と、`tdd`/`code-review` 間の commit 責務の明記に補強された。
+Accepted (2026-07-07)。本 ADR の「この repo では `implement` を導入しておらず `tdd` → `code-review` に相当」という記述は、[ADR-0015](0015-add-tdd-commit-confirmation.md)（2026-07-07）でより正確な根拠（upstream issue による実証的な信頼性バグ）と、`tdd`/`code-review` 間の commit 責務の明記に補強された。その後、[ADR-0022](0022-align-mattpocock-v1-1-workflow.md)（2026-07-10）で `implement` を導入し、`to-prd` / `to-issues` を上流現行名の `to-spec` / `to-tickets` に置き換えた。triage を raw issue 専用 on-ramp とする判断は維持する。
 
 ## Context
 

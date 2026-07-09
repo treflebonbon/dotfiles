@@ -8,8 +8,8 @@ disable-model-invocation: true
 
 Entry point of every workflow chain. Which chain follows depends on the scenario:
 
-- Requirements undetermined: `to-worktree → grill-with-docs → to-prd → to-issues → triage`
-- Requirements already decided: `to-worktree → tdd → code-review → to-pr`
+- Requirements undetermined: `to-worktree → grill-with-docs → to-spec → to-tickets → implement → to-pr`
+- Requirements already decided: `to-worktree → implement → to-pr`
 - Bug fix: `to-worktree → diagnosing-bugs → code-review → to-pr`
 
 Isolate the upcoming work in a worktree so the current checkout is never dirtied. Design

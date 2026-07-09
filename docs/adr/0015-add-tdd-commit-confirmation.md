@@ -10,7 +10,7 @@ timestamp: 2026-07-07
 
 ## Status
 
-Accepted (2026-07-07)
+Accepted (2026-07-07)。commit 確認ステップは [ADR-0019](0019-builder-evaluator-cross-issue-autonomy.md)（2026-07-08）で廃止された。`implement` 非導入判断は [ADR-0022](0022-align-mattpocock-v1-1-workflow.md)（2026-07-10）で置き換えられた。
 
 ## Context
 
