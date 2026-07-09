@@ -1,5 +1,5 @@
 lockfile_version: '1'
-generated_at: '2026-07-09T16:02:06.900099+00:00'
+generated_at: '2026-07-09T16:21:48.216322+00:00'
 apm_version: 0.24.0
 dependencies:
 - repo_url: Effect-TS/skills
@@ -798,7 +798,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: efa058a349f5ce98b6115bf8b4e0d0ef9c310e0d
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/ask-matt
   is_virtual: true
@@ -809,13 +810,14 @@ dependencies:
   - .claude/skills/ask-matt
   - .claude/skills/ask-matt/SKILL.md
   deployed_file_hashes:
-    .agents/skills/ask-matt/SKILL.md: sha256:c0609bf4626b7166fb54dd7fb0091682df05f0491c96ec566b0dc96ed97ea2fb
-    .claude/skills/ask-matt/SKILL.md: sha256:c0609bf4626b7166fb54dd7fb0091682df05f0491c96ec566b0dc96ed97ea2fb
-  content_hash: sha256:2d3f523c8bf1ebbd4d5ecaa1e2678ec629f157248669f1edba807de1d0feb031
+    .agents/skills/ask-matt/SKILL.md: sha256:b7dbb3249695841cf28f87555acc77dc630dafba0f1d544ecce252ff63b0933e
+    .claude/skills/ask-matt/SKILL.md: sha256:b7dbb3249695841cf28f87555acc77dc630dafba0f1d544ecce252ff63b0933e
+  content_hash: sha256:fdb0ea595c292ca93332d0f1e2c6624053e16ce5057533f5c59f8c166be707c5
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: e9dea692fd623e1717e63bdc81662c429a8e7062
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/code-review
   is_virtual: true
@@ -832,7 +834,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: efa058a349f5ce98b6115bf8b4e0d0ef9c310e0d
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/codebase-design
   is_virtual: true
@@ -857,7 +860,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: e9dea692fd623e1717e63bdc81662c429a8e7062
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/diagnosing-bugs
   is_virtual: true
@@ -878,7 +882,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: e9dea692fd623e1717e63bdc81662c429a8e7062
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/domain-modeling
   is_virtual: true
@@ -903,7 +908,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 7a83a3a682adf699f24dbc06613de87f4e52a0a0
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/grill-with-docs
   is_virtual: true
@@ -921,6 +927,7 @@ dependencies:
   name: skills
   host: github.com
   resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/implement
   is_virtual: true
@@ -937,7 +944,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: efa058a349f5ce98b6115bf8b4e0d0ef9c310e0d
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/improve-codebase-architecture
   is_virtual: true
@@ -958,7 +966,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: efa058a349f5ce98b6115bf8b4e0d0ef9c310e0d
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/prototype
   is_virtual: true
@@ -983,7 +992,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: efa058a349f5ce98b6115bf8b4e0d0ef9c310e0d
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/research
   is_virtual: true
@@ -1001,6 +1011,7 @@ dependencies:
   name: skills
   host: github.com
   resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/resolving-merge-conflicts
   is_virtual: true
@@ -1017,7 +1028,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 7a83a3a682adf699f24dbc06613de87f4e52a0a0
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/setup-matt-pocock-skills
   is_virtual: true
@@ -1038,23 +1050,24 @@ dependencies:
   - .claude/skills/setup-matt-pocock-skills/issue-tracker-local.md
   - .claude/skills/setup-matt-pocock-skills/triage-labels.md
   deployed_file_hashes:
-    .agents/skills/setup-matt-pocock-skills/SKILL.md: sha256:a85441f31decd5705ade6b526206d60be129dbe926251c67213fe1649da5f197
+    .agents/skills/setup-matt-pocock-skills/SKILL.md: sha256:8cd1fa43ff89492320404e5b18fb06d9488256be5dffc291ff038fc98bb98fb9
     .agents/skills/setup-matt-pocock-skills/domain.md: sha256:25be404b58798b3cb2d51c93dba2ab052fc3a425632185726ac3f5fcff193b99
-    .agents/skills/setup-matt-pocock-skills/issue-tracker-github.md: sha256:1e7ac76d3dd7f0ce41d6bf86912619a4bac164a70c6e246ae48f6825e222d56d
-    .agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md: sha256:6282954685bf55b7da7fad9f45dc4226d39e498ebaee1e06372708033fa40a09
-    .agents/skills/setup-matt-pocock-skills/issue-tracker-local.md: sha256:9a052f4599525e581721ec24cb2ae3e0296b79053e39f684b540d34d3a4f6528
+    .agents/skills/setup-matt-pocock-skills/issue-tracker-github.md: sha256:52e9f9f1ec0f6d47c6785ac500708ac0521f34abb4cc5475b5dc747165dab17e
+    .agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md: sha256:4470f2f64d015fba01af877233296b401bb0d44b5acb9572ffc3ff6b30e8de88
+    .agents/skills/setup-matt-pocock-skills/issue-tracker-local.md: sha256:e0dd9835e3658909132058e9a5fdd851e972220bbadaf78a57e3c6220d470922
     .agents/skills/setup-matt-pocock-skills/triage-labels.md: sha256:4f53c9b40ce2651e3611aa090eaedbd6dbc9b71ef8c5f7e65eac0d8263190d0d
-    .claude/skills/setup-matt-pocock-skills/SKILL.md: sha256:a85441f31decd5705ade6b526206d60be129dbe926251c67213fe1649da5f197
+    .claude/skills/setup-matt-pocock-skills/SKILL.md: sha256:8cd1fa43ff89492320404e5b18fb06d9488256be5dffc291ff038fc98bb98fb9
     .claude/skills/setup-matt-pocock-skills/domain.md: sha256:25be404b58798b3cb2d51c93dba2ab052fc3a425632185726ac3f5fcff193b99
-    .claude/skills/setup-matt-pocock-skills/issue-tracker-github.md: sha256:1e7ac76d3dd7f0ce41d6bf86912619a4bac164a70c6e246ae48f6825e222d56d
-    .claude/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md: sha256:6282954685bf55b7da7fad9f45dc4226d39e498ebaee1e06372708033fa40a09
-    .claude/skills/setup-matt-pocock-skills/issue-tracker-local.md: sha256:9a052f4599525e581721ec24cb2ae3e0296b79053e39f684b540d34d3a4f6528
+    .claude/skills/setup-matt-pocock-skills/issue-tracker-github.md: sha256:52e9f9f1ec0f6d47c6785ac500708ac0521f34abb4cc5475b5dc747165dab17e
+    .claude/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md: sha256:4470f2f64d015fba01af877233296b401bb0d44b5acb9572ffc3ff6b30e8de88
+    .claude/skills/setup-matt-pocock-skills/issue-tracker-local.md: sha256:e0dd9835e3658909132058e9a5fdd851e972220bbadaf78a57e3c6220d470922
     .claude/skills/setup-matt-pocock-skills/triage-labels.md: sha256:4f53c9b40ce2651e3611aa090eaedbd6dbc9b71ef8c5f7e65eac0d8263190d0d
-  content_hash: sha256:17c9db34daf243859d6e76676c3aee74e3815442278dc665871ebf07ecd49f79
+  content_hash: sha256:1acb4f6e07065cf36198af5adb91898503a5a28ff3c3ab567e704548cca0a409
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 7a83a3a682adf699f24dbc06613de87f4e52a0a0
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/tdd
   is_virtual: true
@@ -1069,17 +1082,18 @@ dependencies:
   - .claude/skills/tdd/mocking.md
   - .claude/skills/tdd/tests.md
   deployed_file_hashes:
-    .agents/skills/tdd/SKILL.md: sha256:e201aa934c0fdbfbf623d292d97bfd926b06e0d12ba80ba408ab348a4dd4c5bf
+    .agents/skills/tdd/SKILL.md: sha256:5363bb2775679fe9311fbb67947f95359169c6e7f1fac77c0f25e190bca6cf2f
     .agents/skills/tdd/mocking.md: sha256:3ceb807fdf4a47d6a93d4d9a891e5ba6d362a6247bd08adc451feebfc17361ef
     .agents/skills/tdd/tests.md: sha256:859f9e592c188fda4fc7277dd180e4ce9c7a2e13f6efe1f6f29eccc9d28c106a
-    .claude/skills/tdd/SKILL.md: sha256:e201aa934c0fdbfbf623d292d97bfd926b06e0d12ba80ba408ab348a4dd4c5bf
+    .claude/skills/tdd/SKILL.md: sha256:5363bb2775679fe9311fbb67947f95359169c6e7f1fac77c0f25e190bca6cf2f
     .claude/skills/tdd/mocking.md: sha256:3ceb807fdf4a47d6a93d4d9a891e5ba6d362a6247bd08adc451feebfc17361ef
     .claude/skills/tdd/tests.md: sha256:859f9e592c188fda4fc7277dd180e4ce9c7a2e13f6efe1f6f29eccc9d28c106a
-  content_hash: sha256:9229881d367f2b69c5bd46340986da49687ef243413e12064e603febfc7c54a9
+  content_hash: sha256:a97c290e9e05c74d6e936745b325a1585e0f5352bf46a595b65f7b24a57ad855
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
   resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/to-spec
   is_virtual: true
@@ -1097,6 +1111,7 @@ dependencies:
   name: skills
   host: github.com
   resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/to-tickets
   is_virtual: true
@@ -1113,7 +1128,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 7a83a3a682adf699f24dbc06613de87f4e52a0a0
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/triage
   is_virtual: true
@@ -1139,6 +1155,7 @@ dependencies:
   name: skills
   host: github.com
   resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/engineering/wayfinder
   is_virtual: true
@@ -1155,7 +1172,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 272f99b22574f50e4266791c86b9302682970e23
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/productivity/grilling
   is_virtual: true
@@ -1166,13 +1184,14 @@ dependencies:
   - .claude/skills/grilling
   - .claude/skills/grilling/SKILL.md
   deployed_file_hashes:
-    .agents/skills/grilling/SKILL.md: sha256:4fc8087fb48b0174b4f02e03a5ab7e331830f921fd440c51393895902d22e445
-    .claude/skills/grilling/SKILL.md: sha256:4fc8087fb48b0174b4f02e03a5ab7e331830f921fd440c51393895902d22e445
-  content_hash: sha256:bf1e75d96966edd298902d63348c828921b8b095d7306d0cdd56b4a591a7a82b
+    .agents/skills/grilling/SKILL.md: sha256:5a35925d03a391bcfa46940868b649b72dba89ec9c19525e785bbb6bd3a7f478
+    .claude/skills/grilling/SKILL.md: sha256:5a35925d03a391bcfa46940868b649b72dba89ec9c19525e785bbb6bd3a7f478
+  content_hash: sha256:1de9e777a60b184b29412fadacb7bbde8c14bb7037e5c4d9d086c941281d1742
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 272f99b22574f50e4266791c86b9302682970e23
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/productivity/handoff
   is_virtual: true
@@ -1183,13 +1202,14 @@ dependencies:
   - .claude/skills/handoff
   - .claude/skills/handoff/SKILL.md
   deployed_file_hashes:
-    .agents/skills/handoff/SKILL.md: sha256:94bee8c16cbfcf9f1e15187f7e5d0d5a93c4adb7c512feceecaab80c8ff7c059
-    .claude/skills/handoff/SKILL.md: sha256:94bee8c16cbfcf9f1e15187f7e5d0d5a93c4adb7c512feceecaab80c8ff7c059
-  content_hash: sha256:5d0f81e38abe6b984e1feaa731927de5291d040982106ac513cf54ec240e00ec
+    .agents/skills/handoff/SKILL.md: sha256:57c9f1f392d7352cdc85b1e39ca49eddc70ce1dc278bd9653fb4f23dfc2560fc
+    .claude/skills/handoff/SKILL.md: sha256:57c9f1f392d7352cdc85b1e39ca49eddc70ce1dc278bd9653fb4f23dfc2560fc
+  content_hash: sha256:87e353708ab36062eac54ddb593a97ca553c0cb4bfa1ed1fdaf68520700723f1
 - repo_url: mattpocock/skills
   name: skills
   host: github.com
-  resolved_commit: 272f99b22574f50e4266791c86b9302682970e23
+  resolved_commit: d574778f94cf620fcc8ce741584093bc650a61d3
+  resolved_ref: d574778f94cf620fcc8ce741584093bc650a61d3
   version: unknown
   virtual_path: skills/productivity/writing-great-skills
   is_virtual: true
@@ -1202,11 +1222,11 @@ dependencies:
   - .claude/skills/writing-great-skills/GLOSSARY.md
   - .claude/skills/writing-great-skills/SKILL.md
   deployed_file_hashes:
-    .agents/skills/writing-great-skills/GLOSSARY.md: sha256:eaab3564313cec3d35209bb42b05c797dcb350c075a079936c4dd173f9d8e8d8
-    .agents/skills/writing-great-skills/SKILL.md: sha256:7c6ba7ec25bb2c0e173c52cdc2da878aef0b083ec19a9c1799934e480c8833cc
-    .claude/skills/writing-great-skills/GLOSSARY.md: sha256:eaab3564313cec3d35209bb42b05c797dcb350c075a079936c4dd173f9d8e8d8
-    .claude/skills/writing-great-skills/SKILL.md: sha256:7c6ba7ec25bb2c0e173c52cdc2da878aef0b083ec19a9c1799934e480c8833cc
-  content_hash: sha256:dd555ce552f82784c3d2b8d13a8e26a6677a07ddc00032e142dec33bfd5438c6
+    .agents/skills/writing-great-skills/GLOSSARY.md: sha256:cccd684c73fb7a06f523497b0121765f92d2b33d6ef9c51602294849233451d6
+    .agents/skills/writing-great-skills/SKILL.md: sha256:4d6ccbc3760b1bd4107c495a79872286ea69494003f3b0a719fc95b147457061
+    .claude/skills/writing-great-skills/GLOSSARY.md: sha256:cccd684c73fb7a06f523497b0121765f92d2b33d6ef9c51602294849233451d6
+    .claude/skills/writing-great-skills/SKILL.md: sha256:4d6ccbc3760b1bd4107c495a79872286ea69494003f3b0a719fc95b147457061
+  content_hash: sha256:42fe94c64d7b9acda9ce7d6495a3476893a1b18615986528f55f7162a29789d4
 - repo_url: mizchi/skills
   name: skills
   host: github.com

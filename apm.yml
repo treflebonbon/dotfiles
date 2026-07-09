@@ -34,27 +34,27 @@ dependencies:
     # User-invoked (メインフロー: grill-with-docs → to-spec → to-tickets →
     #  implement → to-pr。triage は to-tickets 産出物には使わず、
     #  raw issue 専用の on-ramp — ADR-0014 / ADR-0022 参照):
-    - mattpocock/skills/skills/engineering/setup-matt-pocock-skills
-    - mattpocock/skills/skills/engineering/grill-with-docs
-    - mattpocock/skills/skills/engineering/to-spec
-    - mattpocock/skills/skills/engineering/to-tickets
-    - mattpocock/skills/skills/engineering/implement
-    - mattpocock/skills/skills/engineering/triage
-    - mattpocock/skills/skills/engineering/ask-matt
-    - mattpocock/skills/skills/engineering/improve-codebase-architecture
-    - mattpocock/skills/skills/engineering/wayfinder
-    - mattpocock/skills/skills/productivity/handoff
-    - mattpocock/skills/skills/productivity/writing-great-skills
+    - mattpocock/skills/skills/engineering/setup-matt-pocock-skills#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/grill-with-docs#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/to-spec#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/to-tickets#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/implement#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/triage#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/ask-matt#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/improve-codebase-architecture#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/wayfinder#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/productivity/handoff#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/productivity/writing-great-skills#d574778f94cf620fcc8ce741584093bc650a61d3
     # Model-invoked (実装フェーズで implement から呼ばれる discipline 層):
-    - mattpocock/skills/skills/engineering/tdd
-    - mattpocock/skills/skills/engineering/code-review
-    - mattpocock/skills/skills/engineering/resolving-merge-conflicts
-    - mattpocock/skills/skills/engineering/diagnosing-bugs
-    - mattpocock/skills/skills/engineering/domain-modeling
-    - mattpocock/skills/skills/engineering/codebase-design
-    - mattpocock/skills/skills/engineering/prototype
-    - mattpocock/skills/skills/engineering/research
-    - mattpocock/skills/skills/productivity/grilling
+    - mattpocock/skills/skills/engineering/tdd#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/code-review#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/resolving-merge-conflicts#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/diagnosing-bugs#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/domain-modeling#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/codebase-design#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/prototype#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/research#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/productivity/grilling#d574778f94cf620fcc8ce741584093bc650a61d3
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
