@@ -44,7 +44,7 @@ stdenvNoCC.mkDerivation {
   meta = {
     description = "Bash loadable line editor with syntax highlighting and fuzzy history";
     homepage = "https://github.com/HalFrgrd/flyline";
-    license = lib.licenses.mit;
+    license = lib.licenses.gpl3Only;
     platforms = builtins.attrNames releases;
   };
 }

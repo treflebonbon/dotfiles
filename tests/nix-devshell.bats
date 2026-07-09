@@ -38,6 +38,7 @@ setup() {
   grep -q 'sha256-IbsKeg5BdJb/aO+DecrcBdNeQq7jV/xkrZqNlfaTIPg=' "$pkg"
   grep -q 'sha256-qIm8Fu4x5aa4Vyi5udnSPWfz8PuyG/DK5+J4kL1DxM0=' "$pkg"
   grep -q 'libflyline.so' "$pkg"
+  grep -q 'license = lib.licenses.gpl3Only' "$pkg"
   grep -q 'flyline = pkgs.callPackage ./packages/flyline.nix' "$flake"
   grep -q 'FLYLINE_BASH_LOADABLE' "$module"
   grep -q 'lib.optionals pkgs.stdenv.isLinux' "$module"
