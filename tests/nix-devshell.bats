@@ -72,6 +72,14 @@ setup() {
   grep -q 'minClaudeCode = "2\.1\.205";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
+@test "nix-devshell requires Codex with GPT 5.6 support" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+
+  grep -q 'minCodex = "0\.144\.0";' "$module"
+  grep -q 'version = "0\.144\.0";' "$module"
+  grep -q 'cargoHash = "sha256-S4dsZXfmKvJItL2XYKyxfhqdCMATEG6oPjrtVRwkuYc=";' "$module"
+}
+
 @test "nix-devshell includes Google Antigravity CLI" {
   grep -q 'llm\.antigravity' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
