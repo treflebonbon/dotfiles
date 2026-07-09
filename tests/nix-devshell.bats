@@ -27,6 +27,37 @@ setup() {
   grep -q 'zsh-syntax-highlighting.zsh' "$module"
 }
 
+@test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
+  local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
+
+  grep -q 'version = "1.3.0";' "$pkg"
+  grep -q 'libflyline-v${version}-x86_64-unknown-linux-gnu.tar.gz' "$pkg"
+  grep -q 'libflyline-v${version}-aarch64-unknown-linux-gnu.tar.gz' "$pkg"
+  grep -q 'sha256-IbsKeg5BdJb/aO+DecrcBdNeQq7jV/xkrZqNlfaTIPg=' "$pkg"
+  grep -q 'sha256-qIm8Fu4x5aa4Vyi5udnSPWfz8PuyG/DK5+J4kL1DxM0=' "$pkg"
+  grep -q 'libflyline.so' "$pkg"
+  grep -q 'flyline = pkgs.callPackage ./packages/flyline.nix' "$flake"
+  grep -q 'FLYLINE_BASH_LOADABLE' "$module"
+  grep -q 'lib.optionals pkgs.stdenv.isLinux' "$module"
+  ! grep -q 'unknown-linux-musl' "$pkg"
+}
+
+@test "shell docs describe flyline bash ownership and zsh native ownership (issues #54 #55)" {
+  local readme="$PROJECT_ROOT/README.md"
+  local runtime="$PROJECT_ROOT/runtime/shell-environment.md"
+
+  grep -q 'flyline' "$readme"
+  grep -q '履歴検索の所有者' "$runtime"
+  grep -q '主要機能セット' "$runtime"
+  grep -q 'bash.*flyline' "$runtime"
+  grep -q 'zsh.*atuin' "$runtime"
+  grep -q 'ADR-0021' "$runtime"
+  ! grep -q 'ble.sh.*リッチな Tab 補完' "$readme"
+  ! grep -q 'ble.sh.*リッチな Tab 補完' "$runtime"
+}
+
 @test "repository flake includes Playwright runner dependencies" {
   local flake="$PROJECT_ROOT/flake.nix"
 

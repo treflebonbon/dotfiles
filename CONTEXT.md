@@ -16,6 +16,14 @@ _Avoid_: evidence table, 検証エビデンス, verdict
 `tdd` の実装サイクル中、人間が画面上の UI 要素を選択し、その場でエージェントへ変更を指示する対話チャネル（Codex app（in-app browser）: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）。実装完了後にエージェントが自律的に検証する Verification Matrix とは主体（人間 vs エージェント）とタイミング（実装中 vs 実装後）の両方が異なる。
 _Avoid_: UI verification, ブラウザ検証
 
+**履歴検索の所有者**:
+対話シェルで `Ctrl-R` の履歴検索を担当するツール。所有者はシェル実装ごとに決め、bash では line editor が持つ場合も、zsh では atuin が持つ場合もある。
+_Avoid_: history backend, Ctrl-R integration
+
+**主要機能セット**:
+bash と zsh の両方で揃える対話シェル体験の最小集合。完全同一の実装や同一の履歴検索所有者ではなく、starship、fzf、zoxide、syntax highlight、autosuggestion、履歴検索の体験が大きく乖離しないことを重視する。
+_Avoid_: parity, 同一実装
+
 **Planner**:
 設計協働フェーズ（`grill-with-docs`→`to-prd`→`to-issues`）の呼称。人間が対話を通じて意思決定する主体であり、確認ポイントは削減しない（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md)）。
 _Avoid_: 計画フェーズ, 設計フェーズ

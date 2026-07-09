@@ -1,32 +1,42 @@
 ---
 type: concept
 title: Shell environment
-description: bash ベースのシェル環境 (starship / atuin / fzf / zoxide / ghq / direnv / eza) と nix-devshell グローバル env キャッシュ
-tags: [bash, shell, starship, atuin, ghq]
+description: bash は flyline 中心、macOS zsh は atuin + zsh plugins 中心で構成するシェル環境と nix-devshell グローバル env キャッシュ
+tags: [bash, zsh, shell, flyline, starship, atuin, ghq]
 ---
 
 # Shell environment
 
-ログインシェルは **bash**（zsh は使わない → [ADR-0001](../docs/adr/0001-bash-over-zsh.md)）。
+Linux / Dev Container のログインシェルは **bash**（[ADR-0001](../docs/adr/0001-bash-over-zsh.md)）。macOS は zsh を維持する（[ADR-0020](../docs/adr/0020-macos-keeps-zsh-login-shell.md)）。
 
 - `dot_bash_profile.tmpl` → `~/.bash_profile` — login shell。PATH / XDG_RUNTIME_DIR フォールバック / nix-daemon 読み込み / Codex Desktop 用 CODEX_HOME、末尾で `~/.bashrc` を source。
 - `dot_bashrc.tmpl` → `~/.bashrc` — 対話 shell。ツール init と関数を定義。
+- `dot_zshrc.tmpl` → `~/.zshrc` — macOS zsh 用の対話 shell。atuin と zsh-native plugins を初期化する。
 
-## ツール
+## 所有権モデル
+
+**履歴検索の所有者** は shell ごとに分ける。bash では flyline が `Ctrl-R` を所有し、zsh では atuin が `Ctrl-R` を所有する。
+
+**主要機能セット** は同一実装ではなく、shell ごとの最適実装で満たす。bash は flyline、zsh は atuin + zsh-autosuggestions + zsh-syntax-highlighting を使い、starship / fzf / zoxide は両方で維持する（[ADR-0021](../docs/adr/0021-replace-blesh-with-flyline.md)）。
+
+## bash ツール
 
 sheldon などのプラグインマネージャは使わず、`.bashrc` で各ツールの init を直接 `eval` する（軽量化）:
 
-- **ble.sh**（`blesh` パッケージ） — 構文ハイライト・autosuggestion・リッチな Tab 補完メニュー。`--attach=none` で source しファイル末尾で `ble-attach`（[ADR-0018](../docs/adr/0018-add-blesh-to-bash.md)）。atuin/starship はロード順序に対して自己統合するため追加コード不要
-- **bash-preexec** — precmd/preexec hook 基盤（`~/.config/bash/bash-preexec.sh` に vendored, rcaloras/bash-preexec 0.6.0）。atuin の履歴記録と starship のプロンプト描画は `precmd_functions`/`preexec_functions` 経由で動くため必須
-- **starship** — プロンプト（Dracula カラーパレット）。ble.sh ロード時は `${BLE_VERSION-}` を検出し右プロンプト（RPS1）も有効化
-- **atuin** — シェル履歴管理（`Ctrl-R`）。ble.sh の autosuggestion も atuin の履歴に基づく
-- **fzf** — キーバインド + 補完。ble.sh ロード時は `ble-import -d integration/fzf-completion` / `fzf-key-bindings`、未ロード時は `fzf --bash` にフォールバック。Dracula カラー
+- **flyline** — bash の line editor と履歴検索の所有者。Linux/glibc 版 loadable builtin を `enable -f` する。load 失敗時は1行警告を出して bash 標準入力編集へフォールバックする。mouse capture と AI agent integration は初期無効
+- **bash-preexec** — precmd/preexec hook 基盤（`~/.config/bash/bash-preexec.sh` に vendored, rcaloras/bash-preexec 0.6.0）。starship 継続時の prompt hook 互換性のため維持
+- **starship** — プロンプト（Dracula カラーパレット）。flyline prompt は directory / Git branch/status / time / command duration の既存表示を十分に置き換えないため、bash でも starship を維持する
+- **fzf** — キーバインド + 補完。通常の `fzf --bash` を使う。Dracula カラー
 - **zoxide** — スマート cd（`--cmd cd`）
 - **eza** — `ls`/`ll`/`la`/`lt` エイリアス
 - **direnv** — ディレクトリ単位の環境変数
 - **bash-completion** — 補完。OS パッケージ優先、無ければ nix-devshell 供給の本体を `XDG_DATA_DIRS` から探索
 
-**init 順序が重要**: ble.sh → bash-preexec → fzf(ble-import) → atuin → starship → ble-attach。Ctrl-R は後勝ちのため fzf の後に atuin を init して履歴検索を atuin に取らせる。
+## zsh ツール（macOS）
+
+- **atuin** — zsh の履歴検索の所有者（`Ctrl-R`）。fzf より後に init し、zsh の後勝ち keybind で履歴検索を取る
+- **zsh-autosuggestions / zsh-syntax-highlighting** — nixpkgs パッケージ由来の plugin file を直接 source する
+- **starship / fzf / zoxide / direnv** — zsh native hook で初期化する
 
 ## nix-devshell グローバル env キャッシュ
 

@@ -145,48 +145,28 @@ fi
 # direnv: ディレクトリごとの環境変数管理
 command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 
-# ble.sh: 構文ハイライト・autosuggestion・リッチな Tab 補完（nixpkgs blesh パッケージ）。
-# bash-preexec / starship より前に --attach=none で source し、ファイル末尾で ble-attach する。
-# atuin/starship はこのロード順序に対して自己統合するため追加コードは不要（ADR-0018）。
-# WSL 上では ble.sh が runtime dir 決定時に /run/user, /tmp を意図的にスキップし、
-# 読み取り専用の Nix store（$_ble_base/run）への mkdir を試みて必ず失敗した後
-# ~/.cache/blesh/run へフォールバックする。機能上は無害だが起動毎に Permission
-# Denied が2行出るため WSL 上でのみ stderr を抑制する（ble.sh 側の既知の
-# fallback 順序に起因、nixpkgs blesh パッケージが read-only prefix にインス
-# トールされることが引き金）。非 WSL 環境では genuine なエラーを隠さないよう
-# 抑制しない。
-# shellcheck source=/dev/null
-command -v blesh-share >/dev/null 2>&1 && {
-  if grep -qi microsoft /proc/version 2>/dev/null; then
-    . "$(blesh-share)/ble.sh" --attach=none 2>/dev/null
+# flyline: bash の line editor と履歴検索の所有者（ADR-0021）。
+# nix-devshell が供給する glibc 版 loadable builtin を使う。ABI 不一致や
+# 壊れた artifact でログインシェルを巻き込まないよう、失敗時は警告だけ出して
+# bash 標準の入力編集へフォールバックする。
+if [ -n "${FLYLINE_BASH_LOADABLE:-}" ]; then
+  if [ -r "$FLYLINE_BASH_LOADABLE" ] && enable -f "$FLYLINE_BASH_LOADABLE" flyline 2>/dev/null; then
+    flyline mouse --mode disabled >/dev/null 2>&1 || true
   else
-    . "$(blesh-share)/ble.sh" --attach=none
+    echo "Warning: flyline load failed; continuing without flyline" >&2
   fi
-}
+fi
 
 # bash-preexec: precmd/preexec hook 基盤（vendored, rcaloras/bash-preexec 0.6.0）。
-# atuin の履歴記録と starship のプロンプト描画は precmd_functions/preexec_functions
-# 経由で動くため、両者の init より前に source することが必須。
+# starship 継続時のプロンプト hook 互換性のため一旦維持する（ADR-0021）。
 # shellcheck source=/dev/null
 [ -f "$HOME/.config/bash/bash-preexec.sh" ] && . "$HOME/.config/bash/bash-preexec.sh"
 
 # fzf: キーバインド + 補完（+ Dracula カラー公式）
-# atuin より先に init する — Ctrl-R は後勝ちのため、この順序で atuin が履歴検索を取る。
-# ble.sh ロード時は ble-import 経由にし、fzf のネイティブ bash 統合との二重キーバインドを避ける。
-# fzf-key-bindings は Ctrl-R を ble-bind する側なので -d（idle queue への遅延実行）を付けない:
-# 付けると実行が atuin の eval より後にずれ、Ctrl-R の「後勝ち」前提が壊れて fzf に奪われ得る。
 if command -v fzf >/dev/null 2>&1; then
-  if [ -n "${BLE_VERSION-}" ]; then
-    ble-import -d integration/fzf-completion
-    ble-import integration/fzf-key-bindings
-  else
-    eval "$(fzf --bash)"
-  fi
+  eval "$(fzf --bash)"
   export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
 fi
-
-# atuin: シェル履歴管理（Ctrl-R）。bash-preexec と fzf の後に init する。
-command -v atuin >/dev/null 2>&1 && eval "$(atuin init bash)"
 
 # zoxide: スマート cd
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash --cmd cd)"
@@ -285,6 +265,3 @@ for _cfg in \
   fi
 done
 unset _cfg
-
-# ble.sh 最終アタッチ（.bashrc 全体の読み込み完了後、プロンプト表示前に行う）
-[ -n "${BLE_VERSION-}" ] && ble-attach
