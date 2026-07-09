@@ -30,7 +30,7 @@ run_refresh() {
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
-    /bin/bash -c ". '$LIB' && refresh_nix_devshell_cache"
+    /bin/bash --noprofile --norc -c ". '$LIB' && refresh_nix_devshell_cache"
 }
 
 @test "lib を source して関数が定義される" {

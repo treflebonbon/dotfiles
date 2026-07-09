@@ -14,16 +14,19 @@ let
   #         （sleep/resume・stale daemon 乗っ取り防止、2.1.200）を保ちつつ、worktree 隔離の破れ
   #         （subagent が親 checkout でコマンド実行）・daemon auto-upgrade の session 巻き添え停止・
   #         subagent 再委譲による作業消失を修正する 2.1.203、ヘッドレスセッションで SessionStart hook
-  #         のイベントがストリーミングされずリモートワーカーに idle-reap されるバグを修正する 2.1.204
-  #         を新フロアに据える。
+  #         のイベントがストリーミングされずリモートワーカーに idle-reap されるバグを修正する 2.1.204、
+  #         session transcript 改ざん防止・background agent 表示/attach/PR linking/worktree removal の修正を
+  #         含む 2.1.205 を新フロアに据える。
   # 注意: 2.1.200 で default permission mode が "default" → "Manual" へ変更。settings.json.tmpl は
   #       defaultMode を明示していないため影響を受ける（詳細は runtime/ai-runtimes.md）。
   # 2.1.201: harness reminder の system role 廃止のみで settings/workflow に影響なし。
   # 2.1.202-2.1.204: worktree 隔離破れ・background daemon 安定性・SessionStart hook のヘッドレス
-  #                  ストリーミング不具合を修正。多 agent ワークフロー/worktree 隔離の信頼性に
-  #                  直結するため 2.1.204 へ床上げ（詳細は runtime/ai-runtimes.md）。
+  #                  ストリーミング不具合を修正。
+  # 2.1.205: auto mode の transcript 改ざん防止、background agent 状態表示/attach/PR linking、
+  #          Windows worktree removal、file watcher crash を修正。多 agent ワークフロー/worktree
+  #          隔離の信頼性に直結するため 2.1.205 へ床上げ（詳細は runtime/ai-runtimes.md）。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
-  minClaudeCode = "2.1.204";
+  minClaudeCode = "2.1.205";
 
   claudeCode =
     let
@@ -39,7 +42,9 @@ let
         background daemon の auto-upgrade 失敗が実行中の全 background session を巻き添えに停止させるバグ・
         claude agents 復帰時に実行中の subagent を無言で停止し最初からやり直すバグを修正する 2.1.203、
         ヘッドレスセッションで SessionStart hook のイベントがストリーミングされずリモートワーカーに
-        idle-reap されるバグを修正する 2.1.204 を品質ベースラインとして固定しています。
+        idle-reap されるバグを修正する 2.1.204、auto mode の session transcript 改ざん防止・
+        background agent 状態表示/attach/PR linking・Windows worktree removal・file watcher crash を
+        修正する 2.1.205 を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
