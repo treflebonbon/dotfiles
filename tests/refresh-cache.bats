@@ -118,6 +118,29 @@ STUB
   echo "$output" | grep -q "cache refreshed"
 }
 
+@test "cache 生成時に nix の SHELL/BASH を保存しない" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo "BASH='/nix/store/fake-bash/bin/bash'"
+echo "SHELL='/nix/store/fake-bash/bin/bash'"
+echo "export SHELL"
+echo 'export PATH=/nix/store/fake/bin:$PATH'
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+
+  run_refresh
+
+  assert_success
+  if grep -q "^BASH=" "$FAKE_HOME/.cache/nix-devshell-global-env.bash"; then
+    return 1
+  fi
+  if grep -q "^SHELL=" "$FAKE_HOME/.cache/nix-devshell-global-env.bash"; then
+    return 1
+  fi
+  grep -q '/nix/store/fake/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+}
+
 @test "nix print-dev-env が失敗したら cache 温存・stderr 案内・log 追記" {
   cat >"$TEST_BIN_DIR/nix" <<'STUB'
 #!/bin/bash
