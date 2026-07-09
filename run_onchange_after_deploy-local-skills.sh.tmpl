@@ -6,14 +6,14 @@
 # 配備先:
 #   - ~/.agents/skills/<name>/         … Antigravity のグローバル skill dir（共有ハブ）
 #   - ~/.claude/skills/<name>/         … Claude
-#   - ${CODEX_HOME:-~/.codex}/skills/<name>/ … Codex
+# Codex は ~/.agents/skills を直接読むため、Codex native location へは複製しない
+# （同じ skill が二重に discovery されるため）。
 # run_onchange_after_apm-install (alphabetical 'a' < 'd') の後に走るため、apm 配備を
 # 上書きしない。orphan-cleanup の wipe には preserve allowlist で保護済み（→
 # run_onchange_before_remove-orphan-claude-skills.sh.tmpl）。
 set -euo pipefail
 
 src_root="{{ .chezmoi.sourceDir }}/local-skills"
-codex_home="${CODEX_HOME:-$HOME/.codex}"
 
 # 配備するローカル skill 名。orphan-cleanup の preserve allowlist と一致させること。
 local_skills=(
@@ -40,8 +40,7 @@ deploy_skill() {
   local target
   for target in \
     "$HOME/.agents/skills/$name" \
-    "$HOME/.claude/skills/$name" \
-    "$codex_home/skills/$name"; do
+    "$HOME/.claude/skills/$name"; do
 
     mkdir -p "$(dirname "$target")"
     local tmp
