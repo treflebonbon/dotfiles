@@ -75,9 +75,10 @@ setup() {
 @test "nix-devshell requires Codex with GPT 5.6 support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.144\.0";' "$module"
-  grep -q 'version = "0\.144\.0";' "$module"
-  grep -q 'cargoHash = "sha256-S4dsZXfmKvJItL2XYKyxfhqdCMATEG6oPjrtVRwkuYc=";' "$module"
+  grep -q 'minCodex = "0\.144\.1";' "$module"
+  grep -q 'llm\.codex\.version' "$module"
+  grep -q 'llm\.codex;' "$module"
+  ! grep -q 'llm\.codex\.override' "$module"
 }
 
 @test "nix-devshell includes Google Antigravity CLI" {
