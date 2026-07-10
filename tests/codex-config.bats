@@ -8,7 +8,7 @@ setup() {
   local config="$PROJECT_ROOT/private_dot_config/codex/config.toml"
 
   [ -f "$config" ]
-  grep -q '^model = "gpt-5.6"$' "$config"
+  grep -q '^model = "gpt-5.6-terra"$' "$config"
   grep -q '^model_reasoning_effort = ' "$config"
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
@@ -338,7 +338,7 @@ PY
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 personality = "pragmatic"
 
@@ -368,7 +368,7 @@ EOF
 
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  grep -q '^model = "gpt-5.6"$' "$home/.codex/config.toml"
+  grep -q '^model = "gpt-5.6-terra"$' "$home/.codex/config.toml"
   grep -q '^model_reasoning_effort = "medium"$' "$home/.codex/config.toml"
   grep -q '^personality = "pragmatic"$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
@@ -450,7 +450,7 @@ EOF
   mkdir -p "$home/.config/codex" "$codex_home"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 personality = "pragmatic"
 
@@ -472,7 +472,7 @@ EOF
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
   [ ! -f "$home/.codex/config.toml" ]
-  grep -q '^model = "gpt-5.6"$' "$codex_home/config.toml"
+  grep -q '^model = "gpt-5.6-terra"$' "$codex_home/config.toml"
   grep -q '^\[plugins\."example-curated@openai-curated"\]$' "$codex_home/config.toml"
   grep -q '^\[plugins\."example-local-plugin@example-marketplace"\]$' "$codex_home/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/example"\]$' "$codex_home/config.toml"
@@ -484,7 +484,7 @@ EOF
   mkdir -p "$home/.config/codex" "$codex_home"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 
 [plugins."example-local-plugin@example-marketplace"]
 enabled = true
@@ -495,7 +495,7 @@ EOF
 
   [ ! -f "$home/.codex/config.toml" ]
   [ -f "$codex_home/config.toml" ]
-  grep -q '^model = "gpt-5.6"$' "$codex_home/config.toml"
+  grep -q '^model = "gpt-5.6-terra"$' "$codex_home/config.toml"
 }
 
 @test "Codex config merge script removes deprecated codex_hooks feature flag" {
@@ -587,7 +587,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 EOF
   printf 'model = \n' >"$home/.codex/config.toml"
 
