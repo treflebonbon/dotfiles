@@ -27,7 +27,7 @@ let
   #          隔離の信頼性に直結するため 2.1.205 へ床上げ（詳細は runtime/ai-runtimes.md）。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
   minClaudeCode = "2.1.205";
-  minCodex = "0.144.0";
+  minCodex = "0.144.1";
 
   claudeCode =
     let
@@ -59,29 +59,21 @@ let
 
   codex =
     let
-      codex144 = llm.codex.override {
-        version = "0.144.0";
-        hash = "sha256-GbLeECsju5jifeVah1xN4HFFHxOKtCj55gl/0ZULj+g=";
-        cargoVendor = {
-          cargoHash = "sha256-S4dsZXfmKvJItL2XYKyxfhqdCMATEG6oPjrtVRwkuYc=";
-        };
-      };
-      v = codex144.version or null;
+      v = llm.codex.version or null;
       ok = v != null && lib.versionAtLeast v minCodex;
       msg = ''
         codex ${toString v} は最低バージョン ${minCodex} を満たしていません。
-        GPT-5.6 対応を含む Codex 0.144.0 を品質ベースラインとして固定しています。
-        llm-agents.nix の pin がまだ 0.144.0 を取り込んでいないため、この repo では
-        upstream package definition を使いながら version/hash/cargoHash だけを local override します。
+        GPT-5.6 対応を含む Codex 0.144.0 と standalone installer / code-mode reliability fixes を含む
+        0.144.1 を品質ベースラインとして固定しています。
+        llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
-          upstream llm-agents.nix が codex 0.144.0 以上を取り込んだら override を削除
           cd ~/.config/nix-devshell
           nix flake update llm-agents
           chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
     assert lib.assertMsg ok msg;
-    codex144;
+    llm.codex;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication pkgs.python3Packages.markitdown;
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
