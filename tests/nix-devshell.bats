@@ -69,13 +69,13 @@ setup() {
 }
 
 @test "nix-devshell requires Claude Code with goal support" {
-  grep -q 'minClaudeCode = "2\.1\.205";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.207";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "nix-devshell requires Codex with GPT 5.6 support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.144\.1";' "$module"
+  grep -q 'minCodex = "0\.144\.3";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
   ! grep -q 'llm\.codex\.override' "$module"
