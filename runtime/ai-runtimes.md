@@ -68,7 +68,7 @@ codex の release note（0.144.2–0.144.3）を確認した結果、0.144.0 で
 
 `antigravity-cli` 1.1.0 → 1.1.1 と `apm` 0.24.0 → 0.25.0 は package metadata でのバージョン追従のみ確認し、追加の dotfiles 設定変更は不要と判断した（両者とも `ai.nix` の assert 対象外）。
 
-なお、今回の更新は chezmoi source dir（`~/ghq/github.com/treflebonbon/dotfiles`）とは別の作業 worktree で行った。`ai.nix` の更新手順コメントに書かれた `chezmoi re-add` は source dir 直下で作業している場合のみ必要で、別 worktree で作業する場合は `private_dot_config/nix-devshell/` で直接 `nix flake update` を実行し `flake.lock` を編集後そのまま branch に commit すればよい（source dir へ反映されるのは通常の merge/pull 経路）。
+なお、今回の更新は chezmoi source dir（`~/ghq/github.com/treflebonbon/dotfiles`）とは別の作業 worktree で行った。`ai.nix` の更新手順コメントが前提とする2経路（source dir で編集して `chezmoi apply` で `~/` へ反映する／デプロイ先 `~/.config/nix-devshell` を直接編集して `chezmoi re-add` で source へ戻す）のどちらでもなく、単に同じ repo の別 git worktree・branch で `nix flake update` を実行し `flake.lock` を編集してそのまま commit しただけである。source dir 側へは通常の merge/pull 経路で反映され、ライブ環境（`~/.config/nix-devshell`）へ反映したい場合はさらに `chezmoi apply` が必要になる。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
@@ -108,7 +108,7 @@ codex の release note（0.144.2–0.144.3）を確認した結果、0.144.0 で
 - advisor 呼び出しは advisor モデルのレートで別課金され、コスト・レイテンシが増える（`effortLevel: xhigh` と方向性は同じだが二重に効く）。
 - `tengu_sage_compass2` フラグや互換性チェックのバイパス挙動は、公式ドキュメントではなくインストール済みバイナリの文字列解析から得た非公式情報。claude-code の floor bump 時にはこの節も併せて再検証し、内部実装が変わっていないか確認すること。
 - 2026-07-08、床上げ（2.1.200→2.1.204）に伴い 2.1.204 バイナリ（`.claude-wrapped`）を `strings` で再検証。kill switch（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`）→ env var バイパス（`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL`）→ `tengu_sage_compass2` フラグ判定、advisorModel のランク互換性チェックという構造は変化なし。v2.1.204 の GitHub Release Notes にも記載なし（undocumented のまま）。
-- 2026-07-13、床上げ（2.1.205→2.1.207）に伴い 2.1.207 バイナリを再検証しようとしたところ、Claude Code の auto mode 分類器が「バイナリの kill switch / bypass 挙動を探すリバースエンジニアリング」と判定し、周辺文脈を抽出する詳細解析コマンドをブロックした。ブロック前に取得できた4トークンの出現回数（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL` 3件、`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL` 4件、`tengu_sage_compass2` 2件、`advisorModel` 18件）はいずれも 0 ではなく、2.1.204 時点の構造と定性的に矛盾しない。ただし前回までのような「構造が変化していないことの文脈的な確証」は今回得られていない — 次回の床上げ時に必要なら、ユーザー自身の手元での `strings` 実行に切り替えること。v2.1.205–2.1.207 の GitHub Release Notes にも advisor tool への言及はない（undocumented のまま）。
+- 2026-07-13、床上げ（2.1.205→2.1.207）に伴い 2.1.207 バイナリを再検証しようとしたところ、Claude Code の auto mode 分類器が「バイナリの kill switch / bypass 挙動を探すリバースエンジニアリング」と判定し、周辺文脈を抽出する詳細解析コマンドをブロックした。ブロック前に取得できたのは4トークンの出現回数（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL` 3件、`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL` 4件、`tengu_sage_compass2` 2件、`advisorModel` 18件、いずれも 0 ではない）のみで、これは各文字列が バイナリ内に存在することしか示さない。kill switch → env var バイパス → `tengu_sage_compass2` 判定 → advisorModel のランク互換性チェックという**構造・挙動そのものは 2.1.207 で未検証**（2.1.204 時点の構造と一致するとは断定できない）。次回の床上げ時に必要なら、ユーザー自身の手元での `strings` 実行に切り替えること。v2.1.205–2.1.207 の GitHub Release Notes にも advisor tool への言及はない（undocumented のまま）。
 - 2026-07-10、床上げ（2.1.204→2.1.205）では release note 上 advisor tool への言及が無く、設定変更も行わない。
 - 経緯・判断根拠は [ADR-0005](../docs/adr/0005-advisor-tool-default-enable.md) を参照。
 

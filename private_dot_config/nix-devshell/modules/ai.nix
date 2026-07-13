@@ -32,8 +32,7 @@ let
   #                  git worktree 内で cold reopen 後に空表示のまま resume するバグと
   #                  worktreeConfig が worktree 削除後も .git/config に残るバグを修正。
   #                  いずれも worktree 隔離・多 agent ワークフローの信頼性に関わるため 2.1.207 へ床上げ。
-  # 更新: cd private_dot_config/nix-devshell && nix flake update llm-agents
-  #       （chezmoi source dir と異なる worktree で作業中は re-add せず直接編集し branch に commit する）
+  # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
   minClaudeCode = "2.1.207";
   minCodex = "0.144.3";
 
@@ -60,9 +59,9 @@ let
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
-          cd private_dot_config/nix-devshell
+          cd ~/.config/nix-devshell
           nix flake update llm-agents
-          （chezmoi source dir 直下で作業している場合は加えて chezmoi re-add flake.lock）
+          chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
     assert lib.assertMsg ok msg;
@@ -76,13 +75,13 @@ let
         codex ${toString v} は最低バージョン ${minCodex} を満たしていません。
         GPT-5.6 対応を含む Codex 0.144.0、standalone installer / code-mode reliability fixes を含む
         0.144.1 に加え、0.144.0 で混入した auto-review（Guardian）prompting のリグレッションを
-        revert して修正した 0.144.2 を品質ベースラインとして固定しています（0.144.3 は 0.144.2 と
-        変更なしの version-only リリース）。
+        revert して修正した 0.144.2 の内容を品質ベースラインとして要求しています。
+        実際に要求する最低バージョンは ${minCodex}（0.144.2 と変更なしの version-only リリース）です。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
-          cd private_dot_config/nix-devshell
+          cd ~/.config/nix-devshell
           nix flake update llm-agents
-          （chezmoi source dir 直下で作業している場合は加えて chezmoi re-add flake.lock）
+          chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
     assert lib.assertMsg ok msg;
