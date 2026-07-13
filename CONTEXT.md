@@ -31,3 +31,27 @@ _Avoid_: 計画フェーズ, 設計フェーズ
 **Builder-Evaluator**:
 実装検証フェーズ（`implement` を入口に、内部で `tdd`↔`code-review` を使う）の呼称。`to-tickets` が生成した ticket をまたいで自律的にループしてよい自動化された主体（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md), [ADR-0022](docs/adr/0022-align-mattpocock-v1-1-workflow.md)）。
 _Avoid_: 実装フェーズ, ビルドフェーズ
+
+**ローカル skill 上書き**:
+外部 skill を fork せず、その repo の指示層で実運用に必要な差分だけを優先規則として定義すること。外部 skill 本文の一般手順は維持し、上書き範囲を明示できる場合に限る。
+_Avoid_: skill fork, upstream patch, vendored skill 改変
+
+**Scope Matching**:
+skill 逸脱を判定する前に、制約の主語・対象層・関数種別・実行文脈が観測対象と一致することを確認する工程。一致しない制約は finding の根拠に使わない。
+_Avoid_: keyword matching, 部分一致判定
+
+**Critical Deviation**:
+承認・安全境界の回避、必須検証やレビューの欠落、虚偽の完了主張、または成果物の正しさを損なう実行逸脱。無害な順序差や追加検証は含まない。
+_Avoid_: completed violation, 文面上の不一致
+
+**実効契約**:
+system/developer 指示、project `AGENTS.md`、呼び出された skill を優先順位どおりに解決した、その実行でエージェントが従うべき契約。下位文書との不一致だけでは実行逸脱としない。
+_Avoid_: skill contract, 単一指示ファイル
+
+**Project-scoped Auto Selection**:
+`harness-feedback` の Auto mode が、現在の project に一致する過去 transcript だけを分析対象にする選択規則。一致する過去 transcript がなければ、別 project へフォールバックせず正常終了する。
+_Avoid_: runtime fallback, newest transcript
+
+**Contract Warning**:
+下位 skill の規則が上位指示で置き換えられ、実行逸脱から除外されたことを示す `harness-feedback` の非 finding 通知。finding 件数や severity には影響しない。
+_Avoid_: deviation, minor finding

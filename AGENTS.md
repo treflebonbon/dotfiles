@@ -28,6 +28,11 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
   - raw な issue（bug report・降ってきた要望等、`to-tickets` を経由していないもの）→ `triage` → ready-for-agent 化 → `implement` へ合流。`triage` は `to-tickets` の産出物には使わない（すでに ready-for-agent なため）
   - ハードなバグ（再現・原因調査が必要）→ `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告として届いた場合はまず `triage` を通してから `diagnosing-bugs` へ
 
+外部 skill の一般手順に対するローカル上書き（ADR-0023）:
+
+- `triage`: 推薦の根拠を得るための read-only 検証は、推薦を提示する前に実行してよい。ラベル変更・コメント・close など外部状態を変える操作の確認は省略しない。
+- `code-review`: Builder-Evaluator 内で issue/ticket を実装中なら、その branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone 呼び出しで fixed point が不明な場合だけユーザーへ確認する。
+
 実装フェーズの user-invoked entrypoint は `implement`。`tdd` / `code-review` / `resolving-merge-conflicts` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` は **model-invoked discipline** として必要時に自動発火する。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
 
 ## ブラウザ操作ツール
