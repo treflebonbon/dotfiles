@@ -20,6 +20,14 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - メインフロー: `to-worktree`（一度だけ）→ `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`。要件確定済みの小さな作業は `grill-with-docs`/`to-spec`/`to-tickets` を省略して `implement` から直接入ってよい。`to-tickets` までを **Planner**、`implement`（内部で `tdd`/`code-review` を使う）を **Builder-Evaluator** と呼ぶ（[CONTEXT.md](../CONTEXT.md)）。Builder-Evaluator は `to-tickets` が生成した ticket をまたいで、同一 worktree/branch 内であれば止まらずループしてよい（issue #28・#29 が単一 worktree・単一 PR #30 として実践した前例を明文化したもの。単一セッション単位ではない — smart zone に達したら `/handoff` で別セッションへ）: `tdd` の green slice commit・`code-review` 後の修正 commit は確認なしで行う（根拠は [ADR-0019](../docs/adr/0019-builder-evaluator-cross-issue-autonomy.md) / [ADR-0022](../docs/adr/0022-align-mattpocock-v1-1-workflow.md)）。`code-review` は `git diff <fixed-point>...HEAD` の三点差分——commit 済みの履歴のみを見る——を review 対象にし、empty diff は明示的に fail するため、commit が無いと `code-review` 自体が動かない。対象 worktree/branch の全 ticket が完了したら `to-pr` を一度だけ実行する（AFK 運用時は自律呼出し可、通常運用は完了報告のうえユーザーの `/to-pr` 呼出しを待つ）。push/PR 作成自体の確認は変更しない。commit は運用者＝エージェント自身の責務（詳細は [ADR-0015](../docs/adr/0015-add-tdd-commit-confirmation.md) / [ADR-0019](../docs/adr/0019-builder-evaluator-cross-issue-autonomy.md) / [ADR-0022](../docs/adr/0022-align-mattpocock-v1-1-workflow.md)）
 - on-ramp（raw issue: `to-tickets` の産出物には使わない）: `triage` → ready-for-agent 化 → `implement` へ合流
 - on-ramp（ハードなバグ）: `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告ならまず `triage` を通す
+
+外部 skill は APM 配布物を fork せず、repo の指示層で必要な差分だけを **ローカル skill 上書き**として定義する（[ADR-0023](../docs/adr/0023-resolve-external-skill-contracts-locally.md)）。現行の上書きは次の2点:
+
+- `triage` は推薦根拠を得る read-only 検証を推薦前に実行してよい。外部状態を変える apply 操作の確認は維持する。
+- Builder-Evaluator 内の `code-review` は branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone で fixed point が不明な場合だけ質問する。
+
+`harness-feedback` は外部 skill 本文だけでなく system/developer 指示と runtime に対応する project 指示（Codex系は `AGENTS.md`、Claude Codeは `CLAUDE.md`）を含む **実効契約**を評価する。下位 skill との差がローカル上書きで解決される場合は finding ではなく、必要に応じて Contract Warning として報告する。
+
 - wayfinding: 巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作り、frontier が明確になってから Planner / Builder-Evaluator へ合流する
 
 `ready-for-agent` ラベルを付与する際は、`triage` 経由・`to-tickets` 経由のいずれでも次の6項目を最低条件とする: 目的 / AC / 非目標 / 検証方法 / 関連ファイル・入口 / 判断済み tradeoff（[CONTEXT.md](../CONTEXT.md) の Contract 参照）。`triage` / `to-tickets` はいずれも apm 経由の vendored skill であり、この最低条件を skill 自体に組み込んで機械的にゲートすることはできない——ラベルを付与する運用者（実行エージェント自身）が確認する doc-level discipline とする。2つの経路でチェックポイントの位置は異なる: `triage` は「Apply the outcome」というラベル付与前の明示的な判断点を持つため、そこで6項目の充足を確認してから `ready-for-agent` を付与する。`to-tickets` は ticket の生成とラベル付与を同一ステップ（Publish the tickets）で完結させ、付与前に立ち止まる地点が無いため、事前ゲートではなく**生成直後**に各 ticket 本文を確認し、6項目のうち ticket 本文から読み取れないものがあればその場で本文に追記する（[ADR-0015](../docs/adr/0015-add-tdd-commit-confirmation.md) の commit 確認ステップと同型のタイミング配慮。詳細は [ADR-0016](../docs/adr/0016-to-pr-shared-contract-vocabulary.md)）。
