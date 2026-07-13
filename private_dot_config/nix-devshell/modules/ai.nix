@@ -25,9 +25,17 @@ let
   # 2.1.205: auto mode の transcript 改ざん防止、background agent 状態表示/attach/PR linking、
   #          Windows worktree removal、file watcher crash を修正。多 agent ワークフロー/worktree
   #          隔離の信頼性に直結するため 2.1.205 へ床上げ（詳細は runtime/ai-runtimes.md）。
-  # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
-  minClaudeCode = "2.1.205";
-  minCodex = "0.144.1";
+  # 2.1.206-2.1.207: EnterWorktree が .claude/worktrees/ 外への進入時に確認を挟むよう変更、
+  #                  background agent が update 直後にバックグラウンドで即時アップグレードされる
+  #                  よう変更、agent teams で不正な teammate mailbox メッセージによる crash loop を
+  #                  修正（teammateMode: auto を使うこの repo に直撃）、background session が
+  #                  git worktree 内で cold reopen 後に空表示のまま resume するバグと
+  #                  worktreeConfig が worktree 削除後も .git/config に残るバグを修正。
+  #                  いずれも worktree 隔離・多 agent ワークフローの信頼性に関わるため 2.1.207 へ床上げ。
+  # 更新: cd private_dot_config/nix-devshell && nix flake update llm-agents
+  #       （chezmoi source dir と異なる worktree で作業中は re-add せず直接編集し branch に commit する）
+  minClaudeCode = "2.1.207";
+  minCodex = "0.144.3";
 
   claudeCode =
     let
@@ -45,13 +53,16 @@ let
         ヘッドレスセッションで SessionStart hook のイベントがストリーミングされずリモートワーカーに
         idle-reap されるバグを修正する 2.1.204、auto mode の session transcript 改ざん防止・
         background agent 状態表示/attach/PR linking・Windows worktree removal・file watcher crash を
-        修正する 2.1.205 を品質ベースラインとして固定しています。
-        この repo は多 agent ワークフロー・worktree 隔離を主用するため床の根拠に据えます。
+        修正する 2.1.205、EnterWorktree の .claude/worktrees/ 外進入時確認・background agent の
+        即時アップグレード化を含む 2.1.206、agent teams の teammate mailbox crash loop・
+        git worktree 内 background session の cold reopen 後空表示・worktreeConfig 残留を修正する
+        2.1.207 を品質ベースラインとして固定しています。
+        この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
-          cd ~/.config/nix-devshell
+          cd private_dot_config/nix-devshell
           nix flake update llm-agents
-          chezmoi re-add ~/.config/nix-devshell/flake.lock
+          （chezmoi source dir 直下で作業している場合は加えて chezmoi re-add flake.lock）
       '';
     in
     assert lib.assertMsg ok msg;
@@ -63,13 +74,15 @@ let
       ok = v != null && lib.versionAtLeast v minCodex;
       msg = ''
         codex ${toString v} は最低バージョン ${minCodex} を満たしていません。
-        GPT-5.6 対応を含む Codex 0.144.0 と standalone installer / code-mode reliability fixes を含む
-        0.144.1 を品質ベースラインとして固定しています。
+        GPT-5.6 対応を含む Codex 0.144.0、standalone installer / code-mode reliability fixes を含む
+        0.144.1 に加え、0.144.0 で混入した auto-review（Guardian）prompting のリグレッションを
+        revert して修正した 0.144.2 を品質ベースラインとして固定しています（0.144.3 は 0.144.2 と
+        変更なしの version-only リリース）。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
-          cd ~/.config/nix-devshell
+          cd private_dot_config/nix-devshell
           nix flake update llm-agents
-          chezmoi re-add ~/.config/nix-devshell/flake.lock
+          （chezmoi source dir 直下で作業している場合は加えて chezmoi re-add flake.lock）
       '';
     in
     assert lib.assertMsg ok msg;
