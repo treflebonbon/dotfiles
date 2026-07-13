@@ -61,7 +61,7 @@ execution_state が **denied** の場合、または **blocked** かつ **implem
 
 ### 判定フロー
 
-1. system/developer、project `AGENTS.md`、skill の順で実効契約を解決
+1. system/developer、runtime に対応する project 指示（Codex系は `AGENTS.md`、Claude Codeは `CLAUDE.md`）、skill の順で実効契約を解決
 2. 逸脱候補を検出
 3. 制約の主語・対象層・対象種別・実行文脈を観測対象と照合
 4. 対応する実効契約の記述が must/forbidden か open-ended か判定

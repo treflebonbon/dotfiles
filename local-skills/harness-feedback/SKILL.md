@@ -22,7 +22,7 @@ Accept one optional argument:
 | Direct path    | path ending in `.jsonl` | Analyze that transcript directly.                                           |
 | Project filter | directory path or name  | Select the newest transcript whose metadata or path maps to that directory. |
 
-If the selected transcript is the active harness-feedback session, skip it and choose the previous matching transcript. In Auto mode, never fall back to a transcript from another project. If no previous matching transcript exists, report "No previous transcript found for the current project" and exit successfully.
+In Auto and Project filter modes, skip the active harness-feedback session and choose the previous matching transcript. Direct path mode always analyzes the explicitly supplied transcript, even when it is the active session. In Auto mode, never fall back to a transcript from another project. If no previous matching transcript exists for the selected project or filter, report that no previous matching transcript was found and exit successfully.
 
 ### Evidence Extraction
 
@@ -57,7 +57,7 @@ Read the resolved definition before judging whether behavior deviated from it.
 Before deviation analysis, resolve the instructions visible in the transcript into the **effective contract** in this precedence order:
 
 1. System and developer instructions.
-2. Applicable project `AGENTS.md` instructions.
+2. Applicable runtime-facing project instructions: `AGENTS.md` for Codex/OpenCode/Zed/Cursor transcripts and `CLAUDE.md` for Claude Code transcripts.
 3. The invoked skill or agent definition.
 4. Open-ended guidance in that definition.
 

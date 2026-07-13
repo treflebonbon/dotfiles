@@ -26,7 +26,7 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `triage` は推薦根拠を得る read-only 検証を推薦前に実行してよい。外部状態を変える apply 操作の確認は維持する。
 - Builder-Evaluator 内の `code-review` は branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone で fixed point が不明な場合だけ質問する。
 
-`harness-feedback` は外部 skill 本文だけでなく system/developer 指示と project `AGENTS.md` を含む **実効契約**を評価する。下位 skill との差がローカル上書きで解決される場合は finding ではなく、必要に応じて Contract Warning として報告する。
+`harness-feedback` は外部 skill 本文だけでなく system/developer 指示と runtime に対応する project 指示（Codex系は `AGENTS.md`、Claude Codeは `CLAUDE.md`）を含む **実効契約**を評価する。下位 skill との差がローカル上書きで解決される場合は finding ではなく、必要に応じて Contract Warning として報告する。
 
 - wayfinding: 巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作り、frontier が明確になってから Planner / Builder-Evaluator へ合流する
 

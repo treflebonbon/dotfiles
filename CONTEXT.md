@@ -45,7 +45,7 @@ _Avoid_: keyword matching, 部分一致判定
 _Avoid_: completed violation, 文面上の不一致
 
 **実効契約**:
-system/developer 指示、project `AGENTS.md`、呼び出された skill を優先順位どおりに解決した、その実行でエージェントが従うべき契約。下位文書との不一致だけでは実行逸脱としない。
+system/developer 指示、runtime に対応する project 指示（`AGENTS.md` または `CLAUDE.md`）、呼び出された skill を優先順位どおりに解決した、その実行でエージェントが従うべき契約。下位文書との不一致だけでは実行逸脱としない。
 _Avoid_: skill contract, 単一指示ファイル
 
 **Project-scoped Auto Selection**:
