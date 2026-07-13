@@ -4,13 +4,10 @@ title: 外部 skill の契約差は fork せず実効契約で解決する
 description: 外部 skill の一般手順と repo の実運用が異なる場合、upstream 変更や local fork ではなく指示層の狭い上書きで解決し、harness-feedback は実効契約と適用 scope に基づいて逸脱を判定する
 tags: [adr, skills, harness, observability, apm]
 timestamp: 2026-07-13
+status: accepted
 ---
 
 # 外部 skill の契約差は fork せず実効契約で解決する
-
-## Status
-
-Accepted (2026-07-13)
 
 ## Context
 
