@@ -1,36 +1,7 @@
 #!/usr/bin/env bash
 # Codex managed hooks hash: {{ include "private_dot_config/codex/hooks.json" | sha256sum }}
+# Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
 set -euo pipefail
 
-managed_hooks="$HOME/.config/codex/hooks.json"
-
-if [ ! -f "$managed_hooks" ]; then
-  echo "WARN: Codex managed hooks not found: $managed_hooks" >&2
-  exit 0
-fi
-
-tmp=""
-trap 'rm -f "${tmp:-}"' EXIT
-
-codex_homes=()
-if [ -n "${CODEX_HOME:-}" ]; then
-  codex_homes=("$CODEX_HOME")
-else
-  codex_homes=("$HOME/.codex")
-  if [ -d "$HOME/.codex-app" ]; then
-    codex_homes+=("$HOME/.codex-app")
-  fi
-fi
-
-for codex_home in "${codex_homes[@]}"; do
-  codex_hooks="$codex_home/hooks.json"
-  mkdir -p "$codex_home"
-  tmp="$(mktemp "$codex_hooks.tmp.XXXXXX")"
-
-  cp "$managed_hooks" "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" "$codex_hooks"
-  tmp=""
-done
-
-trap - EXIT
+sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
+"$sync_command" hooks

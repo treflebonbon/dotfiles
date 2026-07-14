@@ -1,36 +1,7 @@
 #!/usr/bin/env bash
 # Codex managed AGENTS hash: {{ include "private_dot_config/codex/AGENTS.md" | sha256sum }}
+# Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
 set -euo pipefail
 
-managed_agents="$HOME/.config/codex/AGENTS.md"
-
-if [ ! -f "$managed_agents" ]; then
-  echo "WARN: Codex managed AGENTS not found: $managed_agents" >&2
-  exit 0
-fi
-
-tmp=""
-trap 'rm -f "${tmp:-}"' EXIT
-
-codex_homes=()
-if [ -n "${CODEX_HOME:-}" ]; then
-  codex_homes=("$CODEX_HOME")
-else
-  codex_homes=("$HOME/.codex")
-  if [ -d "$HOME/.codex-app" ]; then
-    codex_homes+=("$HOME/.codex-app")
-  fi
-fi
-
-for codex_home in "${codex_homes[@]}"; do
-  codex_agents="$codex_home/AGENTS.md"
-  mkdir -p "$codex_home"
-  tmp="$(mktemp "$codex_agents.tmp.XXXXXX")"
-
-  cp "$managed_agents" "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" "$codex_agents"
-  tmp=""
-done
-
-trap - EXIT
+sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
+"$sync_command" agents

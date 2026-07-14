@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+component="${1:-all}"
+case "$component" in
+all | config | hooks | rules | environment | agents) ;;
+*)
+  echo "Usage: sync-codex-managed-config [all|config|hooks|rules|environment|agents]" >&2
+  exit 2
+  ;;
+esac
+
+managed_root="$HOME/.config/codex"
+managed_config="$managed_root/config.toml"
+managed_hooks="$managed_root/hooks.json"
+managed_rules="$managed_root/rules/default.rules"
+managed_environment="$managed_root/environments/environment.toml"
+managed_agents="$managed_root/AGENTS.md"
+
+managed_path() {
+  case "$1" in
+  config) printf '%s\n' "$managed_config" ;;
+  hooks) printf '%s\n' "$managed_hooks" ;;
+  rules) printf '%s\n' "$managed_rules" ;;
+  environment) printf '%s\n' "$managed_environment" ;;
+  agents) printf '%s\n' "$managed_agents" ;;
+  esac
+}
+
+if [ "$component" = "all" ]; then
+  for required_component in config hooks rules environment agents; do
+    required_path="$(managed_path "$required_component")"
+    if [ ! -f "$required_path" ]; then
+      echo "ERROR: Codex managed $required_component not found: $required_path" >&2
+      exit 1
+    fi
+  done
+else
+  required_path="$(managed_path "$component")"
+  if [ ! -f "$required_path" ]; then
+    echo "WARN: Codex managed $component not found: $required_path" >&2
+    exit 0
+  fi
+fi
+
+codex_homes=()
+if [ -n "${CODEX_HOME:-}" ]; then
+  codex_homes=("$CODEX_HOME")
+else
+  codex_homes=("$HOME/.codex")
+  if [ -d "$HOME/.codex-app" ]; then
+    codex_homes+=("$HOME/.codex-app")
+  fi
+fi
+
+tmp=""
+trap 'rm -f "${tmp:-}"' EXIT
+
+copy_managed_file() {
+  local source="$1"
+  local target="$2"
+
+  mkdir -p "$(dirname "$target")"
+  tmp="$(mktemp "$target.tmp.XXXXXX")"
+  cp "$source" "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$target"
+  tmp=""
+}
+
+merge_config() {
+  local codex_config="$1"
+
+  mkdir -p "$(dirname "$codex_config")"
+  tmp="$(mktemp "$codex_config.tmp.XXXXXX")"
+
+  python3 - "$managed_config" "$codex_config" "$tmp" <<'PY'
+from __future__ import annotations
+
+import json
+import re
+import sys
+import tomllib
+from datetime import date, datetime, time
+from pathlib import Path
+from typing import Any
+
+managed_path = Path(sys.argv[1])
+codex_path = Path(sys.argv[2])
+tmp_path = Path(sys.argv[3])
+
+
+def load_toml(path: Path, *, missing_ok: bool = False) -> dict[str, Any]:
+    if missing_ok and not path.exists():
+        return {}
+    with path.open("rb") as f:
+        return tomllib.load(f)
+
+
+try:
+    managed = load_toml(managed_path)
+    existing = load_toml(codex_path, missing_ok=True)
+except tomllib.TOMLDecodeError as e:
+    print(f"ERROR: invalid TOML: {e}", file=sys.stderr)
+    sys.exit(1)
+
+
+def strip_stale_filesystem_roots(existing: dict[str, Any], managed: dict[str, Any]) -> None:
+    existing_perms = existing.get("permissions")
+    managed_perms = managed.get("permissions")
+    if not isinstance(existing_perms, dict) or not isinstance(managed_perms, dict):
+        return
+    for name, profile in existing_perms.items():
+        # Only clean profiles the dotfiles own. User-defined profiles may carry
+        # legitimate path-scoped rules; never touch them.
+        if name not in managed_perms or not isinstance(profile, dict):
+            continue
+        filesystem = profile.get("filesystem")
+        if not isinstance(filesystem, dict):
+            continue
+        for key in list(filesystem):
+            # Managed profiles declare only :workspace_roots. Remove legacy or
+            # self-expanded nested maps before the managed overlay is applied.
+            if isinstance(filesystem[key], dict) and key != ":workspace_roots":
+                del filesystem[key]
+
+
+def strip_retired_plugins(existing: dict[str, Any]) -> None:
+    plugins = existing.get("plugins")
+    if not isinstance(plugins, dict):
+        return
+    for name in ("superpowers@openai-curated",):
+        plugins.pop(name, None)
+    if not plugins:
+        existing.pop("plugins", None)
+
+
+strip_stale_filesystem_roots(existing, managed)
+strip_retired_plugins(existing)
+
+for key in ("projects", "notice", "tui"):
+    if key in managed:
+        print(f"ERROR: managed Codex config must not contain [{key}]", file=sys.stderr)
+        sys.exit(1)
+
+
+def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def format_key(key: str) -> str:
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", key):
+        return key
+    return json.dumps(key, ensure_ascii=False)
+
+
+def format_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, (datetime, date, time)):
+        return value.isoformat()
+    if isinstance(value, list):
+        return "[" + ", ".join(format_value(item) for item in value) + "]"
+    raise TypeError(f"unsupported TOML value type: {type(value).__name__}")
+
+
+def emit_table(path: list[str], table: dict[str, Any], lines: list[str]) -> None:
+    scalars = [(key, value) for key, value in table.items() if not isinstance(value, dict)]
+    children = [(key, value) for key, value in table.items() if isinstance(value, dict)]
+
+    if path and scalars:
+        if lines and lines[-1] != "":
+            lines.append("")
+        lines.append("[" + ".".join(format_key(part) for part in path) + "]")
+        for key, value in scalars:
+            lines.append(f"{format_key(key)} = {format_value(value)}")
+
+    for key, value in children:
+        emit_table([*path, key], value, lines)
+
+
+result = deep_merge(existing, managed)
+if isinstance(result.get("features"), dict):
+    result["features"].pop("codex_hooks", None)
+lines: list[str] = []
+
+for key, value in result.items():
+    if not isinstance(value, dict):
+        lines.append(f"{format_key(key)} = {format_value(value)}")
+
+for key, value in result.items():
+    if isinstance(value, dict):
+        emit_table([key], value, lines)
+
+tmp_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+PY
+
+  chmod 600 "$tmp"
+  mv "$tmp" "$codex_config"
+  tmp=""
+}
+
+sync_component() {
+  local requested_component="$1"
+  local codex_home="$2"
+
+  case "$requested_component" in
+  config) merge_config "$codex_home/config.toml" ;;
+  hooks) copy_managed_file "$managed_hooks" "$codex_home/hooks.json" ;;
+  rules) copy_managed_file "$managed_rules" "$codex_home/rules/default.rules" ;;
+  environment) copy_managed_file "$managed_environment" "$codex_home/environments/environment.toml" ;;
+  agents) copy_managed_file "$managed_agents" "$codex_home/AGENTS.md" ;;
+  esac
+}
+
+for codex_home in "${codex_homes[@]}"; do
+  if [ "$component" = "all" ]; then
+    for requested_component in config hooks rules environment agents; do
+      sync_component "$requested_component" "$codex_home"
+    done
+    if [ "$codex_home" = "$HOME/.codex-app" ]; then
+      copy_managed_file /dev/null "$codex_home/.managed-config-seeded"
+    fi
+  else
+    sync_component "$component" "$codex_home"
+  fi
+done
+
+trap - EXIT

@@ -23,6 +23,15 @@ fi
 if [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
   export CODEX_HOME="$HOME/.codex-app"
   mkdir -p "$CODEX_HOME/sessions" "$CODEX_HOME/worktrees"
+  codex_seed_marker="$CODEX_HOME/.managed-config-seeded"
+  codex_sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
+  if [ ! -f "$codex_seed_marker" ]; then
+    if [ -x "$codex_sync_command" ]; then
+      "$codex_sync_command" all || echo "WARN: failed to seed Codex Desktop managed config" >&2
+    else
+      echo "WARN: Codex managed config sync command not found: $codex_sync_command" >&2
+    fi
+  fi
 fi
 
 # login shell でも対話設定を読み込む（bash の標準作法）
