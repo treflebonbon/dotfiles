@@ -24,7 +24,7 @@ setup() {
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"
-  ! grep -Fq 'name: frontend-design' "$lock"
+  ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
 }
 
 @test "APM runtime deploy targets remain git-ignored" {
