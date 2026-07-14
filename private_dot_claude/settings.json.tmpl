@@ -58,6 +58,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || true",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
