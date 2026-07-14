@@ -35,7 +35,7 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` assert で床固定する（現 `2.1.207`）。床の根拠はモデル品質（Sonnet 5 default）＋ 多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` assert で床固定する（現 `2.1.208`）。床の根拠はモデル品質（Sonnet 5 default）＋ 多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
 
 `llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
 
@@ -68,6 +68,14 @@ codex の release note（0.144.2–0.144.3）を確認した結果、0.144.0 で
 
 `antigravity-cli` 1.1.0 → 1.1.1 と `apm` 0.24.0 → 0.25.0 は package metadata でのバージョン追従のみ確認し、追加の dotfiles 設定変更は不要と判断した（両者とも `ai.nix` の assert 対象外）。
 
+2026-07-14 JST、Classmethod の Claude Code 2.1.208 紹介記事を更新トリガーとして、Anthropic 公式 release note と各 upstream の一次情報を確認してから `nix flake update llm-agents` を実施した。`llm-agents.nix` は 2026-07-13 commit (`3860609`) から 2026-07-14 commit (`5c73869`) へ進み、`claude-code` 2.1.207 → 2.1.208、`codex` 0.144.3 → 0.144.4、`antigravity-cli` 1.1.1 → 1.1.2 が追従した。`copilot-cli` 1.0.70 / `apm` 0.25.0 / `rtk` 0.43.0 は変化なし。
+
+Claude Code 2.1.208 は、background agent への返信が配信失敗時に失われる問題、更新で binary が置換された後に background-session attach が恒久的に失敗する問題、旧 daemon が新しい worker を古い binary で再起動する問題を修正する。さらに agent view の worktree 削除が未 push commit を保護し、再利用した worktree 名の base を現在値へ戻すようになったほか、Remote Control の agent/workflow 可視化、長時間・多 MCP session のメモリ/CPU/転記量も改善された。この repo の多 agent・worktree 中心の運用に直接効くため、`minClaudeCode` を 2.1.207 → 2.1.208 へ引き上げた。
+
+同 release で追加された `axScreenReader`、`vimInsertModeRemaps`、`CLAUDE_CODE_PROCESS_WRAPPER` はいずれも opt-in であり、現行要件では必要ないため `private_dot_claude/settings.json.tmpl` は変更しない。
+
+Codex 0.144.4 は公式 release note が user-facing change なしと明記する patch release のため、flake pin には追従するが `minCodex` は 0.144.3 のまま据え置いた。`antigravity-cli` 1.1.2 は package metadata での追従のみ確認し、追加の dotfiles 設定変更は不要と判断した。
+
 なお、今回の更新は chezmoi source dir（`~/ghq/github.com/treflebonbon/dotfiles`）とは別の作業 worktree で行った。`ai.nix` の更新手順コメントが前提とする2経路（source dir で編集して `chezmoi apply` で `~/` へ反映する／デプロイ先 `~/.config/nix-devshell` を直接編集して `chezmoi re-add` で source へ戻す）のどちらでもなく、単に同じ repo の別 git worktree・branch で `nix flake update` を実行し `flake.lock` を編集してそのまま commit しただけである。source dir 側へは通常の merge/pull 経路で反映され、ライブ環境（`~/.config/nix-devshell`）へ反映したい場合はさらに `chezmoi apply` が必要になる。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
@@ -98,6 +106,11 @@ codex の release note（0.144.2–0.144.3）を確認した結果、0.144.0 で
 - **background session が git worktree 内で resume した状態から cold reopen した際に空表示になる不具合を修正**（2.1.207）。
 - **最後の `worktree.sparsePaths` worktree 削除後も `extensions.worktreeConfig` が repo の `.git/config` に残留する不具合を修正**（2.1.207）— go-git 系ツール（`tea` 等）を壊す。
 - **rules glob / skill path / `.ignore` / `.worktreeinclude` の不正な bracket pattern がファイル読み込み・ファイル候補提示・worktree 作成を壊す不具合を修正**（2.1.207）。
+- **background agent への返信を配信失敗時に保存し、session restart 後に再送**（2.1.208）— agent への steer が無言で失われる問題を修正。
+- **更新後の background-session attach と daemon の世代管理を修正**（2.1.208）— 実行中の `claude agents` が起動元 binary の置換後に attach 不能になる問題を直し、旧 daemon が新 worker を古い binary へ巻き戻さないようにした。
+- **agent view の worktree 削除を安全化**（2.1.208）— rename 済み branch の worktree も削除でき、未 push commit は破壊せず、worktree を保持した session row も残す。再利用した worktree 名は現在の base へリセットされる。
+- **Remote Control の background agent / workflow progress 可視化を修正**（2.1.208）— terminal-hosted session へ attach した client が task state の変化まで進捗を見られない問題を修正。
+- **長時間・多 agent・多 MCP session の資源使用を抑制**（2.1.208）— MCP/LSP/hook/tool-result のメモリリーク、agent view の画像保持、tool-pool 再構築コスト、edit-heavy transcript/checkpoint 肥大を修正・削減。
 
 ### Advisor tool（experimental, 2.1.200 時点でも undocumented）
 
@@ -109,6 +122,7 @@ codex の release note（0.144.2–0.144.3）を確認した結果、0.144.0 で
 - `tengu_sage_compass2` フラグや互換性チェックのバイパス挙動は、公式ドキュメントではなくインストール済みバイナリの文字列解析から得た非公式情報。claude-code の floor bump 時にはこの節も併せて再検証し、内部実装が変わっていないか確認すること。
 - 2026-07-08、床上げ（2.1.200→2.1.204）に伴い 2.1.204 バイナリ（`.claude-wrapped`）を `strings` で再検証。kill switch（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`）→ env var バイパス（`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL`）→ `tengu_sage_compass2` フラグ判定、advisorModel のランク互換性チェックという構造は変化なし。v2.1.204 の GitHub Release Notes にも記載なし（undocumented のまま）。
 - 2026-07-13、床上げ（2.1.205→2.1.207）に伴い 2.1.207 バイナリを再検証しようとしたところ、Claude Code の auto mode 分類器が「バイナリの kill switch / bypass 挙動を探すリバースエンジニアリング」と判定し、周辺文脈を抽出する詳細解析コマンドをブロックした。ブロック前に取得できたのは4トークンの出現回数（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL` 3件、`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL` 4件、`tengu_sage_compass2` 2件、`advisorModel` 18件、いずれも 0 ではない）のみで、これは各文字列が バイナリ内に存在することしか示さない。kill switch → env var バイパス → `tengu_sage_compass2` 判定 → advisorModel のランク互換性チェックという**構造・挙動そのものは 2.1.207 で未検証**（2.1.204 時点の構造と一致するとは断定できない）。次回の床上げ時に必要なら、ユーザー自身の手元での `strings` 実行に切り替えること。v2.1.205–2.1.207 の GitHub Release Notes にも advisor tool への言及はない（undocumented のまま）。
+- 2026-07-14、床上げ（2.1.207→2.1.208）では公式 release note に advisor tool への言及がなく、前回と同じ理由で binary の詳細解析は行っていない。2.1.204 時点で確認した内部構造が 2.1.208 でも同じとは断定せず、設定変更もしない。
 - 2026-07-10、床上げ（2.1.204→2.1.205）では release note 上 advisor tool への言及が無く、設定変更も行わない。
 - 経緯・判断根拠は [ADR-0005](../docs/adr/0005-advisor-tool-default-enable.md) を参照。
 

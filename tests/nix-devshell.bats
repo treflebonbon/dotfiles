@@ -69,7 +69,7 @@ setup() {
 }
 
 @test "nix-devshell requires Claude Code with goal support" {
-  grep -q 'minClaudeCode = "2\.1\.207";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.208";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "nix-devshell requires Codex with GPT 5.6 support" {
