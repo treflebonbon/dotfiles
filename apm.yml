@@ -5,6 +5,8 @@ targets:
   - codex
 dependencies:
   apm:
+    # pbakaus/impeccable — 同梱 runtime の自動実行に備えて検証済み commit に固定
+    - pbakaus/impeccable/.agents/skills/impeccable#f2049c2b76383b444bf30cd6184f7d49a6c580d1
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -17,7 +19,6 @@ dependencies:
     # anthropics/skills
     - anthropics/skills/skills/skill-creator
     - anthropics/skills/skills/pdf
-    - anthropics/skills/skills/frontend-design
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
