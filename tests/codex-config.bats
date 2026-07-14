@@ -2,6 +2,25 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
+}
+
+stage_codex_managed_config() {
+  local home="$1"
+  mkdir -p "$home/.config/codex/environments" "$home/.config/codex/rules"
+  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" "$home/.config/codex/config.toml"
+  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" "$home/.config/codex/hooks.json"
+  cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" "$home/.config/codex/rules/default.rules"
+  cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" "$home/.config/codex/environments/environment.toml"
+  cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" "$home/.config/codex/AGENTS.md"
+}
+
+install_codex_managed_config_sync() {
+  local home="$1"
+  mkdir -p "$home/.local/bin"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config" \
+    "$home/.local/bin/sync-codex-managed-config"
+  chmod +x "$home/.local/bin/sync-codex-managed-config"
 }
 
 @test "Codex config managed fragment exists without local state tables" {
@@ -191,6 +210,83 @@ PY
   grep -q 'CODEX_INTERNAL_ORIGINATOR_OVERRIDE' "$profile"
   grep -q 'CODEX_HOME="$HOME/.codex-app"' "$profile"
   grep -q 'mkdir -p "$CODEX_HOME/sessions" "$CODEX_HOME/worktrees"' "$profile"
+}
+
+@test "first Codex Desktop login seeds all managed config" {
+  local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
+  install_codex_managed_config_sync "$home"
+
+  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
+    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
+
+  grep -q '^model = "gpt-5.6-terra"$' "$home/.codex-app/config.toml"
+  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
+  cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
+  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
+  cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
+  [ -f "$home/.codex-app/.managed-config-seeded" ]
+  [ "$(stat -c %a "$home/.codex-app/config.toml")" = "600" ]
+  [ "$(stat -c %a "$home/.codex-app/hooks.json")" = "600" ]
+  [ "$(stat -c %a "$home/.codex-app/rules/default.rules")" = "600" ]
+  [ "$(stat -c %a "$home/.codex-app/environments/environment.toml")" = "600" ]
+  [ "$(stat -c %a "$home/.codex-app/AGENTS.md")" = "600" ]
+}
+
+@test "existing unsynced Codex Desktop home is backfilled on login" {
+  local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
+  install_codex_managed_config_sync "$home"
+  mkdir -p "$home/.codex-app"
+  cat >"$home/.codex-app/config.toml" <<'EOF'
+[projects."/home/ubuntu/workspace/desktop"]
+trust_level = "trusted"
+EOF
+
+  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
+    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
+
+  grep -q '^model = "gpt-5.6-terra"$' "$home/.codex-app/config.toml"
+  grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
+  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
+  cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
+  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
+  cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
+  [ -f "$home/.codex-app/.managed-config-seeded" ]
+}
+
+@test "seeded Codex Desktop home is not rewritten on later logins" {
+  local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
+  install_codex_managed_config_sync "$home"
+
+  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
+    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
+  printf 'desktop-local\n' >"$home/.codex-app/hooks.json"
+
+  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
+    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
+
+  [ "$(cat "$home/.codex-app/hooks.json")" = "desktop-local" ]
+}
+
+@test "failed Codex Desktop seed remains eligible for retry" {
+  local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
+  install_codex_managed_config_sync "$home"
+  rm "$home/.config/codex/AGENTS.md"
+
+  run env HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
+    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"failed to seed Codex Desktop managed config"* ]]
+  [ ! -f "$home/.codex-app/.managed-config-seeded" ]
 }
 
 @test "Codex AGENTS deploy script writes to native Codex home" {

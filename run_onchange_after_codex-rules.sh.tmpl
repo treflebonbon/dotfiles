@@ -1,36 +1,7 @@
 #!/usr/bin/env bash
 # Codex managed rules hash: {{ include "private_dot_config/codex/rules/default.rules" | sha256sum }}
+# Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
 set -euo pipefail
 
-managed_rules="$HOME/.config/codex/rules/default.rules"
-
-if [ ! -f "$managed_rules" ]; then
-  echo "WARN: Codex managed rules not found: $managed_rules" >&2
-  exit 0
-fi
-
-tmp=""
-trap 'rm -f "${tmp:-}"' EXIT
-
-codex_homes=()
-if [ -n "${CODEX_HOME:-}" ]; then
-  codex_homes=("$CODEX_HOME")
-else
-  codex_homes=("$HOME/.codex")
-  if [ -d "$HOME/.codex-app" ]; then
-    codex_homes+=("$HOME/.codex-app")
-  fi
-fi
-
-for codex_home in "${codex_homes[@]}"; do
-  codex_rules="$codex_home/rules/default.rules"
-  mkdir -p "$(dirname "$codex_rules")"
-  tmp="$(mktemp "$codex_rules.tmp.XXXXXX")"
-
-  cp "$managed_rules" "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" "$codex_rules"
-  tmp=""
-done
-
-trap - EXIT
+sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
+"$sync_command" rules

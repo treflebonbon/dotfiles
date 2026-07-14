@@ -1,36 +1,7 @@
 #!/usr/bin/env bash
 # Codex managed environment hash: {{ include "private_dot_config/codex/environments/environment.toml" | sha256sum }}
+# Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
 set -euo pipefail
 
-managed_environment="$HOME/.config/codex/environments/environment.toml"
-
-if [ ! -f "$managed_environment" ]; then
-  echo "WARN: Codex managed environment not found: $managed_environment" >&2
-  exit 0
-fi
-
-tmp=""
-trap 'rm -f "${tmp:-}"' EXIT
-
-codex_homes=()
-if [ -n "${CODEX_HOME:-}" ]; then
-  codex_homes=("$CODEX_HOME")
-else
-  codex_homes=("$HOME/.codex")
-  if [ -d "$HOME/.codex-app" ]; then
-    codex_homes+=("$HOME/.codex-app")
-  fi
-fi
-
-for codex_home in "${codex_homes[@]}"; do
-  codex_environment="$codex_home/environments/environment.toml"
-  mkdir -p "$(dirname "$codex_environment")"
-  tmp="$(mktemp "$codex_environment.tmp.XXXXXX")"
-
-  cp "$managed_environment" "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" "$codex_environment"
-  tmp=""
-done
-
-trap - EXIT
+sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
+"$sync_command" environment
