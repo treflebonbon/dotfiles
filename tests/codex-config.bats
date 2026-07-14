@@ -23,6 +23,16 @@ install_codex_managed_config_sync() {
   chmod +x "$home/.local/bin/sync-codex-managed-config"
 }
 
+prepare_codex_chezmoi_source() {
+  local source="$1"
+  mkdir -p "$source/private_dot_config" "$source/private_dot_local/bin"
+  cp -R "$PROJECT_ROOT/private_dot_config/codex" "$source/private_dot_config/codex"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config" \
+    "$source/private_dot_local/bin/executable_sync-codex-managed-config"
+  cp "$PROJECT_ROOT/dot_bash_profile.tmpl" "$source/dot_bash_profile.tmpl"
+  cp "$PROJECT_ROOT"/run_onchange_after_codex-*.sh.tmpl "$source/"
+}
+
 @test "Codex config managed fragment exists without local state tables" {
   local config="$PROJECT_ROOT/private_dot_config/codex/config.toml"
 
@@ -214,12 +224,24 @@ PY
 
 @test "first Codex Desktop login seeds all managed config" {
   local home="$BATS_TEST_TMPDIR/home"
-  stage_codex_managed_config "$home"
-  install_codex_managed_config_sync "$home"
+  local source="$BATS_TEST_TMPDIR/source"
+  local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
+  prepare_codex_chezmoi_source "$source"
+  mkdir -p "$home"
+  printf '{}\n' >"$config"
+
+  env -u CODEX_HOME HOME="$home" chezmoi \
+    --source "$source" \
+    --destination "$home" \
+    --persistent-state "$BATS_TEST_TMPDIR/chezmoi-state.boltdb" \
+    --config "$config" \
+    apply
+
+  [ -f "$home/.codex/config.toml" ]
+  [ ! -d "$home/.codex-app" ]
 
   HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
-    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
-    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
+    bash -c '. "$1"' _ "$home/.bash_profile"
 
   grep -q '^model = "gpt-5.6-terra"$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
