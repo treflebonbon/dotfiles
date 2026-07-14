@@ -247,6 +247,18 @@ PY
   cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
 }
 
+@test "Codex hooks deploy script also updates existing Codex Desktop home" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/codex" "$home/.codex-app"
+  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" \
+    "$home/.config/codex/hooks.json"
+
+  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
+
+  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
+  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
+}
+
 @test "Codex hooks deploy script writes to CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"

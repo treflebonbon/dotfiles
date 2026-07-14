@@ -4,19 +4,33 @@ set -euo pipefail
 
 managed_hooks="$HOME/.config/codex/hooks.json"
 
-codex_home="${CODEX_HOME:-$HOME/.codex}"
-codex_hooks="$codex_home/hooks.json"
-
 if [ ! -f "$managed_hooks" ]; then
   echo "WARN: Codex managed hooks not found: $managed_hooks" >&2
   exit 0
 fi
 
-mkdir -p "$codex_home"
-tmp="$(mktemp "$codex_hooks.tmp.XXXXXX")"
-trap 'rm -f "$tmp"' EXIT
+tmp=""
+trap 'rm -f "${tmp:-}"' EXIT
 
-cp "$managed_hooks" "$tmp"
-chmod 600 "$tmp"
-mv "$tmp" "$codex_hooks"
+codex_homes=()
+if [ -n "${CODEX_HOME:-}" ]; then
+  codex_homes=("$CODEX_HOME")
+else
+  codex_homes=("$HOME/.codex")
+  if [ -d "$HOME/.codex-app" ]; then
+    codex_homes+=("$HOME/.codex-app")
+  fi
+fi
+
+for codex_home in "${codex_homes[@]}"; do
+  codex_hooks="$codex_home/hooks.json"
+  mkdir -p "$codex_home"
+  tmp="$(mktemp "$codex_hooks.tmp.XXXXXX")"
+
+  cp "$managed_hooks" "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$codex_hooks"
+  tmp=""
+done
+
 trap - EXIT
