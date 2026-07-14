@@ -4,19 +4,33 @@ set -euo pipefail
 
 managed_agents="$HOME/.config/codex/AGENTS.md"
 
-codex_home="${CODEX_HOME:-$HOME/.codex}"
-codex_agents="$codex_home/AGENTS.md"
-
 if [ ! -f "$managed_agents" ]; then
   echo "WARN: Codex managed AGENTS not found: $managed_agents" >&2
   exit 0
 fi
 
-mkdir -p "$codex_home"
-tmp="$(mktemp "$codex_agents.tmp.XXXXXX")"
-trap 'rm -f "$tmp"' EXIT
+tmp=""
+trap 'rm -f "${tmp:-}"' EXIT
 
-cp "$managed_agents" "$tmp"
-chmod 600 "$tmp"
-mv "$tmp" "$codex_agents"
+codex_homes=()
+if [ -n "${CODEX_HOME:-}" ]; then
+  codex_homes=("$CODEX_HOME")
+else
+  codex_homes=("$HOME/.codex")
+  if [ -d "$HOME/.codex-app" ]; then
+    codex_homes+=("$HOME/.codex-app")
+  fi
+fi
+
+for codex_home in "${codex_homes[@]}"; do
+  codex_agents="$codex_home/AGENTS.md"
+  mkdir -p "$codex_home"
+  tmp="$(mktemp "$codex_agents.tmp.XXXXXX")"
+
+  cp "$managed_agents" "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$codex_agents"
+  tmp=""
+done
+
 trap - EXIT

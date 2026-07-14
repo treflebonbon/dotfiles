@@ -4,6 +4,16 @@ set -euo pipefail
 skills_dir="${HOME}/.claude/skills"
 codex_home="${CODEX_HOME:-$HOME/.codex}"
 
+# CODEX_HOME が .codex 以外に明示指定されていればそれを追加 cleanup 対象にする。
+# 未指定なら Codex Desktop (.codex-app) の存在チェックで追加ホームを決める。
+# run_onchange_after_codex-{config,hooks}.sh.tmpl の dual-home 判定と設計思想を統一。
+extra_codex_home=""
+if [ "$codex_home" != "$HOME/.codex" ]; then
+  extra_codex_home="$codex_home"
+elif [ -d "$HOME/.codex-app" ]; then
+  extra_codex_home="$HOME/.codex-app"
+fi
+
 # chezmoi 配布のローカル skill（apm 非管理）。real-dir wipe から除外する。
 # run_onchange_after_deploy-local-skills.sh.tmpl の local_skills=() と一致させること。
 preserve_local_skills=(
@@ -129,8 +139,8 @@ cleanup_symlinks() {
 cleanup_symlinks "${HOME}/.agents/skills"
 cleanup_symlinks "$skills_dir"
 cleanup_symlinks "${HOME}/.codex/skills"
-if [ "$codex_home" != "$HOME/.codex" ]; then
-  cleanup_symlinks "$codex_home/skills"
+if [ -n "$extra_codex_home" ]; then
+  cleanup_symlinks "$extra_codex_home/skills"
 fi
 cleanup_symlinks "${HOME}/.copilot/skills"
 
@@ -177,8 +187,8 @@ remove_retired_apm_skill_dirs() {
 remove_retired_apm_skill_dirs "${HOME}/.agents/skills"
 remove_retired_apm_skill_dirs "$skills_dir"
 remove_retired_apm_skill_dirs "${HOME}/.codex/skills"
-if [ "$codex_home" != "$HOME/.codex" ]; then
-  remove_retired_apm_skill_dirs "$codex_home/skills"
+if [ -n "$extra_codex_home" ]; then
+  remove_retired_apm_skill_dirs "$extra_codex_home/skills"
 fi
 remove_retired_apm_skill_dirs "${HOME}/.gemini/skills"
 remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
@@ -187,8 +197,8 @@ remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
 # ~/.codex/skills や runtime CODEX_HOME/skills にも置くと二重表示になる。
 # 旧 deploy-local-skills が materialize した real dir はここで撤去する。
 remove_named_skill_entries "${HOME}/.codex/skills" "codex local duplicate" "${preserve_local_skills[@]}"
-if [ "$codex_home" != "$HOME/.codex" ]; then
-  remove_named_skill_entries "$codex_home/skills" "codex local duplicate" "${preserve_local_skills[@]}"
+if [ -n "$extra_codex_home" ]; then
+  remove_named_skill_entries "$extra_codex_home/skills" "codex local duplicate" "${preserve_local_skills[@]}"
 fi
 
 # 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)
