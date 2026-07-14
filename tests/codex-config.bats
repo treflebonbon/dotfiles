@@ -206,6 +206,18 @@ PY
   grep -q 'Think in English, respond in Japanese\.' "$home/.codex/AGENTS.md"
 }
 
+@test "Codex AGENTS deploy script also updates existing Codex Desktop home" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/codex" "$home/.codex-app"
+  cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
+    "$home/.config/codex/AGENTS.md"
+
+  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
+
+  cmp "$home/.config/codex/AGENTS.md" "$home/.codex/AGENTS.md"
+  cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
+}
+
 @test "Codex AGENTS deploy script writes to CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
@@ -301,6 +313,19 @@ PY
   [ "$(stat -c %a "$home/.codex/rules/default.rules")" = "600" ]
 }
 
+@test "Codex rules deploy script also updates existing Codex Desktop home" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/codex/rules" "$home/.codex-app"
+  cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" \
+    "$home/.config/codex/rules/default.rules"
+
+  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
+
+  cmp "$home/.config/codex/rules/default.rules" "$home/.codex/rules/default.rules"
+  cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
+  [ "$(stat -c %a "$home/.codex-app/rules/default.rules")" = "600" ]
+}
+
 @test "Codex rules deploy script writes to CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
@@ -354,6 +379,18 @@ PY
   [ -f "$home/.codex/environments/environment.toml" ]
   grep -q '^name = "default"$' "$home/.codex/environments/environment.toml"
   grep -q "direnv allow ." "$home/.codex/environments/environment.toml"
+}
+
+@test "Codex environment deploy script also updates existing Codex Desktop home" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/codex/environments" "$home/.codex-app"
+  cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" \
+    "$home/.config/codex/environments/environment.toml"
+
+  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
+
+  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex/environments/environment.toml"
+  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
 }
 
 @test "Codex environment deploy script writes to CODEX_HOME when set" {
