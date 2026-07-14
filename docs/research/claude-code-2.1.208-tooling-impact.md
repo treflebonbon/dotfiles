@@ -69,17 +69,18 @@ command substitution（`$(...)`、backtick、`<(...)`）を含む command 内の
 
 upstream は commit [`d052868b`](https://github.com/numtide/llm-agents.nix/commit/d052868bf087fa11ff76f498406859a4da3ec776) で `claude-code` を 2.1.207 から 2.1.208 へ更新済みであり、package の version/hash は [`packages/claude-code/hashes.json`](https://github.com/numtide/llm-agents.nix/blob/d052868bf087fa11ff76f498406859a4da3ec776/packages/claude-code/hashes.json) に固定されている。したがって local override は不要で、通常の `nix flake update llm-agents` で追従できる。
 
-調査時点の upstream `main` と現在の pin を package source で比較すると次の差がある。
+実装では `nix flake update llm-agents` により pin を `3860609` から [`5c73869`](https://github.com/numtide/llm-agents.nix/commit/5c73869318afcf796a7a465b4b5e31b27f0819d4) へ更新した。更新前後の flake package metadata を `nix eval` で比較した確定値は次のとおり。
 
-| package         | 現在の pin | upstream `main` | 備考                                                        |
-| --------------- | ---------: | --------------: | ----------------------------------------------------------- |
-| claude-code     |    2.1.207 |         2.1.208 | 今回の主対象                                                |
-| codex           |    0.144.3 |         0.144.4 | 同じ flake 更新で追従しうるため release note の別確認が必要 |
-| antigravity-cli |      1.1.1 |           1.1.2 | 同上                                                        |
-| copilot-cli     |     1.0.70 |          1.0.70 | 変更なし                                                    |
-| rtk             |     0.43.0 |          0.43.0 | 変更なし                                                    |
+| package         | 更新前 pin | 更新後 pin | 判断                                                                               |
+| --------------- | ---------: | ---------: | ---------------------------------------------------------------------------------- |
+| claude-code     |    2.1.207 |    2.1.208 | 今回の主対象。`minClaudeCode` も 2.1.208 へ引き上げ                                |
+| codex           |    0.144.3 |    0.144.4 | 公式 release が user-facing change なしと明記するため `minCodex` は 0.144.3 のまま |
+| antigravity-cli |      1.1.1 |      1.1.2 | package metadata の追従を確認。追加設定なし                                        |
+| copilot-cli     |     1.0.70 |     1.0.70 | 変更なし                                                                           |
+| apm             |     0.25.0 |     0.25.0 | 変更なし                                                                           |
+| rtk             |     0.43.0 |     0.43.0 | 変更なし                                                                           |
 
-表は `numtide/llm-agents.nix` の各 package definition / `hashes.json` を commit pin と `main` で比較した結果である。flake 更新は Claude Code だけに限定されないため、実装時には実際の lock diff と Nix evaluation で全 package version を確定すること。
+Codex 0.144.4 の判断根拠は OpenAI 公式 [0.144.4 release](https://github.com/openai/codex/releases/tag/rust-v0.144.4) の「No user-facing changes in this patch release」である。全 package の version assert を含む devShell は `nix flake check --no-build`、リポジトリ全体は 173 件の Bats tests で検証済み。
 
 ## この dotfiles で更新が必要な箇所
 
