@@ -72,6 +72,8 @@ codex の release note（0.144.2–0.144.3）を確認した結果、0.144.0 で
 
 Claude Code 2.1.208 は、background agent への返信が配信失敗時に失われる問題、更新で binary が置換された後に background-session attach が恒久的に失敗する問題、旧 daemon が新しい worker を古い binary で再起動する問題を修正する。さらに agent view の worktree 削除が未 push commit を保護し、再利用した worktree 名の base を現在値へ戻すようになったほか、Remote Control の agent/workflow 可視化、長時間・多 MCP session のメモリ/CPU/転記量も改善された。この repo の多 agent・worktree 中心の運用に直接効くため、`minClaudeCode` を 2.1.207 → 2.1.208 へ引き上げた。
 
+同 release で追加された `axScreenReader`、`vimInsertModeRemaps`、`CLAUDE_CODE_PROCESS_WRAPPER` はいずれも opt-in であり、現行要件では必要ないため `private_dot_claude/settings.json.tmpl` は変更しない。
+
 Codex 0.144.4 は公式 release note が user-facing change なしと明記する patch release のため、flake pin には追従するが `minCodex` は 0.144.3 のまま据え置いた。`antigravity-cli` 1.1.2 は package metadata での追従のみ確認し、追加の dotfiles 設定変更は不要と判断した。
 
 なお、今回の更新は chezmoi source dir（`~/ghq/github.com/treflebonbon/dotfiles`）とは別の作業 worktree で行った。`ai.nix` の更新手順コメントが前提とする2経路（source dir で編集して `chezmoi apply` で `~/` へ反映する／デプロイ先 `~/.config/nix-devshell` を直接編集して `chezmoi re-add` で source へ戻す）のどちらでもなく、単に同じ repo の別 git worktree・branch で `nix flake update` を実行し `flake.lock` を編集してそのまま commit しただけである。source dir 側へは通常の merge/pull 経路で反映され、ライブ環境（`~/.config/nix-devshell`）へ反映したい場合はさらに `chezmoi apply` が必要になる。
