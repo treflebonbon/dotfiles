@@ -82,7 +82,7 @@ assert data == {
                 "hooks": [
                     {
                         "type": "command",
-                        "command": 'test -f "$HOME/.agents/skills/impeccable/scripts/hook.mjs" || exit 0; IMPECCABLE_HOOK_QUIET=1 node "$HOME/.agents/skills/impeccable/scripts/hook.mjs" || true',
+                        "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
                         "timeout": 5,
                     }
                 ],
@@ -117,7 +117,7 @@ assert data["hooks"]["PostToolUse"] == [
         "hooks": [
             {
                 "type": "command",
-                "command": 'test -f "$HOME/.claude/skills/impeccable/scripts/hook.mjs" || exit 0; IMPECCABLE_HOOK_QUIET=1 node "$HOME/.claude/skills/impeccable/scripts/hook.mjs" || true',
+                "command": "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
                 "timeout": 5,
             }
         ],
@@ -126,13 +126,15 @@ assert data["hooks"]["PostToolUse"] == [
 PY
 }
 
-@test "managed Design Hook commands fail open when the runtime exits nonzero" {
+@test "managed Design Hook commands discard failed runtime output and fail open" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p \
     "$home/.agents/skills/impeccable/scripts" \
     "$home/.claude/skills/impeccable/scripts"
-  printf 'process.exit(42);\n' >"$home/.agents/skills/impeccable/scripts/hook.mjs"
-  printf 'process.exit(42);\n' >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+  printf 'process.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' \
+    >"$home/.agents/skills/impeccable/scripts/hook.mjs"
+  printf 'process.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' \
+    >"$home/.claude/skills/impeccable/scripts/hook.mjs"
 
   mapfile -t commands < <(
     python3 - \
@@ -154,6 +156,14 @@ PY
     run env HOME="$home" bash -c "$command"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
+  done
+
+  printf 'process.stdout.write("finding");\n' >"$home/.agents/skills/impeccable/scripts/hook.mjs"
+  printf 'process.stdout.write("finding");\n' >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+  for command in "${commands[@]}"; do
+    run env HOME="$home" bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ "$output" = "finding" ]
   done
 }
 

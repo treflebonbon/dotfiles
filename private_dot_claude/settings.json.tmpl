@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || true",
+            "command": "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
             "timeout": 5
           }
         ]
