@@ -32,8 +32,11 @@ let
   #                  git worktree 内で cold reopen 後に空表示のまま resume するバグと
   #                  worktreeConfig が worktree 削除後も .git/config に残るバグを修正。
   #                  いずれも worktree 隔離・多 agent ワークフローの信頼性に関わるため 2.1.207 へ床上げ。
+  # 2.1.208: background agent への返信再送、更新後の attach 復旧、旧 daemon による新 worker の
+  #          version downgrade 防止、agent view の worktree 削除安全化、Remote Control の agent/workflow
+  #          可視化、長時間・多 MCP session のメモリ/CPU改善を含むため 2.1.208 へ床上げ。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
-  minClaudeCode = "2.1.207";
+  minClaudeCode = "2.1.208";
   minCodex = "0.144.3";
 
   claudeCode =
@@ -55,7 +58,9 @@ let
         修正する 2.1.205、EnterWorktree の .claude/worktrees/ 外進入時確認・background agent の
         即時アップグレード化を含む 2.1.206、agent teams の teammate mailbox crash loop・
         git worktree 内 background session の cold reopen 後空表示・worktreeConfig 残留を修正する
-        2.1.207 を品質ベースラインとして固定しています。
+        2.1.207、background agent の返信再送・更新後 attach 復旧・daemon の世代逆行防止・
+        worktree 削除安全化・Remote Control の agent/workflow 可視化・長時間 session の資源リークを
+        修正する 2.1.208 を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
