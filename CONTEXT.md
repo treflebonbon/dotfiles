@@ -12,6 +12,10 @@ _Avoid_: 仕様, spec, 要件定義
 `to-pr` が PR body に載せる AC ごとの検証記録表（列: AC / 種別 / 実行コマンドまたは理由 / 結果 / 未確認理由）。UI・CLI・API・infra 全ての AC を1つの表に統合する。
 _Avoid_: evidence table, 検証エビデンス, verdict
 
+**Design Hook**:
+UI コードの編集直後に決定論的なデザイン検査を行い、修正対象となる finding だけをエージェントの作業文脈へ返す advisory 型の自動フィードバック経路。変更を拒否する品質ゲートではなく、人間が画面を見て判断する要素指差しフィードバックや、実装後の Verification Matrix とも異なる。
+_Avoid_: visual lint, UI review, 見た目確認
+
 **要素指差しフィードバック**:
 `tdd` の実装サイクル中、人間が画面上の UI 要素を選択し、その場でエージェントへ変更を指示する対話チャネル（Codex app（in-app browser）: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）。実装完了後にエージェントが自律的に検証する Verification Matrix とは主体（人間 vs エージェント）とタイミング（実装中 vs 実装後）の両方が異なる。
 _Avoid_: UI verification, ブラウザ検証

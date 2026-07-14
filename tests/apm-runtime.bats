@@ -4,6 +4,29 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 }
 
+@test "APM selects validated Impeccable and retains specialist UI skills" {
+  local manifest="$PROJECT_ROOT/apm.yml"
+
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#f2049c2b76383b444bf30cd6184f7d49a6c580d1' "$manifest"
+  ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
+
+  local skill
+  for skill in web-design-guidelines react-best-practices composition-patterns react-view-transitions shadcn remotion modern-web-guidance; do
+    grep -Fq "$skill" "$manifest"
+  done
+}
+
+@test "APM lock materializes the validated Impeccable payload" {
+  local lock="$PROJECT_ROOT/apm.lock.yaml"
+
+  grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
+  grep -Fq 'resolved_commit: f2049c2b76383b444bf30cd6184f7d49a6c580d1' "$lock"
+  grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
+  grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
+  grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"
+  ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
+}
+
 @test "APM runtime deploy targets remain git-ignored" {
   grep -q '^/\.agents/$' "$PROJECT_ROOT/.gitignore"
   grep -q '^/\.claude/agents/$' "$PROJECT_ROOT/.gitignore"

@@ -62,7 +62,7 @@ setup() {
   grep -q '<use_parallel_tool_calls>' "$agents"
 }
 
-@test "Codex hooks managed file does not wire Claude-only security guidance" {
+@test "Codex managed Hook adds the quiet global Impeccable Design Hook" {
   local hooks="$PROJECT_ROOT/private_dot_config/codex/hooks.json"
 
   [ -f "$hooks" ]
@@ -74,9 +74,97 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
-assert data == {"hooks": {}}
+assert data == {
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|apply_patch",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
+                        "timeout": 5,
+                    }
+                ],
+            }
+        ]
+    }
+}
 PY
   ! grep -q 'security-guidance' "$hooks"
+}
+
+@test "Claude settings keep the existing hook and add the quiet global Impeccable Design Hook" {
+  local settings="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
+
+  python3 -m json.tool "$settings" >/dev/null
+  python3 - "$settings" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    data = json.load(f)
+
+assert data["hooks"]["PreToolUse"] == [
+    {
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": "rtk hook claude"}],
+    }
+]
+assert data["hooks"]["PostToolUse"] == [
+    {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+            {
+                "type": "command",
+                "command": "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
+                "timeout": 5,
+            }
+        ],
+    }
+]
+PY
+}
+
+@test "managed Design Hook commands discard failed runtime output and fail open" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p \
+    "$home/.agents/skills/impeccable/scripts" \
+    "$home/.claude/skills/impeccable/scripts"
+  printf 'process.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' \
+    >"$home/.agents/skills/impeccable/scripts/hook.mjs"
+  printf 'process.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' \
+    >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+
+  mapfile -t commands < <(
+    python3 - \
+      "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" \
+      "$PROJECT_ROOT/private_dot_config/codex/hooks.json" <<'PY'
+import json
+import sys
+
+for path in sys.argv[1:]:
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    print(data["hooks"]["PostToolUse"][0]["hooks"][0]["command"])
+PY
+  )
+
+  [ "${#commands[@]}" -eq 2 ]
+  local command
+  for command in "${commands[@]}"; do
+    run env HOME="$home" bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+  done
+
+  printf 'process.stdout.write("finding");\n' >"$home/.agents/skills/impeccable/scripts/hook.mjs"
+  printf 'process.stdout.write("finding");\n' >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+  for command in "${commands[@]}"; do
+    run env HOME="$home" bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ "$output" = "finding" ]
+  done
 }
 
 @test "Codex rules managed file blocks destructive commands" {
@@ -156,16 +244,19 @@ PY
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
 
   [ -f "$home/.codex/hooks.json" ]
-  python3 -m json.tool "$home/.codex/hooks.json" >/dev/null
-  python3 - "$home/.codex/hooks.json" <<'PY'
-import json
-import sys
+  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
+}
 
-with open(sys.argv[1], encoding="utf-8") as f:
-    data = json.load(f)
+@test "Codex hooks deploy script also updates existing Codex Desktop home" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/codex" "$home/.codex-app"
+  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" \
+    "$home/.config/codex/hooks.json"
 
-assert data == {"hooks": {}}
-PY
+  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
+
+  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
+  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
 }
 
 @test "Codex hooks deploy script writes to CODEX_HOME when set" {
@@ -179,15 +270,7 @@ PY
 
   [ ! -f "$home/.codex/hooks.json" ]
   [ -f "$codex_home/hooks.json" ]
-  python3 - "$codex_home/hooks.json" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as f:
-    data = json.load(f)
-
-assert data == {"hooks": {}}
-PY
+  cmp "$home/.config/codex/hooks.json" "$codex_home/hooks.json"
 }
 
 @test "Codex hooks deploy script respects WSL CODEX_HOME" {
@@ -202,15 +285,7 @@ PY
 
   [ ! -f "$home/.codex/hooks.json" ]
   [ -f "$codex_home/hooks.json" ]
-  python3 - "$codex_home/hooks.json" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as f:
-    data = json.load(f)
-
-assert data == {"hooks": {}}
-PY
+  cmp "$home/.config/codex/hooks.json" "$codex_home/hooks.json"
 }
 
 @test "Codex rules deploy script writes to native Codex home" {
