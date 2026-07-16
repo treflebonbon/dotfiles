@@ -6,26 +6,7 @@ local act = wezterm.action
 
 local M = {}
 
-local function is_bash(pane)
-  local process_name = pane:get_foreground_process_name()
-  return process_name and process_name:match("([^/]+)$") == "bash"
-end
-
 M.keys = {
-  -- ghq + fzf: Bash のプロンプトだけで未送信の入力を破棄して picker を開く。
-  {
-    key = "g",
-    mods = "LEADER",
-    action = wezterm.action_callback(function(window, pane)
-      if is_bash(pane) then
-        window:perform_action(
-          act.Multiple({ act.SendKey({ key = "u", mods = "CTRL" }), act.SendString("gcd\r") }),
-          pane
-        )
-      end
-    end),
-  },
-
   -- ===========================================================================
   -- タブ操作
   -- ===========================================================================
