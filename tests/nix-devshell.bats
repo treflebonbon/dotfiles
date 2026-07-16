@@ -113,6 +113,19 @@ setup() {
   grep -q 'Codex native location.*へは配備しない' "$runtime"
 }
 
+@test "pre-commit applies OXC to local skills without rewriting run-code examples" {
+  local config="$PROJECT_ROOT/lefthook.yml"
+  local skill="$PROJECT_ROOT/local-skills/to-pr/SKILL.md"
+  local fixture="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/fixtures/mv3-min"
+
+  ! sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
+  ! sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
+  [ "$(grep -Fc '<!-- prettier-ignore -->' "$skill")" -eq 2 ]
+  [ -f "$fixture/service-worker.js" ]
+  [ ! -e "$fixture/service_worker.js" ]
+  grep -Fq '"service_worker": "service-worker.js"' "$fixture/manifest.json"
+}
+
 @test "gws package uses pinned 0.22.5 release binaries" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/gws.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"

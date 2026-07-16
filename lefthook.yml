@@ -38,10 +38,6 @@ pre-commit:
         # apm 生成の lockfile。oxfmt で再整形すると apm install が runtime で
         # native 形式に書き戻し chezmoi と永続 drift するため除外する。
         - "apm.lock.yaml"
-        # skill 本文に埋め込まれた js コード例（playwright-cli run-code へ
-        # そのまま貼り付ける前提）に oxfmt が semicolon を挿入すると
-        # `(...;)` になり構文エラーになるため除外する。
-        - "local-skills/**"
       stage_fixed: true
     - name: oxlint
       run: bunx oxlint --fix {staged_files}

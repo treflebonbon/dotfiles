@@ -56,7 +56,7 @@ let sw =
   (await ctx.waitForEvent("serviceworker", { timeout: 10000 }));
 ```
 
-- 結果: **SW を観測**。`chrome-extension://<id>/service_worker.js`、Extension ID 取得可。**headless でも成立**。
+- 結果: **SW を観測**。`chrome-extension://<id>/service-worker.js`、Extension ID 取得可。**headless でも成立**。
 
 ## 採用経路: **(a) Playwright runner**
 
