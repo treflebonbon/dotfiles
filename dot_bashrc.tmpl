@@ -153,8 +153,12 @@ command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 # nix-devshell が供給する glibc 版 loadable builtin を使う。ABI 不一致や
 # 壊れた artifact でログインシェルを巻き込まないよう、失敗時は警告だけ出して
 # bash 標準の入力編集へフォールバックする。
-if [ -n "${FLYLINE_BASH_LOADABLE:-}" ] && _bash_has_builtin bind; then
+_flyline_enabled=false
+if [ "$(type -t flyline)" = builtin ]; then
+  _flyline_enabled=true
+elif [ -n "${FLYLINE_BASH_LOADABLE:-}" ] && _bash_has_builtin bind; then
   if [ -r "$FLYLINE_BASH_LOADABLE" ] && enable -f "$FLYLINE_BASH_LOADABLE" flyline 2>/dev/null; then
+    _flyline_enabled=true
     flyline mouse --mode disabled >/dev/null 2>&1 || true
   else
     echo "Warning: flyline load failed; continuing without flyline" >&2
@@ -204,8 +208,12 @@ if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
     cd "$(ghq root)/$repo" || return
   }
 
-  # Ctrl-G: gcd のキーバインド版
-  bind -x '"\C-g": gcd' 2>/dev/null || true
+  # Ctrl-G: flyline では gcd を挿入し、標準 bash では直接実行する。
+  if [ "$_flyline_enabled" = true ]; then
+    flyline key bind Ctrl+g "bufferIsEmpty=insertString(gcd)"
+  else
+    bind -x '"\C-g": gcd' 2>/dev/null || true
+  fi
 
   # gclone: 引数ありで ghq get、なしで gh repo list（ユーザー + 所属 Org）→ fzf → clone
   gclone() {
@@ -256,6 +264,7 @@ if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
     mkdir -p "$dir" && git init "$dir" && cd "$dir" || return
   }
 fi
+unset _flyline_enabled
 
 # starship プロンプト
 if command -v starship >/dev/null 2>&1; then
