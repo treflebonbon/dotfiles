@@ -120,6 +120,8 @@ setup() {
 
   ! sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
   ! sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
+  sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
+  sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
   [ "$(grep -Fc '<!-- prettier-ignore -->' "$skill")" -eq 2 ]
   [ -f "$fixture/service-worker.js" ]
   [ ! -e "$fixture/service_worker.js" ]
