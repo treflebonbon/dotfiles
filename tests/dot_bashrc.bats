@@ -169,6 +169,7 @@ STUB_EOF
   run_bashrc_with_preloaded_flyline
 
   assert_success
+  assert_log_contains "flyline mouse --mode disabled"
   assert_log_contains "flyline key bind Ctrl+g bufferIsEmpty=insertString(gcd)"
   refute_log_contains "enable -f"
   refute_output --partial '"\C-g": "gcd"'

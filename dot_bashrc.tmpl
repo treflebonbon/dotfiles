@@ -159,10 +159,12 @@ if [ "$(type -t flyline)" = builtin ]; then
 elif [ -n "${FLYLINE_BASH_LOADABLE:-}" ] && _bash_has_builtin bind; then
   if [ -r "$FLYLINE_BASH_LOADABLE" ] && enable -f "$FLYLINE_BASH_LOADABLE" flyline 2>/dev/null; then
     _flyline_enabled=true
-    flyline mouse --mode disabled >/dev/null 2>&1 || true
   else
     echo "Warning: flyline load failed; continuing without flyline" >&2
   fi
+fi
+if [ "$_flyline_enabled" = true ]; then
+  flyline mouse --mode disabled >/dev/null 2>&1 || true
 fi
 
 # bash-preexec: precmd/preexec hook 基盤（vendored, rcaloras/bash-preexec 0.6.0）。
