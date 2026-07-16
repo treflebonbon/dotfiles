@@ -32,12 +32,13 @@ let
   #                  git worktree 内で cold reopen 後に空表示のまま resume するバグと
   #                  worktreeConfig が worktree 削除後も .git/config に残るバグを修正。
   #                  いずれも worktree 隔離・多 agent ワークフローの信頼性に関わるため 2.1.207 へ床上げ。
-  # 2.1.208: background agent への返信再送、更新後の attach 復旧、旧 daemon による新 worker の
-  #          version downgrade 防止、agent view の worktree 削除安全化、Remote Control の agent/workflow
-  #          可視化、長時間・多 MCP session のメモリ/CPU改善を含むため 2.1.208 へ床上げ。
+  # 2.1.208-2.1.211: background agent / daemon / MCP の安定性に加え、worktree 隔離された subagent が
+  #                  main checkout へ git 操作できる不具合、PreToolUse の ask 判断が unsandboxed Bash で
+  #                  auto mode に上書きされる不具合を修正。多 agent・worktree 運用の安全性に直結するため
+  #                  2.1.211 へ床上げ。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
-  minClaudeCode = "2.1.208";
-  minCodex = "0.144.3";
+  minClaudeCode = "2.1.211";
+  minCodex = "0.144.5";
 
   claudeCode =
     let
@@ -60,7 +61,9 @@ let
         git worktree 内 background session の cold reopen 後空表示・worktreeConfig 残留を修正する
         2.1.207、background agent の返信再送・更新後 attach 復旧・daemon の世代逆行防止・
         worktree 削除安全化・Remote Control の agent/workflow 可視化・長時間 session の資源リークを
-        修正する 2.1.208 を品質ベースラインとして固定しています。
+        修正する 2.1.208 に加え、worktree 隔離済み subagent が main checkout で git を変更できる不具合を
+        修正する 2.1.210、PreToolUse hook の ask 判断が unsandboxed Bash で auto mode に上書きされる不具合・
+        background agent / plugin MCP 再接続の不具合を修正する 2.1.211 を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
@@ -81,7 +84,7 @@ let
         GPT-5.6 対応を含む Codex 0.144.0、standalone installer / code-mode reliability fixes を含む
         0.144.1 に加え、0.144.0 で混入した auto-review（Guardian）prompting のリグレッションを
         revert して修正した 0.144.2 の内容を品質ベースラインとして要求しています。
-        実際に要求する最低バージョンは ${minCodex}（0.144.2 と変更なしの version-only リリース）です。
+        さらに、強制削除を含む危険コマンドの検出と拒否理由を改善した 0.144.5 を品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
