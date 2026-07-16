@@ -25,6 +25,50 @@ run_bashrc() {
     /bin/bash --noprofile --norc -i -c "source '$GENERATED_BASHRC'; true"
 }
 
+run_bashrc_with_flyline() {
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR:/usr/bin:/bin" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    FLYLINE_BASH_LOADABLE="$GENERATED_BASHRC" \
+    TERM="${TERM:-xterm}" \
+    /bin/bash --noprofile --norc -i -c '
+      enable() {
+        if [ "${1:-}" = "-f" ] && [ "${3:-}" = "flyline" ]; then
+          flyline() { printf "flyline %s\\n" "$*" >> "$TEST_LOG"; }
+          return 0
+        fi
+        builtin enable "$@"
+      }
+      source "'"$GENERATED_BASHRC"'"
+      bind -X
+    '
+}
+
+run_bashrc_with_preloaded_flyline() {
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR:/usr/bin:/bin" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    TERM="${TERM:-xterm}" \
+    /bin/bash --noprofile --norc -i -c '
+      type() {
+        if [ "${1:-}" = "-t" ] && [ "${2:-}" = "flyline" ]; then
+          printf "%s\\n" builtin
+          return 0
+        fi
+        builtin type "$@"
+      }
+      flyline() { printf "flyline %s\\n" "$*" >> "$TEST_LOG"; }
+      enable() {
+        printf "enable %s\\n" "$*" >> "$TEST_LOG"
+        builtin enable "$@"
+      }
+      source "'"$GENERATED_BASHRC"'"
+      bind -X
+    '
+}
+
 @test "bashrc skips completion/keybinding init when current bash lacks programmable completion builtins" {
   local path_bash
   path_bash="$(command -v bash)"
@@ -105,6 +149,45 @@ STUB_EOF
   run_bashrc
   assert_success
   assert_output --partial "Warning: flyline load failed"
+}
+
+@test "flyline uses Ctrl-G to insert gcd on an empty command line" {
+  stub_cmd ghq
+  stub_cmd fzf
+
+  run_bashrc_with_flyline
+
+  assert_success
+  assert_log_contains "flyline key bind Ctrl+g bufferIsEmpty=insertString(gcd)"
+  refute_output --partial '"\C-g": "gcd"'
+}
+
+@test "preloaded flyline uses Ctrl-G without reloading the builtin" {
+  stub_cmd ghq
+  stub_cmd fzf
+
+  run_bashrc_with_preloaded_flyline
+
+  assert_success
+  assert_log_contains "flyline mouse --mode disabled"
+  assert_log_contains "flyline key bind Ctrl+g bufferIsEmpty=insertString(gcd)"
+  refute_log_contains "enable -f"
+  refute_output --partial '"\C-g": "gcd"'
+}
+
+@test "bash fallback keeps Ctrl-G bound to gcd" {
+  stub_cmd ghq
+  stub_cmd fzf
+
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR:/usr/bin:/bin" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    TERM="${TERM:-xterm}" \
+    /bin/bash --noprofile --norc -i -c "source '$GENERATED_BASHRC'; bind -X"
+
+  assert_success
+  assert_output --partial '"\C-g": "gcd"'
 }
 
 @test "bashrc config disables flyline mouse capture and does not configure agent mode (issue #53)" {
