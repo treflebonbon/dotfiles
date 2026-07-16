@@ -7,6 +7,9 @@ local act = wezterm.action
 local M = {}
 
 M.keys = {
+  -- ghq + fzf: 未送信の入力を破棄してから picker を開く。
+  { key = "g", mods = "LEADER", action = act.Multiple({ act.SendKey({ key = "u", mods = "CTRL" }), act.SendString("gcd\r") }) },
+
   -- ===========================================================================
   -- タブ操作
   -- ===========================================================================
