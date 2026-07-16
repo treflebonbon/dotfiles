@@ -78,6 +78,7 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
    script rather than chaining separate CLI calls (each call's own round-trip can itself
    exceed the window you're measuring), e.g.:
 
+   <!-- prettier-ignore -->
    ```js
    async (page) => {
      await page.getByRole("button", { name: "<trigger>" }).click();
@@ -92,6 +93,7 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
    read the count inside the same script, after the triggering action, rather than
    `snapshot`-ing before and after in separate CLI calls:
 
+   <!-- prettier-ignore -->
    ```js
    async (page) => {
      await page.getByRole("button", { name: "<trigger>" }).click();
@@ -129,9 +131,9 @@ currently active session, so chaining it from here would not analyse anything us
    - `## Contract` — the six fields from step 1, verbatim (including any `未記載`).
    - `## Verification Matrix` — the table built in step 2.
    - `## Code Review` — the one line from step 3.
-   Reference the issue it closes (`Fixes #N`) when there is one; when there is no issue,
-   omit the `Fixes` line and mention where the contract came from (conversation, PRD) in
-   the summary instead.
+     Reference the issue it closes (`Fixes #N`) when there is one; when there is no issue,
+     omit the `Fixes` line and mention where the contract came from (conversation, PRD) in
+     the summary instead.
 3. Create the PR:
 
    ```bash

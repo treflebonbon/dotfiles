@@ -3,5 +3,5 @@
   "name": "mv3-min-fixture",
   "version": "0.0.1",
   "description": "Minimal MV3 extension fixture for dogfood-to-issues SW-registration spike and runner self-test.",
-  "background": { "service_worker": "service_worker.js" }
+  "background": { "service_worker": "service-worker.js" }
 }
