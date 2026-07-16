@@ -7,10 +7,6 @@ local act = wezterm.action
 local M = {}
 
 M.keys = {
-  -- ghq + fzf: flyline は Bash の readline keybinding を置き換えるため、
-  -- leader 経由で現在の pane に関数名と Enter を送る。
-  { key = "g", mods = "LEADER", action = act.SendString("gcd\r") },
-
   -- ===========================================================================
   -- タブ操作
   -- ===========================================================================
