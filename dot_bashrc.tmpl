@@ -210,9 +210,9 @@ if command -v ghq >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
     cd "$(ghq root)/$repo" || return
   }
 
-  # Ctrl-G: flyline では gcd を挿入し、標準 bash では直接実行する。
+  # Ctrl-G: flyline では入力を破棄して gcd を実行し、標準 bash では直接実行する。
   if [ "$_flyline_enabled" = true ]; then
-    flyline key bind Ctrl+g "bufferIsEmpty=insertString(gcd)"
+    flyline key bind Ctrl+g 'always=clearBuffer+insertString(gcd)+submitOrNewline'
   else
     bind -x '"\C-g": gcd' 2>/dev/null || true
   fi

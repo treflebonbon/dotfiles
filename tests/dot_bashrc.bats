@@ -151,14 +151,14 @@ STUB_EOF
   assert_output --partial "Warning: flyline load failed"
 }
 
-@test "flyline uses Ctrl-G to insert gcd on an empty command line" {
+@test "flyline uses Ctrl-G to clear the buffer and run gcd" {
   stub_cmd ghq
   stub_cmd fzf
 
   run_bashrc_with_flyline
 
   assert_success
-  assert_log_contains "flyline key bind Ctrl+g bufferIsEmpty=insertString(gcd)"
+  assert_log_contains "flyline key bind Ctrl+g always=clearBuffer+insertString(gcd)+submitOrNewline"
   refute_output --partial '"\C-g": "gcd"'
 }
 
@@ -170,7 +170,7 @@ STUB_EOF
 
   assert_success
   assert_log_contains "flyline mouse --mode disabled"
-  assert_log_contains "flyline key bind Ctrl+g bufferIsEmpty=insertString(gcd)"
+  assert_log_contains "flyline key bind Ctrl+g always=clearBuffer+insertString(gcd)+submitOrNewline"
   refute_log_contains "enable -f"
   refute_output --partial '"\C-g": "gcd"'
 }
