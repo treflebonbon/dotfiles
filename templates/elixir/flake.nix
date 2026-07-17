@@ -2,21 +2,11 @@
   description = "Elixir/Erlang project devShell";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-
-    # OTP 29 first lands in nixpkgs >= 26.05; pin stable to source the BEAM toolchain.
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
-
-    expert.url = "github:elixir-lang/expert";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
   };
 
   outputs =
-    {
-      nixpkgs,
-      nixpkgs-stable,
-      expert,
-      ...
-    }:
+    { nixpkgs, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -31,14 +21,13 @@
         system:
         let
           pkgs = import nixpkgs { inherit system; };
-          stablePkgs = import nixpkgs-stable { inherit system; };
         in
         {
           default = pkgs.mkShell {
             packages = [
-              stablePkgs.beam29Packages.elixir_1_20
-              stablePkgs.beam29Packages.erlang
-              expert.packages.${system}.default
+              pkgs.beam29Packages.elixir_1_20
+              pkgs.beam29Packages.erlang
+              pkgs.beam29Packages.expert
             ];
           };
         }
