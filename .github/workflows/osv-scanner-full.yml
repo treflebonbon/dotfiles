@@ -1,0 +1,16 @@
+name: OSV-Scanner Full Scan
+
+on:
+  schedule:
+    - cron: "30 12 * * 1"
+  push:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan-full:
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
