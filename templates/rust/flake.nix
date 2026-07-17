@@ -33,7 +33,7 @@
             inherit system;
             overlays = [ rust-overlay.overlays.default ];
           };
-          rustStable = pkgs.rust-bin.stable."1.95.0".default;
+          rustStable = pkgs.rust-bin.stable."1.97.0".default;
         in
         {
           default = pkgs.mkShell {
