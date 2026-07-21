@@ -198,21 +198,23 @@ setup() {
   ! grep -q '"gws-cli"' "$lock"
 }
 
-@test "waza package uses pinned 0.38.3 release archives" {
+@test "waza package uses pinned 0.38.3 standalone release binaries" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/waza.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
   grep -q 'version = "0.38.3";' "$pkg"
-  grep -q 'microsoft-azd-waza-linux-amd64.tar.gz' "$pkg"
-  grep -q 'microsoft-azd-waza-linux-arm64.tar.gz' "$pkg"
-  grep -q 'microsoft-azd-waza-darwin-amd64.zip' "$pkg"
-  grep -q 'microsoft-azd-waza-darwin-arm64.zip' "$pkg"
-  grep -q 'sha256-SQpv1e69ewDqHR/SGu6VEvBwkgGQI5B/JVl5eDNybBw=' "$pkg"
-  grep -q 'sha256-mN77pOPChew0+9J12SvJLQEFFKM/OXZP/gMTJ1Rw5YM=' "$pkg"
-  grep -q 'sha256-/Q3LRv6TLE2m3qmVxB+jiHAII3q7gN2/ghJuDQq6mTY=' "$pkg"
-  grep -q 'sha256-0Qd/uLtwgahucqL5VXS8mG/FUzx0pMAz55TJXiV95bA=' "$pkg"
+  grep -q 'waza-linux-amd64' "$pkg"
+  grep -q 'waza-linux-arm64' "$pkg"
+  grep -q 'waza-darwin-amd64' "$pkg"
+  grep -q 'waza-darwin-arm64' "$pkg"
+  grep -q 'sha256-8qDGlSq7ta11vxfidpw0xIAJPCaVdIOTaLgtQLPF3sk=' "$pkg"
+  grep -q 'sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=' "$pkg"
+  grep -q 'sha256-Fo41Yt7qoZWNRDZrN9ljtIsJHDJcbJtbJhPlOZ/wd7k=' "$pkg"
+  grep -q 'sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=' "$pkg"
+  grep -q 'releases/download/v\${finalAttrs.version}' "$pkg"
+  grep -q 'dontUnpack = true' "$pkg"
   ! grep -q 'unstable-2026-04-28' "$pkg"
   ! grep -q 'buildGoModule' "$pkg"
   ! grep -q 'waza-src' "$flake"

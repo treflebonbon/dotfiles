@@ -2,7 +2,6 @@
   fetchurl,
   lib,
   stdenvNoCC,
-  unzip,
 }:
 
 let
@@ -10,24 +9,20 @@ let
 
   releases = {
     x86_64-linux = {
-      asset = "microsoft-azd-waza-linux-amd64.tar.gz";
-      executable = "microsoft-azd-waza-linux-amd64";
-      hash = "sha256-SQpv1e69ewDqHR/SGu6VEvBwkgGQI5B/JVl5eDNybBw=";
+      asset = "waza-linux-amd64";
+      hash = "sha256-Fo41Yt7qoZWNRDZrN9ljtIsJHDJcbJtbJhPlOZ/wd7k=";
     };
     aarch64-linux = {
-      asset = "microsoft-azd-waza-linux-arm64.tar.gz";
-      executable = "microsoft-azd-waza-linux-arm64";
-      hash = "sha256-mN77pOPChew0+9J12SvJLQEFFKM/OXZP/gMTJ1Rw5YM=";
+      asset = "waza-linux-arm64";
+      hash = "sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=";
     };
     x86_64-darwin = {
-      asset = "microsoft-azd-waza-darwin-amd64.zip";
-      executable = "microsoft-azd-waza-darwin-amd64";
-      hash = "sha256-/Q3LRv6TLE2m3qmVxB+jiHAII3q7gN2/ghJuDQq6mTY=";
+      asset = "waza-darwin-amd64";
+      hash = "sha256-8qDGlSq7ta11vxfidpw0xIAJPCaVdIOTaLgtQLPF3sk=";
     };
     aarch64-darwin = {
-      asset = "microsoft-azd-waza-darwin-arm64.zip";
-      executable = "microsoft-azd-waza-darwin-arm64";
-      hash = "sha256-0Qd/uLtwgahucqL5VXS8mG/FUzx0pMAz55TJXiV95bA=";
+      asset = "waza-darwin-arm64";
+      hash = "sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=";
     };
   };
 
@@ -38,16 +33,15 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   version = "0.38.3";
 
   src = fetchurl {
-    url = "https://github.com/microsoft/waza/releases/download/azd-ext-microsoft-azd-waza_${finalAttrs.version}/${release.asset}";
+    url = "https://github.com/microsoft/waza/releases/download/v${finalAttrs.version}/${release.asset}";
     inherit (release) hash;
   };
 
-  nativeBuildInputs = lib.optional (lib.hasSuffix ".zip" release.asset) unzip;
-  sourceRoot = ".";
+  dontUnpack = true;
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 "${release.executable}" "$out/bin/waza"
+    install -Dm755 "$src" "$out/bin/waza"
     runHook postInstall
   '';
 
