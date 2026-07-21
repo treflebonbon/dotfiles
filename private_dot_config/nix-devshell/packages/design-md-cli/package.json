@@ -1,8 +1,8 @@
 {
   "name": "design-md",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "dependencies": {
-    "@google/design.md": "0.2.0"
+    "@google/design.md": "0.3.0"
   }
 }

@@ -7,11 +7,11 @@ setup() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#f2049c2b76383b444bf30cd6184f7d49a6c580d1' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#4d849eb75f216109ea7053ed21530a11fafcc786' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
-  for skill in web-design-guidelines react-best-practices composition-patterns react-view-transitions shadcn remotion modern-web-guidance; do
+  for skill in web-design-guidelines react-best-practices composition-patterns react-view-transitions shadcn remotion-best-practices modern-web-guidance; do
     grep -Fq "$skill" "$manifest"
   done
 }
@@ -19,12 +19,26 @@ setup() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
+  grep -Fq 'apm_version: 0.26.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: f2049c2b76383b444bf30cd6184f7d49a6c580d1' "$lock"
+  grep -Fq 'resolved_commit: 4d849eb75f216109ea7053ed21530a11fafcc786' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"
   ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
+}
+
+@test "APM pins the Matt Pocock workflow to one validated revision with Codex metadata" {
+  local manifest="$PROJECT_ROOT/apm.yml"
+  local lock="$PROJECT_ROOT/apm.lock.yaml"
+  local revision="9603c1cc8118d08bc1b3bf34cf714f62178dea3b"
+
+  [ "$(grep -Fc "mattpocock/skills/skills/" "$manifest")" -eq 20 ]
+  [ "$(grep -Fc "#$revision" "$manifest")" -eq 20 ]
+  grep -Fq "resolved_commit: $revision" "$lock"
+  grep -Fq '.agents/skills/grill-with-docs/agents/openai.yaml' "$lock"
+  grep -Fq '.agents/skills/implement/agents/openai.yaml' "$lock"
+  grep -Fq '.claude/skills/grilling/agents/openai.yaml' "$lock"
 }
 
 @test "APM runtime deploy targets remain git-ignored" {

@@ -4,8 +4,21 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 }
 
-@test "nix-devshell includes bubblewrap for Codex sandboxing" {
-  grep -q 'pkgs\.bubblewrap' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+@test "nix-devshell includes bubblewrap for Codex sandboxing on Linux only" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+
+  grep -q 'lib\.optionals pkgs\.stdenv\.isLinux \[ pkgs\.bubblewrap \]' "$module"
+}
+
+@test "user devShell retains four-system support on nixpkgs 26.05" {
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+
+  grep -q 'nixpkgs-26\.05-darwin' "$flake"
+  grep -q '"x86_64-linux"' "$flake"
+  grep -q '"aarch64-linux"' "$flake"
+  grep -q '"aarch64-darwin"' "$flake"
+  grep -q '"x86_64-darwin"' "$flake"
+  grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$flake"
 }
 
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
@@ -68,14 +81,14 @@ setup() {
   grep -q 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$flake"
 }
 
-@test "nix-devshell requires Claude Code with goal support" {
-  grep -q 'minClaudeCode = "2\.1\.211";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+@test "nix-devshell requires Claude Code with isolated worktree fixes" {
+  grep -q 'minClaudeCode = "2\.1\.216";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "nix-devshell requires Codex with GPT 5.6 support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.144\.5";' "$module"
+  grep -q 'minCodex = "0\.144\.6";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
   ! grep -q 'llm\.codex\.override' "$module"
@@ -85,7 +98,7 @@ setup() {
   grep -q 'llm\.antigravity' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "nix-devshell installs playwright-cli and local skill symlinks" {
+@test "nix-devshell installs Playwright CLI 0.1.17 and local skill symlinks" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-agent/package.json"
@@ -98,7 +111,21 @@ setup() {
   grep -q 'pname = "playwright-cli";' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_BROWSERS_PATH' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$pkg"
-  grep -q '"@playwright/cli": "0.1.14"' "$package_json"
+  grep -q 'version = "0.1.17";' "$pkg"
+  grep -q '"@playwright/cli": "0.1.17"' "$package_json"
+}
+
+@test "nix-devshell pins design.md 0.3.0 and document converters" {
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli.nix"
+  local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli/package.json"
+
+  grep -q 'version = "0.3.0";' "$pkg"
+  grep -q '"@google/design.md": "0.3.0"' "$package_json"
+  grep -q '421eebfd0ec7bccd4abe826ce62d7e6e83129493' "$flake"
+  grep -q 'nixpkgs-ai-sources.*defuddle/package\.nix' "$module"
+  grep -q 'markitdown/default\.nix' "$module"
 }
 
 @test "local skill deploy uses agents hub for Codex without native duplicate target" {
@@ -171,18 +198,23 @@ setup() {
   ! grep -q '"gws-cli"' "$lock"
 }
 
-@test "waza package uses pinned 0.33.0 release binaries" {
+@test "waza package uses pinned 0.38.3 standalone release binaries" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/waza.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'version = "0.33.0";' "$pkg"
+  grep -q 'version = "0.38.3";' "$pkg"
   grep -q 'waza-linux-amd64' "$pkg"
   grep -q 'waza-linux-arm64' "$pkg"
   grep -q 'waza-darwin-amd64' "$pkg"
   grep -q 'waza-darwin-arm64' "$pkg"
-  grep -q 'sha256-waMaFdlZ0s1Tb+tBz3sg+UsENKjoaUnT3j0hweP7b/M=' "$pkg"
+  grep -q 'sha256-8qDGlSq7ta11vxfidpw0xIAJPCaVdIOTaLgtQLPF3sk=' "$pkg"
+  grep -q 'sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=' "$pkg"
+  grep -q 'sha256-Fo41Yt7qoZWNRDZrN9ljtIsJHDJcbJtbJhPlOZ/wd7k=' "$pkg"
+  grep -q 'sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=' "$pkg"
+  grep -q 'releases/download/v\${finalAttrs.version}' "$pkg"
+  grep -q 'dontUnpack = true' "$pkg"
   ! grep -q 'unstable-2026-04-28' "$pkg"
   ! grep -q 'buildGoModule' "$pkg"
   ! grep -q 'waza-src' "$flake"
