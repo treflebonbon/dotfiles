@@ -127,11 +127,11 @@ setup() {
 
   grep -qx 'name: ui-grill-with-docs' "$skill"
   grep -qx 'disable-model-invocation: true' "$skill"
-  grep -Fq 'tmp/wireflame-<screen>.html' "$skill"
+  grep -Fq 'tmp/wireframe-<screen>.html' "$skill"
   grep -Fq 'The question, recommendation, and' "$skill"
   grep -Fq 'mockups are never the source' "$skill"
   grep -Fq 'ask the user to confirm cleanup' "$skill"
-  grep -Fq 'delete only the `tmp/wireflame-*.html` files' "$skill"
+  grep -Fq 'delete only the `tmp/wireframe-*.html` files' "$skill"
   grep -Fq '`ui-grill-with-docs`' "$runtime"
 }
 

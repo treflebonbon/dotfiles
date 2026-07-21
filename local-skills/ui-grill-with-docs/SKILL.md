@@ -1,6 +1,6 @@
 ---
 name: ui-grill-with-docs
-description: "UI/UX の比重が高い設計を詰める grill-with-docs 派生。レイアウト・コンポーネント配置・画面遷移の比較検討が争点になる質問だけ、使い捨ての静的 HTML モックアップ（tmp/wireflame-<screen>.html）を見せながら聞く。それ以外の質問は通常どおりチャットで一問一答する。Use when grilling a UI/UX-heavy plan or design where visual comparison would sharpen the question."
+description: "UI/UX の比重が高い設計を詰める grill-with-docs 派生。レイアウト・コンポーネント配置・画面遷移の比較検討が争点になる質問だけ、使い捨ての静的 HTML モックアップ（tmp/wireframe-<screen>.html）を見せながら聞く。それ以外の質問は通常どおりチャットで一問一答する。Use when grilling a UI/UX-heavy plan or design where visual comparison would sharpen the question."
 disable-model-invocation: true
 ---
 
@@ -34,7 +34,7 @@ mockup.
 For a visual question:
 
 1. Create `tmp/` if it does not exist.
-2. Write or update `tmp/wireflame-<screen>.html`, where `<screen>` is a short
+2. Write or update `tmp/wireframe-<screen>.html`, where `<screen>` is a short
    English or romanized kebab-case slug such as `product-list`.
 3. Keep the file self-contained: use static HTML and CSS with no JavaScript,
    external CDN, or other network dependency.
@@ -51,7 +51,7 @@ these files.
 ## Split and reuse files
 
 Split files by screen or topic, not by turn count. Use a focused topic slug for
-part of a screen, such as `wireflame-error-toast.html`. Reuse the same file when
+part of a screen, such as `wireframe-error-toast.html`. Reuse the same file when
 the discussion returns to the same screen or topic, even after intervening
 questions.
 
@@ -63,5 +63,5 @@ records are the source for a later `to-spec`; the mockups are never the source
 of truth.
 
 Before ending the session, ask the user to confirm cleanup. After confirmation,
-delete only the `tmp/wireflame-*.html` files created by this skill. Leave `tmp/`
+delete only the `tmp/wireframe-*.html` files created by this skill. Leave `tmp/`
 and every unrelated temporary file intact.
