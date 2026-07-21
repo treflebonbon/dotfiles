@@ -6,7 +6,16 @@
 }:
 
 let
-  llm = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
+  llm = pkgs.llm-agents;
+
+  # 26.05 is kept for Intel Darwin support; evaluate only these newer package
+  # definitions against that shared package set until the support deadline.
+  defuddle = pkgs.callPackage (
+    inputs.nixpkgs-ai-sources + "/pkgs/by-name/de/defuddle/package.nix"
+  ) { };
+  markitdown = pkgs.python3Packages.callPackage (
+    inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/markitdown/default.nix"
+  ) { };
 
   # AI ツールの baseline は llm-agents flake の pin (flake.lock) で固定する。
   # 判断軸: モデル品質床（Sonnet 5 default = 2.1.197）と subagent / teammate / workflow の
@@ -39,7 +48,7 @@ let
   # 2.1.212-2.1.216: .claude/worktrees symlink 経由の隔離逸脱、worktree subagent が git -C / GIT_DIR
   #                  で共有 checkout を操作できる不具合、resume 時に別 project の残存 worktree へ入る
   #                  不具合を修正。worktree 隔離保証に直結するため 2.1.216 へ床上げ。
-  # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
+  # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
   minClaudeCode = "2.1.216";
   minCodex = "0.144.6";
 
@@ -73,7 +82,7 @@ let
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
           cd ~/.config/nix-devshell
-          nix flake update llm-agents
+          flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
@@ -95,14 +104,14 @@ let
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
-          nix flake update llm-agents
+          flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
     assert lib.assertMsg ok msg;
     llm.codex;
 
-  markitdown-cli = pkgs.python3Packages.toPythonApplication pkgs.python3Packages.markitdown;
+  markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix { };
   waza = pkgs.callPackage ../packages/waza.nix { };
@@ -130,7 +139,7 @@ in
     playwright-cli
 
     # --- Document Conversion ---
-    pkgs.defuddle
+    defuddle
     markitdown-cli
 
     # --- Skill Quality Evaluation ---

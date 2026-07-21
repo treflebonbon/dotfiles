@@ -2,10 +2,19 @@
   description = "treflebonbon/dotfiles user devShell";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # 26.05 is the final Nixpkgs release supporting Intel Darwin (through 2026-12-31).
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+
+    # Source only: backport the requested document-converter releases onto 26.05.
+    nixpkgs-ai-sources = {
+      url = "github:NixOS/nixpkgs/421eebfd0ec7bccd4abe826ce62d7e6e83129493";
+      flake = false;
+    };
 
     llm-agents = {
-      url = "github:numtide/llm-agents.nix";
+      # Last revision retaining Intel Darwin source maps; its overlay provides the
+      # same validated agent versions on all four systems.
+      url = "github:numtide/llm-agents.nix/533b02e5bc87b70457d32786a7c14b9e6f19a96c";
     };
   };
 
@@ -19,6 +28,7 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "x86_64-darwin"
         "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
@@ -29,7 +39,13 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            config.allowUnfree = true;
+            config = {
+              allowUnfree = true;
+              # MarkItDown pulls pandas -> arrow-cpp, which 26.05 marks broken on
+              # Intel Darwin. Keep evaluation available only for this sunset path.
+              allowBroken = system == "x86_64-darwin";
+            };
+            overlays = [ inputs.llm-agents.overlays.shared-nixpkgs ];
           };
           lib = pkgs.lib;
 

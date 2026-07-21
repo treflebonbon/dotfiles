@@ -10,13 +10,15 @@ setup() {
   grep -q 'lib\.optionals pkgs\.stdenv\.isLinux \[ pkgs\.bubblewrap \]' "$module"
 }
 
-@test "user devShell exposes only systems supported by nixpkgs unstable" {
+@test "user devShell retains four-system support on nixpkgs 26.05" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
 
+  grep -q 'nixpkgs-26\.05-darwin' "$flake"
   grep -q '"x86_64-linux"' "$flake"
   grep -q '"aarch64-linux"' "$flake"
   grep -q '"aarch64-darwin"' "$flake"
-  ! grep -q '"x86_64-darwin"' "$flake"
+  grep -q '"x86_64-darwin"' "$flake"
+  grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$flake"
 }
 
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
@@ -114,14 +116,16 @@ setup() {
 }
 
 @test "nix-devshell pins design.md 0.3.0 and document converters" {
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli/package.json"
 
   grep -q 'version = "0.3.0";' "$pkg"
   grep -q '"@google/design.md": "0.3.0"' "$package_json"
-  grep -q 'pkgs\.defuddle' "$module"
-  grep -q 'pkgs\.python3Packages\.markitdown' "$module"
+  grep -q '421eebfd0ec7bccd4abe826ce62d7e6e83129493' "$flake"
+  grep -q 'nixpkgs-ai-sources.*defuddle/package\.nix' "$module"
+  grep -q 'markitdown/default\.nix' "$module"
 }
 
 @test "local skill deploy uses agents hub for Codex without native duplicate target" {
