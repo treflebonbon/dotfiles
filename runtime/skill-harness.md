@@ -85,6 +85,7 @@ deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走
 現行のローカル skill:
 
 - `to-worktree` — ワークフローチェーンの入口。機能作業を始める前に隔離 worktree を用意する（Claude Code は `EnterWorktree` ツール優先、他ランタイムは `git worktree add .worktrees/<topic>`）。`.worktrees/` 配下に作るため放置分は `worktree-gc` が回収する
+- `ui-grill-with-docs` — UI/UX 比重が高い Planner 向けの `grill-with-docs` 派生。レイアウト・コンポーネント配置・画面遷移が争点になる質問だけ `tmp/wireframe-<screen>.html` の静的 HTML/CSS モックアップで補助し、通常の質問はチャットの一問一答、確定事項は `CONTEXT.md` / ADR に残す
 - `to-pr` — 実装完了後（user-invoked チェーンの最後尾）に、issue/ticket/会話から抽出した contract（目的/AC/非目標/検証方法/関連ファイル・入口/判断済みtradeoff）を PR body へ埋め込み、全 AC（UI/CLI/API/infra）を対象にした単一の verification matrix で検証記録を残す。UI は `playwright-cli` で検証し、非UIは既存証拠（`implement` / `tdd` のテスト・commit・lefthook実行）を引用するのみで新規実行はしない。code-review 実施状況も記録する（未実施でも PR 作成はブロックしない）。スクリーンショットは既定で埋め込まず、ユーザーが明示確認した場合のみ `.github/pr-assets/` に commit し PR 本文へ SHA 固定 blob URL で載せる。重量級の evidence schema / verdict gate / hero 選定は持ち込まない。
 - `dogfood-to-issues` — 同梱の Playwright dogfood runner で web アプリ / Chrome MV3 拡張を隔離 worktree で dogfood し、承認された finding だけを GitHub Issue 化。issue 作成で完了し、実装へは続かない（triage → model-invoked フローへ）。`scripts/runtime-preflight.sh` 同梱
 - `harness-feedback` — Codex / Claude の transcript JSONL を分析し、skill/agent 指示と実際の実行の乖離パターンを検出して小さな指示修正を提案
