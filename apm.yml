@@ -6,7 +6,7 @@ targets:
 dependencies:
   apm:
     # pbakaus/impeccable — 同梱 runtime の自動実行に備えて検証済み commit に固定
-    - pbakaus/impeccable/.agents/skills/impeccable#f2049c2b76383b444bf30cd6184f7d49a6c580d1
+    - pbakaus/impeccable/.agents/skills/impeccable#4d849eb75f216109ea7053ed21530a11fafcc786
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -22,7 +22,7 @@ dependencies:
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion
+    - remotion-dev/skills/skills/remotion-best-practices
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance
     # mizchi/skills
@@ -35,27 +35,27 @@ dependencies:
     # User-invoked (メインフロー: grill-with-docs → to-spec → to-tickets →
     #  implement → to-pr。triage は to-tickets 産出物には使わず、
     #  raw issue 専用の on-ramp — ADR-0014 / ADR-0022 参照):
-    - mattpocock/skills/skills/engineering/setup-matt-pocock-skills#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/grill-with-docs#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/to-spec#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/to-tickets#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/implement#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/triage#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/ask-matt#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/improve-codebase-architecture#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/wayfinder#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/productivity/handoff#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/productivity/writing-great-skills#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/setup-matt-pocock-skills#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/grill-with-docs#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/to-spec#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/to-tickets#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/implement#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/triage#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/ask-matt#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/improve-codebase-architecture#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/wayfinder#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/productivity/handoff#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/productivity/writing-great-skills#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     # Model-invoked (実装フェーズで implement から呼ばれる discipline 層):
-    - mattpocock/skills/skills/engineering/tdd#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/code-review#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/resolving-merge-conflicts#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/diagnosing-bugs#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/domain-modeling#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/codebase-design#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/prototype#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/engineering/research#d574778f94cf620fcc8ce741584093bc650a61d3
-    - mattpocock/skills/skills/productivity/grilling#d574778f94cf620fcc8ce741584093bc650a61d3
+    - mattpocock/skills/skills/engineering/tdd#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/code-review#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/resolving-merge-conflicts#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/diagnosing-bugs#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/domain-modeling#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/codebase-design#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/prototype#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/engineering/research#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
+    - mattpocock/skills/skills/productivity/grilling#9603c1cc8118d08bc1b3bf34cf714f62178dea3b
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
