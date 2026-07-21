@@ -43,7 +43,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 ## Skill 配布経路の選択
 
-- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock 再生成は `cd ~ && apm lock`（詳細は `runtime/skill-harness.md`）
+- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。lock は runtime layout を再現した隔離ディレクトリで `apm install` して再生成する（詳細は `runtime/skill-harness.md`）
 - **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイム skill dir へ配備。例: `to-pr`（実装完了後に条件付きブラウザ AC 検証 + PR 作成。Codex / Antigravity からも利用可）。`to-worktree` の使い方は上の「設計→実装ワークフロー」節を参照
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
 
