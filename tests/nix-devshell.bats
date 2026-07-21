@@ -121,6 +121,19 @@ setup() {
   sed -n '/^local_skills=(/,/^)/p' "$deploy" | grep -qx '  ui-grill-with-docs'
 }
 
+@test "ui grill skill contract keeps visual aids disposable" {
+  local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
+  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
+
+  grep -qx 'name: ui-grill-with-docs' "$skill"
+  grep -qx 'disable-model-invocation: true' "$skill"
+  grep -Fq 'tmp/wireflame-<screen>.html' "$skill"
+  grep -Fq 'The question, recommendation, and' "$skill"
+  grep -Fq 'mockups are never the source' "$skill"
+  grep -Fq 'delete only the `tmp/wireflame-*.html` files' "$skill"
+  grep -Fq '`ui-grill-with-docs`' "$runtime"
+}
+
 @test "pre-commit applies OXC to local skills without rewriting run-code examples" {
   local config="$PROJECT_ROOT/lefthook.yml"
   local skill="$PROJECT_ROOT/local-skills/to-pr/SKILL.md"
