@@ -62,5 +62,6 @@ Record resolved terms and decisions immediately through `domain-modeling` in
 records are the source for a later `to-spec`; the mockups are never the source
 of truth.
 
-Before ending the session, delete only the `tmp/wireflame-*.html` files created
-by this skill. Leave `tmp/` and every unrelated temporary file intact.
+Before ending the session, ask the user to confirm cleanup. After confirmation,
+delete only the `tmp/wireflame-*.html` files created by this skill. Leave `tmp/`
+and every unrelated temporary file intact.
