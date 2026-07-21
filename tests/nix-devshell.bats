@@ -113,6 +113,14 @@ setup() {
   grep -q 'Codex native location.*へは配備しない' "$runtime"
 }
 
+@test "ui grill skill is available through local skill deployment" {
+  local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
+  local deploy="$PROJECT_ROOT/run_onchange_after_deploy-local-skills.sh.tmpl"
+
+  [ -f "$skill" ]
+  sed -n '/^local_skills=(/,/^)/p' "$deploy" | grep -qx '  ui-grill-with-docs'
+}
+
 @test "pre-commit applies OXC to local skills without rewriting run-code examples" {
   local config="$PROJECT_ROOT/lefthook.yml"
   local skill="$PROJECT_ROOT/local-skills/to-pr/SKILL.md"
