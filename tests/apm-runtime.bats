@@ -19,6 +19,7 @@ setup() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
+  grep -Fq 'apm_version: 0.26.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
   grep -Fq 'resolved_commit: 4d849eb75f216109ea7053ed21530a11fafcc786' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
