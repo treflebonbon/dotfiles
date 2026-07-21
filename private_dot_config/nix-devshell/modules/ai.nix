@@ -36,9 +36,12 @@ let
   #                  main checkout へ git 操作できる不具合、PreToolUse の ask 判断が unsandboxed Bash で
   #                  auto mode に上書きされる不具合を修正。多 agent・worktree 運用の安全性に直結するため
   #                  2.1.211 へ床上げ。
+  # 2.1.212-2.1.216: .claude/worktrees symlink 経由の隔離逸脱、worktree subagent が git -C / GIT_DIR
+  #                  で共有 checkout を操作できる不具合、resume 時に別 project の残存 worktree へ入る
+  #                  不具合を修正。worktree 隔離保証に直結するため 2.1.216 へ床上げ。
   # 更新: cd ~/.config/nix-devshell && nix flake update llm-agents && chezmoi re-add flake.lock
-  minClaudeCode = "2.1.211";
-  minCodex = "0.144.5";
+  minClaudeCode = "2.1.216";
+  minCodex = "0.144.6";
 
   claudeCode =
     let
@@ -63,7 +66,9 @@ let
         worktree 削除安全化・Remote Control の agent/workflow 可視化・長時間 session の資源リークを
         修正する 2.1.208 に加え、worktree 隔離済み subagent が main checkout で git を変更できる不具合を
         修正する 2.1.210、PreToolUse hook の ask 判断が unsandboxed Bash で auto mode に上書きされる不具合・
-        background agent / plugin MCP 再接続の不具合を修正する 2.1.211 を品質ベースラインとして固定しています。
+        background agent / plugin MCP 再接続の不具合を修正する 2.1.211、.claude/worktrees symlink 経由の
+        隔離逸脱と git -C / GIT_DIR による共有 checkout 操作、別 project の残存 worktree への誤進入を
+        修正する 2.1.212-2.1.216 を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
@@ -85,6 +90,8 @@ let
         0.144.1 に加え、0.144.0 で混入した auto-review（Guardian）prompting のリグレッションを
         revert して修正した 0.144.2 の内容を品質ベースラインとして要求しています。
         さらに、強制削除を含む危険コマンドの検出と拒否理由を改善した 0.144.5 を品質ベースラインとして要求します。
+        GPT-5.6 Sol / Terra / Luna の bundled instructions と context window metadata を修正した
+        0.144.6 を品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
@@ -107,7 +114,9 @@ in
     # --- AI Coding Agents ---
     claudeCode
     codex
-    pkgs.bubblewrap
+  ]
+  ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.bubblewrap ]
+  ++ [
     llm.copilot-cli
     llm.antigravity-cli
 

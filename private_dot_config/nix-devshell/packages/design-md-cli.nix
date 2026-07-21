@@ -7,11 +7,11 @@
 
 buildNpmPackage {
   pname = "design-md";
-  version = "0.2.0";
+  version = "0.3.0";
 
   src = ./design-md-cli;
 
-  npmDepsHash = "sha256-gaP7EjUh50DjjmpK1v8uhkzcrXooS+bnQQ0Ybzk11NA=";
+  npmDepsHash = "sha256-WLi84BURasa97JwQ6VQa0PMQL8ggjrsoAMSuOpQjOwc=";
   npmFlags = [ "--legacy-peer-deps" ];
 
   dontNpmBuild = true;
