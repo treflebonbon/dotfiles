@@ -1,7 +1,6 @@
 ---
 name: to-pr
-description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work (e.g. /implement) to publish it for review."
-disable-model-invocation: true
+description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work when the user invokes /to-pr, or when the user explicitly authorized AFK/autonomous completion; otherwise do not invoke it automatically."
 ---
 
 # to-pr
@@ -69,14 +68,33 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
   resolve the conflict) — mark the criterion `未確認` noting the port conflict and move
   on.
 
+Before browser verification, create a fresh evidence bundle with
+`mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX"`. Keep all Playwright evidence in
+this directory; do not put it in the repository. The bundle contains:
+
+- Exactly one representative `screenshot` for every UI criterion that was exercised.
+  Use a criterion-oriented filename rather than a generic sequence number. If a
+  criterion cannot be exercised, record the reason instead of fabricating an image.
+- `playwright-report.md`, with one entry per UI criterion: the operation performed, the
+  observed result, the URL, and a summary of console/network errors. Record `none` when
+  no errors were observed.
+
+Initialize `playwright-report.md` as soon as the bundle is created so unexercised UI
+criteria and their reasons are preserved too.
+
+Do not include authentication details, cookies, tokens, headers, or raw requests in the
+report or screenshots. Redact sensitive user data that is not needed to establish the
+criterion.
+
 1. Start the dev server if the repo defines one: `package.json` `scripts.dev`
    (`npm run dev` / `bun dev`), or a `dev` target in the `Makefile` (`make dev`). If no
    dev command exists, do not verify — mark the UI criteria `未確認` and note why.
-2. For each UI criterion: open the relevant URL, drive the flow, take a `snapshot`, and
-   — where it helps a reviewer — a `screenshot`. Check the console and network for
-   errors. For timing- or count-sensitive criteria, measure inside a single `run-code`
-   script rather than chaining separate CLI calls (each call's own round-trip can itself
-   exceed the window you're measuring), e.g.:
+2. For each UI criterion that can be exercised: open the relevant URL, drive the flow,
+   take a `snapshot`, and save one representative `screenshot` to the evidence bundle.
+   Check the console and network for errors, then append the criterion's result to
+   `playwright-report.md`. For timing- or count-sensitive criteria, measure inside a
+   single `run-code` script rather than chaining separate CLI calls (each call's own
+   round-trip can itself exceed the window you're measuring), e.g.:
 
    <!-- prettier-ignore -->
    ```js
@@ -123,36 +141,54 @@ currently active session, so chaining it from here would not analyse anything us
 
 ## 5. Open the PR
 
-1. Push the branch if needed (ask before pushing — it is outward-facing).
+1. Determine whether the branch needs to be pushed and whether the evidence bundle has
+   images to attach. Ask once for explicit confirmation covering all outward-facing
+   actions that apply: pushing the branch, creating the PR, and uploading the images.
+   Do not split these into separate confirmation prompts.
 2. Write the PR body to a **fresh** temp file (use `mktemp` or a branch-scoped name —
    a fixed name like `pr-body.md` collides with stale content from previous runs). Write
    it in the language of the conversation / repo. Canonical structure:
    - A short change summary.
    - `## Contract` — the six fields from step 1, verbatim (including any `未記載`).
    - `## Verification Matrix` — the table built in step 2.
+   - `## Playwright Evidence` — for each UI criterion, copy the operation, observed
+     result, URL, and console/network errors summary from `playwright-report.md`. Add an
+     image placeholder for every exercised UI criterion. For an unexercised criterion,
+     state the reason and `画像なし`; use `対象なし` only when there are no UI criteria.
    - `## Code Review` — the one line from step 3.
      Reference the issue it closes (`Fixes #N`) when there is one; when there is no issue,
      omit the `Fixes` line and mention where the contract came from (conversation, PRD) in
      the summary instead.
-3. Create the PR:
+3. After confirmation, push the branch if needed and create the PR:
 
    ```bash
    gh pr create --title "<conventional title>" --body-file <tmp>
    ```
 
-## 6. Screenshots in the PR body (default: none)
+## 6. Attach Playwright evidence
 
-By default the PR body carries **text results only** — do not commit images.
+If the bundle has representative images, try to attach them after the PR exists:
 
-Embed screenshots **only when the user explicitly confirms** they should be kept in
-history. If confirmed:
+1. Use a browser exposed by the current runtime only when it already has an authenticated
+   GitHub session. Do not ask the user to log in, import browser state, or let `to-pr`
+   create or save authentication. On WSL2, do not assume that a Windows Chrome session
+   or profile is available: automatic attachment is allowed only when Chrome running in
+   WSL2 already has an authenticated GitHub session.
+2. Open the PR body editor in that browser, attach each representative image, and read
+   the anonymized URL that GitHub inserts into the editor. Do not submit the browser's
+   stale copy of the PR body.
+3. Replace the corresponding placeholders in the fresh body file with Markdown image
+   links using those anonymized URLs, then update the PR with:
 
-1. Commit the images under `.github/pr-assets/<branch>/` (confirm the commit and any
-   push first — both are outward-facing).
-2. Reference them from the PR body with SHA-pinned raw blob URLs:
-   `https://github.com/<owner>/<repo>/blob/<sha>/.github/pr-assets/<branch>/<file>?raw=true`
+   ```bash
+   gh pr edit --body-file <tmp>
+   ```
 
-Keep it to a few representative images. No hero-selection rules, no size gating.
+If no authenticated browser is available, browser control is unavailable, or any upload
+fails, do not retry by logging in and do not commit the images. Replace the affected
+image placeholders with `手動添付待ち`, update the PR body with `gh pr edit --body-file`,
+and hand the evidence bundle to the user. The completion report must include the bundle's
+absolute path and a file list so the user can attach the images manually.
 
 ## Out of scope
 
