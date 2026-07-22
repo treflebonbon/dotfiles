@@ -33,6 +33,15 @@ Severity mapping:
 | Medium           | `severity:medium`   |
 | Low              | `severity:low`      |
 
+For resumed reports that use priority aliases, normalize before label mapping:
+
+| Priority alias | Dogfood severity |
+| -------------- | ---------------- |
+| P0             | Critical         |
+| P1             | High             |
+| P2             | Medium           |
+| P3             | Low              |
+
 Category mapping:
 
 | Dogfood category | Preferred label      |

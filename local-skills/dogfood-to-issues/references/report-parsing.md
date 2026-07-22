@@ -12,7 +12,7 @@ Parse the `dogfood` report into finding candidates before asking for approval. P
 ## Required Inputs
 
 - `REPORT_PATH="$OUTPUT_DIR/report.md"` unless `--resume` points elsewhere.
-- Evidence root is the directory containing `report.md`.
+- `EVIDENCE_ROOT` is the absolute directory containing `report.md`, including for an external resumed output.
 
 Stop if `report.md` is missing or empty.
 
@@ -28,7 +28,7 @@ Accepted aliases are `### Finding 001:` and `### Bug 001:`. The parser should co
 
 Within each block, extract these fields when present:
 
-- `Severity`: `Critical`, `High`, `Medium`, or `Low`
+- `Severity`: `Critical`, `High`, `Medium`, or `Low`. Normalize resumed priority aliases P0/P1/P2/P3 to those values using [severity-label-mapping.md](severity-label-mapping.md).
 - `Category`: `visual`, `functional`, `ux`, `content`, `perf`, `console`, or `a11y`
 - `URL`
 - `Summary`
@@ -55,13 +55,14 @@ Annotation-generated blocks use the same contract. Each rectangle defaults to `M
   "actual": "The button is clipped at 390px width.",
   "repro_steps": ["Open /signup at 390px width", "Scroll to the form footer"],
   "evidence": ["screenshots/signup-mobile.png", "videos/signup-mobile.webm"],
+  "evidence_root": "/absolute/local/path/dogfood-output/20260529T010203Z",
   "source_report": "dogfood-output/20260529T010203Z/report.md"
 }
 ```
 
 ## Evidence Paths
 
-Normalize relative evidence paths against the directory containing `report.md`. Keep paths relative to the worktree root for local evidence references. Drop evidence entries that point outside the worktree.
+Normalize relative evidence paths against `EVIDENCE_ROOT` and keep paths relative to that root. Drop entries that escape the root. For a normal dogfood worktree, render the familiar `dogfood-output/<session>/...` path. For an external resumed output, retain its absolute local evidence root in the Issue source section and render evidence paths relative to that root.
 
 ## Empty Reports
 

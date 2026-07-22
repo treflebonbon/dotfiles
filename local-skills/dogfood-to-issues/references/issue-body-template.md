@@ -26,7 +26,7 @@ Render approved findings with [templates/issue-body.md](../templates/issue-body.
 
 - Use the dogfood report wording where available.
 - Do not invent expected behavior. If the report lacks expected behavior, write `Not specified in dogfood report.`
-- List evidence as local relative paths under `dogfood-output/<session>/` (audit trail; not committed, so no inline images or clickable URLs).
+- List evidence relative to its resolved local evidence root (audit trail; not committed, so no inline images or clickable URLs). For an external resumed output, add `Evidence root (local): <absolute-path>` to Source; normal worktree runs keep the `dogfood-output/<session>/...` form.
 - Include parent issue only when `--parent #N` was explicitly supplied.
 
 ## Temporary Body Files
