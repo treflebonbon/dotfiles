@@ -20,6 +20,14 @@ setup() {
   grep -Fq 'raw requests' "$SKILL"
 }
 
+@test "to-pr keeps Playwright CLI runtime artifacts out of the repository" {
+  grep -Fq 'TO_PR_EVIDENCE_DIR="$(mktemp -d' "$SKILL"
+  grep -Fq '(cd "$TO_PR_EVIDENCE_DIR" && playwright-cli -s=<branch-or-workspace-name> ...)' "$SKILL"
+  grep -Fq 'Do not run `playwright-cli` from the repository worktree.' "$SKILL"
+  grep -Fq 'Resolve repository-relative' "$SKILL"
+  grep -Fq 'input paths to absolute paths' "$SKILL"
+}
+
 @test "to-pr publishes images as PR attachments with a manual WSL2 fallback" {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local adr="$PROJECT_ROOT/docs/adr/0026-attach-playwright-evidence-to-pr.md"

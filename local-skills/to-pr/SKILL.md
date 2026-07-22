@@ -69,8 +69,18 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
   on.
 
 Before browser verification, create a fresh evidence bundle with
-`mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX"`. Keep all Playwright evidence in
-this directory; do not put it in the repository. The bundle contains:
+`TO_PR_EVIDENCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX")"`. Keep all
+Playwright evidence in this directory; do not put it in the repository. Run every
+Playwright CLI command from the bundle so its default `.playwright-cli/` snapshots and
+logs also stay there:
+
+```bash
+(cd "$TO_PR_EVIDENCE_DIR" && playwright-cli -s=<branch-or-workspace-name> ...)
+```
+
+Do not run `playwright-cli` from the repository worktree. Resolve repository-relative
+input paths to absolute paths before entering the evidence-directory subshell. The
+bundle contains:
 
 - Exactly one representative `screenshot` for every UI criterion that was exercised.
   Use a criterion-oriented filename rather than a generic sequence number. If a
