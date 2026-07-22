@@ -7,6 +7,8 @@ setup() {
 
 @test "to-pr can be invoked by the model after implementation" {
   ! grep -q '^disable-model-invocation:' "$SKILL"
+  grep -Fq 'explicitly authorized AFK/autonomous completion' "$SKILL"
+  grep -Fq 'otherwise do not invoke it automatically' "$SKILL"
 }
 
 @test "to-pr records Playwright evidence in a fresh temporary bundle" {

@@ -1,6 +1,6 @@
 ---
 name: to-pr
-description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work (e.g. /implement) to publish it for review."
+description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work when the user invokes /to-pr, or when the user explicitly authorized AFK/autonomous completion; otherwise do not invoke it automatically."
 ---
 
 # to-pr
