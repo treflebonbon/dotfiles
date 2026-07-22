@@ -26,6 +26,18 @@ test -f "$OUT_DIR/report.md"
 test -f "$OUT_DIR/traces/playwright-trace.zip"
 ```
 
+## Annotation Integration Tests
+
+Run the subprocess-level Bats coverage for the opt-in path:
+
+```bash
+bats tests/dogfood-to-issues.bats
+```
+
+This verifies unchanged non-annotation output, `--resume` rejection, two rectangles plus overall feedback, empty submission, a real CDP attach/eval/detach against the runner-owned Chromium, MV3 coexistence, and evidence finalization on CLI failures.
+
+For a manual dashboard check, run the runner with `--annotate` against a disposable page, submit two rectangles, and confirm `report.md`, the Playwright CLI PNG/YAML files, and `annotations/response.json` are present. Do not treat Submit as approval to create issues; candidates still go through Keep/Skip/Edit.
+
 ## Skill Smoke Test
 
 Run against a low-risk public page:

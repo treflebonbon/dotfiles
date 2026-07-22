@@ -18,7 +18,7 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
 1. Read [references/index.md](references/index.md), then load only the reference files needed for the current phase.
 2. Resolve the target URL and repository. `TARGET_URL` is required; `REPO` defaults to `gh repo view --json nameWithOwner`.
 3. Create or resume an isolated dogfood worktree on `dogfood/YYYY-MM-DD-<target-slug>`.
-4. Unless `--resume <path>` is supplied, run the Playwright dogfood runner. **If `--auth-from` is supplied, stop and report that authenticated Playwright dogfood state import is not yet supported (follow-up) - do not silently dogfood an unauthenticated profile.** Resolve this skill's `references/` dir and output paths to **absolute** (the runner and its `node_modules` live under this skill's `references/`, a different base than the dogfood worktree):
+4. Reject `--annotate` together with `--resume <path>`. Unless `--resume <path>` is supplied, run the Playwright dogfood runner. **If `--auth-from` is supplied, stop and report that authenticated Playwright dogfood state import is not yet supported (follow-up) - do not silently dogfood an unauthenticated profile.** Resolve this skill's `references/` dir and output paths to **absolute** (the runner and its `node_modules` live under this skill's `references/`, a different base than the dogfood worktree):
 
    ```bash
    REF_DIR="${CLAUDE_SKILL_DIR:-${CODEX_SKILL_DIR:-.}}/references"
@@ -27,11 +27,16 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
    if [ -n "${EXTENSION_PATH:-}" ]; then
      ARGS+=(--extension "$(readlink -f "$EXTENSION_PATH")")
    fi
+   if [ "${ANNOTATE:-0}" = 1 ]; then
+     ARGS+=(--annotate)
+   fi
    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
    node "$REF_DIR/playwright-dogfood-runner.mjs" "${ARGS[@]}"
    ```
 
-   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` resolves chromium from the nix `PLAYWRIGHT_BROWSERS_PATH` instead of downloading. Headless is the primary path; when `--extension` is supplied and the MV3 service worker never registers, retry once with `--headed` under `xvfb-run -a`. The runner does not use the agent-browser daemon, so there is no DISPLAY conflict.
+   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` resolves chromium from the nix `PLAYWRIGHT_BROWSERS_PATH` instead of downloading. Headless is the primary path; when `--extension` is supplied and the MV3 service worker never registers, retry once with `--headed` under `xvfb-run -a`. The runner does not use a separate browser daemon, so there is no DISPLAY conflict.
+
+   With `--annotate`, the runner completes automated inspection before notifying the user that Playwright Dashboard input is awaited. It attaches a unique Playwright CLI session over the runner-owned Chromium's ephemeral CDP endpoint, collects visual annotations, then detaches before finalizing the browser context. Rectangles and overall feedback become finding candidates; an empty submission adds none. Annotation failures are explicit and non-zero, but the runner still finalizes its report, trace, and video for audit.
 
 5. Parse `report.md` into structured finding candidates.
 6. Run dedup preflight with `gh search issues` and label preflight with `gh label list`.
@@ -58,6 +63,7 @@ For multi-cycle requests, track cycle count and zero-finding streak separately f
 - `TARGET_URL`: required URL to dogfood.
 - `REPO`: optional `owner/name`; default is the current GitHub repository.
 - `--resume <path>`: optional existing dogfood output directory containing `report.md`.
+- `--annotate`: optional visual feedback collection through Playwright CLI. It waits for human submission after automated checks and is incompatible with `--resume`.
 - `--parent #N`: optional parent issue. Never infer a parent automatically.
 - `--auth-from <profile|notes>`: optional authentication context. Not yet supported by the Playwright runner; supplying it stops the run so authenticated dogfood does not degrade into an unauthenticated login-page check.
 - `--extension <path>`: optional path to an unpacked MV3 Chrome extension. The Playwright runner loads it in a persistent Chromium context. Not compatible with `--auth-from` until authenticated MV3 state import is implemented.

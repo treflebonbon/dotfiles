@@ -39,6 +39,8 @@ Within each block, extract these fields when present:
 
 If a field is absent, keep the original prose in `description` rather than inventing details.
 
+Annotation-generated blocks use the same contract. Each rectangle defaults to `Medium` / `visual`, uses its frame URL, and retains the full comment, coordinates, and viewport in `Actual`. Its evidence includes the annotated PNG, ARIA snapshot, and `annotations/response.json`. Overall feedback without a rectangle is one candidate. An empty annotation submission creates no candidate.
+
 ## Candidate Schema
 
 ```json
