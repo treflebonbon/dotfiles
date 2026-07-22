@@ -1,7 +1,6 @@
 ---
 name: to-pr
 description: "Turn finished work into a pull request. Embeds the acceptance-criteria contract and a verification matrix covering every criterion (browser-observable or not) into the PR body, plus a code-review status note. Use after implementation work (e.g. /implement) to publish it for review."
-disable-model-invocation: true
 ---
 
 # to-pr

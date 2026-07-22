@@ -5,6 +5,10 @@ setup() {
   SKILL="$PROJECT_ROOT/local-skills/to-pr/SKILL.md"
 }
 
+@test "to-pr can be invoked by the model after implementation" {
+  ! grep -q '^disable-model-invocation:' "$SKILL"
+}
+
 @test "to-pr records Playwright evidence in a fresh temporary bundle" {
   grep -Fq 'mktemp -d' "$SKILL"
   grep -Fq 'playwright-report.md' "$SKILL"
