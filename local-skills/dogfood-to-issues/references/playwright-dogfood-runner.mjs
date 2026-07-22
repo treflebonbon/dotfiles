@@ -144,7 +144,7 @@ const parseAnnotationResponse = (raw, target, responseRel) => {
       lastAnnotation = undefined;
       continue;
     }
-    if (frame && lastAnnotation && line) {
+    if (frame && lastAnnotation) {
       lastAnnotation.comment += `\n${line}`;
       continue;
     }

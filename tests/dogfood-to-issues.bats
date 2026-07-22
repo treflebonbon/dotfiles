@@ -8,6 +8,7 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   REF_DIR="$PROJECT_ROOT/local-skills/dogfood-to-issues/references"
   RUNNER="$REF_DIR/playwright-dogfood-runner.mjs"
+  export NODE_BIN="$(command -v node)"
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
   export FAKE_CLI_LOG="$BATS_TEST_TMPDIR/playwright-cli.log"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
@@ -47,7 +48,7 @@ case " $* " in
     elif [[ "${FAKE_CLI_MODE:-}" == "empty" ]]; then
       printf '%s\n' '{"result":"No annotations were submitted."}'
     else
-      printf '%s\n' '{"result":"Overall contrast needs attention.\nsession / tab @ https://example.com/frame (1440x1000)\n  { x: 10, y: 20, width: 30, height: 40 }: First annotation\nSecond line of the same comment\n  { x: 50, y: 60, width: 70, height: 80 }: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n- [Annotation image](.playwright-cli/annotations.png)\n- [Annotation snapshot](.playwright-cli/annotations.yaml)"}'
+      printf '%s\n' '{"result":"Overall contrast needs attention.\nsession / tab @ https://example.com/frame (1440x1000)\n  { x: 10, y: 20, width: 30, height: 40 }: First annotation\n\nSecond line of the same comment\n  { x: 50, y: 60, width: 70, height: 80 }: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n- [Annotation image](.playwright-cli/annotations.png)\n- [Annotation snapshot](.playwright-cli/annotations.yaml)"}'
     fi
     ;;
   *" detach "*)
@@ -97,6 +98,7 @@ EOF
   grep -Fq 'URL: https://example.com/frame' "$out/report.md"
   grep -Fq 'Coordinates: x=10, y=20, width=30, height=40' "$out/report.md"
   grep -Fq 'Second line of the same comment' "$out/report.md"
+  [[ "$(<"$out/report.md")" == *$'Comment: First annotation\n\nSecond line of the same comment'* ]]
   grep -Fq 'Viewport: 1440x1000' "$out/report.md"
   grep -Fq 'Evidence: .playwright-cli/annotations.png, .playwright-cli/annotations.yaml, annotations/response.json' "$out/report.md"
   [ "$(sed -n 's/^### ISSUE-[0-9][0-9][0-9]: //p' "$out/report.md" | tail -1 | wc -c)" -eq 121 ]
@@ -139,6 +141,21 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"attach failed"* ]]
+  [ -f "$out/report.md" ]
+  [ -f "$out/traces/playwright-trace.zip" ]
+  [ "$(find "$out/videos" -name '*.webm' | wc -l)" -ge 1 ]
+}
+
+@test "missing Playwright CLI still finalizes automated evidence" {
+  local out="$BATS_TEST_TMPDIR/output"
+  local path_without_cli="$BATS_TEST_TMPDIR/path-without-cli"
+  mkdir -p "$path_without_cli"
+  ln -s "$NODE_BIN" "$path_without_cli/node"
+
+  run env PATH="$path_without_cli" "$NODE_BIN" "$RUNNER" --target about:blank --output "$out" --annotate
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"playwright-cli show --help failed"* ]]
   [ -f "$out/report.md" ]
   [ -f "$out/traces/playwright-trace.zip" ]
   [ "$(find "$out/videos" -name '*.webm' | wc -l)" -ge 1 ]
