@@ -98,7 +98,7 @@ setup() {
   grep -q 'llm\.antigravity' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "nix-devshell installs Playwright CLI 0.1.17 and local skill symlinks" {
+@test "nix-devshell installs Playwright CLI 0.1.17 with a Nix browser and local skill symlinks" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-agent/package.json"
@@ -109,8 +109,14 @@ setup() {
   grep -q '\.agents/skills/playwright-cli' "$module"
   grep -q '\.claude/skills/playwright-cli' "$module"
   grep -q 'pname = "playwright-cli";' "$pkg"
+  grep -q '^  playwright-driver,$' "$pkg"
+  grep -Fq 'find -L ${playwright-driver.browsers}' "$pkg"
+  grep -Fq 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' "$pkg"
+  grep -q '"executablePath"' "$pkg"
+  grep -q 'PWTEST_CLI_GLOBAL_CONFIG' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_BROWSERS_PATH' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$pkg"
+  ! grep -Eq 'chromium-[0-9]+' "$pkg"
   grep -q 'version = "0.1.17";' "$pkg"
   grep -q '"@playwright/cli": "0.1.17"' "$package_json"
 }
