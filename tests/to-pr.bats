@@ -25,6 +25,7 @@ setup() {
   grep -Fq 'gh pr edit --body-file' "$SKILL"
   [[ "$attachment_section" == *'On WSL2, do not assume that a Windows Chrome session'* ]]
   [[ "$attachment_section" == *'only when Chrome running in WSL2 already has an authenticated GitHub session'* ]]
+  [[ "$attachment_section" == *'If no authenticated browser is available'* ]]
   [[ "$attachment_section" == *'do not retry by logging in'* ]]
   [[ "$attachment_section" == *'手動添付待ち'* ]]
   [[ "$attachment_section" == *"bundle's absolute path and a file list"* ]]
