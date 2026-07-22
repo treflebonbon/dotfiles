@@ -37,7 +37,12 @@ Options:
 - `Edit` to revise title, severity, category, or body, then show the preview again.
 - `Open all remaining as-is` to approve this and every remaining non-duplicate candidate without further prompts.
 
-If the runtime supports only 2-4 choices, fold edit targets into a single `Edit` option and ask a follow-up preview question after applying edits.
+If the runtime supports four choices, present all four together. If the runtime accepts a maximum of three choices, preserve both approval modes with two stages:
+
+1. Before the per-finding loop, ask `Review individually (Recommended)` or `Open all remaining non-duplicate candidates as-is`.
+2. In individual mode, present `Keep / Skip / Edit` for each finding. After `Edit`, show the updated preview and ask the same three choices again.
+
+Never merge batch approval into `Keep`, infer it from a previous answer, or omit it silently because of a runtime limit.
 
 ## Edit Rules
 

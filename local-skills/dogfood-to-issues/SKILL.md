@@ -18,7 +18,7 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
 1. Run the bundled preflight `bash <this skill dir>/scripts/runtime-preflight.sh --need gh-issues` (deployed e.g. at `~/.agents/skills/dogfood-to-issues/scripts/runtime-preflight.sh`); stop on `PREFLIGHT_FAIL`.
 2. Read [references/index.md](references/index.md), then load only the reference files needed for the current phase.
 3. Resolve the target URL and repository. `TARGET_URL` is required; `REPO` defaults to `gh repo view --json nameWithOwner`.
-4. Create or resume an isolated dogfood worktree on `dogfood/YYYY-MM-DD-<target-slug>`.
+4. Create an isolated dogfood worktree on `dogfood/YYYY-MM-DD-<target-slug>` for a new run. With `--resume`, resolve the supplied output as the evidence root instead; reuse its dogfood worktree when present, but do not create a worktree merely to wrap an external output directory.
 5. Unless `--resume <path>` is supplied, run the Playwright dogfood runner. **If `--auth-from` is supplied, stop and report that authenticated Playwright dogfood state import is not yet supported (follow-up) - do not silently dogfood an unauthenticated profile.** Resolve this skill's `references/` dir and output paths to **absolute** (the runner and its `node_modules` live under this skill's `references/`, a different base than the dogfood worktree):
 
    ```bash
@@ -41,8 +41,8 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
 
 6. Parse `report.md` into structured finding candidates.
 7. Run dedup preflight with `gh search issues` and label preflight with `gh label list`.
-8. Ask for per-finding approval: Keep, Skip, Edit, or Open all remaining as-is.
-9. Create approved issues with `gh issue create`, referencing local evidence paths under `dogfood-output/<session>/`. If `--parent #N` was explicitly supplied, append created sub-issue links to that parent.
+8. Ask for approval using [approval-protocol.md](references/approval-protocol.md). Use Keep, Skip, Edit, and Open all remaining as-is in a four-choice runtime. In a runtime limited to three choices, ask for individual versus batch review first, then use Keep, Skip, and Edit per finding.
+9. Create approved issues with `gh issue create`, referencing paths relative to the resolved local evidence root (normally `dogfood-output/<session>/`). For an external resumed output, include its absolute local evidence root in the Issue source section. If `--parent #N` was explicitly supplied, append created sub-issue links to that parent.
 10. Report created, skipped, edited, and duplicate-suspect findings. Leave the worktree in place for evidence audit.
 
 ## Scope Boundary
@@ -57,13 +57,13 @@ If the user includes a follow-on workflow, finish only the dogfood-to-issues pha
 
 This skill ends at issue creation. Do not silently continue into implementation. Created issues enter the normal workflow: `/triage` marks them ready, and implementation happens with the model-invoked discipline skills (tdd / code-review etc.) — only after the user confirms that follow-on work.
 
-For multi-cycle requests, track cycle count and zero-finding streak separately from this skill's single-cycle issue fanout. A single zero-finding dogfood run completes only the current cycle; never claim a "2 consecutive zero findings" stop condition unless two completed consecutive dogfood cycles both found zero P0-P2 issues after the most recent positive-finding cycle. If a cycle creates no issue, skip follow-on implementation/finalization steps for that cycle and report the next required cycle or stop condition.
+For multi-cycle requests, track cycle count and zero-finding streak separately from this skill's single-cycle issue fanout. A single zero-finding dogfood run completes only the current cycle; never claim a "2 consecutive zero findings" stop condition unless two completed consecutive dogfood cycles both found zero Critical, High, or Medium findings (priority aliases P0-P2) after the most recent positive-finding cycle. If a cycle creates no issue, skip follow-on implementation/finalization steps for that cycle and report the next required cycle or stop condition.
 
 ## Inputs
 
 - `TARGET_URL`: required URL to dogfood.
 - `REPO`: optional `owner/name`; default is the current GitHub repository.
-- `--resume <path>`: optional existing dogfood output directory containing `report.md`.
+- `--resume <path>`: optional existing dogfood output directory containing `report.md`. The directory becomes a read-only evidence root when it is outside a dogfood worktree.
 - `--annotate`: optional visual feedback collection through Playwright CLI. It waits for human submission after automated checks and is incompatible with `--resume`.
 - `--parent #N`: optional parent issue. Never infer a parent automatically.
 - `--auth-from <profile|notes>`: optional authentication context. Not yet supported by the Playwright runner; supplying it stops the run so authenticated dogfood does not degrade into an unauthenticated login-page check.
@@ -71,11 +71,11 @@ For multi-cycle requests, track cycle count and zero-finding streak separately f
 
 ## Guardrails
 
-- Do not commit or push dogfood evidence. The dogfood worktree lives under `.worktrees/` (gitignored), so evidence stays a local-only audit trail; issues reference evidence by local relative path, not by committed URL.
+- Do not commit or push dogfood evidence. New runs stay under a gitignored `.worktrees/` dogfood worktree. An external resumed output remains in place as a read-only evidence root; issues identify that local root and reference evidence relative to it, never by committed URL.
 - Do not auto-remove the worktree; it is the audit trail for screenshots, videos, and the source report.
 - Do not add setup-repo labels in this flow. Missing severity or area labels fall back to `bug,dogfood`.
 - Stop on `gh issue create` failure and print already-created issue numbers plus rollback commands.
-- Runtime tool gaps follow [runtime-adapter.md](../../shared/references/runtime-adapter.md).
+- Adapt the approval questions to the current runtime's choice limit without dropping either per-finding editing or the explicit batch escape hatch.
 - The Playwright dogfood runner is the standard path for both normal web targets and `--extension` MV3 targets. Use the separate `dogfood` skill only for open-ended manual exploration with no issue fanout.
 
 ## References

@@ -79,6 +79,30 @@ EOF
   grep -Fq 'Do not silently drop either option.' "$skill"
 }
 
+@test "resume normalizes priority aliases and external evidence roots" {
+  local mapping="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/severity-label-mapping.md"
+  local parsing="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/report-parsing.md"
+  local worktree="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/worktree-setup.md"
+  local body="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/issue-body-template.md"
+
+  grep -Eq '\| P0 +\| Critical +' "$mapping"
+  grep -Eq '\| P2 +\| Medium +' "$mapping"
+  grep -Fq 'paths relative to that root' "$parsing"
+  grep -Fq 'read-only evidence root' "$worktree"
+  grep -Fq 'Evidence root (local)' "$body"
+}
+
+@test "approval protocol adapts to runtimes limited to three choices" {
+  local skill="$PROJECT_ROOT/local-skills/dogfood-to-issues/SKILL.md"
+  local approval="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/approval-protocol.md"
+
+  grep -Fq 'maximum of three choices' "$approval"
+  grep -Fq 'Review individually' "$approval"
+  grep -Fq 'Open all remaining non-duplicate candidates as-is' "$approval"
+  grep -Fq 'Keep / Skip / Edit' "$approval"
+  ! grep -Fq 'runtime-adapter.md' "$skill"
+}
+
 @test "dogfood without annotation preserves the existing report path" {
   local out="$BATS_TEST_TMPDIR/output"
 

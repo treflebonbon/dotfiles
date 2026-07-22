@@ -39,7 +39,7 @@ The repo's default branch (`origin/$BASE_BRANCH` — do not hardcode `main`; tar
 
 ## Resume
 
-When `--resume <path>` is supplied, do not run dogfood again. Validate that `<path>/report.md` exists and that evidence paths in the report are readable. If the resume path is already inside a `dogfood/*` worktree, reuse that worktree.
+When `--resume <path>` is supplied, do not run dogfood again. Resolve `<path>` to an absolute directory, validate that `report.md` exists, and validate evidence paths against that directory. It is the read-only evidence root. If it is already inside a `dogfood/*` worktree, reuse that worktree. Otherwise leave the external directory in place: do not create a wrapper worktree, move/copy its files, or mutate it.
 
 ## Dogfood Invocation
 
