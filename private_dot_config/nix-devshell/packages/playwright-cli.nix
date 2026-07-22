@@ -23,7 +23,9 @@ buildNpmPackage {
 
     chromium_executable="$(
       find -L ${playwright-driver.browsers} -type f \
-        \( -path '*/chrome-linux*/chrome' -o -path '*/Chromium.app/Contents/MacOS/Chromium' \) \
+        \( -path '*/chrome-linux*/chrome' \
+        -o -path '*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
+        -o -path '*/Chromium.app/Contents/MacOS/Chromium' \) \
         -print | head -n 1
     )"
     if [ -z "$chromium_executable" ]; then

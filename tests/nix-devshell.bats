@@ -111,6 +111,7 @@ setup() {
   grep -q 'pname = "playwright-cli";' "$pkg"
   grep -q '^  playwright-driver,$' "$pkg"
   grep -Fq 'find -L ${playwright-driver.browsers}' "$pkg"
+  grep -Fq 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' "$pkg"
   grep -q '"executablePath"' "$pkg"
   grep -q 'PWTEST_CLI_GLOBAL_CONFIG' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_BROWSERS_PATH' "$pkg"
