@@ -19,7 +19,7 @@ GitHub の PR 編集欄へ画像を添付すると、アップロード時に匿
 
 ## Decision
 
-1. `to-pr` は UI AC 検証前に fresh な一時ディレクトリを作り、各 UI AC の代表画像を最大1枚と `playwright-report.md` を生成する。レポートには操作、観測結果、URL、console/network エラー要約を記録し、認証情報や raw request は含めない。
+1. `to-pr` は UI AC 検証前に fresh な一時ディレクトリを作り、実行できた各 UI AC の代表画像を1枚ずつと `playwright-report.md` を生成する。実行できない UI AC は画像を捏造せず理由をレポートへ残す。レポートには操作、観測結果、URL、console/network エラー要約を記録し、認証情報や raw request は含めない。
 2. PR 本文へ `## Playwright Evidence` を追加し、レポートのテキストと代表画像を AC ごとに対応づける。Verification Matrix は引き続き全 AC の検証状態を表す正本とする。
 3. push、PR 作成、画像アップロードは、実行前に一度の確認でまとめて承認を得る。PR 作成後、現在の runtime が既存の GitHub 認証済みブラウザを操作できる場合だけ画像を編集欄へ添付し、得られた匿名化 URL を `gh pr edit --body-file` で本文へ反映する。
 4. WSL2 では Windows Chrome の認証を利用可能と仮定しない。WSL2 内で動作する Chrome が既に GitHub 認証済みの場合だけ自動添付する。

@@ -73,11 +73,15 @@ Before browser verification, create a fresh evidence bundle with
 `mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX"`. Keep all Playwright evidence in
 this directory; do not put it in the repository. The bundle contains:
 
-- At most one representative image for each UI acceptance criterion where an image
-  helps review. Use a criterion-oriented filename rather than a generic sequence number.
+- Exactly one representative `screenshot` for every UI criterion that was exercised.
+  Use a criterion-oriented filename rather than a generic sequence number. If a
+  criterion cannot be exercised, record the reason instead of fabricating an image.
 - `playwright-report.md`, with one entry per UI criterion: the operation performed, the
   observed result, the URL, and a summary of console/network errors. Record `none` when
   no errors were observed.
+
+Initialize `playwright-report.md` as soon as the bundle is created so unexercised UI
+criteria and their reasons are preserved too.
 
 Do not include authentication details, cookies, tokens, headers, or raw requests in the
 report or screenshots. Redact sensitive user data that is not needed to establish the
@@ -86,10 +90,10 @@ criterion.
 1. Start the dev server if the repo defines one: `package.json` `scripts.dev`
    (`npm run dev` / `bun dev`), or a `dev` target in the `Makefile` (`make dev`). If no
    dev command exists, do not verify — mark the UI criteria `未確認` and note why.
-2. For each UI criterion: open the relevant URL, drive the flow, take a `snapshot`, and
-   — where it helps a reviewer — save one representative `screenshot` to the evidence
-   bundle. Check the console and network for errors, then append the criterion's result
-   to `playwright-report.md`. For timing- or count-sensitive criteria, measure inside a
+2. For each UI criterion that can be exercised: open the relevant URL, drive the flow,
+   take a `snapshot`, and save one representative `screenshot` to the evidence bundle.
+   Check the console and network for errors, then append the criterion's result to
+   `playwright-report.md`. For timing- or count-sensitive criteria, measure inside a
    single `run-code` script rather than chaining separate CLI calls (each call's own
    round-trip can itself exceed the window you're measuring), e.g.:
 
@@ -150,8 +154,8 @@ currently active session, so chaining it from here would not analyse anything us
    - `## Verification Matrix` — the table built in step 2.
    - `## Playwright Evidence` — for each UI criterion, copy the operation, observed
      result, URL, and console/network errors summary from `playwright-report.md`. Add an
-     image placeholder when a representative image exists. Use `対象なし` when there
-     are no UI criteria or no useful representative images.
+     image placeholder for every exercised UI criterion. For an unexercised criterion,
+     state the reason and `画像なし`; use `対象なし` only when there are no UI criteria.
    - `## Code Review` — the one line from step 3.
      Reference the issue it closes (`Fixes #N`) when there is one; when there is no issue,
      omit the `Fixes` line and mention where the contract came from (conversation, PRD) in
