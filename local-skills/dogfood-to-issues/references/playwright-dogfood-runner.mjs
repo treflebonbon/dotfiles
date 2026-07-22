@@ -1,14 +1,21 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import { promisify } from "node:util";
 
 import { chromium } from "playwright";
 
+const execFileAsync = promisify(execFile);
+
 const parseArgs = (argv) => {
-  const out = { headed: false };
+  const out = { annotate: false, headed: false };
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--headed") {
       out.headed = true;
+    } else if (a === "--annotate") {
+      out.annotate = true;
     } else if (a === "--target") {
       i += 1;
       out.target = argv[i];
@@ -18,12 +25,18 @@ const parseArgs = (argv) => {
     } else if (a === "--output") {
       i += 1;
       out.output = argv[i];
+    } else if (a === "--resume") {
+      i += 1;
+      out.resume = argv[i];
     }
   }
   if (!out.target || !out.output) {
     throw new Error(
-      "usage: playwright-dogfood-runner.mjs --target <url> --output <dir> [--extension <dir>] [--headed]"
+      "usage: playwright-dogfood-runner.mjs --target <url> --output <dir> [--extension <dir>] [--headed] [--annotate]"
     );
+  }
+  if (out.annotate && out.resume) {
+    throw new Error("--annotate cannot be combined with --resume");
   }
   return out;
 };
@@ -52,7 +65,7 @@ const renderReport = ({ target, extensionId, findings }) => {
       `### ISSUE-${n}: ${f.title}`,
       `Severity: ${f.severity}`,
       `Category: ${f.category}`,
-      `URL: ${target}`,
+      `URL: ${f.url ?? target}`,
       `Summary: ${f.summary}`,
       `Actual: ${f.actual}`,
       `Evidence: ${f.evidence.join(", ")}`,
@@ -63,6 +76,187 @@ const renderReport = ({ target, extensionId, findings }) => {
 };
 
 const isExtSw = (w) => w.url().startsWith("chrome-extension://");
+
+const titleFromComment = (comment) => {
+  const [firstLine = ""] = comment.split("\n");
+  return [...firstLine.trim()].slice(0, 120).join("") || "Visual annotation";
+};
+
+const parseAnnotationResponse = (raw, target, responseRel) => {
+  const payload = JSON.parse(raw);
+  if (payload.isError) {
+    throw new TypeError(payload.error ?? "Playwright CLI annotation failed");
+  }
+  if (payload.result === "No annotations were submitted.") {
+    return [];
+  }
+  if (typeof payload.result !== "string") {
+    throw new TypeError(
+      "Playwright CLI annotation response has no result text"
+    );
+  }
+
+  const frames = [];
+  const feedback = [];
+  let frame;
+  let lastAnnotation;
+  for (const line of payload.result.split("\n")) {
+    if (line.startsWith("## Screenshot ")) {
+      lastAnnotation = undefined;
+      continue;
+    }
+    const header = line.match(
+      /^.+? \/ .+? @ (?<url>.+) \((?<width>\d+)x(?<height>\d+)\)$/u
+    );
+    if (header) {
+      const { height, url, width } = header.groups;
+      frame = {
+        annotations: [],
+        evidence: [],
+        height: Number(height),
+        url,
+        width: Number(width),
+      };
+      frames.push(frame);
+      lastAnnotation = undefined;
+      continue;
+    }
+    const annotation = line.match(
+      /^\s*\{ x: (?<x>[^,]+), y: (?<y>[^,]+), width: (?<width>[^,]+), height: (?<height>[^}]+) \}: (?<comment>.*)$/u
+    );
+    if (annotation && frame) {
+      const { comment, height, width, x, y } = annotation.groups;
+      lastAnnotation = {
+        comment,
+        height,
+        width,
+        x,
+        y,
+      };
+      frame.annotations.push(lastAnnotation);
+      continue;
+    }
+    const evidence = line.match(
+      /^- \[Annotation (?:image|snapshot)(?: \d+)?\]\((?<path>[^)]+)\)$/u
+    );
+    if (evidence && frame) {
+      frame.evidence.push(evidence.groups.path);
+      lastAnnotation = undefined;
+      continue;
+    }
+    if (frame && lastAnnotation) {
+      lastAnnotation.comment += `\n${line}`;
+      continue;
+    }
+    if (!frame && line) {
+      feedback.push(line);
+    }
+  }
+
+  const findings = [];
+  const overallFeedback = feedback.join("\n").trim();
+  if (overallFeedback) {
+    findings.push({
+      actual: `Feedback: ${overallFeedback}`,
+      category: "visual",
+      evidence: [responseRel],
+      severity: "Medium",
+      summary: overallFeedback.replaceAll("\n", " "),
+      title: titleFromComment(overallFeedback),
+      url: target,
+    });
+  }
+  for (const annotatedFrame of frames) {
+    for (const annotation of annotatedFrame.annotations) {
+      findings.push({
+        actual: [
+          `Comment: ${annotation.comment}`,
+          `Coordinates: x=${annotation.x}, y=${annotation.y}, width=${annotation.width}, height=${annotation.height}`,
+          `Viewport: ${annotatedFrame.width}x${annotatedFrame.height}`,
+        ].join("\n"),
+        category: "visual",
+        evidence: [...annotatedFrame.evidence, responseRel],
+        severity: "Medium",
+        summary: annotation.comment.replaceAll("\n", " "),
+        title: titleFromComment(annotation.comment),
+        url: annotatedFrame.url,
+      });
+    }
+  }
+  return findings;
+};
+
+const readDevToolsPort = async (userDataDir, attemptsLeft = 100) => {
+  const portFile = path.join(userDataDir, "DevToolsActivePort");
+  const contents = await fs.readFile(portFile, "utf-8").catch(() => "");
+  const [port] = contents.split("\n");
+  if (/^\d+$/u.test(port)) {
+    return port;
+  }
+  if (attemptsLeft === 1) {
+    throw new Error("Chromium did not publish DevToolsActivePort");
+  }
+  await delay(50);
+  return readDevToolsPort(userDataDir, attemptsLeft - 1);
+};
+
+const runCli = async (cliArgs, cwd) => {
+  try {
+    return await execFileAsync("playwright-cli", cliArgs, {
+      cwd,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch (error) {
+    const detail = error.stderr?.trim() || error.message;
+    throw new Error(`playwright-cli ${cliArgs.join(" ")} failed: ${detail}`, {
+      cause: error,
+    });
+  }
+};
+
+const collectAnnotations = async ({ output, target, userDataDir }) => {
+  const help = await runCli(["show", "--help"], output);
+  if (!help.stdout.includes("--annotate")) {
+    throw new Error("playwright-cli does not support show --annotate");
+  }
+
+  const port = await readDevToolsPort(userDataDir);
+  const session = `dogfood-annotate-${process.pid}-${Date.now()}`;
+  await runCli(
+    [`-s=${session}`, "attach", `--cdp=http://127.0.0.1:${port}`],
+    output
+  );
+
+  let annotationResult;
+  let annotationError;
+  try {
+    process.stderr.write(
+      "Waiting for visual annotations in Playwright Dashboard...\n"
+    );
+    annotationResult = await runCli(
+      [`-s=${session}`, "show", "--annotate", "--json"],
+      output
+    );
+  } catch (error) {
+    annotationError = error;
+  }
+  try {
+    await runCli([`-s=${session}`, "detach"], output);
+  } catch (error) {
+    annotationError ??= error;
+  }
+  if (annotationError) {
+    throw annotationError instanceof Error
+      ? annotationError
+      : new Error(String(annotationError));
+  }
+
+  const annotationDir = path.join(output, "annotations");
+  const responseRel = "annotations/response.json";
+  await fs.mkdir(annotationDir, { recursive: true });
+  await fs.writeFile(path.join(output, responseRel), annotationResult.stdout);
+  return parseAnnotationResponse(annotationResult.stdout, target, responseRel);
+};
 
 const args = parseArgs(process.argv);
 await fs.mkdir(path.join(args.output, "screenshots"), { recursive: true });
@@ -76,6 +270,9 @@ if (args.extension) {
     `--disable-extensions-except=${args.extension}`,
     `--load-extension=${args.extension}`
   );
+}
+if (args.annotate) {
+  launchArgs.push("--remote-debugging-port=0");
 }
 const context = await chromium.launchPersistentContext(userDataDir, {
   args: launchArgs,
@@ -95,6 +292,7 @@ let swRegistered = !args.extension;
 const consoleErrors = [];
 const failedRequests = [];
 const traceRel = "traces/playwright-trace.zip";
+let runError;
 
 try {
   await context.tracing
@@ -201,6 +399,17 @@ try {
       title: "Network failures detected while dogfooding the target",
     });
   }
+  if (args.annotate) {
+    findings.push(
+      ...(await collectAnnotations({
+        output: args.output,
+        target: args.target,
+        userDataDir,
+      }))
+    );
+  }
+} catch (error) {
+  runError = error;
 } finally {
   await fs
     .writeFile(
@@ -239,6 +448,11 @@ await fs.writeFile(
   path.join(args.output, "report.md"),
   renderReport({ extensionId, findings, target: args.target })
 );
+
+if (runError) {
+  console.error(runError.message);
+  process.exitCode = 1;
+}
 
 // Headless run where the SW never registered: signal failure so SKILL.md Step 4 retries headed.
 // In headed mode a missing SW is final and is already captured as the Critical finding above.

@@ -15,6 +15,8 @@ source: human
 
 The runner writes deterministic artifacts (`report.md`, screenshots, videos, traces, console/network JSON) without feeding DOM dumps or trace bodies into the model context. This keeps `dogfood-to-issues` evidence reproducible and low-token.
 
+With the opt-in `--annotate` flag, Playwright CLI attaches over CDP to this same persistent Chromium context after service-worker inspection. It does not launch a second browser. The runner detaches the CLI session before closing the context and retains annotation artifacts with the other evidence.
+
 For MV3 extensions, Playwright is also required: `agent-browser` operates over headless CDP and does not register MV3 service workers — extensions loaded via `--load-extension` require a persistent browser context, which the agent-browser daemon does not expose.
 
 The headed-with-xvfb alternative also fails: the agent-browser daemon holds the `DISPLAY` from its own Xvfb session, and a second `xvfb-run -a` conflicts with that daemon DISPLAY assignment (see `mv3-spike.md` for the full spike results, #955).
