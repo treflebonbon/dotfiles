@@ -66,6 +66,19 @@ EOF
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 }
 
+@test "skill rejects annotation resume conflict before side effects" {
+  local skill="$PROJECT_ROOT/local-skills/dogfood-to-issues/SKILL.md"
+  local reject_line preflight_line
+
+  reject_line="$(grep -n '^0\. Reject `--annotate` together with `--resume <path>` before preflight' "$skill" | cut -d: -f1)"
+  preflight_line="$(grep -n '^1\. Run the bundled preflight' "$skill" | cut -d: -f1)"
+
+  [ -n "$reject_line" ]
+  [ -n "$preflight_line" ]
+  [ "$reject_line" -lt "$preflight_line" ]
+  grep -Fq 'Do not silently drop either option.' "$skill"
+}
+
 @test "dogfood without annotation preserves the existing report path" {
   local out="$BATS_TEST_TMPDIR/output"
 

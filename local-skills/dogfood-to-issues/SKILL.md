@@ -14,11 +14,12 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
 
 ## Steps
 
-0. Run the bundled preflight `bash <this skill dir>/scripts/runtime-preflight.sh --need gh-issues` (deployed e.g. at `~/.agents/skills/dogfood-to-issues/scripts/runtime-preflight.sh`); stop on `PREFLIGHT_FAIL`.
-1. Read [references/index.md](references/index.md), then load only the reference files needed for the current phase.
-2. Resolve the target URL and repository. `TARGET_URL` is required; `REPO` defaults to `gh repo view --json nameWithOwner`.
-3. Create or resume an isolated dogfood worktree on `dogfood/YYYY-MM-DD-<target-slug>`.
-4. Reject `--annotate` together with `--resume <path>`. Unless `--resume <path>` is supplied, run the Playwright dogfood runner. **If `--auth-from` is supplied, stop and report that authenticated Playwright dogfood state import is not yet supported (follow-up) - do not silently dogfood an unauthenticated profile.** Resolve this skill's `references/` dir and output paths to **absolute** (the runner and its `node_modules` live under this skill's `references/`, a different base than the dogfood worktree):
+0. Reject `--annotate` together with `--resume <path>` before preflight, worktree, report, browser, or GitHub operations. Do not silently drop either option.
+1. Run the bundled preflight `bash <this skill dir>/scripts/runtime-preflight.sh --need gh-issues` (deployed e.g. at `~/.agents/skills/dogfood-to-issues/scripts/runtime-preflight.sh`); stop on `PREFLIGHT_FAIL`.
+2. Read [references/index.md](references/index.md), then load only the reference files needed for the current phase.
+3. Resolve the target URL and repository. `TARGET_URL` is required; `REPO` defaults to `gh repo view --json nameWithOwner`.
+4. Create or resume an isolated dogfood worktree on `dogfood/YYYY-MM-DD-<target-slug>`.
+5. Unless `--resume <path>` is supplied, run the Playwright dogfood runner. **If `--auth-from` is supplied, stop and report that authenticated Playwright dogfood state import is not yet supported (follow-up) - do not silently dogfood an unauthenticated profile.** Resolve this skill's `references/` dir and output paths to **absolute** (the runner and its `node_modules` live under this skill's `references/`, a different base than the dogfood worktree):
 
    ```bash
    REF_DIR="${CLAUDE_SKILL_DIR:-${CODEX_SKILL_DIR:-.}}/references"
@@ -38,11 +39,11 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
 
    With `--annotate`, the runner completes automated inspection before notifying the user that Playwright Dashboard input is awaited. It attaches a unique Playwright CLI session over the runner-owned Chromium's ephemeral CDP endpoint, collects visual annotations, then detaches before finalizing the browser context. Rectangles and overall feedback become finding candidates; an empty submission adds none. Annotation failures are explicit and non-zero, but the runner still finalizes its report, trace, and video for audit.
 
-5. Parse `report.md` into structured finding candidates.
-6. Run dedup preflight with `gh search issues` and label preflight with `gh label list`.
-7. Ask for per-finding approval: Keep, Skip, Edit, or Open all remaining as-is.
-8. Create approved issues with `gh issue create`, referencing local evidence paths under `dogfood-output/<session>/`. If `--parent #N` was explicitly supplied, append created sub-issue links to that parent.
-9. Report created, skipped, edited, and duplicate-suspect findings. Leave the worktree in place for evidence audit.
+6. Parse `report.md` into structured finding candidates.
+7. Run dedup preflight with `gh search issues` and label preflight with `gh label list`.
+8. Ask for per-finding approval: Keep, Skip, Edit, or Open all remaining as-is.
+9. Create approved issues with `gh issue create`, referencing local evidence paths under `dogfood-output/<session>/`. If `--parent #N` was explicitly supplied, append created sub-issue links to that parent.
+10. Report created, skipped, edited, and duplicate-suspect findings. Leave the worktree in place for evidence audit.
 
 ## Scope Boundary
 
