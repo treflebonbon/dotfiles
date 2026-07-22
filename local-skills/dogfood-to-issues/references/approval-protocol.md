@@ -39,8 +39,9 @@ Options:
 
 If the runtime supports four choices, present all four together. If the runtime accepts a maximum of three choices, preserve both approval modes with two stages:
 
-1. Before the per-finding loop, ask `Review individually (Recommended)` or `Open all remaining non-duplicate candidates as-is`.
-2. In individual mode, present `Keep / Skip / Edit` for each finding. After `Edit`, show the updated preview and ask the same three choices again.
+1. Render an aggregate preview for every remaining non-duplicate candidate. Include each title, severity/category, URL, rendered Issue body, evidence count, source report, and dedup status; list duplicate suspects separately as excluded from the batch.
+2. Only after showing that aggregate preview, ask `Review individually (Recommended)` or `Open all remaining non-duplicate candidates as-is`.
+3. In individual mode, present `Keep / Skip / Edit` for each finding. After `Edit`, show the updated preview and ask the same three choices again.
 
 Never merge batch approval into `Keep`, infer it from a previous answer, or omit it silently because of a runtime limit.
 

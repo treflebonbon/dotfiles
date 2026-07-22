@@ -100,6 +100,9 @@ EOF
   grep -Fq 'Review individually' "$approval"
   grep -Fq 'Open all remaining non-duplicate candidates as-is' "$approval"
   grep -Fq 'Keep / Skip / Edit' "$approval"
+  grep -Fq 'aggregate preview for every remaining non-duplicate candidate' "$approval"
+  grep -Fq 'Only after showing that aggregate preview' "$approval"
+  grep -Fq 'title, severity/category, URL, rendered Issue body, evidence count, source report, and dedup status' "$approval"
   ! grep -Fq 'runtime-adapter.md' "$skill"
 }
 
