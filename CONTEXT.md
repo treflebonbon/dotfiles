@@ -36,6 +36,26 @@ _Avoid_: 計画フェーズ, 設計フェーズ
 実装検証フェーズ（`implement` を入口に、内部で `tdd`↔`code-review` を使う）の呼称。`to-tickets` が生成した ticket をまたいで自律的にループしてよい自動化された主体（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md), [ADR-0022](docs/adr/0022-align-mattpocock-v1-1-workflow.md)）。
 _Avoid_: 実装フェーズ, ビルドフェーズ
 
+**親完了条件**:
+親 issue の全 direct child ticket が既に close 済み、または同一の最終 PR の close 対象になっている状態。merge 前でも直接の親を安全に close できる見込みが立った状態を指し、未処理 ticket が残る状態と区別する。
+_Avoid_: 全 ticket 完了, epic completion
+
+**Ticket Hierarchy**:
+親 issue と child ticket の関係。GitHub native subissues を正本とし、ticket 本文の `Parent` は人間向けの写しとして照合に使う。
+_Avoid_: Parent link, body hierarchy
+
+**Ticket Coverage**:
+child ticket の全 AC が PR の Contract に含まれ、Verification Matrix の行へ対応付けられている状態。行の検証結果は coverage を左右せず、issue 番号の参照だけでも coverage とみなさない。
+_Avoid_: issue reference, commit link
+
+**最終 PR**:
+対象 worktree/branch の実装をまとめて公開し、merge まで親 issue の Ticket Hierarchy を凍結する PR。作成後に見つかった追加 scope は同じ親へ child ticket を足さず、別の親 issue として扱う。
+_Avoid_: last PR, final patch
+
+**Parent Reconciliation**:
+最終 PR が直接の child ticket と親 issue の close 対象を整合させる1階層の完了判定。Ticket Hierarchy または Ticket Coverage を証明できない場合は親の close を省いて理由を記録し、PR 作成自体は止めない。
+_Avoid_: epic reconciliation, post-merge cleanup
+
 **ローカル skill 上書き**:
 外部 skill を fork せず、その repo の指示層で実運用に必要な差分だけを優先規則として定義すること。外部 skill 本文の一般手順は維持し、上書き範囲を明示できる場合に限る。
 _Avoid_: skill fork, upstream patch, vendored skill 改変
