@@ -44,6 +44,7 @@ setup() {
   grep -Fq 'the exact list of child and parent issues that will close on merge' "$SKILL"
   grep -Fq 'Keep state labels unchanged' "$SKILL"
   grep -Fq 'Post-merge issue mutation or automation' "$SKILL"
+  grep -Fq 'Repeat the Parent Reconciliation state, reason, and close targets in the completion report' "$SKILL"
   ! grep -Fq 'closing issues, verdict gates' "$SKILL"
 
   grep -Fq 'Parent Reconciliation' "$runtime"
