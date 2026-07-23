@@ -1,5 +1,5 @@
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 personality = "pragmatic"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
@@ -33,4 +33,7 @@ glob_scan_max_depth = 4
 "~/.config/gcloud/**" = "none"
 
 [plugins."github@openai-curated"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
 enabled = true
