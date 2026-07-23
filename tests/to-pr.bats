@@ -11,6 +11,55 @@ setup() {
   grep -Fq 'otherwise do not invoke it automatically' "$SKILL"
 }
 
+@test "to-pr reconciles only a native direct parent" {
+  grep -Fq 'gh issue view <issue> --json number,state,body,parent' "$SKILL"
+  grep -Fq 'gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary' "$SKILL"
+  grep -Fq 'GitHub native sub-issues are the source of truth' "$SKILL"
+  grep -Fq 'body'\''s `## Parent`' "$SKILL"
+  grep -Fq 'Do not recurse to a grandparent' "$SKILL"
+  grep -Fq 'freeze this Ticket Hierarchy until merge' "$SKILL"
+}
+
+@test "to-pr closes a direct parent only with complete Ticket Coverage" {
+  grep -Fq 'gh issue view <child> --json number,state,body' "$SKILL"
+  grep -Fq '**Ticket Coverage**' "$SKILL"
+  grep -Fq 'appears in the Contract and has a row in the Verification Matrix' "$SKILL"
+  grep -Fq 'not affect Ticket Coverage' "$SKILL"
+  grep -Fq '## Parent Reconciliation' "$SKILL"
+  grep -Fq '`確認済み`, `未実施`, or `対象なし`' "$SKILL"
+  grep -Fq 'every open, covered direct child' "$SKILL"
+  grep -Fq 'one more for the direct parent' "$SKILL"
+  grep -Fq 'Omit already-closed' "$SKILL"
+  grep -Fq 'omit the parent `Fixes` line' "$SKILL"
+  grep -Fq 'continue creating the PR' "$SKILL"
+  grep -Fq 'If there is no linked issue, record `対象なし` and omit all `Fixes` lines' "$SKILL"
+  grep -Fq 'preserve the ordinary `Fixes #N` line for the linked issue' "$SKILL"
+}
+
+@test "to-pr confirms close targets and documents reconciliation ownership" {
+  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
+  local context="$PROJECT_ROOT/CONTEXT.md"
+  local adr="$PROJECT_ROOT/docs/adr/0027-to-pr-parent-reconciliation.md"
+
+  grep -Fq 'the exact list of child and parent issues that will close on merge' "$SKILL"
+  grep -Fq 'Keep state labels unchanged' "$SKILL"
+  grep -Fq 'Post-merge issue mutation or automation' "$SKILL"
+  grep -Fq 'Repeat the Parent Reconciliation state, reason, and close targets in the completion report' "$SKILL"
+  ! grep -Fq 'closing issues, verdict gates' "$SKILL"
+
+  grep -Fq 'Parent Reconciliation' "$runtime"
+  grep -Fq 'GitHub native subissues' "$runtime"
+  grep -Fq '親の `Fixes` を省略しても PR 作成は継続' "$runtime"
+
+  grep -Fq '**Ticket Hierarchy**' "$context"
+  grep -Fq '**Ticket Coverage**' "$context"
+  grep -Fq '**Parent Reconciliation**' "$context"
+
+  [ -f "$adr" ]
+  grep -Fq 'status: accepted' "$adr"
+  grep -Fq '直接の親1階層' "$adr"
+}
+
 @test "to-pr records Playwright evidence in a fresh temporary bundle" {
   grep -Fq 'mktemp -d' "$SKILL"
   grep -Fq 'playwright-report.md' "$SKILL"
@@ -32,7 +81,7 @@ setup() {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local adr="$PROJECT_ROOT/docs/adr/0026-attach-playwright-evidence-to-pr.md"
   local attachment_section
-  attachment_section="$(sed -n '/^## 6\. Attach Playwright evidence/,/^## Out of scope/p' "$SKILL" | tr '\n' ' ' | tr -s ' ')"
+  attachment_section="$(sed -n '/^## 7\. Attach Playwright evidence/,/^## Out of scope/p' "$SKILL" | tr '\n' ' ' | tr -s ' ')"
 
   grep -Fq 'authenticated GitHub session' "$SKILL"
   grep -Fq 'anonymized URL' "$SKILL"
