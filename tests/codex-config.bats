@@ -5,6 +5,23 @@ setup() {
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
 }
 
+assert_codex_managed_values() {
+  python3 - "$@" <<'PY'
+import sys
+import tomllib
+
+for path in sys.argv[1:]:
+    with open(path, "rb") as f:
+        config = tomllib.load(f)
+
+    assert config["model"] == "gpt-5.6-sol"
+    assert config["model_reasoning_effort"] == "xhigh"
+    assert config["personality"] == "pragmatic"
+    assert config["plugins"]["github@openai-curated"]["enabled"] is True
+    assert config["plugins"]["chrome@openai-bundled"]["enabled"] is True
+PY
+}
+
 stage_codex_managed_config() {
   local home="$1"
   mkdir -p "$home/.config/codex/environments" "$home/.config/codex/rules"
@@ -37,7 +54,7 @@ prepare_codex_chezmoi_source() {
   local config="$PROJECT_ROOT/private_dot_config/codex/config.toml"
 
   [ -f "$config" ]
-  grep -q '^model = "gpt-5.6-terra"$' "$config"
+  grep -q '^model = "gpt-5.6-sol"$' "$config"
   grep -q '^model_reasoning_effort = ' "$config"
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
@@ -243,7 +260,7 @@ PY
   HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
     bash -c '. "$1"' _ "$home/.bash_profile"
 
-  grep -q '^model = "gpt-5.6-terra"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
   cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
@@ -270,7 +287,7 @@ EOF
     CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
     bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
 
-  grep -q '^model = "gpt-5.6-terra"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex-app/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
@@ -568,8 +585,8 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 personality = "pragmatic"
 
 [plugins."github@openai-curated"]
@@ -598,8 +615,8 @@ EOF
 
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  grep -q '^model = "gpt-5.6-terra"$' "$home/.codex/config.toml"
-  grep -q '^model_reasoning_effort = "medium"$' "$home/.codex/config.toml"
+  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex/config.toml"
+  grep -q '^model_reasoning_effort = "xhigh"$' "$home/.codex/config.toml"
   grep -q '^personality = "pragmatic"$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
   grep -q '^enabled = true$' "$home/.codex/config.toml"
@@ -667,6 +684,7 @@ EOF
 
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
+  assert_codex_managed_values "$home/.codex/config.toml" "$home/.codex-app/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.serena\]$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex-app/config.toml"
@@ -680,11 +698,14 @@ EOF
   mkdir -p "$home/.config/codex" "$codex_home"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 personality = "pragmatic"
 
 [plugins."github@openai-curated"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
 enabled = true
 
 [plugins."example-curated@openai-curated"]
@@ -702,7 +723,7 @@ EOF
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
   [ ! -f "$home/.codex/config.toml" ]
-  grep -q '^model = "gpt-5.6-terra"$' "$codex_home/config.toml"
+  assert_codex_managed_values "$codex_home/config.toml"
   grep -q '^\[plugins\."example-curated@openai-curated"\]$' "$codex_home/config.toml"
   grep -q '^\[plugins\."example-local-plugin@example-marketplace"\]$' "$codex_home/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/example"\]$' "$codex_home/config.toml"
@@ -713,19 +734,15 @@ EOF
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
 
-  cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-terra"
-
-[plugins."example-local-plugin@example-marketplace"]
-enabled = true
-EOF
+  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
+    "$home/.config/codex/config.toml"
 
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
   [ ! -f "$home/.codex/config.toml" ]
   [ -f "$codex_home/config.toml" ]
-  grep -q '^model = "gpt-5.6-terra"$' "$codex_home/config.toml"
+  assert_codex_managed_values "$codex_home/config.toml"
 }
 
 @test "Codex config merge script removes deprecated codex_hooks feature flag" {
@@ -817,7 +834,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-terra"
+model = "gpt-5.6-sol"
 EOF
   printf 'model = \n' >"$home/.codex/config.toml"
 
