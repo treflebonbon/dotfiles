@@ -90,6 +90,10 @@ Codex 0.144.4 は公式 release note が user-facing change なしと明記す�
 
 2026-07-23 JST、Codex 0.144.6 の model catalog と strict config で対応を確認し、管理 config の既定を品質優先の `gpt-5.6-sol` / `xhigh` へ変更した。Claude Code の auto mode に対応するローカル自動化境界として `workspace-write` + `on-request` + `auto_review` は維持する。[OpenAI Codex の discoverable plugin 定義](https://github.com/openai/codex/blob/main/codex-rs/core-plugins/src/discoverable.rs)にある `chrome@openai-bundled` も既定 ON にするが、Chrome 拡張のインストール・pairing・browser/site 権限は端末ごとの明示操作に残す。Codex 0.145.0 への更新は別作業とし、flake pin と `minCodex` は 0.144.6 のまま変更しない。
 
+2026-07-25 JST、Issue #112（Claude Opus 5 対応）を受けて `llm-agents.nix` を4 platform の source map を保持する commit `533b02e5` から `0858b21` へ更新した。package metadata は `claude-code` 2.1.216 → 2.1.219、`codex` 0.144.6 → 0.145.0、`copilot-cli` 1.0.73 → 1.0.75、`antigravity-cli` 1.1.5 → 1.1.6。Claude Code 2.1.217 は background session isolation が symlink 済み working directory を正規化せずワークスペース脱出を許す不具合を修正し、2.1.219 は Claude Opus 5 (`claude-opus-5`) を追加してデフォルト Opus モデルへ変更したため、`minClaudeCode` を `2.1.219` へ上げた。Codex 0.145.0 は今回の目的（Opus 5 対応）に無関係な追従のみで repo 固有の関連修正を確認していないため、`minCodex` は `0.144.6` のまま変更しない（2026-07-23 の判断を継続）。
+
+この commit 更新（`718f56b955bb`、2026-07-21）で `numtide/llm-agents.nix` が claude-code の x86_64-darwin packaging を打ち切ったことを確認した。Anthropic 本家の配布バケットは darwin-x64 バイナリを 2.1.219 でも配布し続けているため、`private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix` を追加し、x86_64-darwin だけそちらの derivation に差し替えた（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）。`minClaudeCode` を上げるたびに、このファイルの `version` / `hash` も手動更新する保守コストが生じる。
+
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
 `settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
