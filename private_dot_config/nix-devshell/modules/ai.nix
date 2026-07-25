@@ -48,8 +48,17 @@ let
   # 2.1.212-2.1.216: .claude/worktrees symlink 経由の隔離逸脱、worktree subagent が git -C / GIT_DIR
   #                  で共有 checkout を操作できる不具合、resume 時に別 project の残存 worktree へ入る
   #                  不具合を修正。worktree 隔離保証に直結するため 2.1.216 へ床上げ。
+  # 2.1.217: background session isolation が symlink 済み working directory を正規化せず、
+  #          session がワークスペース folder の外へ脱出できる不具合を修正。worktree 隔離保証に
+  #          直結するため床上げ対象に含める。
+  # 2.1.219: Claude Opus 5 (`claude-opus-5`) を追加しデフォルト Opus モデルに変更（Issue #112）。
+  #          これを新フロアに据える。
+  # 注意: llm-agents pin を 2.1.219 相当まで進めると、upstream (numtide/llm-agents.nix の
+  #       718f56b955bb, 2026-07-21) が x86_64-darwin の claude-code packaging を取りやめている。
+  #       Anthropic 本体は darwin-x64 バイナリを配布し続けているため、../packages/claude-code-darwin-x64.nix
+  #       で hash を自前管理し x86_64-darwin だけそちらへ差し替える（下記 claudeCode 参照）。
   # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.216";
+  minClaudeCode = "2.1.219";
   minCodex = "0.144.6";
 
   claudeCode =
@@ -77,7 +86,10 @@ let
         修正する 2.1.210、PreToolUse hook の ask 判断が unsandboxed Bash で auto mode に上書きされる不具合・
         background agent / plugin MCP 再接続の不具合を修正する 2.1.211、.claude/worktrees symlink 経由の
         隔離逸脱と git -C / GIT_DIR による共有 checkout 操作、別 project の残存 worktree への誤進入を
-        修正する 2.1.212-2.1.216 を品質ベースラインとして固定しています。
+        修正する 2.1.212-2.1.216、background session isolation が symlink 済み working directory を
+        正規化せずワークスペース脱出を許してしまう不具合を修正する 2.1.217、Claude Opus 5
+        (`claude-opus-5`) を追加しデフォルト Opus モデルに変更する 2.1.219 を品質ベースラインとして
+        固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
@@ -87,7 +99,8 @@ let
       '';
     in
     assert lib.assertMsg ok msg;
-    llm.claude-code;
+    # Falls back to the local x86_64-darwin override; see the minClaudeCode comment above for why.
+    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm.claude-code;
 
   codex =
     let
@@ -115,6 +128,7 @@ let
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix { };
   waza = pkgs.callPackage ../packages/waza.nix { };
+  claudeCodeDarwinX64 = pkgs.callPackage ../packages/claude-code-darwin-x64.nix { };
 in
 {
   env.DISABLE_TELEMETRY = "1";

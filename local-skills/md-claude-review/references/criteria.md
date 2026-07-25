@@ -2,7 +2,7 @@
 
 このファイルは skills/md-claude-review が利用する判定基準。出典は末尾参照。
 
-レビューは 2 つの直交した層を持つ: **内容キュレーション層**（§1〜§6: 何を残す/削る/外出しするか = Keep / Trim / Move-to / Delete）と **文言品質層**（§7: 残す内容を Opus 4.8 最適化された言い回しにするか = Reword）。
+レビューは 2 つの直交した層を持つ: **内容キュレーション層**（§1〜§6: 何を残す/削る/外出しするか = Keep / Trim / Move-to / Delete）と **文言品質層**（§7: 残す内容を Opus 5 最適化された言い回しにするか = Reword）。
 
 ## 0. レビュー単位（何に判定を付けるか）
 
@@ -80,33 +80,41 @@
 
 `@import` を使って CLAUDE.md から参照する形にすると、Claude のコンテキストを汚さず必要時のみロードできる（Progressive Disclosure）。
 
-## 7. Opus 4.8 文言品質（残す指示の言い回し）
+## 7. Opus 5 文言品質（残す指示の言い回し）
 
-内容キュレーション（§3〜§6）とは直交する層。**残す**と判断したセクションについて、Opus 4.8 が指示を最も正確に追従できる言い回しかを点検する。該当すれば **Reword**（内容は残し言い回しのみ修正）を提示する。
+内容キュレーション（§3〜§6）とは直交する層。**残す**と判断したセクションについて、Opus 5 が指示を最も正確に追従できる言い回しかを点検する。該当すれば **Reword**（内容は残し言い回しのみ修正。該当する一文だけの削除もここに含む）を提示する。
 
-| アンチパターン | 検出の目印                                          | Reword 方針                                                                                                                 | 根拠（公式 best practices）           |
-| -------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| 過剰強調語     | `CRITICAL` / `MUST` / `ALWAYS` / `NEVER` / 全大文字 | 真の invariant（安全・必須）でなければ通常語へ（"Use this when..."）。Opus 4.5+ は強調語を文字通り受け取り overtrigger する | Tool usage / Migration considerations |
-| 否定指示       | "Do not 〜" / "〜しない" 中心の記述                 | 望ましい行動を肯定形で記述（"Write in flowing prose"）                                                                      | Control the format of responses       |
-| WHY 欠落       | 非自明なルールに理由がない                          | なぜそうするかを 1 文添える。Claude は説明から一般化できる                                                                  | Add context to improve performance    |
-| 暗黙スコープ   | 適用範囲を書かず全体適用を期待                      | 範囲を明示（"apply to every section, not just the first"）。Opus 4.8 は literal に解釈し暗黙の一般化をしない                | More literal instruction following    |
+| アンチパターン         | 検出の目印                                                                      | Reword 方針                                                                                                                               | 根拠（公式 best practices）                                                  |
+| ---------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 過剰強調語             | `CRITICAL` / `MUST` / `ALWAYS` / `NEVER` / 全大文字                             | 真の invariant（安全・必須）でなければ通常語へ（"Use this when..."）。Opus 4.5+ は強調語を文字通り受け取り overtrigger する               | Tool usage / Migration considerations                                        |
+| 否定指示               | "Do not 〜" / "〜しない" 中心の記述                                             | 望ましい行動を肯定形で記述（"Write in flowing prose"）                                                                                    | Control the format of responses                                              |
+| WHY 欠落               | 非自明なルールに理由がない                                                      | なぜそうするかを 1 文添える。Claude は説明から一般化できる                                                                                | Add context to improve performance                                           |
+| 暗黙スコープ           | 適用範囲を書かず全体適用を期待                                                  | 範囲を明示（"apply to every section, not just the first"）。Opus 5 も literal に解釈し暗黙の一般化をしない                                | More literal instruction following / Prompting Claude Opus 5                 |
+| 応答の冗長化           | 簡潔さの指示がなく、応答の長さを effort 設定だけで制御しようとしている          | 簡潔さを明示指示する一文を追加する（"Keep responses focused, brief, and concise"）。Opus 5 は effort を下げても可視応答の長さは変わらない | Prompting Claude Opus 5 — Response length and verbosity                      |
+| 過剰検証・スコープ逸脱 | "必ず検証ステップを入れる" / "subagent に確認させる" 等の明示的な検証・確認指示 | Opus 5 は指示なしで自己検証・自己修正するため、該当する検証・確認の一文を削除する（それ以外の内容は残す）                                 | Prompting Claude Opus 5 — Task scope and over-verification / Self-correction |
+| subagent 委任過剰      | 委任してよい場面・上限の基準が書かれていない                                    | 委任が正当化される条件（大規模・独立・並列可能）を明示し、単純作業は自分で完結するよう指示する。上限が必要なら数値で明示する              | Prompting Claude Opus 5 — Controlling subagent spawning                      |
+| 進捗ナレーション過剰   | 更新の頻度・粒度の指示がなく、実況が冗長になりやすい                            | いつ・どの粒度で報告するかを明示する（開始前に一文、要点のみ短く、完了時は結論を先に）                                                    | Prompting Claude Opus 5 — User-facing progress updates                       |
 
 ## 8. Decision matrix
 
-| Criterion               | Keep | Trim | Reword | Move-to | Delete |
-| ----------------------- | ---- | ---- | ------ | ------- | ------ |
-| 推測可能                |      |      |        |         | ✓      |
-| 標準的・自明            |      |      |        |         | ✓      |
-| プロジェクト固有 + 短い | ✓    |      |        |         |        |
-| プロジェクト固有 + 長い |      | ✓    |        | ✓       |        |
-| 詳細な手順 / API        |      |      |        | ✓       |        |
-| auto-gen の痕跡         |      | ✓    |        |         |        |
-| lint で代替可能         |      |      |        |         | ✓      |
-| 重複している情報        |      |      |        |         | ✓      |
-| 過剰強調語（§7）        | ✓    |      | ✓      |         |        |
-| 否定指示（§7）          | ✓    |      | ✓      |         |        |
-| WHY 欠落（§7）          | ✓    |      | ✓      |         |        |
-| 暗黙スコープ（§7）      | ✓    |      | ✓      |         |        |
+| Criterion                    | Keep | Trim | Reword | Move-to | Delete |
+| ---------------------------- | ---- | ---- | ------ | ------- | ------ |
+| 推測可能                     |      |      |        |         | ✓      |
+| 標準的・自明                 |      |      |        |         | ✓      |
+| プロジェクト固有 + 短い      | ✓    |      |        |         |        |
+| プロジェクト固有 + 長い      |      | ✓    |        | ✓       |        |
+| 詳細な手順 / API             |      |      |        | ✓       |        |
+| auto-gen の痕跡              |      | ✓    |        |         |        |
+| lint で代替可能              |      |      |        |         | ✓      |
+| 重複している情報             |      |      |        |         | ✓      |
+| 過剰強調語（§7）             | ✓    |      | ✓      |         |        |
+| 否定指示（§7）               | ✓    |      | ✓      |         |        |
+| WHY 欠落（§7）               | ✓    |      | ✓      |         |        |
+| 暗黙スコープ（§7）           | ✓    |      | ✓      |         |        |
+| 応答の冗長化（§7）           | ✓    |      | ✓      |         |        |
+| 過剰検証・スコープ逸脱（§7） | ✓    |      | ✓      |         |        |
+| subagent 委任過剰（§7）      | ✓    |      | ✓      |         |        |
+| 進捗ナレーション過剰（§7）   | ✓    |      | ✓      |         |        |
 
 **Tie-break（複数の決定が当てはまるとき）**: 1 ユニットには verb を 1 つに絞る。
 
@@ -117,4 +125,5 @@
 ## 出典
 
 - humanlayer (Dexter Horthy), "Writing a good CLAUDE.md"
-- Claude 公式 prompting best practices (Opus 4.8 世代): https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
+- Claude 公式 prompting best practices（複数世代共通）: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
+- Claude 公式 Prompting Claude Opus 5: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5

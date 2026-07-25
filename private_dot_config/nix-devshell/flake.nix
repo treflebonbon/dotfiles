@@ -12,9 +12,11 @@
     };
 
     llm-agents = {
-      # Last revision retaining Intel Darwin source maps; its overlay provides the
-      # same validated agent versions on all four systems.
-      url = "github:numtide/llm-agents.nix/533b02e5bc87b70457d32786a7c14b9e6f19a96c";
+      # Pinned past 718f56b955bb (2026-07-21, "Drop x86_64-darwin support") to reach
+      # claude-code 2.1.219 (Claude Opus 5, Issue #112). Upstream no longer tracks a
+      # darwin-x64 hash for claude-code as of that commit; ../packages/claude-code-darwin-x64.nix
+      # restores it locally from Anthropic's own release bucket (see modules/ai.nix).
+      url = "github:numtide/llm-agents.nix/0858b2123f2a5b5f65dfde48573abf076239bed8";
     };
   };
 

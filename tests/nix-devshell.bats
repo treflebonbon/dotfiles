@@ -81,8 +81,18 @@ setup() {
   grep -q 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$flake"
 }
 
-@test "nix-devshell requires Claude Code with isolated worktree fixes" {
-  grep -q 'minClaudeCode = "2\.1\.216";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+@test "nix-devshell requires Claude Code with Opus 5 support (issue #112)" {
+  grep -q 'minClaudeCode = "2\.1\.219";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+}
+
+@test "nix-devshell restores x86_64-darwin claude-code locally after upstream dropped it (issue #112)" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix"
+
+  grep -q 'claudeCodeDarwinX64 = pkgs\.callPackage \.\./packages/claude-code-darwin-x64\.nix { };' "$module"
+  grep -q 'if pkgs\.stdenv\.hostPlatform\.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm\.claude-code;' "$module"
+  test -f "$package"
+  grep -q 'version = "2\.1\.219";' "$package"
 }
 
 @test "nix-devshell requires Codex with GPT 5.6 support" {
