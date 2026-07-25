@@ -35,7 +35,7 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.216` / `0.144.6`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）＋ 多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.219` / `0.144.6`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）＋ 多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
 
 `llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
 
@@ -93,6 +93,8 @@ Codex 0.144.4 は公式 release note が user-facing change なしと明記す�
 2026-07-25 JST、Issue #112（Claude Opus 5 対応）を受けて `llm-agents.nix` を4 platform の source map を保持する commit `533b02e5` から `0858b21` へ更新した。package metadata は `claude-code` 2.1.216 → 2.1.219、`codex` 0.144.6 → 0.145.0、`copilot-cli` 1.0.73 → 1.0.75、`antigravity-cli` 1.1.5 → 1.1.6。Claude Code 2.1.217 は background session isolation が symlink 済み working directory を正規化せずワークスペース脱出を許す不具合を修正し、2.1.219 は Claude Opus 5 (`claude-opus-5`) を追加してデフォルト Opus モデルへ変更したため、`minClaudeCode` を `2.1.219` へ上げた。Codex 0.145.0 は今回の目的（Opus 5 対応）に無関係な追従のみで repo 固有の関連修正を確認していないため、`minCodex` は `0.144.6` のまま変更しない（2026-07-23 の判断を継続）。
 
 この commit 更新（`718f56b955bb`、2026-07-21）で `numtide/llm-agents.nix` が claude-code の x86_64-darwin packaging を打ち切ったことを確認した。Anthropic 本家の配布バケットは darwin-x64 バイナリを 2.1.219 でも配布し続けているため、`private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix` を追加し、x86_64-darwin だけそちらの derivation に差し替えた（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）。`minClaudeCode` を上げるたびに、このファイルの `version` / `hash` も手動更新する保守コストが生じる。
+
+上記 claude-code override のレビューで、`v = llm.claude-code.version or null;` が version チェックの前に `llm.claude-code` へアクセスしてしまい x86_64-darwin では条件分岐前に throw する不具合が指摘され、プラットフォーム選択を先に行う `selected` 経由の構造へ修正した。この検証のため devShell 全体を x86_64-darwin 向けに `drvPath` まで深く評価（`nix eval` の浅い評価は `packages` の中身を強制しないため偽陽性になる）したところ、同じ pin bump（`533b02e` → `0858b21`）で **codex・copilot-cli・antigravity-cli の3パッケージも x86_64-darwin サポートを失っていた**ことが判明した。codex は librusty_v8 の hashes.json から x86_64-darwin ハッシュが欠落（`llm.codex.override { librusty_v8 = ...; }` で補完）、copilot-cli / antigravity-cli は hashes.json / `platforms` 定義自体が x86_64-darwin を含まなくなっていた（`overrideAttrs` で `src` / `meta.platforms` を補完）。3パッケージともいずれも直前の pin では x86_64-darwin 定義を持っており、配布元（denoland / npm registry / Google Cloud Storage）に該当バージョンの darwin-x64 バイナリが実在することを実測 hash 込みで確認済み。詳細は [ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md) に統合した。`nix flake check --all-systems` で4 system 全ての devShell 評価が通ることを確認済み。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
