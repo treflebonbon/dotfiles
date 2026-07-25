@@ -90,6 +90,7 @@ setup() {
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix"
 
   grep -q 'claudeCodeDarwinX64 = pkgs\.callPackage \.\./packages/claude-code-darwin-x64\.nix { };' "$module"
+  grep -q 'selected =' "$module"
   grep -q 'if pkgs\.stdenv\.hostPlatform\.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm\.claude-code;' "$module"
   test -f "$package"
   grep -q 'version = "2\.1\.219";' "$package"
@@ -101,11 +102,21 @@ setup() {
   grep -q 'minCodex = "0\.144\.6";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
-  ! grep -q 'llm\.codex\.override' "$module"
 }
 
-@test "nix-devshell includes Google Antigravity CLI" {
-  grep -q 'llm\.antigravity' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+@test "nix-devshell restores x86_64-darwin codex/copilot-cli/antigravity-cli locally after the same llm-agents pin bump dropped them" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+
+  grep -q 'llm\.codex\.override' "$module"
+  grep -q 'llm\.codex\.mkRustyV8Archive' "$module"
+  grep -q 'copilotCli =' "$module"
+  grep -q 'llm\.copilot-cli\.overrideAttrs' "$module"
+  grep -q 'antigravityCli =' "$module"
+  grep -q 'llm\.antigravity-cli\.overrideAttrs' "$module"
+  grep -q '^    copilotCli$' "$module"
+  grep -q '^    antigravityCli$' "$module"
+  ! grep -q '^    llm\.copilot-cli$' "$module"
+  ! grep -q '^    llm\.antigravity-cli$' "$module"
 }
 
 @test "nix-devshell installs Playwright CLI 0.1.17 with a Nix browser and local skill symlinks" {

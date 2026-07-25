@@ -63,7 +63,13 @@ let
 
   claudeCode =
     let
-      v = llm.claude-code.version or null;
+      # llm.claude-code は x86_64-darwin 上で評価すると "Unsupported system: x86_64-darwin" を
+      # throw する（../packages/claude-code-darwin-x64.nix 参照）。そのため version チェックの前に
+      # プラットフォーム別パッケージを選択する必要がある — 先に llm.claude-code.version を見ると、
+      # 下の条件式で claudeCodeDarwinX64 へフォールバックする前に throw してしまう。
+      selected =
+        if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm.claude-code;
+      v = selected.version or null;
       ok = v != null && lib.versionAtLeast v minClaudeCode;
       msg = ''
         claude-code ${toString v} は最低バージョン ${minClaudeCode} を満たしていません。
@@ -96,11 +102,12 @@ let
           cd ~/.config/nix-devshell
           flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
+        x86_64-darwin の場合: ../packages/claude-code-darwin-x64.nix の version / hash を
+        minClaudeCode に合わせて更新する（hash 再計算手順は同ファイル冒頭のコメント参照）
       '';
     in
     assert lib.assertMsg ok msg;
-    # Falls back to the local x86_64-darwin override; see the minClaudeCode comment above for why.
-    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm.claude-code;
+    selected;
 
   codex =
     let
@@ -122,7 +129,69 @@ let
       '';
     in
     assert lib.assertMsg ok msg;
-    llm.codex;
+    # llm.codex は librusty_v8 (Deno ランタイム) の hashes.json を参照するが、この
+    # flake pin で codex 0.145.0 に上げた際 x86_64-darwin のハッシュが抜け落ちた
+    # （0.144.6 時点では存在していた）。denoland は同じ rusty_v8 149.2.0 の
+    # darwin-x64 バイナリを配布し続けている（実測ハッシュは 0.144.6 時点の値と一致）ため、
+    # ローカルでハッシュを補って override する。この override は codex が実際に要求する
+    # librusty_v8 の version に関係なく 149.2.0 に固定するため、将来 codex 側が新しい
+    # v8 を要求するバージョンへ上がっても、x86_64-darwin だけ気付かず古い v8 のまま
+    # ビルドされ続ける（他 system は versionData.librusty_v8 を素直に追従する）。
+    # minCodex を上げる際は versionData.librusty_v8.version の変化も確認し、
+    # 変わっていたら以下の version も合わせて更新してハッシュを再計算する:
+    #   curl -fsSL https://github.com/denoland/rusty_v8/releases/download/v<version>/librusty_v8_release_x86_64-apple-darwin.a.gz | sha256sum
+    #   nix hash convert --hash-algo sha256 --to sri <hex digest>
+    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
+      llm.codex.override {
+        librusty_v8 = llm.codex.mkRustyV8Archive {
+          version = "149.2.0";
+          hashes.x86_64-darwin = "sha256-eUlAo4o/ZrfvUqXwA8awlPdDrQQKZK+z082frUlADwc=";
+        };
+      }
+    else
+      llm.codex;
+
+  # llm.copilot-cli / llm.antigravity-cli も codex と同じ flake pin (533b02e → 0858b21)
+  # で x86_64-darwin のハッシュ・platforms 定義が抜け落ちた（両方とも直前の pin までは
+  # 存在していた）。配布元（npm registry / Google Cloud Storage）は該当バージョンの
+  # darwin-x64 バイナリを配布し続けている（実測ハッシュを下記で直接検証済み）ため、
+  # ローカルで src と meta.platforms を補って override する。
+  copilotCli =
+    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
+      llm.copilot-cli.overrideAttrs (old: {
+        # バージョン更新時はハッシュを再計算する:
+        #   curl -fsSL https://registry.npmjs.org/@github/copilot-darwin-x64/-/copilot-darwin-x64-<version>.tgz | sha256sum
+        #   nix hash convert --hash-algo sha256 --to sri <hex digest>
+        src = pkgs.fetchurl {
+          url = "https://registry.npmjs.org/@github/copilot-darwin-x64/-/copilot-darwin-x64-${old.version}.tgz";
+          hash = "sha256-x+X//TpOjUgSqGvqfU1wPakG3W58+EV/I9Nfj8Bzxgc=";
+        };
+        meta = old.meta // {
+          platforms = old.meta.platforms ++ [ "x86_64-darwin" ];
+        };
+      })
+    else
+      llm.copilot-cli;
+
+  antigravityCli =
+    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
+      llm.antigravity-cli.overrideAttrs (old: {
+        # antigravity-public の URL は version 文字列に紐づかない内部ビルド ID
+        # （下記は 1.1.6 用の 6535449645285376）を含むため、バージョン更新時は
+        # aarch64-darwin 用 URL（hashes.json の urls.aarch64-darwin）から同じ
+        # ビルド ID を読み取って darwin-x64 に置き換え、ハッシュを再計算する:
+        #   curl -fsSL <同ビルドIDの darwin-x64 URL> | sha512sum
+        #   nix hash convert --hash-algo sha512 --to sri <hex digest>
+        src = pkgs.fetchurl {
+          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6535449645285376/darwin-x64/cli_mac_x64.tar.gz";
+          hash = "sha512-6LCMqGzQBWMEFYhAlTvoOgUnslu/2qQ2p8XvHRGTREuYj2OhiH2/RwmFDSBpaTvwfBT+3GByaqDeE4y25uX57w==";
+        };
+        meta = old.meta // {
+          platforms = old.meta.platforms ++ [ "x86_64-darwin" ];
+        };
+      })
+    else
+      llm.antigravity-cli;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
@@ -140,8 +209,8 @@ in
   ]
   ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.bubblewrap ]
   ++ [
-    llm.copilot-cli
-    llm.antigravity-cli
+    copilotCli
+    antigravityCli
 
     # --- Token Optimization ---
     llm.rtk

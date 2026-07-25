@@ -1,13 +1,23 @@
 ---
 type: decision
-title: claude-code の x86_64-darwin を local override で復旧する
-description: numtide/llm-agents.nix が claude-code の darwin-x64 packaging を打ち切った後も、Anthropic 本家の配布バイナリを直接参照する自前パッケージで Intel Mac サポートを継続する
-tags: [adr, nix, claude-code, darwin, llm-agents]
+title: AI エージェント CLI の x86_64-darwin を local override で復旧する
+description: numtide/llm-agents.nix が claude-code / codex / copilot-cli / antigravity-cli の darwin-x64 packaging を打ち切った後も、各配布元本家のバイナリを直接参照する override で Intel Mac サポートを継続する
+tags:
+  [
+    adr,
+    nix,
+    claude-code,
+    codex,
+    copilot-cli,
+    antigravity-cli,
+    darwin,
+    llm-agents,
+  ]
 timestamp: 2026-07-25
 status: accepted
 ---
 
-# claude-code の x86_64-darwin を local override で復旧する
+# AI エージェント CLI の x86_64-darwin を local override で復旧する
 
 ## Context
 
@@ -15,8 +25,14 @@ Issue #112（Claude Opus 5 対応）で `minClaudeCode` を 2.1.219 へ床上げ
 
 `flake.nix` は元々 `nixpkgs-26.05-darwin`（Intel Darwin サポート終了は 2026-12-31）を pin し、`allowBroken = system == "x86_64-darwin"` などの互換対応も維持しており、この repo は Intel Mac を積極的にサポートする方針を既に持っている。一方、Anthropic 本家の配布バケット（`storage.googleapis.com/claude-code-dist-...`）を直接検証したところ、2.1.219 時点でも `darwin-x64` バイナリは配布されている（HTTP 200、hash 実測済み）。つまり今回の断絶は upstream nix packaging 側の追跡停止であり、Anthropic 自体の Intel Mac 打ち切りではない。
 
+claude-code の修正パッチを適用したレビューで、`v = llm.claude-code.version or null;` が version チェックの前に `llm.claude-code` へアクセスしてしまい、x86_64-darwin では条件分岐に到達する前に throw することが指摘された。この検証の過程で devShell 全体を x86_64-darwin 向けに深く評価（`drvPath` まで強制評価）したところ、同じ pin bump（`533b02e` → `0858b21`）で **codex・copilot-cli・antigravity-cli の3パッケージも同様に x86_64-darwin サポートを失っていた**ことが判明した。いずれも直前の pin では x86_64-darwin 向けの hash / URL / `platforms` 定義が存在しており、配布元（denoland の rusty_v8 バイナリ、npm registry の `@github/copilot-darwin-x64`、Google Cloud Storage の antigravity-cli darwin-x64 tarball）を実際にダウンロードして hash を実測した結果、いずれも該当バージョンのバイナリが今も配布されていることを確認した。つまり4パッケージとも同一原因（llm-agents.nix 側の packaging 追跡漏れ）であり、配布元自体の Intel Mac 打ち切りではない。
+
 ## Decision
 
-`private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix` に、Anthropic の配布 URL を直接参照する自前の `stdenv.mkDerivation` を追加し、`modules/ai.nix` の `claudeCode` を `pkgs.stdenv.hostPlatform.system == "x86_64-darwin"` のときだけこちらへ差し替える。`llm.claude-code` は他の3 system ではそのまま使う。
+各パッケージを `pkgs.stdenv.hostPlatform.system == "x86_64-darwin"` のときだけ次の override へ差し替える。他の3 system では `llm.*` をそのまま使う。
 
-トレードオフとして、今後 `minClaudeCode` を上げるたびに、このファイルの `version` / `hash` を手動更新する保守コストをこの repo 側が負う（更新手順はファイル内コメントに記載）。numtide 側が packaging を再開すれば、このファイルは削除して `llm.claude-code` に戻せる。
+- **claude-code**: `private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix` に Anthropic の配布 URL を直接参照する自前の `stdenv.mkDerivation` を追加。`claudeCode` の let 内で version チェックの前にプラットフォーム選択を行う（`selected` 経由）ことで、`llm.claude-code` への属性アクセス自体が throw する問題を回避する。
+- **codex**: `llm.codex.override { librusty_v8 = llm.codex.mkRustyV8Archive { ... }; }` で、欠落した rusty_v8 の x86_64-darwin ハッシュだけをローカルで補う。codex 本体の再パッケージは不要。
+- **copilot-cli** / **antigravity-cli**: `llm.copilot-cli.overrideAttrs` / `llm.antigravity-cli.overrideAttrs` で `src`（darwin-x64 バイナリの `fetchurl`）と `meta.platforms` を直接差し替える。両パッケージとも `hashes.json` やその他の内部データが `callPackage` の引数として公開されていないため、`override` ではなく `overrideAttrs` を使う。
+
+トレードオフとして、今後 `minClaudeCode` / `minCodex` を上げたり antigravity-cli / copilot-cli のバージョンが上がるたびに、該当する override の `version` / `hash` / URL を手動更新する保守コストをこの repo 側が負う（更新手順は `modules/ai.nix` の各コメントおよび `claude-code-darwin-x64.nix` 冒頭コメントに記載）。numtide 側が packaging を再開すれば、該当する override を削除して `llm.*` に戻せる。
