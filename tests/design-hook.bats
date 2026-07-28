@@ -15,6 +15,9 @@ setup() {
   # overused-font sits outside the immediate tier, so the per-edit pass defers it
   # and only the Stop deep pass surfaces it.
   DEFERRED_CSS='.card { font-family: Inter, sans-serif; }'
+  # One declaration block carrying both tiers, composed from the two above so a
+  # future pin's tier reshuffle is still a one-line edit up here.
+  BOTH_TIERS_CSS="${IMMEDIATE_CSS%\}} font-family: Inter, sans-serif; }"
 }
 
 require_runtime() {
@@ -113,7 +116,7 @@ run_stop_hook() {
   # failing because both later Stops fall silent, upstream fixed the eviction:
   # replace this test with a plain "surfaces once" assertion.
   local file="$PROJECT/Card.css"
-  printf '.card { background: linear-gradient(90deg, #a855f7, #ec4899); -webkit-background-clip: text; color: transparent; font-family: Inter, sans-serif; }\n' >"$file"
+  printf '%s\n' "$BOTH_TIERS_CSS" >"$file"
 
   run run_hook "both-tiers" "$file"
   [ "$status" -eq 0 ]
@@ -128,7 +131,7 @@ run_stop_hook() {
   [[ "$output" == *'[gradient-text]'* ]]
 
   # Fixing the immediate-tier finding leaves one tier, and the pass converges.
-  printf '.card { color: #111827; font-family: Inter, sans-serif; }\n' >"$file"
+  printf '%s\n' "$DEFERRED_CSS" >"$file"
   run run_hook "both-tiers" "$file"
   [ "$status" -eq 0 ]
 

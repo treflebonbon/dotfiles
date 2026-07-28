@@ -117,4 +117,29 @@ user-global である。全 repo に config を撒くことになるので採ら
 - `.impeccable/hook.cache.json` が今より多くの repo に作られる。git は `.git/info/exclude` で保護されるが、
   ディスク上には残る
 
+## 補足（2026-07-28、Issue #119 の実装時）
+
+実際に配線して実機確認したところ、判定時には見えていなかった事実が 2 つ出た。
+
+**1. deep pass は「1 度だけ」ではない。** 1 つのファイルが immediate と deferred の両方の finding を
+持つ間、`Stop` はターン終端ごとに 2 つを**交互に**報告し続ける。`rememberFindings()` が記憶済みキーを
+置換する実装である一方 `runStopHook` は fresh 分しか渡さないため、deferred を報告した時点で per-edit が
+覚えていた immediate 側が追い出され、次の `Stop` で再び新規に見える。immediate 側を直せば層が 1 つに
+なり収束する。上流のコード内コメント（"the next Stop fire is silent unless new issues appear"）とは逆の
+挙動なので、上流側の不具合と判断した。
+
+これを受けて **`tests/design-hook.bats` は上流の意図ではなく実挙動のほうを固定する**と決めた。意図を
+書くとテストが「あるべき姿の願望」になり実際には落ちないが、実挙動を固定しておけば上流が eviction を
+直した回にテストが落ちて気づける。テストにはその旨と直ったときの置き換え方をコメントで残す。この不具合を
+理由に pin を戻すことはしない — 配線しなければ deferred 層が丸ごと届かないので、交互報告のほうが軽い。
+
+**2. Codex の hook trust は entry 単位。** 上の Consequences では「`/hooks` 承認が要る可能性がある」と
+書いたが、実機で確定した。`config.toml` の `[hooks.state]` に `"<hooks.json path>:<event>:<idx>:<idx>"` を
+キーとした `trusted_hash` が積まれ、未登録の entry は "New hook - review required" になる。`hooks.json` に
+event を足した回は Codex 側で一度承認するまでその hook は走らない。なお `Stop` は codex-cli 0.145.0 が
+native に持つイベントで（`codex_hooks::schema::StopCommandOutputWire` が存在）、上流 impeccable 自身の
+`.codex/hooks.json` も同じ形で `Stop` を出している。上流 README は hook を project-local に置く手順を
+案内しているが、当 repo の user-global 配線も実際に読まれている（`~/.codex/config.toml` の
+`[hooks.state]` に `"/home/ubuntu/.codex/hooks.json:post_tool_use:0:0"` の trust が積まれている）。
+
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

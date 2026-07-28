@@ -165,7 +165,8 @@ assert data["hooks"]["PostToolUse"] == [
         "hooks": [{"type": "command", "command": command, "timeout": 5}],
     }
 ]
-# See the Codex assertion above for why Stop has no matcher and a 30s budget.
+# Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
+# budget of 30s instead of the per-edit 5s.
 assert data["hooks"]["Stop"] == [
     {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
 ]
