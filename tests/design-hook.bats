@@ -26,7 +26,7 @@ require_runtime() {
   fi
 }
 
-run_hook() {
+run_post_tool_use_hook() {
   local session_id="$1"
   local file_path="$2"
   local tool_name="${3:-Write}"
@@ -50,7 +50,7 @@ run_stop_hook() {
   local file="$PROJECT/Card.css"
   printf '%s\n' "$IMMEDIATE_CSS" >"$file"
 
-  run run_hook "immediate" "$file"
+  run run_post_tool_use_hook "immediate" "$file"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'"hookEventName":"PostToolUse"'* ]]
@@ -73,7 +73,7 @@ run_stop_hook() {
 
   local file
   for file in "$clean" "$non_ui" "$sensitive" "$generated"; do
-    run run_hook "silent-$(basename "$file")" "$file"
+    run run_post_tool_use_hook "silent-$(basename "$file")" "$file"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
   done
@@ -85,7 +85,7 @@ run_stop_hook() {
   printf '%s\n' "$DEFERRED_CSS" >"$file"
 
   # The per-edit pass carries only the immediate tier, so this edit says nothing.
-  run run_hook "deferred" "$file"
+  run run_post_tool_use_hook "deferred" "$file"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 
@@ -104,35 +104,41 @@ run_stop_hook() {
 
 @test "materialized quiet Design Hook Stop pass alternates on a file with findings in both tiers (known upstream defect)" {
   require_runtime
-  # rememberFindings() REPLACES a file's remembered finding keys, and the Stop
-  # pass hands it only the fresh subset. So a Stop that reports the deferred
-  # finding evicts the immediate one the per-edit pass had remembered, which then
-  # reads as fresh on the next Stop, and so on: the two alternate on every turn
-  # end for as long as both remain unfixed. Upstream intends the opposite ("the
-  # next Stop fire is silent unless new issues appear" — hook-lib.mjs).
+  # rememberFindings() replaces a file's remembered finding keys and says so:
+  # "Callers must pass the complete current finding set, not just the fresh
+  # ones." runStopHook() passes only `fresh`, breaking that contract. So a Stop
+  # that reports the deferred finding evicts the immediate one the per-edit pass
+  # had remembered, which then reads as fresh on the next Stop, and so on: the
+  # two alternate on every turn end for as long as both remain unfixed. Upstream
+  # intends the opposite ("the next Stop fire is silent unless new issues
+  # appear" — hook-lib.mjs).
   #
   # This test pins the defect rather than the intent, so the suite tells us when
-  # a future pin fixes it instead of quietly passing either way. If it starts
-  # failing because both later Stops fall silent, upstream fixed the eviction:
-  # replace this test with a plain "surfaces once" assertion.
+  # a future pin fixes it instead of quietly passing either way. Each step
+  # asserts the other tier is ABSENT too, so a regression that reports both
+  # findings on every fire cannot slip through. When upstream fixes the
+  # eviction this test fails; replace it with a plain "surfaces once" assertion.
   local file="$PROJECT/Card.css"
   printf '%s\n' "$BOTH_TIERS_CSS" >"$file"
 
-  run run_hook "both-tiers" "$file"
+  run run_post_tool_use_hook "both-tiers" "$file"
   [ "$status" -eq 0 ]
   [[ "$output" == *'[gradient-text]'* ]]
+  [[ "$output" != *'[overused-font]'* ]]
 
   run run_stop_hook "both-tiers"
   [ "$status" -eq 0 ]
   [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" != *'[gradient-text]'* ]]
 
   run run_stop_hook "both-tiers"
   [ "$status" -eq 0 ]
   [[ "$output" == *'[gradient-text]'* ]]
+  [[ "$output" != *'[overused-font]'* ]]
 
   # Fixing the immediate-tier finding leaves one tier, and the pass converges.
   printf '%s\n' "$DEFERRED_CSS" >"$file"
-  run run_hook "both-tiers" "$file"
+  run run_post_tool_use_hook "both-tiers" "$file"
   [ "$status" -eq 0 ]
 
   run run_stop_hook "both-tiers"
@@ -153,7 +159,7 @@ run_stop_hook() {
 
   local file="$PROJECT/Card.css"
   printf '%s\n' "$DEFERRED_CSS" >"$file"
-  run run_hook "reentry" "$file"
+  run run_post_tool_use_hook "reentry" "$file"
   [ "$status" -eq 0 ]
 
   # stop_hook_active marks a Stop that fired only because a previous one kept the
@@ -168,23 +174,23 @@ run_stop_hook() {
   local file="$PROJECT/Card.css"
   printf '%s\n' "$IMMEDIATE_CSS" >"$file"
 
-  run run_hook "dedupe" "$file"
+  run run_post_tool_use_hook "dedupe" "$file"
   [ "$status" -eq 0 ]
   [[ "$output" == *'[gradient-text]'* ]]
 
-  run run_hook "dedupe" "$file"
+  run run_post_tool_use_hook "dedupe" "$file"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 
   local edit
   for edit in 3 4 5 6; do
-    run run_hook "dedupe" "$file"
+    run run_post_tool_use_hook "dedupe" "$file"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
   done
 
   printf '%s\n' "$IMMEDIATE_CSS_ALT" >"$file"
-  run run_hook "dedupe" "$file"
+  run run_post_tool_use_hook "dedupe" "$file"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
