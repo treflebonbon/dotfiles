@@ -11,7 +11,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 ## apm 管理の外部 skill
 
-`apm.yml` / `apm.lock.yaml` が外部 skill を `~/.claude/skills/` へ展開する。`apm lock` で lockfile を再生成、`apm install --frozen` が `run_onchange_after_apm-install.sh.tmpl` から冪等に走る。
+`apm.yml` / `apm.lock.yaml` が外部 skill を `~/.claude/skills/` へ展開する。lockfile の再生成は下記「apm lock は runtime layout を再現した隔離ディレクトリで再生成する」の手順に従う（`apm lock` 単体では不十分）。配備は `apm install --frozen` が `run_onchange_after_apm-install.sh.tmpl` から冪等に走る。
 
 **mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。上流 v1.1.0 の promoted セット（User-invoked / Model-invoked の公式分類）に整合させて導入している。
 

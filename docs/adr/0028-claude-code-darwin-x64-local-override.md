@@ -35,4 +35,15 @@ claude-code の修正パッチを適用したレビューで、`v = llm.claude-c
 - **codex**: `llm.codex.override { librusty_v8 = llm.codex.mkRustyV8Archive { ... }; }` で、欠落した rusty_v8 の x86_64-darwin ハッシュだけをローカルで補う。codex 本体の再パッケージは不要。
 - **copilot-cli** / **antigravity-cli**: `llm.copilot-cli.overrideAttrs` / `llm.antigravity-cli.overrideAttrs` で `src`（darwin-x64 バイナリの `fetchurl`）と `meta.platforms` を直接差し替える。両パッケージとも `hashes.json` やその他の内部データが `callPackage` の引数として公開されていないため、`override` ではなく `overrideAttrs` を使う。
 
-トレードオフとして、今後 `minClaudeCode` / `minCodex` を上げたり antigravity-cli / copilot-cli のバージョンが上がるたびに、該当する override の `version` / `hash` / URL を手動更新する保守コストをこの repo 側が負う（更新手順は `modules/ai.nix` の各コメントおよび `claude-code-darwin-x64.nix` 冒頭コメントに記載）。numtide 側が packaging を再開すれば、該当する override を削除して `llm.*` に戻せる。
+トレードオフとして、flake pin 上でこれら4パッケージのいずれかの version が動くたびに、該当する override の `version` / `hash` / URL を手動更新する保守コストをこの repo 側が負う（更新手順は `modules/ai.nix` の各コメントおよび `claude-code-darwin-x64.nix` 冒頭コメントに記載）。numtide 側が packaging を再開すれば、該当する override を削除して `llm.*` に戻せる。
+
+## 補足（2026-07-28）
+
+初版はこの保守コストの発生条件を「`minClaudeCode` / `minCodex` を上げるたび」と書いていたが、これは誤りだった。床は根拠のある release でしか上げない運用のため、**床を据え置いたまま pin だけ進む回**がある。その回に override を放置すると次の2通りに壊れる。
+
+- **claude-code**: `claude-code-darwin-x64.nix` は `version` をハードコードしており、`llm.claude-code` とは独立に固定される。pin が claude-code を上げても x86_64-darwin だけ旧版のまま残り、assert は満たされてしまうため**黙って**プラットフォーム間の version skew が生じる。
+- **antigravity-cli**: override の `src` は `old.version` を埋め込む一方で URL 内の内部ビルド ID はハードコードのため、pin が version を上げると存在しない組み合わせの URL になり x86_64-darwin だけ fetch に失敗する。評価は通るのでビルドまで進まないと気付けない。
+
+したがって override を見直す条件は床の変化ではなく「flake pin 上の当該パッケージの version が動いたとき」である。実例として 2026-07-28 の pin 更新（`0858b21` → `64b24c81`）では床を据え置いたまま claude-code 2.1.219 → 2.1.220、antigravity-cli 1.1.6 → 1.1.8 が動き、override 2 件の更新が必要になった（codex / copilot-cli は version 据え置きのため不要）。`flake.nix` / `modules/ai.nix` / `claude-code-darwin-x64.nix` のコメントもこの条件へ揃えた。
+
+この誤りは、x86_64-darwin を実ビルドできない環境では検出が難しい。`nix flake check --all-systems` に加えて devShell を `drvPath` まで強制評価し、生成された derivation が参照するパッケージの version を直接確認することで skew を検出できる。

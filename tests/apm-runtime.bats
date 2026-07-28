@@ -31,7 +31,7 @@ setup() {
 @test "APM pins the Matt Pocock workflow to one validated revision with Codex metadata" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local revision="9603c1cc8118d08bc1b3bf34cf714f62178dea3b"
+  local revision="ed37663cc5fbef691ddfecd080dff42f7e7e350d"
 
   [ "$(grep -Fc "mattpocock/skills/skills/" "$manifest")" -eq 20 ]
   [ "$(grep -Fc "#$revision" "$manifest")" -eq 20 ]

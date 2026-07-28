@@ -93,7 +93,11 @@ setup() {
   grep -q 'selected =' "$module"
   grep -q 'if pkgs\.stdenv\.hostPlatform\.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm\.claude-code;' "$module"
   test -f "$package"
-  grep -q 'version = "2\.1\.219";' "$package"
+  # この version は minClaudeCode ではなく flake pin 上の claude-code に追従する。
+  # 床は根拠のある release でしか上げないため、床据え置きのまま pin だけ進む回があり、
+  # そこで両者はずれる。床に合わせると x86_64-darwin だけ旧版で取り残されたまま
+  # assert が通ってしまう（ADR-0028 の補足を参照）。
+  grep -q 'version = "2\.1\.220";' "$package"
 }
 
 @test "nix-devshell requires Codex with GPT 5.6 support" {
