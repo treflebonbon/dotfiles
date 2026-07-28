@@ -53,10 +53,17 @@ let
   #          直結するため床上げ対象に含める。
   # 2.1.219: Claude Opus 5 (`claude-opus-5`) を追加しデフォルト Opus モデルに変更（Issue #112）。
   #          これを新フロアに据える。
+  # 2.1.220: release note が "Bug fixes and reliability improvements" の一行のみで、床の根拠に
+  #          できる具体記述がない。pin では追従するが床は 2.1.219 のまま据え置く（2.1.201 /
+  #          codex 0.144.4 と同じ扱い）。
   # 注意: llm-agents pin を 2.1.219 相当まで進めると、upstream (numtide/llm-agents.nix の
   #       718f56b955bb, 2026-07-21) が x86_64-darwin の claude-code packaging を取りやめている。
   #       Anthropic 本体は darwin-x64 バイナリを配布し続けているため、../packages/claude-code-darwin-x64.nix
   #       で hash を自前管理し x86_64-darwin だけそちらへ差し替える（下記 claudeCode 参照）。
+  # 注意: この床は x86_64-darwin override の更新トリガーではない。床は根拠のある release でしか
+  #       上げないため、床を据え置いたまま pin だけ進む回がある。その回に override を放置すると
+  #       x86_64-darwin だけ旧版のまま残り、assert は通ってしまう。override を見直す条件は
+  #       「flake pin 上の当該パッケージの version が動いたとき」。
   # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
   minClaudeCode = "2.1.219";
   minCodex = "0.144.6";
@@ -137,7 +144,9 @@ let
     # librusty_v8 の version に関係なく 149.2.0 に固定するため、将来 codex 側が新しい
     # v8 を要求するバージョンへ上がっても、x86_64-darwin だけ気付かず古い v8 のまま
     # ビルドされ続ける（他 system は versionData.librusty_v8 を素直に追従する）。
-    # minCodex を上げる際は versionData.librusty_v8.version の変化も確認し、
+    # 確認のトリガーは minCodex の床上げではなく flake pin 上の codex version の変化。
+    # 床は根拠のある release でしか上げないため、床据え置きのまま pin だけ進む回がある。
+    # pin が codex を動かしたら versionData.librusty_v8.version の変化も確認し、
     # 変わっていたら以下の version も合わせて更新してハッシュを再計算する:
     #   curl -fsSL https://github.com/denoland/rusty_v8/releases/download/v<version>/librusty_v8_release_x86_64-apple-darwin.a.gz | sha256sum
     #   nix hash convert --hash-algo sha256 --to sri <hex digest>
@@ -177,14 +186,17 @@ let
     if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
       llm.antigravity-cli.overrideAttrs (old: {
         # antigravity-public の URL は version 文字列に紐づかない内部ビルド ID
-        # （下記は 1.1.6 用の 6535449645285376）を含むため、バージョン更新時は
+        # （下記は 1.1.8 用の 5636713813508096）を含むため、バージョン更新時は
         # aarch64-darwin 用 URL（hashes.json の urls.aarch64-darwin）から同じ
         # ビルド ID を読み取って darwin-x64 に置き換え、ハッシュを再計算する:
         #   curl -fsSL <同ビルドIDの darwin-x64 URL> | sha512sum
         #   nix hash convert --hash-algo sha512 --to sri <hex digest>
+        # `src` は old.version を埋め込む一方でビルド ID は固定なので、pin が
+        # antigravity-cli を上げたのにここを直し忘れると URL が存在しない組み合わせになり
+        # x86_64-darwin だけ fetch に失敗する。pin 更新時は必ずこの 2 値を確認する。
         src = pkgs.fetchurl {
-          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6535449645285376/darwin-x64/cli_mac_x64.tar.gz";
-          hash = "sha512-6LCMqGzQBWMEFYhAlTvoOgUnslu/2qQ2p8XvHRGTREuYj2OhiH2/RwmFDSBpaTvwfBT+3GByaqDeE4y25uX57w==";
+          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-5636713813508096/darwin-x64/cli_mac_x64.tar.gz";
+          hash = "sha512-RDGnkAcQbryne6bQ8Qk0UHhVTQ5Er2m9aXa93xbS5NaXSsiJROXxCb4m3GAvL4DdAPWJcAvJ2hdToHYnQi82xw==";
         };
         meta = old.meta // {
           platforms = old.meta.platforms ++ [ "x86_64-darwin" ];

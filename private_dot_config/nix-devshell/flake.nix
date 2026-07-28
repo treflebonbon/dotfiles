@@ -12,11 +12,13 @@
     };
 
     llm-agents = {
-      # Pinned past 718f56b955bb (2026-07-21, "Drop x86_64-darwin support") to reach
-      # claude-code 2.1.219 (Claude Opus 5, Issue #112). Upstream no longer tracks a
-      # darwin-x64 hash for claude-code as of that commit; ../packages/claude-code-darwin-x64.nix
-      # restores it locally from Anthropic's own release bucket (see modules/ai.nix).
-      url = "github:numtide/llm-agents.nix/0858b2123f2a5b5f65dfde48573abf076239bed8";
+      # Pinned past 718f56b955bb (2026-07-21, "Drop x86_64-darwin support"), which is
+      # where upstream stopped tracking darwin-x64 hashes for claude-code, copilot-cli
+      # and antigravity-cli. ../packages/claude-code-darwin-x64.nix and the overrides in
+      # modules/ai.nix restore x86_64-darwin locally from each vendor's own bucket.
+      # Bumping this rev can change any of those versions, so re-check those overrides
+      # whenever it moves — not only when minClaudeCode / minCodex move.
+      url = "github:numtide/llm-agents.nix/64b24c814a1fcc70bb7ee3fdbe58ad0fe0783788";
     };
   };
 
