@@ -128,7 +128,7 @@ command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 
 # invalid there and gets silently discarded, so deferred findings never reach the
 # agent. Stop pipes the runtime's stdout through a small transform that extracts
 # additionalContext and re-emits it as {"decision":"block","reason":...} instead.
-stop_command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; [ -n \"$output\" ] || exit 0; printf %s \"$output\" | node -e \"let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{const p=JSON.parse(s);const r=p&&p.hookSpecificOutput&&p.hookSpecificOutput.additionalContext;if(r)process.stdout.write(JSON.stringify({decision:'block',reason:r}))}catch(e){}})\""
+stop_command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; [ -n \"$output\" ] || exit 0; printf %s \"$output\" | node -e \"let input='';process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{try{const payload=JSON.parse(input);const additionalContext=payload&&payload.hookSpecificOutput&&payload.hookSpecificOutput.additionalContext;if(additionalContext)process.stdout.write(JSON.stringify({decision:'block',reason:additionalContext}))}catch{}})\""
 
 # Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
 # budget of 30s instead of the per-edit 5s: it rescans every UI file touched in the
