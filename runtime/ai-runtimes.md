@@ -41,6 +41,8 @@ baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固�
 
 APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物**を source へ入れる（手順の正は [skill-harness](skill-harness.md)）。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
 
+**`pbakaus/impeccable` の pin を動かすときは hook 配線とセットで見る**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。この skill は同梱 runtime を Claude の user-global `PostToolUse` と Codex の managed `hooks.json` から自動実行するため、pin 前進は「どのルールがどのイベントで出るか」を変え得る。上流は per-edit を immediate tier に絞り残りを `Stop` の deep pass へ移したので、`PostToolUse` だけの配線で pin を進めると壊れずに検出範囲だけが静かに狭まる。判定材料は隔離 HOME で取れる。`IMPECCABLE_HOOK_RUNTIME=<新 runtime> bats tests/design-hook.bats` は、いま repo が持っている契約を新 runtime へ当てるプローブであって、**pass を期待するものではない** — 落ちた assertion が「その pin で per-edit から消えたルール」を名指しするので、fail はレシピの不具合ではなく判定結果そのものである（4d849eb7 → 1cf7d7ab では `overused-font` が immediate tier 外へ移り 4 件中 2 件が落ちた）。テストを新 runtime 側の契約に合わせて書き換える前にこれを撮る。
+
 `llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
 
 2026-07-08、v2.1.204 の release note（`SessionStart` hook がヘッドレスセッションでイベントをストリーミングせず、リモートワーカーが hook 実行中に idle-reap してしまう不具合の修正）をきっかけに `nix flake update llm-agents` を実施し、claude-code 2.1.201 → 2.1.204 が追従（他の消費パッケージは変化なし）。今回は 2.1.201 のときと異なり、2.1.202-2.1.204 の変更点を確認した結果、この repo の床根拠（多 agent ワークフロー・worktree 隔離の信頼性）に直撃する修正が複数見つかったため、フロアを `2.1.200` → `2.1.204` へ引き上げた:
@@ -108,9 +110,11 @@ upstream は依然 claude-code / copilot-cli / antigravity-cli の x86_64-darwin
 
 検証は `nix flake check --all-systems`（4 system 通過）、4 system の devShell を `drvPath` まで強制評価、x86_64-darwin の derivation が claude-code 2.1.220 / antigravity-cli 1.1.8 を参照することの確認（skew なし）、現 host（x86_64-linux）の devShell 実ビルドと CLI 実測（claude 2.1.220 / codex 0.145.0 / copilot 1.0.75 / agy 1.1.8 / rtk 0.44.0 / apm 0.26.0）まで。x86_64-darwin は Linux ホストから実ビルドできないため、評価と配布物 hash の実測までで実機動作は未確認。
 
-APM 経路は unpinned な skill を最新へ解決し直し、`mattpocock/skills` の pin を `9603c1cc` から `ed37663c` へ進めた（差分は `to-tickets` から「ticket ごとに context を空けて1件ずつ進めよ」の1文が消えただけで、ADR-0019 / ADR-0022 のローカル方針と方向が一致する）。`pbakaus/impeccable` は `4d849eb7` のまま据え置いた — `1cf7d7ab` までに 250 commits あり同梱 hook runtime が全面改稿されているため、Claude の user-global `PostToolUse` と Codex の managed `hooks.json` から自動実行される中身への影響判定を別作業へ切り出した。`resolved_commit` は 37 エントリ中 34 が前進し、実体変更は6 skill（modern-web-guidance の Release v0.0.178、remotion-best-practices のテンプレート同期、react-view-transitions、shadcn の Base UI / Radix 出し分け、effect-ts の参照先訂正、to-tickets）で、いずれも dotfiles 側の設定変更は不要だった。
+APM 経路は unpinned な skill を最新へ解決し直し、`mattpocock/skills` の pin を `9603c1cc` から `ed37663c` へ進めた（差分は `to-tickets` から「ticket ごとに context を空けて1件ずつ進めよ」の1文が消えただけで、ADR-0019 / ADR-0022 のローカル方針と方向が一致する）。`pbakaus/impeccable` は `4d849eb7` のまま据え置いた — `1cf7d7ab` までに 324 commits（APM が取得する `.agents/skills/impeccable/` subtree に限れば 74 commits / 88 files。当初「250 commits」と記録していたが測り直した結果 324 が正）あり同梱 hook runtime が全面改稿されているため、Claude の user-global `PostToolUse` と Codex の managed `hooks.json` から自動実行される中身への影響判定を Issue #117 へ切り出した。`resolved_commit` は 37 エントリ中 34 が前進し、実体変更は6 skill（modern-web-guidance の Release v0.0.178、remotion-best-practices のテンプレート同期、react-view-transitions、shadcn の Base UI / Radix 出し分け、effect-ts の参照先訂正、to-tickets）で、いずれも dotfiles 側の設定変更は不要だった。
 
 orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は apm.yml から消えたパッケージのみを対象とするが、パッケージ内で上流が削除・移動したファイルは `apm install --frozen` 自身が処理する（`modern-web-guidance/guides/ui-components/` はディレクトリごと、`built-in-ai/prompt-api.md` も除去された）。clean install と旧状態からの増分 install が同一の lock を生成することも確認した。
+
+切り出した impeccable の判定（Issue #117）も同日に済ませた。結論は **pin を `1cf7d7ab` へ進める、ただし `Stop` 配線とセットで**。判定の根拠・隔離 HOME での実測値・代替案の却下理由は [ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md) にあり、実作業は Issue #119 へ起票した。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
