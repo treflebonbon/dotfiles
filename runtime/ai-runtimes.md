@@ -37,6 +37,10 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.219` / `0.144.6`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）＋ 多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
 
+**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。そのため床据え置きのまま pin だけ進む回があり、x86_64-darwin の local override（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）を見直す条件は床の変化ではなく **pin 上の当該パッケージの version の変化**である。
+
+APM 経路の lockfile は `apm lock` ではなく **`apm install --frozen` の生成物**を source へ入れる。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
+
 `llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
 
 2026-07-08、v2.1.204 の release note（`SessionStart` hook がヘッドレスセッションでイベントをストリーミングせず、リモートワーカーが hook 実行中に idle-reap してしまう不具合の修正）をきっかけに `nix flake update llm-agents` を実施し、claude-code 2.1.201 → 2.1.204 が追従（他の消費パッケージは変化なし）。今回は 2.1.201 のときと異なり、2.1.202-2.1.204 の変更点を確認した結果、この repo の床根拠（多 agent ワークフロー・worktree 隔離の信頼性）に直撃する修正が複数見つかったため、フロアを `2.1.200` → `2.1.204` へ引き上げた:
@@ -96,6 +100,18 @@ Codex 0.144.4 は公式 release note が user-facing change なしと明記す�
 
 上記 claude-code override のレビューで、`v = llm.claude-code.version or null;` が version チェックの前に `llm.claude-code` へアクセスしてしまい x86_64-darwin では条件分岐前に throw する不具合が指摘され、プラットフォーム選択を先に行う `selected` 経由の構造へ修正した。この検証のため devShell 全体を x86_64-darwin 向けに `drvPath` まで深く評価（`nix eval` の浅い評価は `packages` の中身を強制しないため偽陽性になる）したところ、同じ pin bump（`533b02e` → `0858b21`）で **codex・copilot-cli・antigravity-cli の3パッケージも x86_64-darwin サポートを失っていた**ことが判明した。codex は librusty_v8 の hashes.json から x86_64-darwin ハッシュが欠落（`llm.codex.override { librusty_v8 = ...; }` で補完）、copilot-cli / antigravity-cli は hashes.json / `platforms` 定義自体が x86_64-darwin を含まなくなっていた（`overrideAttrs` で `src` / `meta.platforms` を補完）。3パッケージともいずれも直前の pin では x86_64-darwin 定義を持っており、配布元（denoland / npm registry / Google Cloud Storage）に該当バージョンの darwin-x64 バイナリが実在することを実測 hash 込みで確認済み。詳細は [ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md) に統合した。`nix flake check --all-systems` で4 system 全ての devShell 評価が通ることを確認済み。
 
+2026-07-28 JST、定期メンテとして両経路の drift を解消した。特定機能の獲得は狙っていない。
+
+nix devshell 経路は `llm-agents.nix` を `0858b21` から `64b24c81` へ更新した。`nix eval` 実測での追従は `claude-code` 2.1.219 → 2.1.220、`antigravity-cli` 1.1.6 → 1.1.8、`rtk` 0.43.0 → 0.44.0 で、`codex` 0.145.0 / `copilot-cli` 1.0.75 / `apm` 0.26.0 は変化なし。`minClaudeCode` / `minCodex` はどちらも据え置いた — [2.1.220 の changelog](https://raw.githubusercontent.com/anthropics/claude-code/v2.1.220/CHANGELOG.md) は "Bug fixes and reliability improvements" の一行のみで、床の根拠に当たる記述を確認できないため（2.1.201 / codex 0.144.4 と同じ扱い）。**「中身を検証して問題なしと判断した」のではなく「公開情報から床上げ根拠を確認できないので上げない」という判断**である点に注意。
+
+upstream は依然 claude-code / copilot-cli / antigravity-cli の x86_64-darwin hash を追跡していないため、ADR-0028 の override 2 件を追従させた（claude-code は `version` 2.1.220 と実測 hash、antigravity-cli は 1.1.8 用のビルド ID `5636713813508096` と実測 sha512。両 URL とも HTTP 200 で実在を確認）。`codex` は 0.145.0 据え置きで librusty_v8 も 149.2.0 のままのため、`copilot-cli` は 1.0.75 据え置きのため、いずれも override を触っていない。この回で「床は動かないが pin は動く」ケースを初めて踏み、ADR-0028 初版の保守トリガー記述（床上げ時）が誤りであることが分かったので3ファイルのコメントと ADR を訂正した。
+
+検証は `nix flake check --all-systems`（4 system 通過）、4 system の devShell を `drvPath` まで強制評価、x86_64-darwin の derivation が claude-code 2.1.220 / antigravity-cli 1.1.8 を参照することの確認（skew なし）、現 host（x86_64-linux）の devShell 実ビルドと CLI 実測（claude 2.1.220 / codex 0.145.0 / copilot 1.0.75 / agy 1.1.8 / rtk 0.44.0 / apm 0.26.0）まで。x86_64-darwin は Linux ホストから実ビルドできないため、評価と配布物 hash の実測までで実機動作は未確認。
+
+APM 経路は unpinned な skill を最新へ解決し直し、`mattpocock/skills` の pin を `9603c1cc` から `ed37663c` へ進めた（差分は `to-tickets` から「ticket ごとに context を空けて1件ずつ進めよ」の1文が消えただけで、ADR-0019 / ADR-0022 のローカル方針と方向が一致する）。`pbakaus/impeccable` は `4d849eb7` のまま据え置いた — `1cf7d7ab` までに 250 commits あり同梱 hook runtime が全面改稿されているため、Claude の user-global `PostToolUse` と Codex の managed `hooks.json` から自動実行される中身への影響判定を別作業へ切り出した。`resolved_commit` は 37 エントリ中 34 が前進し、実体変更は6 skill（modern-web-guidance の Release v0.0.178、remotion-best-practices のテンプレート同期、react-view-transitions、shadcn の Base UI / Radix 出し分け、effect-ts の参照先訂正、to-tickets）で、いずれも dotfiles 側の設定変更は不要だった。
+
+orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は apm.yml から消えたパッケージのみを対象とするが、パッケージ内で上流が削除・移動したファイルは `apm install --frozen` 自身が処理する（`modern-web-guidance/guides/ui-components/` はディレクトリごと、`built-in-ai/prompt-api.md` も除去された）。clean install と旧状態からの増分 install が同一の lock を生成することも確認した。
+
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
 `settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
@@ -137,11 +153,12 @@ Codex 0.144.4 は公式 release note が user-facing change なしと明記す�
 - GitHub Release Notes（v2.1.200 時点）に記載が一切ない undocumented な機能。インストール済みバイナリの文字列解析で存在と挙動を確認: env var 未設定でも内部の段階的ロールアウトフラグ（`tengu_sage_compass2`）で一部セッションは既に有効化されうる。env var を明示すると (a) そのロールアウトフラグをバイパスして強制 ON、(b) `advisorModel` の互換性チェック（advisor はベースモデル以上の能力が必要、という catalog 上の rank 比較）も丸ごとスキップされる。
 - 緊急停止用に `CLAUDE_CODE_DISABLE_ADVISOR_TOOL` という kill switch も存在する。
 - advisor 呼び出しは advisor モデルのレートで別課金され、コスト・レイテンシが増える（`effortLevel: xhigh` と方向性は同じだが二重に効く）。
-- `tengu_sage_compass2` フラグや互換性チェックのバイパス挙動は、公式ドキュメントではなくインストール済みバイナリの文字列解析から得た非公式情報。claude-code の floor bump 時にはこの節も併せて再検証し、内部実装が変わっていないか確認すること。
+- `tengu_sage_compass2` フラグや互換性チェックのバイパス挙動は、公式ドキュメントではなくインストール済みバイナリの文字列解析から得た非公式情報。再検証のトリガーは床上げではなく **pin 上の claude-code version の変化**（実際に動くのは pin 側の binary であり、床据え置きのまま pin だけ進む回がある）。その回にこの節も併せて確認し、内部実装が変わっていないかを見ること。
 - 2026-07-08、床上げ（2.1.200→2.1.204）に伴い 2.1.204 バイナリ（`.claude-wrapped`）を `strings` で再検証。kill switch（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`）→ env var バイパス（`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL`）→ `tengu_sage_compass2` フラグ判定、advisorModel のランク互換性チェックという構造は変化なし。v2.1.204 の GitHub Release Notes にも記載なし（undocumented のまま）。
 - 2026-07-13、床上げ（2.1.205→2.1.207）に伴い 2.1.207 バイナリを再検証しようとしたところ、Claude Code の auto mode 分類器が「バイナリの kill switch / bypass 挙動を探すリバースエンジニアリング」と判定し、周辺文脈を抽出する詳細解析コマンドをブロックした。ブロック前に取得できたのは4トークンの出現回数（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL` 3件、`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL` 4件、`tengu_sage_compass2` 2件、`advisorModel` 18件、いずれも 0 ではない）のみで、これは各文字列が バイナリ内に存在することしか示さない。kill switch → env var バイパス → `tengu_sage_compass2` 判定 → advisorModel のランク互換性チェックという**構造・挙動そのものは 2.1.207 で未検証**（2.1.204 時点の構造と一致するとは断定できない）。次回の床上げ時に必要なら、ユーザー自身の手元での `strings` 実行に切り替えること。v2.1.205–2.1.207 の GitHub Release Notes にも advisor tool への言及はない（undocumented のまま）。
 - 2026-07-14、床上げ（2.1.207→2.1.208）では公式 release note に advisor tool への言及がなく、前回と同じ理由で binary の詳細解析は行っていない。2.1.204 時点で確認した内部構造が 2.1.208 でも同じとは断定せず、設定変更もしない。
 - 2026-07-10、床上げ（2.1.204→2.1.205）では release note 上 advisor tool への言及が無く、設定変更も行わない。
+- 2026-07-28、pin 更新（claude-code 2.1.219→2.1.220）では changelog が "Bug fixes and reliability improvements" の一行のみで advisor tool への言及がない。床は据え置いたが、実際に動く binary は 2.1.220 になる。binary の詳細解析は 2026-07-13 と同じ理由（auto mode 分類器がリバースエンジニアリング判定でブロックする）で行っていないため、**2.1.204 時点で確認した内部構造が 2.1.220 でも同じかは未確認**。設定変更もしない。
 - 経緯・判断根拠は [ADR-0005](../docs/adr/0005-advisor-tool-default-enable.md) を参照。
 
 関連: [architecture](../docs/architecture.md) / [skill-harness](skill-harness.md)
