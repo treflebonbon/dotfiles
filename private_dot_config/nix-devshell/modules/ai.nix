@@ -110,7 +110,9 @@ let
           flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
         x86_64-darwin の場合: ../packages/claude-code-darwin-x64.nix の version / hash を
-        minClaudeCode に合わせて更新する（hash 再計算手順は同ファイル冒頭のコメント参照）
+        minClaudeCode ではなく flake pin 上の llm.claude-code.version に合わせて更新する
+        （床に合わせると pin の方が新しい回に x86_64-darwin だけ旧版で取り残されたまま
+        この assert が通ってしまう。hash 再計算手順は同ファイル冒頭のコメント参照）
       '';
     in
     assert lib.assertMsg ok msg;

@@ -42,7 +42,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 ## Skill 配布経路の選択
 
-- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を APM-native の共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。hook を持たない外部 skill-only は apm 経由。lock 再生成は `cd ~ && apm lock`（詳細は `runtime/skill-harness.md`）
+- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を APM-native の共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。hook を持たない外部 skill-only は apm 経由。lock は runtime layout を再現した隔離ディレクトリで `apm install` して再生成する（`apm lock` だけでは materialization 情報が欠落する。詳細は `runtime/skill-harness.md`）
 - **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が `~/.agents/skills` / `~/.claude/skills` / `~/.codex/skills` へ配備（orphan-cleanup の `preserve_local_skills` で保護）。例: `to-pr`
 - **settings.json `enabledPlugins`**: hook を含む plugin（security-guidance / LSP / codex）の runtime 有効化
 - **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）

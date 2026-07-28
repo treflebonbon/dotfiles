@@ -39,7 +39,7 @@ baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固�
 
 **pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。そのため床据え置きのまま pin だけ進む回があり、x86_64-darwin の local override（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）を見直す条件は床の変化ではなく **pin 上の当該パッケージの version の変化**である。
 
-APM 経路の lockfile は `apm lock` ではなく **`apm install --frozen` の生成物**を source へ入れる。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
+APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物**を source へ入れる（手順の正は [skill-harness](skill-harness.md)）。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
 
 `llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
 
@@ -155,9 +155,9 @@ orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は 
 - advisor 呼び出しは advisor モデルのレートで別課金され、コスト・レイテンシが増える（`effortLevel: xhigh` と方向性は同じだが二重に効く）。
 - `tengu_sage_compass2` フラグや互換性チェックのバイパス挙動は、公式ドキュメントではなくインストール済みバイナリの文字列解析から得た非公式情報。再検証のトリガーは床上げではなく **pin 上の claude-code version の変化**（実際に動くのは pin 側の binary であり、床据え置きのまま pin だけ進む回がある）。その回にこの節も併せて確認し、内部実装が変わっていないかを見ること。
 - 2026-07-08、床上げ（2.1.200→2.1.204）に伴い 2.1.204 バイナリ（`.claude-wrapped`）を `strings` で再検証。kill switch（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`）→ env var バイパス（`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL`）→ `tengu_sage_compass2` フラグ判定、advisorModel のランク互換性チェックという構造は変化なし。v2.1.204 の GitHub Release Notes にも記載なし（undocumented のまま）。
+- 2026-07-10、床上げ（2.1.204→2.1.205）では release note 上 advisor tool への言及が無く、設定変更も行わない。
 - 2026-07-13、床上げ（2.1.205→2.1.207）に伴い 2.1.207 バイナリを再検証しようとしたところ、Claude Code の auto mode 分類器が「バイナリの kill switch / bypass 挙動を探すリバースエンジニアリング」と判定し、周辺文脈を抽出する詳細解析コマンドをブロックした。ブロック前に取得できたのは4トークンの出現回数（`CLAUDE_CODE_DISABLE_ADVISOR_TOOL` 3件、`CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL` 4件、`tengu_sage_compass2` 2件、`advisorModel` 18件、いずれも 0 ではない）のみで、これは各文字列が バイナリ内に存在することしか示さない。kill switch → env var バイパス → `tengu_sage_compass2` 判定 → advisorModel のランク互換性チェックという**構造・挙動そのものは 2.1.207 で未検証**（2.1.204 時点の構造と一致するとは断定できない）。次回の床上げ時に必要なら、ユーザー自身の手元での `strings` 実行に切り替えること。v2.1.205–2.1.207 の GitHub Release Notes にも advisor tool への言及はない（undocumented のまま）。
 - 2026-07-14、床上げ（2.1.207→2.1.208）では公式 release note に advisor tool への言及がなく、前回と同じ理由で binary の詳細解析は行っていない。2.1.204 時点で確認した内部構造が 2.1.208 でも同じとは断定せず、設定変更もしない。
-- 2026-07-10、床上げ（2.1.204→2.1.205）では release note 上 advisor tool への言及が無く、設定変更も行わない。
 - 2026-07-28、pin 更新（claude-code 2.1.219→2.1.220）では changelog が "Bug fixes and reliability improvements" の一行のみで advisor tool への言及がない。床は据え置いたが、実際に動く binary は 2.1.220 になる。binary の詳細解析は 2026-07-13 と同じ理由（auto mode 分類器がリバースエンジニアリング判定でブロックする）で行っていないため、**2.1.204 時点で確認した内部構造が 2.1.220 でも同じかは未確認**。設定変更もしない。
 - 経緯・判断根拠は [ADR-0005](../docs/adr/0005-advisor-tool-default-enable.md) を参照。
 
