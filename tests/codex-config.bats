@@ -120,20 +120,20 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
+command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\""
+
+# Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
+# budget of 30s instead of the per-edit 5s: it rescans every UI file touched in the
+# session with the full rule set, surfacing the tier the per-edit pass deferred.
 assert data == {
     "hooks": {
         "PostToolUse": [
             {
                 "matcher": "Edit|Write|apply_patch",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
-                        "timeout": 5,
-                    }
-                ],
+                "hooks": [{"type": "command", "command": command, "timeout": 5}],
             }
-        ]
+        ],
+        "Stop": [{"hooks": [{"type": "command", "command": command, "timeout": 30}]}],
     }
 }
 PY
@@ -157,17 +157,18 @@ assert data["hooks"]["PreToolUse"] == [
         "hooks": [{"type": "command", "command": "rtk hook claude"}],
     }
 ]
+command = "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\""
+
 assert data["hooks"]["PostToolUse"] == [
     {
         "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-            {
-                "type": "command",
-                "command": "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
-                "timeout": 5,
-            }
-        ],
+        "hooks": [{"type": "command", "command": command, "timeout": 5}],
     }
+]
+# Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
+# budget of 30s instead of the per-edit 5s.
+assert data["hooks"]["Stop"] == [
+    {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
 ]
 PY
 }
@@ -189,14 +190,17 @@ PY
 import json
 import sys
 
+# Both wired events must fail open, not just the per-edit one: a Stop hook that
+# leaked a non-zero exit or partial stdout would break the turn at its very end.
 for path in sys.argv[1:]:
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    print(data["hooks"]["PostToolUse"][0]["hooks"][0]["command"])
+    for event in ("PostToolUse", "Stop"):
+        print(data["hooks"][event][0]["hooks"][0]["command"])
 PY
   )
 
-  [ "${#commands[@]}" -eq 2 ]
+  [ "${#commands[@]}" -eq 4 ]
   local command
   for command in "${commands[@]}"; do
     run env HOME="$home" bash -c "$command"

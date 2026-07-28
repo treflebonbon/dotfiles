@@ -5,6 +5,19 @@ setup() {
   RUNTIME="${IMPECCABLE_HOOK_RUNTIME:-$HOME/.agents/skills/impeccable/scripts/hook.mjs}"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$PROJECT"
+
+  # gradient-text is in the runtime's immediate tier, so the per-edit pass reports
+  # it at the edit site.
+  IMMEDIATE_CSS='.card { background: linear-gradient(90deg, #a855f7, #ec4899); -webkit-background-clip: text; color: transparent; }'
+  # A second, distinct gradient-text occurrence: a finding the per-edit pass has
+  # not seen before in this session.
+  IMMEDIATE_CSS_ALT='.hero { background: linear-gradient(90deg, #0ea5e9, #22d3ee); -webkit-background-clip: text; color: transparent; }'
+  # overused-font sits outside the immediate tier, so the per-edit pass defers it
+  # and only the Stop deep pass surfaces it.
+  DEFERRED_CSS='.card { font-family: Inter, sans-serif; }'
+  # One declaration block carrying both tiers, composed from the two above so a
+  # future pin's tier reshuffle is still a one-line edit up here.
+  BOTH_TIERS_CSS="${IMMEDIATE_CSS%\}} font-family: Inter, sans-serif; }"
 }
 
 require_runtime() {
@@ -13,7 +26,7 @@ require_runtime() {
   fi
 }
 
-run_hook() {
+run_post_tool_use_hook() {
   local session_id="$1"
   local file_path="$2"
   local tool_name="${3:-Write}"
@@ -23,16 +36,25 @@ run_hook() {
     env IMPECCABLE_HOOK_QUIET=1 node "$RUNTIME"
 }
 
-@test "materialized quiet Design Hook reports a deterministic UI finding and succeeds" {
+run_stop_hook() {
+  local session_id="$1"
+  local stop_hook_active="${2:-false}"
+
+  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"Stop","stop_hook_active":%s}\n' \
+    "$session_id" "$PROJECT" "$stop_hook_active" |
+    env IMPECCABLE_HOOK_QUIET=1 node "$RUNTIME"
+}
+
+@test "materialized quiet Design Hook reports an immediate-tier finding on the edit" {
   require_runtime
   local file="$PROJECT/Card.css"
-  printf '.card { font-family: Inter, sans-serif; }\n' >"$file"
+  printf '%s\n' "$IMMEDIATE_CSS" >"$file"
 
-  run run_hook "finding" "$file"
+  run run_post_tool_use_hook "immediate" "$file"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'"hookEventName":"PostToolUse"'* ]]
-  [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" == *'[gradient-text]'* ]]
 }
 
 @test "materialized quiet Design Hook stays silent for clean, non-UI, sensitive, and generated files" {
@@ -43,39 +65,132 @@ run_hook() {
   local generated="$PROJECT/bundle.min.css"
   printf '.card { color: #123456; }\n' >"$clean"
   printf '# notes\n' >"$non_ui"
-  printf '.secret { font-family: Inter; }\n' >"$sensitive"
-  printf '.generated { font-family: Inter; }\n' >"$generated"
+  # The sensitive and generated fixtures carry an immediate-tier finding on
+  # purpose: were their path guards to regress, these two would report instead of
+  # staying silent.
+  printf '%s\n' "$IMMEDIATE_CSS" >"$sensitive"
+  printf '%s\n' "$IMMEDIATE_CSS" >"$generated"
 
   local file
   for file in "$clean" "$non_ui" "$sensitive" "$generated"; do
-    run run_hook "silent-$(basename "$file")" "$file"
+    run run_post_tool_use_hook "silent-$(basename "$file")" "$file"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
   done
 }
 
-@test "materialized quiet Design Hook dedupes repeated findings and suppresses a new finding after the edit threshold" {
+@test "materialized quiet Design Hook defers non-immediate findings to the Stop deep pass and surfaces them once" {
   require_runtime
   local file="$PROJECT/Card.css"
-  printf '.card { font-family: Inter, sans-serif; }\n' >"$file"
+  printf '%s\n' "$DEFERRED_CSS" >"$file"
 
-  run run_hook "dedupe" "$file"
+  # The per-edit pass carries only the immediate tier, so this edit says nothing.
+  run run_post_tool_use_hook "deferred" "$file"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+
+  # The deep pass re-scans the session's touched files with the full rule set.
+  run run_stop_hook "deferred"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"hookEventName":"Stop"'* ]]
+  [[ "$output" == *'[overused-font]'* ]]
+
+  # Once, not on every stop. This holds because the fixture carries findings in
+  # only one tier; see the both-tiers test below for where it breaks down.
+  run run_stop_hook "deferred"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "materialized quiet Design Hook Stop pass alternates on a file with findings in both tiers (known upstream defect)" {
+  require_runtime
+  # rememberFindings() replaces a file's remembered finding keys and says so:
+  # "Callers must pass the complete current finding set, not just the fresh
+  # ones." runStopHook() passes only `fresh`, breaking that contract. So a Stop
+  # that reports the deferred finding evicts the immediate one the per-edit pass
+  # had remembered, which then reads as fresh on the next Stop, and so on: the
+  # two alternate on every turn end for as long as both remain unfixed. Upstream
+  # intends the opposite ("the next Stop fire is silent unless new issues
+  # appear" — hook-lib.mjs).
+  #
+  # This test pins the defect rather than the intent, so the suite tells us when
+  # a future pin fixes it instead of quietly passing either way. Each step
+  # asserts the other tier is ABSENT too, so a regression that reports both
+  # findings on every fire cannot slip through. When upstream fixes the
+  # eviction this test fails; replace it with a plain "surfaces once" assertion.
+  local file="$PROJECT/Card.css"
+  printf '%s\n' "$BOTH_TIERS_CSS" >"$file"
+
+  run run_post_tool_use_hook "both-tiers" "$file"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[gradient-text]'* ]]
+  [[ "$output" != *'[overused-font]'* ]]
+
+  run run_stop_hook "both-tiers"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" != *'[gradient-text]'* ]]
+
+  run run_stop_hook "both-tiers"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[gradient-text]'* ]]
+  [[ "$output" != *'[overused-font]'* ]]
+
+  # Fixing the immediate-tier finding leaves one tier, and the pass converges.
+  printf '%s\n' "$DEFERRED_CSS" >"$file"
+  run run_post_tool_use_hook "both-tiers" "$file"
+  [ "$status" -eq 0 ]
+
+  run run_stop_hook "both-tiers"
   [ "$status" -eq 0 ]
   [[ "$output" == *'[overused-font]'* ]]
 
-  run run_hook "dedupe" "$file"
+  run run_stop_hook "both-tiers"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "materialized quiet Design Hook Stop pass stays silent for an untouched session and when re-entered" {
+  require_runtime
+
+  run run_stop_hook "never-touched"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+
+  local file="$PROJECT/Card.css"
+  printf '%s\n' "$DEFERRED_CSS" >"$file"
+  run run_post_tool_use_hook "reentry" "$file"
+  [ "$status" -eq 0 ]
+
+  # stop_hook_active marks a Stop that fired only because a previous one kept the
+  # turn alive. Re-scanning there would loop until the harness force-ends the turn.
+  run run_stop_hook "reentry" true
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "materialized quiet Design Hook dedupes repeated findings and suppresses a new finding after the edit threshold" {
+  require_runtime
+  local file="$PROJECT/Card.css"
+  printf '%s\n' "$IMMEDIATE_CSS" >"$file"
+
+  run run_post_tool_use_hook "dedupe" "$file"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[gradient-text]'* ]]
+
+  run run_post_tool_use_hook "dedupe" "$file"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 
   local edit
   for edit in 3 4 5 6; do
-    run run_hook "dedupe" "$file"
+    run run_post_tool_use_hook "dedupe" "$file"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
   done
 
-  printf '.card { font-family: Roboto, sans-serif; }\n' >"$file"
-  run run_hook "dedupe" "$file"
+  printf '%s\n' "$IMMEDIATE_CSS_ALT" >"$file"
+  run run_post_tool_use_hook "dedupe" "$file"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }

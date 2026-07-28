@@ -20,8 +20,8 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 workflow パイプライン（mattpocock skills）は Claude Code の Skill tool 前提だが、汎用コーディングは Codex でも行える二刀流を維持する。
 
-- **Claude**: `private_dot_claude/settings.json.tmpl` → `~/.claude/settings.json`。`language: japanese`、`effortLevel: xhigh`、`teammateMode: auto`、`model: sonnet` + `advisorModel: opus`（experimental advisor tool、下記参照）、deny ルール群、`enabledPlugins`（LSP / codex / security-guidance / claude-code-setup）。既存 `PreToolUse` に加え、quiet な Impeccable Design Hook を user-global `PostToolUse` として持つ。個人・端末差分は `~/.claude/settings.local.json`（管理外）。
-- **Codex**: `private_dot_config/codex/`（config.toml / rules / AGENTS.md / hooks.json / environments）を `run_onchange_after_codex-*.sh.tmpl` が `~/.config/codex/` 経由で `~/.codex/`（`$CODEX_HOME`）へマージ配置する。managed `hooks.json` は共有ハブの Impeccable runtime を quiet な `PostToolUse` で呼ぶ。宣言的設定のみ管理しローカル state は保全する。
+- **Claude**: `private_dot_claude/settings.json.tmpl` → `~/.claude/settings.json`。`language: japanese`、`effortLevel: xhigh`、`teammateMode: auto`、`model: sonnet` + `advisorModel: opus`（experimental advisor tool、下記参照）、deny ルール群、`enabledPlugins`（LSP / codex / security-guidance / claude-code-setup）。既存 `PreToolUse` に加え、quiet な Impeccable Design Hook を user-global の `PostToolUse`（per-edit、timeout 5s）と `Stop`（deep pass、matcher なし・timeout 30s）として持つ。個人・端末差分は `~/.claude/settings.local.json`（管理外）。
+- **Codex**: `private_dot_config/codex/`（config.toml / rules / AGENTS.md / hooks.json / environments）を `run_onchange_after_codex-*.sh.tmpl` が `~/.config/codex/` 経由で `~/.codex/`（`$CODEX_HOME`）へマージ配置する。managed `hooks.json` は共有ハブの Impeccable runtime を quiet な `PostToolUse` と `Stop` で呼ぶ（Claude と同じ二層。codex-cli 0.145.0 は `Stop` を native に持ち、`codex_hooks::schema::StopCommandOutputWire` を備える）。宣言的設定のみ管理しローカル state は保全する。**Codex の hook は entry 単位で trust が要る** — `config.toml` の `[hooks.state]` に `"<hooks.json path>:<event>:<idx>:<idx>"` をキーとして `trusted_hash` が積まれ、未登録の entry は "New hook - review required" として初回に承認を求められる。よって `hooks.json` に event を足した回は、Codex 側で一度承認するまでその hook は走らない。
 - **AGENTS.md** — Codex / OpenCode / Zed / Cursor 向け指示（`~/AGENTS.md`、`private_dot_gemini/AGENTS.md` は Gemini 向け）。CLAUDE.md は Claude Code 向けに別管理。
 
 MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / serena / effect-docs）。
@@ -41,7 +41,13 @@ baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固�
 
 APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物**を source へ入れる（手順の正は [skill-harness](skill-harness.md)）。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
 
-**`pbakaus/impeccable` の pin を動かすときは hook 配線とセットで見る**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。この skill は同梱 runtime を Claude の user-global `PostToolUse` と Codex の managed `hooks.json` から自動実行するため、pin 前進は「どのルールがどのイベントで出るか」を変え得る。上流は per-edit を immediate tier に絞り残りを `Stop` の deep pass へ移したので、`PostToolUse` だけの配線で pin を進めると壊れずに検出範囲だけが静かに狭まる。判定材料は隔離 HOME で取れる。`IMPECCABLE_HOOK_RUNTIME=<新 runtime> bats tests/design-hook.bats` は、いま repo が持っている契約を新 runtime へ当てるプローブであって、**pass を期待するものではない** — 落ちた assertion が「その pin で per-edit から消えたルール」を名指しするので、fail はレシピの不具合ではなく判定結果そのものである（4d849eb7 → 1cf7d7ab では `overused-font` が immediate tier 外へ移り 4 件中 2 件が落ちた）。テストを新 runtime 側の契約に合わせて書き換える前にこれを撮る。
+**`pbakaus/impeccable` の pin を動かすときは hook 配線とセットで見る**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。この skill は同梱 runtime を Claude の user-global `PostToolUse` と Codex の managed `hooks.json` から自動実行するため、pin 前進は「どのルールがどのイベントで出るか」を変え得る。上流は per-edit を immediate tier に絞り残りを `Stop` の deep pass へ移したので、`PostToolUse` だけの配線で pin を進めると壊れずに検出範囲だけが静かに狭まる。判定材料は隔離 HOME で取れる。`IMPECCABLE_HOOK_RUNTIME=<新 runtime> bats tests/design-hook.bats` は、いま repo が持っている契約を候補 runtime へ当てるプローブであって、**pass を期待するものではない** — fail はレシピの不具合ではなく、挙動差を指す入口である。落ちた assertion がどの差かを名指しするので、次のどれなのかを切り分けてから配線とテストを直す。
+
+- **per-edit の tier が動いた**（あるルールが immediate tier に出入りした）
+- **`Stop` 側の契約が動いた**（deep pass の発火条件・dedupe・再入ガード）
+- **固定してある既知不具合が直った**（両層を持つファイルでの交互報告。直れば該当テストが落ちる。ADR-0029 補足を参照）
+
+例: `4d849eb7 → 1cf7d7ab` では 1 番目に当たり、`overused-font` が immediate tier 外へ移ったことで当時の 4 テスト中 2 件が落ちた。テストを候補 runtime 側の契約へ書き換える前にこれを撮る。
 
 `llm-agents` flake input は 2026-07-06 に再度 `nix flake update` で最新化（claude-code 2.1.200 → 2.1.201 が追従、他の消費パッケージ [codex/copilot-cli/antigravity-cli/rtk/apm] は変化なし）。2.1.201 の変更点は「Sonnet 5 セッションで harness reminder の system role を廃止」のみで settings/workflow への影響なし、と確認した上でフロアは 2.1.200 のまま据え置いた。
 

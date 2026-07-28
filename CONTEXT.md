@@ -13,7 +13,7 @@ _Avoid_: 仕様, spec, 要件定義
 _Avoid_: evidence table, 検証エビデンス, verdict
 
 **Design Hook**:
-UI コードの編集直後に決定論的なデザイン検査を行い、修正対象となる finding だけをエージェントの作業文脈へ返す advisory 型の自動フィードバック経路。変更を拒否する品質ゲートではなく、人間が画面を見て判断する要素指差しフィードバックや、実装後の Verification Matrix とも異なる。
+UI コードに対して決定論的なデザイン検査を行い、修正対象となる finding だけをエージェントの作業文脈へ返す advisory 型の自動フィードバック経路。二層で走る — 編集直後（per-edit）はその場で直すべき機械的な層だけ、残りはセッション終端の deep pass でまとめて返す。変更を拒否する品質ゲートではなく、人間が画面を見て判断する要素指差しフィードバックや、実装後の Verification Matrix とも異なる。
 _Avoid_: visual lint, UI review, 見た目確認
 
 **要素指差しフィードバック**:
