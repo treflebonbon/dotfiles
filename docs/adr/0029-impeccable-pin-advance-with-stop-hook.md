@@ -74,8 +74,10 @@ Node の engine 要求も `>=22.12.0` で据え置き（devshell は 24.15.0）�
 
 `SKILL.md` の `description` frontmatter は両 pin で **byte 単位で同一**（sha256 一致）。skill の発火面は
 まったく変わらないため、`ui-grill-with-docs` をはじめ他 skill との競合は新たに生じない。
-`ui-grill-with-docs` は impeccable を名前で 1 行参照しているだけでファイルパス依存はなく、削除・改名された
-`reference/{brand,codex,interaction-design}.md` / `product.md`→`operate.md` への参照も repo 内に存在しない。
+`ui-grill-with-docs` は impeccable を名前で 1 行参照しているだけでファイルパス依存はない。
+削除・改名された `reference/{brand,codex,interaction-design}.md` / `product.md`→`operate.md` を参照している
+repo 内のファイルは `apm.lock.yaml` だけで、これは現 pin の配備ファイル一覧という生成物なので lock 再生成で
+解消する。手で保守しているドキュメント・設定側にこれらのパスへの依存は無い。
 
 ### 副作用
 
@@ -114,3 +116,5 @@ user-global である。全 repo に config を撒くことになるので採ら
   ついて同様の注意を書いている）。配線後に実機で承認フローを確認する
 - `.impeccable/hook.cache.json` が今より多くの repo に作られる。git は `.git/info/exclude` で保護されるが、
   ディスク上には残る
+
+関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

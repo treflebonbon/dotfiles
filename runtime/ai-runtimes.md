@@ -114,7 +114,7 @@ APM 経路は unpinned な skill を最新へ解決し直し、`mattpocock/skill
 
 orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は apm.yml から消えたパッケージのみを対象とするが、パッケージ内で上流が削除・移動したファイルは `apm install --frozen` 自身が処理する（`modern-web-guidance/guides/ui-components/` はディレクトリごと、`built-in-ai/prompt-api.md` も除去された）。clean install と旧状態からの増分 install が同一の lock を生成することも確認した。
 
-切り出した impeccable の判定（Issue #117）も同日に済ませ、**pin を `1cf7d7ab` へ進める**結論に至った（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。現配線が依存する契約点 6 つ（`scripts/hook.mjs` のパス / stdin 入力 / 常に exit 0 / `IMPECCABLE_HOOK_QUIET` / stdout に blocking キーが無いこと / timeout 5s）はすべて維持されており、隔離 HOME で現配線のまま新 runtime を実行して exit 0・同一出力チャネル・59ms（旧 69ms）を実測した。**壊れないが、pin 単独では検出カバレッジが純減する** — 上流が per-edit を immediate tier 13 ルールへ絞り、残りを `Stop` の deep pass へ移したためで、`PostToolUse` しか登録していない当 repo では先送り分が誰にも拾われない。fixture では 3 findings が 2 に減り（`ai-color-palette` 脱落）、`tests/design-hook.bats` は 4 件中 2 件が fail する（`overused-font` が immediate tier 外で、quiet では出力が完全に空になる）。`Stop` を配線すると両者ともちょうど回収されることも実測済み。よって pin 前進・Stop 配線・テスト更新は分割せず 1 変更として扱い、Issue #119 へ起票した。`SKILL.md` の `description` は両 pin で byte 同一（sha256 一致）なので `ui-grill-with-docs` 等とのトリガー競合は生じない。
+切り出した impeccable の判定（Issue #117）も同日に済ませた。結論は **pin を `1cf7d7ab` へ進める、ただし `Stop` 配線とセットで**。判定の根拠・隔離 HOME での実測値・代替案の却下理由は [ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md) にあり、実作業は Issue #119 へ起票した。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
