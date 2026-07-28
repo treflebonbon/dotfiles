@@ -122,6 +122,14 @@ with open(sys.argv[1], encoding="utf-8") as f:
 
 command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\""
 
+# Codex's Stop schema (codex-rs StopCommandOutputWire, deny_unknown_fields) has no
+# hookSpecificOutput field, only continue/decision/reason/stopReason/suppressOutput/
+# systemMessage. The runtime's PostToolUse-shaped {"hookSpecificOutput":{...}} is
+# invalid there and gets silently discarded, so deferred findings never reach the
+# agent. Stop pipes the runtime's stdout through a small transform that extracts
+# additionalContext and re-emits it as {"decision":"block","reason":...} instead.
+stop_command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; [ -n \"$output\" ] || exit 0; printf %s \"$output\" | node -e \"let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{const p=JSON.parse(s);const r=p&&p.hookSpecificOutput&&p.hookSpecificOutput.additionalContext;if(r)process.stdout.write(JSON.stringify({decision:'block',reason:r}))}catch(e){}})\""
+
 # Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
 # budget of 30s instead of the per-edit 5s: it rescans every UI file touched in the
 # session with the full rule set, surfacing the tier the per-edit pass deferred.
@@ -133,7 +141,9 @@ assert data == {
                 "hooks": [{"type": "command", "command": command, "timeout": 5}],
             }
         ],
-        "Stop": [{"hooks": [{"type": "command", "command": command, "timeout": 30}]}],
+        "Stop": [
+            {"hooks": [{"type": "command", "command": stop_command, "timeout": 30}]}
+        ],
     }
 }
 PY
@@ -208,13 +218,28 @@ PY
     [ -z "$output" ]
   done
 
-  printf 'process.stdout.write("finding");\n' >"$home/.agents/skills/impeccable/scripts/hook.mjs"
-  printf 'process.stdout.write("finding");\n' >"$home/.claude/skills/impeccable/scripts/hook.mjs"
-  for command in "${commands[@]}"; do
-    run env HOME="$home" bash -c "$command"
+  # commands[0]=Claude PostToolUse [1]=Claude Stop [2]=Codex PostToolUse [3]=Codex Stop
+  # (python printed them path-then-event, in that order). The first three are plain
+  # pass-through, so a real impeccable-shaped payload survives byte-for-byte; Codex's
+  # Stop command instead transforms it into decision/reason (see the test above).
+  printf 'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:"Stop",additionalContext:"finding"}}));\n' \
+    >"$home/.agents/skills/impeccable/scripts/hook.mjs"
+  printf 'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:"Stop",additionalContext:"finding"}}));\n' \
+    >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+
+  local passthrough='{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"finding"}}'
+  local codex_stop_expected='{"decision":"block","reason":"finding"}'
+
+  local i
+  for i in 0 1 2; do
+    run env HOME="$home" bash -c "${commands[$i]}"
     [ "$status" -eq 0 ]
-    [ "$output" = "finding" ]
+    [ "$output" = "$passthrough" ]
   done
+
+  run env HOME="$home" bash -c "${commands[3]}"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$codex_stop_expected" ]
 }
 
 @test "Codex rules managed file blocks destructive commands" {
