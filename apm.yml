@@ -5,8 +5,11 @@ targets:
   - codex
 dependencies:
   apm:
-    # pbakaus/impeccable — 同梱 runtime の自動実行に備えて検証済み commit に固定
-    - pbakaus/impeccable/.agents/skills/impeccable#4d849eb75f216109ea7053ed21530a11fafcc786
+    # pbakaus/impeccable — 同梱 runtime の自動実行に備えて検証済み commit に固定。
+    # この pin を動かすときは Claude / Codex 双方の hook 配線を必ず見直す（ADR-0029）。
+    # 上流は per-edit を immediate tier へ絞り残りを Stop の deep pass へ移したので、
+    # 配線を追従させないと壊れずに検出範囲だけが静かに狭まる。
+    - pbakaus/impeccable/.agents/skills/impeccable#1cf7d7ab0f1ac0bb3319fd20be389a3009f4037d
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices

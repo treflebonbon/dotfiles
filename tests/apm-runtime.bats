@@ -7,7 +7,7 @@ setup() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#4d849eb75f216109ea7053ed21530a11fafcc786' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#1cf7d7ab0f1ac0bb3319fd20be389a3009f4037d' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -21,7 +21,7 @@ setup() {
 
   grep -Fq 'apm_version: 0.26.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: 4d849eb75f216109ea7053ed21530a11fafcc786' "$lock"
+  grep -Fq 'resolved_commit: 1cf7d7ab0f1ac0bb3319fd20be389a3009f4037d' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"

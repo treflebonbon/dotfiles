@@ -65,7 +65,13 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 
 **Impeccable**: UI の設計・評価・改善を担う user-invoked / model-invoked skill。検証済み commit に pin し、共有ハブ経由で Codex / Antigravity、Claude skill dir 経由で Claude Code へ配布する。新規 UI の create / shape flow は `PRODUCT.md` / `DESIGN.md` の context setup へ誘導し、既存 UI の scoped 改善は context 文書がなくてもブロックしない。直接の前身である `frontend-design` は責務の重複を避けるため撤去した。
 
-**Design Hook**: Claude Code の `Edit|Write|MultiEdit` と Codex の `Edit|Write|apply_patch` に対する user-global `PostToolUse` hook。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の固定 runtime を、存在確認後に `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。UI 関連ファイルの新規 finding だけを作業文脈へ返し、clean UI、非 UI、機密・生成物、重複 finding、同一ファイルの編集閾値超過は無言にする。runtime の未配備・内部エラー・非0終了はすべて成功扱いにする advisory feedback であり、編集を拒否する gate ではない。実装中に人間が画面上の対象を選ぶ要素指差しフィードバック、実装後に AC を検証する Verification Matrix とも役割・主体・タイミングが異なる。Antigravity / Cursor / GitHub Copilot には自動 hook を配線しない。
+**Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の固定 runtime を、存在確認後に `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。runtime 側は stdin の `hook_event_name` で振り分ける。
+
+検出ルールは二層で、**両方を配線して初めて全ルールが届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier だけ — 壊れた出力・contrast・design-system drift など、その場で直すべき機械的な指摘を編集箇所へ返す。コピーの調子・パレットや字組みの趣味・レイアウトの律動は `Stop` へ先送りされ、セッション中に触れた全 UI ファイルを full rule set で再走査して **1 度だけ**まとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。`Stop` は `stop_hook_active` を見て再入時は即座に抜けるため、ターンが延命ループに入ることはない。
+
+**既知の上流不具合（pin `1cf7d7ab` 時点、実測）**: 1 つのファイルが immediate と deferred の両方の finding を持つ間、`Stop` はターン終端ごとに 2 つを**交互に**報告し続ける。`rememberFindings()` が記憶済みキーを置換する一方で `Stop` は fresh 分しか渡さないため、deferred を報告した時点で per-edit が覚えていた immediate 側が追い出され、次の `Stop` で再び新規に見える。immediate 側を直せば層が 1 つになり収束する。`tests/design-hook.bats` はこの**実挙動のほう**を固定してあるので、上流が直すとそのテストが落ちて気づける。
+
+いずれの層も、clean UI、非 UI、機密・生成物、重複 finding、同一ファイルの編集閾値超過は無言にする。runtime の未配備・内部エラー・非0終了はすべて成功扱いにする advisory feedback であり、編集を拒否する gate ではない。実装中に人間が画面上の対象を選ぶ要素指差しフィードバック、実装後に AC を検証する Verification Matrix とも役割・主体・タイミングが異なる。Antigravity / Cursor / GitHub Copilot には自動 hook を配線しない。
 
 **UI specialist skill（保持）**: `web-design-guidelines` は Web 実装規則、`modern-web-guidance` は最新 Web API、React 系 skill は React の構成・性能・View Transition、`shadcn` は shadcn/ui、`remotion-best-practices` は動画 UI を担当する。Impeccable はこれらを置き換えず、UI 全体の設計品質を扱う。
 
