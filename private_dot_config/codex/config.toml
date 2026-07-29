@@ -6,6 +6,10 @@ approvals_reviewer = "auto_review"
 sandbox_mode = "workspace-write"
 default_permissions = "dotfiles-secure"
 
+[apps.github]
+default_tools_approval_mode = "approve"
+destructive_enabled = false
+
 [features]
 hooks = true
 goals = true

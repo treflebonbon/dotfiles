@@ -48,7 +48,9 @@ Confirm before executing hard-to-reverse or shared-system-affecting actions:
 
 - Destructive: deleting files/branches, dropping DB tables, `rm -rf`
 - Hard-to-reverse: `git push --force`, `git reset --hard`, amending published commits
-- Visible to others: pushing code, commenting on PRs/issues, sending messages, modifying shared infra
+- High-impact or shared: direct pushes to a default branch, merging/closing/reopening/deleting PRs or issues, releases, workflow dispatches, repository settings or secrets, non-GitHub messages, and shared infrastructure
+
+Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues; reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
 
 ## Clarifying questions
 

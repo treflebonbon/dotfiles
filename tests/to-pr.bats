@@ -11,6 +11,24 @@ setup() {
   grep -Fq 'otherwise do not invoke it automatically' "$SKILL"
 }
 
+@test "Project workflow preauthorizes routine GitHub writes across runtimes" {
+  local instructions
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq '内容確定後の非破壊な GitHub 定型書込みは二重確認しない' "$instructions"
+    ! grep -Fq 'push / PR 作成の確認は変更しない' "$instructions"
+  done
+
+  grep -Fq '内容確定後の非破壊な GitHub 定型書込みは二重確認しない' \
+    "$PROJECT_ROOT/runtime/skill-harness.md"
+  ! grep -Fq 'push/PR 作成自体の確認は変更しない' \
+    "$PROJECT_ROOT/runtime/skill-harness.md"
+
+  local adr="$PROJECT_ROOT/docs/adr/0030-preauthorize-routine-github-writes.md"
+  [ -f "$adr" ]
+  grep -Fq 'status: accepted' "$adr"
+  grep -Fq 'ADR-0019 Decision 7' "$adr"
+}
+
 @test "to-pr reconciles only a native direct parent" {
   grep -Fq 'gh issue view <issue> --json number,state,body,parent' "$SKILL"
   grep -Fq 'gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary' "$SKILL"
@@ -36,12 +54,18 @@ setup() {
   grep -Fq 'preserve the ordinary `Fixes #N` line for the linked issue' "$SKILL"
 }
 
-@test "to-pr confirms close targets and documents reconciliation ownership" {
+@test "to-pr preauthorizes publication and documents reconciliation ownership" {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local context="$PROJECT_ROOT/CONTEXT.md"
   local adr="$PROJECT_ROOT/docs/adr/0027-to-pr-parent-reconciliation.md"
 
-  grep -Fq 'the exact list of child and parent issues that will close on merge' "$SKILL"
+  grep -Fq 'Invocation of this skill is authorization for the routine publication actions' "$SKILL"
+  grep -Fq 'git-push-topic' "$SKILL"
+  grep -Fq 'Do not ask for a second' "$SKILL"
+  grep -Fq 'confirmation solely because these actions are outward-facing' "$SKILL"
+  ! grep -Fq 'Ask once for explicit confirmation' "$SKILL"
+  ! grep -Fq 'After confirmation' "$SKILL"
+  grep -Fq 'exact list of child and parent issues that will close on' "$SKILL"
   grep -Fq 'Keep state labels unchanged' "$SKILL"
   grep -Fq 'Post-merge issue mutation or automation' "$SKILL"
   grep -Fq 'Repeat the Parent Reconciliation state, reason, and close targets in the completion report' "$SKILL"

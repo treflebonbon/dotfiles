@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ne 0 ]; then
+  echo "usage: git-push-topic" >&2
+  exit 2
+fi
+
+branch="$(git branch --show-current)"
+if [ -z "$branch" ]; then
+  echo "ERROR: detached HEAD cannot be published as a topic branch" >&2
+  exit 1
+fi
+
+case "$branch" in
+main | master)
+  echo "ERROR: refusing to push default branch: $branch" >&2
+  exit 1
+  ;;
+esac
+
+default_ref="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+default_branch="${default_ref#origin/}"
+if [ -n "$default_branch" ] && [ "$branch" = "$default_branch" ]; then
+  echo "ERROR: refusing to push default branch: $branch" >&2
+  exit 1
+fi
+
+exec git push -u origin HEAD

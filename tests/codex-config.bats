@@ -17,6 +17,8 @@ for path in sys.argv[1:]:
     assert config["model"] == "gpt-5.6-sol"
     assert config["model_reasoning_effort"] == "xhigh"
     assert config["personality"] == "pragmatic"
+    assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
+    assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
     assert config["plugins"]["chrome@openai-bundled"]["enabled"] is True
 PY
@@ -59,6 +61,9 @@ prepare_codex_chezmoi_source() {
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
   grep -q '^approvals_reviewer = "auto_review"$' "$config"
+  grep -q '^\[apps\.github\]$' "$config"
+  grep -q '^default_tools_approval_mode = "approve"$' "$config"
+  grep -q '^destructive_enabled = false$' "$config"
   grep -q '^sandbox_mode = "workspace-write"$' "$config"
   grep -q '^default_permissions = "dotfiles-secure"$' "$config"
   grep -q '^\[features\]' "$config"
@@ -106,6 +111,19 @@ prepare_codex_chezmoi_source() {
   grep -q '<default_to_action>' "$agents"
   grep -q '<investigate_before_answering>' "$agents"
   grep -q '<use_parallel_tool_calls>' "$agents"
+}
+
+@test "Global runtime guidance preauthorizes routine GitHub collaboration writes" {
+  local guidance
+  for guidance in \
+    "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
+    "$PROJECT_ROOT/private_dot_claude/CLAUDE.md" \
+    "$PROJECT_ROOT/private_dot_gemini/AGENTS.md"; do
+    grep -Fq 'Routine GitHub collaboration writes do not need a second confirmation' "$guidance"
+    grep -Fq 'pushes from the current topic branch using `git-push-topic`' "$guidance"
+    grep -Fq 'direct pushes to a default branch' "$guidance"
+    ! grep -Fq 'Visible to others: pushing code, commenting on PRs/issues' "$guidance"
+  done
 }
 
 @test "Codex managed Hook adds the quiet global Impeccable Design Hook" {
@@ -257,6 +275,53 @@ PY
   grep -q 'decision = "prompt"' "$rules"
   grep -q 'match = \[' "$rules"
   grep -q 'not_match = \[' "$rules"
+}
+
+@test "Codex execpolicy allows routine GitHub writes without widening destructive actions" {
+  local rules="$PROJECT_ROOT/private_dot_config/codex/rules/default.rules"
+
+  local command
+  for command in \
+    "git-push-topic" \
+    "gh pr create --title test --body test" \
+    "gh pr edit 123 --title test" \
+    "gh pr comment 123 --body test" \
+    "gh pr review 123 --approve" \
+    "gh pr ready 123" \
+    "gh issue create --title test --body test" \
+    "gh issue edit 123 --add-label ready-for-agent" \
+    "gh issue comment 123 --body test" \
+    "gh label create test --color 000000" \
+    "gh label edit test --color ffffff"; do
+    run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"decision": "allow"'* ]]
+  done
+
+  for command in \
+    "git push origin HEAD" \
+    "git push -u origin HEAD" \
+    "git push --set-upstream origin HEAD" \
+    "git push origin main" \
+    "git push -u origin master" \
+    "gh pr close 123" \
+    "gh pr merge 123" \
+    "gh pr reopen 123" \
+    "gh issue close 123" \
+    "gh issue reopen 123"; do
+    run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"decision": "prompt"'* ]]
+  done
+
+  for command in \
+    "git push origin HEAD --force" \
+    "git push -u origin HEAD --force-with-lease" \
+    "gh repo delete owner/repo"; do
+    run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"decision": "forbidden"'* ]]
+  done
 }
 
 
@@ -618,6 +683,10 @@ model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 personality = "pragmatic"
 
+[apps.github]
+default_tools_approval_mode = "approve"
+destructive_enabled = false
+
 [plugins."github@openai-curated"]
 enabled = true
 
@@ -730,6 +799,10 @@ EOF
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 personality = "pragmatic"
+
+[apps.github]
+default_tools_approval_mode = "approve"
+destructive_enabled = false
 
 [plugins."github@openai-curated"]
 enabled = true
