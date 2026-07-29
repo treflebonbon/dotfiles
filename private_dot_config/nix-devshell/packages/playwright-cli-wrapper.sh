@@ -35,7 +35,8 @@ is_wsl() {
     [[ "$PWCLI_TEST_WSL" == "1" ]]
     return
   fi
-  grep -qi microsoft /proc/sys/kernel/osrelease
+  [[ -r /proc/sys/kernel/osrelease ]] &&
+    grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null
 }
 
 if ! is_wsl; then

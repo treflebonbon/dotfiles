@@ -203,6 +203,26 @@ teardown() {
   [ "${actual[*]}" = "${expected[*]}" ]
 }
 
+@test "non-WSL environments pass through without diagnostics when the osrelease probe fails" {
+  unset PWCLI_TEST_WSL
+  local missing_proc_bin="$BATS_TEST_TMPDIR/missing-proc-bin"
+  mkdir -p "$missing_proc_bin"
+  cat >"$missing_proc_bin/grep" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' 'grep: /proc/sys/kernel/osrelease: No such file or directory' >&2
+exit 2
+EOF
+  chmod +x "$missing_proc_bin/grep"
+
+  run env PATH="$missing_proc_bin:$PATH" \
+    bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  grep -Fxq -- "open" "$UPSTREAM_LOG"
+  grep -Fxq -- "https://example.com" "$UPSTREAM_LOG"
+}
+
 @test "help and version flags retain upstream behavior on WSL2" {
   export PWCLI_TEST_WSL=1
 
