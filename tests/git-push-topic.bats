@@ -69,6 +69,14 @@ EOF
   [ "$(cat "$MOCK_LOG")" = "push -u origin HEAD" ]
 }
 
+@test "git-push-reviewed rejects a non-default branch" {
+  run env PATH="$MOCK_BIN:$PATH" MOCK_BRANCH="release/example" MOCK_DEFAULT="main" \
+    MOCK_LOG="$MOCK_LOG" bash "$REVIEWED_SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$MOCK_LOG" ]
+}
+
 @test "git-push-topic rejects arguments and detached HEAD" {
   run env PATH="$MOCK_BIN:$PATH" MOCK_BRANCH="feat/example" MOCK_DEFAULT="main" \
     MOCK_LOG="$MOCK_LOG" bash "$SCRIPT" --force

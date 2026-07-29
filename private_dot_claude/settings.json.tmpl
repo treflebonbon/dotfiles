@@ -7,7 +7,20 @@
   },
   "editorMode": "normal",
   "permissions": {
-    "allow": ["Skill", "Bash(git-push-topic:*)"],
+    "allow": [
+      "Skill",
+      "Bash(git-push-topic:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh pr ready:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh label create:*)",
+      "Bash(gh label edit:*)"
+    ],
     "deny": [
       "Read(**/.env*)",
       "Read(**/*.pem)",

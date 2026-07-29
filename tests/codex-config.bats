@@ -203,6 +203,19 @@ assert data["hooks"]["Stop"] == [
     {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
 ]
 assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
+for rule in [
+    "Bash(gh pr create:*)",
+    "Bash(gh pr edit:*)",
+    "Bash(gh pr comment:*)",
+    "Bash(gh pr review:*)",
+    "Bash(gh pr ready:*)",
+    "Bash(gh issue create:*)",
+    "Bash(gh issue edit:*)",
+    "Bash(gh issue comment:*)",
+    "Bash(gh label create:*)",
+    "Bash(gh label edit:*)",
+]:
+    assert rule in data["permissions"]["allow"]
 assert "Bash(git push:*)" in data["permissions"]["deny"]
 for rule in [
     "Bash(/usr/bin/git push:*)",
