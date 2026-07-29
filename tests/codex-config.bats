@@ -121,7 +121,8 @@ prepare_codex_chezmoi_source() {
     "$PROJECT_ROOT/private_dot_gemini/AGENTS.md"; do
     grep -Fq 'Routine GitHub collaboration writes do not need a second confirmation' "$guidance"
     grep -Fq 'pushes from the current topic branch using `git-push-topic`' "$guidance"
-    grep -Fq 'Force pushes are prohibited, and raw `git push` commands are blocked' "$guidance"
+    grep -Fq 'Force pushes are prohibited by policy' "$guidance"
+    grep -Fq 'Direct raw `git push` commands and common wrapper or global-option variants are blocked by runtime rules' "$guidance"
     grep -Fq 'Use `git-push-reviewed` for a default-branch push only after explicit approval' "$guidance"
     grep -Fq 'direct pushes to a default branch' "$guidance"
     ! grep -Fq 'Visible to others: pushing code, commenting on PRs/issues' "$guidance"

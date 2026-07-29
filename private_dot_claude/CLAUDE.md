@@ -52,7 +52,7 @@ Confirm before executing hard-to-reverse or shared-system-affecting actions:
 
 Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues; reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
 
-Force pushes are prohibited, and raw `git push` commands are blocked. Use `git-push-topic` for the current topic branch. Use `git-push-reviewed` for a default-branch push only after explicit approval.
+Force pushes are prohibited by policy. Direct raw `git push` commands and common wrapper or global-option variants are blocked by runtime rules. Use `git-push-topic` for the current topic branch. Use `git-push-reviewed` for a default-branch push only after explicit approval.
 
 ## Clarifying questions
 
