@@ -113,6 +113,40 @@ prefix_rule(
     ],
 )
 
+# `prefix_rule` matches argv exactly, so also block common ways to move `push`
+# away from argv[1]. Use a shell `cd` followed by plain `git` for other work.
+prefix_rule(
+    pattern = [["/bin/git", "/usr/bin/git"], "push"],
+    decision = "forbidden",
+    justification = "Use git-push-topic or git-push-reviewed instead of an absolute git path.",
+    match = [
+        "/bin/git push origin HEAD",
+        "/usr/bin/git push origin HEAD --force",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", ["-C", "-c", "--git-dir", "--work-tree"]],
+    decision = "forbidden",
+    justification = "Global git options can hide a push from approval rules; use a shell cd and plain git instead.",
+    match = [
+        "git -C . push origin HEAD",
+        "git -c core.hooksPath=/dev/null push origin HEAD",
+        "git --git-dir .git push origin HEAD",
+        "git --work-tree . push origin HEAD",
+    ],
+)
+
+prefix_rule(
+    pattern = [["command", "env"], "git"],
+    decision = "forbidden",
+    justification = "Shell wrappers can hide a push from approval rules; invoke plain git or a managed push wrapper.",
+    match = [
+        "command git push origin HEAD",
+        "env git push origin HEAD --force",
+    ],
+)
+
 prefix_rule(
     pattern = ["git-push-topic"],
     decision = "allow",

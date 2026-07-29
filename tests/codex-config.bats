@@ -202,6 +202,14 @@ assert data["hooks"]["Stop"] == [
 ]
 assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
 assert "Bash(git push:*)" in data["permissions"]["deny"]
+for rule in [
+    "Bash(/usr/bin/git push:*)",
+    "Bash(git -C:*)",
+    "Bash(git --git-dir:*)",
+    "Bash(command git:*)",
+    "Bash(env git:*)",
+]:
+    assert rule in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Bash(git push --force") for rule in data["permissions"]["deny"]
 )
@@ -330,6 +338,14 @@ PY
     "git push -u --force origin HEAD" \
     "git push origin +HEAD" \
     "git push upstream HEAD --force" \
+    "/bin/git push origin HEAD" \
+    "/usr/bin/git push origin HEAD --force" \
+    "git -C . push origin HEAD" \
+    "git -c core.hooksPath=/dev/null push origin HEAD --force" \
+    "git --git-dir .git push origin HEAD" \
+    "git --work-tree . push origin HEAD --force-with-lease" \
+    "command git push origin HEAD" \
+    "env git push origin +HEAD" \
     "gh repo delete owner/repo"; do
     run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
     [ "$status" -eq 0 ]

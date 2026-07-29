@@ -21,7 +21,7 @@ status: accepted
 2. `/to-pr` の明示呼出し、または AFK/自律完了の明示許可は、topic branch push・PR create/edit・証跡画像 upload・整合済み `Fixes` への事前承認とする。close 対象は PR body と完了報告に記録するが、公開直前の確認には戻さない。
 3. 内容を決める対話は維持する。dogfood finding の Keep/Skip/Edit、曖昧な issue 内容、実課金などは「外部操作の確認」ではなく product decision または不可逆操作なので、本決定の対象外とする。
 4. default branch への直接 push、force-push、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets、共有 infrastructure は事前承認しない。force-push は従来どおり禁止し、GitHub app の destructive tool は無効化する。
-5. Codex は `approval_policy = "on-request"` を維持する。execpolicy は`git-push-topic`と列挙した`gh` commandだけをallowし、生の`git push`はforce指定の位置やrefspecによる抜け道を作らないよう全面forbiddenとする。default branchへの直接pushは明示承認後に`git-push-reviewed`を使い、state transitionはprompt、force-pushはforbiddenとする。GitHub app は非破壊toolを`approve`、destructive toolをdisabledとする。
+5. Codex は `approval_policy = "on-request"` を維持する。execpolicy は`git-push-topic`と列挙した`gh` commandだけをallowし、生の`git push`に加えてabsolute path・Git global option・`env`/`command` wrapperによる代表的な迂回形もforbiddenとする。default branchへの直接pushは明示承認後に`git-push-reviewed`を使い、state transitionはprompt、force-pushはforbiddenとする。GitHub app は非破壊toolを`approve`、destructive toolをdisabledとする。
 6. この契約をCodex・Claude Code・Gemini/Antigravityのglobal guidanceとproject workflowで統一する。
 
 本決定は **ADR-0019 Decision 7**（push / PR作成確認の維持）を置き換え、ADR-0023の`triage` apply確認についても内容確定後の非破壊GitHub書込みに限って置き換える。
