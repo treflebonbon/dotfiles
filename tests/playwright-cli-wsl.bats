@@ -105,6 +105,10 @@ case "$action" in
     if [[ "${PWCLI_FAKE_INSPECT_FAIL:-0}" == "1" ]]; then
       exit 45
     fi
+    if [[ -f "$POWERSHELL_STATE.close-inspect-fail" ]]; then
+      rm -f "$POWERSHELL_STATE.close-inspect-fail"
+      exit 45
+    fi
     if [[ -f "$POWERSHELL_STATE.close-inspections" ]]; then
       close_inspections="$(cat "$POWERSHELL_STATE.close-inspections")"
       if ((close_inspections > 0)); then
@@ -163,7 +167,11 @@ EOF
   cat >"$FAKE_BIN/cdp-close" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$CDP_CLOSE_LOG"
-if [[ -n "${PWCLI_FAKE_CLOSE_INSPECTIONS:-}" ]]; then
+if [[ "${PWCLI_FAKE_CLOSE_INSPECT_FAIL:-0}" == "1" ]]; then
+  touch "$POWERSHELL_STATE.close-inspect-fail"
+elif [[ -n "${PWCLI_FAKE_CLOSE_STATUS:-}" ]]; then
+  printf '%s\n' "$PWCLI_FAKE_CLOSE_STATUS" >"$POWERSHELL_STATE"
+elif [[ -n "${PWCLI_FAKE_CLOSE_INSPECTIONS:-}" ]]; then
   printf '%s\n' "$PWCLI_FAKE_CLOSE_INSPECTIONS" >"$POWERSHELL_STATE.close-inspections"
 else
   printf '%s\n' absent >"$POWERSHELL_STATE"
@@ -621,6 +629,37 @@ EOF
   [[ "$output" == *"ownership state was preserved"* ]]
   [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:4242" ]
+}
+
+@test "Chrome close fails closed when post-ack ownership inspection fails" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_CLOSE_INSPECT_FAIL=1
+  export PWCLI_CDP_TIMEOUT=0
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"could not inspect Managed Playwright Chrome after Browser.close"* ]]
+  [[ "$output" == *"ownership state was preserved"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+}
+
+@test "Chrome close fails closed when post-ack ownership changes" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_CLOSE_STATUS=managed:5150
+  export PWCLI_CDP_TIMEOUT=0
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"ownership changed while closing"* ]]
+  [[ "$output" == *"managed:5150"* ]]
+  [[ "$output" == *"ownership state was preserved"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
 }
 
 @test "a failed Dashboard start removes stale state and closes unused Chrome" {

@@ -396,10 +396,15 @@ close_chrome_if_unused() {
   fi
   local deadline=$((SECONDS + ${PWCLI_CDP_TIMEOUT:-10}))
   while ((SECONDS <= deadline)); do
-    chrome_status="$(inspect_chrome || true)"
+    if ! chrome_status="$(inspect_chrome)"; then
+      fail "could not inspect Managed Playwright Chrome after Browser.close. Close the dedicated Chrome manually; ownership state was preserved."
+    fi
     if [[ "$chrome_status" == "absent" ]]; then
       rm -f "$pwcli_state_dir/chrome.pid"
       return
+    fi
+    if [[ "$chrome_status" != "managed:$recorded_pid" ]]; then
+      fail "Managed Playwright Chrome ownership changed while closing (status: ${chrome_status:-empty}). Close the dedicated Chrome manually; ownership state was preserved."
     fi
     sleep 0.2
   done
