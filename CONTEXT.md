@@ -4,6 +4,10 @@
 
 ## Language
 
+**Managed Playwright Chrome**:
+WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。専用 profile の手動認証状態を、排他的な CLI session と Dashboard が再利用する。
+_Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
+
 **Contract**:
 issue/PRD が定める「目的・AC・非目標・検証方法・関連ファイル/入口・判断済みtradeoff」の6項目。`ready-for-agent` 化の入口契約であり、`to-pr` が PR body へ埋め込む出口契約でもある。
 _Avoid_: 仕様, spec, 要件定義
