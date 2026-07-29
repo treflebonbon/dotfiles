@@ -9,9 +9,39 @@ setup() {
   POWERSHELL_LOG="$BATS_TEST_TMPDIR/powershell.log"
   POWERSHELL_STATE="$BATS_TEST_TMPDIR/powershell.state"
   RUNTIME_DIR="$BATS_TEST_TMPDIR/runtime"
+  PROC_ROOT="$BATS_TEST_TMPDIR/proc"
   DASHBOARD_CALL_LOG="$BATS_TEST_TMPDIR/dashboard-call.log"
   DASHBOARD_READY="$BATS_TEST_TMPDIR/dashboard-ready"
-  mkdir -p "$FAKE_BIN"
+  mkdir -p "$FAKE_BIN" "$PROC_ROOT/net"
+  : >"$PROC_ROOT/net/tcp"
+
+  cat >"$FAKE_BIN/fake-proc" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+action="$1"
+pid="$2"
+case "$action" in
+process | listener)
+  session_id="$3"
+  start_time="$4"
+  mkdir -p "$PWCLI_PROC_ROOT/$pid/fd"
+  printf '%s (fake-dashboard) S 1 %s %s 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 %s\n' \
+    "$pid" "$session_id" "$session_id" "$start_time" >"$PWCLI_PROC_ROOT/$pid/stat"
+  if [[ "$action" == "listener" ]]; then
+    inode="$5"
+    ln -sfn "socket:[$inode]" "$PWCLI_PROC_ROOT/$pid/fd/3"
+    printf '0: 0100007F:246B 00000000:0000 0A 00000000:00000000 00:00000000 00000000 1000 0 %s\n' \
+      "$inode" >"$PWCLI_PROC_ROOT/net/tcp"
+  fi
+  ;;
+remove)
+  rm -f "$PWCLI_PROC_ROOT/$pid/fd/3" "$PWCLI_PROC_ROOT/$pid/stat"
+  rmdir "$PWCLI_PROC_ROOT/$pid/fd" "$PWCLI_PROC_ROOT/$pid" 2>/dev/null || true
+  : >"$PWCLI_PROC_ROOT/net/tcp"
+  ;;
+esac
+EOF
+  chmod +x "$FAKE_BIN/fake-proc"
 
   cat >"$FAKE_BIN/playwright-cli-upstream" <<'EOF'
 #!/usr/bin/env bash
@@ -20,8 +50,13 @@ if [[ "$*" == *"show"* && "$*" == *"--port=9323"* ]]; then
   if [[ "${PWCLI_FAKE_DASHBOARD_FAIL:-0}" == "1" ]]; then
     exit 44
   fi
+  "$FAKE_PROC_HELPER" listener "$$" "$$" 123456 424242
   touch "$DASHBOARD_READY"
-  trap 'rm -f "$DASHBOARD_READY"' EXIT
+  cleanup_dashboard() {
+    "$FAKE_PROC_HELPER" remove "$$"
+    rm -f "$DASHBOARD_READY"
+  }
+  trap cleanup_dashboard EXIT
   while :; do
     sleep 0.1
   done
@@ -107,15 +142,11 @@ printf '%s\n' absent >"$POWERSHELL_STATE"
 EOF
   chmod +x "$FAKE_BIN/cdp-close"
 
-  cat >"$FAKE_BIN/dashboard-owner-check" <<'EOF'
-#!/usr/bin/env bash
-[[ "${PWCLI_FAKE_DASHBOARD_OWNER:-1}" == "1" ]]
-EOF
-  chmod +x "$FAKE_BIN/dashboard-owner-check"
-
   export CDP_CLOSE_LOG="$BATS_TEST_TMPDIR/cdp-close.log"
   export CURL_LOG="$BATS_TEST_TMPDIR/curl.log"
   export DASHBOARD_CALL_LOG DASHBOARD_READY
+  export FAKE_PROC_HELPER="$FAKE_BIN/fake-proc"
+  export PWCLI_PROC_ROOT="$PROC_ROOT"
   export POWERSHELL_LOG POWERSHELL_STATE UPSTREAM_LOG
   export PWCLI_UPSTREAM="$FAKE_BIN/playwright-cli-upstream"
   export PWCLI_WSLINFO="$FAKE_BIN/wslinfo"
@@ -123,7 +154,6 @@ EOF
   export PWCLI_WINDOWS_SCRIPT="C:\\fake\\playwright-cli-windows.ps1"
   export PWCLI_CURL="$FAKE_BIN/curl"
   export PWCLI_CDP_CLOSE="$FAKE_BIN/cdp-close"
-  export PWCLI_DASHBOARD_OWNER_CHECK="$FAKE_BIN/dashboard-owner-check"
   export PWCLI_RUNTIME_DIR="$RUNTIME_DIR"
   export PWCLI_CDP_TIMEOUT=1
 }
@@ -329,6 +359,7 @@ teardown() {
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
   [ -s "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
+  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
   [ -f "$RUNTIME_DIR/playwright-cli/dashboard.log" ]
   local first_pid
   first_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
@@ -378,9 +409,29 @@ teardown() {
   sleep 60 &
   local unrelated_pid=$!
   printf '%s\n' "$unrelated_pid" >"$RUNTIME_DIR/playwright-cli/dashboard.pid"
+  printf '%s\n' 100 >"$RUNTIME_DIR/playwright-cli/dashboard.starttime"
   printf '%s\n' "$unrelated_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
+  "$FAKE_PROC_HELPER" process "$unrelated_pid" "$unrelated_pid" 100
+  "$FAKE_PROC_HELPER" listener 999999 999999 200 424242
   touch "$DASHBOARD_READY"
-  export PWCLI_FAKE_DASHBOARD_OWNER=0
+
+  run bash "$WRAPPER" show
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"without matching Managed Playwright Dashboard state"* ]]
+}
+
+@test "Dashboard state rejects a reused listener PID with a different start time" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$RUNTIME_DIR/playwright-cli"
+
+  sleep 60 &
+  local reused_pid=$!
+  printf '%s\n' "$reused_pid" >"$RUNTIME_DIR/playwright-cli/dashboard.pid"
+  printf '%s\n' 1 >"$RUNTIME_DIR/playwright-cli/dashboard.starttime"
+  printf '%s\n' "$reused_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
+  "$FAKE_PROC_HELPER" listener "$reused_pid" "$reused_pid" 2 424242
+  touch "$DASHBOARD_READY"
 
   run bash "$WRAPPER" show
 
@@ -433,6 +484,7 @@ teardown() {
   [ "$status" -ne 0 ]
   [ -s "$CDP_CLOSE_LOG" ]
   [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
+  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
 }
 
 @test "managed delete-data refuses to remove the dedicated profile" {
