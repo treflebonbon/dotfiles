@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 
 $DebugAddress = "127.0.0.1"
 $DebugPort = 9222
-$Profile = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\chrome-profile"
+$ProfileDir = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\chrome-profile"
 
 function Find-ChromeExecutable {
     $Candidates = @()
@@ -40,7 +40,7 @@ function Get-ChromeState {
     $ChromeProcesses = @(
         Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction SilentlyContinue
     )
-    $EscapedProfile = [Regex]::Escape($Profile)
+    $EscapedProfile = [Regex]::Escape($ProfileDir)
     $ProfilePattern = "--user-data-dir=(?:`"$EscapedProfile`"|$EscapedProfile)(?:\s|$)"
     $ProfileProcesses = @(
         $ChromeProcesses | Where-Object {
@@ -101,11 +101,11 @@ if ($State -ne "absent") {
     exit 0
 }
 
-New-Item -ItemType Directory -Force -Path $Profile | Out-Null
+New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 $Arguments = @(
     "--remote-debugging-address=$DebugAddress"
     "--remote-debugging-port=$DebugPort"
-    "--user-data-dir=`"$Profile`""
+    "--user-data-dir=`"$ProfileDir`""
     "--no-first-run"
     "--no-default-browser-check"
     "about:blank"

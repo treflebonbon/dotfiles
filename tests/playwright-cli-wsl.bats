@@ -4,6 +4,8 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WRAPPER="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wrapper.sh"
   WINDOWS_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
+  CDP_CLOSE_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-cdp-close.js"
+  CDP_CLOSE_HARNESS="$PROJECT_ROOT/tests/fixtures/playwright-cli-cdp-close-harness.mjs"
   FAKE_BIN="$BATS_TEST_TMPDIR/bin"
   UPSTREAM_LOG="$BATS_TEST_TMPDIR/upstream.log"
   POWERSHELL_LOG="$BATS_TEST_TMPDIR/powershell.log"
@@ -45,6 +47,9 @@ EOF
 
   cat >"$FAKE_BIN/playwright-cli-upstream" <<'EOF'
 #!/usr/bin/env bash
+if [[ "${PWCLI_FAKE_OCCUPY_DASHBOARD_ON_CLOSE_ALL:-0}" == "1" && "$*" == *"close-all"* ]]; then
+  touch "$DASHBOARD_READY"
+fi
 if [[ "$*" == *"show"* && "$*" == *"--port=9323"* ]]; then
   printf '%s\n' "$@" >>"$DASHBOARD_CALL_LOG"
   if [[ "${PWCLI_FAKE_DASHBOARD_FAIL:-0}" == "1" ]]; then
@@ -97,6 +102,13 @@ for argument in "$@"; do
 done
 case "$action" in
   Inspect)
+    if [[ "${PWCLI_FAKE_INSPECT_FAIL:-0}" == "1" ]]; then
+      exit 45
+    fi
+    if [[ -f "$POWERSHELL_STATE.inspect-fail-once" ]]; then
+      rm -f "$POWERSHELL_STATE.inspect-fail-once"
+      exit 45
+    fi
     if [[ -f "$POWERSHELL_STATE" ]]; then
       cat "$POWERSHELL_STATE"
     else
@@ -105,6 +117,9 @@ case "$action" in
     ;;
   Start)
     printf '%s\n' 'managed:4242' >"$POWERSHELL_STATE"
+    if [[ "${PWCLI_FAKE_INSPECT_FAIL_AFTER_START:-0}" == "1" ]]; then
+      touch "$POWERSHELL_STATE.inspect-fail-once"
+    fi
     printf '%s\n' started
     ;;
 esac
@@ -281,6 +296,19 @@ teardown() {
   done
 }
 
+@test "show-only flags do not enter Dashboard control paths on open" {
+  export PWCLI_TEST_WSL=1
+
+  run bash "$WRAPPER" -s=alpha open --kill https://example.com/kill
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start" "$POWERSHELL_LOG"
+  grep -Fxq -- "--kill" "$UPSTREAM_LOG"
+
+  run bash "$WRAPPER" -s=alpha open --annotate https://example.com/annotate
+  [ "$status" -eq 0 ]
+  grep -Fxq -- "--annotate" "$UPSTREAM_LOG"
+}
+
 @test "project config and browser-shaping environment bypass the managed WSL2 path" {
   export PWCLI_TEST_WSL=1
   local project="$BATS_TEST_TMPDIR/project"
@@ -330,6 +358,27 @@ teardown() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"powershell.exe is unavailable"* ]]
   [[ "$output" == *"Windows interoperability"* ]]
+}
+
+@test "managed open reports remediation when Chrome ownership inspection fails" {
+  export PWCLI_TEST_WSL=1
+  export PWCLI_FAKE_INSPECT_FAIL=1
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"could not inspect Windows Chrome ownership"* ]]
+  [[ "$output" == *"Verify PowerShell and retry"* ]]
+}
+
+@test "managed open retries a transient inspection failure while waiting for CDP" {
+  export PWCLI_TEST_WSL=1
+  export PWCLI_FAKE_INSPECT_FAIL_AFTER_START=1
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
 }
 
 @test "managed open fails when Windows Chrome is missing" {
@@ -476,6 +525,12 @@ teardown() {
   grep -Fq 'return "managed:$ListenerProcessId"' "$WINDOWS_SCRIPT"
 }
 
+@test "CDP close exits promptly after Chrome acknowledges Browser.close" {
+  run timeout 2 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT"
+
+  [ "$status" -eq 0 ]
+}
+
 @test "Chrome close refuses a CDP listener that no longer matches recorded ownership" {
   export PWCLI_TEST_WSL=1
   mkdir -p "$RUNTIME_DIR/playwright-cli"
@@ -580,6 +635,19 @@ teardown() {
   grep -Fxq -- "close-all" "$UPSTREAM_LOG"
   [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
   [ -s "$CDP_CLOSE_LOG" ]
+}
+
+@test "close-all refuses to close Chrome if the Dashboard port becomes unowned" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_OCCUPY_DASHBOARD_ON_CLOSE_ALL=1
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"refusing to close Chrome while 127.0.0.1:9323 is in use"* ]]
+  [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
 @test "kill-all never force-kills managed Chrome and uses graceful CDP close" {

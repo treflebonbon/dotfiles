@@ -84,6 +84,11 @@ for pwcli_argument in "$@"; do
   esac
 done
 
+if [[ "$pwcli_command" != "show" ]]; then
+  pwcli_show_kill=0
+  pwcli_show_annotate=0
+fi
+
 if ((pwcli_passthrough_metadata)); then
   exec "$pwcli_upstream" "$@"
 fi
@@ -363,10 +368,12 @@ close_chrome_if_unused() {
   if [[ -f "$pwcli_lease" ]]; then
     return
   fi
+  local dashboard_result=0
   if dashboard_status; then
     return
+  else
+    dashboard_result=$?
   fi
-  local dashboard_result=$?
   if ((dashboard_result == 2)); then
     fail "refusing to close Chrome while 127.0.0.1:9323 is in use without matching Dashboard state."
   fi
@@ -453,7 +460,7 @@ prepare_powershell
 
 ensure_chrome() {
   local status
-  status="$(inspect_chrome)"
+  status="$(inspect_chrome || true)"
   case "$status" in
   managed:*)
     if ((pwcli_had_consumer == 0)); then
@@ -479,7 +486,7 @@ ensure_chrome() {
 
   local deadline=$((SECONDS + ${PWCLI_CDP_TIMEOUT:-10}))
   while ((SECONDS <= deadline)); do
-    status="$(inspect_chrome)"
+    status="$(inspect_chrome || true)"
     if [[ "$status" == managed:* ]] && cdp_ready; then
       printf '%s\n' "${status#managed:}" >"$pwcli_state_dir/chrome.pid"
       return

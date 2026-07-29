@@ -21,7 +21,7 @@ const socket = new WebSocket(webSocketDebuggerUrl);
 const opened = await Promise.race([
   once(socket, "open").then(() => true),
   once(socket, "error").then(() => false),
-  delay(5000).then(() => false),
+  delay(5000, undefined, { ref: false }).then(() => false),
 ]);
 if (!opened) {
   socket.close();
@@ -33,7 +33,7 @@ const result = await Promise.race([
   once(socket, "message").then(() => "message"),
   once(socket, "close").then(() => "close"),
   once(socket, "error").then(() => "error"),
-  delay(5000).then(() => "timeout"),
+  delay(5000, undefined, { ref: false }).then(() => "timeout"),
 ]);
 if (result === "error" || result === "timeout") {
   socket.close();

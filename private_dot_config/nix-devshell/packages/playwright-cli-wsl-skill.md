@@ -19,8 +19,8 @@ profile `%LOCALAPPDATA%\aiakos\playwright-cli\chrome-profile`.
 
 Explicit `--config`, `--browser`, `--profile`, `--persistent`, `--device`,
 `--mobile`, or `--headed` options, browser-shaping `PLAYWRIGHT_MCP_*`
-environment variables, project `.playwright/cli.config.json` files, and
-`attach` retain upstream behavior.
+environment variables, `PWTEST_CLI_GLOBAL_CONFIG`, project
+`.playwright/cli.config.json` files, and `attach` retain upstream behavior.
 
 The dedicated profile may reuse authentication that the user established
 manually. Authentication is not authorization for payments, production data

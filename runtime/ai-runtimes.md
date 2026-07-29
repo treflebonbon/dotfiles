@@ -100,8 +100,6 @@ Codex 0.144.4 は公式 release note が user-facing change なしと明記す�
 
 同じ更新で Playwright CLI 0.1.17、Waza 0.38.3、design.md 0.3.0、Defuddle 0.19.1 へ更新し、MarkItDown は最新の 0.1.6 を維持した。Waza 0.38.3 は `v0.38.3` の4 platform向け standalone CLI assetとhashを固定し、別releaseの`azd` extension artifactとは分離した。26.05 の Defuddle / MarkItDown は 0.18.1 / 0.1.4 のため、この2 package definition だけ commit `421eebfd` から26.05 package set上へ backport する。MarkItDown の依存する `arrow-cpp` は26.05で Intel Darwin broken のため、その sunset system に限り broken package の評価を許可する。4 system の flake 評価と現 host の devShell build、Nix store 上の各 CLI/version を隔離 workspace から確認し、ライブ環境への apply は行っていない。Intel Darwin の security support は 2026-12-31 までであり、この backport / overlay 経路も同日までに廃止判断する。
 
-2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
-
 2026-07-23 JST、Codex 0.144.6 の model catalog と strict config で対応を確認し、管理 config の既定を品質優先の `gpt-5.6-sol` / `xhigh` へ変更した。Claude Code の auto mode に対応するローカル自動化境界として `workspace-write` + `on-request` + `auto_review` は維持する。[OpenAI Codex の discoverable plugin 定義](https://github.com/openai/codex/blob/main/codex-rs/core-plugins/src/discoverable.rs)にある `chrome@openai-bundled` も既定 ON にするが、Chrome 拡張のインストール・pairing・browser/site 権限は端末ごとの明示操作に残す。Codex 0.145.0 への更新は別作業とし、flake pin と `minCodex` は 0.144.6 のまま変更しない。
 
 2026-07-25 JST、Issue #112（Claude Opus 5 対応）を受けて `llm-agents.nix` を4 platform の source map を保持する commit `533b02e5` から `0858b21` へ更新した。package metadata は `claude-code` 2.1.216 → 2.1.219、`codex` 0.144.6 → 0.145.0、`copilot-cli` 1.0.73 → 1.0.75、`antigravity-cli` 1.1.5 → 1.1.6。Claude Code 2.1.217 は background session isolation が symlink 済み working directory を正規化せずワークスペース脱出を許す不具合を修正し、2.1.219 は Claude Opus 5 (`claude-opus-5`) を追加してデフォルト Opus モデルへ変更したため、`minClaudeCode` を `2.1.219` へ上げた。Codex 0.145.0 は今回の目的（Opus 5 対応）に無関係な追従のみで repo 固有の関連修正を確認していないため、`minCodex` は `0.144.6` のまま変更しない（2026-07-23 の判断を継続）。
@@ -123,6 +121,8 @@ APM 経路は unpinned な skill を最新へ解決し直し、`mattpocock/skill
 orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は apm.yml から消えたパッケージのみを対象とするが、パッケージ内で上流が削除・移動したファイルは `apm install --frozen` 自身が処理する（`modern-web-guidance/guides/ui-components/` はディレクトリごと、`built-in-ai/prompt-api.md` も除去された）。clean install と旧状態からの増分 install が同一の lock を生成することも確認した。
 
 切り出した impeccable の判定（Issue #117）も同日に済ませた。結論は **pin を `1cf7d7ab` へ進める、ただし `Stop` 配線とセットで**。判定の根拠・隔離 HOME での実測値・代替案の却下理由は [ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md) にあり、実作業は Issue #119 へ起票した。
+
+2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
