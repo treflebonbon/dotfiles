@@ -100,82 +100,16 @@ prefix_rule(
     ],
 )
 
-# Block common force-push forms.
-prefix_rule(
-    pattern = ["git", "push", ["-f", "--force", "--force-with-lease"]],
-    decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
-    match = [
-        "git push -f",
-        "git push --force",
-        "git push --force-with-lease",
-    ],
-    not_match = [
-        "git push",
-    ],
-)
-
-prefix_rule(
-    pattern = ["git", "push", "origin", ["-f", "--force", "--force-with-lease"]],
-    decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
-    match = [
-        "git push origin --force",
-    ],
-    not_match = [
-        "git push origin main",
-    ],
-)
-
-prefix_rule(
-    pattern = ["git", "push", "origin", ["main", "master"], ["-f", "--force", "--force-with-lease"]],
-    decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
-    match = [
-        "git push origin main --force",
-        "git push origin master --force-with-lease",
-    ],
-    not_match = [
-        "git push origin main",
-    ],
-)
-
-# Raw push commands remain prompt-based. `git-push-topic` is the only
-# non-interactive path because it validates the branch and accepts no arguments.
-prefix_rule(
-    pattern = ["git", "push", "origin", "HEAD", ["-f", "--force", "--force-with-lease"]],
-    decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
-    match = [
-        "git push origin HEAD --force",
-        "git push origin HEAD --force-with-lease",
-    ],
-    not_match = [
-        "git push origin HEAD",
-    ],
-)
-
-prefix_rule(
-    pattern = ["git", "push", ["-u", "--set-upstream"], "origin", "HEAD", ["-f", "--force", "--force-with-lease"]],
-    decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
-    match = [
-        "git push -u origin HEAD --force",
-        "git push --set-upstream origin HEAD --force-with-lease",
-    ],
-    not_match = [
-        "git push -u origin HEAD",
-    ],
-)
-
+# Block raw push syntax so force refspecs cannot bypass prefix matching.
 prefix_rule(
     pattern = ["git", "push"],
-    decision = "prompt",
-    justification = "Use git-push-topic for a validated topic-branch push without prompting.",
+    decision = "forbidden",
+    justification = "Use git-push-topic for preauthorized topic branches or git-push-reviewed for an approval-gated non-force push.",
     match = [
         "git push origin HEAD",
-        "git push -u origin HEAD",
         "git push origin main",
+        "git push origin +HEAD",
+        "git push -u --force origin HEAD",
     ],
 )
 
@@ -189,28 +123,11 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["git", "push", "origin", ["main", "master"]],
+    pattern = ["git-push-reviewed"],
     decision = "prompt",
-    justification = "Direct pushes to the default branch remain user-reviewed.",
+    justification = "The wrapper fixes the push to origin HEAD, but default-branch publication still requires approval.",
     match = [
-        "git push origin main",
-        "git push origin master",
-    ],
-    not_match = [
-        "git push origin HEAD",
-    ],
-)
-
-prefix_rule(
-    pattern = ["git", "push", ["-u", "--set-upstream"], "origin", ["main", "master"]],
-    decision = "prompt",
-    justification = "Direct pushes to the default branch remain user-reviewed.",
-    match = [
-        "git push -u origin main",
-        "git push --set-upstream origin master",
-    ],
-    not_match = [
-        "git push -u origin HEAD",
+        "git-push-reviewed",
     ],
 )
 

@@ -121,6 +121,8 @@ prepare_codex_chezmoi_source() {
     "$PROJECT_ROOT/private_dot_gemini/AGENTS.md"; do
     grep -Fq 'Routine GitHub collaboration writes do not need a second confirmation' "$guidance"
     grep -Fq 'pushes from the current topic branch using `git-push-topic`' "$guidance"
+    grep -Fq 'Force pushes are prohibited, and raw `git push` commands are blocked' "$guidance"
+    grep -Fq 'Use `git-push-reviewed` for a default-branch push only after explicit approval' "$guidance"
     grep -Fq 'direct pushes to a default branch' "$guidance"
     ! grep -Fq 'Visible to others: pushing code, commenting on PRs/issues' "$guidance"
   done
@@ -198,6 +200,11 @@ assert data["hooks"]["PostToolUse"] == [
 assert data["hooks"]["Stop"] == [
     {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
 ]
+assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
+assert "Bash(git push:*)" in data["permissions"]["deny"]
+assert not any(
+    rule.startswith("Bash(git push --force") for rule in data["permissions"]["deny"]
+)
 PY
 }
 
@@ -269,7 +276,9 @@ PY
   grep -q 'pattern = \["terraform", \["apply", "destroy"\]\]' "$rules"
   grep -q 'pattern = \["kubectl", "delete"\]' "$rules"
   grep -q 'pattern = \["gh", "repo", "delete"\]' "$rules"
-  grep -q 'pattern = \["git", "push", \["-f", "--force", "--force-with-lease"\]\]' "$rules"
+  grep -q 'pattern = \["git", "push"\]' "$rules"
+  grep -q 'pattern = \["git-push-topic"\]' "$rules"
+  grep -q 'pattern = \["git-push-reviewed"\]' "$rules"
   grep -q 'pattern = \["rm", \["-r", "-R", "-rf", "-fr"\]\]' "$rules"
   grep -q 'decision = "forbidden"' "$rules"
   grep -q 'decision = "prompt"' "$rules"
@@ -299,11 +308,7 @@ PY
   done
 
   for command in \
-    "git push origin HEAD" \
-    "git push -u origin HEAD" \
-    "git push --set-upstream origin HEAD" \
-    "git push origin main" \
-    "git push -u origin master" \
+    "git-push-reviewed" \
     "gh pr close 123" \
     "gh pr merge 123" \
     "gh pr reopen 123" \
@@ -315,15 +320,22 @@ PY
   done
 
   for command in \
+    "git push origin HEAD" \
+    "git push -u origin HEAD" \
+    "git push --set-upstream origin HEAD" \
+    "git push origin main" \
+    "git push -u origin master" \
     "git push origin HEAD --force" \
     "git push -u origin HEAD --force-with-lease" \
+    "git push -u --force origin HEAD" \
+    "git push origin +HEAD" \
+    "git push upstream HEAD --force" \
     "gh repo delete owner/repo"; do
     run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
     [ "$status" -eq 0 ]
     [[ "$output" == *'"decision": "forbidden"'* ]]
   done
 }
-
 
 @test "bash_profile routes Codex Desktop sessions to .codex-app" {
   local profile="$PROJECT_ROOT/dot_bash_profile.tmpl"
@@ -566,7 +578,7 @@ EOF
 
   [ ! -f "$home/.codex/rules/default.rules" ]
   [ -f "$codex_home/rules/default.rules" ]
-  grep -q 'pattern = \["git", "push", \["-f", "--force", "--force-with-lease"\]\]' "$codex_home/rules/default.rules"
+  grep -q 'pattern = \["git", "push"\]' "$codex_home/rules/default.rules"
   [ "$(stat -c %a "$codex_home/rules/default.rules")" = "600" ]
 }
 

@@ -18,7 +18,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - PR タイトル: squash merge の commit title になるため Conventional Commits 形式にする。`[codex]` などの prefix は付けない。
 - Linting: lefthook pre-commit hook で自動実行（`lefthook.yml` 参照）
 - 認証: HTTPS + `gh auth git-credential`。SSH は不使用。
-- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、label の create/editも対象とする。default branch への直接 push、force-push、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets は対象外。
+- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、label の create/editも対象とする。生の `git push` と force-push は禁止する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
 
 ## 設計→実装ワークフロー
 

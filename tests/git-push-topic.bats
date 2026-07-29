@@ -6,6 +6,8 @@ setup() {
   MOCK_BIN="$BATS_TEST_TMPDIR/bin"
   MOCK_LOG="$BATS_TEST_TMPDIR/git.log"
   mkdir -p "$MOCK_BIN"
+  ln -s "$SCRIPT" "$MOCK_BIN/git-push-reviewed"
+  REVIEWED_SCRIPT="$MOCK_BIN/git-push-reviewed"
 
   cat >"$MOCK_BIN/git" <<'EOF'
 #!/usr/bin/env bash
@@ -15,9 +17,9 @@ case "$*" in
 "branch --show-current")
   printf '%s\n' "$MOCK_BRANCH"
   ;;
-"symbolic-ref --quiet --short refs/remotes/origin/HEAD")
+"ls-remote --symref origin HEAD")
   [ -n "${MOCK_DEFAULT:-}" ] || exit 1
-  printf 'origin/%s\n' "$MOCK_DEFAULT"
+  printf 'ref: refs/heads/%s\tHEAD\n' "$MOCK_DEFAULT"
   ;;
 "push -u origin HEAD")
   printf '%s\n' "$*" >>"$MOCK_LOG"
@@ -49,6 +51,22 @@ EOF
     MOCK_LOG="$MOCK_LOG" bash "$SCRIPT"
   [ "$status" -ne 0 ]
   [ ! -e "$MOCK_LOG" ]
+}
+
+@test "git-push-topic fails closed when the remote default branch is unknown" {
+  run env PATH="$MOCK_BIN:$PATH" MOCK_BRANCH="feat/example" MOCK_DEFAULT="" \
+    MOCK_LOG="$MOCK_LOG" bash "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$MOCK_LOG" ]
+}
+
+@test "git-push-reviewed permits a confirmed non-force default-branch push" {
+  run env PATH="$MOCK_BIN:$PATH" MOCK_BRANCH="main" MOCK_DEFAULT="main" \
+    MOCK_LOG="$MOCK_LOG" bash "$REVIEWED_SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$MOCK_LOG")" = "push -u origin HEAD" ]
 }
 
 @test "git-push-topic rejects arguments and detached HEAD" {

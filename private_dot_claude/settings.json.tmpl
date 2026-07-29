@@ -6,7 +6,7 @@
     "CLAUDE_CODE_ENABLE_EXPERIMENTAL_ADVISOR_TOOL": "1"
   },
   "permissions": {
-    "allow": ["Skill"],
+    "allow": ["Skill", "Bash(git-push-topic:*)"],
     "deny": [
       "Read(**/.env*)",
       "Read(**/*.pem)",
@@ -33,9 +33,7 @@
       "Bash(su:*)",
       "Bash(chmod 777:*)",
       "Bash(nc:*)",
-      "Bash(git push -f:*)",
-      "Bash(git push --force:*)",
-      "Bash(git push --force-with-lease:*)",
+      "Bash(git push:*)",
       "Bash(git reset --hard:*)",
       "Bash(gcloud:*)",
       "Bash(aws:*)",
