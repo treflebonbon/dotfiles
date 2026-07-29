@@ -9,6 +9,7 @@ pwcli_wslpath="${PWCLI_WSLPATH:-wslpath}"
 pwcli_curl="${PWCLI_CURL:-@curl@/bin/curl}"
 pwcli_cdp_close="${PWCLI_CDP_CLOSE:-@cdpClose@}"
 pwcli_windows_script="${PWCLI_WINDOWS_SCRIPT:-@windowsScript@}"
+pwcli_dashboard_owner_check="${PWCLI_DASHBOARD_OWNER_CHECK:-}"
 pwcli_cdp_endpoint="http://127.0.0.1:9222"
 
 fail() {
@@ -176,6 +177,95 @@ dashboard_port_ready() {
     "http://127.0.0.1:9323/" >/dev/null
 }
 
+dashboard_listener_inodes() {
+  awk '$2 == "0100007F:246B" && $4 == "0A" { print $10 }' /proc/net/tcp
+}
+
+process_owns_socket_inode() {
+  local pid="$1"
+  local inode="$2"
+  local fd target
+  [[ "$pid" =~ ^[0-9]+$ && -d "/proc/$pid/fd" ]] || return 1
+  for fd in "/proc/$pid/fd/"*; do
+    [[ -e "$fd" ]] || continue
+    target="$(readlink "$fd" 2>/dev/null || true)"
+    if [[ "$target" == "socket:[$inode]" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+find_dashboard_listener_pid() {
+  local inode process_fd_dir pid
+  while read -r inode; do
+    [[ -n "$inode" ]] || continue
+    for process_fd_dir in /proc/[0-9]*/fd; do
+      pid="${process_fd_dir#/proc/}"
+      pid="${pid%/fd}"
+      if process_owns_socket_inode "$pid" "$inode"; then
+        printf '%s\n' "$pid"
+        return 0
+      fi
+    done
+  done < <(dashboard_listener_inodes)
+  return 1
+}
+
+process_session_id() {
+  local pid="$1"
+  local stat_data stat_tail session_id
+  [[ -r "/proc/$pid/stat" ]] || return 1
+  stat_data="$(<"/proc/$pid/stat")"
+  stat_tail="${stat_data##*) }"
+  read -r _ _ _ session_id _ <<<"$stat_tail"
+  printf '%s\n' "$session_id"
+}
+
+dashboard_pid_owns_port() {
+  local pid="$1"
+  if [[ -n "$pwcli_dashboard_owner_check" ]]; then
+    "$pwcli_dashboard_owner_check" "$pid" 9323
+    return
+  fi
+
+  local inode
+  while read -r inode; do
+    if process_owns_socket_inode "$pid" "$inode"; then
+      return 0
+    fi
+  done < <(dashboard_listener_inodes)
+  return 1
+}
+
+dashboard_listener_for_launcher() {
+  local launcher_pid="$1"
+  if [[ -n "$pwcli_dashboard_owner_check" ]]; then
+    if dashboard_pid_owns_port "$launcher_pid"; then
+      printf '%s\n' "$launcher_pid"
+      return 0
+    fi
+    return 1
+  fi
+
+  local listener_pid listener_session_id
+  listener_pid="$(find_dashboard_listener_pid)" || return 1
+  listener_session_id="$(process_session_id "$listener_pid")" || return 1
+  [[ "$listener_session_id" == "$launcher_pid" ]] || return 1
+  printf '%s\n' "$listener_pid"
+}
+
+terminate_dashboard_session() {
+  local session_id="$1"
+  local process_dir pid
+  for process_dir in /proc/[0-9]*; do
+    pid="${process_dir#/proc/}"
+    if [[ "$(process_session_id "$pid" 2>/dev/null || true)" == "$session_id" ]]; then
+      kill "$pid" 2>/dev/null || true
+    fi
+  done
+}
+
 cdp_ready() {
   "$pwcli_curl" \
     --fail \
@@ -188,7 +278,10 @@ dashboard_status() {
   if [[ -f "$pwcli_dashboard_pid_file" ]]; then
     local pid
     pid="$(cat "$pwcli_dashboard_pid_file")"
-    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && dashboard_port_ready; then
+    if [[ "$pid" =~ ^[0-9]+$ ]] &&
+      kill -0 "$pid" 2>/dev/null &&
+      dashboard_port_ready &&
+      dashboard_pid_owns_port "$pid"; then
       return 0
     fi
     rm -f "$pwcli_dashboard_pid_file" "$pwcli_dashboard_fifo"
@@ -392,21 +485,25 @@ if ((pwcli_dashboard_running == 0)); then
   mkfifo "$pwcli_dashboard_fifo"
   setsid "${BASH:-bash}" "$0" __pwcli-dashboard-daemon "$pwcli_dashboard_fifo" \
     >>"$pwcli_dashboard_log" 2>&1 &
-  pwcli_dashboard_pid=$!
-  printf '%s\n' "$pwcli_dashboard_pid" >"$pwcli_dashboard_pid_file"
+  pwcli_dashboard_launcher_pid=$!
+  pwcli_dashboard_pid=
 
   pwcli_dashboard_deadline=$((SECONDS + ${PWCLI_DASHBOARD_TIMEOUT:-10}))
   while ((SECONDS <= pwcli_dashboard_deadline)); do
-    if kill -0 "$pwcli_dashboard_pid" 2>/dev/null && dashboard_port_ready; then
-      pwcli_dashboard_running=1
-      break
+    if dashboard_port_ready; then
+      pwcli_dashboard_pid="$(
+        dashboard_listener_for_launcher "$pwcli_dashboard_launcher_pid" || true
+      )"
+      if [[ -n "$pwcli_dashboard_pid" ]]; then
+        printf '%s\n' "$pwcli_dashboard_pid" >"$pwcli_dashboard_pid_file"
+        pwcli_dashboard_running=1
+        break
+      fi
     fi
     sleep 0.2
   done
   if ((pwcli_dashboard_running == 0)); then
-    if kill -0 "$pwcli_dashboard_pid" 2>/dev/null; then
-      kill "$pwcli_dashboard_pid" 2>/dev/null || true
-    fi
+    terminate_dashboard_session "$pwcli_dashboard_launcher_pid"
     rm -f "$pwcli_dashboard_pid_file" "$pwcli_dashboard_fifo"
     close_chrome_if_unused
     fail "Managed Playwright Dashboard did not start on http://127.0.0.1:9323/. Inspect $pwcli_dashboard_log and verify port 9323 is free."

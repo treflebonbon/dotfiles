@@ -3,6 +3,7 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WRAPPER="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wrapper.sh"
+  WINDOWS_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
   FAKE_BIN="$BATS_TEST_TMPDIR/bin"
   UPSTREAM_LOG="$BATS_TEST_TMPDIR/upstream.log"
   POWERSHELL_LOG="$BATS_TEST_TMPDIR/powershell.log"
@@ -106,6 +107,12 @@ printf '%s\n' absent >"$POWERSHELL_STATE"
 EOF
   chmod +x "$FAKE_BIN/cdp-close"
 
+  cat >"$FAKE_BIN/dashboard-owner-check" <<'EOF'
+#!/usr/bin/env bash
+[[ "${PWCLI_FAKE_DASHBOARD_OWNER:-1}" == "1" ]]
+EOF
+  chmod +x "$FAKE_BIN/dashboard-owner-check"
+
   export CDP_CLOSE_LOG="$BATS_TEST_TMPDIR/cdp-close.log"
   export CURL_LOG="$BATS_TEST_TMPDIR/curl.log"
   export DASHBOARD_CALL_LOG DASHBOARD_READY
@@ -116,6 +123,7 @@ EOF
   export PWCLI_WINDOWS_SCRIPT="C:\\fake\\playwright-cli-windows.ps1"
   export PWCLI_CURL="$FAKE_BIN/curl"
   export PWCLI_CDP_CLOSE="$FAKE_BIN/cdp-close"
+  export PWCLI_DASHBOARD_OWNER_CHECK="$FAKE_BIN/dashboard-owner-check"
   export PWCLI_RUNTIME_DIR="$RUNTIME_DIR"
   export PWCLI_CDP_TIMEOUT=1
 }
@@ -124,6 +132,11 @@ teardown() {
   local dashboard_pid_file="$RUNTIME_DIR/playwright-cli/dashboard.pid"
   if [[ -f "$dashboard_pid_file" ]]; then
     kill "$(cat "$dashboard_pid_file")" 2>/dev/null || true
+  fi
+  if [[ -f "$BATS_TEST_TMPDIR/extra-pids" ]]; then
+    while read -r pid; do
+      kill "$pid" 2>/dev/null || true
+    done <"$BATS_TEST_TMPDIR/extra-pids"
   fi
 }
 
@@ -356,6 +369,35 @@ teardown() {
   [ "$status" -eq 0 ]
   [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" != "999999" ]
   kill -0 "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+}
+
+@test "Dashboard state must couple the recorded PID to the loopback listener" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$RUNTIME_DIR/playwright-cli"
+
+  sleep 60 &
+  local unrelated_pid=$!
+  printf '%s\n' "$unrelated_pid" >"$RUNTIME_DIR/playwright-cli/dashboard.pid"
+  printf '%s\n' "$unrelated_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
+  touch "$DASHBOARD_READY"
+  export PWCLI_FAKE_DASHBOARD_OWNER=0
+
+  run bash "$WRAPPER" show
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"without matching Managed Playwright Dashboard state"* ]]
+}
+
+@test "Dashboard startup records the listener from the launcher session" {
+  grep -Fq 'dashboard_listener_for_launcher "$pwcli_dashboard_launcher_pid"' "$WRAPPER"
+  grep -Fq 'process_session_id "$listener_pid"' "$WRAPPER"
+  grep -Fq 'printf '\''%s\n'\'' "$pwcli_dashboard_pid" >"$pwcli_dashboard_pid_file"' "$WRAPPER"
+}
+
+@test "Windows Chrome inspection couples the CDP listener to an exact managed process" {
+  grep -Fq '$ManagedProcessIds = @(' "$WINDOWS_SCRIPT"
+  grep -Fq '$ManagedProcessIds -contains $ListenerProcessId' "$WINDOWS_SCRIPT"
+  grep -Fq 'return "managed:$ListenerProcessId"' "$WINDOWS_SCRIPT"
 }
 
 @test "a failed Dashboard start removes stale state and closes unused Chrome" {

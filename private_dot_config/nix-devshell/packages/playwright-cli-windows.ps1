@@ -56,6 +56,9 @@ function Get-ChromeState {
             $_.CommandLine -match "(?:^|\s)--remote-debugging-port=$DebugPort(?:\s|$)"
         }
     )
+    $ManagedProcessIds = @(
+        $ManagedProcesses | ForEach-Object { [uint32]$_.ProcessId }
+    )
     $Listeners = @(
         Get-NetTCPConnection `
             -State Listen `
@@ -69,19 +72,9 @@ function Get-ChromeState {
             return "managed:$($ManagedProcesses[0].ProcessId)"
         }
         foreach ($Listener in $Listeners) {
-            $ListenerProcess = Get-CimInstance `
-                Win32_Process `
-                -Filter "ProcessId = $($Listener.OwningProcess)" `
-                -ErrorAction SilentlyContinue
-            if (
-                $ListenerProcess -and
-                $ListenerProcess.ExecutablePath -and
-                $ListenerProcess.ExecutablePath.Equals(
-                    $ChromeExecutable,
-                    [StringComparison]::OrdinalIgnoreCase
-                )
-            ) {
-                return "managed:$($ManagedProcesses[0].ProcessId)"
+            $ListenerProcessId = [uint32]$Listener.OwningProcess
+            if ($ManagedProcessIds -contains $ListenerProcessId) {
+                return "managed:$ListenerProcessId"
             }
         }
     }
