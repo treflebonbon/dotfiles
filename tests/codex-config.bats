@@ -182,6 +182,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
+assert data["editorMode"] == "normal"
 assert data["hooks"]["PreToolUse"] == [
     {
         "matcher": "Bash",
