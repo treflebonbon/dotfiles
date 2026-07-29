@@ -9,6 +9,10 @@ status: accepted
 
 # to-pr の Playwright 証跡を GitHub の PR 添付として扱う
 
+## Amendment
+
+WSL2 に関する Decision 4 と「Windows と WSL2 の browser 境界を越えない」という consequence は、[ADR-0031](0031-managed-playwright-chrome-on-wsl2.md) が置き換えた。Managed Playwright Chrome が事前に GitHub 認証済みの場合だけ `to-pr` の自動添付へ利用できる。PR 添付方式、未認証時の手動添付、自動ログインと認証情報 import の禁止を含む残りの判断は引き続き accepted とする。
+
 ## Context
 
 `to-pr` は UI Acceptance Criteria を `playwright-cli` で検証し、Verification Matrix を PR 本文へ記録する。従来はスクリーンショットを残す場合、ユーザー確認後に画像を Git 履歴へ commit し、SHA 固定 URL を本文へ載せていた。しかし画像は実装成果物ではなくレビュー用の一時証跡であり、リポジトリ履歴へ永続化する必要がない。

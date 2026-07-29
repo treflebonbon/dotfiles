@@ -245,9 +245,11 @@ If the bundle has representative images, try to attach them after the PR exists:
 
 1. Use a browser exposed by the current runtime only when it already has an authenticated
    GitHub session. Do not ask the user to log in, import browser state, or let `to-pr`
-   create or save authentication. On WSL2, do not assume that a Windows Chrome session
-   or profile is available: automatic attachment is allowed only when Chrome running in
-   WSL2 already has an authenticated GitHub session.
+   create or save authentication. On WSL2, use Managed Playwright Chrome for automatic
+   attachment only when its dedicated profile already has an authenticated GitHub
+   session. Never substitute the user's normal Windows Chrome profile. Existing
+   authentication permits this PR-evidence upload only; it does not authorize payments,
+   production-data changes, or other irreversible actions.
 2. Open the PR body editor in that browser, attach each representative image, and read
    the anonymized URL that GitHub inserts into the editor. Do not submit the browser's
    stale copy of the PR body.

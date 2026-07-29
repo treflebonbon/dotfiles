@@ -101,17 +101,19 @@ setup() {
   grep -Fq 'input paths to absolute paths' "$SKILL"
 }
 
-@test "to-pr publishes images as PR attachments with a manual WSL2 fallback" {
+@test "to-pr publishes images through an authenticated Managed Playwright Chrome profile" {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local adr="$PROJECT_ROOT/docs/adr/0026-attach-playwright-evidence-to-pr.md"
   local attachment_section
   attachment_section="$(sed -n '/^## 7\. Attach Playwright evidence/,/^## Out of scope/p' "$SKILL" | tr '\n' ' ' | tr -s ' ')"
 
-  grep -Fq 'authenticated GitHub session' "$SKILL"
+  [[ "$attachment_section" == *'authenticated GitHub session'* ]]
   grep -Fq 'anonymized URL' "$SKILL"
   grep -Fq 'gh pr edit --body-file' "$SKILL"
-  [[ "$attachment_section" == *'On WSL2, do not assume that a Windows Chrome session'* ]]
-  [[ "$attachment_section" == *'only when Chrome running in WSL2 already has an authenticated GitHub session'* ]]
+  [[ "$attachment_section" == *'On WSL2, use Managed Playwright Chrome'* ]]
+  [[ "$attachment_section" == *'only when its dedicated profile already has an authenticated GitHub session'* ]]
+  [[ "$attachment_section" == *"Never substitute the user's normal Windows Chrome profile"* ]]
+  [[ "$attachment_section" == *'Existing authentication permits this PR-evidence upload only'* ]]
   [[ "$attachment_section" == *'If no authenticated browser is available'* ]]
   [[ "$attachment_section" == *'do not retry by logging in'* ]]
   [[ "$attachment_section" == *'手動添付待ち'* ]]
@@ -119,6 +121,7 @@ setup() {
   ! grep -Fq '.github/pr-assets' "$SKILL"
 
   grep -Fq 'GitHub の PR 添付' "$runtime"
+  grep -Fq 'Managed Playwright Chrome の専用 profile' "$runtime"
   grep -Fq '手動添付待ち' "$runtime"
   ! grep -Fq '.github/pr-assets' "$runtime"
 

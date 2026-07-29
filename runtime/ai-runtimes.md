@@ -122,6 +122,8 @@ orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は 
 
 切り出した impeccable の判定（Issue #117）も同日に済ませた。結論は **pin を `1cf7d7ab` へ進める、ただし `Stop` 配線とセットで**。判定の根拠・隔離 HOME での実測値・代替案の却下理由は [ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md) にあり、実作業は Issue #119 へ起票した。
 
+2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
+
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
 `settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
