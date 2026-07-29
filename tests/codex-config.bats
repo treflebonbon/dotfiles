@@ -17,6 +17,8 @@ for path in sys.argv[1:]:
     assert config["model"] == "gpt-5.6-sol"
     assert config["model_reasoning_effort"] == "xhigh"
     assert config["personality"] == "pragmatic"
+    assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
+    assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
     assert config["plugins"]["chrome@openai-bundled"]["enabled"] is True
 PY
@@ -59,6 +61,9 @@ prepare_codex_chezmoi_source() {
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
   grep -q '^approvals_reviewer = "auto_review"$' "$config"
+  grep -q '^\[apps\.github\]$' "$config"
+  grep -q '^default_tools_approval_mode = "approve"$' "$config"
+  grep -q '^destructive_enabled = false$' "$config"
   grep -q '^sandbox_mode = "workspace-write"$' "$config"
   grep -q '^default_permissions = "dotfiles-secure"$' "$config"
   grep -q '^\[features\]' "$config"
@@ -106,6 +111,22 @@ prepare_codex_chezmoi_source() {
   grep -q '<default_to_action>' "$agents"
   grep -q '<investigate_before_answering>' "$agents"
   grep -q '<use_parallel_tool_calls>' "$agents"
+}
+
+@test "Global runtime guidance preauthorizes routine GitHub collaboration writes" {
+  local guidance
+  for guidance in \
+    "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
+    "$PROJECT_ROOT/private_dot_claude/CLAUDE.md" \
+    "$PROJECT_ROOT/private_dot_gemini/AGENTS.md"; do
+    grep -Fq 'Routine GitHub collaboration writes do not need a second confirmation' "$guidance"
+    grep -Fq 'pushes from the current topic branch using `git-push-topic`' "$guidance"
+    grep -Fq 'Force pushes are prohibited by policy' "$guidance"
+    grep -Fq 'Direct raw `git push` commands and common wrapper or global-option variants are blocked by runtime rules' "$guidance"
+    grep -Fq 'Use `git-push-reviewed` for a default-branch push only after explicit approval' "$guidance"
+    grep -Fq 'direct pushes to a default branch' "$guidance"
+    ! grep -Fq 'Visible to others: pushing code, commenting on PRs/issues' "$guidance"
+  done
 }
 
 @test "Codex managed Hook adds the quiet global Impeccable Design Hook" {
@@ -161,6 +182,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
+assert data["editorMode"] == "normal"
 assert data["hooks"]["PreToolUse"] == [
     {
         "matcher": "Bash",
@@ -180,6 +202,32 @@ assert data["hooks"]["PostToolUse"] == [
 assert data["hooks"]["Stop"] == [
     {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
 ]
+assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
+for rule in [
+    "Bash(gh pr create:*)",
+    "Bash(gh pr edit:*)",
+    "Bash(gh pr comment:*)",
+    "Bash(gh pr review:*)",
+    "Bash(gh pr ready:*)",
+    "Bash(gh issue create:*)",
+    "Bash(gh issue edit:*)",
+    "Bash(gh issue comment:*)",
+    "Bash(gh label create:*)",
+    "Bash(gh label edit:*)",
+]:
+    assert rule in data["permissions"]["allow"]
+assert "Bash(git push:*)" in data["permissions"]["deny"]
+for rule in [
+    "Bash(/usr/bin/git push:*)",
+    "Bash(git -C:*)",
+    "Bash(git --git-dir:*)",
+    "Bash(command git:*)",
+    "Bash(env git:*)",
+]:
+    assert rule in data["permissions"]["deny"]
+assert not any(
+    rule.startswith("Bash(git push --force") for rule in data["permissions"]["deny"]
+)
 PY
 }
 
@@ -251,7 +299,9 @@ PY
   grep -q 'pattern = \["terraform", \["apply", "destroy"\]\]' "$rules"
   grep -q 'pattern = \["kubectl", "delete"\]' "$rules"
   grep -q 'pattern = \["gh", "repo", "delete"\]' "$rules"
-  grep -q 'pattern = \["git", "push", \["-f", "--force", "--force-with-lease"\]\]' "$rules"
+  grep -q 'pattern = \["git", "push"\]' "$rules"
+  grep -q 'pattern = \["git-push-topic"\]' "$rules"
+  grep -q 'pattern = \["git-push-reviewed"\]' "$rules"
   grep -q 'pattern = \["rm", \["-r", "-R", "-rf", "-fr"\]\]' "$rules"
   grep -q 'decision = "forbidden"' "$rules"
   grep -q 'decision = "prompt"' "$rules"
@@ -259,6 +309,64 @@ PY
   grep -q 'not_match = \[' "$rules"
 }
 
+@test "Codex execpolicy allows routine GitHub writes without widening destructive actions" {
+  local rules="$PROJECT_ROOT/private_dot_config/codex/rules/default.rules"
+
+  local command
+  for command in \
+    "git-push-topic" \
+    "gh pr create --title test --body test" \
+    "gh pr edit 123 --title test" \
+    "gh pr comment 123 --body test" \
+    "gh pr review 123 --approve" \
+    "gh pr ready 123" \
+    "gh issue create --title test --body test" \
+    "gh issue edit 123 --add-label ready-for-agent" \
+    "gh issue comment 123 --body test" \
+    "gh label create test --color 000000" \
+    "gh label edit test --color ffffff"; do
+    run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"decision": "allow"'* ]]
+  done
+
+  for command in \
+    "git-push-reviewed" \
+    "gh pr close 123" \
+    "gh pr merge 123" \
+    "gh pr reopen 123" \
+    "gh issue close 123" \
+    "gh issue reopen 123"; do
+    run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"decision": "prompt"'* ]]
+  done
+
+  for command in \
+    "git push origin HEAD" \
+    "git push -u origin HEAD" \
+    "git push --set-upstream origin HEAD" \
+    "git push origin main" \
+    "git push -u origin master" \
+    "git push origin HEAD --force" \
+    "git push -u origin HEAD --force-with-lease" \
+    "git push -u --force origin HEAD" \
+    "git push origin +HEAD" \
+    "git push upstream HEAD --force" \
+    "/bin/git push origin HEAD" \
+    "/usr/bin/git push origin HEAD --force" \
+    "git -C . push origin HEAD" \
+    "git -c core.hooksPath=/dev/null push origin HEAD --force" \
+    "git --git-dir .git push origin HEAD" \
+    "git --work-tree . push origin HEAD --force-with-lease" \
+    "command git push origin HEAD" \
+    "env git push origin +HEAD" \
+    "gh repo delete owner/repo"; do
+    run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"decision": "forbidden"'* ]]
+  done
+}
 
 @test "bash_profile routes Codex Desktop sessions to .codex-app" {
   local profile="$PROJECT_ROOT/dot_bash_profile.tmpl"
@@ -501,7 +609,7 @@ EOF
 
   [ ! -f "$home/.codex/rules/default.rules" ]
   [ -f "$codex_home/rules/default.rules" ]
-  grep -q 'pattern = \["git", "push", \["-f", "--force", "--force-with-lease"\]\]' "$codex_home/rules/default.rules"
+  grep -q 'pattern = \["git", "push"\]' "$codex_home/rules/default.rules"
   [ "$(stat -c %a "$codex_home/rules/default.rules")" = "600" ]
 }
 
@@ -618,6 +726,10 @@ model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 personality = "pragmatic"
 
+[apps.github]
+default_tools_approval_mode = "approve"
+destructive_enabled = false
+
 [plugins."github@openai-curated"]
 enabled = true
 
@@ -730,6 +842,10 @@ EOF
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 personality = "pragmatic"
+
+[apps.github]
+default_tools_approval_mode = "approve"
+destructive_enabled = false
 
 [plugins."github@openai-curated"]
 enabled = true

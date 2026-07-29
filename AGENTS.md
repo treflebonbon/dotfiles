@@ -18,19 +18,20 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - PR タイトル: squash merge の commit title になるため Conventional Commits 形式にする。`[codex]` などの prefix は付けない。
 - Linting: lefthook pre-commit hook で自動実行（`lefthook.yml` 参照）
 - 認証: HTTPS + `gh auth git-credential`。SSH は不使用。
+- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、label の create/editも対象とする。force-push は方針として禁止し、直接の生の `git push` と代表的な wrapper/global option 経由は runtime rule で遮断する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
 
 ## 設計→実装ワークフロー
 
 メインフロー1本 + on-ramp 2つで構成する（ADR-0014、上流 `ask-matt` の main-flow/on-ramp 構造に整合）。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（`git worktree add .worktrees/<topic>`。カレント checkout を汚さない）。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先し、`/to-worktree` はそれ以外の環境で使う（ADR-0011）。**worktree は一度だけ入る** — 以降のスキルは同一 worktree/セッション内で連続実行し、都度 `to-worktree` には戻らない。
 
-- **メインフロー**: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-spec` / `to-tickets` を省略し `implement` から直接入ってよい。`to-tickets` までを **Planner**、`implement`（内部で `tdd` / `code-review` を使う）を **Builder-Evaluator** と呼ぶ（`CONTEXT.md`）。Planner は人間との協働を維持するが、Builder-Evaluator は ticket をまたいで同一 worktree/branch 内なら止まらずループしてよい（単一セッション単位ではない — smart zone に達したら `/handoff` で別セッションへ）: `tdd` の green slice commit・`code-review` 後の修正 commit は確認なしで行い（根拠は ADR-0019 / ADR-0022）、ticket の AC からシームが一意に導出できればシーム確認も省略する（曖昧な場合や ticket 非経由では従来どおり確認）。対象 worktree/branch の全 ticket が完了したら `to-pr` を一度だけ実行する（AFK 運用時は自律呼出し可、通常運用は完了報告のうえユーザーの `/to-pr` 呼出しを待つ）。push / PR 作成の確認は変更しない。巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作ってから Planner / Builder-Evaluator へ合流する。
+- **メインフロー**: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-spec` / `to-tickets` を省略し `implement` から直接入ってよい。`to-tickets` までを **Planner**、`implement`（内部で `tdd` / `code-review` を使う）を **Builder-Evaluator** と呼ぶ（`CONTEXT.md`）。Planner は人間との協働を維持するが、Builder-Evaluator は ticket をまたいで同一 worktree/branch 内なら止まらずループしてよい（単一セッション単位ではない — smart zone に達したら `/handoff` で別セッションへ）: `tdd` の green slice commit・`code-review` 後の修正 commit は確認なしで行い（根拠は ADR-0019 / ADR-0022）、ticket の AC からシームが一意に導出できればシーム確認も省略する（曖昧な場合や ticket 非経由では従来どおり確認）。対象 worktree/branch の全 ticket が完了したら `to-pr` を一度だけ実行する（AFK 運用時は自律呼出し可、通常運用は完了報告のうえユーザーの `/to-pr` 呼出しを待つ）。`/to-pr` の呼出しまたは AFK/自律完了の明示許可は、topic branch push・PR create/edit・証跡添付・整合済み `Fixes` への事前承認として扱う。巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作ってから Planner / Builder-Evaluator へ合流する。
 - **on-ramp**（メインフロー外から issue/バグが持ち込まれる入口）:
   - raw な issue（bug report・降ってきた要望等、`to-tickets` を経由していないもの）→ `triage` → ready-for-agent 化 → `implement` へ合流。`triage` は `to-tickets` の産出物には使わない（すでに ready-for-agent なため）
   - ハードなバグ（再現・原因調査が必要）→ `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告として届いた場合はまず `triage` を通してから `diagnosing-bugs` へ
 
 外部 skill の一般手順に対するローカル上書き（ADR-0023）:
 
-- `triage`: 推薦の根拠を得るための read-only 検証は、推薦を提示する前に実行してよい。ラベル変更・コメント・close など外部状態を変える操作の確認は省略しない。
+- `triage`: 推薦の根拠を得るための read-only 検証は、推薦を提示する前に実行してよい。推薦・適用内容が確定した後の issue create/edit/comment と label create/edit は外部操作を理由に二重確認しない。close/reopen/delete は従来どおり確認する。
 - `code-review`: Builder-Evaluator 内で issue/ticket を実装中なら、その branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone 呼び出しで fixed point が不明な場合だけユーザーへ確認する。
 
 実装フェーズの user-invoked entrypoint は `implement`。`tdd` / `code-review` / `resolving-merge-conflicts` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` は **model-invoked discipline** として必要時に自動発火する。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。

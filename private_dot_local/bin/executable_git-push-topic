@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ne 0 ]; then
+  echo "usage: git-push-topic" >&2
+  exit 2
+fi
+
+branch="$(git branch --show-current)"
+if [ -z "$branch" ]; then
+  echo "ERROR: detached HEAD cannot be published as a topic branch" >&2
+  exit 1
+fi
+
+command_name="$(basename "$0")"
+if [ "$command_name" != "git-push-reviewed" ]; then
+  case "$branch" in
+  main | master)
+    echo "ERROR: refusing to push default branch: $branch" >&2
+    exit 1
+    ;;
+  esac
+fi
+
+if ! remote_head="$(git ls-remote --symref origin HEAD 2>/dev/null)"; then
+  echo "ERROR: cannot resolve origin's default branch" >&2
+  exit 1
+fi
+default_ref="$(printf '%s\n' "$remote_head" | awk '$1 == "ref:" && $3 == "HEAD" { print $2; exit }')"
+case "$default_ref" in
+refs/heads/*) ;;
+*)
+  echo "ERROR: cannot resolve origin's default branch" >&2
+  exit 1
+  ;;
+esac
+default_branch="${default_ref#refs/heads/}"
+
+if [ "$command_name" = "git-push-reviewed" ]; then
+  if [ "$branch" != "$default_branch" ]; then
+    echo "ERROR: refusing reviewed push from non-default branch: $branch" >&2
+    exit 1
+  fi
+else
+  if [ "$branch" = "$default_branch" ]; then
+    echo "ERROR: refusing to push default branch: $branch" >&2
+    exit 1
+  fi
+fi
+
+exec git push -u origin HEAD

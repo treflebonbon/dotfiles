@@ -100,43 +100,68 @@ prefix_rule(
     ],
 )
 
-# Block common force-push forms.
+# Block raw push syntax so force refspecs cannot bypass prefix matching.
 prefix_rule(
-    pattern = ["git", "push", ["-f", "--force", "--force-with-lease"]],
+    pattern = ["git", "push"],
     decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
+    justification = "Use git-push-topic for preauthorized topic branches or git-push-reviewed for an approval-gated non-force push.",
     match = [
-        "git push -f",
-        "git push --force",
-        "git push --force-with-lease",
+        "git push origin HEAD",
+        "git push origin main",
+        "git push origin +HEAD",
+        "git push -u --force origin HEAD",
     ],
-    not_match = [
-        "git push",
+)
+
+# `prefix_rule` matches argv exactly, so also block common ways to move `push`
+# away from argv[1]. Use a shell `cd` followed by plain `git` for other work.
+prefix_rule(
+    pattern = [["/bin/git", "/usr/bin/git"], "push"],
+    decision = "forbidden",
+    justification = "Use git-push-topic or git-push-reviewed instead of an absolute git path.",
+    match = [
+        "/bin/git push origin HEAD",
+        "/usr/bin/git push origin HEAD --force",
     ],
 )
 
 prefix_rule(
-    pattern = ["git", "push", "origin", ["-f", "--force", "--force-with-lease"]],
+    pattern = ["git", ["-C", "-c", "--git-dir", "--work-tree"]],
     decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
+    justification = "Global git options can hide a push from approval rules; use a shell cd and plain git instead.",
     match = [
-        "git push origin --force",
-    ],
-    not_match = [
-        "git push origin main",
+        "git -C . push origin HEAD",
+        "git -c core.hooksPath=/dev/null push origin HEAD",
+        "git --git-dir .git push origin HEAD",
+        "git --work-tree . push origin HEAD",
     ],
 )
 
 prefix_rule(
-    pattern = ["git", "push", "origin", ["main", "master"], ["-f", "--force", "--force-with-lease"]],
+    pattern = [["command", "env"], "git"],
     decision = "forbidden",
-    justification = "Force pushes can rewrite shared history; ask the user to perform them explicitly.",
+    justification = "Shell wrappers can hide a push from approval rules; invoke plain git or a managed push wrapper.",
     match = [
-        "git push origin main --force",
-        "git push origin master --force-with-lease",
+        "command git push origin HEAD",
+        "env git push origin HEAD --force",
     ],
-    not_match = [
-        "git push origin main",
+)
+
+prefix_rule(
+    pattern = ["git-push-topic"],
+    decision = "allow",
+    justification = "The wrapper accepts no arguments and publishes only the validated current topic branch.",
+    match = [
+        "git-push-topic",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git-push-reviewed"],
+    decision = "prompt",
+    justification = "The wrapper fixes the push to origin HEAD, but default-branch publication still requires approval.",
+    match = [
+        "git-push-reviewed",
     ],
 )
 
@@ -195,10 +220,36 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["gh", "issue", ["view", "list", "create", "comment"]],
+    pattern = ["gh", "issue", ["view", "list", "create", "edit", "comment"]],
     decision = "allow",
-    justification = "issue 操作の定型 (to-issues / triage 等)。",
-    match = ["gh issue create --title t", "gh issue view 904"],
+    justification = "内容確定後の定型 issue 操作は二重確認せず実行する。",
+    match = ["gh issue create --title t", "gh issue edit 904 --add-label ready-for-agent", "gh issue view 904"],
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["close", "reopen", "delete"]],
+    decision = "prompt",
+    justification = "Issue state transitions and deletion remain user-reviewed.",
+    match = ["gh issue close 904", "gh issue reopen 904", "gh issue delete 904"],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["create", "edit", "comment", "review", "ready"]],
+    decision = "allow",
+    justification = "内容確定後の定型 PR 公開操作は二重確認せず実行する。",
+    match = [
+        "gh pr create --title t --body b",
+        "gh pr edit 904 --title t",
+        "gh pr review 904 --approve",
+        "gh pr ready 904",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["close", "reopen", "merge"]],
+    decision = "prompt",
+    justification = "PR state transitions and merge remain user-reviewed.",
+    match = ["gh pr close 904", "gh pr reopen 904", "gh pr merge 904"],
 )
 
 prefix_rule(
@@ -209,10 +260,17 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["gh", "label", "list"],
+    pattern = ["gh", "label", ["list", "create", "edit"]],
     decision = "allow",
-    justification = "label preflight (dogfood-to-issues / setup-repo)。",
-    match = ["gh label list"],
+    justification = "label の参照・作成・編集は定型の repo setup 操作。",
+    match = ["gh label list", "gh label create test", "gh label edit test --color ffffff"],
+)
+
+prefix_rule(
+    pattern = ["gh", "label", "delete"],
+    decision = "prompt",
+    justification = "Label deletion remains user-reviewed.",
+    match = ["gh label delete test"],
 )
 
 prefix_rule(

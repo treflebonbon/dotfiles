@@ -78,8 +78,8 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
   against playwright-cli's anonymous context. If no such path exists in this runtime, do
   not attempt it — mark the criterion `要人間確認` and ask the user to check it
   themselves. If driving the criterion would itself perform a real, costly, or
-  hard-to-reverse action (e.g. an actual payment), ask before that specific step — the
-  same bar as asking before `git push`.
+  hard-to-reverse action (e.g. an actual payment), ask before that specific step. The
+  routine publication authorization in this skill does not cover it.
 - **This machine may run other Orca workspaces/agents concurrently.** Give playwright-cli
   a workspace-scoped session name (`-s=<branch-or-workspace-name>`) — never the shared
   `default` session, and never `close-all` / `kill-all`. Before starting a dev server, do
@@ -201,12 +201,19 @@ currently active session, so chaining it from here would not analyse anything us
 
 ## 6. Open the PR
 
+Invocation of this skill is authorization for the routine publication actions it
+performs: pushing the current topic branch, creating or editing the PR, uploading
+evidence images, and adding the already-reconciled `Fixes` references. Explicit
+AFK/autonomous completion authorization has the same effect. Do not ask for a second
+confirmation solely because these actions are outward-facing. This authorization does not
+cover force pushes, direct pushes to a default branch, merges, state transitions, deletions,
+releases, workflow dispatches, repository settings or secrets, or any action outside the
+user's requested scope.
+
 1. Determine whether the branch needs to be pushed and whether the evidence bundle has
-   images to attach. Ask once for explicit confirmation covering all outward-facing
-   actions that apply: pushing the branch, creating the PR, and uploading the images.
-   Include the exact list of child and parent issues that will close on merge, grouped by
-   role; if no parent will close, say so. Do not split these into separate confirmation
-   prompts.
+   images to attach. Keep the exact list of child and parent issues that will close on
+   merge, grouped by role, in the PR body and completion report; if no parent will close,
+   say so.
 2. Write the PR body to a **fresh** temp file (use `mktemp` or a branch-scoped name —
    a fixed name like `pr-body.md` collides with stale content from previous runs). Write
    it in the language of the conversation / repo. Canonical structure:
@@ -223,9 +230,12 @@ currently active session, so chaining it from here would not analyse anything us
      Add only the `Fixes #N` lines selected in step 4. When there is no issue, omit all
      `Fixes` lines and mention where the contract came from (conversation, PRD) in the
      summary instead.
-3. After confirmation, push the branch if needed and create the PR:
+3. Push the current topic branch if needed with `git-push-topic`. The wrapper accepts no
+   arguments, rejects the default branch, and internally uses the fixed `origin HEAD`
+   form. Then create the PR:
 
    ```bash
+   git-push-topic
    gh pr create --title "<conventional title>" --body-file <tmp>
    ```
 
