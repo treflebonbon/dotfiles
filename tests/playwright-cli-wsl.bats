@@ -154,6 +154,8 @@ EOF
   export PWCLI_WINDOWS_SCRIPT="C:\\fake\\playwright-cli-windows.ps1"
   export PWCLI_CURL="$FAKE_BIN/curl"
   export PWCLI_CDP_CLOSE="$FAKE_BIN/cdp-close"
+  export PWCLI_FLOCK
+  PWCLI_FLOCK="$(command -v flock)"
   export PWCLI_RUNTIME_DIR="$RUNTIME_DIR"
   export PWCLI_CDP_TIMEOUT=1
 }
@@ -231,6 +233,16 @@ teardown() {
   local fallback="$PWCLI_TMPDIR/playwright-cli-$UID"
   [ -f "$fallback/lease" ]
   [ "$(stat -c '%a' "$fallback")" = "700" ]
+}
+
+@test "a stale legacy lock left by a terminated wrapper does not block managed commands" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$RUNTIME_DIR/playwright-cli/lock"
+
+  run bash "$WRAPPER" -s=alpha open https://example.com
+
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
 }
 
 @test "the same managed session reuses Chrome while another session is refused" {
@@ -353,6 +365,19 @@ teardown() {
   [ -s "$CDP_CLOSE_LOG" ]
 }
 
+@test "a repeated open failure preserves the existing session lease and Chrome" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/first
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_UPSTREAM_FAIL=1
+
+  run bash "$WRAPPER" -s=alpha open https://example.com/bad
+
+  [ "$status" -eq 23 ]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ ! -e "$CDP_CLOSE_LOG" ]
+}
+
 @test "show starts one loopback dashboard and reopens it in managed Chrome" {
   export PWCLI_TEST_WSL=1
 
@@ -449,6 +474,19 @@ teardown() {
   grep -Fq '$ManagedProcessIds = @(' "$WINDOWS_SCRIPT"
   grep -Fq '$ManagedProcessIds -contains $ListenerProcessId' "$WINDOWS_SCRIPT"
   grep -Fq 'return "managed:$ListenerProcessId"' "$WINDOWS_SCRIPT"
+}
+
+@test "Chrome close refuses a CDP listener that no longer matches recorded ownership" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$RUNTIME_DIR/playwright-cli"
+  printf '%s\n' 4242 >"$RUNTIME_DIR/playwright-cli/chrome.pid"
+  printf '%s\n' 'port-conflict:5150' >"$POWERSHELL_STATE"
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"refusing to close Chrome"* ]]
+  [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
 @test "a failed Dashboard start removes stale state and closes unused Chrome" {

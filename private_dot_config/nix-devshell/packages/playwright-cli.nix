@@ -5,6 +5,7 @@
   makeWrapper,
   nodejs,
   playwright-driver,
+  util-linux,
 }:
 
 buildNpmPackage {
@@ -71,7 +72,8 @@ buildNpmPackage {
       --replace-fail '@playwrightCliUpstream@' "$out/libexec/playwright-cli-upstream" \
       --replace-fail '@curl@' '${curl}' \
       --replace-fail '@cdpClose@' "$out/libexec/playwright-cli-cdp-close" \
-      --replace-fail '@windowsScript@' "$out/share/playwright-cli/windows.ps1"
+      --replace-fail '@windowsScript@' "$out/share/playwright-cli/windows.ps1" \
+      --replace-fail '@flock@' '${util-linux}/bin/flock'
     chmod +x "$out/bin/playwright-cli"
 
     mkdir -p "$out/share/playwright-cli/skills"

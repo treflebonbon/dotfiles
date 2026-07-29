@@ -10,6 +10,7 @@ pwcli_curl="${PWCLI_CURL:-@curl@/bin/curl}"
 pwcli_cdp_close="${PWCLI_CDP_CLOSE:-@cdpClose@}"
 pwcli_windows_script="${PWCLI_WINDOWS_SCRIPT:-@windowsScript@}"
 pwcli_proc_root="${PWCLI_PROC_ROOT:-/proc}"
+pwcli_flock="${PWCLI_FLOCK:-@flock@}"
 pwcli_cdp_endpoint="http://127.0.0.1:9222"
 
 fail() {
@@ -20,6 +21,10 @@ fail() {
 if [[ "${1:-}" == "__pwcli-dashboard-daemon" ]]; then
   pwcli_fifo="$2"
   pwcli_launcher_file="$3"
+  pwcli_inherited_lock_fd="${4:-}"
+  if [[ "$pwcli_inherited_lock_fd" =~ ^[0-9]+$ ]]; then
+    exec {pwcli_inherited_lock_fd}>&-
+  fi
   printf '%s\n' "$$" >"$pwcli_launcher_file"
   exec 3<>"$pwcli_fifo"
   exec "$pwcli_upstream" show --host=127.0.0.1 --port=9323 <&3
@@ -151,17 +156,13 @@ umask 077
 mkdir -p "$pwcli_state_dir"
 chmod 700 "$pwcli_state_dir"
 
-pwcli_lock_dir="$pwcli_state_dir/lock"
-pwcli_lock_attempt=0
-until mkdir "$pwcli_lock_dir" 2>/dev/null; do
-  ((pwcli_lock_attempt += 1))
-  if ((pwcli_lock_attempt >= 100)); then
-    fail "timed out waiting for the Managed Playwright Chrome runtime lock at $pwcli_lock_dir"
-  fi
-  sleep 0.05
-done
+pwcli_lock_file="$pwcli_state_dir/runtime.lock"
+exec {pwcli_lock_fd}>"$pwcli_lock_file"
+if ! "$pwcli_flock" --exclusive --wait 5 "$pwcli_lock_fd"; then
+  fail "timed out waiting for the Managed Playwright Chrome runtime lock at $pwcli_lock_file"
+fi
 release_lock() {
-  rmdir "$pwcli_lock_dir" 2>/dev/null || true
+  exec {pwcli_lock_fd}>&-
 }
 trap release_lock EXIT
 
@@ -172,6 +173,34 @@ pwcli_dashboard_launcher_file="$pwcli_state_dir/dashboard.launcher"
 pwcli_dashboard_log="$pwcli_state_dir/dashboard.log"
 pwcli_dashboard_fifo="$pwcli_state_dir/dashboard.stdin"
 pwcli_workspace="$(pwd -P)"
+pwcli_powershell_ready=0
+
+prepare_powershell() {
+  if ((pwcli_powershell_ready)); then
+    return
+  fi
+  if ! command -v "$pwcli_powershell" >/dev/null 2>&1; then
+    fail "powershell.exe is unavailable. Enable Windows interoperability for this WSL distribution, restart WSL, and verify with: powershell.exe -NoProfile -Command '\$PSVersionTable.PSVersion'"
+  fi
+  if [[ "$pwcli_windows_script" != *\\* && "$pwcli_windows_script" != [A-Za-z]:* ]]; then
+    pwcli_windows_script="$("$pwcli_wslpath" -w "$pwcli_windows_script")"
+  fi
+  pwcli_powershell_ready=1
+}
+
+powershell_action() {
+  prepare_powershell
+  "$pwcli_powershell" \
+    -NoProfile \
+    -NonInteractive \
+    -ExecutionPolicy Bypass \
+    -File "$pwcli_windows_script" \
+    -Action "$1" | tr -d '\r'
+}
+
+inspect_chrome() {
+  powershell_action Inspect | tail -n 1
+}
 
 dashboard_port_ready() {
   "$pwcli_curl" \
@@ -344,6 +373,16 @@ close_chrome_if_unused() {
   if [[ ! -f "$pwcli_state_dir/chrome.pid" ]]; then
     return
   fi
+  local recorded_pid chrome_status
+  recorded_pid="$(cat "$pwcli_state_dir/chrome.pid")"
+  chrome_status="$(inspect_chrome || true)"
+  if [[ "$chrome_status" == "absent" ]]; then
+    rm -f "$pwcli_state_dir/chrome.pid"
+    return
+  fi
+  if [[ ! "$recorded_pid" =~ ^[0-9]+$ || "$chrome_status" != "managed:$recorded_pid" ]]; then
+    fail "refusing to close Chrome because recorded Managed Playwright Chrome PID '$recorded_pid' does not match Windows ownership status '${chrome_status:-empty}'. Close the dedicated Chrome manually, then retry."
+  fi
   if ! "$pwcli_cdp_close" "$pwcli_cdp_endpoint"; then
     fail "could not close Managed Playwright Chrome through CDP. Close the dedicated Chrome manually; the profile was preserved."
   fi
@@ -410,26 +449,7 @@ if [[ "$pwcli_network_mode" != "mirrored" ]]; then
   fail "Managed Playwright Chrome requires WSL2 mirrored networking. Set [wsl2] networkingMode=mirrored in %UserProfile%\\.wslconfig, run wsl.exe --shutdown, restart WSL, and verify with: wslinfo --networking-mode"
 fi
 
-if ! command -v "$pwcli_powershell" >/dev/null 2>&1; then
-  fail "powershell.exe is unavailable. Enable Windows interoperability for this WSL distribution, restart WSL, and verify with: powershell.exe -NoProfile -Command '\$PSVersionTable.PSVersion'"
-fi
-
-if [[ "$pwcli_windows_script" != *\\* && "$pwcli_windows_script" != [A-Za-z]:* ]]; then
-  pwcli_windows_script="$("$pwcli_wslpath" -w "$pwcli_windows_script")"
-fi
-
-powershell_action() {
-  "$pwcli_powershell" \
-    -NoProfile \
-    -NonInteractive \
-    -ExecutionPolicy Bypass \
-    -File "$pwcli_windows_script" \
-    -Action "$1" | tr -d '\r'
-}
-
-inspect_chrome() {
-  powershell_action Inspect | tail -n 1
-}
+prepare_powershell
 
 ensure_chrome() {
   local status
@@ -472,7 +492,11 @@ ensure_chrome() {
 ensure_chrome
 
 if [[ "$pwcli_command" == "open" ]]; then
-  printf '%s\n%s\n' "$pwcli_session" "$pwcli_workspace" >"$pwcli_lease"
+  pwcli_created_lease=0
+  if ((pwcli_managed_owner == 0)); then
+    printf '%s\n%s\n' "$pwcli_session" "$pwcli_workspace" >"$pwcli_lease"
+    pwcli_created_lease=1
+  fi
   pwcli_config="$pwcli_state_dir/managed-cli-config.json"
   printf '%s\n' \
     '{' \
@@ -487,8 +511,10 @@ if [[ "$pwcli_command" == "open" ]]; then
     exit 0
   else
     pwcli_upstream_status=$?
-    rm -f "$pwcli_lease"
-    close_chrome_if_unused
+    if ((pwcli_created_lease)); then
+      rm -f "$pwcli_lease"
+      close_chrome_if_unused
+    fi
     exit "$pwcli_upstream_status"
   fi
 fi
@@ -503,6 +529,7 @@ if ((pwcli_dashboard_running == 0)); then
     __pwcli-dashboard-daemon \
     "$pwcli_dashboard_fifo" \
     "$pwcli_dashboard_launcher_file" \
+    "$pwcli_lock_fd" \
     >>"$pwcli_dashboard_log" 2>&1 &
   pwcli_dashboard_bootstrap_pid=$!
   pwcli_dashboard_launcher_pid=
