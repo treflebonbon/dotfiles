@@ -36,11 +36,15 @@ process | listener)
       "$inode" >"$PWCLI_PROC_ROOT/net/tcp"
   fi
   ;;
-remove)
-  rm -f "$PWCLI_PROC_ROOT/$pid/fd/3" "$PWCLI_PROC_ROOT/$pid/stat"
-  rmdir "$PWCLI_PROC_ROOT/$pid/fd" "$PWCLI_PROC_ROOT/$pid" 2>/dev/null || true
-  : >"$PWCLI_PROC_ROOT/net/tcp"
-  ;;
+  remove)
+    rm -f "$PWCLI_PROC_ROOT/$pid/fd/3" "$PWCLI_PROC_ROOT/$pid/stat"
+    rmdir "$PWCLI_PROC_ROOT/$pid/fd" "$PWCLI_PROC_ROOT/$pid" 2>/dev/null || true
+    : >"$PWCLI_PROC_ROOT/net/tcp"
+    ;;
+  unlisten)
+    rm -f "$PWCLI_PROC_ROOT/$pid/fd/3"
+    : >"$PWCLI_PROC_ROOT/net/tcp"
+    ;;
 esac
 EOF
   chmod +x "$FAKE_BIN/fake-proc"
@@ -698,7 +702,7 @@ EOF
   [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
 }
 
-@test "Dashboard stop timeout preserves process identity and Chrome ownership state" {
+@test "Dashboard stop timeout preserves process identity across wrapper calls" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com
   [ "$status" -eq 0 ]
@@ -720,6 +724,19 @@ EOF
   kill -0 "$dashboard_pid"
   [ -s "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
+
+  "$FAKE_PROC_HELPER" unlisten "$dashboard_pid"
+  rm -f "$DASHBOARD_READY"
+
+  run bash "$WRAPPER" show
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"is still stopping"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
+  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
+  [ -e "$RUNTIME_DIR/playwright-cli/dashboard.stdin" ]
+  [ "$(grep -Fc -- "--port=9323" "$DASHBOARD_CALL_LOG")" -eq 1 ]
+  [ -s "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
 }
 
 @test "managed delete-data refuses to remove the dedicated profile" {

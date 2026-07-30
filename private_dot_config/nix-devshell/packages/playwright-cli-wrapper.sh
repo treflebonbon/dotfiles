@@ -320,10 +320,13 @@ dashboard_status() {
     actual_start_time="$(process_start_time "$pid" 2>/dev/null || true)"
     if [[ "$pid" =~ ^[0-9]+$ ]] &&
       [[ -n "$recorded_start_time" && "$actual_start_time" == "$recorded_start_time" ]] &&
-      kill -0 "$pid" 2>/dev/null &&
-      dashboard_port_ready &&
-      dashboard_pid_owns_port "$pid"; then
-      return 0
+      kill -0 "$pid" 2>/dev/null; then
+      if ! dashboard_port_ready; then
+        return 3
+      fi
+      if dashboard_pid_owns_port "$pid"; then
+        return 0
+      fi
     fi
     rm -f \
       "$pwcli_dashboard_pid_file" \
@@ -346,6 +349,9 @@ else
   pwcli_dashboard_result=$?
   if ((pwcli_dashboard_result == 2)); then
     fail "127.0.0.1:9323 is already in use without matching Managed Playwright Dashboard state. Stop that process, then retry."
+  fi
+  if ((pwcli_dashboard_result == 3)); then
+    fail "Managed Playwright Dashboard is still stopping. Wait for the recorded process to exit, then retry."
   fi
 fi
 
@@ -377,6 +383,9 @@ close_chrome_if_unused() {
   fi
   if ((dashboard_result == 2)); then
     fail "refusing to close Chrome while 127.0.0.1:9323 is in use without matching Dashboard state."
+  fi
+  if ((dashboard_result == 3)); then
+    return
   fi
   if [[ ! -f "$pwcli_state_dir/chrome.pid" ]]; then
     return
