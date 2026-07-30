@@ -36,11 +36,15 @@ process | listener)
       "$inode" >"$PWCLI_PROC_ROOT/net/tcp"
   fi
   ;;
-remove)
-  rm -f "$PWCLI_PROC_ROOT/$pid/fd/3" "$PWCLI_PROC_ROOT/$pid/stat"
-  rmdir "$PWCLI_PROC_ROOT/$pid/fd" "$PWCLI_PROC_ROOT/$pid" 2>/dev/null || true
-  : >"$PWCLI_PROC_ROOT/net/tcp"
-  ;;
+  remove)
+    rm -f "$PWCLI_PROC_ROOT/$pid/fd/3" "$PWCLI_PROC_ROOT/$pid/stat"
+    rmdir "$PWCLI_PROC_ROOT/$pid/fd" "$PWCLI_PROC_ROOT/$pid" 2>/dev/null || true
+    : >"$PWCLI_PROC_ROOT/net/tcp"
+    ;;
+  unlisten)
+    rm -f "$PWCLI_PROC_ROOT/$pid/fd/3"
+    : >"$PWCLI_PROC_ROOT/net/tcp"
+    ;;
 esac
 EOF
   chmod +x "$FAKE_BIN/fake-proc"
@@ -68,7 +72,7 @@ if [[ "$*" == *"show"* && "$*" == *"--port=9323"* ]]; then
 fi
 if [[ "$*" == *"show"* && "$*" == *"--kill"* ]]; then
   dashboard_pid_file="$PWCLI_RUNTIME_DIR/playwright-cli/dashboard.pid"
-  if [[ -f "$dashboard_pid_file" ]]; then
+  if [[ "${PWCLI_FAKE_DASHBOARD_STOP_STUCK:-0}" != "1" && -f "$dashboard_pid_file" ]]; then
     kill "$(cat "$dashboard_pid_file")" 2>/dev/null || true
   fi
 fi
@@ -104,6 +108,20 @@ case "$action" in
   Inspect)
     if [[ "${PWCLI_FAKE_INSPECT_FAIL:-0}" == "1" ]]; then
       exit 45
+    fi
+    if [[ -f "$POWERSHELL_STATE.close-inspect-fail" ]]; then
+      rm -f "$POWERSHELL_STATE.close-inspect-fail"
+      exit 45
+    fi
+    if [[ -f "$POWERSHELL_STATE.close-inspections" ]]; then
+      close_inspections="$(cat "$POWERSHELL_STATE.close-inspections")"
+      if ((close_inspections > 0)); then
+        printf '%s\n' "$((close_inspections - 1))" >"$POWERSHELL_STATE.close-inspections"
+        printf '%s\n' 'managed:4242'
+        exit 0
+      fi
+      rm -f "$POWERSHELL_STATE.close-inspections"
+      printf '%s\n' absent >"$POWERSHELL_STATE"
     fi
     if [[ -f "$POWERSHELL_STATE.inspect-fail-once" ]]; then
       rm -f "$POWERSHELL_STATE.inspect-fail-once"
@@ -153,7 +171,15 @@ EOF
   cat >"$FAKE_BIN/cdp-close" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$CDP_CLOSE_LOG"
-printf '%s\n' absent >"$POWERSHELL_STATE"
+if [[ "${PWCLI_FAKE_CLOSE_INSPECT_FAIL:-0}" == "1" ]]; then
+  touch "$POWERSHELL_STATE.close-inspect-fail"
+elif [[ -n "${PWCLI_FAKE_CLOSE_STATUS:-}" ]]; then
+  printf '%s\n' "$PWCLI_FAKE_CLOSE_STATUS" >"$POWERSHELL_STATE"
+elif [[ -n "${PWCLI_FAKE_CLOSE_INSPECTIONS:-}" ]]; then
+  printf '%s\n' "$PWCLI_FAKE_CLOSE_INSPECTIONS" >"$POWERSHELL_STATE.close-inspections"
+else
+  printf '%s\n' absent >"$POWERSHELL_STATE"
+fi
 EOF
   chmod +x "$FAKE_BIN/cdp-close"
 
@@ -551,6 +577,19 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+@test "CDP close ignores unrelated events before the matching response" {
+  run timeout 2 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT" event-then-success
+
+  [ "$status" -eq 0 ]
+}
+
+@test "CDP close rejects a matching error response" {
+  run timeout 2 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT" error
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"close refused"* ]]
+}
+
 @test "Chrome close refuses a CDP listener that no longer matches recorded ownership" {
   export PWCLI_TEST_WSL=1
   mkdir -p "$RUNTIME_DIR/playwright-cli"
@@ -562,6 +601,69 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"refusing to close Chrome"* ]]
   [ ! -e "$CDP_CLOSE_LOG" ]
+}
+
+@test "Chrome close waits for the managed process to exit before removing ownership state" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_CLOSE_INSPECTIONS=2
+  : >"$POWERSHELL_LOG"
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$POWERSHELL_STATE")" = "absent" ]
+  [ ! -e "$POWERSHELL_STATE.close-inspections" ]
+  [ ! -e "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
+  [ "$(grep -Fc -- "-Action Inspect" "$POWERSHELL_LOG")" -ge 4 ]
+}
+
+@test "Chrome close timeout preserves ownership state" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_CLOSE_INSPECTIONS=100
+  export PWCLI_CDP_TIMEOUT=0
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"did not exit before the timeout"* ]]
+  [[ "$output" == *"ownership state was preserved"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:4242" ]
+}
+
+@test "Chrome close fails closed when post-ack ownership inspection fails" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_CLOSE_INSPECT_FAIL=1
+  export PWCLI_CDP_TIMEOUT=0
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"could not inspect Managed Playwright Chrome after Browser.close"* ]]
+  [[ "$output" == *"ownership state was preserved"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+}
+
+@test "Chrome close fails closed when post-ack ownership changes" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_CLOSE_STATUS=managed:5150
+  export PWCLI_CDP_TIMEOUT=0
+
+  run bash "$WRAPPER" close-all
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"ownership changed while closing"* ]]
+  [[ "$output" == *"managed:5150"* ]]
+  [[ "$output" == *"ownership state was preserved"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
 }
 
 @test "a failed Dashboard start removes stale state and closes unused Chrome" {
@@ -598,6 +700,43 @@ EOF
   [ -s "$CDP_CLOSE_LOG" ]
   [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
   [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
+}
+
+@test "Dashboard stop timeout preserves process identity across wrapper calls" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+  run bash "$WRAPPER" show
+  [ "$status" -eq 0 ]
+  local dashboard_pid
+  dashboard_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+  printf '%s\n' "$dashboard_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
+  export PWCLI_FAKE_DASHBOARD_STOP_STUCK=1
+  export PWCLI_DASHBOARD_STOP_TIMEOUT=0
+
+  run bash "$WRAPPER" show --kill
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"did not exit before the timeout"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
+  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
+  [ -e "$RUNTIME_DIR/playwright-cli/dashboard.stdin" ]
+  kill -0 "$dashboard_pid"
+  [ -s "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
+  [ ! -e "$CDP_CLOSE_LOG" ]
+
+  "$FAKE_PROC_HELPER" unlisten "$dashboard_pid"
+  rm -f "$DASHBOARD_READY"
+
+  run bash "$WRAPPER" show
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"is still stopping"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
+  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
+  [ -e "$RUNTIME_DIR/playwright-cli/dashboard.stdin" ]
+  [ "$(grep -Fc -- "--port=9323" "$DASHBOARD_CALL_LOG")" -eq 1 ]
+  [ -s "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
 }
 
 @test "managed delete-data refuses to remove the dedicated profile" {

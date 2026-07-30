@@ -320,10 +320,13 @@ dashboard_status() {
     actual_start_time="$(process_start_time "$pid" 2>/dev/null || true)"
     if [[ "$pid" =~ ^[0-9]+$ ]] &&
       [[ -n "$recorded_start_time" && "$actual_start_time" == "$recorded_start_time" ]] &&
-      kill -0 "$pid" 2>/dev/null &&
-      dashboard_port_ready &&
-      dashboard_pid_owns_port "$pid"; then
-      return 0
+      kill -0 "$pid" 2>/dev/null; then
+      if ! dashboard_port_ready; then
+        return 3
+      fi
+      if dashboard_pid_owns_port "$pid"; then
+        return 0
+      fi
     fi
     rm -f \
       "$pwcli_dashboard_pid_file" \
@@ -346,6 +349,9 @@ else
   pwcli_dashboard_result=$?
   if ((pwcli_dashboard_result == 2)); then
     fail "127.0.0.1:9323 is already in use without matching Managed Playwright Dashboard state. Stop that process, then retry."
+  fi
+  if ((pwcli_dashboard_result == 3)); then
+    fail "Managed Playwright Dashboard is still stopping. Wait for the recorded process to exit, then retry."
   fi
 fi
 
@@ -378,6 +384,9 @@ close_chrome_if_unused() {
   if ((dashboard_result == 2)); then
     fail "refusing to close Chrome while 127.0.0.1:9323 is in use without matching Dashboard state."
   fi
+  if ((dashboard_result == 3)); then
+    return
+  fi
   if [[ ! -f "$pwcli_state_dir/chrome.pid" ]]; then
     return
   fi
@@ -394,7 +403,21 @@ close_chrome_if_unused() {
   if ! "$pwcli_cdp_close" "$pwcli_cdp_endpoint"; then
     fail "could not close Managed Playwright Chrome through CDP. Close the dedicated Chrome manually; the profile was preserved."
   fi
-  rm -f "$pwcli_state_dir/chrome.pid"
+  local deadline=$((SECONDS + ${PWCLI_CDP_TIMEOUT:-10}))
+  while ((SECONDS <= deadline)); do
+    if ! chrome_status="$(inspect_chrome)"; then
+      fail "could not inspect Managed Playwright Chrome after Browser.close. Close the dedicated Chrome manually; ownership state was preserved."
+    fi
+    if [[ "$chrome_status" == "absent" ]]; then
+      rm -f "$pwcli_state_dir/chrome.pid"
+      return
+    fi
+    if [[ "$chrome_status" != "managed:$recorded_pid" ]]; then
+      fail "Managed Playwright Chrome ownership changed while closing (status: ${chrome_status:-empty}). Close the dedicated Chrome manually; ownership state was preserved."
+    fi
+    sleep 0.2
+  done
+  fail "Managed Playwright Chrome did not exit before the timeout (status: ${chrome_status:-empty}). Close the dedicated Chrome manually; ownership state was preserved."
 }
 
 if [[ "$pwcli_command" == "delete-data" ]]; then
@@ -430,12 +453,16 @@ if ((pwcli_show_kill)); then
     pwcli_dashboard_pid="$(cat "$pwcli_dashboard_pid_file")"
   fi
   "$pwcli_upstream" "$@"
-  pwcli_kill_deadline=$((SECONDS + 5))
+  pwcli_kill_deadline=$((SECONDS + ${PWCLI_DASHBOARD_STOP_TIMEOUT:-5}))
   while [[ "$pwcli_dashboard_pid" =~ ^[0-9]+$ ]] &&
     kill -0 "$pwcli_dashboard_pid" 2>/dev/null &&
     ((SECONDS <= pwcli_kill_deadline)); do
     sleep 0.1
   done
+  if [[ "$pwcli_dashboard_pid" =~ ^[0-9]+$ ]] &&
+    kill -0 "$pwcli_dashboard_pid" 2>/dev/null; then
+    fail "Managed Playwright Dashboard did not exit before the timeout. Its process identity and Chrome ownership state were preserved."
+  fi
   rm -f \
     "$pwcli_dashboard_pid_file" \
     "$pwcli_dashboard_start_time_file" \

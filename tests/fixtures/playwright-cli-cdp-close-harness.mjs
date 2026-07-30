@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 const cdpClosePath = process.argv.at(2);
+const responseMode = process.argv.at(3) ?? "success";
 
 globalThis.fetch = () =>
   Promise.resolve({
@@ -16,7 +17,25 @@ globalThis.WebSocket = class extends EventTarget {
   }
 
   send() {
-    queueMicrotask(() => this.dispatchEvent(new Event("message")));
+    queueMicrotask(() => {
+      if (responseMode === "event-then-success") {
+        this.dispatchEvent(
+          new MessageEvent("message", {
+            data: JSON.stringify({
+              method: "Target.targetCreated",
+              params: {},
+            }),
+          })
+        );
+      }
+      const response =
+        responseMode === "error"
+          ? { error: { code: -32_000, message: "close refused" }, id: 1 }
+          : { id: 1, result: {} };
+      this.dispatchEvent(
+        new MessageEvent("message", { data: JSON.stringify(response) })
+      );
+    });
   }
 
   close() {
