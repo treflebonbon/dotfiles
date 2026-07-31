@@ -26,6 +26,8 @@ setup() {
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
   grep -q 'github:numtide/llm-agents\.nix/a6dcbf72f6d61519cc12858176f0fdd189853b28' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "a6dcbf72f6d61519cc12858176f0fdd189853b28"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "a6dcbf72f6d61519cc12858176f0fdd189853b28"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
