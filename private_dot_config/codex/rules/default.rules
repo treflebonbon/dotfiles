@@ -165,6 +165,16 @@ prefix_rule(
     ],
 )
 
+prefix_rule(
+    pattern = ["gh-review-thread", ["inspect", "reply-resolve"]],
+    decision = "allow",
+    justification = "Review Round の thread-aware read と検証済み reply/resolve は専用 CLI に限定して実行する。",
+    match = [
+        "gh-review-thread inspect --repo owner/repo --pr 42",
+        "gh-review-thread reply-resolve --repo owner/repo --pr 42 --thread-id PRRT_1 --body-file reply.md",
+    ],
+)
+
 # Block direct deletion of root or home, and require approval for recursive deletes.
 prefix_rule(
     pattern = ["rm", ["/", "~"]],

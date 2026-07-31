@@ -18,7 +18,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - PR タイトル: squash merge の commit title になるため Conventional Commits 形式にする。`[codex]` などの prefix は付けない。
 - Linting: lefthook pre-commit hook で自動実行（`lefthook.yml` 参照）
 - 認証: HTTPS + `gh auth git-credential`。SSH は不使用。
-- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、label の create/editも対象とする。force-push は方針として禁止し、直接の生の `git push` と代表的な wrapper/global option 経由は runtime rule で遮断する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
+- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、対応済み review thread の reply/resolve、label の create/editも対象とする。force-push は方針として禁止し、直接の生の `git push` と代表的な wrapper/global option 経由は runtime rule で遮断する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
 
 ## 設計→実装ワークフロー
 
@@ -33,6 +33,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 
 - `triage`: 推薦の根拠を得るための read-only 検証は、推薦を提示する前に実行してよい。推薦・適用内容が確定した後の issue create/edit/comment と label create/edit は外部操作を理由に二重確認しない。close/reopen/delete は従来どおり確認する。
 - `code-review`: Builder-Evaluator 内で issue/ticket を実装中なら、その branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone 呼び出しで fixed point が不明な場合だけユーザーへ確認する。
+- `gh-address-comments`: PR review 対応では GitHub plugin を使わず、thread-aware な read/write を `gh-review-thread` に統一する。「review コメントを修正する」という依頼は、選択 thread 群を1つの Review Round として修正・検証・Conventional Commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。修正 commit が現在の PR 履歴に含まれることを確認してから返信・resolve し、説明のみなら空 commit は作らない。thread ごとの失敗は残りを止めず、曖昧・見送り・検証失敗・未公開・API 失敗は open のまま理由を報告する。
 
 実装フェーズの user-invoked entrypoint は `implement`。`tdd` / `code-review` / `resolving-merge-conflicts` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` は **model-invoked discipline** として必要時に自動発火する。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
 
