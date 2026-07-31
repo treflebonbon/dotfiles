@@ -29,15 +29,6 @@ query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
           originalLine
           originalStartLine
           resolvedBy { login }
-          comments(first: 100) {
-            nodes {
-              id
-              body
-              createdAt
-              updatedAt
-              author { login }
-            }
-          }
         }
       }
     }
@@ -59,7 +50,10 @@ query($threadId: ID!, $cursor: String) {
       comments(first: 100, after: $cursor) {
         pageInfo { hasNextPage endCursor }
         nodes {
+          id
           body
+          createdAt
+          updatedAt
           author { login }
         }
       }
@@ -175,12 +169,15 @@ def inspect(repo: str, pr: int) -> None:
         )
     )
     diff = run_gh(["pr", "diff", str(pr), "--repo", repo, "--patch"])
+    threads = fetch_threads(repo, pr)
+    for thread in threads:
+        thread["comments"] = {"nodes": fetch_thread(thread["id"])["comments"]}
     print(
         json.dumps(
             {
                 "pull_request": metadata,
                 "diff": diff,
-                "review_threads": fetch_threads(repo, pr),
+                "review_threads": threads,
             },
             ensure_ascii=False,
         )
@@ -253,6 +250,23 @@ def verify_commit(repo: str, pr: int, commit: str) -> None:
         fail(f"commit {commit} is not published in {repo}#{pr}")
 
 
+def validate_reply_body(body: str, commit: str | None) -> None:
+    if commit is not None:
+        expected_prefix = f"対応しました（{commit[:7]}）。"
+        if not body.startswith(expected_prefix) or "\n\n確認:" not in body:
+            fail(
+                "fix replies must use "
+                f"'{expected_prefix}<summary>\\n\\n確認: <verification>'",
+                2,
+            )
+    elif not body.startswith("確認しました。") or "\n\n根拠:" not in body:
+        fail(
+            "explanation-only replies must use "
+            "'確認しました。<answer>\\n\\n根拠: <evidence>'",
+            2,
+        )
+
+
 def reply_resolve(
     repo: str,
     pr: int,
@@ -266,6 +280,7 @@ def reply_resolve(
         fail(f"cannot read --body-file: {error}", 2)
     if not body.strip():
         fail("--body-file must not be empty", 2)
+    validate_reply_body(body, commit)
 
     thread = fetch_thread(thread_id)
     verify_thread_scope(thread, repo, pr)
@@ -334,7 +349,9 @@ def parse_args() -> argparse.Namespace:
     reply_parser.add_argument("--repo", required=True)
     reply_parser.add_argument("--pr", type=int, required=True)
     reply_parser.add_argument("--thread-id", required=True)
-    reply_parser.add_argument("--commit")
+    mode = reply_parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--commit")
+    mode.add_argument("--explanation-only", action="store_true")
     reply_parser.add_argument("--body-file", required=True)
     return parser.parse_args()
 

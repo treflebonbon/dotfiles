@@ -171,7 +171,7 @@ prefix_rule(
     justification = "Review Round の thread-aware read と検証済み reply/resolve は専用 CLI に限定して実行する。",
     match = [
         "gh-review-thread inspect --repo owner/repo --pr 42",
-        "gh-review-thread reply-resolve --repo owner/repo --pr 42 --thread-id PRRT_1 --body-file reply.md",
+        "gh-review-thread reply-resolve --repo owner/repo --pr 42 --thread-id PRRT_1 --explanation-only --body-file reply.md",
     ],
 )
 
