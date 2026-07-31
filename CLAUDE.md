@@ -1,52 +1,47 @@
 # CLAUDE.md
 
-chezmoi dotfiles repo。DevPod / VS Code Dev Containers で自動デプロイ。テーマは Dracula 統一。ログインシェルは bash。
+chezmoi dotfiles repo。ログインシェルは bash。
 
-**重要**: ファイル編集は chezmoi source（`chezmoi source-path` で確認。init 時の `--source` が chezmoi.toml の `sourceDir` に永続化される）内で行う。`chezmoi apply` で `~/` に反映。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で反映。
+**重要**: 編集は `chezmoi source-path` が示す source 内で行い、`chezmoi apply` で `~/` に反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
 
-`CLAUDE.md` is the Claude Code-facing instruction file. `AGENTS.md` is maintained separately for Codex / OpenCode / Zed / Cursor-facing guidance.
-
-home 配下のどの repo でも共通するシェル環境・skill 配備・AI ランタイムの詳細は `~/runtime/`（Open Knowledge Format バンドル、home-wide 配備）を参照する。`runtime/index.md` を入口に markdown リンクで辿れる。dotfiles repo 自身の構造は `docs/architecture.md`、規約は `docs/conventions.md`（いずれも repo ローカル、home 非配備）を参照。意思決定記録（ADR）は `docs/adr/`（repo root、連番ファイル名）に一本化されている。
+`CLAUDE.md` は Claude Code 向け、`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向けとして別々に保守する。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
 
 ## Architecture
 
-2 種類の flake devShell がある。混同しないこと: **リポジトリ自体** (`./flake.nix`, chezmoi 編集用) と **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix`, 汎用ランタイム+横断ツール)。詳細な役割分担・ツール追加先の判断は `docs/architecture.md` を参照。
+flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ランタイム・横断ツール用の `private_dot_config/nix-devshell/flake.nix` を分けている。ツールの追加先は `docs/architecture.md` で判断する。
 
 ## Conventions
 
-- コミット: Conventional Commits 形式（`cog verify` で検証）
-- Linting: lefthook pre-commit hook で自動実行（`lefthook.yml` 参照）
-- 認証: HTTPS + `gh auth git-credential`。SSH は不使用。
-- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、label の create/editも対象とする。force-push は方針として禁止し、直接の生の `git push` と代表的な wrapper/global option 経由は runtime rule で遮断する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
+- コミットは Conventional Commits 形式にし、`cog verify` と lefthook pre-commit hook で検証する。
+- Git 認証は HTTPS + `gh auth git-credential` を使う。
+- ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
 
 ## 設計→実装ワークフロー
 
-メインフロー1本 + on-ramp 2つで構成する（ADR-0014、上流 `ask-matt` の main-flow/on-ramp 構造に整合）。**機能作業はまず `/to-worktree` で隔離 worktree に入ってから始める**（Claude Code は `EnterWorktree` ツール優先。カレント checkout を汚さない）。ただし Orca セッション内（`orca` CLI、Linux では `orca-ide` が利用可能な時）は Orca worktree（`orca-cli` skill）を優先し、`/to-worktree` はそれ以外の環境で使う（ADR-0011）。**worktree は一度だけ入る** — 以降のスキルは同一 worktree/セッション内で連続実行し、都度 `to-worktree` には戻らない。
+1つの作業では1つの隔離 worktree を使う。Claude Code では `EnterWorktree`、Orca セッションでは Orca worktree、それ以外では `/to-worktree` を使い、以降の skill は同じ worktree で連続実行する。
 
-- **メインフロー**: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`。要件がすでに確定している小さな作業では `grill-with-docs` / `to-spec` / `to-tickets` を省略し `implement` から直接入ってよい。`to-tickets` までを **Planner**、`implement`（内部で `tdd` / `code-review` を使う）を **Builder-Evaluator** と呼ぶ（`CONTEXT.md`）。Planner は人間との協働を維持するが、Builder-Evaluator は ticket をまたいで同一 worktree/branch 内なら止まらずループしてよい（単一セッション単位ではない — smart zone に達したら `/handoff` で別セッションへ）: `tdd` の green slice commit・`code-review` 後の修正 commit は確認なしで行い（根拠は ADR-0019 / ADR-0022）、ticket の AC からシームが一意に導出できればシーム確認も省略する（曖昧な場合や ticket 非経由では従来どおり確認）。対象 worktree/branch の全 ticket が完了したら `to-pr` を一度だけ実行する（AFK 運用時は自律呼出し可、通常運用は完了報告のうえユーザーの `/to-pr` 呼出しを待つ）。`/to-pr` の呼出しまたは AFK/自律完了の明示許可は、topic branch push・PR create/edit・証跡添付・整合済み `Fixes` への事前承認として扱う。巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作ってから Planner / Builder-Evaluator へ合流する。
-- **on-ramp**（メインフロー外から issue/バグが持ち込まれる入口）:
-  - raw な issue（bug report・降ってきた要望等、`to-tickets` を経由していないもの）→ `triage` → ready-for-agent 化 → `implement` へ合流。`triage` は `to-tickets` の産出物には使わない（すでに ready-for-agent なため）
-  - ハードなバグ（再現・原因調査が必要）→ `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告として届いた場合はまず `triage` を通してから `diagnosing-bugs` へ
+- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`
+- 要件確定済み: `implement` → `to-pr`
+- raw issue: `triage` で ready-for-agent 化してから `implement`
+- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review` → `to-pr`
 
-外部 skill の一般手順に対するローカル上書き（ADR-0023）:
+自律実行範囲、Contract、Verification Matrix、Parent Reconciliation、各 skill のローカル上書きは `runtime/skill-harness.md` と関連 ADR を正本とする。特に次を守る:
 
-- `triage`: 推薦の根拠を得るための read-only 検証は、推薦を提示する前に実行してよい。推薦・適用内容が確定した後の issue create/edit/comment と label create/edit は外部操作を理由に二重確認しない。close/reopen/delete は従来どおり確認する。
-- `code-review`: Builder-Evaluator 内で issue/ticket を実装中なら、その branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone 呼び出しで fixed point が不明な場合だけユーザーへ確認する。
+- `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、close/reopen/delete は確認する。
+- Builder-Evaluator 内の `code-review` は既知の base（通常 `origin/main`）を使う。standalone で base が不明な場合は確認する。
+- `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
 
-実装フェーズの user-invoked entrypoint は `implement`。`tdd` / `code-review` / `resolving-merge-conflicts` / `diagnosing-bugs` / `domain-modeling` / `codebase-design` / `prototype` / `research` は **model-invoked discipline** として必要時に自動発火する。各 product repo で最初に `setup-matt-pocock-skills` を実行し issue tracker / triage label / domain doc を構成する。domain doc は各 repo の `CONTEXT.md` + `docs/adr/` を使い、この repo の `runtime/` とは混ぜない。`to-pr` は実装後に条件付きブラウザ AC 検証 + PR 作成を行う chezmoi ローカル skill。迷ったら `ask-matt`（router）。
+実装依頼の入口は `implement`。必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
 
 ## ブラウザ操作ツール
 
-単発のブラウザ操作・スクレイピング・フォーム操作・スクリーンショット取得は `playwright-cli` skill を使う。Chrome MV3 拡張の検証は Playwright の persistent Chromium context を使う。`browser-use` は明示指定がある場合のみ（`uv tool run browser-use@<version>`）。
-
-実装中（`tdd` サイクル）に UI 要素を指差してその場で変更を指示したい場合は、実行ランタイムの要素指差しフィードバック機能を使う（Codex app（in-app browser）: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）。プレーンな Codex CLI（ターミナル）セッションにはこの機能は無い点に注意。ランタイム検出ロジックは不要 — エージェントは自身の実行ランタイムが何を持つか把握している。`playwright-cli` の代替ではなく、人間主導で UI を直接指差せる場合の追加の対話チャネル（ADR-0017）。
+通常のブラウザ操作は `playwright-cli` skill を使い、Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、利用可能な `claude-in-chrome` を追加チャネルとして使う。役割の違いは ADR-0017 を参照する。
 
 ## Skill 配布経路の選択
 
-- **APM 経由** (`apm.yml` / `apm.lock.yaml`): 外部 skill / plugin。`targets` は claude / codex。全 skill を APM-native の共有ハブ `~/.agents/skills/` へ必ず materialize（target 非依存）し、Codex / Antigravity は `~/.agents/skills/` を直接読むため追加配線なしで可視。hook を持たない外部 skill-only は apm 経由。lock は runtime layout を再現した隔離ディレクトリで `apm install` して再生成する（`apm lock` だけでは materialization 情報が欠落する。詳細は `runtime/skill-harness.md`）
-- **chezmoi ローカル skill**: apm 外の user-scoped private skill。`local-skills/<name>/` を SoT に `run_onchange_after_deploy-local-skills.sh.tmpl` が `~/.agents/skills` / `~/.claude/skills` / `~/.codex/skills` へ配備（orphan-cleanup の `preserve_local_skills` で保護）。例: `to-pr`
-- **settings.json `enabledPlugins`**: hook を含む plugin（security-guidance / LSP / codex）の runtime 有効化
-- **nix devshell**: CLI バイナリ（AI ツール / playwright-cli）
+外部 skill / plugin は `apm.yml` / `apm.lock.yaml`、user-scoped private skill は `local-skills/<name>/`、hook を含む Claude plugin は `private_dot_claude/settings.json.tmpl` の `enabledPlugins`、CLI バイナリは nix devshell で管理する。
+
+配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。
 
 ## Agent skills
 

@@ -60,6 +60,10 @@ _Avoid_: last PR, final patch
 最終 PR が直接の child ticket と親 issue の close 対象を整合させる1階層の完了判定。Ticket Hierarchy または Ticket Coverage を証明できない場合は親の close を省いて理由を記録し、PR 作成自体は止めない。
 _Avoid_: epic reconciliation, post-merge cleanup
 
+**Review Round**:
+選択した unresolved review thread 群を、修正または説明の確認から、検証・1 commit・topic push・日本語返信・resolve まで一括処理する単位。説明のみなら空 commit を作らず、thread 単位の失敗は残りの処理を止めない。
+_Avoid_: コメント対応, review fix
+
 **ローカル skill 上書き**:
 外部 skill を fork せず、その repo の指示層で実運用に必要な差分だけを優先規則として定義すること。外部 skill 本文の一般手順は維持し、上書き範囲を明示できる場合に限る。
 _Avoid_: skill fork, upstream patch, vendored skill 改変

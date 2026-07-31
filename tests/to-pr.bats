@@ -14,7 +14,7 @@ setup() {
 @test "Project workflow preauthorizes routine GitHub writes across runtimes" {
   local instructions
   for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq '内容確定後の非破壊な GitHub 定型書込みは二重確認しない' "$instructions"
+    grep -Fq 'ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない' "$instructions"
     ! grep -Fq 'push / PR 作成の確認は変更しない' "$instructions"
   done
 
