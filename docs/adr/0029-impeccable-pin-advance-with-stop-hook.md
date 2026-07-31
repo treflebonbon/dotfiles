@@ -142,4 +142,24 @@ native に持つイベントで（`codex_hooks::schema::StopCommandOutputWire` �
 案内しているが、当 repo の user-global 配線も実際に読まれている（`~/.codex/config.toml` の
 `[hooks.state]` に `"/home/ubuntu/.codex/hooks.json:post_tool_use:0:0"` の trust が積まれている）。
 
+## 補足（2026-07-31、Issue #130 の更新時）
+
+Impeccable の実装開始時点の HEAD `32930818a109fafa87199babe92fa8e530cff5d3`（4.0.4）を更新候補とし、
+APM 0.26.0 が隔離 HOME に materialize した runtime を JSON event interface から直接検証した。per-edit の
+immediate finding、clean / non-UI / sensitive / generated の無言成功、Stop での deferred finding、dedupe、
+edit threshold、Stop re-entry を含む `tests/design-hook.bats` は 7/7 で通過した。未配備・内部失敗時の
+fail-soft は `tests/codex-config.bats` の managed hook fail-open テストで別途確認した。したがってこの
+revision を新しい検証済み Skill Pin として採用し、Claude Code / Codex の配線は変更しない。
+
+テスト fixture には project marker として空の `package.json` を置くよう修正した。上流 runtime は marker が
+ない場合に祖先の `.impeccable` を project root として選べるため、隔離テストの外にある `/tmp/.impeccable`
+を拾って per-edit と Stop の cache root が分裂していた。これは hook 契約の変更ではなく、fixture が project
+境界を決定論的に表していなかった問題の修正である。
+
+`1cf7d7ab..32930818` の selected subtree は 67 files / +7323 -1639 で、主な変更は Live v2、framework
+adapter、検出器、Impeccable 4.0.4 への更新である。hook entrypoint `scripts/hook.mjs` は不変で、
+`hook-lib.mjs` の hook 関連差分は Google Fonts label の ignore 値抽出追加だけだった。既知の both-tiers Stop
+交互報告 defect はこの revision にも残っているため、上流の意図へ書き換えず characterization test を維持する。
+後続更新でも、pin の前進は同じ Design Hook 互換性ゲートを通過した場合に限る。
+
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

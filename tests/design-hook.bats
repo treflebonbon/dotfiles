@@ -5,6 +5,7 @@ setup() {
   RUNTIME="${IMPECCABLE_HOOK_RUNTIME:-$HOME/.agents/skills/impeccable/scripts/hook.mjs}"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$PROJECT"
+  printf '{}\n' >"$PROJECT/package.json"
 
   # gradient-text is in the runtime's immediate tier, so the per-edit pass reports
   # it at the edit site.

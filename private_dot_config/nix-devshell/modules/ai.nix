@@ -66,7 +66,7 @@ let
   #       「flake pin 上の当該パッケージの version が動いたとき」。
   # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
   minClaudeCode = "2.1.219";
-  minCodex = "0.144.6";
+  minCodex = "0.146.0";
 
   claudeCode =
     let
@@ -130,6 +130,8 @@ let
         さらに、強制削除を含む危険コマンドの検出と拒否理由を改善した 0.144.5 を品質ベースラインとして要求します。
         GPT-5.6 Sol / Terra / Luna の bundled instructions と context window metadata を修正した
         0.144.6 を品質ベースラインとして要求します。
+        executor が提供する skill の discover/read、context pressure 下での skill catalog 保持、
+        MCP server の refresh/reconnect を含む 0.146.0 を品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
@@ -175,7 +177,7 @@ let
         #   nix hash convert --hash-algo sha256 --to sri <hex digest>
         src = pkgs.fetchurl {
           url = "https://registry.npmjs.org/@github/copilot-darwin-x64/-/copilot-darwin-x64-${old.version}.tgz";
-          hash = "sha256-x+X//TpOjUgSqGvqfU1wPakG3W58+EV/I9Nfj8Bzxgc=";
+          hash = "sha256-carzC6PblU8/pHlgEe9+NtxV4qV5iwrCsCkTpBRKQHE=";
         };
         meta = old.meta // {
           platforms = old.meta.platforms ++ [ "x86_64-darwin" ];
@@ -188,7 +190,7 @@ let
     if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
       llm.antigravity-cli.overrideAttrs (old: {
         # antigravity-public の URL は version 文字列に紐づかない内部ビルド ID
-        # （下記は 1.1.8 用の 5636713813508096）を含むため、バージョン更新時は
+        # （下記は 1.1.9 用の 6572839516635136）を含むため、バージョン更新時は
         # aarch64-darwin 用 URL（hashes.json の urls.aarch64-darwin）から同じ
         # ビルド ID を読み取って darwin-x64 に置き換え、ハッシュを再計算する:
         #   curl -fsSL <同ビルドIDの darwin-x64 URL> | sha512sum
@@ -197,8 +199,8 @@ let
         # antigravity-cli を上げたのにここを直し忘れると URL が存在しない組み合わせになり
         # x86_64-darwin だけ fetch に失敗する。pin 更新時は必ずこの 2 値を確認する。
         src = pkgs.fetchurl {
-          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-5636713813508096/darwin-x64/cli_mac_x64.tar.gz";
-          hash = "sha512-RDGnkAcQbryne6bQ8Qk0UHhVTQ5Er2m9aXa93xbS5NaXSsiJROXxCb4m3GAvL4DdAPWJcAvJ2hdToHYnQi82xw==";
+          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6572839516635136/darwin-x64/cli_mac_x64.tar.gz";
+          hash = "sha512-LmGr331ifmrSS/7+7YuzWgClOK3AA5gQYnDmNQFfeJaTJ/d2eRBT0strkpEoJJEvour2WskiT6/NPQqtfr2OjQ==";
         };
         meta = old.meta // {
           platforms = old.meta.platforms ++ [ "x86_64-darwin" ];

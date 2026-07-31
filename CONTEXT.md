@@ -4,6 +4,26 @@
 
 ## Language
 
+**導入済み AI ツールセット**:
+ユーザー環境が共通の immutable upstream revision から公開する AI 関連 CLI の集合。upstream の全ツール一覧ではなく、実際に環境へ組み込まれたものだけを指す。
+_Avoid_: llm-agents ツール, 全 AI ツール, upstream catalog
+
+**導入済み Agent Skill セット**:
+ユーザー環境が外部 package から取得・公開する Agent Skill の集合。dotfiles が所有するローカル skill は含まない。
+_Avoid_: スキル, 全 skill, ローカル skill
+
+**検証済み Skill Pin**:
+自動 hook やワークフロー契約との互換性を確認した Agent Skill の immutable revision。floating dependency の定期更新とは分け、契約を再検証したときだけ前進させる。
+_Avoid_: 最新版, lock revision, floating pin
+
+**Design Hook 互換性ゲート**:
+Impeccable の更新候補が、Claude Code / Codex の quiet・fail-soft・per-edit / deep-pass 契約を維持できるかを判定する更新境界。契約変更へ追従できない候補は採用せず、最新の互換 revision に戻す。
+_Avoid_: hook test, latest pin, smoke check
+
+**品質 floor**:
+導入済み AI ツールについて、運用上不可欠な挙動を保証する最低 release。snapshot の実際の version とは独立し、具体的な品質根拠がある場合だけ引き上げる。
+_Avoid_: 最新版, pin version, minimum version
+
 **Managed Playwright Chrome**:
 WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。専用 profile の手動認証状態を、排他的な CLI session と Dashboard が再利用する。
 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
