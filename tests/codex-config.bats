@@ -108,9 +108,9 @@ prepare_codex_chezmoi_source() {
   [ -f "$agents" ]
   grep -q '^# Guidelines$' "$agents"
   grep -q 'Think in English, respond in Japanese\.' "$agents"
-  grep -q '<default_to_action>' "$agents"
-  grep -q '<investigate_before_answering>' "$agents"
-  grep -q '<use_parallel_tool_calls>' "$agents"
+  grep -q '^## Behavior$' "$agents"
+  grep -q '^## Investigation before answering$' "$agents"
+  grep -q '^## Parallel tool calls$' "$agents"
 }
 
 @test "Global runtime guidance preauthorizes routine GitHub collaboration writes" {

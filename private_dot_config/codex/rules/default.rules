@@ -1,4 +1,4 @@
-# Block privilege escalation and direct access to privileged cloud CLIs.
+# Block privilege escalation, network probes, and cloud CLIs.
 prefix_rule(
     pattern = [["sudo", "su"]],
     decision = "forbidden",
@@ -27,7 +27,7 @@ prefix_rule(
 prefix_rule(
     pattern = [["nc", "gcloud", "aws"]],
     decision = "forbidden",
-    justification = "Network probes and cloud CLIs can affect shared infrastructure; request explicit user direction first.",
+    justification = "Network probes and cloud CLIs are outside Codex automation.",
     match = [
         "nc -zv example.com 443",
         "gcloud projects list",
@@ -265,7 +265,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["gh", "search", "issues"],
     decision = "allow",
-    justification = "dedup preflight (dogfood-to-issues / design-to-issues)。",
+    justification = "issue dedup preflight (dogfood-to-issues)。",
     match = ["gh search issues query"],
 )
 
