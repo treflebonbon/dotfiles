@@ -253,16 +253,33 @@ def verify_commit(repo: str, pr: int, commit: str) -> None:
 def validate_reply_body(body: str, commit: str | None) -> None:
     if commit is not None:
         expected_prefix = f"対応しました（{commit[:7]}）。"
-        if not body.startswith(expected_prefix) or "\n\n確認:" not in body:
+        marker = "\n\n確認:"
+        if not body.startswith(expected_prefix) or marker not in body:
             fail(
                 "fix replies must use "
                 f"'{expected_prefix}<summary>\\n\\n確認: <verification>'",
                 2,
             )
-    elif not body.startswith("確認しました。") or "\n\n根拠:" not in body:
+        summary, verification = body[len(expected_prefix) :].split(marker, 1)
+        if not summary.strip() or not verification.strip():
+            fail(
+                "fix replies must include a non-empty summary and verification",
+                2,
+            )
+        return
+
+    expected_prefix = "確認しました。"
+    marker = "\n\n根拠:"
+    if not body.startswith(expected_prefix) or marker not in body:
         fail(
             "explanation-only replies must use "
             "'確認しました。<answer>\\n\\n根拠: <evidence>'",
+            2,
+        )
+    answer, evidence = body[len(expected_prefix) :].split(marker, 1)
+    if not answer.strip() or not evidence.strip():
+        fail(
+            "explanation-only replies must include a non-empty answer and evidence",
             2,
         )
 

@@ -287,6 +287,40 @@ EOF
   ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
 
+@test "reply-resolve rejects an empty fix summary and verification" {
+  body_file="$BATS_TEST_TMPDIR/reply.md"
+  printf '%s\n\n%s\n' '対応しました（aaaaaaa）。' '確認:' >"$body_file"
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" \
+    python3 "$SCRIPT" reply-resolve \
+    --repo owner/repo \
+    --pr 42 \
+    --thread-id PRRT_1 \
+    --commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    --body-file "$body_file"
+
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"fix replies must include a non-empty summary and verification"* ]]
+  ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
+}
+
+@test "reply-resolve rejects an empty explanation and evidence" {
+  body_file="$BATS_TEST_TMPDIR/reply.md"
+  printf '%s\n\n%s\n' '確認しました。' '根拠:' >"$body_file"
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" \
+    python3 "$SCRIPT" reply-resolve \
+    --repo owner/repo \
+    --pr 42 \
+    --thread-id PRRT_1 \
+    --explanation-only \
+    --body-file "$body_file"
+
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"explanation-only replies must include a non-empty answer and evidence"* ]]
+  ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
+}
+
 @test "inspect paginates comments within each review thread" {
   run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="comment-pages" \
     python3 "$SCRIPT" inspect --repo owner/repo --pr 42
