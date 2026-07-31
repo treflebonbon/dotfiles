@@ -284,6 +284,10 @@ def validate_reply_body(body: str, commit: str | None) -> None:
         )
 
 
+def normalize_reply_body(body: str) -> str:
+    return body.rstrip("\r\n")
+
+
 def reply_resolve(
     repo: str,
     pr: int,
@@ -316,10 +320,22 @@ def reply_resolve(
     if commit is not None:
         verify_commit(repo, pr, commit)
 
-    duplicate = any(
+    comments = thread["comments"]
+    normalized_body = normalize_reply_body(body)
+    matching_reply_index = next(
+        (
+            index
+            for index in range(len(comments) - 1, -1, -1)
+            if (comments[index].get("author") or {}).get("login")
+            == thread["viewer"]
+            and normalize_reply_body(comments[index].get("body") or "")
+            == normalized_body
+        ),
+        None,
+    )
+    duplicate = matching_reply_index is not None and all(
         (comment.get("author") or {}).get("login") == thread["viewer"]
-        and comment.get("body") == body
-        for comment in thread["comments"]
+        for comment in comments[matching_reply_index + 1 :]
     )
     if not duplicate:
         run_gh_json(

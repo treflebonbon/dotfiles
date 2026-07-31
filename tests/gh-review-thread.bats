@@ -27,7 +27,9 @@ case "$*" in
   ;;
 *"node(id:"*)
   if [ "${MOCK_SCENARIO:-}" = "duplicate" ]; then
-    printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"対応しました（aaaaaaa）。指摘箇所を修正しました。\n\n確認: bats成功。\n","author":{"login":"agent"}}]}}}}'
+    printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"対応しました（aaaaaaa）。指摘箇所を修正しました。\n\n確認: bats成功。","author":{"login":"agent"}}]}}}}'
+  elif [ "${MOCK_SCENARIO:-}" = "duplicate-after-feedback" ]; then
+    printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"対応しました（aaaaaaa）。指摘箇所を修正しました。\n\n確認: bats成功。","author":{"login":"agent"}},{"body":"追加の指摘です。","author":{"login":"reviewer"}}]}}}}'
   elif [ "${MOCK_SCENARIO:-}" = "comment-pages" ] && [[ "$*" == *"cursor=NEXT"* ]]; then
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"PRRC_2","body":"second","createdAt":"2026-07-31T00:01:00Z","updatedAt":"2026-07-31T00:01:00Z","author":{"login":"reviewer"}}]}}}}'
   elif [ "${MOCK_SCENARIO:-}" = "comment-pages" ]; then
@@ -112,7 +114,7 @@ EOF
   [ "$reply_line" -lt "$resolve_line" ]
 }
 
-@test "reply-resolve resumes without duplicating an identical viewer reply" {
+@test "reply-resolve ignores trailing newlines when resuming an identical viewer reply" {
   body_file="$BATS_TEST_TMPDIR/reply.md"
   printf '%s\n\n%s\n' \
     '対応しました（aaaaaaa）。指摘箇所を修正しました。' \
@@ -130,6 +132,27 @@ EOF
   run jq -e '.reply == "skipped" and .resolve == "resolved"' <<<"$output"
   [ "$status" -eq 0 ]
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
+  grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+}
+
+@test "reply-resolve replies again when newer reviewer feedback follows a matching reply" {
+  body_file="$BATS_TEST_TMPDIR/reply.md"
+  printf '%s\n\n%s\n' \
+    '対応しました（aaaaaaa）。指摘箇所を修正しました。' \
+    '確認: bats成功。' >"$body_file"
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="duplicate-after-feedback" \
+    python3 "$SCRIPT" reply-resolve \
+    --repo owner/repo \
+    --pr 42 \
+    --thread-id PRRT_1 \
+    --commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    --body-file "$body_file"
+
+  [ "$status" -eq 0 ]
+  run jq -e '.reply == "created" and .resolve == "resolved"' <<<"$output"
+  [ "$status" -eq 0 ]
+  grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
   grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
 
@@ -199,7 +222,7 @@ EOF
   body_file="$BATS_TEST_TMPDIR/reply.md"
   printf '%s\n\n%s\n' \
     '確認しました。挙動を確認しました。' \
-    '根拠: ADR-0031です。' >"$body_file"
+    '根拠: ADR-0032です。' >"$body_file"
 
   run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="reply-failure" \
     python3 "$SCRIPT" reply-resolve \
@@ -218,7 +241,7 @@ EOF
   body_file="$BATS_TEST_TMPDIR/reply.md"
   printf '%s\n\n%s\n' \
     '確認しました。この挙動は意図的に選択しています。' \
-    '根拠: ADR-0031です。' >"$body_file"
+    '根拠: ADR-0032です。' >"$body_file"
 
   run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" \
     python3 "$SCRIPT" reply-resolve \
@@ -238,7 +261,7 @@ EOF
   body_file="$BATS_TEST_TMPDIR/reply.md"
   printf '%s\n\n%s\n' \
     '確認しました。挙動を確認しました。' \
-    '根拠: ADR-0031です。' >"$body_file"
+    '根拠: ADR-0032です。' >"$body_file"
 
   run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="null-author" \
     python3 "$SCRIPT" reply-resolve \
@@ -357,7 +380,7 @@ EOF
   grep -Fq '`gh-review-thread`' "$PROJECT_ROOT/runtime/skill-harness.md"
   grep -Fq '`--explanation-only`' "$PROJECT_ROOT/runtime/skill-harness.md"
 
-  local adr="$PROJECT_ROOT/docs/adr/0031-automate-review-round.md"
+  local adr="$PROJECT_ROOT/docs/adr/0032-automate-review-round.md"
   [ -f "$adr" ]
   grep -Fq 'status: accepted' "$adr"
   grep -Fq 'ADR-0023' "$adr"

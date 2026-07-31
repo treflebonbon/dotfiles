@@ -17,7 +17,7 @@ home 配下のどの repo でも共通するシェル環境・skill 配備・AI 
 - コミット: Conventional Commits 形式（`cog verify` で検証）
 - Linting: lefthook pre-commit hook で自動実行（`lefthook.yml` 参照）
 - 認証: HTTPS + `gh auth git-credential`。SSH は不使用。
-- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、対応済み review thread の reply/resolve、label の create/editも対象とする。force-push は方針として禁止し、直接の生の `git push` と代表的な wrapper/global option 経由は runtime rule で遮断する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
+- GitHub 操作: ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch の push は引数なしの `git-push-topic`（内部で `git push -u origin HEAD`）を使い、PR/issue の create/edit/comment、PR の review/ready、対応済み review thread の reply/resolve、label の create/edit も対象とする。force-push は方針として禁止し、直接の生の `git push` と代表的な wrapper/global option 経由は runtime rule で遮断する。default branch への直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repo settings/secrets も対象外とする。
 
 ## 設計→実装ワークフロー
 
