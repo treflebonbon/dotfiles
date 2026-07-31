@@ -21,6 +21,14 @@ setup() {
   grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$flake"
 }
 
+@test "user devShell selects the approved installed AI toolset snapshot without moving shared nixpkgs" {
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
+
+  grep -q 'github:numtide/llm-agents\.nix/a6dcbf72f6d61519cc12858176f0fdd189853b28' "$flake"
+  jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
+}
+
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
   grep -q 'zsh-autosuggestions' "$module"
@@ -100,10 +108,10 @@ setup() {
   grep -q 'version = "2\.1\.220";' "$package"
 }
 
-@test "nix-devshell requires Codex with GPT 5.6 support" {
+@test "nix-devshell requires Codex with executor-provided skill support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.144\.6";' "$module"
+  grep -q 'minCodex = "0\.146\.0";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
 }
@@ -117,6 +125,9 @@ setup() {
   grep -q 'llm\.copilot-cli\.overrideAttrs' "$module"
   grep -q 'antigravityCli =' "$module"
   grep -q 'llm\.antigravity-cli\.overrideAttrs' "$module"
+  grep -Fq 'sha256-carzC6PblU8/pHlgEe9+NtxV4qV5iwrCsCkTpBRKQHE=' "$module"
+  grep -Fq '6572839516635136' "$module"
+  grep -Fq 'sha512-LmGr331ifmrSS/7+7YuzWgClOK3AA5gQYnDmNQFfeJaTJ/d2eRBT0strkpEoJJEvour2WskiT6/NPQqtfr2OjQ==' "$module"
   grep -q '^    copilotCli$' "$module"
   grep -q '^    antigravityCli$' "$module"
   ! grep -q '^    llm\.copilot-cli$' "$module"

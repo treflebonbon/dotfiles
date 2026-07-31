@@ -47,3 +47,9 @@ claude-code の修正パッチを適用したレビューで、`v = llm.claude-c
 したがって override を見直す条件は床の変化ではなく「flake pin 上の当該パッケージの version が動いたとき」である。実例として 2026-07-28 の pin 更新（`0858b21` → `64b24c81`）では床を据え置いたまま claude-code 2.1.219 → 2.1.220、antigravity-cli 1.1.6 → 1.1.8 が動き、override 2 件の更新が必要になった（codex / copilot-cli は version 据え置きのため不要）。`flake.nix` / `modules/ai.nix` / `claude-code-darwin-x64.nix` のコメントもこの条件へ揃えた。
 
 この誤りは、x86_64-darwin を実ビルドできない環境では検出が難しい。`nix flake check --all-systems` に加えて devShell を `drvPath` まで強制評価し、生成された derivation が参照するパッケージの version を直接確認することで skew を検出できる。
+
+## 補足（2026-07-31）
+
+pin 更新（`64b24c81` → `a6dcbf72`）で codex 0.145.0 → 0.146.0、copilot-cli 1.0.75 → 1.0.77、antigravity-cli 1.1.8 → 1.1.9 が動いた。配布元の darwin-x64 artifact を直接取得し、copilot-cli は npm tarball の sha256、antigravity-cli は build ID `6572839516635136` の tarball の sha512 を実測して override を更新した。
+
+codex は version が動いたため upstream の package definition も再確認したが、要求する librusty_v8 は 149.2.0 のままだったのでローカル artifact 値は変更していない。claude-code も 2.1.220 のままなので変更なし。これにより、床の上下ではなく pin 上の各 package version をトリガーに個別確認する補足方針をもう一度実証した。
