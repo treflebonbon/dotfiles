@@ -122,6 +122,8 @@ orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は 
 
 切り出した impeccable の判定（Issue #117）も同日に済ませた。結論は **pin を `1cf7d7ab` へ進める、ただし `Stop` 配線とセットで**。判定の根拠・隔離 HOME での実測値・代替案の却下理由は [ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md) にあり、実作業は Issue #119 へ起票した。
 
+2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
+
 2026-07-31 JST、導入済み AI ツールセットを `llm-agents.nix` の immutable snapshot `a6dcbf72` へ更新した。ユーザー devShell が直接共有する nixpkgs `fca2dbd4` は据え置き、llm-agents とその推移依存だけを前進させた。実測 version は claude-code 2.1.220、codex 0.146.0、copilot-cli 1.0.77、antigravity-cli 1.1.9、rtk 0.44.1、apm 0.26.0。Codex 0.146.0 は executor-provided skill の discover/read、context pressure 下での skill catalog 保持、MCP server の refresh/reconnect を含むため `minCodex` を 0.144.6 から 0.146.0 へ上げた。`minClaudeCode` は 2.1.219 のまま、他 CLI に新しい床は設けていない。
 
 x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vendor artifact を直接取得して hash を更新した。claude-code は 2.1.220 のまま、codex 0.146.0 が要求する librusty_v8 も 149.2.0 のままなので両 override の artifact 値は変更していない。Linux host からの x86_64-darwin 検証境界は従来どおり derivation 評価と vendor artifact hash までで、実機実行を確認したとは扱わない。
@@ -129,8 +131,6 @@ x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vend
 同日の APM 経路では、runtime layout を再現した隔離 HOME で floating dependency を再解決した。Impeccable は実装開始時点の HEAD `32930818a109fafa87199babe92fa8e530cff5d3`（4.0.4）を Design Hook 互換性ゲートへ通し、quiet / immediate tier / Stop deep pass / dedupe / edit threshold / sensitive・generated path filter / Stop re-entry の runtime 契約を 7/7 テストで維持した。未配備・内部失敗時の fail-soft は managed hook の fail-open テストで別途確認できたため、検証済み Skill Pin として採用した。both-tiers Stop の既知の交互報告 defect は残っているので characterization test を維持し、hook wiring は変更していない。
 
 floating dependency の selected skill payload が変わったのは Impeccable、Remotion（`4951f6ac`、4.0.503）、Supabase（`12077673`）である。Shadcn（`cb2bcd88`）、Orca 3 skill（`79251d7a`）、find-skills（`1164afa5`）は repository revision のみ進み、各 selected skill subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` のまま。生成した lock は同じ隔離 runtime layout の `apm install --frozen` で書き戻しなく再現できることを確認し、ライブ配備と `chezmoi apply` は行っていない。
-
-2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
