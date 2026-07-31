@@ -126,7 +126,7 @@ orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は 
 
 x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vendor artifact を直接取得して hash を更新した。claude-code は 2.1.220 のまま、codex 0.146.0 が要求する librusty_v8 も 149.2.0 のままなので両 override の artifact 値は変更していない。Linux host からの x86_64-darwin 検証境界は従来どおり derivation 評価と vendor artifact hash までで、実機実行を確認したとは扱わない。
 
-同日の APM 経路では、runtime layout を再現した隔離 HOME で floating dependency を再解決した。Impeccable は実装開始時点の HEAD `32930818a109fafa87199babe92fa8e530cff5d3`（4.0.4）を Design Hook 互換性ゲートへ通し、quiet / fail-soft / immediate tier / Stop deep pass / dedupe / edit threshold / sensitive・generated path filter / Stop re-entry の契約を 7/7 テストで維持したため、検証済み Skill Pin として採用した。both-tiers Stop の既知の交互報告 defect は残っているので characterization test を維持し、hook wiring は変更していない。
+同日の APM 経路では、runtime layout を再現した隔離 HOME で floating dependency を再解決した。Impeccable は実装開始時点の HEAD `32930818a109fafa87199babe92fa8e530cff5d3`（4.0.4）を Design Hook 互換性ゲートへ通し、quiet / immediate tier / Stop deep pass / dedupe / edit threshold / sensitive・generated path filter / Stop re-entry の runtime 契約を 7/7 テストで維持した。未配備・内部失敗時の fail-soft は managed hook の fail-open テストで別途確認できたため、検証済み Skill Pin として採用した。both-tiers Stop の既知の交互報告 defect は残っているので characterization test を維持し、hook wiring は変更していない。
 
 floating dependency の selected skill payload が変わったのは Impeccable、Remotion（`4951f6ac`、4.0.503）、Supabase（`12077673`）である。Shadcn（`cb2bcd88`）、Orca 3 skill（`79251d7a`）、find-skills（`1164afa5`）は repository revision のみ進み、各 selected skill subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` のまま。生成した lock は同じ隔離 runtime layout の `apm install --frozen` で書き戻しなく再現できることを確認し、ライブ配備と `chezmoi apply` は行っていない。
 

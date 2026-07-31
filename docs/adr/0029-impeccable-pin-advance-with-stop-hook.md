@@ -147,8 +147,9 @@ native に持つイベントで（`codex_hooks::schema::StopCommandOutputWire` �
 Impeccable の実装開始時点の HEAD `32930818a109fafa87199babe92fa8e530cff5d3`（4.0.4）を更新候補とし、
 APM 0.26.0 が隔離 HOME に materialize した runtime を JSON event interface から直接検証した。per-edit の
 immediate finding、clean / non-UI / sensitive / generated の無言成功、Stop での deferred finding、dedupe、
-edit threshold、Stop re-entry、未配備・内部失敗時の fail-soft を含む `tests/design-hook.bats` は 7/7 で通過した。
-したがってこの revision を新しい検証済み Skill Pin として採用し、Claude Code / Codex の配線は変更しない。
+edit threshold、Stop re-entry を含む `tests/design-hook.bats` は 7/7 で通過した。未配備・内部失敗時の
+fail-soft は `tests/codex-config.bats` の managed hook fail-open テストで別途確認した。したがってこの
+revision を新しい検証済み Skill Pin として採用し、Claude Code / Codex の配線は変更しない。
 
 テスト fixture には project marker として空の `package.json` を置くよう修正した。上流 runtime は marker が
 ない場合に祖先の `.impeccable` を project root として選べるため、隔離テストの外にある `/tmp/.impeccable`
