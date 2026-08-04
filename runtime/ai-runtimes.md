@@ -132,6 +132,10 @@ x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vend
 
 floating dependency の selected skill payload が変わったのは Impeccable、Remotion（`4951f6ac`、4.0.503）、Supabase（`12077673`）である。Shadcn（`cb2bcd88`）、Orca 3 skill（`79251d7a`）、find-skills（`1164afa5`）は repository revision のみ進み、各 selected skill subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` のまま。生成した lock は同じ隔離 runtime layout の `apm install --frozen` で書き戻しなく再現できることを確認し、ライブ配備と `chezmoi apply` は行っていない。
 
+2026-08-04 JST、`llm-agents.nix` の immutable snapshot を `a6dcbf72` から `71c0eafc` へ更新した。実測 version は claude-code 2.1.220 → 2.1.221、copilot-cli 1.0.77 → 1.0.78、antigravity-cli 1.1.9 → 1.1.10、rtk 0.44.1 → 0.44.2、apm 0.26.0 → 0.27.0。codex 0.146.0 は変化せず `minCodex` も据え置いた。[Claude Code 2.1.221](https://raw.githubusercontent.com/anthropics/claude-code/v2.1.221/CHANGELOG.md) は zsh の `[[ ]]` regex 内に隠したコマンドが permission check を迂回できる問題を修正し、background session が `CLAUDE.md` の git 指示に従い、依頼時だけ draft PR を開くよう変更したため、auto mode と worktree workflow の安全性を担保する `minClaudeCode` を 2.1.219 から 2.1.221 へ上げた。RTK 0.44.2 は履歴 DB・tee log・audit log と既存 data directory の permission を owner-only へ締める security fix、APM 0.27.0 は install / lock / audit / auth / MCP・target mapping の修正を含むため追従した。
+
+x86_64-darwin override は claude-code 2.1.221 と copilot-cli 1.0.78 の vendor artifact を直接取得して実測 sha256 へ更新し、antigravity-cli も 1.1.10 の build ID `6423386432339968` と実測 sha512 へ更新した。codex 0.146.0 が要求する librusty_v8 は 149.2.0 のままなので変更していない。
+
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
 `settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。

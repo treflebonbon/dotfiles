@@ -4,10 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "bun install --frozen-lockfile && bats tests/",
-    "claude:yolo": "claude --permission-mode bypassPermissions",
-    "claude:auto": "claude --permission-mode auto",
-    "codex:yolo": "codex --yolo",
-    "codex:auto": "codex --sandbox workspace-write --ask-for-approval on-request -c approvals_reviewer=auto_review"
+    "claude": "claude --permission-mode auto",
+    "codex": "codex --sandbox workspace-write --ask-for-approval never -c approvals_reviewer=auto_review -c auto_approve_all_safe_actions=true"
   },
   "devDependencies": {
     "bun-types": "^1.1.30",

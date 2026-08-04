@@ -25,9 +25,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/a6dcbf72f6d61519cc12858176f0fdd189853b28' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "a6dcbf72f6d61519cc12858176f0fdd189853b28"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "a6dcbf72f6d61519cc12858176f0fdd189853b28"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/71c0eafcae20331346e60154ca843d4791ba1245' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "71c0eafcae20331346e60154ca843d4791ba1245"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "71c0eafcae20331346e60154ca843d4791ba1245"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -91,8 +91,8 @@ setup() {
   grep -q 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$flake"
 }
 
-@test "nix-devshell requires Claude Code with Opus 5 support (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.219";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+@test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
+  grep -q 'minClaudeCode = "2\.1\.221";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "nix-devshell restores x86_64-darwin claude-code locally after upstream dropped it (issue #112)" {
@@ -107,7 +107,8 @@ setup() {
   # 床は根拠のある release でしか上げないため、床据え置きのまま pin だけ進む回があり、
   # そこで両者はずれる。床に合わせると x86_64-darwin だけ旧版で取り残されたまま
   # assert が通ってしまう（ADR-0028 の補足を参照）。
-  grep -q 'version = "2\.1\.220";' "$package"
+  grep -q 'version = "2\.1\.221";' "$package"
+  grep -Fq 'sha256-9Ai59+RkOfbjSjaH/2dDP8a8GJ9AIgzk8KHoKeWPClI=' "$package"
 }
 
 @test "nix-devshell requires Codex with executor-provided skill support" {
@@ -127,9 +128,9 @@ setup() {
   grep -q 'llm\.copilot-cli\.overrideAttrs' "$module"
   grep -q 'antigravityCli =' "$module"
   grep -q 'llm\.antigravity-cli\.overrideAttrs' "$module"
-  grep -Fq 'sha256-carzC6PblU8/pHlgEe9+NtxV4qV5iwrCsCkTpBRKQHE=' "$module"
-  grep -Fq '6572839516635136' "$module"
-  grep -Fq 'sha512-LmGr331ifmrSS/7+7YuzWgClOK3AA5gQYnDmNQFfeJaTJ/d2eRBT0strkpEoJJEvour2WskiT6/NPQqtfr2OjQ==' "$module"
+  grep -Fq 'sha256-C4sEKT69kDzgzbtyzSZwiiKoXxkpPzk/wcTOXaN2Eyk=' "$module"
+  grep -Fq '6423386432339968' "$module"
+  grep -Fq 'sha512-DtlRl+psUD5g/J9l0DUvznM7PW9bihba6XG/6Rf+mEzH2srI/rArpxq2rauln5nx/3QH+V67yvj+wwQH0+j7sA==' "$module"
   grep -q '^    copilotCli$' "$module"
   grep -q '^    antigravityCli$' "$module"
   ! grep -q '^    llm\.copilot-cli$' "$module"

@@ -18,7 +18,7 @@
       # modules/ai.nix restore x86_64-darwin locally from each vendor's own bucket.
       # Bumping this rev can change any of those versions, so re-check those overrides
       # whenever it moves — not only when minClaudeCode / minCodex move.
-      url = "github:numtide/llm-agents.nix/a6dcbf72f6d61519cc12858176f0fdd189853b28";
+      url = "github:numtide/llm-agents.nix/71c0eafcae20331346e60154ca843d4791ba1245";
     };
   };
 
