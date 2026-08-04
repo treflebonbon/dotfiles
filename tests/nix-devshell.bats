@@ -31,6 +31,12 @@ setup() {
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
+@test "project Codex launcher keeps supported auto-review escalation" {
+  local package_json="$PROJECT_ROOT/package.json"
+
+  jq -e '.scripts.codex == "codex --sandbox workspace-write --ask-for-approval on-request -c approvals_reviewer=auto_review"' "$package_json"
+}
+
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
   grep -q 'zsh-autosuggestions' "$module"
@@ -129,7 +135,7 @@ setup() {
   grep -q 'antigravityCli =' "$module"
   grep -q 'llm\.antigravity-cli\.overrideAttrs' "$module"
   grep -Fq 'sha256-C4sEKT69kDzgzbtyzSZwiiKoXxkpPzk/wcTOXaN2Eyk=' "$module"
-  grep -Fq '6423386432339968' "$module"
+  grep -Fq 'url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6423386432339968/darwin-x64/cli_mac_x64.tar.gz";' "$module"
   grep -Fq 'sha512-DtlRl+psUD5g/J9l0DUvznM7PW9bihba6XG/6Rf+mEzH2srI/rArpxq2rauln5nx/3QH+V67yvj+wwQH0+j7sA==' "$module"
   grep -q '^    copilotCli$' "$module"
   grep -q '^    antigravityCli$' "$module"
