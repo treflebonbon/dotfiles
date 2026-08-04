@@ -56,6 +56,9 @@ let
   # 2.1.220: release note が "Bug fixes and reliability improvements" の一行のみで、床の根拠に
   #          できる具体記述がない。pin では追従するが床は 2.1.219 のまま据え置く（2.1.201 /
   #          codex 0.144.4 と同じ扱い）。
+  # 2.1.221: zsh の [[ ]] regex 内に隠したコマンドが permission check を迂回できる問題を修正。
+  #          background session が CLAUDE.md の git 指示に従い、依頼時だけ draft PR を開くようにも
+  #          なった。auto mode と worktree workflow の安全性に直結するため床上げする。
   # 注意: llm-agents pin を 2.1.219 相当まで進めると、upstream (numtide/llm-agents.nix の
   #       718f56b955bb, 2026-07-21) が x86_64-darwin の claude-code packaging を取りやめている。
   #       Anthropic 本体は darwin-x64 バイナリを配布し続けているため、../packages/claude-code-darwin-x64.nix
@@ -65,7 +68,7 @@ let
   #       x86_64-darwin だけ旧版のまま残り、assert は通ってしまう。override を見直す条件は
   #       「flake pin 上の当該パッケージの version が動いたとき」。
   # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.219";
+  minClaudeCode = "2.1.221";
   minCodex = "0.146.0";
 
   claudeCode =
@@ -101,8 +104,9 @@ let
         隔離逸脱と git -C / GIT_DIR による共有 checkout 操作、別 project の残存 worktree への誤進入を
         修正する 2.1.212-2.1.216、background session isolation が symlink 済み working directory を
         正規化せずワークスペース脱出を許してしまう不具合を修正する 2.1.217、Claude Opus 5
-        (`claude-opus-5`) を追加しデフォルト Opus モデルに変更する 2.1.219 を品質ベースラインとして
-        固定しています。
+        (`claude-opus-5`) を追加しデフォルト Opus モデルに変更する 2.1.219、zsh の [[ ]] regex 内に
+        隠したコマンドによる permission check 迂回と background session の git 指示逸脱を修正する
+        2.1.221 を経た現在の ${minClaudeCode} を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
@@ -177,7 +181,7 @@ let
         #   nix hash convert --hash-algo sha256 --to sri <hex digest>
         src = pkgs.fetchurl {
           url = "https://registry.npmjs.org/@github/copilot-darwin-x64/-/copilot-darwin-x64-${old.version}.tgz";
-          hash = "sha256-carzC6PblU8/pHlgEe9+NtxV4qV5iwrCsCkTpBRKQHE=";
+          hash = "sha256-C4sEKT69kDzgzbtyzSZwiiKoXxkpPzk/wcTOXaN2Eyk=";
         };
         meta = old.meta // {
           platforms = old.meta.platforms ++ [ "x86_64-darwin" ];
@@ -190,7 +194,7 @@ let
     if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
       llm.antigravity-cli.overrideAttrs (old: {
         # antigravity-public の URL は version 文字列に紐づかない内部ビルド ID
-        # （下記は 1.1.9 用の 6572839516635136）を含むため、バージョン更新時は
+        # （下記は 1.1.10 用の 6423386432339968）を含むため、バージョン更新時は
         # aarch64-darwin 用 URL（hashes.json の urls.aarch64-darwin）から同じ
         # ビルド ID を読み取って darwin-x64 に置き換え、ハッシュを再計算する:
         #   curl -fsSL <同ビルドIDの darwin-x64 URL> | sha512sum
@@ -199,8 +203,8 @@ let
         # antigravity-cli を上げたのにここを直し忘れると URL が存在しない組み合わせになり
         # x86_64-darwin だけ fetch に失敗する。pin 更新時は必ずこの 2 値を確認する。
         src = pkgs.fetchurl {
-          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6572839516635136/darwin-x64/cli_mac_x64.tar.gz";
-          hash = "sha512-LmGr331ifmrSS/7+7YuzWgClOK3AA5gQYnDmNQFfeJaTJ/d2eRBT0strkpEoJJEvour2WskiT6/NPQqtfr2OjQ==";
+          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6423386432339968/darwin-x64/cli_mac_x64.tar.gz";
+          hash = "sha512-DtlRl+psUD5g/J9l0DUvznM7PW9bihba6XG/6Rf+mEzH2srI/rArpxq2rauln5nx/3QH+V67yvj+wwQH0+j7sA==";
         };
         meta = old.meta // {
           platforms = old.meta.platforms ++ [ "x86_64-darwin" ];

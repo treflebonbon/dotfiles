@@ -35,7 +35,7 @@ MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / 
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.219` / `0.146.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.221` / `0.146.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
 
 **pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。そのため床据え置きのまま pin だけ進む回があり、x86_64-darwin の local override（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）を見直す条件は床の変化ではなく **pin 上の当該パッケージの version の変化**である。
 
@@ -131,6 +131,8 @@ x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vend
 同日の APM 経路では、runtime layout を再現した隔離 HOME で floating dependency を再解決した。Impeccable は実装開始時点の HEAD `32930818a109fafa87199babe92fa8e530cff5d3`（4.0.4）を Design Hook 互換性ゲートへ通し、quiet / immediate tier / Stop deep pass / dedupe / edit threshold / sensitive・generated path filter / Stop re-entry の runtime 契約を 7/7 テストで維持した。未配備・内部失敗時の fail-soft は managed hook の fail-open テストで別途確認できたため、検証済み Skill Pin として採用した。both-tiers Stop の既知の交互報告 defect は残っているので characterization test を維持し、hook wiring は変更していない。
 
 floating dependency の selected skill payload が変わったのは Impeccable、Remotion（`4951f6ac`、4.0.503）、Supabase（`12077673`）である。Shadcn（`cb2bcd88`）、Orca 3 skill（`79251d7a`）、find-skills（`1164afa5`）は repository revision のみ進み、各 selected skill subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` のまま。生成した lock は同じ隔離 runtime layout の `apm install --frozen` で書き戻しなく再現できることを確認し、ライブ配備と `chezmoi apply` は行っていない。
+
+現在の `llm-agents.nix` snapshot は `71c0eafc`。導入 version は claude-code 2.1.221、codex 0.146.0、copilot-cli 1.0.78、antigravity-cli 1.1.10、rtk 0.44.2、apm 0.27.0。x86_64-darwin は claude-code / codex / copilot-cli / antigravity-cli の local override を維持する。今回の採用判断と検証境界は [ADR-0033](../docs/adr/0033-update-llm-agents-snapshot-and-claude-baseline.md)、override の長期方針は [ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md) を参照する。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
