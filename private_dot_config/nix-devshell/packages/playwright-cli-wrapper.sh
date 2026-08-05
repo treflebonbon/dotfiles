@@ -50,6 +50,9 @@ pwcli_explicit_show_endpoint=0
 pwcli_passthrough_metadata=0
 pwcli_show_annotate=0
 pwcli_show_kill=0
+pwcli_requested_mode=headless
+pwcli_open_headed=0
+pwcli_passthrough_open=0
 for pwcli_argument in "$@"; do
   if ((pwcli_session_value_next)); then
     pwcli_session="$pwcli_argument"
@@ -71,6 +74,9 @@ for pwcli_argument in "$@"; do
     ;;
   --annotate)
     pwcli_show_annotate=1
+    ;;
+  --headed)
+    pwcli_open_headed=1
     ;;
   --help | -h | --version | -v)
     pwcli_passthrough_metadata=1
@@ -95,10 +101,17 @@ if ((pwcli_passthrough_metadata)); then
 fi
 
 if [[ "$pwcli_command" == "open" ]]; then
+  if [[ "${PLAYWRIGHT_MCP_HEADLESS:-}" == "false" || "${PLAYWRIGHT_MCP_HEADLESS:-}" == "0" ]]; then
+    pwcli_requested_mode=headed
+  fi
+  if ((pwcli_open_headed)); then
+    pwcli_requested_mode=headed
+  fi
+
   pwcli_bypass_managed=0
   for pwcli_argument in "$@"; do
     case "$pwcli_argument" in
-    --config | --config=* | --browser | --browser=* | --profile | --profile=* | --persistent | --device | --device=* | --mobile | --headed)
+    --config | --config=* | --browser | --browser=* | --profile | --profile=* | --persistent | --device | --device=* | --mobile)
       pwcli_bypass_managed=1
       ;;
     esac
@@ -115,7 +128,6 @@ if [[ "$pwcli_command" == "open" ]]; then
     PLAYWRIGHT_MCP_EXECUTABLE_PATH
     PLAYWRIGHT_MCP_EXTENSION
     PLAYWRIGHT_MCP_GRANT_PERMISSIONS
-    PLAYWRIGHT_MCP_HEADLESS
     PLAYWRIGHT_MCP_IGNORE_HTTPS_ERRORS
     PLAYWRIGHT_MCP_INIT_PAGE
     PLAYWRIGHT_MCP_INIT_SCRIPT
@@ -141,9 +153,10 @@ if [[ "$pwcli_command" == "open" ]]; then
     pwcli_bypass_managed=1
   fi
   if ((pwcli_bypass_managed)); then
-    exec "$pwcli_upstream" "$@"
+    pwcli_passthrough_open=1
   fi
 elif [[ "$pwcli_command" == "show" ]]; then
+  pwcli_requested_mode=headed
   if ((pwcli_explicit_show_endpoint)); then
     exec "$pwcli_upstream" "$@"
   fi
@@ -180,6 +193,30 @@ pwcli_dashboard_log="$pwcli_state_dir/dashboard.log"
 pwcli_dashboard_fifo="$pwcli_state_dir/dashboard.stdin"
 pwcli_workspace="$(pwd -P)"
 pwcli_powershell_ready=0
+pwcli_had_consumer=0
+pwcli_managed_owner=0
+pwcli_owner_session=
+pwcli_owner_workspace=
+if [[ -f "$pwcli_lease" ]]; then
+  pwcli_owner_session="$(sed -n '1p' "$pwcli_lease")"
+  pwcli_owner_workspace="$(sed -n '2p' "$pwcli_lease")"
+  if [[ "$pwcli_owner_session" == "$pwcli_session" && "$pwcli_owner_workspace" == "$pwcli_workspace" ]]; then
+    pwcli_managed_owner=1
+  fi
+  pwcli_had_consumer=1
+fi
+
+if ((pwcli_passthrough_open)); then
+  if ((pwcli_managed_owner)); then
+    fail "session '$pwcli_session' in '$pwcli_workspace' owns Managed Playwright Chrome. Run playwright-cli -s='$pwcli_session' close before opening it with an explicit override."
+  fi
+  exec "$pwcli_upstream" "$@"
+fi
+
+if [[ "$pwcli_command" == "open" && -f "$pwcli_lease" ]] &&
+  ((pwcli_managed_owner == 0)); then
+  fail "Managed Playwright Chrome is owned by session '$pwcli_owner_session' in '$pwcli_owner_workspace'. Close that session before opening '$pwcli_session'."
+fi
 
 prepare_powershell() {
   if ((pwcli_powershell_ready)); then
@@ -196,16 +233,35 @@ prepare_powershell() {
 
 powershell_action() {
   prepare_powershell
-  "$pwcli_powershell" \
-    -NoProfile \
-    -NonInteractive \
-    -ExecutionPolicy Bypass \
-    -File "$pwcli_windows_script" \
-    -Action "$1" | tr -d '\r'
+  local action="$1"
+  local mode="${2:-}"
+  local -a powershell_args=(
+    -NoProfile
+    -NonInteractive
+    -ExecutionPolicy Bypass
+    -File "$pwcli_windows_script"
+    -Action "$action"
+  )
+  if [[ -n "$mode" ]]; then
+    powershell_args+=(-Mode "$mode")
+  fi
+  "$pwcli_powershell" "${powershell_args[@]}" | tr -d '\r'
 }
 
 inspect_chrome() {
   powershell_action Inspect | tail -n 1
+}
+
+managed_status_mode() {
+  local status="$1"
+  [[ "$status" =~ ^managed:(headless|headed):[0-9]+$ ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
+managed_status_pid() {
+  local status="$1"
+  [[ "$status" =~ ^managed:(headless|headed):([0-9]+)$ ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[2]}"
 }
 
 dashboard_port_ready() {
@@ -345,6 +401,7 @@ dashboard_status() {
 pwcli_dashboard_running=0
 if dashboard_status; then
   pwcli_dashboard_running=1
+  pwcli_had_consumer=1
 else
   pwcli_dashboard_result=$?
   if ((pwcli_dashboard_result == 2)); then
@@ -353,22 +410,6 @@ else
   if ((pwcli_dashboard_result == 3)); then
     fail "Managed Playwright Dashboard is still stopping. Wait for the recorded process to exit, then retry."
   fi
-fi
-
-pwcli_had_consumer=$pwcli_dashboard_running
-pwcli_managed_owner=0
-pwcli_owner_session=
-pwcli_owner_workspace=
-if [[ -f "$pwcli_lease" ]]; then
-  pwcli_owner_session="$(sed -n '1p' "$pwcli_lease")"
-  pwcli_owner_workspace="$(sed -n '2p' "$pwcli_lease")"
-  if [[ "$pwcli_owner_session" == "$pwcli_session" && "$pwcli_owner_workspace" == "$pwcli_workspace" ]]; then
-    pwcli_managed_owner=1
-  fi
-  if [[ "$pwcli_command" == "open" && ("$pwcli_owner_session" != "$pwcli_session" || "$pwcli_owner_workspace" != "$pwcli_workspace") ]]; then
-    fail "Managed Playwright Chrome is owned by session '$pwcli_owner_session' in '$pwcli_owner_workspace'. Close that session before opening '$pwcli_session'."
-  fi
-  pwcli_had_consumer=1
 fi
 
 close_chrome_if_unused() {
@@ -390,14 +431,15 @@ close_chrome_if_unused() {
   if [[ ! -f "$pwcli_state_dir/chrome.pid" ]]; then
     return
   fi
-  local recorded_pid chrome_status
+  local recorded_pid chrome_status actual_pid
   recorded_pid="$(cat "$pwcli_state_dir/chrome.pid")"
   chrome_status="$(inspect_chrome || true)"
   if [[ "$chrome_status" == "absent" ]]; then
     rm -f "$pwcli_state_dir/chrome.pid"
     return
   fi
-  if [[ ! "$recorded_pid" =~ ^[0-9]+$ || "$chrome_status" != "managed:$recorded_pid" ]]; then
+  actual_pid="$(managed_status_pid "$chrome_status" || true)"
+  if [[ ! "$recorded_pid" =~ ^[0-9]+$ || "$actual_pid" != "$recorded_pid" ]]; then
     fail "refusing to close Chrome because recorded Managed Playwright Chrome PID '$recorded_pid' does not match Windows ownership status '${chrome_status:-empty}'. Close the dedicated Chrome manually, then retry."
   fi
   if ! "$pwcli_cdp_close" "$pwcli_cdp_endpoint"; then
@@ -412,7 +454,8 @@ close_chrome_if_unused() {
       rm -f "$pwcli_state_dir/chrome.pid"
       return
     fi
-    if [[ "$chrome_status" != "managed:$recorded_pid" ]]; then
+    actual_pid="$(managed_status_pid "$chrome_status" || true)"
+    if [[ "$actual_pid" != "$recorded_pid" ]]; then
       fail "Managed Playwright Chrome ownership changed while closing (status: ${chrome_status:-empty}). Close the dedicated Chrome manually; ownership state was preserved."
     fi
     sleep 0.2
@@ -487,16 +530,33 @@ fi
 prepare_powershell
 
 ensure_chrome() {
-  local status
+  local status actual_mode actual_pid remediation
   status="$(inspect_chrome || true)"
   case "$status" in
   managed:*)
+    actual_mode="$(managed_status_mode "$status" || true)"
+    if [[ -z "$actual_mode" ]]; then
+      fail "could not inspect Windows Chrome ownership (status: ${status:-empty}). Verify PowerShell and retry."
+    fi
     if ((pwcli_had_consumer == 0)); then
       fail "an exact Managed Playwright Chrome process is already running without matching state in this WSL runtime. Close that dedicated Chrome manually, then retry."
     fi
+    if [[ "$actual_mode" != "$pwcli_requested_mode" ]]; then
+      remediation=
+      if [[ -f "$pwcli_lease" ]]; then
+        remediation=" Run playwright-cli -s='$pwcli_owner_session' close from '$pwcli_owner_workspace'."
+        if [[ "$pwcli_command" == "show" ]]; then
+          remediation+=" Then run playwright-cli -s='$pwcli_owner_session' open --headed, followed by playwright-cli show."
+        fi
+      fi
+      if ((pwcli_dashboard_running)); then
+        remediation+=" Run playwright-cli show --kill."
+      fi
+      fail "Managed Playwright Chrome current mode '$actual_mode' does not match requested mode '$pwcli_requested_mode'.$remediation"
+    fi
     ;;
   absent)
-    powershell_action Start >/dev/null
+    powershell_action Start "$pwcli_requested_mode" >/dev/null
     ;;
   chrome-missing)
     fail "Windows Google Chrome was not found. Install the stable Windows Chrome release, then retry."
@@ -515,8 +575,10 @@ ensure_chrome() {
   local deadline=$((SECONDS + ${PWCLI_CDP_TIMEOUT:-10}))
   while ((SECONDS <= deadline)); do
     status="$(inspect_chrome || true)"
-    if [[ "$status" == managed:* ]] && cdp_ready; then
-      printf '%s\n' "${status#managed:}" >"$pwcli_state_dir/chrome.pid"
+    actual_mode="$(managed_status_mode "$status" || true)"
+    actual_pid="$(managed_status_pid "$status" || true)"
+    if [[ "$actual_mode" == "$pwcli_requested_mode" && -n "$actual_pid" ]] && cdp_ready; then
+      printf '%s\n' "$actual_pid" >"$pwcli_state_dir/chrome.pid"
       return
     fi
     sleep 0.2

@@ -124,6 +124,8 @@ orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は 
 
 2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
 
+2026-08-05 JST、Managed Playwright Chrome の通常 `open` を headless 既定に変更した。`open --headed` と Dashboard / annotation は headed とし、両モードは同じ browser identity を排他的に使う。実 process の mode と要求が異なる場合は既存 consumer を変更せず、明示的な cleanup と再起動を要求する。
+
 2026-07-31 JST、導入済み AI ツールセットを `llm-agents.nix` の immutable snapshot `a6dcbf72` へ更新した。ユーザー devShell が直接共有する nixpkgs `fca2dbd4` は据え置き、llm-agents とその推移依存だけを前進させた。実測 version は claude-code 2.1.220、codex 0.146.0、copilot-cli 1.0.77、antigravity-cli 1.1.9、rtk 0.44.1、apm 0.26.0。Codex 0.146.0 は executor-provided skill の discover/read、context pressure 下での skill catalog 保持、MCP server の refresh/reconnect を含むため `minCodex` を 0.144.6 から 0.146.0 へ上げた。`minClaudeCode` は 2.1.219 のまま、他 CLI に新しい床は設けていない。
 
 x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vendor artifact を直接取得して hash を更新した。claude-code は 2.1.220 のまま、codex 0.146.0 が要求する librusty_v8 も 149.2.0 のままなので両 override の artifact 値は変更していない。Linux host からの x86_64-darwin 検証境界は従来どおり derivation 評価と vendor artifact hash までで、実機実行を確認したとは扱わない。

@@ -112,9 +112,9 @@ deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走
 
 単発のブラウザ操作・スクレイピング・フォーム操作・スクリーンショットは `playwright-cli` skill を優先する。nix devshell のローカル package（`private_dot_config/nix-devshell/packages/playwright-cli.nix`、vendored `@playwright/cli`）を `modules/ai.nix` の shellHook が `~/.agents/skills/playwright-cli` へ symlink 配備する。agent-browser は削除した。`to-pr` の browser-observable 検証もこの skill を使う。
 
-WSL2 の通常の `playwright-cli open [URL]` は Managed Playwright Chrome を既定経路とする。Windows Google Chrome、`%LOCALAPPDATA%\aiakos\playwright-cli\chrome-profile` の専用 profile、`127.0.0.1:9222` の CDP endpoint を一体として管理し、mirrored networking が利用できなければ WSL browser へフォールバックせず修復手順付きで失敗する。managed CLI session は1つだけが排他的に所有し、`open` は既存 tab を遷移せず新規 tab を作る。
+WSL2 の通常の `playwright-cli open [URL]` は Managed Playwright Chrome の headless モードを既定経路とする。Windows Google Chrome、`%LOCALAPPDATA%\aiakos\playwright-cli\chrome-profile` の専用 profile、`127.0.0.1:9222` の CDP endpoint を一体として管理し、mirrored networking が利用できなければ WSL browser へフォールバックせず修復手順付きで失敗する。`open --headed` と `PLAYWRIGHT_MCP_HEADLESS=false|0` は同じ browser identity の headed モード、`PLAYWRIGHT_MCP_HEADLESS=true|1` は headless モードを選び、`--headed` を優先する。両モードは同時起動せず、不一致なら既存 consumer を変更せず明示的な cleanup を要求する。managed CLI session は1つだけが排他的に所有し、`open` は既存 tab を遷移せず新規 tab を作る。
 
-`playwright-cli show` は WSL2 の `127.0.0.1:9323` に Dashboard をバックグラウンド起動し、同じ Managed Playwright Chrome で `http://localhost:9323/` を開く。Dashboard は `show --kill` まで存続し、`show --annotate` は Dashboard 接続後に lease 所有 session だけが実行できる。明示的な browser option、project config、browser/context shaping 環境変数、`attach`、明示 `show --host` / `--port` は upstream の挙動を維持する。詳細な境界と lifecycle は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を正本とする。
+`playwright-cli show` と `show --annotate` は headed モードを要求し、WSL2 の `127.0.0.1:9323` に Dashboard をバックグラウンド起動して `http://localhost:9323/` を開く。headless session が動作中なら、`close`、`open --headed`、`show` の順で開き直す。Dashboard は `show --kill` まで存続し、`show --annotate` は Dashboard 接続後に lease 所有 session だけが実行できる。`--headed` と `PLAYWRIGHT_MCP_HEADLESS` 以外の明示的な browser option、project config、browser/context shaping 環境変数、`attach`、明示 `show --host` / `--port` は upstream の挙動を維持する。詳細な境界と lifecycle は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を正本とする。
 
 ## Claude Code plugin の二層管理
 
