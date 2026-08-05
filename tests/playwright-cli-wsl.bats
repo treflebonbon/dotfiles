@@ -391,6 +391,34 @@ EOF
   grep -Fxq -- "https://example.com/managed" "$UPSTREAM_LOG"
 }
 
+@test "a split-value config override cannot replace its own managed session daemon" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/managed
+  [ "$status" -eq 0 ]
+
+  local before="$BATS_TEST_TMPDIR/split-value-config-before"
+  mkdir "$before"
+  touch "$CDP_CLOSE_LOG"
+  cp "$POWERSHELL_LOG" "$before/powershell.log"
+  cp "$CDP_CLOSE_LOG" "$before/cdp-close.log"
+  cp "$UPSTREAM_LOG" "$before/upstream.log"
+  cp "$POWERSHELL_STATE" "$before/powershell.state"
+  cp "$RUNTIME_DIR/playwright-cli/chrome.pid" "$before/chrome.pid"
+  cp "$RUNTIME_DIR/playwright-cli/lease" "$before/lease"
+
+  run bash "$WRAPPER" -s=alpha --config custom.json open
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"session 'alpha'"* ]]
+  [[ "$output" == *"close"* ]]
+  cmp "$before/powershell.log" "$POWERSHELL_LOG"
+  cmp "$before/cdp-close.log" "$CDP_CLOSE_LOG"
+  cmp "$before/upstream.log" "$UPSTREAM_LOG"
+  cmp "$before/powershell.state" "$POWERSHELL_STATE"
+  cmp "$before/chrome.pid" "$RUNTIME_DIR/playwright-cli/chrome.pid"
+  cmp "$before/lease" "$RUNTIME_DIR/playwright-cli/lease"
+}
+
 @test "an explicit override on another session retains upstream behavior" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com/managed

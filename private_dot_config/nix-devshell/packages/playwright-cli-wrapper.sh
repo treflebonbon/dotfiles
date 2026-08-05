@@ -45,28 +45,42 @@ fi
 
 pwcli_command=
 pwcli_session=default
-pwcli_session_value_next=0
+pwcli_option_value_next=
 pwcli_explicit_show_endpoint=0
 pwcli_passthrough_metadata=0
 pwcli_show_annotate=0
 pwcli_show_kill=0
 pwcli_requested_mode=headless
 pwcli_open_headed=0
+pwcli_bypass_managed=0
 pwcli_passthrough_open=0
 for pwcli_argument in "$@"; do
-  if ((pwcli_session_value_next)); then
-    pwcli_session="$pwcli_argument"
-    pwcli_session_value_next=0
+  if [[ -n "$pwcli_option_value_next" ]]; then
+    if [[ "$pwcli_option_value_next" == "session" ]]; then
+      pwcli_session="$pwcli_argument"
+    fi
+    pwcli_option_value_next=
     continue
   fi
   case "$pwcli_argument" in
   -s | --session)
-    pwcli_session_value_next=1
+    pwcli_option_value_next=session
     ;;
   -s=* | --session=*)
     pwcli_session="${pwcli_argument#*=}"
     ;;
-  --host | --host=* | --port | --port=*)
+  --config | --browser | --profile | --device)
+    pwcli_bypass_managed=1
+    pwcli_option_value_next=ignore
+    ;;
+  --config=* | --browser=* | --profile=* | --device=* | --persistent | --mobile)
+    pwcli_bypass_managed=1
+    ;;
+  --host | --port)
+    pwcli_explicit_show_endpoint=1
+    pwcli_option_value_next=ignore
+    ;;
+  --host=* | --port=*)
     pwcli_explicit_show_endpoint=1
     ;;
   --kill)
@@ -107,15 +121,6 @@ if [[ "$pwcli_command" == "open" ]]; then
   if ((pwcli_open_headed)); then
     pwcli_requested_mode=headed
   fi
-
-  pwcli_bypass_managed=0
-  for pwcli_argument in "$@"; do
-    case "$pwcli_argument" in
-    --config | --config=* | --browser | --browser=* | --profile | --profile=* | --persistent | --device | --device=* | --mobile)
-      pwcli_bypass_managed=1
-      ;;
-    esac
-  done
 
   pwcli_browser_env=(
     PLAYWRIGHT_MCP_CONFIG
