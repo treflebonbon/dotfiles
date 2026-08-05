@@ -24,6 +24,47 @@ for path in sys.argv[1:]:
 PY
 }
 
+assert_dotfiles_permission_profile() {
+  python3 - "$@" <<'PY'
+import sys
+import tomllib
+
+expected_domains = {
+    "registry.npmjs.org": "allow",
+    "**.github.com": "allow",
+    "**.githubusercontent.com": "allow",
+    "**.context7.com": "allow",
+    "**.pypi.org": "allow",
+    "files.pythonhosted.org": "allow",
+    "**.python.org": "allow",
+    "cache.nixos.org": "allow",
+    "proxy.golang.org": "allow",
+    "sum.golang.org": "allow",
+    "**.crates.io": "allow",
+    "static.rust-lang.org": "allow",
+    "**.hex.pm": "allow",
+    "cpan.metacpan.org": "allow",
+}
+
+for path in sys.argv[1:]:
+    with open(path, "rb") as f:
+        config = tomllib.load(f)
+
+    assert "sandbox_mode" not in config
+    assert "sandbox_workspace_write" not in config
+    assert config["default_permissions"] == "dotfiles-secure"
+
+    profile = config["permissions"]["dotfiles-secure"]
+    assert profile["extends"] == ":workspace"
+    assert profile["network"]["enabled"] is True
+    assert profile["network"]["domains"] == expected_domains
+
+    filesystem = profile["filesystem"]
+    assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
+    assert filesystem["~/.ssh/**"] == "deny"
+PY
+}
+
 stage_codex_managed_config() {
   local home="$1"
   mkdir -p "$home/.config/codex/environments" "$home/.config/codex/rules"
@@ -64,7 +105,7 @@ prepare_codex_chezmoi_source() {
   grep -q '^\[apps\.github\]$' "$config"
   grep -q '^default_tools_approval_mode = "approve"$' "$config"
   grep -q '^destructive_enabled = false$' "$config"
-  grep -q '^sandbox_mode = "workspace-write"$' "$config"
+  ! grep -q '^sandbox_mode = ' "$config"
   grep -q '^default_permissions = "dotfiles-secure"$' "$config"
   grep -q '^\[features\]' "$config"
   grep -q '^hooks = true$' "$config"
@@ -75,18 +116,34 @@ prepare_codex_chezmoi_source() {
   grep -q '^\[mcp_servers\.serena\]$' "$config"
   grep -q '^command = "uvx"$' "$config"
   grep -q 'git+https://github.com/oraios/serena' "$config"
+  grep -q '^\[permissions\."dotfiles-secure"\]$' "$config"
+  grep -q '^extends = ":workspace"$' "$config"
   grep -q '^\[permissions\."dotfiles-secure"\.filesystem\]' "$config"
-  grep -q '^":workspace_roots" = .*"\*\*/\.env\*" = "none"' "$config"
-  grep -q '^":workspace_roots" = .*"\*\*/\*\.pem" = "none"' "$config"
-  grep -q '^"~/\.ssh/\*\*" = "none"$' "$config"
-  grep -q '^"~/\.aws/\*\*" = "none"$' "$config"
-  grep -q '^"~/\.config/gcloud/\*\*" = "none"$' "$config"
+  grep -q '^":workspace_roots" = .*"\*\*/\.env\*" = "deny"' "$config"
+  grep -q '^":workspace_roots" = .*"\*\*/\*\.pem" = "deny"' "$config"
+  grep -q '^"~/\.ssh/\*\*" = "deny"$' "$config"
+  grep -q '^"~/\.aws/\*\*" = "deny"$' "$config"
+  grep -q '^"~/\.config/gcloud/\*\*" = "deny"$' "$config"
   ! grep -q '^codex_hooks = ' "$config"
   grep -q '^\[plugins\."github@openai-curated"\]' "$config"
   ! grep -q '^\[plugins\."superpowers@openai-curated"\]' "$config"
   ! grep -q '^\[projects\.' "$config"
   ! grep -q '^\[notice\.' "$config"
   ! grep -q '^\[tui\.' "$config"
+  assert_dotfiles_permission_profile "$config"
+}
+
+@test "Codex package script does not override the managed permission profile" {
+  python3 - "$PROJECT_ROOT/package.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    package = json.load(f)
+
+command = package["scripts"]["codex"]
+assert "--sandbox" not in command
+PY
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {
@@ -700,17 +757,27 @@ EOF
   cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
     "$home/.config/codex/config.toml"
 
+  cat >"$home/.codex/config.toml" <<'EOF'
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = false
+
+[permissions.dotfiles-secure.network.domains]
+"pypi.org" = "allow"
+"retired.example.com" = "allow"
+EOF
+
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
   grep -q '^approval_policy = "on-request"$' "$home/.codex/config.toml"
   grep -q '^approvals_reviewer = "auto_review"$' "$home/.codex/config.toml"
-  grep -q '^sandbox_mode = "workspace-write"$' "$home/.codex/config.toml"
-  grep -q '^default_permissions = "dotfiles-secure"$' "$home/.codex/config.toml"
+  assert_dotfiles_permission_profile "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
   grep -q '^glob_scan_max_depth = 4$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
-  grep -q '^"\*\*/\.env\*" = "none"$' "$home/.codex/config.toml"
-  grep -q '^"~/\.ssh/\*\*" = "none"$' "$home/.codex/config.toml"
+  grep -q '^"\*\*/\.env\*" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"~/\.ssh/\*\*" = "deny"$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.serena\]$' "$home/.codex/config.toml"

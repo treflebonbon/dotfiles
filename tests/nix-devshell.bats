@@ -34,7 +34,7 @@ setup() {
 @test "project Codex launcher keeps supported auto-review escalation" {
   local package_json="$PROJECT_ROOT/package.json"
 
-  jq -e '.scripts.codex == "codex --sandbox workspace-write --ask-for-approval on-request -c approvals_reviewer=auto_review"' "$package_json"
+  jq -e '.scripts.codex == "codex --ask-for-approval on-request -c approvals_reviewer=auto_review"' "$package_json"
 }
 
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
