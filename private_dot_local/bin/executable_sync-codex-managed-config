@@ -135,8 +135,36 @@ def strip_retired_plugins(existing: dict[str, Any]) -> None:
         existing.pop("plugins", None)
 
 
+def strip_retired_sandbox_settings(existing: dict[str, Any], managed: dict[str, Any]) -> None:
+    if "default_permissions" not in managed:
+        return
+    existing.pop("sandbox_mode", None)
+    existing.pop("sandbox_workspace_write", None)
+
+
+def strip_managed_network_domains(existing: dict[str, Any], managed: dict[str, Any]) -> None:
+    existing_perms = existing.get("permissions")
+    managed_perms = managed.get("permissions")
+    if not isinstance(existing_perms, dict) or not isinstance(managed_perms, dict):
+        return
+    for name, managed_profile in managed_perms.items():
+        if not isinstance(managed_profile, dict):
+            continue
+        managed_network = managed_profile.get("network")
+        if not isinstance(managed_network, dict) or "domains" not in managed_network:
+            continue
+        existing_profile = existing_perms.get(name)
+        if not isinstance(existing_profile, dict):
+            continue
+        existing_network = existing_profile.get("network")
+        if isinstance(existing_network, dict):
+            existing_network.pop("domains", None)
+
+
 strip_stale_filesystem_roots(existing, managed)
 strip_retired_plugins(existing)
+strip_retired_sandbox_settings(existing, managed)
+strip_managed_network_domains(existing, managed)
 
 for key in ("projects", "notice", "tui"):
     if key in managed:
