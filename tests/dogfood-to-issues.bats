@@ -11,6 +11,8 @@ setup() {
   export NODE_BIN="$(command -v node)"
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
   export FAKE_CLI_LOG="$BATS_TEST_TMPDIR/playwright-cli.log"
+  export PWTEST_DAEMON_SESSION_DIR="$BATS_TEST_TMPDIR/playwright-cli-daemon"
+  export PWTEST_SERVER_REGISTRY="$BATS_TEST_TMPDIR/playwright-server-registry"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/playwright-cli" <<'EOF'
 #!/usr/bin/env bash
