@@ -391,6 +391,21 @@ EOF
   grep -Fxq -- "https://example.com/managed" "$UPSTREAM_LOG"
 }
 
+@test "a split-value config override cannot replace its own managed session daemon" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/managed
+  [ "$status" -eq 0 ]
+
+  run bash "$WRAPPER" -s=alpha --config custom.json open
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"session 'alpha'"* ]]
+  [[ "$output" == *"close"* ]]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
+  grep -Fxq -- "https://example.com/managed" "$UPSTREAM_LOG"
+}
+
 @test "an explicit override on another session retains upstream behavior" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com/managed
