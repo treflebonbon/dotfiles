@@ -80,6 +80,12 @@ if [[ "$*" == *"show"* && "$*" == *"--annotate"* && ! -f "$DASHBOARD_READY" ]]; 
   exit 42
 fi
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
+if [[ "${PWCLI_FAKE_ASSERT_LOCK_RELEASED:-0}" == "1" ]] &&
+  ! "$PWCLI_FLOCK" --exclusive --nonblock \
+    "$PWCLI_RUNTIME_DIR/playwright-cli/runtime.lock" true; then
+  printf '%s\n' 'managed runtime lock is still held' >&2
+  exit 46
+fi
 if [[ "${PWCLI_FAKE_UPSTREAM_FAIL:-0}" == "1" && "$*" == *"open"* ]]; then
   exit 23
 fi
@@ -96,11 +102,13 @@ EOF
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$POWERSHELL_LOG"
 action=
+mode=
 previous=
 for argument in "$@"; do
   if [[ "$previous" == "-Action" ]]; then
     action="$argument"
-    break
+  elif [[ "$previous" == "-Mode" ]]; then
+    mode="$argument"
   fi
   previous="$argument"
 done
@@ -117,7 +125,7 @@ case "$action" in
       close_inspections="$(cat "$POWERSHELL_STATE.close-inspections")"
       if ((close_inspections > 0)); then
         printf '%s\n' "$((close_inspections - 1))" >"$POWERSHELL_STATE.close-inspections"
-        printf '%s\n' 'managed:4242'
+        cat "$POWERSHELL_STATE"
         exit 0
       fi
       rm -f "$POWERSHELL_STATE.close-inspections"
@@ -134,7 +142,7 @@ case "$action" in
     fi
     ;;
   Start)
-    printf '%s\n' 'managed:4242' >"$POWERSHELL_STATE"
+    printf 'managed:%s:4242\n' "${mode:-headless}" >"$POWERSHELL_STATE"
     if [[ "${PWCLI_FAKE_INSPECT_FAIL_AFTER_START:-0}" == "1" ]]; then
       touch "$POWERSHELL_STATE.inspect-fail-once"
     fi
@@ -282,6 +290,16 @@ EOF
   [ "$(sed -n '2p' "$RUNTIME_DIR/playwright-cli/lease")" = "$PWD" ]
 }
 
+@test "managed open requests headless Windows Chrome by default" {
+  export PWCLI_TEST_WSL=1
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+}
+
 @test "runtime state falls back to a user-only tmp directory" {
   export PWCLI_TEST_WSL=1
   unset PWCLI_RUNTIME_DIR XDG_RUNTIME_DIR
@@ -321,6 +339,23 @@ EOF
   [[ "$output" == *"Close that session"* ]]
 }
 
+@test "a managed mode mismatch fails closed without changing the owning session or Chrome" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/headless
+  [ "$status" -eq 0 ]
+
+  run bash "$WRAPPER" -s=alpha open --headed https://example.com/headed
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"current mode 'headless'"* ]]
+  [[ "$output" == *"requested mode 'headed'"* ]]
+  [[ "$output" == *"close"* ]]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
+  [ ! -e "$CDP_CLOSE_LOG" ]
+  grep -Fxq -- "https://example.com/headless" "$UPSTREAM_LOG"
+}
+
 @test "explicit open browser options bypass the managed WSL2 path" {
   export PWCLI_TEST_WSL=1
   local option
@@ -330,8 +365,7 @@ EOF
     "--profile=/tmp/profile" \
     "--persistent" \
     "--device=iPhone 15" \
-    "--mobile" \
-    "--headed"; do
+    "--mobile"; do
     rm -f "$POWERSHELL_LOG"
     run bash "$WRAPPER" open "$option" https://example.com
     [ "$status" -eq 0 ]
@@ -340,6 +374,123 @@ EOF
     ! grep -Fq -- "--config=$RUNTIME_DIR/playwright-cli/managed-cli-config.json" \
       "$UPSTREAM_LOG"
   done
+}
+
+@test "an explicit override cannot replace its own managed session daemon" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/managed
+  [ "$status" -eq 0 ]
+
+  run bash "$WRAPPER" -s=alpha open --browser=firefox https://example.com/override
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"session 'alpha'"* ]]
+  [[ "$output" == *"close"* ]]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
+  grep -Fxq -- "https://example.com/managed" "$UPSTREAM_LOG"
+}
+
+@test "an explicit override on another session retains upstream behavior" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/managed
+  [ "$status" -eq 0 ]
+
+  run bash "$WRAPPER" -s=beta open --browser=firefox --headed https://example.com/override
+
+  [ "$status" -eq 0 ]
+  grep -Fxq -- "-s=beta" "$UPSTREAM_LOG"
+  grep -Fxq -- "--browser=firefox" "$UPSTREAM_LOG"
+  grep -Fxq -- "--headed" "$UPSTREAM_LOG"
+  ! grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
+}
+
+@test "an explicit override releases the managed runtime lock before upstream" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/managed
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_ASSERT_LOCK_RELEASED=1
+
+  run bash "$WRAPPER" -s=beta open --browser=firefox https://example.com/override
+
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
+}
+
+@test "open headed uses managed headed Windows Chrome through CDP" {
+  export PWCLI_TEST_WSL=1
+
+  run bash "$WRAPPER" open --headed https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headed" "$POWERSHELL_LOG"
+  grep -Fq -- "--headed" "$UPSTREAM_LOG"
+  grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
+}
+
+@test "PLAYWRIGHT_MCP_HEADLESS false selects managed headed Windows Chrome" {
+  export PWCLI_TEST_WSL=1
+  export PLAYWRIGHT_MCP_HEADLESS=false
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headed" "$POWERSHELL_LOG"
+  grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
+}
+
+@test "PLAYWRIGHT_MCP_HEADLESS zero selects managed headed Windows Chrome" {
+  export PWCLI_TEST_WSL=1
+  export PLAYWRIGHT_MCP_HEADLESS=0
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headed" "$POWERSHELL_LOG"
+}
+
+@test "PLAYWRIGHT_MCP_HEADLESS true selects managed headless Windows Chrome" {
+  export PWCLI_TEST_WSL=1
+  export PLAYWRIGHT_MCP_HEADLESS=true
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
+  grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
+}
+
+@test "PLAYWRIGHT_MCP_HEADLESS one selects managed headless Windows Chrome" {
+  export PWCLI_TEST_WSL=1
+  export PLAYWRIGHT_MCP_HEADLESS=1
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
+}
+
+@test "an invalid PLAYWRIGHT_MCP_HEADLESS value uses the managed headless default" {
+  export PWCLI_TEST_WSL=1
+  export PLAYWRIGHT_MCP_HEADLESS=unexpected
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
+}
+
+@test "open headed takes precedence over PLAYWRIGHT_MCP_HEADLESS true" {
+  export PWCLI_TEST_WSL=1
+  export PLAYWRIGHT_MCP_HEADLESS=true
+
+  run bash "$WRAPPER" open --headed https://example.com
+
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Start -Mode headed" "$POWERSHELL_LOG"
 }
 
 @test "show-only flags do not enter Dashboard control paths on open" {
@@ -481,6 +632,7 @@ EOF
   [ -s "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
   [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
   [ -f "$RUNTIME_DIR/playwright-cli/dashboard.log" ]
+  grep -Fq -- "-Action Start -Mode headed" "$POWERSHELL_LOG"
   local first_pid
   first_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
   kill -0 "$first_pid"
@@ -497,7 +649,7 @@ EOF
 
 @test "show annotate waits for the dashboard and only accepts the lease owner" {
   export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
+  run bash "$WRAPPER" -s=alpha open --headed https://example.com
   [ "$status" -eq 0 ]
 
   run bash "$WRAPPER" -s=alpha show --annotate
@@ -508,6 +660,46 @@ EOF
   run bash "$WRAPPER" -s=beta show --annotate
   [ "$status" -ne 0 ]
   [[ "$output" == *"annotation requires the lease-owning session 'alpha'"* ]]
+}
+
+@test "show and annotation refuse a headless managed session before starting the Dashboard" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+
+  run bash "$WRAPPER" -s=alpha show
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"current mode 'headless'"* ]]
+  [[ "$output" == *"requested mode 'headed'"* ]]
+  [[ "$output" == *"open --headed"* ]]
+  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
+  [ ! -e "$DASHBOARD_READY" ]
+
+  run bash "$WRAPPER" -s=alpha show --annotate
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"current mode 'headless'"* ]]
+  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ ! -e "$CDP_CLOSE_LOG" ]
+}
+
+@test "default open refuses a headed Dashboard without stopping it" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" show
+  [ "$status" -eq 0 ]
+  local dashboard_pid
+  dashboard_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"current mode 'headed'"* ]]
+  [[ "$output" == *"requested mode 'headless'"* ]]
+  [[ "$output" == *"show --kill"* ]]
+  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
+  kill -0 "$dashboard_pid"
+  [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
+  [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
 @test "stale dashboard PID is replaced before show returns" {
@@ -566,9 +758,10 @@ EOF
 }
 
 @test "Windows Chrome inspection couples the CDP listener to an exact managed process" {
-  grep -Fq '$ManagedProcessIds = @(' "$WINDOWS_SCRIPT"
-  grep -Fq '$ManagedProcessIds -contains $ListenerProcessId' "$WINDOWS_SCRIPT"
-  grep -Fq 'return "managed:$ListenerProcessId"' "$WINDOWS_SCRIPT"
+  grep -Fq '$ListenerProcess = $ManagedProcesses | Where-Object {' "$WINDOWS_SCRIPT"
+  grep -Fq 'return Format-ManagedState -Process $ListenerProcess' "$WINDOWS_SCRIPT"
+  grep -Fq -- '--headless(?:=\S+)?' "$WINDOWS_SCRIPT"
+  grep -Fq 'return "managed:${ProcessMode}:$($Process.ProcessId)"' "$WINDOWS_SCRIPT"
 }
 
 @test "CDP close exits promptly after Chrome acknowledges Browser.close" {
@@ -632,7 +825,7 @@ EOF
   [[ "$output" == *"did not exit before the timeout"* ]]
   [[ "$output" == *"ownership state was preserved"* ]]
   [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
-  [ "$(cat "$POWERSHELL_STATE")" = "managed:4242" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
 
 @test "Chrome close fails closed when post-ack ownership inspection fails" {
@@ -654,14 +847,14 @@ EOF
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com
   [ "$status" -eq 0 ]
-  export PWCLI_FAKE_CLOSE_STATUS=managed:5150
+  export PWCLI_FAKE_CLOSE_STATUS=managed:headless:5150
   export PWCLI_CDP_TIMEOUT=0
 
   run bash "$WRAPPER" close-all
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"ownership changed while closing"* ]]
-  [[ "$output" == *"managed:5150"* ]]
+  [[ "$output" == *"managed:headless:5150"* ]]
   [[ "$output" == *"ownership state was preserved"* ]]
   [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
 }
@@ -681,7 +874,7 @@ EOF
 
 @test "Chrome closes only after the last managed CLI or dashboard consumer exits" {
   export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
+  run bash "$WRAPPER" -s=alpha open --headed https://example.com
   [ "$status" -eq 0 ]
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
@@ -704,7 +897,7 @@ EOF
 
 @test "Dashboard stop timeout preserves process identity across wrapper calls" {
   export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
+  run bash "$WRAPPER" -s=alpha open --headed https://example.com
   [ "$status" -eq 0 ]
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
@@ -769,7 +962,7 @@ EOF
 
 @test "managed open refuses orphan Chrome and a conflicting CDP port" {
   export PWCLI_TEST_WSL=1
-  printf '%s\n' 'managed:4242' >"$POWERSHELL_STATE"
+  printf '%s\n' 'managed:headless:4242' >"$POWERSHELL_STATE"
 
   run bash "$WRAPPER" open https://example.com
   [ "$status" -ne 0 ]

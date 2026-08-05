@@ -1,7 +1,10 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("Inspect", "Start")]
-    [string]$Action
+    [string]$Action,
+
+    [ValidateSet("headless", "headed")]
+    [string]$Mode = "headless"
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,6 +33,18 @@ function Find-ChromeExecutable {
     return $null
 }
 
+function Format-ManagedState {
+    param([object]$Process)
+
+    $ProcessMode = if ($Process.CommandLine -match "(?:^|\s)--headless(?:=\S+)?(?:\s|$)") {
+        "headless"
+    }
+    else {
+        "headed"
+    }
+    return "managed:${ProcessMode}:$($Process.ProcessId)"
+}
+
 function Get-ChromeState {
     param([string]$ChromeExecutable)
 
@@ -56,9 +71,6 @@ function Get-ChromeState {
             $_.CommandLine -match "(?:^|\s)--remote-debugging-port=$DebugPort(?:\s|$)"
         }
     )
-    $ManagedProcessIds = @(
-        $ManagedProcesses | ForEach-Object { [uint32]$_.ProcessId }
-    )
     $Listeners = @(
         Get-NetTCPConnection `
             -State Listen `
@@ -69,12 +81,15 @@ function Get-ChromeState {
 
     if ($ManagedProcesses.Count -gt 0) {
         if ($Listeners.Count -eq 0) {
-            return "managed:$($ManagedProcesses[0].ProcessId)"
+            return Format-ManagedState -Process $ManagedProcesses[0]
         }
         foreach ($Listener in $Listeners) {
             $ListenerProcessId = [uint32]$Listener.OwningProcess
-            if ($ManagedProcessIds -contains $ListenerProcessId) {
-                return "managed:$ListenerProcessId"
+            $ListenerProcess = $ManagedProcesses | Where-Object {
+                [uint32]$_.ProcessId -eq $ListenerProcessId
+            } | Select-Object -First 1
+            if ($ListenerProcess) {
+                return Format-ManagedState -Process $ListenerProcess
             }
         }
     }
@@ -102,13 +117,17 @@ if ($State -ne "absent") {
 }
 
 New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
-$Arguments = @(
+$ChromeArguments = @(
     "--remote-debugging-address=$DebugAddress"
     "--remote-debugging-port=$DebugPort"
     "--user-data-dir=`"$ProfileDir`""
     "--no-first-run"
     "--no-default-browser-check"
     "about:blank"
-) -join " "
+)
+if ($Mode -eq "headless") {
+    $ChromeArguments = @("--headless") + $ChromeArguments
+}
+$Arguments = $ChromeArguments -join " "
 Start-Process -FilePath $Chrome -ArgumentList $Arguments | Out-Null
 Write-Output "started"

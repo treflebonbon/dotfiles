@@ -181,6 +181,17 @@ setup() {
   grep -q '"@playwright/cli": "0.1.17"' "$package_json"
 }
 
+@test "WSL2 Playwright skill documents managed headless and headed workflows" {
+  local skill="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wsl-skill.md"
+
+  grep -Fq 'headless by default' "$skill"
+  grep -Fq '`open --headed`' "$skill"
+  grep -Fq '`PLAYWRIGHT_MCP_HEADLESS=true|1`' "$skill"
+  grep -Fq '`PLAYWRIGHT_MCP_HEADLESS=false|0`' "$skill"
+  grep -Fq '`show` and `show --annotate` require headed mode' "$skill"
+  grep -Fq 'manual authentication' "$skill"
+}
+
 @test "nix-devshell pins design.md 0.3.0 and document converters" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
