@@ -210,6 +210,8 @@ if ((pwcli_passthrough_open)); then
   if ((pwcli_managed_owner)); then
     fail "session '$pwcli_session' in '$pwcli_workspace' owns Managed Playwright Chrome. Run playwright-cli -s='$pwcli_session' close before opening it with an explicit override."
   fi
+  release_lock
+  trap - EXIT
   exec "$pwcli_upstream" "$@"
 fi
 

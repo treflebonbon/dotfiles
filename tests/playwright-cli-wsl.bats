@@ -80,6 +80,12 @@ if [[ "$*" == *"show"* && "$*" == *"--annotate"* && ! -f "$DASHBOARD_READY" ]]; 
   exit 42
 fi
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
+if [[ "${PWCLI_FAKE_ASSERT_LOCK_RELEASED:-0}" == "1" ]] &&
+  ! "$PWCLI_FLOCK" --exclusive --nonblock \
+    "$PWCLI_RUNTIME_DIR/playwright-cli/runtime.lock" true; then
+  printf '%s\n' 'managed runtime lock is still held' >&2
+  exit 46
+fi
 if [[ "${PWCLI_FAKE_UPSTREAM_FAIL:-0}" == "1" && "$*" == *"open"* ]]; then
   exit 23
 fi
@@ -397,6 +403,19 @@ EOF
   grep -Fxq -- "--browser=firefox" "$UPSTREAM_LOG"
   grep -Fxq -- "--headed" "$UPSTREAM_LOG"
   ! grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
+  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
+}
+
+@test "an explicit override releases the managed runtime lock before upstream" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com/managed
+  [ "$status" -eq 0 ]
+  export PWCLI_FAKE_ASSERT_LOCK_RELEASED=1
+
+  run bash "$WRAPPER" -s=beta open --browser=firefox https://example.com/override
+
+  [ "$status" -eq 0 ]
   [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
