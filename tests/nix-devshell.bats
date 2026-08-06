@@ -143,6 +143,36 @@ setup() {
   ! grep -q '^    llm\.antigravity-cli$' "$module"
 }
 
+@test "nix-devshell installs code-review-graph CLI without globally enabling it (issue #136)" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  local codex_config="$PROJECT_ROOT/private_dot_config/codex/config.toml"
+  local claude_mcp="$PROJECT_ROOT/private_dot_mcp.json"
+  local runtime="$PROJECT_ROOT/runtime/ai-runtimes.md"
+
+  grep -q 'codeReviewGraph = pkgs\.callPackage \.\./packages/code-review-graph\.nix' "$module"
+  grep -q '^    codeReviewGraph$' "$module"
+  ! grep -q '\[mcp_servers\.code-review-graph\]' "$codex_config"
+  ! grep -q 'code-review-graph' "$claude_mcp"
+  grep -q 'リポジトリ単位の code-review-graph opt-in' "$runtime"
+  grep -q 'code-review-graph install.*実行しない' "$runtime"
+}
+
+@test "code-review-graph package meets its FastMCP floor on all supported systems (issue #136)" {
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/code-review-graph.nix"
+  local language_pack="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/tree-sitter-language-pack-0_13.nix"
+
+  grep -q 'minFastMcp = "3\.2\.4";' "$package"
+  grep -q 'nixpkgs-ai-sources.*fastmcp/default\.nix' "$package"
+  grep -q 'lib\.versionAtLeast python\.pkgs\.fastmcp\.version minFastMcp' "$package"
+  grep -q 'tree-sitter-language-pack-0_13\.nix' "$package"
+  grep -q 'version = "0\.13\.0";' "$language_pack"
+  grep -Fq 'sha256-AyA0xeJ7H24AcwuefC28ggO0cA0MaB/QGdbe/PYRg+w=' "$language_pack"
+  grep -q '"x86_64-linux"' "$package"
+  grep -q '"aarch64-linux"' "$package"
+  grep -q '"x86_64-darwin"' "$package"
+  grep -q '"aarch64-darwin"' "$package"
+}
+
 @test "nix-devshell installs Playwright CLI 0.1.17 with managed WSL2 Chrome and local skill symlinks" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
