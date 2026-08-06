@@ -10,15 +10,28 @@ setup() {
   grep -q 'lib\.optionals pkgs\.stdenv\.isLinux \[ pkgs\.bubblewrap \]' "$module"
 }
 
-@test "user devShell retains four-system support on nixpkgs 26.05" {
-  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+@test "flakes support Linux and Apple Silicon without Intel Darwin" {
+  local flakes=(
+    "$PROJECT_ROOT/flake.nix"
+    "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+    "$PROJECT_ROOT/templates/go/flake.nix"
+    "$PROJECT_ROOT/templates/rust/flake.nix"
+    "$PROJECT_ROOT/templates/elixir/flake.nix"
+    "$PROJECT_ROOT/templates/perl/flake.nix"
+    "$PROJECT_ROOT/templates/gleam/flake.nix"
+    "$PROJECT_ROOT/templates/bun/flake.nix"
+  )
 
-  grep -q 'nixpkgs-26\.05-darwin' "$flake"
-  grep -q '"x86_64-linux"' "$flake"
-  grep -q '"aarch64-linux"' "$flake"
-  grep -q '"aarch64-darwin"' "$flake"
-  grep -q '"x86_64-darwin"' "$flake"
-  grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$flake"
+  for flake in "${flakes[@]}"; do
+    grep -q '"x86_64-linux"' "$flake"
+    grep -q '"aarch64-linux"' "$flake"
+    grep -q '"aarch64-darwin"' "$flake"
+    run grep -q '"x86_64-darwin"' "$flake"
+    [ "$status" -ne 0 ]
+  done
+
+  grep -q 'nixpkgs-26\.05-darwin' "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
 }
 
 @test "user devShell selects the approved installed AI toolset snapshot without moving shared nixpkgs" {
@@ -101,20 +114,16 @@ setup() {
   grep -q 'minClaudeCode = "2\.1\.222";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "nix-devshell restores x86_64-darwin claude-code locally after upstream dropped it (issue #112)" {
+@test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix"
 
-  grep -q 'claudeCodeDarwinX64 = pkgs\.callPackage \.\./packages/claude-code-darwin-x64\.nix { };' "$module"
-  grep -q 'selected =' "$module"
-  grep -q 'if pkgs\.stdenv\.hostPlatform\.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm\.claude-code;' "$module"
-  test -f "$package"
-  # この version は minClaudeCode ではなく flake pin 上の claude-code に追従する。
-  # 床は根拠のある release でしか上げないため、床据え置きのまま pin だけ進む回があり、
-  # そこで両者はずれる。床に合わせると x86_64-darwin だけ旧版で取り残されたまま
-  # assert が通ってしまう（ADR-0028 の補足を参照）。
-  grep -q 'version = "2\.1\.222";' "$package"
-  grep -Fq 'sha256-Nr/GSColcw27HO5yWJ5SLGbEWk3J6/3Yp2qBE7AbYYg=' "$package"
+  grep -q 'v = llm\.claude-code\.version or null;' "$module"
+  grep -q '^    llm\.claude-code;$' "$module"
+  run grep -q 'claudeCodeDarwinX64' "$module"
+  [ "$status" -ne 0 ]
+  run test -e "$package"
+  [ "$status" -ne 0 ]
 }
 
 @test "nix-devshell requires Codex with executor-provided skill support" {
@@ -125,22 +134,16 @@ setup() {
   grep -q 'llm\.codex;' "$module"
 }
 
-@test "nix-devshell restores x86_64-darwin codex/copilot-cli/antigravity-cli locally after the same llm-agents pin bump dropped them" {
+@test "nix-devshell uses pinned Codex, Copilot, and Antigravity packages without Intel Darwin overrides" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'llm\.codex\.override' "$module"
-  grep -q 'llm\.codex\.mkRustyV8Archive' "$module"
-  grep -q 'copilotCli =' "$module"
-  grep -q 'llm\.copilot-cli\.overrideAttrs' "$module"
-  grep -q 'antigravityCli =' "$module"
-  grep -q 'llm\.antigravity-cli\.overrideAttrs' "$module"
-  grep -Fq 'sha256-C4sEKT69kDzgzbtyzSZwiiKoXxkpPzk/wcTOXaN2Eyk=' "$module"
-  grep -Fq 'url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6423386432339968/darwin-x64/cli_mac_x64.tar.gz";' "$module"
-  grep -Fq 'sha512-DtlRl+psUD5g/J9l0DUvznM7PW9bihba6XG/6Rf+mEzH2srI/rArpxq2rauln5nx/3QH+V67yvj+wwQH0+j7sA==' "$module"
-  grep -q '^    copilotCli$' "$module"
-  grep -q '^    antigravityCli$' "$module"
-  ! grep -q '^    llm\.copilot-cli$' "$module"
-  ! grep -q '^    llm\.antigravity-cli$' "$module"
+  grep -q '^    llm\.codex;$' "$module"
+  grep -q '^    llm\.copilot-cli$' "$module"
+  grep -q '^    llm\.antigravity-cli$' "$module"
+  run grep -q 'x86_64-darwin' "$module"
+  [ "$status" -ne 0 ]
+  run grep -q 'overrideAttrs' "$module"
+  [ "$status" -ne 0 ]
 }
 
 @test "nix-devshell installs code-review-graph CLI without globally enabling it (issue #136)" {
@@ -170,8 +173,9 @@ setup() {
   grep -Fq 'sha256-AyA0xeJ7H24AcwuefC28ggO0cA0MaB/QGdbe/PYRg+w=' "$language_pack"
   grep -q '"x86_64-linux"' "$package"
   grep -q '"aarch64-linux"' "$package"
-  grep -q '"x86_64-darwin"' "$package"
   grep -q '"aarch64-darwin"' "$package"
+  run grep -q '"x86_64-darwin"' "$package"
+  [ "$status" -ne 0 ]
 
   run nix flake check --no-build --all-systems "path:$flake"
   [ "$status" -eq 0 ]
@@ -311,12 +315,12 @@ setup() {
   grep -q 'version = "0.22.5";' "$pkg"
   grep -q 'google-workspace-cli-x86_64-unknown-linux-gnu.tar.gz' "$pkg"
   grep -q 'google-workspace-cli-aarch64-unknown-linux-gnu.tar.gz' "$pkg"
-  grep -q 'google-workspace-cli-x86_64-apple-darwin.tar.gz' "$pkg"
   grep -q 'google-workspace-cli-aarch64-apple-darwin.tar.gz' "$pkg"
   grep -q 'sha256-3njs29LxqEzKAGOn7LxEAkD8FLbrzLsX9GRreSqMXB8=' "$pkg"
   grep -q 'sha256-lEkCldlYDh6IV05xWgoWKZF0fRLWL4x7jcyCaLbBzqA=' "$pkg"
-  grep -q 'sha256-Ufm9cxQE1LuibDbi4w3WjFbczR+DTAElLLCxTWplRLI=' "$pkg"
   grep -q 'sha256-HSqf/VvJssLEtIYw2vCC+tE9nlfXQZiKLCSO7VYvfaw=' "$pkg"
+  run grep -q 'x86_64-apple-darwin' "$pkg"
+  [ "$status" -ne 0 ]
   grep -q 'sourceRoot = "\.";' "$pkg"
   grep -q './packages/gws.nix' "$flake"
   ! grep -q 'github:googleworkspace/cli' "$flake"
@@ -333,12 +337,12 @@ setup() {
   grep -q 'version = "0.38.3";' "$pkg"
   grep -q 'waza-linux-amd64' "$pkg"
   grep -q 'waza-linux-arm64' "$pkg"
-  grep -q 'waza-darwin-amd64' "$pkg"
   grep -q 'waza-darwin-arm64' "$pkg"
-  grep -q 'sha256-8qDGlSq7ta11vxfidpw0xIAJPCaVdIOTaLgtQLPF3sk=' "$pkg"
   grep -q 'sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=' "$pkg"
   grep -q 'sha256-Fo41Yt7qoZWNRDZrN9ljtIsJHDJcbJtbJhPlOZ/wd7k=' "$pkg"
   grep -q 'sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=' "$pkg"
+  run grep -q 'waza-darwin-amd64' "$pkg"
+  [ "$status" -ne 0 ]
   grep -q 'releases/download/v\${finalAttrs.version}' "$pkg"
   grep -q 'dontUnpack = true' "$pkg"
   ! grep -q 'unstable-2026-04-28' "$pkg"

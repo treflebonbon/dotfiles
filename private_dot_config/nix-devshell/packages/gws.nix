@@ -16,10 +16,6 @@ let
       asset = "google-workspace-cli-aarch64-unknown-linux-gnu.tar.gz";
       hash = "sha256-lEkCldlYDh6IV05xWgoWKZF0fRLWL4x7jcyCaLbBzqA=";
     };
-    x86_64-darwin = {
-      asset = "google-workspace-cli-x86_64-apple-darwin.tar.gz";
-      hash = "sha256-Ufm9cxQE1LuibDbi4w3WjFbczR+DTAElLLCxTWplRLI=";
-    };
     aarch64-darwin = {
       asset = "google-workspace-cli-aarch64-apple-darwin.tar.gz";
       hash = "sha256-HSqf/VvJssLEtIYw2vCC+tE9nlfXQZiKLCSO7VYvfaw=";

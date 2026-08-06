@@ -17,7 +17,7 @@ timestamp: 2026-08-06
 1. この repo は tracked file 237 件で、上流自身が効果を「marginal」とする「数百 file 未満」に入る。実測でも graph が既存の Bats test を変更対象の test と結び付けられず、test gap を false positive で報告した。
 2. chezmoi の重要な source である `*.tmpl` は v2.3.7 の language detection 対象外で、1つの `.tmpl` extension を Nix / shell / JSON など複数 grammar に割り当てることもできない。
 3. 上流 installer は Codex の user-global config / hooks と repo の git hook を直接変更する。この repo はそれらを chezmoi source、managed hook、lefthook で宣言管理しており、installer の mutation は管理境界と衝突する。
-4. pin 済みの `llm-agents.nix` package はそのままでは `x86_64-darwin` 非対応で、この repo の shared-nixpkgs 経路では upstream が要求する FastMCP floor も満たさない。CLI 配備では local package が FastMCP 3.3.1 と、Intel Darwinで欠ける platform bundleを必要としない `tree-sitter-language-pack` 0.13.0 の source build経路を CRG 専用環境へ入れてこの差を塞ぐ。
+4. pin 済みの `llm-agents.nix` package は、この repo の shared-nixpkgs 経路では upstream が要求する FastMCP floor と `tree-sitter-language-pack<1` を満たさない。CLI 配備では local package が FastMCP 3.3.1 と `tree-sitter-language-pack` 0.13.0 の source build経路を CRG 専用環境へ入れてこの差を塞ぐ。
 5. 公開版 v2.3.7 は HTTP transport の Host / Origin guard、Codex の `AGENTS.md` instruction integration、再測定後の benchmark 訂正より前の版である。既定の 30 MCP tools には source を変更できる tool も含まれ、常時接続には surface が広すぎる。
 
 大規模 repo で multi-hop review を頻繁に行う場合だけ、後述の read-only / stdio 限定評価を行い、その repository の project config に MCP を追加する。CLI が存在すること自体を利用可の判定にはしない。
@@ -85,7 +85,7 @@ Claude Code では project `.mcp.json`、`.claude/settings.json`、`.claude/skil
 - `aarch64-linux`
 - `aarch64-darwin`
 
-この repo と同じ `nixpkgs-26.05-darwin` + `inputs.llm-agents.overlays.shared-nixpkgs` で derivation を評価したところ、この3 system は成功したが、`x86_64-darwin` は `package.meta.platforms` 不一致で評価を拒否された。上流 `llm-agents.nix` 自体も 2026-07-21 に x86_64-darwin output を削除している（[upstream commit](https://github.com/numtide/llm-agents.nix/commit/718f56b955bb074b458c644472e03264e378169d)）。この repo は [Architecture](../architecture.md) に従って 2026-12-31 まで4 systemを維持するため、`modules/ai.nix` の共通 package listへそのまま足すと契約違反になる。
+この repo と同じ `nixpkgs-26.05-darwin` + `inputs.llm-agents.overlays.shared-nixpkgs` で derivation を評価したところ、この3 system は成功した。調査時点では x86_64-darwin も local packageで補っていたが、[ADR-0034](../adr/0034-update-ai-toolset-safety-baselines.md) により repo 全体の対応 system をこの3つへ統一した。
 
 依存についても注意が要る。upstream v2.3.7 は `fastmcp>=3.2.4,<4`、`tree-sitter-language-pack<1`、`watchdog<7` 等を要求する（[pyproject](https://github.com/tirth8205/code-review-graph/blob/6a1ee1c7063cc35cfa5ff12b8198c29360f3e4ad/pyproject.toml#L27-L38)）。一方、固定 Nix package は FastMCP tests を `doCheck = false` にし、dependency check を skip して複数 bounds を relax する（[package definition](https://github.com/numtide/llm-agents.nix/blob/71c0eafcae20331346e60154ca843d4791ba1245/packages/code-review-graph/package.nix#L8-L58)）。
 
@@ -101,7 +101,7 @@ Claude Code では project `.mcp.json`、`.claude/settings.json`、`.claude/skil
 
 clean environment で `code-review-graph --version` は成功し、core graph build も動いたため「起動不能」ではない。しかし FastMCP 3.2.3 は upstream CRG が明記する 3.2.4 floor 未満であり、dependency check の緩和がその差を隠している。FastMCP v3.2.4 自体も security hardening を含む release である（[official FastMCP v3.2.4 release](https://github.com/PrefectHQ/fastmcp/releases/tag/v3.2.4)）。標準 stdio / local-only CRG path に各修正が exploit 可能かは未確認なので「既知の直接脆弱性」とは断定しないが、少なくとも upstream runtime contract を満たしていない。
 
-**実装:** [`packages/code-review-graph.nix`](../../private_dot_config/nix-devshell/packages/code-review-graph.nix) は、同じ flake に source-only で pin 済みの Nixpkgs package 定義から FastMCP 3.3.1 を CRG 専用 Python 環境へ backport する。CRG 2.3.7 の package source / hash は `llm-agents.nix` pin を再利用し、FastMCP 3.2.4 floor を assert する。CRG自身の `tree-sitter-language-pack` contractは `>=0.3.0,<1` である。ローカルでは、Nix grammarとIntel Darwin向けuniversal2 wheelを確認済みの0.9.0を互換性floorとして別にassertし、その範囲内で0.13.0のsource distributionをbuildする（[0.9.0 metadata](https://pypi.org/project/tree-sitter-language-pack/0.9.0/)、[0.13.0 files](https://pypi.org/project/tree-sitter-language-pack/0.13.0/)、[Nixpkgs package definition](https://github.com/NixOS/nixpkgs/blob/cc53eadbdb10015c09c2bd48c6e82877b2f777ee/pkgs/development/python-modules/tree-sitter-language-pack/default.nix)）。1.4.1 の parser releaseには Intel Mac bundleがないため、metadataだけを拡張する方法は採っていない。4 system の derivation 評価と Linux build / CLI run を導入時の検証対象とし、Intel Darwin の実機 runtime は未確認として残す。
+**実装:** [`packages/code-review-graph.nix`](../../private_dot_config/nix-devshell/packages/code-review-graph.nix) は、同じ flake に source-only で pin 済みの Nixpkgs package 定義から FastMCP 3.3.1 を CRG 専用 Python 環境へ backport する。CRG 2.3.7 の package source / hash は `llm-agents.nix` pin を再利用し、FastMCP 3.2.4 floor を assert する。CRG自身の `tree-sitter-language-pack` contractは `>=0.3.0,<1` なので、互換性floorを別にassertした上で0.13.0のsource distributionをbuildする（[0.13.0 files](https://pypi.org/project/tree-sitter-language-pack/0.13.0/)、[Nixpkgs package definition](https://github.com/NixOS/nixpkgs/blob/cc53eadbdb10015c09c2bd48c6e82877b2f777ee/pkgs/development/python-modules/tree-sitter-language-pack/default.nix)）。3 system の derivation 評価と Linux build / CLI run を導入時の検証対象とする。
 
 ## 認証、外部通信、privacy、security（確認済み）
 
@@ -174,12 +174,12 @@ build は約3秒で完了した。速度と容量は問題ではないが、trac
 
 ## 比較した導入案
 
-| 案                                               | 判断     | 理由                                                                                               |
-| ------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------- |
-| CLI と上流 `install` を global 実行              | 不採用   | managed config / hooks / lefthook と衝突し、全 repository に広すぎる MCP surface を公開する        |
-| 3 system だけ CLI を配備                         | 不採用   | home-wide tool availability が platform 依存になり、Intel Darwin sunset 前の architecture と不整合 |
-| 修正済み local package で CLI だけ4 systemへ配備 | 採用     | 評価対象を増やしつつ、graph / MCP / hook を勝手に有効化しない                                      |
-| 各 repository で read-only stdio MCP を有効化    | 条件付き | CLI 評価で既存手段より有効だった repository だけ project config に宣言する                         |
+| 案                                             | 判断     | 理由                                                                                        |
+| ---------------------------------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| CLI と上流 `install` を global 実行            | 不採用   | managed config / hooks / lefthook と衝突し、全 repository に広すぎる MCP surface を公開する |
+| 上流 package をそのまま3 systemへ配備          | 不採用   | shared-nixpkgs上で FastMCP floor と tree-sitter-language-pack の上限を満たさない            |
+| 修正済み local package で CLI を3 systemへ配備 | 採用     | upstream runtime contractを満たしつつ、graph / MCP / hook を勝手に有効化しない              |
+| 各 repository で read-only stdio MCP を有効化  | 条件付き | CLI 評価で既存手段より有効だった repository だけ project config に宣言する                  |
 
 ## リポジトリ単位の利用可否判定
 
@@ -195,7 +195,6 @@ build は約3秒で完了した。速度と容量は問題ではないが、trac
 
 ## 未確認事項
 
-- x86_64-darwin 向け local package closure の実機 runtime。derivation 評価は対象に含めるが、Intel Mac での起動確認は別途必要。
 - 大規模な実務 repositoryで、既存 agentic grep / Serenaと比べた独立した token、latency、finding精度。
 - current main の HTTP guard、Codex instruction integration、benchmark修正を含む次回 releaseのversionと互換性。
 

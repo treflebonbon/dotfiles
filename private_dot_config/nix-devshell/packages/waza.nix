@@ -16,10 +16,6 @@ let
       asset = "waza-linux-arm64";
       hash = "sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=";
     };
-    x86_64-darwin = {
-      asset = "waza-darwin-amd64";
-      hash = "sha256-8qDGlSq7ta11vxfidpw0xIAJPCaVdIOTaLgtQLPF3sk=";
-    };
     aarch64-darwin = {
       asset = "waza-darwin-arm64";
       hash = "sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=";

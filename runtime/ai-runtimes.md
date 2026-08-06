@@ -96,7 +96,7 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.222` / `0.146.1`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
 
-**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。そのため床据え置きのまま pin だけ進む回があり、x86_64-darwin の local override（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）を見直す条件は床の変化ではなく **pin 上の当該パッケージの version の変化**である。
+**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも pin 済みの `llm.*` packageを直接使う。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
 
 APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物**を source へ入れる（手順の正は [skill-harness](skill-harness.md)）。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
 
@@ -195,7 +195,7 @@ floating dependency の selected skill payload が変わったのは Impeccable�
 
 2026-08-06 JST、導入済み AI ツールセットを `llm-agents.nix` の immutable snapshot `efa77d0f` へ更新した。共有 nixpkgs は `fca2dbd4` のまま据え置き、導入 version は claude-code 2.1.222、codex 0.146.1、copilot-cli 1.0.78、antigravity-cli 1.1.10、rtk 0.44.2、apm 0.28.0 となった。worktree 隔離と PreToolUse restriction の迂回を修正する Claude Code 2.1.222、cyber-capable model の auto-review 既定値を安全側へ修正する Codex 0.146.1 はこの repo の安全境界に直結するため、両品質 floor も同じ version へ引き上げた。
 
-x86_64-darwin override は claude-code 2.1.222 の vendor artifact を直接取得して sha256 を更新した。codex 0.146.1 が要求する librusty_v8 は 149.2.0 のまま、copilot-cli / antigravity-cli は version 不変なので、それら3件の artifact 値は変更していない。採用判断と検証境界は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md)、override の長期方針は [ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md) を参照する。
+同じ更新で x86_64-darwin サポートを終了し、repo / ユーザー環境 / 言語テンプレートを3-system化した。これにより Claude Code 専用 derivation、Codex / Copilot CLI / Antigravity CLI の local override、`allowBroken` 例外、Intel向け release asset/hash追跡を削除した。採用判断は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) を参照する。
 
 同日の APM 経路では、APM 0.28.0 の隔離 runtime layout で floating dependency を再解決した。Impeccable HEAD `a075d89bdbe60b2b00220cb0527fb5091e84215e`（4.0.4）は Design Hook 互換性ゲート 7/7 と managed hook の fail-open 契約を維持したため、検証済み Skill Pin として採用した。selected skill payload が変わったのは Impeccable、Modern Web Guidance（`684ab9d7`）、Remotion（`7809e793`）である。Shadcn（`b1c580c6`）、Orca 3 skill（`79896cb9`）、find-skills（`a4d243c3`）は repository revision のみ進み、selected subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` を維持した。生成した lock は同じ環境の `apm install --frozen` で書き戻しなく再現できた。
 

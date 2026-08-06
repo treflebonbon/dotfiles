@@ -2,7 +2,7 @@
   description = "treflebonbon/dotfiles user devShell";
 
   inputs = {
-    # 26.05 is the final Nixpkgs release supporting Intel Darwin (through 2026-12-31).
+    # Keep the shared package set fixed while AI tools advance through pinned sources.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
     # Source only: backport selected package definitions onto 26.05 without
@@ -13,12 +13,7 @@
     };
 
     llm-agents = {
-      # Pinned past 718f56b955bb (2026-07-21, "Drop x86_64-darwin support"), which is
-      # where upstream stopped tracking darwin-x64 hashes for claude-code, copilot-cli
-      # and antigravity-cli. ../packages/claude-code-darwin-x64.nix and the overrides in
-      # modules/ai.nix restore x86_64-darwin locally from each vendor's own bucket.
-      # Bumping this rev can change any of those versions, so re-check those overrides
-      # whenever it moves — not only when minClaudeCode / minCodex move.
+      # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
       url = "github:numtide/llm-agents.nix/efa77d0fc9553758c11ddd22274cb39018aabd48";
     };
   };
@@ -33,7 +28,6 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
@@ -44,12 +38,7 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            config = {
-              allowUnfree = true;
-              # MarkItDown pulls pandas -> arrow-cpp, which 26.05 marks broken on
-              # Intel Darwin. Keep evaluation available only for this sunset path.
-              allowBroken = system == "x86_64-darwin";
-            };
+            config.allowUnfree = true;
             overlays = [ inputs.llm-agents.overlays.shared-nixpkgs ];
           };
           lib = pkgs.lib;
