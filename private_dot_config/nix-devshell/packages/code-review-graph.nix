@@ -67,14 +67,10 @@ upstream.overridePythonAttrs (old: {
     treeSitterLanguagePackVersion = python.pkgs.tree-sitter-language-pack.version;
   };
 
-  # llm-agents removed x86_64-darwin from all outputs. The compatible 0.13.0
-  # parser package above still builds from vendored sources on that platform.
-  # Keep this list aligned with flake.nix until Intel Darwin sunsets.
   meta = old.meta // {
     platforms = [
       "x86_64-linux"
       "aarch64-linux"
-      "x86_64-darwin"
       "aarch64-darwin"
     ];
   };

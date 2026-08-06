@@ -4,10 +4,12 @@ title: llm-agents snapshot を更新し Claude Code 2.1.221 を品質ベース�
 description: 共有 nixpkgs を固定したまま llm-agents と導入済み AI CLI を更新し、permission・workflow 修正を含む Claude Code 2.1.221 を新しい床として採用する
 tags: [adr, nix, llm-agents, claude-code, codex, copilot-cli, antigravity-cli]
 timestamp: 2026-08-04
-status: accepted
+status: superseded
 ---
 
 # llm-agents snapshot を更新し Claude Code 2.1.221 を品質ベースラインにする
+
+> 2026-08-06 に [ADR-0034](0034-update-ai-toolset-safety-baselines.md) が snapshot と品質 floor を更新し、x86_64-darwin サポートを終了したため、本決定は superseded。以下は当時の判断記録として保持する。
 
 ## Context
 

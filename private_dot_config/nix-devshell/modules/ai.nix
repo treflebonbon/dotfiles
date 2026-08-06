@@ -8,8 +8,7 @@
 let
   llm = pkgs.llm-agents;
 
-  # 26.05 is kept for Intel Darwin support; evaluate only these newer package
-  # definitions against that shared package set until the support deadline.
+  # Evaluate only these newer package definitions against the shared package set.
   defuddle = pkgs.callPackage (
     inputs.nixpkgs-ai-sources + "/pkgs/by-name/de/defuddle/package.nix"
   ) { };
@@ -59,27 +58,16 @@ let
   # 2.1.221: zsh の [[ ]] regex 内に隠したコマンドが permission check を迂回できる問題を修正。
   #          background session が CLAUDE.md の git 指示に従い、依頼時だけ draft PR を開くようにも
   #          なった。auto mode と worktree workflow の安全性に直結するため床上げする。
-  # 注意: llm-agents pin を 2.1.219 相当まで進めると、upstream (numtide/llm-agents.nix の
-  #       718f56b955bb, 2026-07-21) が x86_64-darwin の claude-code packaging を取りやめている。
-  #       Anthropic 本体は darwin-x64 バイナリを配布し続けているため、../packages/claude-code-darwin-x64.nix
-  #       で hash を自前管理し x86_64-darwin だけそちらへ差し替える（下記 claudeCode 参照）。
-  # 注意: この床は x86_64-darwin override の更新トリガーではない。床は根拠のある release でしか
-  #       上げないため、床を据え置いたまま pin だけ進む回がある。その回に override を放置すると
-  #       x86_64-darwin だけ旧版のまま残り、assert は通ってしまう。override を見直す条件は
-  #       「flake pin 上の当該パッケージの version が動いたとき」。
-  # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.221";
-  minCodex = "0.146.0";
+  # 2.1.222: worktree 隔離 session / subagent が main checkout に対して destructive git command を
+  #          実行できる問題と、background agent task で PreToolUse auto-allow hook が tool restriction を
+  #          迂回できる問題を修正。隔離と permission の保証に直結するため床上げする。
+  # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
+  minClaudeCode = "2.1.222";
+  minCodex = "0.146.1";
 
   claudeCode =
     let
-      # llm.claude-code は x86_64-darwin 上で評価すると "Unsupported system: x86_64-darwin" を
-      # throw する（../packages/claude-code-darwin-x64.nix 参照）。そのため version チェックの前に
-      # プラットフォーム別パッケージを選択する必要がある — 先に llm.claude-code.version を見ると、
-      # 下の条件式で claudeCodeDarwinX64 へフォールバックする前に throw してしまう。
-      selected =
-        if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then claudeCodeDarwinX64 else llm.claude-code;
-      v = selected.version or null;
+      v = llm.claude-code.version or null;
       ok = v != null && lib.versionAtLeast v minClaudeCode;
       msg = ''
         claude-code ${toString v} は最低バージョン ${minClaudeCode} を満たしていません。
@@ -106,21 +94,19 @@ let
         正規化せずワークスペース脱出を許してしまう不具合を修正する 2.1.217、Claude Opus 5
         (`claude-opus-5`) を追加しデフォルト Opus モデルに変更する 2.1.219、zsh の [[ ]] regex 内に
         隠したコマンドによる permission check 迂回と background session の git 指示逸脱を修正する
-        2.1.221 を経た現在の ${minClaudeCode} を品質ベースラインとして固定しています。
+        2.1.221、worktree 隔離 session / subagent の main checkout に対する destructive git command と
+        background agent task の PreToolUse restriction 迂回を修正する 2.1.222 を経た現在の
+        ${minClaudeCode} を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
           cd ~/.config/nix-devshell
           flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
-        x86_64-darwin の場合: ../packages/claude-code-darwin-x64.nix の version / hash を
-        minClaudeCode ではなく flake pin 上の llm.claude-code.version に合わせて更新する
-        （床に合わせると pin の方が新しい回に x86_64-darwin だけ旧版で取り残されたまま
-        この assert が通ってしまう。hash 再計算手順は同ファイル冒頭のコメント参照）
       '';
     in
     assert lib.assertMsg ok msg;
-    selected;
+    llm.claude-code;
 
   codex =
     let
@@ -136,6 +122,8 @@ let
         0.144.6 を品質ベースラインとして要求します。
         executor が提供する skill の discover/read、context pressure 下での skill catalog 保持、
         MCP server の refresh/reconnect を含む 0.146.0 を品質ベースラインとして要求します。
+        cyber-capable model の auto-review 既定値を安全側へ修正した 0.146.1 を
+        品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
@@ -144,81 +132,13 @@ let
       '';
     in
     assert lib.assertMsg ok msg;
-    # llm.codex は librusty_v8 (Deno ランタイム) の hashes.json を参照するが、この
-    # flake pin で codex 0.145.0 に上げた際 x86_64-darwin のハッシュが抜け落ちた
-    # （0.144.6 時点では存在していた）。denoland は同じ rusty_v8 149.2.0 の
-    # darwin-x64 バイナリを配布し続けている（実測ハッシュは 0.144.6 時点の値と一致）ため、
-    # ローカルでハッシュを補って override する。この override は codex が実際に要求する
-    # librusty_v8 の version に関係なく 149.2.0 に固定するため、将来 codex 側が新しい
-    # v8 を要求するバージョンへ上がっても、x86_64-darwin だけ気付かず古い v8 のまま
-    # ビルドされ続ける（他 system は versionData.librusty_v8 を素直に追従する）。
-    # 確認のトリガーは minCodex の床上げではなく flake pin 上の codex version の変化。
-    # 床は根拠のある release でしか上げないため、床据え置きのまま pin だけ進む回がある。
-    # pin が codex を動かしたら versionData.librusty_v8.version の変化も確認し、
-    # 変わっていたら以下の version も合わせて更新してハッシュを再計算する:
-    #   curl -fsSL https://github.com/denoland/rusty_v8/releases/download/v<version>/librusty_v8_release_x86_64-apple-darwin.a.gz | sha256sum
-    #   nix hash convert --hash-algo sha256 --to sri <hex digest>
-    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
-      llm.codex.override {
-        librusty_v8 = llm.codex.mkRustyV8Archive {
-          version = "149.2.0";
-          hashes.x86_64-darwin = "sha256-eUlAo4o/ZrfvUqXwA8awlPdDrQQKZK+z082frUlADwc=";
-        };
-      }
-    else
-      llm.codex;
-
-  # llm.copilot-cli / llm.antigravity-cli も codex と同じ flake pin (533b02e → 0858b21)
-  # で x86_64-darwin のハッシュ・platforms 定義が抜け落ちた（両方とも直前の pin までは
-  # 存在していた）。配布元（npm registry / Google Cloud Storage）は該当バージョンの
-  # darwin-x64 バイナリを配布し続けている（実測ハッシュを下記で直接検証済み）ため、
-  # ローカルで src と meta.platforms を補って override する。
-  copilotCli =
-    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
-      llm.copilot-cli.overrideAttrs (old: {
-        # バージョン更新時はハッシュを再計算する:
-        #   curl -fsSL https://registry.npmjs.org/@github/copilot-darwin-x64/-/copilot-darwin-x64-<version>.tgz | sha256sum
-        #   nix hash convert --hash-algo sha256 --to sri <hex digest>
-        src = pkgs.fetchurl {
-          url = "https://registry.npmjs.org/@github/copilot-darwin-x64/-/copilot-darwin-x64-${old.version}.tgz";
-          hash = "sha256-C4sEKT69kDzgzbtyzSZwiiKoXxkpPzk/wcTOXaN2Eyk=";
-        };
-        meta = old.meta // {
-          platforms = old.meta.platforms ++ [ "x86_64-darwin" ];
-        };
-      })
-    else
-      llm.copilot-cli;
-
-  antigravityCli =
-    if pkgs.stdenv.hostPlatform.system == "x86_64-darwin" then
-      llm.antigravity-cli.overrideAttrs (old: {
-        # antigravity-public の URL は version 文字列に紐づかない内部ビルド ID
-        # （下記は 1.1.10 用の 6423386432339968）を含むため、バージョン更新時は
-        # aarch64-darwin 用 URL（hashes.json の urls.aarch64-darwin）から同じ
-        # ビルド ID を読み取って darwin-x64 に置き換え、ハッシュを再計算する:
-        #   curl -fsSL <同ビルドIDの darwin-x64 URL> | sha512sum
-        #   nix hash convert --hash-algo sha512 --to sri <hex digest>
-        # `src` は old.version を埋め込む一方でビルド ID は固定なので、pin が
-        # antigravity-cli を上げたのにここを直し忘れると URL が存在しない組み合わせになり
-        # x86_64-darwin だけ fetch に失敗する。pin 更新時は必ずこの 2 値を確認する。
-        src = pkgs.fetchurl {
-          url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${old.version}-6423386432339968/darwin-x64/cli_mac_x64.tar.gz";
-          hash = "sha512-DtlRl+psUD5g/J9l0DUvznM7PW9bihba6XG/6Rf+mEzH2srI/rArpxq2rauln5nx/3QH+V67yvj+wwQH0+j7sA==";
-        };
-        meta = old.meta // {
-          platforms = old.meta.platforms ++ [ "x86_64-darwin" ];
-        };
-      })
-    else
-      llm.antigravity-cli;
+    llm.codex;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix { };
   waza = pkgs.callPackage ../packages/waza.nix { };
-  claudeCodeDarwinX64 = pkgs.callPackage ../packages/claude-code-darwin-x64.nix { };
 in
 {
   env.DISABLE_TELEMETRY = "1";
@@ -230,8 +150,8 @@ in
   ]
   ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.bubblewrap ]
   ++ [
-    copilotCli
-    antigravityCli
+    llm.copilot-cli
+    llm.antigravity-cli
 
     # --- Token Optimization ---
     llm.rtk

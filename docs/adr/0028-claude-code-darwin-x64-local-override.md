@@ -14,10 +14,12 @@ tags:
     llm-agents,
   ]
 timestamp: 2026-07-25
-status: accepted
+status: superseded
 ---
 
 # AI エージェント CLI の x86_64-darwin を local override で復旧する
+
+> 2026-08-06 に [ADR-0034](0034-update-ai-toolset-safety-baselines.md) が x86_64-darwin サポートを終了したため、本決定は superseded。以下は当時の判断記録として保持する。
 
 ## Context
 

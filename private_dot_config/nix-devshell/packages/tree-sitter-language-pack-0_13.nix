@@ -18,8 +18,7 @@
 }:
 
 # CRG 2.3.7 requires tree-sitter-language-pack >=0.9,<1. Version 0.13.0
-# ships the parsers in its source distribution and upstream published a
-# universal2 wheel; 1.x downloads a bundle no longer published for Intel Mac.
+# ships the parsers in its source distribution; 1.x is outside CRG's range.
 # Keep this definition aligned with Nixpkgs cc53eadb (the 0.13.0 update).
 buildPythonPackage rec {
   pname = "tree-sitter-language-pack";
@@ -80,7 +79,6 @@ buildPythonPackage rec {
     platforms = [
       "x86_64-linux"
       "aarch64-linux"
-      "x86_64-darwin"
       "aarch64-darwin"
     ];
   };

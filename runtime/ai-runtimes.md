@@ -94,9 +94,9 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.221` / `0.146.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.222` / `0.146.1`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
 
-**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。そのため床据え置きのまま pin だけ進む回があり、x86_64-darwin の local override（[ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md)）を見直す条件は床の変化ではなく **pin 上の当該パッケージの version の変化**である。
+**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも pin 済みの `llm.*` packageを直接使う。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
 
 APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物**を source へ入れる（手順の正は [skill-harness](skill-harness.md)）。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
 
@@ -193,7 +193,11 @@ x86_64-darwin override は copilot-cli 1.0.77 と antigravity-cli 1.1.9 の vend
 
 floating dependency の selected skill payload が変わったのは Impeccable、Remotion（`4951f6ac`、4.0.503）、Supabase（`12077673`）である。Shadcn（`cb2bcd88`）、Orca 3 skill（`79251d7a`）、find-skills（`1164afa5`）は repository revision のみ進み、各 selected skill subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` のまま。生成した lock は同じ隔離 runtime layout の `apm install --frozen` で書き戻しなく再現できることを確認し、ライブ配備と `chezmoi apply` は行っていない。
 
-現在の `llm-agents.nix` snapshot は `71c0eafc`。導入 version は claude-code 2.1.221、codex 0.146.0、copilot-cli 1.0.78、antigravity-cli 1.1.10、rtk 0.44.2、apm 0.27.0。x86_64-darwin は claude-code / codex / copilot-cli / antigravity-cli の local override を維持する。今回の採用判断と検証境界は [ADR-0033](../docs/adr/0033-update-llm-agents-snapshot-and-claude-baseline.md)、override の長期方針は [ADR-0028](../docs/adr/0028-claude-code-darwin-x64-local-override.md) を参照する。
+2026-08-06 JST、導入済み AI ツールセットを `llm-agents.nix` の immutable snapshot `efa77d0f` へ更新した。共有 nixpkgs は `fca2dbd4` のまま据え置き、導入 version は claude-code 2.1.222、codex 0.146.1、copilot-cli 1.0.78、antigravity-cli 1.1.10、rtk 0.44.2、apm 0.28.0 となった。worktree 隔離と PreToolUse restriction の迂回を修正する Claude Code 2.1.222、cyber-capable model の auto-review 既定値を安全側へ修正する Codex 0.146.1 はこの repo の安全境界に直結するため、両品質 floor も同じ version へ引き上げた。
+
+同じ更新で x86_64-darwin サポートを終了し、repo / ユーザー環境 / 言語テンプレートを3-system化した。これにより Claude Code 専用 derivation、Codex / Copilot CLI / Antigravity CLI の local override、`allowBroken` 例外、Intel向け release asset/hash追跡を削除した。採用判断は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) を参照する。
+
+同日の APM 経路では、APM 0.28.0 の隔離 runtime layout で floating dependency を再解決した。Impeccable HEAD `a075d89bdbe60b2b00220cb0527fb5091e84215e`（4.0.4）は Design Hook 互換性ゲート 7/7 と managed hook の fail-open 契約を維持したため、検証済み Skill Pin として採用した。selected skill payload が変わったのは Impeccable、Modern Web Guidance（`684ab9d7`）、Remotion（`7809e793`）である。Shadcn（`b1c580c6`）、Orca 3 skill（`79896cb9`）、find-skills（`a4d243c3`）は repository revision のみ進み、selected subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` を維持した。生成した lock は同じ環境の `apm install --frozen` で書き戻しなく再現できた。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
@@ -228,6 +232,7 @@ floating dependency の selected skill payload が変わったのは Impeccable�
 - **agent view の worktree 削除を安全化**（2.1.208）— rename 済み branch の worktree も削除でき、未 push commit は破壊せず、worktree を保持した session row も残す。再利用した worktree 名は現在の base へリセットされる。
 - **Remote Control の background agent / workflow progress 可視化を修正**（2.1.208）— terminal-hosted session へ attach した client が task state の変化まで進捗を見られない問題を修正。
 - **長時間・多 agent・多 MCP session の資源使用を抑制**（2.1.208）— MCP/LSP/hook/tool-result のメモリリーク、agent view の画像保持、tool-pool 再構築コスト、edit-heavy transcript/checkpoint 肥大を修正・削減。
+- **worktree 隔離と background agent の tool restriction を強化**（2.1.222）— worktree session / subagent が main checkout に destructive git command を実行できる問題と、background task で PreToolUse auto-allow hook が tool restriction を迂回できる問題を修正。
 
 ### Advisor tool（experimental, 2.1.200 時点でも undocumented）
 
