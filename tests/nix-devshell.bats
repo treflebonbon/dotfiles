@@ -146,7 +146,7 @@ setup() {
 
 @test "nix-devshell installs code-review-graph CLI without globally enabling it (issue #136)" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
-  local codex_config="$PROJECT_ROOT/private_dot_config/codex/config.toml"
+  local codex_config="$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl"
   local claude_mcp="$PROJECT_ROOT/private_dot_mcp.json"
   local runtime="$PROJECT_ROOT/runtime/ai-runtimes.md"
 

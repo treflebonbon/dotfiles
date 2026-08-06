@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Codex managed config hash: {{ include "private_dot_config/codex/config.toml" | sha256sum }}
+# Codex managed config hash: {{ includeTemplate "private_dot_config/codex/config.toml.tmpl" . | sha256sum }}
 # Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
 set -euo pipefail
 

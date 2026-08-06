@@ -3,6 +3,8 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
+  CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
+  export CODEX_SOURCE_GIT_COMMON_DIR
 }
 
 assert_codex_managed_values() {
@@ -26,6 +28,7 @@ PY
 
 assert_dotfiles_permission_profile() {
   python3 - "$@" <<'PY'
+import os
 import sys
 import tomllib
 
@@ -61,6 +64,7 @@ for path in sys.argv[1:]:
 
     filesystem = profile["filesystem"]
     assert filesystem[":workspace_roots"][".git"] == "write"
+    assert filesystem[os.environ["CODEX_SOURCE_GIT_COMMON_DIR"]] == "write"
     assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
     assert filesystem["~/.ssh/**"] == "deny"
 PY
@@ -69,7 +73,7 @@ PY
 stage_codex_managed_config() {
   local home="$1"
   mkdir -p "$home/.config/codex/environments" "$home/.config/codex/rules"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
   cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" "$home/.config/codex/hooks.json"
   cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" "$home/.config/codex/rules/default.rules"
   cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" "$home/.config/codex/environments/environment.toml"
@@ -92,10 +96,20 @@ prepare_codex_chezmoi_source() {
     "$source/private_dot_local/bin/executable_sync-codex-managed-config"
   cp "$PROJECT_ROOT/dot_bash_profile.tmpl" "$source/dot_bash_profile.tmpl"
   cp "$PROJECT_ROOT"/run_onchange_after_codex-*.sh.tmpl "$source/"
+  git -C "$source" init -q
+}
+
+render_codex_managed_config() {
+  local source="$1"
+  local destination="$2"
+  chezmoi --source "$source" execute-template \
+    -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" \
+    >"$destination"
 }
 
 @test "Codex config managed fragment exists without local state tables" {
-  local config="$PROJECT_ROOT/private_dot_config/codex/config.toml"
+  local config="$BATS_TEST_TMPDIR/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$config"
 
   [ -f "$config" ]
   grep -q '^model = "gpt-5.6-sol"$' "$config"
@@ -145,6 +159,30 @@ with open(sys.argv[1], encoding="utf-8") as f:
 command = package["scripts"]["codex"]
 assert "--sandbox" not in command
 PY
+}
+
+@test "dotfiles-secure permits Git metadata writes from a linked worktree" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local source_repo="$BATS_TEST_TMPDIR/source"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local codex_home="$home/.codex"
+  mkdir -p "$source_repo" "$codex_home"
+
+  git -C "$source_repo" init -q
+  git -C "$source_repo" config user.email test@example.com
+  git -C "$source_repo" config user.name Test
+  printf 'base\n' >"$source_repo/base.txt"
+  git -C "$source_repo" add base.txt
+  git -C "$source_repo" commit -qm 'test: initialize repository'
+  git -C "$source_repo" worktree add -qb linked "$worktree"
+  render_codex_managed_config "$source_repo" "$codex_home/config.toml"
+
+  printf 'linked\n' >"$worktree/linked.txt"
+  run env HOME="$home" CODEX_HOME="$codex_home" codex sandbox -P dotfiles-secure \
+    -C "$worktree" -- git add linked.txt
+
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$worktree" diff --cached --name-only)" = "linked.txt" ]
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {
@@ -755,8 +793,7 @@ EOF
 @test "Codex config merge script writes managed permission profile" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 sandbox_mode = "workspace-write"
@@ -842,8 +879,7 @@ EOF
 @test "Codex config merge script removes retired superpowers plugin block" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 [plugins."superpowers@openai-curated"]
@@ -863,8 +899,7 @@ EOF
 @test "Codex config merge script preserves local MCP servers while adding managed ones" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 [mcp_servers.github]
@@ -883,8 +918,7 @@ EOF
 @test "Codex config merge script also updates existing Codex Desktop home" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex" "$home/.codex-app"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   cat >"$home/.codex-app/config.toml" <<'EOF'
 [projects."/home/ubuntu/workspace/desktop"]
@@ -947,8 +981,7 @@ EOF
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
 
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
@@ -982,8 +1015,7 @@ EOF
 @test "Codex config merge script migrates legacy :project_roots filesystem key" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 [permissions.dotfiles-secure.filesystem.":project_roots"]
@@ -999,8 +1031,7 @@ EOF
 @test "Codex config merge script strips stale concrete-path filesystem roots" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   # Codex self-expands :workspace_roots into a concrete-path table and writes it
   # back. Newer Codex then rejects its suffix-glob denies on load. The merge must
@@ -1024,8 +1055,7 @@ EOF
 @test "Codex config merge script keeps path rules in user-defined profiles" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/config.toml" \
-    "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   # A profile the dotfiles do not manage may carry legitimate path-scoped rules.
   # Cleanup must be restricted to managed profiles and leave these untouched.
