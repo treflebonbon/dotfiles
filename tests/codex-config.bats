@@ -60,6 +60,7 @@ for path in sys.argv[1:]:
     assert profile["network"]["domains"] == expected_domains
 
     filesystem = profile["filesystem"]
+    assert filesystem[":workspace_roots"][".git"] == "write"
     assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
     assert filesystem["~/.ssh/**"] == "deny"
 PY

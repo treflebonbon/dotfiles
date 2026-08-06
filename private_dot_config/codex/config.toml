@@ -33,7 +33,7 @@ extends = ":workspace"
 
 [permissions."dotfiles-secure".filesystem]
 glob_scan_max_depth = 4
-":workspace_roots" = { "." = "write", "**/.env*" = "deny", "**/*.pem" = "deny", "**/*.key" = "deny", "**/*.pfx" = "deny", "**/*.p12" = "deny", "**/credentials.json" = "deny", "**/credentials.*.json" = "deny", "**/secret.json" = "deny", "**/secrets.json" = "deny", "**/service-account*.json" = "deny" }
+":workspace_roots" = { "." = "write", ".git" = "write", "**/.env*" = "deny", "**/*.pem" = "deny", "**/*.key" = "deny", "**/*.pfx" = "deny", "**/*.p12" = "deny", "**/credentials.json" = "deny", "**/credentials.*.json" = "deny", "**/secret.json" = "deny", "**/secrets.json" = "deny", "**/service-account*.json" = "deny" }
 "~/.ssh/**" = "deny"
 "~/.aws/**" = "deny"
 "~/.config/gcloud/**" = "deny"
