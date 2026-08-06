@@ -101,7 +101,7 @@ Claude Code では project `.mcp.json`、`.claude/settings.json`、`.claude/skil
 
 clean environment で `code-review-graph --version` は成功し、core graph build も動いたため「起動不能」ではない。しかし FastMCP 3.2.3 は upstream CRG が明記する 3.2.4 floor 未満であり、dependency check の緩和がその差を隠している。FastMCP v3.2.4 自体も security hardening を含む release である（[official FastMCP v3.2.4 release](https://github.com/PrefectHQ/fastmcp/releases/tag/v3.2.4)）。標準 stdio / local-only CRG path に各修正が exploit 可能かは未確認なので「既知の直接脆弱性」とは断定しないが、少なくとも upstream runtime contract を満たしていない。
 
-**実装:** [`packages/code-review-graph.nix`](../../private_dot_config/nix-devshell/packages/code-review-graph.nix) は、同じ flake に source-only で pin 済みの Nixpkgs package 定義から FastMCP 3.3.1 を CRG 専用 Python 環境へ backport する。CRG 2.3.7 の package source / hash は `llm-agents.nix` pin を再利用し、FastMCP 3.2.4 floor を assert する。さらに CRG 自身の `>=0.9,<1` 制約内で、universal2 wheelも公開された `tree-sitter-language-pack` 0.13.0 の source distributionを buildする（[PyPI files](https://pypi.org/project/tree-sitter-language-pack/0.13.0/)、[Nixpkgs package definition](https://github.com/NixOS/nixpkgs/blob/cc53eadbdb10015c09c2bd48c6e82877b2f777ee/pkgs/development/python-modules/tree-sitter-language-pack/default.nix)）。1.4.1 の parser releaseには Intel Mac bundleがないため、metadataだけを拡張する方法は採っていない。4 system の derivation 評価と Linux build / CLI run を導入時の検証対象とし、Intel Darwin の実機 runtime は未確認として残す。
+**実装:** [`packages/code-review-graph.nix`](../../private_dot_config/nix-devshell/packages/code-review-graph.nix) は、同じ flake に source-only で pin 済みの Nixpkgs package 定義から FastMCP 3.3.1 を CRG 専用 Python 環境へ backport する。CRG 2.3.7 の package source / hash は `llm-agents.nix` pin を再利用し、FastMCP 3.2.4 floor を assert する。CRG自身の `tree-sitter-language-pack` contractは `>=0.3.0,<1` である。ローカルでは、Nix grammarとIntel Darwin向けuniversal2 wheelを確認済みの0.9.0を互換性floorとして別にassertし、その範囲内で0.13.0のsource distributionをbuildする（[0.9.0 metadata](https://pypi.org/project/tree-sitter-language-pack/0.9.0/)、[0.13.0 files](https://pypi.org/project/tree-sitter-language-pack/0.13.0/)、[Nixpkgs package definition](https://github.com/NixOS/nixpkgs/blob/cc53eadbdb10015c09c2bd48c6e82877b2f777ee/pkgs/development/python-modules/tree-sitter-language-pack/default.nix)）。1.4.1 の parser releaseには Intel Mac bundleがないため、metadataだけを拡張する方法は採っていない。4 system の derivation 評価と Linux build / CLI run を導入時の検証対象とし、Intel Darwin の実機 runtime は未確認として残す。
 
 ## 認証、外部通信、privacy、security（確認済み）
 
@@ -132,6 +132,23 @@ project は MIT License、Python package classifier は Beta である（[metada
 ## この dotfiles での実測（確認済み）
 
 既存 worktree の未コミット変更を汚さない隔離 clone で、pin 済み Nix packageを使って測定した。
+
+再現条件は次のとおり。embeddingはlocal / cloudとも設定せず、`embed`も実行していない。
+
+- dotfiles tree: PR実装commit `5d5462790f29247e7163add0e37d425d8710bd59`（base `de4f877`）
+- 実行環境: `x86_64-linux`、Nix 2.34.6
+- CRG: v2.3.7 / upstream commit `6a1ee1c7063cc35cfa5ff12b8198c29360f3e4ad`
+- `llm-agents.nix`: commit `71c0eafcae20331346e60154ca843d4791ba1245`、lock `narHash = sha256-FJX9Ts8wAY0Uy9ysvTPuvY35VF4kt9RXyDJYXrf3i8A=`
+
+```bash
+nix develop path:./private_dot_config/nix-devshell --command code-review-graph build
+# modules/ai.nix の `llm = pkgs.llm-agents;` 直後へ
+# `# code-review-graph change probe` を一行追加する
+nix develop path:./private_dot_config/nix-devshell --command code-review-graph detect-changes --brief
+nix develop path:./private_dot_config/nix-devshell --command code-review-graph status
+```
+
+主要出力は `risk 0.30`、`test gaps 1`、`estimated token savings 96%` だった。false positiveの判定基準は、probe対象の`llm` package contractを[`tests/nix-devshell.bats`](../../tests/nix-devshell.bats)が直接検証しているにもかかわらず、CRGが関連testを0件と判定したこととする。
 
 | 項目                          |                                                          結果 |
 | ----------------------------- | ------------------------------------------------------------: |

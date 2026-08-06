@@ -160,6 +160,7 @@ setup() {
 @test "code-review-graph package meets its FastMCP floor on all supported systems (issue #136)" {
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/code-review-graph.nix"
   local language_pack="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/tree-sitter-language-pack-0_13.nix"
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell"
 
   grep -q 'minFastMcp = "3\.2\.4";' "$package"
   grep -q 'nixpkgs-ai-sources.*fastmcp/default\.nix' "$package"
@@ -171,6 +172,24 @@ setup() {
   grep -q '"aarch64-linux"' "$package"
   grep -q '"x86_64-darwin"' "$package"
   grep -q '"aarch64-darwin"' "$package"
+
+  run nix flake check --no-build --all-systems "path:$flake"
+  [ "$status" -eq 0 ]
+
+  if [ "$(uname -s)" = "Linux" ]; then
+    local probe="$BATS_TEST_TMPDIR/code-review-graph-probe"
+    mkdir -p "$probe"
+    git -C "$probe" init -q
+    printf 'def answer():\n    return 42\n' >"$probe/sample.py"
+    git -C "$probe" add sample.py
+
+    run nix develop "path:$flake" --command code-review-graph --help
+    [ "$status" -eq 0 ]
+
+    run nix develop "path:$flake" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
+    [ "$status" -eq 0 ]
+    [ -f "$probe/.code-review-graph/graph.db" ]
+  fi
 }
 
 @test "nix-devshell installs Playwright CLI 0.1.17 with managed WSL2 Chrome and local skill symlinks" {
