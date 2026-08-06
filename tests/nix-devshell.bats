@@ -25,9 +25,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/71c0eafcae20331346e60154ca843d4791ba1245' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "71c0eafcae20331346e60154ca843d4791ba1245"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "71c0eafcae20331346e60154ca843d4791ba1245"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/efa77d0fc9553758c11ddd22274cb39018aabd48' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "efa77d0fc9553758c11ddd22274cb39018aabd48"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "efa77d0fc9553758c11ddd22274cb39018aabd48"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -98,7 +98,7 @@ setup() {
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.221";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.222";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "nix-devshell restores x86_64-darwin claude-code locally after upstream dropped it (issue #112)" {
@@ -113,14 +113,14 @@ setup() {
   # 床は根拠のある release でしか上げないため、床据え置きのまま pin だけ進む回があり、
   # そこで両者はずれる。床に合わせると x86_64-darwin だけ旧版で取り残されたまま
   # assert が通ってしまう（ADR-0028 の補足を参照）。
-  grep -q 'version = "2\.1\.221";' "$package"
-  grep -Fq 'sha256-9Ai59+RkOfbjSjaH/2dDP8a8GJ9AIgzk8KHoKeWPClI=' "$package"
+  grep -q 'version = "2\.1\.222";' "$package"
+  grep -Fq 'sha256-Nr/GSColcw27HO5yWJ5SLGbEWk3J6/3Yp2qBE7AbYYg=' "$package"
 }
 
 @test "nix-devshell requires Codex with executor-provided skill support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.146\.0";' "$module"
+  grep -q 'minCodex = "0\.146\.1";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
 }

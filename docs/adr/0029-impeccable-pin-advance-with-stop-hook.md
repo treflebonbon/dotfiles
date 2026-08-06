@@ -162,4 +162,10 @@ adapter、検出器、Impeccable 4.0.4 への更新である。hook entrypoint `
 交互報告 defect はこの revision にも残っているため、上流の意図へ書き換えず characterization test を維持する。
 後続更新でも、pin の前進は同じ Design Hook 互換性ゲートを通過した場合に限る。
 
+## 補足（2026-08-06 の更新時）
+
+Impeccable HEAD `a075d89bdbe60b2b00220cb0527fb5091e84215e`（4.0.4）を APM 0.28.0 の隔離 runtime layout に materialize し、同じ JSON event interface で再検証した。quiet / immediate tier / Stop deep pass / dedupe / edit threshold / sensitive・generated path filter / Stop re-entry の 7/7 と managed hook の fail-open 契約を維持したため、新しい検証済み Skill Pin として採用した。
+
+既知の both-tiers Stop 交互報告 defect はこの revision にも残っており、characterization test は変更しない。Claude Code / Codex の hook 配線にも変更はない。
+
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

@@ -19,8 +19,8 @@
 #   curl -fsSL "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/<version>/darwin-x64/claude" | sha256sum
 #   nix hash convert --hash-algo sha256 --to sri <hex digest>
 let
-  version = "2.1.221";
-  hash = "sha256-9Ai59+RkOfbjSjaH/2dDP8a8GJ9AIgzk8KHoKeWPClI=";
+  version = "2.1.222";
+  hash = "sha256-Nr/GSColcw27HO5yWJ5SLGbEWk3J6/3Yp2qBE7AbYYg=";
 in
 stdenv.mkDerivation {
   pname = "claude-code";

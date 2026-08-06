@@ -59,6 +59,9 @@ let
   # 2.1.221: zsh の [[ ]] regex 内に隠したコマンドが permission check を迂回できる問題を修正。
   #          background session が CLAUDE.md の git 指示に従い、依頼時だけ draft PR を開くようにも
   #          なった。auto mode と worktree workflow の安全性に直結するため床上げする。
+  # 2.1.222: worktree 隔離 session / subagent が main checkout に対して destructive git command を
+  #          実行できる問題と、background agent task で PreToolUse auto-allow hook が tool restriction を
+  #          迂回できる問題を修正。隔離と permission の保証に直結するため床上げする。
   # 注意: llm-agents pin を 2.1.219 相当まで進めると、upstream (numtide/llm-agents.nix の
   #       718f56b955bb, 2026-07-21) が x86_64-darwin の claude-code packaging を取りやめている。
   #       Anthropic 本体は darwin-x64 バイナリを配布し続けているため、../packages/claude-code-darwin-x64.nix
@@ -68,8 +71,8 @@ let
   #       x86_64-darwin だけ旧版のまま残り、assert は通ってしまう。override を見直す条件は
   #       「flake pin 上の当該パッケージの version が動いたとき」。
   # 更新: flake.nix の4-system互換revisionを更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.221";
-  minCodex = "0.146.0";
+  minClaudeCode = "2.1.222";
+  minCodex = "0.146.1";
 
   claudeCode =
     let
@@ -106,7 +109,9 @@ let
         正規化せずワークスペース脱出を許してしまう不具合を修正する 2.1.217、Claude Opus 5
         (`claude-opus-5`) を追加しデフォルト Opus モデルに変更する 2.1.219、zsh の [[ ]] regex 内に
         隠したコマンドによる permission check 迂回と background session の git 指示逸脱を修正する
-        2.1.221 を経た現在の ${minClaudeCode} を品質ベースラインとして固定しています。
+        2.1.221、worktree 隔離 session / subagent の main checkout に対する destructive git command と
+        background agent task の PreToolUse restriction 迂回を修正する 2.1.222 を経た現在の
+        ${minClaudeCode} を品質ベースラインとして固定しています。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
@@ -136,6 +141,8 @@ let
         0.144.6 を品質ベースラインとして要求します。
         executor が提供する skill の discover/read、context pressure 下での skill catalog 保持、
         MCP server の refresh/reconnect を含む 0.146.0 を品質ベースラインとして要求します。
+        cyber-capable model の auto-review 既定値を安全側へ修正した 0.146.1 を
+        品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
