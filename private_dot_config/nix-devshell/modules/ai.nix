@@ -214,6 +214,7 @@ let
       llm.antigravity-cli;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
+  codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix { };
   waza = pkgs.callPackage ../packages/waza.nix { };
@@ -234,6 +235,11 @@ in
 
     # --- Token Optimization ---
     llm.rtk
+
+    # --- Code Review Context ---
+    # CLI only. Each repository decides whether to build a graph and add a
+    # project-scoped MCP entry; never run the upstream global installer here.
+    codeReviewGraph
 
     # --- Specification & Design ---
     design-md-cli

@@ -13,6 +13,7 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 - **LLM CLI**: claude-code, codex, copilot-cli, antigravity
 - **ワークフロー**: rtk
+- **コードレビュー補助**: code-review-graph（CLI のみ常設、利用はリポジトリ単位で opt-in）
 
 外部 skill / plugin は apm が担当する（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。
 
@@ -25,6 +26,64 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 - **AGENTS.md** — Codex / OpenCode / Zed / Cursor 向け指示（`~/AGENTS.md`、`private_dot_gemini/AGENTS.md` は Gemini 向け）。CLAUDE.md は Claude Code 向けに別管理。
 
 MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / serena / effect-docs）。
+
+## リポジトリ単位の code-review-graph opt-in
+
+`code-review-graph` の CLI は user devShell へ常設するが、graph build、MCP、hook、daemon は常設しない。上流の `code-review-graph install` は user-global の Codex config / hooks と repository の git hook を直接変更するため実行しない。
+
+まず対象 repository で CLI だけを使い、既存の `rg` / Serena / `code-review` と同じ review task を比較する。
+
+```bash
+code-review-graph build
+code-review-graph status
+code-review-graph detect-changes --brief
+```
+
+次を満たす repository だけ利用可とする。
+
+- 対応言語の source が数百 file 以上あり、multi-hop の変更影響や関連 test を繰り返し調べる。
+- impacted files / tests の precision・recall が既存手段より改善し、false positive と graph 更新コストを含めても効果が再現する。
+- repository 由来データを外部へ送らない stdio / local-only 運用で足りる。
+
+小規模、one-shot review、`*.tmpl` 中心、dynamic dispatch / metaprogramming 中心、または試行で test mapping が改善しない repository は利用不可とする。この dotfiles 自体は `*.tmpl` の解析漏れと related-test の false positive を実測したため、CLI の配備元ではあるが利用対象にはしない。
+
+採用する repository では、まず `code-review-graph build` で repository ごとの DB を作る。worktree 間で DB を共有せず、各 worktree で build / update する。MCP が必要なら read-only tool だけを project config に宣言する。Codex は信頼済み project の `.codex/config.toml` を読むため（[公式 MCP 設定](https://learn.chatgpt.com/docs/extend/mcp.md)）、次を repository に置く。
+
+```toml
+[mcp_servers.code-review-graph]
+command = "code-review-graph"
+args = [
+  "serve",
+  "--tools",
+  "list_graph_stats_tool,query_graph_tool,get_impact_radius_tool,detect_changes_tool,get_review_context_tool",
+]
+enabled_tools = [
+  "list_graph_stats_tool",
+  "query_graph_tool",
+  "get_impact_radius_tool",
+  "detect_changes_tool",
+  "get_review_context_tool",
+]
+```
+
+Claude Code でも利用する repository は、同じ server-side allowlist を project `.mcp.json` に置く。
+
+```json
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "code-review-graph",
+      "args": [
+        "serve",
+        "--tools",
+        "list_graph_stats_tool,query_graph_tool,get_impact_radius_tool,detect_changes_tool,get_review_context_tool"
+      ]
+    }
+  }
+}
+```
+
+`apply_refactor_tool` を含む write tool、Codex / Claude hook、git hook、daemon、HTTP transport、cloud embedding は個別の追加判断なしに有効化しない。詳細な調査根拠は [code-review-graph 導入可否](../docs/research/code-review-graph-adoption.md) を参照する。
 
 ## AI ツール更新の 2 経路
 

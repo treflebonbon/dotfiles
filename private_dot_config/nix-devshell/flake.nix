@@ -5,7 +5,8 @@
     # 26.05 is the final Nixpkgs release supporting Intel Darwin (through 2026-12-31).
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
-    # Source only: backport the requested document-converter releases onto 26.05.
+    # Source only: backport selected package definitions onto 26.05 without
+    # moving the shared package set (document converters and FastMCP for CRG).
     nixpkgs-ai-sources = {
       url = "github:NixOS/nixpkgs/421eebfd0ec7bccd4abe826ce62d7e6e83129493";
       flake = false;
