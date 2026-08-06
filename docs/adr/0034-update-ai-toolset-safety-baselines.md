@@ -26,6 +26,6 @@ Claude Code 2.1.222 は worktree 隔離 session / subagent が main checkout に
 
 ## Consequences
 
-今後も snapshot version と品質 floor は別に扱うが、pin 更新時の Intel Darwin artifact 追跡は不要になる。Nix の検証対象は3 systemとし、APM 0.28.0 を使う lock 再生成と検証済み Impeccable pin の採否は [ADR-0029](0029-impeccable-pin-advance-with-stop-hook.md) の互換性ゲートに従う。本決定は [ADR-0028](0028-claude-code-darwin-x64-local-override.md) を supersede する。
+今後も snapshot version と品質 floor は別に扱うが、pin 更新時の Intel Darwin artifact 追跡は不要になる。Nix の検証対象は3 systemとし、APM 0.28.0 を使う lock 再生成と検証済み Impeccable pin の採否は [ADR-0029](0029-impeccable-pin-advance-with-stop-hook.md) の互換性ゲートに従う。本決定は [ADR-0028](0028-claude-code-darwin-x64-local-override.md) と [ADR-0033](0033-update-llm-agents-snapshot-and-claude-baseline.md) を supersede する。
 
-関連: [ADR-0028](0028-claude-code-darwin-x64-local-override.md) / [ADR-0029](0029-impeccable-pin-advance-with-stop-hook.md) / [ai-runtimes](../../runtime/ai-runtimes.md)
+関連: [ADR-0028](0028-claude-code-darwin-x64-local-override.md) / [ADR-0029](0029-impeccable-pin-advance-with-stop-hook.md) / [ADR-0033](0033-update-llm-agents-snapshot-and-claude-baseline.md) / [ai-runtimes](../../runtime/ai-runtimes.md)

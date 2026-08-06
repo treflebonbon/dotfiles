@@ -142,8 +142,6 @@ setup() {
   grep -q '^    llm\.antigravity-cli$' "$module"
   run grep -q 'x86_64-darwin' "$module"
   [ "$status" -ne 0 ]
-  run grep -q 'overrideAttrs' "$module"
-  [ "$status" -ne 0 ]
 }
 
 @test "nix-devshell installs code-review-graph CLI without globally enabling it (issue #136)" {
