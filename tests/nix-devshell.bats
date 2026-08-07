@@ -2,6 +2,7 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/xdg-cache"
 }
 
 @test "nix-devshell includes bubblewrap for Codex sandboxing on Linux only" {

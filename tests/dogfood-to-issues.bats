@@ -1,12 +1,22 @@
 setup_file() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  REF_DIR="$PROJECT_ROOT/local-skills/dogfood-to-issues/references"
-  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
+  SOURCE_REF_DIR="$PROJECT_ROOT/local-skills/dogfood-to-issues/references"
+  TEST_REF_DIR="$BATS_FILE_TMPDIR/references"
+  mkdir -p "$TEST_REF_DIR"
+  cp "$SOURCE_REF_DIR/package.json" \
+    "$SOURCE_REF_DIR/package-lock.json" \
+    "$SOURCE_REF_DIR/playwright-dogfood-runner.mjs" \
+    "$TEST_REF_DIR/"
+  mkdir -p "$TEST_REF_DIR/fixtures"
+  cp -R "$SOURCE_REF_DIR/fixtures/mv3-min" "$TEST_REF_DIR/fixtures/"
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    npm_config_cache="$BATS_FILE_TMPDIR/npm-cache" \
+    npm --prefix "$TEST_REF_DIR" ci
 }
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  REF_DIR="$PROJECT_ROOT/local-skills/dogfood-to-issues/references"
+  REF_DIR="$BATS_FILE_TMPDIR/references"
   RUNNER="$REF_DIR/playwright-dogfood-runner.mjs"
   export NODE_BIN="$(command -v node)"
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
