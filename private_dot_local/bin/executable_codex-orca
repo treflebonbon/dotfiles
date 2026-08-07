@@ -5,7 +5,8 @@ workspace="$(pwd -P)"
 codex_args=(-C "$workspace")
 
 if git_common_dir="$(
-  git -C "$workspace" rev-parse \
+  env -u GIT_DIR -u GIT_COMMON_DIR \
+    git -C "$workspace" rev-parse \
     --path-format=absolute \
     --git-common-dir 2>/dev/null
 )"; then

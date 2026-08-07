@@ -162,7 +162,7 @@ assert "--sandbox" not in command
 PY
 }
 
-@test "Orca Codex launcher permits another repository's linked worktree Git metadata writes" {
+@test "Orca Codex launcher permits another repository's linked worktree Git metadata writes despite ambient overrides" {
   local home="$BATS_TEST_TMPDIR/home"
   local repo_a="$BATS_TEST_TMPDIR/repo-a"
   local repo_b="$BATS_TEST_TMPDIR/repo-b"
@@ -187,8 +187,9 @@ PY
   [ "$status" -ne 0 ]
   [ -z "$(git -C "$worktree_b" diff --cached --name-only)" ]
 
-  run env HOME="$home" CODEX_HOME="$codex_home" bash -c \
-    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git add linked.txt' \
+  run env HOME="$home" CODEX_HOME="$codex_home" \
+    GIT_DIR="$repo_a/.git" GIT_COMMON_DIR="$repo_a/.git" bash -c \
+    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- env -u GIT_DIR -u GIT_COMMON_DIR git add linked.txt' \
     _ "$worktree_b" "$CODEX_ORCA"
 
   [ "$status" -eq 0 ]
