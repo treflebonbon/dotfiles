@@ -44,13 +44,27 @@ else
 fi
 
 codex_homes=()
+append_codex_home() {
+  local candidate="$1"
+  local existing
+
+  for existing in "${codex_homes[@]}"; do
+    if [ "$existing" = "$candidate" ]; then
+      return
+    fi
+  done
+
+  codex_homes+=("$candidate")
+}
+
+append_codex_home "$HOME/.codex"
+
+if [ -d "$HOME/.codex-app" ]; then
+  append_codex_home "$HOME/.codex-app"
+fi
+
 if [ -n "${CODEX_HOME:-}" ]; then
-  codex_homes=("$CODEX_HOME")
-else
-  codex_homes=("$HOME/.codex")
-  if [ -d "$HOME/.codex-app" ]; then
-    codex_homes+=("$HOME/.codex-app")
-  fi
+  append_codex_home "$CODEX_HOME"
 fi
 
 tmp=""

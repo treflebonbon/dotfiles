@@ -2,6 +2,7 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  export CODEX_ORCA="$PROJECT_ROOT/private_dot_local/bin/executable_codex-orca"
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
@@ -161,28 +162,68 @@ assert "--sandbox" not in command
 PY
 }
 
-@test "dotfiles-secure permits Git metadata writes from a linked worktree" {
+@test "Orca Codex launcher permits another repository's linked worktree Git metadata writes despite ambient overrides" {
   local home="$BATS_TEST_TMPDIR/home"
-  local source_repo="$BATS_TEST_TMPDIR/source"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local repo_a="$BATS_TEST_TMPDIR/repo-a"
+  local repo_b="$BATS_TEST_TMPDIR/repo-b"
+  local worktree_b="$BATS_TEST_TMPDIR/worktree-b"
   local codex_home="$home/.codex"
-  mkdir -p "$source_repo" "$codex_home"
+  mkdir -p "$repo_a" "$repo_b" "$codex_home"
 
-  git -C "$source_repo" init -q
-  git -C "$source_repo" config user.email test@example.com
-  git -C "$source_repo" config user.name Test
-  printf 'base\n' >"$source_repo/base.txt"
-  git -C "$source_repo" add base.txt
-  git -C "$source_repo" commit -qm 'test: initialize repository'
-  git -C "$source_repo" worktree add -qb linked "$worktree"
-  render_codex_managed_config "$source_repo" "$codex_home/config.toml"
+  git -C "$repo_a" init -q
+  git -C "$repo_b" init -q
+  git -C "$repo_b" config user.email test@example.com
+  git -C "$repo_b" config user.name Test
+  printf 'base\n' >"$repo_b/base.txt"
+  git -C "$repo_b" add base.txt
+  git -C "$repo_b" commit -qm 'test: initialize repository'
+  git -C "$repo_b" worktree add -qb linked "$worktree_b"
+  render_codex_managed_config "$repo_a" "$codex_home/config.toml"
 
-  printf 'linked\n' >"$worktree/linked.txt"
+  printf 'linked\n' >"$worktree_b/linked.txt"
   run env HOME="$home" CODEX_HOME="$codex_home" codex sandbox -P dotfiles-secure \
-    -C "$worktree" -- git add linked.txt
+    -C "$worktree_b" -- git add linked.txt
+
+  [ "$status" -ne 0 ]
+  [ -z "$(git -C "$worktree_b" diff --cached --name-only)" ]
+
+  run env HOME="$home" CODEX_HOME="$codex_home" \
+    GIT_DIR="$repo_a/.git" GIT_COMMON_DIR="$repo_a/.git" bash -c \
+    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- env -u GIT_DIR -u GIT_COMMON_DIR git add linked.txt' \
+    _ "$worktree_b" "$CODEX_ORCA"
 
   [ "$status" -eq 0 ]
-  [ "$(git -C "$worktree" diff --cached --name-only)" = "linked.txt" ]
+  [ "$(git -C "$worktree_b" diff --cached --name-only)" = "linked.txt" ]
+
+  printf 'protected\n' >"$worktree_b/.env"
+  run env HOME="$home" CODEX_HOME="$codex_home" bash -c \
+    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- sh -c "printf '\''overwritten\\n'\'' >.env"' \
+    _ "$worktree_b" "$CODEX_ORCA"
+
+  [ "$status" -ne 0 ]
+  [ "$(cat "$worktree_b/.env")" = "protected" ]
+}
+
+@test "Orca Codex launcher keeps non-Git folder contexts usable" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$home" "$workspace" "$bin"
+
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@"
+EOF
+  chmod +x "$bin/codex"
+
+  run env HOME="$home" PATH="$bin:$PATH" bash -c \
+    'cd "$1" && exec "$2" --version' \
+    _ "$workspace" "$CODEX_ORCA"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "-C" ]
+  [ "${lines[1]}" = "$workspace" ]
+  [ "${lines[2]}" = "--version" ]
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {
@@ -586,7 +627,7 @@ EOF
   cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
 }
 
-@test "Codex AGENTS deploy script writes to CODEX_HOME when set" {
+@test "Codex AGENTS deploy script writes to native and CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
@@ -595,12 +636,12 @@ EOF
 
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
 
-  [ ! -f "$home/.codex/AGENTS.md" ]
-  [ -f "$codex_home/AGENTS.md" ]
+  cmp "$home/.config/codex/AGENTS.md" "$home/.codex/AGENTS.md"
+  cmp "$home/.config/codex/AGENTS.md" "$codex_home/AGENTS.md"
   grep -q '^# Guidelines$' "$codex_home/AGENTS.md"
 }
 
-@test "Codex AGENTS deploy script respects WSL CODEX_HOME" {
+@test "Codex AGENTS deploy script writes to native and WSL CODEX_HOME" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
@@ -610,8 +651,8 @@ EOF
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
 
-  [ ! -f "$home/.codex/AGENTS.md" ]
-  [ -f "$codex_home/AGENTS.md" ]
+  cmp "$home/.config/codex/AGENTS.md" "$home/.codex/AGENTS.md"
+  cmp "$home/.config/codex/AGENTS.md" "$codex_home/AGENTS.md"
   grep -q '^# Guidelines$' "$codex_home/AGENTS.md"
 }
 
@@ -639,7 +680,7 @@ EOF
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
 }
 
-@test "Codex hooks deploy script writes to CODEX_HOME when set" {
+@test "Codex hooks deploy script writes to native and CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
@@ -648,12 +689,11 @@ EOF
 
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
 
-  [ ! -f "$home/.codex/hooks.json" ]
-  [ -f "$codex_home/hooks.json" ]
+  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
   cmp "$home/.config/codex/hooks.json" "$codex_home/hooks.json"
 }
 
-@test "Codex hooks deploy script respects WSL CODEX_HOME" {
+@test "Codex hooks deploy script writes to native and WSL CODEX_HOME" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
@@ -663,8 +703,7 @@ EOF
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
 
-  [ ! -f "$home/.codex/hooks.json" ]
-  [ -f "$codex_home/hooks.json" ]
+  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
   cmp "$home/.config/codex/hooks.json" "$codex_home/hooks.json"
 }
 
@@ -694,7 +733,7 @@ EOF
   [ "$(stat -c %a "$home/.codex-app/rules/default.rules")" = "600" ]
 }
 
-@test "Codex rules deploy script writes to CODEX_HOME when set" {
+@test "Codex rules deploy script writes to native and CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex/rules" "$codex_home"
@@ -703,13 +742,14 @@ EOF
 
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
 
-  [ ! -f "$home/.codex/rules/default.rules" ]
-  [ -f "$codex_home/rules/default.rules" ]
+  cmp "$home/.config/codex/rules/default.rules" "$home/.codex/rules/default.rules"
+  cmp "$home/.config/codex/rules/default.rules" "$codex_home/rules/default.rules"
   grep -q 'pattern = \["git", "push"\]' "$codex_home/rules/default.rules"
+  [ "$(stat -c %a "$home/.codex/rules/default.rules")" = "600" ]
   [ "$(stat -c %a "$codex_home/rules/default.rules")" = "600" ]
 }
 
-@test "Codex rules deploy script respects WSL CODEX_HOME" {
+@test "Codex rules deploy script writes to native and WSL CODEX_HOME" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex/rules" "$codex_home"
@@ -719,9 +759,10 @@ EOF
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
 
-  [ ! -f "$home/.codex/rules/default.rules" ]
-  [ -f "$codex_home/rules/default.rules" ]
+  cmp "$home/.config/codex/rules/default.rules" "$home/.codex/rules/default.rules"
+  cmp "$home/.config/codex/rules/default.rules" "$codex_home/rules/default.rules"
   grep -q 'pattern = \[\["sudo", "su"\]\]' "$codex_home/rules/default.rules"
+  [ "$(stat -c %a "$home/.codex/rules/default.rules")" = "600" ]
   [ "$(stat -c %a "$codex_home/rules/default.rules")" = "600" ]
 }
 
@@ -761,7 +802,7 @@ EOF
   cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
 }
 
-@test "Codex environment deploy script writes to CODEX_HOME when set" {
+@test "Codex environment deploy script writes to native and CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex/environments" "$codex_home"
@@ -770,12 +811,12 @@ EOF
 
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
 
-  [ ! -f "$home/.codex/environments/environment.toml" ]
-  [ -f "$codex_home/environments/environment.toml" ]
+  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex/environments/environment.toml"
+  cmp "$home/.config/codex/environments/environment.toml" "$codex_home/environments/environment.toml"
   grep -q '^name = "default"$' "$codex_home/environments/environment.toml"
 }
 
-@test "Codex environment deploy script respects WSL CODEX_HOME" {
+@test "Codex environment deploy script writes to native and WSL CODEX_HOME" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex/environments" "$codex_home"
@@ -785,8 +826,8 @@ EOF
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
 
-  [ ! -f "$home/.codex/environments/environment.toml" ]
-  [ -f "$codex_home/environments/environment.toml" ]
+  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex/environments/environment.toml"
+  cmp "$home/.config/codex/environments/environment.toml" "$codex_home/environments/environment.toml"
   grep -q '^name = "default"$' "$codex_home/environments/environment.toml"
 }
 
@@ -935,7 +976,7 @@ EOF
   grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
 }
 
-@test "Codex config merge script writes to CODEX_HOME when set" {
+@test "Codex config merge script writes to native and CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
@@ -969,14 +1010,13 @@ EOF
 
   HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  [ ! -f "$home/.codex/config.toml" ]
-  assert_codex_managed_values "$codex_home/config.toml"
+  assert_codex_managed_values "$home/.codex/config.toml" "$codex_home/config.toml"
   grep -q '^\[plugins\."example-curated@openai-curated"\]$' "$codex_home/config.toml"
   grep -q '^\[plugins\."example-local-plugin@example-marketplace"\]$' "$codex_home/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/example"\]$' "$codex_home/config.toml"
 }
 
-@test "Codex config merge script respects WSL CODEX_HOME" {
+@test "Codex config merge script writes to native and WSL CODEX_HOME" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
@@ -986,9 +1026,7 @@ EOF
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
     bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  [ ! -f "$home/.codex/config.toml" ]
-  [ -f "$codex_home/config.toml" ]
-  assert_codex_managed_values "$codex_home/config.toml"
+  assert_codex_managed_values "$home/.codex/config.toml" "$codex_home/config.toml"
 }
 
 @test "Codex config merge script removes deprecated codex_hooks feature flag" {

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+workspace="$(pwd -P)"
+codex_args=(-C "$workspace")
+
+if git_common_dir="$(
+  env -u GIT_DIR -u GIT_COMMON_DIR \
+    git -C "$workspace" rev-parse \
+    --path-format=absolute \
+    --git-common-dir 2>/dev/null
+)"; then
+  filesystem_override="$(
+    python3 - "$git_common_dir" <<'PY'
+import json
+import sys
+
+path = json.dumps(sys.argv[1], ensure_ascii=False)
+print(f'permissions.dotfiles-secure.filesystem={{{path}="write"}}')
+PY
+  )"
+  codex_args+=(-c "$filesystem_override")
+fi
+
+exec codex \
+  "${codex_args[@]}" \
+  "$@"
