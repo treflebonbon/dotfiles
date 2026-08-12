@@ -39,6 +39,6 @@ Codex 0.147.0 の release note には、不慣れな local project への明示�
 
 本 ADR は [ADR-0034](0034-update-ai-toolset-safety-baselines.md) のうち snapshot 固定値・`minClaudeCode`/`minCodex` の値だけを supersede する。x86_64-darwin サポート終了・3-system化の decision は ADR-0034 のまま有効で、本 ADR では再決定しない。
 
-`runtime/ai-runtimes.md` には home-wide に必要な現在の snapshot・version・floor 状態だけを置き、更新理由と検証境界は本 ADR を正本とする。将来の pin 更新では [ADR-0028](0028-claude-code-darwin-x64-local-override.md) / [ADR-0034](0034-update-ai-toolset-safety-baselines.md) に従い、pin 上の各 package version の変化をトリガーに再評価する。
+決定そのものの正本は本 ADR。`runtime/ai-runtimes.md` の「現在の」floor サマリー行（`baseline は ... 床固定する`）は本 ADR の `minClaudeCode`/`minCodex` 値と同期させる一方、同ファイルの日付付きエントリは pin 更新ごとに確認した release note・検証範囲を記録する append-only な運用履歴であり、本 ADR の記述と矛盾しない限り両方を保持する。将来の pin 更新では [ADR-0028](0028-claude-code-darwin-x64-local-override.md) / [ADR-0034](0034-update-ai-toolset-safety-baselines.md) に従い、pin 上の各 package version の変化をトリガーに再評価する。
 
 関連: [ADR-0028](0028-claude-code-darwin-x64-local-override.md) / [ADR-0033](0033-update-llm-agents-snapshot-and-claude-baseline.md) / [ADR-0034](0034-update-ai-toolset-safety-baselines.md) / [ai-runtimes](../../runtime/ai-runtimes.md)
