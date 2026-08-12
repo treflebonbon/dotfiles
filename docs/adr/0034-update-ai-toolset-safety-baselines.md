@@ -9,6 +9,8 @@ status: accepted
 
 # AI ツールセットを更新し Intel Mac サポートを終了する
 
+> 2026-08-12 に [ADR-0035](0035-update-llm-agents-snapshot-and-trust-boundary-baseline.md) が snapshot と `minClaudeCode`/`minCodex` の値を更新したため、本決定のうちその部分は superseded。x86_64-darwin サポート終了と3-system化の決定は本 ADR がそのまま正本。
+
 ## Context
 
 Claude Code 2.1.222 は worktree 隔離 session / subagent が main checkout に destructive git command を実行できる問題と、background agent task で PreToolUse auto-allow hook が tool restriction を迂回できる問題を修正した。Codex 0.146.1 は cyber-capable model の auto-review 既定値を安全側へ修正した。どちらもこの repo が依存する worktree 隔離・managed hook・auto-review の安全境界に直接関係する。
