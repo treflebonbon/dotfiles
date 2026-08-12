@@ -94,7 +94,7 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.222` / `0.146.1`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れの修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.228` / `0.147.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離・permission/trust boundary の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れ・permission bypass・trust boundary の修正）。
 
 **pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも pin 済みの `llm.*` packageを直接使う。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
 
@@ -198,6 +198,16 @@ floating dependency の selected skill payload が変わったのは Impeccable�
 同じ更新で x86_64-darwin サポートを終了し、repo / ユーザー環境 / 言語テンプレートを3-system化した。これにより Claude Code 専用 derivation、Codex / Copilot CLI / Antigravity CLI の local override、`allowBroken` 例外、Intel向け release asset/hash追跡を削除した。採用判断は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) を参照する。
 
 同日の APM 経路では、APM 0.28.0 の隔離 runtime layout で floating dependency を再解決した。Impeccable HEAD `a075d89bdbe60b2b00220cb0527fb5091e84215e`（4.0.4）は Design Hook 互換性ゲート 7/7 と managed hook の fail-open 契約を維持したため、検証済み Skill Pin として採用した。selected skill payload が変わったのは Impeccable、Modern Web Guidance（`684ab9d7`）、Remotion（`7809e793`）である。Shadcn（`b1c580c6`）、Orca 3 skill（`79896cb9`）、find-skills（`a4d243c3`）は repository revision のみ進み、selected subtree の content hash は不変だった。Matt Pocock の選択済み skill 群は `ed37663cc5fbef691ddfecd080dff42f7e7e350d` を維持した。生成した lock は同じ環境の `apm install --frozen` で書き戻しなく再現できた。
+
+2026-08-12 JST、導入済み AI ツールセットを `llm-agents.nix` の immutable snapshot `8651bf95` へ更新した（`numtide/llm-agents.nix` main HEAD、2026-08-12 時点）。共有 nixpkgs は `fca2dbd4` のまま据え置き（`flake.lock` の `nixpkgs_2` ノードで確認）、導入 version は claude-code 2.1.228、codex 0.147.0、copilot-cli 1.0.79、antigravity-cli 1.1.12、rtk 0.45.0、apm 0.28.0（変化なし）となった。
+
+Claude Code 2.1.223-2.1.228 の公式 CHANGELOG を確認した結果、タブ・不可視 Unicode による permission dialog 迂回・workflow sandbox の動的 `import()` 脱出・`bypassPermissions` の org ポリシー無視を修正する 2.1.223、sandbox filesystem deny の末尾スラッシュ迂回と sandbox violation 詳細非表示を修正する 2.1.224、auto mode の safety-filter refusal が consecutive-block limit へ誤加算される不具合を修正する 2.1.225 が見つかった。いずれも worktree 隔離・auto mode というこの repo の主用形態の permission/trust boundary に直結するため、`minClaudeCode` を `2.1.222` → `2.1.228` へ引き上げた。2.1.226-2.1.228 は床上げの具体根拠を確認できなかった（2.1.226 は "Bug fixes and reliability improvements" のみ、2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ取得するため対象外）。pin 自体は 2.1.223-2.1.225 の修正で 2.1.228 まで進むため、床もその version に揃えた。
+
+Codex 0.147.0 の release note には、不慣れな local project への明示的 trust 要求と managed authentication 制約の credential 使用前強制、Agent Plugin runtime の isolation 強化（policy 更新失敗時のネットワーク拒否含む）、表示コマンド・履歴再生からの secret / bearer token redaction 強化が含まれる。この repo が主用する多 agent・外部 skill・plugin 運用の trust boundary に直結するため、`minCodex` を `0.146.1` → `0.147.0` へ引き上げた。copilot-cli 1.0.79・antigravity-cli 1.1.12・rtk 0.45.0 は package metadata での追従のみ確認し、追加の dotfiles 設定変更は不要と判断した（3 CLI とも `ai.nix` の quality-floor assert 対象外）。
+
+検証は `nix flake check --all-systems`（x86_64-linux / aarch64-linux / aarch64-darwin の3 system で新 pin・新 floor が通過）と、3 system それぞれで `pkgs.llm-agents.<pkg>.version`（`modules/ai.nix` と同じ `shared-nixpkgs` overlay 適用後の経路）を深く評価し6 packageの version が3 system で一致することの確認まで（ADR-0028 の教訓どおり、devShell を `.drv` まで force する deep eval を使用）。aarch64-darwin の実機実行は未確認。採用判断は [ADR-0035](../docs/adr/0035-update-llm-agents-snapshot-and-trust-boundary-baseline.md) を参照する。
+
+同日の APM 経路では、更新した llm-agents pin から取得した APM 0.28.0（変化なし）の隔離 runtime layout で floating dependency を再解決した。`pbakaus/impeccable`（`a075d89b`）と Matt Pocock の選択済み skill 群（`ed37663c`）はいずれも `apm.yml` 上で rev-pin 済みのため今回も前進しなかった——ADR-0029 が禁止する「pin だけの前進」はそもそも発生していない。floating dependency で selected payload が変わったのは Effect-TS（`28822c9e`。上流 "Simplify Effect skill guidance" commit により `SKILL.md` に一本化され、reference ガイド10本が削除された。upstream の意図的な簡素化と確認済み）、Modern Web Guidance（`9e70fa4c`。`css-layout` ディレクトリ配下のガイドが `css` へ改名され、`ui-atoms/state-aware-sticky-headers.md` が新規追加）、Remotion（`b12104ef`）、Orca の `orca-cli`（`4b9fb466`。他2 skillは repository revision のみ前進で content hash 不変）である。Anthropic skills（`pdf`/`skill-creator`、`f17010c9`）、Shadcn（`efac5987`）、find-skills（`c6f69c63`）は repository revision のみ進み selected subtree の content hash は不変だった。Supabase・vercel-labs 系・web-design-guidelines は floating のまま resolved_commit も不変だった。生成した lock は同じ環境の `apm install --frozen` で「No changes」として書き戻しなく再現できた。ライブ skill directory と `chezmoi apply` には触れていない。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 

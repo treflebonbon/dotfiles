@@ -61,9 +61,21 @@ let
   # 2.1.222: worktree 隔離 session / subagent が main checkout に対して destructive git command を
   #          実行できる問題と、background agent task で PreToolUse auto-allow hook が tool restriction を
   #          迂回できる問題を修正。隔離と permission の保証に直結するため床上げする。
+  # 2.1.223: タブ・不可視 Unicode でコマンドの一部を permission 承認ダイアログから隠す permission bypass、
+  #          workflow script が動的 import() でサンドボックス外のコードを実行できる問題、agent 定義の
+  #          bypassPermissions が org の bypass-permissions 無効化ポリシーを無視する権限ギャップを修正。
+  # 2.1.224: sandbox filesystem の deny エントリが末尾スラッシュ付きだと Linux/macOS で静かに迂回できる
+  #          問題、sandbox violation の詳細が Bash tool result に一切表示されない問題を修正。
+  # 2.1.225: auto mode が自身の permission check への safety-filter refusal を consecutive-block limit へ
+  #          誤って加算する不具合を修正（teammateMode: auto を主用するこの repo の auto mode 安定性に直結）。
+  # 2.1.226-2.1.228: release note に床上げ根拠となる具体記述がない区間（2.1.226 は "Bug fixes and
+  #                  reliability improvements" のみ、2.1.227 は slash-command menu 等、2.1.228 は
+  #                  claude.ai から sync された skill の hardening でこの repo は skill を apm / chezmoi /
+  #                  nix 経由でのみ取得するため対象外）。単独の床上げ根拠にはしないが、2.1.223-2.1.225 の
+  #                  修正で pin 自体が 2.1.228 まで進むため、床も同じ version に揃える。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.222";
-  minCodex = "0.146.1";
+  minClaudeCode = "2.1.228";
+  minCodex = "0.147.0";
 
   claudeCode =
     let
@@ -95,8 +107,14 @@ let
         (`claude-opus-5`) を追加しデフォルト Opus モデルに変更する 2.1.219、zsh の [[ ]] regex 内に
         隠したコマンドによる permission check 迂回と background session の git 指示逸脱を修正する
         2.1.221、worktree 隔離 session / subagent の main checkout に対する destructive git command と
-        background agent task の PreToolUse restriction 迂回を修正する 2.1.222 を経た現在の
-        ${minClaudeCode} を品質ベースラインとして固定しています。
+        background agent task の PreToolUse restriction 迂回を修正する 2.1.222、タブ・不可視 Unicode に
+        よる permission dialog 迂回・workflow sandbox の動的 import() 脱出・bypassPermissions の org
+        ポリシー無視を修正する 2.1.223、sandbox filesystem deny の末尾スラッシュ迂回・sandbox violation
+        詳細の非表示を修正する 2.1.224、auto mode の safety-filter refusal が consecutive-block limit に
+        誤加算される不具合を修正する 2.1.225 を主根拠に、2.1.226-2.1.228 は具体的な床上げ根拠を
+        確認できないまま pin が到達した現在の ${minClaudeCode} を品質ベースラインとして固定しています
+        （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
+        取得するため対象外で、単独の根拠にはしていません）。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
         2.1.200 は default permission mode を "default" から "Manual" へ変更しています（runtime/ai-runtimes.md 参照）。
         修復手順:
@@ -123,6 +141,10 @@ let
         executor が提供する skill の discover/read、context pressure 下での skill catalog 保持、
         MCP server の refresh/reconnect を含む 0.146.0 を品質ベースラインとして要求します。
         cyber-capable model の auto-review 既定値を安全側へ修正した 0.146.1 を
+        品質ベースラインとして要求します。
+        不慣れな local project への明示的 trust 要求と managed authentication 制約の credential 使用前
+        強制、Agent Plugin runtime の isolation 強化（policy 更新失敗時のネットワーク拒否含む）、
+        表示コマンド・履歴再生からの secret / bearer token redaction 強化を含む 0.147.0 を
         品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
