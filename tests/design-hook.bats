@@ -3,6 +3,7 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   RUNTIME="${IMPECCABLE_HOOK_RUNTIME:-$HOME/.agents/skills/impeccable/scripts/hook.mjs}"
+  ADMIN="${RUNTIME%/hook.mjs}/hook-admin.mjs"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$PROJECT"
   printf '{}\n' >"$PROJECT/package.json"
@@ -56,6 +57,56 @@ run_stop_hook() {
   [ "$status" -eq 0 ]
   [[ "$output" == *'"hookEventName":"PostToolUse"'* ]]
   [[ "$output" == *'[gradient-text]'* ]]
+}
+
+@test "materialized quiet Design Hook emits the full self-serve policy once per session" {
+  require_runtime
+  local first="$PROJECT/Card.css"
+  local second="$PROJECT/Hero.css"
+  printf '%s\n' "$IMMEDIATE_CSS" >"$first"
+  printf '%s\n' "$IMMEDIATE_CSS_ALT" >"$second"
+
+  run run_post_tool_use_hook "policy-footer" "$first"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'Triage each finding'* ]]
+  [[ "$output" == *'hook-admin.mjs'* ]]
+  [[ "$output" == *'ignore-value <rule>'* ]]
+  [[ "$output" == *'--reason \"<who decided: evidence>\"'* ]]
+  [[ "$output" == *'state in your reply what you fixed, what you suppressed, and what you left standing'* ]]
+  [[ "$output" == *'\"user confirmed\" in a reason only when the user did'* ]]
+  [[ "$output" == *'`ignore-file` and `ignore-rule` need the user'*'explicit approval'* ]]
+
+  run run_post_tool_use_hook "policy-footer" "$second"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'Triage per the session policy'* ]]
+  [[ "$output" == *'persist confident false-positive or sanctioned-exception ignores'* ]]
+  [[ "$output" == *'disclose them in your reply'* ]]
+  [[ "$output" != *'Triage each finding'* ]]
+}
+
+@test "materialized Design Hook self-serve ignore persists only a reasoned detector value" {
+  require_runtime
+  [ -f "$ADMIN" ]
+
+  run bash -c 'cd "$1" && node "$2" ignore-value overused-font Inter --reason "agent: documented fixture"' _ "$PROJECT" "$ADMIN"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'detector.ignoreValues'* ]]
+
+  run node -e '
+    const fs = require("node:fs");
+    const config = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const values = config.detector?.ignoreValues;
+    if (!Array.isArray(values) || values.length !== 1) process.exit(1);
+    const [entry] = values;
+    if (entry.rule !== "overused-font" || entry.value !== "inter") process.exit(2);
+    if (entry.reason !== "agent: documented fixture" || !entry.createdAt) process.exit(3);
+    if (config.hook?.ignoreValues || config.detector.ignoreRules?.length || config.detector.ignoreFiles?.length) process.exit(4);
+  ' "$PROJECT/.impeccable/config.json"
+
+  [ "$status" -eq 0 ]
 }
 
 @test "materialized quiet Design Hook stays silent for clean, non-UI, sensitive, and generated files" {

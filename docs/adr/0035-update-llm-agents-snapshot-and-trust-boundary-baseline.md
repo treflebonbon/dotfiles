@@ -9,6 +9,8 @@ status: accepted
 
 # llm-agents snapshot を更新し Claude Code / Codex の trust boundary 修正を品質フロアにする
 
+> 2026-08-15: snapshot 固定値と `minClaudeCode` は [ADR-0036](0036-update-llm-agents-and-validated-skill-pins.md) が supersede する。3-system化と `minCodex = 0.147.0` は本 ADR のまま有効。
+
 ## Context
 
 `numtide/llm-agents.nix` の 2026-08-12 時点 main HEAD (`8651bf95690800f5361d53a9abda0fc3fbe0e2ec`) を確認したところ、claude-code / codex ともに複数版が進んでいた。
