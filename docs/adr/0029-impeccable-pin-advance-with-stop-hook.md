@@ -168,4 +168,10 @@ Impeccable HEAD `a075d89bdbe60b2b00220cb0527fb5091e84215e`（4.0.4）を APM 0.2
 
 既知の both-tiers Stop 交互報告 defect はこの revision にも残っており、characterization test は変更しない。Claude Code / Codex の hook 配線にも変更はない。
 
+## 補足（2026-08-15 の更新時）
+
+Impeccable `5a149f3fdb1b5793f10567233b1dcab98fc305fd`（4.1.1）を APM 0.28.0 の隔離 runtime layout に materialize した。従来の二層 hook 契約に加え、finding policy の full footer を session 内の初回だけ表示し、2回目以降は short footer にする契約をテストへ追加した。`tests/design-hook.bats` は候補 runtime で 9/9、managed hook の fail-open test も通過した。既知の both-tiers Stop 交互報告 defect は残るため characterization test を維持し、hook 配線も変更しない。
+
+4.1.1 の full footer は、確信のある false positive または明示的に許容された例外に限って agent 自身が `ignore-value` を実行できると案内する。この narrow suppression は可逆かつ finding 単位なので許容するが、根拠をユーザーへ開示する。test は `--reason` を持つ1 finding valueだけが `detector.ignoreValues` へ保存され、hook / file / rule 全体を抑制しないことまで確認する。file / rule 全体を隠す `ignore-file` / `ignore-rule` は従来どおりユーザーの明示承認を必要とする。採用判断は [ADR-0036](0036-update-llm-agents-and-validated-skill-pins.md) を参照する。
+
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

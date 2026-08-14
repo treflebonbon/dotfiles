@@ -73,8 +73,13 @@ let
   #                  claude.ai から sync された skill の hardening でこの repo は skill を apm / chezmoi /
   #                  nix 経由でのみ取得するため対象外）。単独の床上げ根拠にはしないが、2.1.223-2.1.225 の
   #                  修正で pin 自体が 2.1.228 まで進むため、床も同じ version に揃える。
+  # 2.1.229-2.1.232: 危険 flag の auto-approval、PowerShell / Git Bash symlink の permission bypass、
+  #                  nested repository の trust 継承、cross-session /tmp symlink と Linux protected-path の
+  #                  sandbox bypass を修正。GitLab token redaction と project settings からの sandbox.ripgrep
+  #                  override 禁止も含む。subagent fork と interactive session の non-teammate background 実行が
+  #                  既定化されるため、orchestration の smoke test も更新時の検証対象にする。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.228";
+  minClaudeCode = "2.1.232";
   minCodex = "0.147.0";
 
   claudeCode =
@@ -112,7 +117,10 @@ let
         ポリシー無視を修正する 2.1.223、sandbox filesystem deny の末尾スラッシュ迂回・sandbox violation
         詳細の非表示を修正する 2.1.224、auto mode の safety-filter refusal が consecutive-block limit に
         誤加算される不具合を修正する 2.1.225 を主根拠に、2.1.226-2.1.228 は具体的な床上げ根拠を
-        確認できないまま pin が到達した現在の ${minClaudeCode} を品質ベースラインとして固定しています
+        確認できないまま pin が到達した 2.1.228 に加え、危険 flag の auto-approval 停止、PowerShell / Git Bash
+        symlink の permission bypass、nested repository の trust 継承、cross-session /tmp symlink と Linux
+        protected-path の sandbox bypass、GitLab token redaction、project settings による sandbox.ripgrep override を
+        修正する 2.1.229-2.1.232 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
