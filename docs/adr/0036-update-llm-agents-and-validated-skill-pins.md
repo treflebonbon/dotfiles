@@ -9,6 +9,8 @@ status: accepted
 
 # llm-agents と検証済み APM skill pin を更新する
 
+> 2026-08-18 JST: [ADR-0037](0037-update-llm-agents-and-compatible-skill-pins.md) に次の候補の調査と隔離検証を記録した。Claude interactive gate通過後に同ADRをacceptedへ変更し、候補revisionを配備sourceへ反映した時点で、snapshot固定値、`minClaudeCode`、検証済みImpeccable pinをsupersedeする。それまでは配備sourceを本ADRの値に維持し、本ADRがライブ環境の採用判断として有効である。
+
 ## Context
 
 2026-08-15 00:48 JST に固定した一次情報調査では、`numtide/llm-agents.nix` の候補 snapshot `9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a` が Claude Code 2.1.232、Copilot CLI 1.0.80、Antigravity CLI 1.1.13 を提供する。Codex 0.147.0、RTK 0.45.0、APM 0.28.0、local `code-review-graph` 2.3.7 は変わらない。

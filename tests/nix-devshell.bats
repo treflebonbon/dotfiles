@@ -115,6 +115,16 @@ setup() {
   grep -q 'minClaudeCode = "2\.1\.232";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
+@test "proposed AI toolset revisions stay outside deployable chezmoi source" {
+  local adr="$PROJECT_ROOT/docs/adr/0037-update-llm-agents-and-compatible-skill-pins.md"
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local manifest="$PROJECT_ROOT/apm.yml"
+
+  grep -q '^status: proposed$' "$adr"
+  ! grep -Fq '5b3a7eff4326cb9001a79938a53e2fc8662d38c2' "$flake"
+  ! grep -Fq '5c5553b1d7f9e89bb833f9179cea681742a17720' "$manifest"
+}
+
 @test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix"
