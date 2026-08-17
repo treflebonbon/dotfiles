@@ -8,6 +8,8 @@ timestamp: 2026-08-18
 
 # llm-agents.nix と APM 管理 skill の更新候補（2026-08-18）
 
+このノートのfrontmatter `timestamp`と日付だけの履歴表記はJST（Asia/Tokyo）を基準とする。
+
 ## 結論
 
 調査基準時刻は **2026-08-18 00:05 JST / 2026-08-17 15:05 UTC**。moving HEAD はこの時刻に取得した exact commit へ固定した。調査中にも Orca の `main` が先へ進んだため、以下の判定は常に表の commit を指し、後から見た `main` を指さない。

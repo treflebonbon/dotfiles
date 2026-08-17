@@ -9,6 +9,8 @@ status: proposed
 
 # llm-agents と互換性を検証した APM skill pin を更新する
 
+本ADRのfrontmatter `timestamp`と日付だけの履歴表記はJST（Asia/Tokyo）を基準とする。
+
 ## Context
 
 2026-08-18 00:05 JST に固定した一次情報調査では、`numtide/llm-agents.nix` の候補 snapshot `5b3a7eff4326cb9001a79938a53e2fc8662d38c2` が Claude Code 2.1.233 を提供する。直接消費する他の6 package treeは現pinと同一で、Codex 0.147.0、Copilot CLI 1.0.80、Antigravity CLI 1.1.13、RTK 0.45.0、APM 0.28.0、local `code-review-graph` 2.3.7を維持する。
