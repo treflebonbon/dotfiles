@@ -7,7 +7,7 @@ setup() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#5a149f3fdb1b5793f10567233b1dcab98fc305fd' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#5c5553b1d7f9e89bb833f9179cea681742a17720' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -21,12 +21,21 @@ setup() {
 
   grep -Fq 'apm_version: 0.28.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: 5a149f3fdb1b5793f10567233b1dcab98fc305fd' "$lock"
-  grep -Fq 'content_hash: sha256:b34f5d2af061c9666acf7c0c49c8c502384a16eaa5ca24b819a726b16d303504' "$lock"
+  grep -Fq 'resolved_commit: 5c5553b1d7f9e89bb833f9179cea681742a17720' "$lock"
+  grep -Fq 'content_hash: sha256:c8bc2e72ad746ee5bcc99823821acaa0b3fc49d610e1a255faf57e59cfa1762f' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"
   ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
+}
+
+@test "APM lock materializes the reviewed Remotion and Orca payloads" {
+  local lock="$PROJECT_ROOT/apm.lock.yaml"
+
+  grep -Fq 'resolved_commit: 9f0faa5056c3167d0fc0b7e9575d35284dce98c8' "$lock"
+  grep -Fq 'content_hash: sha256:7bf070f6a8d88303a937fd6e4784f748fe3cbab0dd30df56a64ab3b23641a886' "$lock"
+  grep -Fq 'resolved_commit: a1cd7eaa7ed558f43312b8608a34181727b2a77c' "$lock"
+  grep -Fq 'content_hash: sha256:cca6a9098e0dff08ce6fef999da77d98e94255e826b8b9f8132749b5da66dad2' "$lock"
 }
 
 @test "APM pins the Matt Pocock workflow to one validated revision with Codex metadata" {
