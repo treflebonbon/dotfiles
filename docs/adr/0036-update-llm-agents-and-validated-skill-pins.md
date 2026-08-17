@@ -9,7 +9,7 @@ status: accepted
 
 # llm-agents と検証済み APM skill pin を更新する
 
-> 2026-08-18: [ADR-0037](0037-update-llm-agents-and-compatible-skill-pins.md) がsource更新候補を準備した。Claude interactive gate通過後に同ADRをacceptedへ変更した時点で、snapshot固定値、`minClaudeCode`、検証済みImpeccable pinをsupersedeする。それまでは本ADRがライブ環境の採用判断として有効である。
+> 2026-08-18: [ADR-0037](0037-update-llm-agents-and-compatible-skill-pins.md) に次の候補の調査と隔離検証を記録した。Claude interactive gate通過後に同ADRをacceptedへ変更し、候補revisionを配備sourceへ反映した時点で、snapshot固定値、`minClaudeCode`、検証済みImpeccable pinをsupersedeする。それまでは配備sourceを本ADRの値に維持し、本ADRがライブ環境の採用判断として有効である。
 
 ## Context
 

@@ -176,8 +176,8 @@ Impeccable `5a149f3fdb1b5793f10567233b1dcab98fc305fd`（4.1.1）を APM 0.28.0 �
 
 ## 補足（2026-08-18 の更新時）
 
-Impeccable `5c5553b1d7f9e89bb833f9179cea681742a17720`をAPM 0.28.0の隔離runtimeにmaterializeした。`hook.mjs` / `hook-lib.mjs`、footer policy、`hook-admin.mjs`のblobは前pinと同一で、変更されたstatic HTML selectorのcompile cacheも既存契約を変えない。候補runtimeに対して`tests/design-hook.bats` 9/9、managed hook fail-open 1/1が通過したため、新しい検証済みpinとして採用する。
+Impeccable `5c5553b1d7f9e89bb833f9179cea681742a17720`をAPM 0.28.0の隔離runtimeにmaterializeした。`hook.mjs` / `hook-lib.mjs`、footer policy、`hook-admin.mjs`のblobは前pinと同一で、変更されたstatic HTML selectorのcompile cacheも既存契約を変えない。候補runtimeに対して`tests/design-hook.bats` 9/9、managed hook fail-open 1/1が通過したため、互換性確認済みの採用候補とする。
 
-Claude Code / CodexのPostToolUse + Stop配線、timeout、理由付き`ignore-value`と明示承認が必要な`ignore-file` / `ignore-rule`の境界は変更しない。既知のboth-tiers Stop交互報告も残るためcharacterization testを維持する。採用判断は [ADR-0037](0037-update-llm-agents-and-compatible-skill-pins.md) を参照する。
+Claude Code / CodexのPostToolUse + Stop配線、timeout、理由付き`ignore-value`と明示承認が必要な`ignore-file` / `ignore-rule`の境界は変更しない。既知のboth-tiers Stop交互報告も残るためcharacterization testを維持する。Claude interactive gateが未完了なので、配備sourceの採用pinは`5a149f3fdb1b5793f10567233b1dcab98fc305fd`のまま維持する。候補の採用条件は [ADR-0037](0037-update-llm-agents-and-compatible-skill-pins.md) を参照する。
 
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

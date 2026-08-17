@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/5b3a7eff4326cb9001a79938a53e2fc8662d38c2' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "5b3a7eff4326cb9001a79938a53e2fc8662d38c2"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "5b3a7eff4326cb9001a79938a53e2fc8662d38c2"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -112,7 +112,17 @@ setup() {
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.233";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.232";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+}
+
+@test "proposed AI toolset revisions stay outside deployable chezmoi source" {
+  local adr="$PROJECT_ROOT/docs/adr/0037-update-llm-agents-and-compatible-skill-pins.md"
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local manifest="$PROJECT_ROOT/apm.yml"
+
+  grep -q '^status: proposed$' "$adr"
+  ! grep -Fq '5b3a7eff4326cb9001a79938a53e2fc8662d38c2' "$flake"
+  ! grep -Fq '5c5553b1d7f9e89bb833f9179cea681742a17720' "$manifest"
 }
 
 @test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
