@@ -15,6 +15,13 @@ setup() {
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$DOGFOOD_PS_LOG"
 case "$*" in
+  *'-Action Cleanup'*)
+    if [[ "${DOGFOOD_PS_FAIL_CLEANUP:-0}" == "1" ]]; then
+      printf '%s\n' 'cleanup failed' >&2
+      exit 42
+    fi
+    printf '%s\n' absent
+    ;;
   *'-Action Resolve'*) printf '%s\n' 'C:\\Users\\test\\AppData\\Local\\Temp\\aiakos-dogfood-test' ;;
   *) printf '%s\n' absent ;;
 esac
@@ -141,4 +148,20 @@ STUB
   [ ! -e "$STATE/owner" ]
   [ "$(grep -c -- '-Action Resolve' "$LOG")" -eq 1 ]
   ! grep -Fq -- '-Action Start' "$LOG"
+}
+
+@test "Managed Dogfood Chrome releases its owner when cleanup fails" {
+  run env \
+    DOGFOOD_TEST_WSL=1 \
+    DOGFOOD_PS_FAIL_CLEANUP=1 \
+    DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
+    DOGFOOD_WSLPATH="$BIN/wslpath" \
+    DOGFOOD_PS_LOG="$LOG" \
+    BROWSER_OWNERSHIP_DIR="$STATE" \
+    node --input-type=module -e \
+    "import http from 'node:http'; import { acquireManagedDogfoodChrome } from '$MODULE'; const server = http.createServer((_request, response) => response.end('ok')); await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)); process.env.DOGFOOD_CDP_PORT = String(server.address().port); try { const browser = await acquireManagedDogfoodChrome({ runId: 'cleanup-failure' }); await browser.close(); } finally { server.close(); }"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"cleanup failed"* ]]
+  [ ! -e "$STATE/owner" ]
 }

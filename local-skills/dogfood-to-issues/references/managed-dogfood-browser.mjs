@@ -301,17 +301,49 @@ export const acquireManagedDogfoodChrome = async ({
 
   return {
     async close() {
-      if (started) {
-        await powershellAction([
-          "-Action",
-          "Cleanup",
-          "-RunId",
-          id,
-          "-ProfileDir",
-          profile,
-        ]);
+      let cleanupError;
+      let releaseError;
+      try {
+        if (started) {
+          await powershellAction([
+            "-Action",
+            "Cleanup",
+            "-RunId",
+            id,
+            "-ProfileDir",
+            profile,
+          ]);
+        }
+      } catch (error) {
+        cleanupError = error;
+      } finally {
+        try {
+          await releaseOwner(owner.ownerFile, id);
+        } catch (error) {
+          releaseError = error;
+        }
       }
-      await releaseOwner(owner.ownerFile, id);
+      if (releaseError) {
+        const releaseMessage =
+          releaseError instanceof Error
+            ? releaseError.message
+            : String(releaseError);
+        const cleanupMessage = cleanupError
+          ? `; cleanup failed: ${
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError)
+            }`
+          : "";
+        throw new Error(`${releaseMessage}${cleanupMessage}`, {
+          cause: releaseError,
+        });
+      }
+      if (cleanupError) {
+        throw cleanupError instanceof Error
+          ? cleanupError
+          : new Error(String(cleanupError));
+      }
     },
     endpoint,
     id,
