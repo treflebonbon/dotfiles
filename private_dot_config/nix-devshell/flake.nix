@@ -46,6 +46,7 @@
           gwq = pkgs.callPackage ./packages/gwq.nix { };
           gws = pkgs.callPackage ./packages/gws.nix { };
           flyline = pkgs.callPackage ./packages/flyline.nix { };
+          wslXdgOpen = pkgs.callPackage ./packages/wsl-xdg-open.nix { };
 
           moduleArgs = {
             inherit
@@ -54,6 +55,7 @@
               lib
               system
               flyline
+              wslXdgOpen
               ;
           };
 

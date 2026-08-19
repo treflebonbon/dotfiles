@@ -70,6 +70,24 @@ setup() {
   grep -q 'zsh-syntax-highlighting.zsh' "$module"
 }
 
+@test "Linux user devShell installs WSL-aware xdg-open and sets BROWSER only on WSL" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/wsl-xdg-open.nix"
+  local wrapper="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/wsl-xdg-open.sh"
+  local powershell="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/wsl-open-url.ps1"
+
+  grep -q 'wslXdgOpen = pkgs.callPackage ./packages/wsl-xdg-open.nix' "$flake"
+  grep -q 'wslXdgOpen' "$module"
+  grep -q 'lib.optionals pkgs.stdenv.isLinux' "$module"
+  grep -q 'export BROWSER=xdg-open' "$module"
+  grep -q 'WSL_DISTRO_NAME' "$module"
+  grep -q 'xdg-utils' "$package"
+  grep -q '\[Hh\]\[Tt\]\[Tt\]\[Pp\]' "$wrapper"
+  grep -q 'powershell.exe' "$wrapper"
+  grep -q 'Start-Process -FilePath' "$powershell"
+}
+
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"

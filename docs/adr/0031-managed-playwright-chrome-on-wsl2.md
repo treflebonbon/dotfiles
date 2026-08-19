@@ -9,6 +9,8 @@ status: accepted
 
 # WSL2 の Playwright CLI を headless 既定の Managed Playwright Chrome に統一する
 
+> 2026-08-19: [ADR-0038](0038-keep-wsl2-browser-free.md) が、WSL内browserを明示override用の互換経路として配布する判断と、dogfoodを含めて単一のmanaged browser identityだけを前提にする境界を置き換えた。Managed Playwright Chromeのprofile分離、headless / headed mode、排他lease、認証境界、通常操作でのno-fallbackは引き続き本ADRを正本とする。
+
 ## Context
 
 WSL2 の `playwright-cli` は従来、Nix が配布する WSL 内 Chromium を session ごとに起動していた。この経路は通常の Windows Chrome と認証境界を分離できる一方、Dashboard を含む browser UI が WSL 側と Windows 側へ分かれ、手動で確立した GitHub 認証を `to-pr` の証跡添付へ安全に再利用できなかった。

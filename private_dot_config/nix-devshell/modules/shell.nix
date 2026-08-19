@@ -2,6 +2,7 @@
   pkgs,
   lib,
   flyline,
+  wslXdgOpen,
   ...
 }:
 
@@ -42,7 +43,16 @@
     ])
     ++ lib.optionals pkgs.stdenv.isLinux [
       flyline
+      wslXdgOpen
     ];
+
+  shellHook = lib.optionalString pkgs.stdenv.isLinux ''
+    if [ -n "''${WSL_DISTRO_NAME:-}" ] || {
+      [ -r /proc/sys/kernel/osrelease ] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease;
+    }; then
+      export BROWSER=xdg-open
+    fi
+  '';
 
   # zsh-autosuggestions / zsh-syntax-highlighting は blesh の `blesh-share` の
   # ような discovery 用コマンドを持たないため（NixOS/home-manager の
