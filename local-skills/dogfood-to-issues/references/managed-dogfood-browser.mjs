@@ -91,9 +91,9 @@ const acquireOwner = async (owner) => {
   await fs.writeFile(path.join(lock, "pid"), `${process.pid}\n`);
   try {
     const existing = await readOwner(ownerFile);
-    if (existing && existing.role !== owner.role) {
+    if (existing) {
       throw new Error(
-        `Managed ${existing.role} Chrome is owned by '${existing.id}' (pid ${existing.pid}). Close that consumer before starting Managed ${owner.role} Chrome.`
+        `Managed ${existing.role} Chrome is already owned by '${existing.id}' (pid ${existing.pid}). Close that consumer before starting Managed ${owner.role} Chrome.`
       );
     }
     await fs.writeFile(

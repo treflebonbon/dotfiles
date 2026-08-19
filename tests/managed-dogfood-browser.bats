@@ -58,7 +58,7 @@ STUB
     "import { acquireManagedDogfoodChrome } from '$MODULE'; await acquireManagedDogfoodChrome({ headed: false });"
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"Managed playwright Chrome is owned by 'alpha'"* ]]
+  [[ "$output" == *"Managed playwright Chrome is already owned by 'alpha'"* ]]
   ! grep -Fq -- '-Action Start' "$LOG"
   [ "$(head -n 1 "$STATE/owner")" = "playwright" ]
 }
@@ -77,6 +77,27 @@ STUB
   [ "$status" -ne 0 ]
   [[ "$output" == *"restricted to tests"* ]]
   [ ! -e "$STATE/owner" ]
+  ! grep -Fq -- '-Action Start' "$LOG"
+}
+
+@test "Managed Dogfood Chrome refuses a second dogfood owner" {
+  printf '%s\n' \
+    dogfood first-run 4242 headless /tmp/first-profile http://127.0.0.1:9333 /workspace \
+    >"$STATE/owner"
+
+  run env \
+    DOGFOOD_TEST_WSL=1 \
+    DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:9334 \
+    DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
+    DOGFOOD_WSLPATH="$BIN/wslpath" \
+    DOGFOOD_PS_LOG="$LOG" \
+    BROWSER_OWNERSHIP_DIR="$STATE" \
+    node --input-type=module -e \
+    "import { acquireManagedDogfoodChrome } from '$MODULE'; await acquireManagedDogfoodChrome({ runId: 'second-run' });"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"already owned by 'first-run'"* ]]
+  [ "$(sed -n '1p' "$STATE/owner")" = "dogfood" ]
   ! grep -Fq -- '-Action Start' "$LOG"
 }
 
