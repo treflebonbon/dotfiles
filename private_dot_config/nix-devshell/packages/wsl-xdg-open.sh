@@ -31,7 +31,8 @@ esac
 
 if [ ! -x "$powershell" ] && ! command -v "$powershell" >/dev/null 2>&1; then
   printf '%s\n' \
-    'Windows browser routing failed: powershell.exe is unavailable in WSL.' >&2
+    'Windows browser routing failed: powershell.exe is unavailable in WSL.' \
+    'Enable WSL Windows interop and retry (see /etc/wsl.conf [interop]).' >&2
   exit 127
 fi
 
@@ -43,6 +44,6 @@ fi
   "$target"
 status=$?
 if [ "$status" -ne 0 ]; then
-  printf 'Windows browser routing failed for URL: %s\n' "$target" >&2
+  printf 'Windows browser routing failed for URL: %s. Verify WSL interop and the Windows default handler, then retry.\n' "$target" >&2
   exit "$status"
 fi
