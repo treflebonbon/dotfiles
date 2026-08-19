@@ -15,12 +15,13 @@ The skill lives under `local-skills/dogfood-to-issues/` (chezmoi SoT) and is mat
 
 ## Runner Smoke Test
 
-Run the bundled runner directly so browser automation is verified without creating GitHub Issues:
+Run the bundled runner directly so browser automation is verified without creating GitHub Issues. On WSL2 set `DOGFOOD_WINDOWS_SCRIPT` to the packaged PowerShell script; the runner connects to Windows Managed Dogfood Chrome over CDP and does not launch a WSL browser:
 
 ```bash
 REF_DIR="$HOME/.agents/skills/dogfood-to-issues/references"
 OUT_DIR="$(mktemp -d)"
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
+# The WSL devShell shellHook supplies DOGFOOD_WINDOWS_SCRIPT.
 node "$REF_DIR/playwright-dogfood-runner.mjs" --target about:blank --output "$OUT_DIR"
 test -f "$OUT_DIR/report.md"
 test -f "$OUT_DIR/traces/playwright-trace.zip"

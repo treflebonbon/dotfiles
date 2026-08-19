@@ -1,10 +1,13 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 
 import { chromium } from "playwright";
+
+import { acquireManagedDogfoodChrome } from "./managed-dogfood-browser.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -200,10 +203,11 @@ const readDevToolsPort = async (userDataDir, attemptsLeft = 100) => {
   return readDevToolsPort(userDataDir, attemptsLeft - 1);
 };
 
-const runCli = async (cliArgs, cwd) => {
+const runCli = async (cliArgs, cwd, extraEnv = {}) => {
   try {
     return await execFileAsync("playwright-cli", cliArgs, {
       cwd,
+      env: { ...process.env, ...extraEnv },
       maxBuffer: 10 * 1024 * 1024,
     });
   } catch (error) {
@@ -214,18 +218,21 @@ const runCli = async (cliArgs, cwd) => {
   }
 };
 
-const collectAnnotations = async ({ output, target, userDataDir }) => {
+const collectAnnotations = async ({
+  cdpEndpoint,
+  output,
+  target,
+  userDataDir,
+}) => {
   const help = await runCli(["show", "--help"], output);
   if (!help.stdout.includes("--annotate")) {
     throw new Error("playwright-cli does not support show --annotate");
   }
 
-  const port = await readDevToolsPort(userDataDir);
+  const endpoint =
+    cdpEndpoint || `http://127.0.0.1:${await readDevToolsPort(userDataDir)}`;
   const session = `dogfood-annotate-${process.pid}-${Date.now()}`;
-  await runCli(
-    [`-s=${session}`, "attach", `--cdp=http://127.0.0.1:${port}`],
-    output
-  );
+  await runCli([`-s=${session}`, "attach", `--cdp=${endpoint}`], output);
 
   let annotationResult;
   let annotationError;
@@ -235,7 +242,8 @@ const collectAnnotations = async ({ output, target, userDataDir }) => {
     );
     annotationResult = await runCli(
       [`-s=${session}`, "show", "--annotate", "--json"],
-      output
+      output,
+      { PWCLI_EXTERNAL_CDP: "1" }
     );
   } catch (error) {
     annotationError = error;
@@ -264,6 +272,10 @@ await fs.mkdir(path.join(args.output, "videos"), { recursive: true });
 await fs.mkdir(path.join(args.output, "traces"), { recursive: true });
 
 const userDataDir = path.join(args.output, ".chromium-profile");
+const dogfoodRunId = `dogfood-${createHash("sha256")
+  .update(path.resolve(args.output))
+  .digest("hex")
+  .slice(0, 16)}`;
 const launchArgs = [];
 if (args.extension) {
   launchArgs.push(
@@ -274,16 +286,39 @@ if (args.extension) {
 if (args.annotate) {
   launchArgs.push("--remote-debugging-port=0");
 }
-const context = await chromium.launchPersistentContext(userDataDir, {
-  args: launchArgs,
-  channel: "chromium",
-  headless: !args.headed,
+const contextOptions = {
   recordVideo: {
     dir: path.join(args.output, "videos"),
     size: { height: 1000, width: 1440 },
   },
   viewport: { height: 1000, width: 1440 },
-});
+};
+let browser;
+let context;
+let managedDogfood;
+let startupError;
+try {
+  managedDogfood = await acquireManagedDogfoodChrome({
+    extension: args.extension,
+    headed: args.headed || args.annotate,
+    runId: dogfoodRunId,
+  });
+  if (managedDogfood) {
+    browser = await chromium.connectOverCDP(managedDogfood.endpoint);
+    context = args.extension
+      ? browser.contexts()[0] || (await browser.newContext(contextOptions))
+      : await browser.newContext(contextOptions);
+  } else {
+    context = await chromium.launchPersistentContext(userDataDir, {
+      ...contextOptions,
+      args: launchArgs,
+      channel: "chromium",
+      headless: !args.headed,
+    });
+  }
+} catch (error) {
+  startupError = error;
+}
 
 const findings = [];
 const screenshotRel = "screenshots/initial.png";
@@ -292,142 +327,153 @@ let swRegistered = !args.extension;
 const consoleErrors = [];
 const failedRequests = [];
 const traceRel = "traces/playwright-trace.zip";
-let runError;
+let runError = startupError;
 
-try {
-  await context.tracing
-    .start({ screenshots: true, snapshots: true, sources: false })
-    .catch(() => null);
+if (context) {
+  try {
+    await context.tracing
+      .start({ screenshots: true, snapshots: true, sources: false })
+      .catch(() => null);
 
-  if (args.extension) {
-    // Resolve the target extension's MV3 service worker. Filter to chrome-extension:// workers so a
-    // reused profile or an unrelated worker cannot be mistaken for the extension under test.
-    let sw = context.serviceWorkers().find(isExtSw);
-    if (!sw) {
-      try {
-        sw = await context.waitForEvent("serviceworker", {
-          predicate: isExtSw,
-          timeout: 15_000,
+    if (args.extension) {
+      // Resolve the target extension's MV3 service worker. Filter to chrome-extension:// workers so a
+      // reused profile or an unrelated worker cannot be mistaken for the extension under test.
+      let sw = context.serviceWorkers().find(isExtSw);
+      if (!sw) {
+        try {
+          sw = await context.waitForEvent("serviceworker", {
+            predicate: isExtSw,
+            timeout: 15_000,
+          });
+        } catch {
+          sw = undefined;
+        }
+      }
+      if (sw) {
+        swRegistered = true;
+        extensionId = sw.url().split("/").at(2);
+      } else {
+        extensionId = "(unknown - service worker not registered)";
+        findings.push({
+          actual: `Loaded extension: ${args.extension}. Observed service workers: ${JSON.stringify(context.serviceWorkers().map((w) => w.url()))}.`,
+          category: "functional",
+          evidence: [screenshotRel, traceRel],
+          severity: "Critical",
+          summary:
+            "The unpacked MV3 extension loaded but no chrome-extension:// service worker registered within 15s.",
+          title: "MV3 service worker did not register",
         });
-      } catch {
-        sw = undefined;
       }
     }
-    if (sw) {
-      swRegistered = true;
-      extensionId = sw.url().split("/").at(2);
-    } else {
-      extensionId = "(unknown - service worker not registered)";
+
+    const page = context.pages()[0] ?? (await context.newPage());
+    page.on("pageerror", (e) => consoleErrors.push(String(e)));
+    page.on("console", (m) => {
+      if (m.type() === "error") {
+        consoleErrors.push(m.text());
+      }
+    });
+    page.on("requestfailed", (request) => {
+      failedRequests.push({
+        error: request.failure()?.errorText ?? "request failed",
+        method: request.method(),
+        url: request.url(),
+      });
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 500) {
+        failedRequests.push({
+          error: `HTTP ${response.status()}`,
+          method: response.request().method(),
+          url: response.url(),
+        });
+      }
+    });
+
+    try {
+      // 'load' (not 'networkidle') so SPAs with sockets/polling do not hang until the nav timeout.
+      await page.goto(args.target, { timeout: 30_000, waitUntil: "load" });
+    } catch (error) {
       findings.push({
-        actual: `Loaded extension: ${args.extension}. Observed service workers: ${JSON.stringify(context.serviceWorkers().map((w) => w.url()))}.`,
+        actual: String(error),
         category: "functional",
         evidence: [screenshotRel, traceRel],
-        severity: "Critical",
-        summary:
-          "The unpacked MV3 extension loaded but no chrome-extension:// service worker registered within 15s.",
-        title: "MV3 service worker did not register",
+        severity: "High",
+        summary: "The page did not finish loading.",
+        title: "Navigation to target failed",
       });
     }
-  }
+    await page
+      .screenshot({
+        fullPage: true,
+        path: path.join(args.output, "screenshots", "initial.png"),
+      })
+      .catch(() => null);
+    await context
+      .storageState({ path: path.join(args.output, "auth-state.json") })
+      .catch(() => null);
 
-  const page = context.pages()[0] ?? (await context.newPage());
-  page.on("pageerror", (e) => consoleErrors.push(String(e)));
-  page.on("console", (m) => {
-    if (m.type() === "error") {
-      consoleErrors.push(m.text());
-    }
-  });
-  page.on("requestfailed", (request) => {
-    failedRequests.push({
-      error: request.failure()?.errorText ?? "request failed",
-      method: request.method(),
-      url: request.url(),
-    });
-  });
-  page.on("response", (response) => {
-    if (response.status() >= 500) {
-      failedRequests.push({
-        error: `HTTP ${response.status()}`,
-        method: response.request().method(),
-        url: response.url(),
+    if (consoleErrors.length) {
+      findings.push({
+        actual: consoleErrors.map((e) => `- ${e}`).join("\n"),
+        category: "console",
+        evidence: [screenshotRel, traceRel],
+        severity: "Medium",
+        summary: `${consoleErrors.length} console/page error(s) were logged.`,
+        title: "Console errors detected while dogfooding the target",
       });
     }
-  });
-
-  try {
-    // 'load' (not 'networkidle') so SPAs with sockets/polling do not hang until the nav timeout.
-    await page.goto(args.target, { timeout: 30_000, waitUntil: "load" });
+    if (failedRequests.length) {
+      findings.push({
+        actual: failedRequests
+          .map((r) => `- ${r.method} ${r.url}: ${r.error}`)
+          .join("\n"),
+        category: "network",
+        evidence: ["network.json", screenshotRel, traceRel],
+        severity: "Medium",
+        summary: `${failedRequests.length} failed request(s) or 5xx response(s) were observed.`,
+        title: "Network failures detected while dogfooding the target",
+      });
+    }
+    if (args.annotate) {
+      findings.push(
+        ...(await collectAnnotations({
+          cdpEndpoint: managedDogfood?.endpoint,
+          output: args.output,
+          target: args.target,
+          userDataDir,
+        }))
+      );
+    }
   } catch (error) {
-    findings.push({
-      actual: String(error),
-      category: "functional",
-      evidence: [screenshotRel, traceRel],
-      severity: "High",
-      summary: "The page did not finish loading.",
-      title: "Navigation to target failed",
+    runError = error;
+  } finally {
+    await fs
+      .writeFile(
+        path.join(args.output, "console.json"),
+        `${JSON.stringify(consoleErrors, null, 2)}\n`
+      )
+      .catch(() => null);
+    await fs
+      .writeFile(
+        path.join(args.output, "network.json"),
+        `${JSON.stringify(failedRequests, null, 2)}\n`
+      )
+      .catch(() => null);
+    await context.tracing
+      .stop({ path: path.join(args.output, traceRel) })
+      .catch(() => null);
+    // Always close: releases the profile lock and finalizes the recorded video.
+    await context.close().catch(() => null);
+    await browser?.close().catch(() => null);
+    await managedDogfood?.close().catch((error) => {
+      runError ??= error;
     });
   }
-  await page
-    .screenshot({
-      fullPage: true,
-      path: path.join(args.output, "screenshots", "initial.png"),
-    })
-    .catch(() => null);
-  await context
-    .storageState({ path: path.join(args.output, "auth-state.json") })
-    .catch(() => null);
-
-  if (consoleErrors.length) {
-    findings.push({
-      actual: consoleErrors.map((e) => `- ${e}`).join("\n"),
-      category: "console",
-      evidence: [screenshotRel, traceRel],
-      severity: "Medium",
-      summary: `${consoleErrors.length} console/page error(s) were logged.`,
-      title: "Console errors detected while dogfooding the target",
-    });
-  }
-  if (failedRequests.length) {
-    findings.push({
-      actual: failedRequests
-        .map((r) => `- ${r.method} ${r.url}: ${r.error}`)
-        .join("\n"),
-      category: "network",
-      evidence: ["network.json", screenshotRel, traceRel],
-      severity: "Medium",
-      summary: `${failedRequests.length} failed request(s) or 5xx response(s) were observed.`,
-      title: "Network failures detected while dogfooding the target",
-    });
-  }
-  if (args.annotate) {
-    findings.push(
-      ...(await collectAnnotations({
-        output: args.output,
-        target: args.target,
-        userDataDir,
-      }))
-    );
-  }
-} catch (error) {
-  runError = error;
-} finally {
-  await fs
-    .writeFile(
-      path.join(args.output, "console.json"),
-      `${JSON.stringify(consoleErrors, null, 2)}\n`
-    )
-    .catch(() => null);
-  await fs
-    .writeFile(
-      path.join(args.output, "network.json"),
-      `${JSON.stringify(failedRequests, null, 2)}\n`
-    )
-    .catch(() => null);
-  await context.tracing
-    .stop({ path: path.join(args.output, traceRel) })
-    .catch(() => null);
-  // Always close: releases the profile lock and finalizes the recorded video.
-  await context.close();
+} else if (managedDogfood) {
+  await managedDogfood.close().catch((error) => {
+    runError ??= error;
+  });
 }
 
 // Video files exist only after context.close(); enumerate now and attach to each finding's evidence.

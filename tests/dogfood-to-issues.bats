@@ -6,6 +6,7 @@ setup_file() {
   cp "$SOURCE_REF_DIR/package.json" \
     "$SOURCE_REF_DIR/package-lock.json" \
     "$SOURCE_REF_DIR/playwright-dogfood-runner.mjs" \
+    "$SOURCE_REF_DIR/managed-dogfood-browser.mjs" \
     "$TEST_REF_DIR/"
   mkdir -p "$TEST_REF_DIR/fixtures"
   cp -R "$SOURCE_REF_DIR/fixtures/mv3-min" "$TEST_REF_DIR/fixtures/"
@@ -19,6 +20,7 @@ setup() {
   REF_DIR="$BATS_FILE_TMPDIR/references"
   RUNNER="$REF_DIR/playwright-dogfood-runner.mjs"
   export NODE_BIN="$(command -v node)"
+  export DOGFOOD_TEST_WSL=0
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
   export FAKE_CLI_LOG="$BATS_TEST_TMPDIR/playwright-cli.log"
   export PWTEST_DAEMON_SESSION_DIR="$BATS_TEST_TMPDIR/playwright-cli-daemon"

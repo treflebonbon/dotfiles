@@ -4,4 +4,10 @@ if ! has nix; then
   exit 1
 fi
 
-use flake
+if [ -n "${WSL_DISTRO_NAME:-}" ] || {
+  [ -r /proc/sys/kernel/osrelease ] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease;
+}; then
+  use flake .#wsl
+else
+  use flake
+fi

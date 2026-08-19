@@ -120,6 +120,7 @@ New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 $ChromeArguments = @(
     "--remote-debugging-address=$DebugAddress"
     "--remote-debugging-port=$DebugPort"
+    "--remote-allow-origins=*"
     "--user-data-dir=`"$ProfileDir`""
     "--no-first-run"
     "--no-default-browser-check"

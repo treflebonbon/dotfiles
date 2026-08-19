@@ -21,31 +21,35 @@
         system:
         let
           pkgs = pkgsFor.${system};
+          basePackages = with pkgs; [
+            chezmoi
+            lefthook
+            cocogitto
+            shellcheck
+            shfmt
+            actionlint
+            ghalint
+            pinact
+            oxfmt
+            nixfmt
+            gitleaks
+            (bats.withLibraries (p: [
+              p.bats-support
+              p.bats-assert
+            ]))
+            nodejs_24
+            bun
+            git
+          ];
         in
         {
           default = pkgs.mkShell {
-            packages = with pkgs; [
-              chezmoi
-              lefthook
-              cocogitto
-              shellcheck
-              shfmt
-              actionlint
-              ghalint
-              pinact
-              oxfmt
-              nixfmt
-              gitleaks
-              (bats.withLibraries (p: [
-                p.bats-support
-                p.bats-assert
-              ]))
-              nodejs_24
-              playwright-driver
-              bun
-              git
-            ];
+            packages = basePackages ++ [ pkgs.playwright-driver ];
             PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
+            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
+          };
+          wsl = pkgs.mkShell {
+            packages = basePackages;
             PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
           };
         }

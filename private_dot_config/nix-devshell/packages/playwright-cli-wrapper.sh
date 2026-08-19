@@ -53,7 +53,6 @@ pwcli_show_kill=0
 pwcli_requested_mode=headless
 pwcli_open_headed=0
 pwcli_bypass_managed=0
-pwcli_passthrough_open=0
 for pwcli_argument in "$@"; do
   if [[ -n "$pwcli_option_value_next" ]]; then
     if [[ "$pwcli_option_value_next" == "session" ]]; then
@@ -114,14 +113,11 @@ if ((pwcli_passthrough_metadata)); then
   exec "$pwcli_upstream" "$@"
 fi
 
-if [[ "$pwcli_command" == "open" ]]; then
-  if [[ "${PLAYWRIGHT_MCP_HEADLESS:-}" == "false" || "${PLAYWRIGHT_MCP_HEADLESS:-}" == "0" ]]; then
-    pwcli_requested_mode=headed
-  fi
-  if ((pwcli_open_headed)); then
-    pwcli_requested_mode=headed
-  fi
+if [[ "$pwcli_command" == "show" && "${PWCLI_EXTERNAL_CDP:-0}" == "1" ]]; then
+  exec "$pwcli_upstream" "$@"
+fi
 
+if [[ "$pwcli_command" == "open" || "$pwcli_command" == "show" ]]; then
   pwcli_browser_env=(
     PLAYWRIGHT_MCP_CONFIG
     PLAYWRIGHT_MCP_BROWSER
@@ -158,8 +154,18 @@ if [[ "$pwcli_command" == "open" ]]; then
     pwcli_bypass_managed=1
   fi
   if ((pwcli_bypass_managed)); then
-    pwcli_passthrough_open=1
+    fail "local browser overrides are unsupported in WSL2 browser-free mode. Use explicit 'playwright-cli attach --cdp=<remote-endpoint>' for a remote CDP browser."
   fi
+fi
+
+if [[ "$pwcli_command" == "open" ]]; then
+  if [[ "${PLAYWRIGHT_MCP_HEADLESS:-}" == "false" || "${PLAYWRIGHT_MCP_HEADLESS:-}" == "0" ]]; then
+    pwcli_requested_mode=headed
+  fi
+  if ((pwcli_open_headed)); then
+    pwcli_requested_mode=headed
+  fi
+
 elif [[ "$pwcli_command" == "show" ]]; then
   pwcli_requested_mode=headed
   if ((pwcli_explicit_show_endpoint)); then
@@ -211,14 +217,101 @@ if [[ -f "$pwcli_lease" ]]; then
   pwcli_had_consumer=1
 fi
 
-if ((pwcli_passthrough_open)); then
-  if ((pwcli_managed_owner)); then
-    fail "session '$pwcli_session' in '$pwcli_workspace' owns Managed Playwright Chrome. Run playwright-cli -s='$pwcli_session' close before opening it with an explicit override."
+pwcli_browser_ownership_dir="${BROWSER_OWNERSHIP_DIR:-${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/browser-ownership}"
+pwcli_browser_owner_file="$pwcli_browser_ownership_dir/owner"
+pwcli_browser_owner_lock="$pwcli_browser_ownership_dir/acquire.lock"
+pwcli_browser_owner_id="$pwcli_session@$pwcli_workspace"
+
+browser_owner_field() {
+  local field="$1"
+  sed -n "${field}p" "$pwcli_browser_owner_file" 2>/dev/null || true
+}
+
+acquire_browser_owner_lock() {
+  mkdir -p "$pwcli_browser_ownership_dir"
+  chmod 700 "$pwcli_browser_ownership_dir"
+  if ! mkdir "$pwcli_browser_owner_lock" 2>/dev/null; then
+    local lock_pid
+    lock_pid="$(cat "$pwcli_browser_owner_lock/pid" 2>/dev/null || true)"
+    if [[ "$lock_pid" =~ ^[0-9]+$ ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
+      rm -f "$pwcli_browser_owner_lock/pid"
+      rmdir "$pwcli_browser_owner_lock" 2>/dev/null || true
+    fi
+    if ! mkdir "$pwcli_browser_owner_lock" 2>/dev/null; then
+      fail "browser ownership is busy (lock pid ${lock_pid:-unknown}); retry"
+    fi
   fi
-  release_lock
-  trap - EXIT
-  exec "$pwcli_upstream" "$@"
-fi
+  printf '%s\n' "$$" >"$pwcli_browser_owner_lock/pid"
+}
+
+release_browser_owner_lock() {
+  rm -f "$pwcli_browser_owner_lock/pid"
+  rmdir "$pwcli_browser_owner_lock" 2>/dev/null || true
+}
+
+browser_owner_conflict_message() {
+  local existing_role existing_id existing_pid
+  existing_role="$(browser_owner_field 1)"
+  [[ -z "$existing_role" || "$existing_role" == playwright ]] && return
+  existing_id="$(browser_owner_field 2)"
+  existing_pid="$(browser_owner_field 3)"
+  if [[ "$existing_role" == dogfood ]]; then
+    printf "Managed Dogfood Chrome is owned by '%s' (pid %s). Close that consumer before starting Managed Playwright Chrome.\n" \
+      "${existing_id:-unknown}" "${existing_pid:-unknown}"
+    return 1
+  fi
+  printf "Managed %s Chrome is owned by '%s' (pid %s). Close that consumer before starting Managed Playwright Chrome.\n" \
+    "$existing_role" "${existing_id:-unknown}" "${existing_pid:-unknown}"
+  return 1
+}
+
+check_browser_owner_conflict() {
+  local conflict
+  if ! conflict="$(browser_owner_conflict_message)"; then
+    fail "$conflict"
+  fi
+}
+
+write_browser_owner() {
+  local pid="$1"
+  acquire_browser_owner_lock
+  local conflict
+  if ! conflict="$(browser_owner_conflict_message)"; then
+    release_browser_owner_lock
+    fail "$conflict"
+  fi
+  local existing_role existing_id
+  existing_role="$(browser_owner_field 1)"
+  existing_id="$(browser_owner_field 2)"
+  if [[ "$existing_role" == playwright && -n "$existing_id" && "$existing_id" != "$pwcli_browser_owner_id" ]]; then
+    release_browser_owner_lock
+    return
+  fi
+  local temporary_owner="$pwcli_browser_owner_file.$$"
+  printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+    playwright \
+    "$pwcli_browser_owner_id" \
+    "$pid" \
+    "$pwcli_requested_mode" \
+    '%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile' \
+    "$pwcli_cdp_endpoint" \
+    "$pwcli_workspace" \
+    >"$temporary_owner"
+  chmod 600 "$temporary_owner"
+  mv -f "$temporary_owner" "$pwcli_browser_owner_file"
+  release_browser_owner_lock
+}
+
+remove_browser_owner() {
+  acquire_browser_owner_lock
+  if [[ "$(browser_owner_field 1)" == playwright &&
+  "$(browser_owner_field 2)" == "$pwcli_browser_owner_id" ]]; then
+    rm -f "$pwcli_browser_owner_file"
+  fi
+  release_browser_owner_lock
+}
+
+check_browser_owner_conflict
 
 if [[ "$pwcli_command" == "open" && -f "$pwcli_lease" ]] &&
   ((pwcli_managed_owner == 0)); then
@@ -443,6 +536,7 @@ close_chrome_if_unused() {
   chrome_status="$(inspect_chrome || true)"
   if [[ "$chrome_status" == "absent" ]]; then
     rm -f "$pwcli_state_dir/chrome.pid"
+    remove_browser_owner
     return
   fi
   actual_pid="$(managed_status_pid "$chrome_status" || true)"
@@ -459,6 +553,7 @@ close_chrome_if_unused() {
     fi
     if [[ "$chrome_status" == "absent" ]]; then
       rm -f "$pwcli_state_dir/chrome.pid"
+      remove_browser_owner
       return
     fi
     actual_pid="$(managed_status_pid "$chrome_status" || true)"
@@ -586,6 +681,7 @@ ensure_chrome() {
     actual_pid="$(managed_status_pid "$status" || true)"
     if [[ "$actual_mode" == "$pwcli_requested_mode" && -n "$actual_pid" ]] && cdp_ready; then
       printf '%s\n' "$actual_pid" >"$pwcli_state_dir/chrome.pid"
+      write_browser_owner "$actual_pid"
       return
     fi
     sleep 0.2

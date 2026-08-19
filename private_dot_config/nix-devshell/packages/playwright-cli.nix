@@ -4,7 +4,7 @@
   lib,
   makeWrapper,
   nodejs,
-  playwright-driver,
+  playwright-driver ? null,
   util-linux,
 }:
 
@@ -29,35 +29,39 @@ buildNpmPackage {
         'const toolText = await runInSessionOrStop(newEntry, clientInfo, { _: ["goto", ...params.length ? params : ["about:blank"]] }, output);' \
         'const toolText = await runInSessionOrStop(newEntry, clientInfo, { _: [process.env.PWTEST_CLI_MANAGED_CHROME === "1" ? "tab-new" : "goto", ...params.length ? params : ["about:blank"]] }, output);'
 
-    chromium_executable="$(
-      find -L ${playwright-driver.browsers} -type f \
-        \( -path '*/chrome-linux*/chrome' \
-        -o -path '*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
-        -o -path '*/Chromium.app/Contents/MacOS/Chromium' \) \
-        -print | head -n 1
-    )"
-    if [ -z "$chromium_executable" ]; then
-      echo "Playwright Chromium executable not found in ${playwright-driver.browsers}" >&2
-      exit 1
-    fi
+    ${lib.optionalString (playwright-driver != null) ''
+      chromium_executable="$(
+        find -L ${playwright-driver.browsers} -type f \
+          \( -path '*/chrome-linux*/chrome' \
+          -o -path '*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
+          -o -path '*/Chromium.app/Contents/MacOS/Chromium' \) \
+          -print | head -n 1
+      )"
+      if [ -z "$chromium_executable" ]; then
+        echo "Playwright Chromium executable not found in ${playwright-driver.browsers}" >&2
+        exit 1
+      fi
 
-    config_root="$out/share/playwright-cli/config"
-    mkdir -p "$config_root/.playwright"
-    cat >"$config_root/.playwright/cli.config.json" <<EOF
-    {
-      "browser": {
-        "browserName": "chromium",
-        "launchOptions": {
-          "executablePath": "$chromium_executable"
+      config_root="$out/share/playwright-cli/config"
+      mkdir -p "$config_root/.playwright"
+      cat >"$config_root/.playwright/cli.config.json" <<EOF
+      {
+        "browser": {
+          "browserName": "chromium",
+          "launchOptions": {
+            "executablePath": "$chromium_executable"
+          }
         }
       }
-    }
-    EOF
+      EOF
+    ''}
 
     mkdir -p "$out/bin" "$out/libexec" "$out/share/playwright-cli"
 
     makeWrapper ${nodejs}/bin/node "$out/libexec/playwright-cli-upstream" \
-      --set-default PWTEST_CLI_GLOBAL_CONFIG "$config_root" \
+      ${lib.optionalString (
+        playwright-driver != null
+      ) ''--set-default PWTEST_CLI_GLOBAL_CONFIG "$config_root" \''}
       --unset PLAYWRIGHT_BROWSERS_PATH \
       --unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD \
       --add-flags "$pkg/playwright-cli.js"
@@ -67,6 +71,7 @@ buildNpmPackage {
       --add-flags "$out/share/playwright-cli/cdp-close.js"
 
     cp ${./playwright-cli-windows.ps1} "$out/share/playwright-cli/windows.ps1"
+    cp ${./dogfood-chrome-windows.ps1} "$out/share/playwright-cli/dogfood-chrome-windows.ps1"
     cp ${./playwright-cli-wrapper.sh} "$out/bin/playwright-cli"
     substituteInPlace "$out/bin/playwright-cli" \
       --replace-fail '@playwrightCliUpstream@' "$out/libexec/playwright-cli-upstream" \
