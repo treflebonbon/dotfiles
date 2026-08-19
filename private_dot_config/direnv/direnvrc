@@ -35,7 +35,7 @@ if declare -f use_flake >/dev/null && ! declare -f use_flake | grep -q '_df_norm
   eval "$(declare -f use_flake | sed '1s/use_flake/_df_original_use_flake/')"
   use_flake() {
     local selected_flake
-    selected_flake="$(_df_select_wsl_flake_output "${1:-}" || true)"
+    selected_flake="$(_df_select_wsl_flake_output "$@" || true)"
     if [[ -n "$selected_flake" ]]; then
       if [[ $# -eq 0 ]]; then
         _df_original_use_flake "$selected_flake" || return

@@ -7,6 +7,7 @@ set -u
 upstream="${WSL_XDG_OPEN_UPSTREAM:-@xdgOpen@}"
 powershell="${WSL_XDG_OPEN_POWERSHELL:-@powershell@}"
 windows_script="${WSL_XDG_OPEN_SCRIPT:-@windowsScript@}"
+wslpath="${WSL_XDG_OPEN_WSLPATH:-wslpath}"
 osrelease="${WSL_XDG_OPEN_OSRELEASE:-/proc/sys/kernel/osrelease}"
 
 is_wsl() {
@@ -35,6 +36,20 @@ if [ ! -x "$powershell" ] && ! command -v "$powershell" >/dev/null 2>&1; then
     'Windows browser routing failed: powershell.exe is unavailable in WSL.' \
     'Enable WSL Windows interop and retry (see /etc/wsl.conf [interop]).' >&2
   exit 127
+fi
+
+if [[ "$windows_script" != *\\* && "$windows_script" != [A-Za-z]:* ]]; then
+  converted_script="$($wslpath -w "$windows_script")" || {
+    printf '%s\n' \
+      'Windows browser routing failed: wslpath is unavailable or could not convert the PowerShell script path.' >&2
+    exit 127
+  }
+  if [ -z "$converted_script" ]; then
+    printf '%s\n' \
+      'Windows browser routing failed: wslpath returned an empty PowerShell script path.' >&2
+    exit 127
+  fi
+  windows_script="$converted_script"
 fi
 
 "$powershell" \

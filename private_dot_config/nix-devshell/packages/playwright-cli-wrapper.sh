@@ -208,6 +208,8 @@ pwcli_had_consumer=0
 pwcli_managed_owner=0
 pwcli_owner_session=
 pwcli_owner_workspace=
+pwcli_owner_reserved=0
+pwcli_chrome_start_attempted=0
 if [[ -f "$pwcli_lease" ]]; then
   pwcli_owner_session="$(sed -n '1p' "$pwcli_lease")"
   pwcli_owner_workspace="$(sed -n '2p' "$pwcli_lease")"
@@ -300,12 +302,47 @@ write_browser_owner() {
   chmod 600 "$temporary_owner"
   mv -f "$temporary_owner" "$pwcli_browser_owner_file"
   release_browser_owner_lock
+  pwcli_owner_reserved=0
+}
+
+reserve_browser_owner() {
+  acquire_browser_owner_lock
+  local conflict existing_role
+  if ! conflict="$(browser_owner_conflict_message)"; then
+    release_browser_owner_lock
+    fail "$conflict"
+  fi
+  existing_role="$(browser_owner_field 1)"
+  if [[ "$existing_role" == playwright ]]; then
+    release_browser_owner_lock
+    return
+  fi
+  local temporary_owner="$pwcli_browser_owner_file.$$"
+  printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+    playwright \
+    "$pwcli_browser_owner_id" \
+    0 \
+    "$pwcli_requested_mode" \
+    '%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile' \
+    "$pwcli_cdp_endpoint" \
+    "$pwcli_workspace" \
+    >"$temporary_owner"
+  chmod 600 "$temporary_owner"
+  mv -f "$temporary_owner" "$pwcli_browser_owner_file"
+  release_browser_owner_lock
+  pwcli_owner_reserved=1
 }
 
 remove_browser_owner() {
   acquire_browser_owner_lock
-  if [[ "$(browser_owner_field 1)" == playwright &&
-  "$(browser_owner_field 2)" == "$pwcli_browser_owner_id" ]]; then
+  local expected_pid="${1:-}"
+  local owner_role owner_id owner_pid
+  owner_role="$(browser_owner_field 1)"
+  owner_id="$(browser_owner_field 2)"
+  owner_pid="$(browser_owner_field 3)"
+  if [[ "$owner_role" == playwright &&
+    ("$owner_id" == "$pwcli_browser_owner_id" ||
+    (-n "$expected_pid" && "$owner_pid" == "$expected_pid")) ]]; then
     rm -f "$pwcli_browser_owner_file"
   fi
   release_browser_owner_lock
@@ -536,7 +573,7 @@ close_chrome_if_unused() {
   chrome_status="$(inspect_chrome || true)"
   if [[ "$chrome_status" == "absent" ]]; then
     rm -f "$pwcli_state_dir/chrome.pid"
-    remove_browser_owner
+    remove_browser_owner "$recorded_pid"
     return
   fi
   actual_pid="$(managed_status_pid "$chrome_status" || true)"
@@ -553,7 +590,7 @@ close_chrome_if_unused() {
     fi
     if [[ "$chrome_status" == "absent" ]]; then
       rm -f "$pwcli_state_dir/chrome.pid"
-      remove_browser_owner
+      remove_browser_owner "$recorded_pid"
       return
     fi
     actual_pid="$(managed_status_pid "$chrome_status" || true)"
@@ -631,6 +668,31 @@ fi
 
 prepare_powershell
 
+release_reserved_browser_owner() {
+  if ((pwcli_owner_reserved == 0)); then
+    return
+  fi
+  remove_browser_owner
+  pwcli_owner_reserved=0
+}
+
+cleanup_failed_browser_start() {
+  if ((pwcli_owner_reserved == 0)); then
+    return
+  fi
+  if ((pwcli_chrome_start_attempted)); then
+    powershell_action Cleanup >/dev/null 2>&1 || true
+  fi
+  release_reserved_browser_owner
+}
+
+trap 'cleanup_failed_browser_start; release_lock' EXIT
+
+if [[ "$pwcli_command" == "open" ||
+  ("$pwcli_command" == "show" && "$pwcli_show_kill" -eq 0) ]]; then
+  reserve_browser_owner
+fi
+
 ensure_chrome() {
   local status actual_mode actual_pid remediation
   status="$(inspect_chrome || true)"
@@ -658,6 +720,7 @@ ensure_chrome() {
     fi
     ;;
   absent)
+    pwcli_chrome_start_attempted=1
     powershell_action Start "$pwcli_requested_mode" >/dev/null
     ;;
   chrome-missing)

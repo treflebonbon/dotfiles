@@ -25,6 +25,13 @@ printf 'argc=%s\n' "$#" >>"$POWERSHELL_LOG"
 printf '<%s>\n' "$@" >>"$POWERSHELL_LOG"
 STUB
   chmod +x "$TEST_BIN/powershell.exe"
+
+  cat >"$TEST_BIN/wslpath" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' 'C:\converted\open-url.ps1'
+STUB
+  chmod +x "$TEST_BIN/wslpath"
+  export WSL_XDG_OPEN_WSLPATH="$TEST_BIN/wslpath"
 }
 
 write_osrelease() {
@@ -43,6 +50,7 @@ write_osrelease() {
   [ "$status" -eq 0 ]
   [ ! -s "$UPSTREAM_LOG" ]
   grep -Fq '<https://example.test/search?q=one&sort=desc>' "$POWERSHELL_LOG"
+  grep -Fq '<C:\converted\open-url.ps1>' "$POWERSHELL_LOG"
   grep -Fq -- '-File' "$POWERSHELL_LOG"
   [ "$(grep -c '^argc=' "$POWERSHELL_LOG")" -eq 1 ]
 }

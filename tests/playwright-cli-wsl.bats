@@ -143,6 +143,11 @@ case "$action" in
     fi
     ;;
   Start)
+    if [[ "${PWCLI_FAKE_ASSERT_OWNER_ON_START:-0}" == "1" ]] &&
+      [[ ! -f "$BROWSER_OWNERSHIP_DIR/owner" ]]; then
+      printf '%s\n' 'browser ownership was not reserved before Start' >&2
+      exit 47
+    fi
     printf 'managed:%s:4242\n' "${mode:-headless}" >"$POWERSHELL_STATE"
     if [[ "${PWCLI_FAKE_INSPECT_FAIL_AFTER_START:-0}" == "1" ]]; then
       touch "$POWERSHELL_STATE.inspect-fail-once"
@@ -319,6 +324,17 @@ EOF
   [ "$status" -eq 0 ]
   grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
   [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+}
+
+@test "managed open reserves browser ownership before launching Chrome" {
+  export PWCLI_TEST_WSL=1
+  export PWCLI_FAKE_ASSERT_OWNER_ON_START=1
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' "$BROWSER_OWNERSHIP_DIR/owner")" = "playwright" ]
+  [ "$(sed -n '3p' "$BROWSER_OWNERSHIP_DIR/owner")" = "4242" ]
 }
 
 @test "runtime state falls back to a user-only tmp directory" {
@@ -1090,4 +1106,18 @@ EOF
   [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
   [ -s "$CDP_CLOSE_LOG" ]
   ! grep -Fq -- "-Action Stop" "$POWERSHELL_LOG"
+}
+
+@test "kill-all from another workspace removes the recorded browser owner" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+
+  local other_workspace="$BATS_TEST_TMPDIR/other-workspace"
+  mkdir -p "$other_workspace"
+  run bash -c 'cd "$1" && bash "$2" kill-all' _ "$other_workspace" "$WRAPPER"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$BROWSER_OWNERSHIP_DIR/owner" ]
+  [ ! -e "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
 }
