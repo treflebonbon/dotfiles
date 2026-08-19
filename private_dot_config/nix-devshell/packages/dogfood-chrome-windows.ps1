@@ -143,7 +143,8 @@ function Format-ChromePathArgument {
     param([string]$Value)
 
     if ($Value -match "\s") {
-        return ('"' + $Value + '"')
+        $escapedValue = $Value -replace '(\\+)$', '$1$1'
+        return ('"' + $escapedValue + '"')
     }
     return $Value
 }

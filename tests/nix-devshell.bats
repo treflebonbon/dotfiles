@@ -100,13 +100,35 @@ setup() {
 
   grep -Fq 'function Format-ChromePathArgument' "$package"
   grep -Fq 'if ($Value -match "\s")' "$package"
-  grep -Fq "return ('\"' + \$Value + '\"')" "$package"
+  grep -Fq "\$escapedValue = \$Value -replace '(\\\\+)$', '\$1\$1'" "$package"
+  grep -Fq "return ('\"' + \$escapedValue + '\"')" "$package"
   grep -Fq 'return $Value' "$package"
   grep -Fq '$ProfileArgument = Format-ChromePathArgument $ProfileDir' "$package"
   grep -Fq '"--user-data-dir=$ProfileArgument"' "$package"
   grep -Fq '$ExtensionArgument = Format-ChromePathArgument $ExtensionPath' "$package"
   grep -Fq '"--disable-extensions-except=$ExtensionArgument"' "$package"
   grep -Fq '"--load-extension=$ExtensionArgument"' "$package"
+}
+
+@test "Managed Dogfood Chrome doubles trailing backslashes in quoted paths" {
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
+
+  grep -Fq "\$escapedValue = \$Value -replace '(\\\\+)$', '\$1\$1'" "$package"
+  if ! command -v powershell.exe >/dev/null 2>&1; then
+    skip "powershell.exe unavailable"
+  fi
+
+  local script="$BATS_TEST_TMPDIR/format-chrome-path.ps1"
+  cat >"$script" <<'PS'
+$Value = 'C:\Temp\profile with spaces\'
+$escapedValue = $Value -replace '(\\+)$', '$1$1'
+if (('"' + $escapedValue + '"') -ne '"C:\Temp\profile with spaces\\"') {
+    exit 1
+}
+PS
+
+  run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$script"
+  [ "$status" -eq 0 ]
 }
 
 @test "WSL2 ADR keeps the CDP evidence record video-free" {
@@ -340,7 +362,7 @@ setup() {
 
   run nix derivation show "$drv"
   [ "$status" -eq 0 ]
-  post_install="$(jq -r '.derivations | to_entries[0].value.env.postInstall' <<<"$output")"
+  post_install="$(jq -r 'if has("derivations") then .derivations else . end | to_entries[0].value.env.postInstall' <<<"$output")"
 
   awk '
     /playwright-cli-upstream"/ { found = 1; next }
