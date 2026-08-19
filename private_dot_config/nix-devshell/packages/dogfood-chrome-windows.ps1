@@ -133,6 +133,10 @@ if ($Action -eq "Inspect") {
     exit 0
 }
 
+if ($DebugPort -le 0) {
+    throw "Start requires a positive -DebugPort."
+}
+
 New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 $ChromeArguments = @(
     "--remote-debugging-address=$DebugAddress",

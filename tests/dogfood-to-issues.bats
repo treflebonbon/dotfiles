@@ -106,6 +106,17 @@ EOF
   grep -Fq 'Evidence root (local)' "$body"
 }
 
+@test "WSL CDP dogfood uses an explicit viewport without requiring video" {
+  local runner="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/playwright-dogfood-runner.mjs"
+  local contract="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/mv3-extension.md"
+  local verification="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/verification.md"
+
+  grep -Fq 'const cdpContextOptions = { viewport: evidenceViewport };' "$runner"
+  grep -Fq 'page.setViewportSize(evidenceViewport)' "$runner"
+  grep -Fq 'WSL2 CDP runs therefore omit video capture' "$contract"
+  grep -Fq 'intentionally does not produce a `.webm`' "$verification"
+}
+
 @test "approval protocol adapts to runtimes limited to three choices" {
   local skill="$PROJECT_ROOT/local-skills/dogfood-to-issues/SKILL.md"
   local approval="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/approval-protocol.md"

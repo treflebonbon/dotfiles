@@ -286,13 +286,15 @@ if (args.extension) {
 if (args.annotate) {
   launchArgs.push("--remote-debugging-port=0");
 }
+const evidenceViewport = { height: 1000, width: 1440 };
 const contextOptions = {
   recordVideo: {
     dir: path.join(args.output, "videos"),
     size: { height: 1000, width: 1440 },
   },
-  viewport: { height: 1000, width: 1440 },
+  viewport: evidenceViewport,
 };
+const cdpContextOptions = { viewport: evidenceViewport };
 let browser;
 let context;
 let managedDogfood;
@@ -306,8 +308,8 @@ try {
   if (managedDogfood) {
     browser = await chromium.connectOverCDP(managedDogfood.endpoint);
     context = args.extension
-      ? browser.contexts()[0] || (await browser.newContext(contextOptions))
-      : await browser.newContext(contextOptions);
+      ? browser.contexts()[0] || (await browser.newContext(cdpContextOptions))
+      : await browser.newContext(cdpContextOptions);
   } else {
     context = await chromium.launchPersistentContext(userDataDir, {
       ...contextOptions,
@@ -367,6 +369,9 @@ if (context) {
     }
 
     const page = context.pages()[0] ?? (await context.newPage());
+    if (managedDogfood) {
+      await page.setViewportSize(evidenceViewport);
+    }
     page.on("pageerror", (e) => consoleErrors.push(String(e)));
     page.on("console", (m) => {
       if (m.type() === "error") {
@@ -463,7 +468,7 @@ if (context) {
     await context.tracing
       .stop({ path: path.join(args.output, traceRel) })
       .catch(() => null);
-    // Always close: releases the profile lock and finalizes the recorded video.
+    // Always close: releases the profile lock and finalizes local recordings.
     await context.close().catch(() => null);
     await browser?.close().catch(() => null);
     await managedDogfood?.close().catch((error) => {

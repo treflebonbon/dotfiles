@@ -24,8 +24,11 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 # The WSL devShell shellHook supplies DOGFOOD_WINDOWS_SCRIPT.
 node "$REF_DIR/playwright-dogfood-runner.mjs" --target about:blank --output "$OUT_DIR"
 test -f "$OUT_DIR/report.md"
+test -f "$OUT_DIR/screenshots/initial.png"
 test -f "$OUT_DIR/traces/playwright-trace.zip"
 ```
+
+For WSL2, the runner uses Windows Chrome over CDP and intentionally does not produce a `.webm` because `connectOverCDP` cannot reliably record video. Verify the screenshot and trace at the fixed 1440x1000 viewport instead. Locally launched non-WSL contexts retain the video assertion.
 
 ## Annotation Integration Tests
 

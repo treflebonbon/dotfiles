@@ -88,6 +88,13 @@ setup() {
   grep -q 'Start-Process -FilePath' "$powershell"
 }
 
+@test "Managed Dogfood Chrome rejects a zero DebugPort before launch" {
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
+
+  grep -Fq 'if ($DebugPort -le 0)' "$package"
+  grep -Fq 'Start requires a positive -DebugPort.' "$package"
+}
+
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"

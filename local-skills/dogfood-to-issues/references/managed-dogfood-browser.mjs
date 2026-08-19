@@ -67,9 +67,11 @@ const acquireOwner = async (owner) => {
   await fs.mkdir(root, { mode: 0o700, recursive: true });
   const lock = path.join(root, "acquire.lock");
   const ownerFile = path.join(root, "owner");
+  let lockAcquired = true;
   try {
     await fs.mkdir(lock, { mode: 0o700 });
   } catch {
+    lockAcquired = false;
     const lockPid = Number(
       await fs.readFile(path.join(lock, "pid"), "utf-8").catch(() => "0")
     );
@@ -79,14 +81,17 @@ const acquireOwner = async (owner) => {
       } catch {
         await fs.rm(lock, { force: true, recursive: true });
         await fs.mkdir(lock, { mode: 0o700 });
+        lockAcquired = true;
       }
     }
-    if (!(await fs.stat(lock).catch(() => null))) {
-      throw new Error("browser ownership lock disappeared; retry");
+    if (!lockAcquired) {
+      if (!(await fs.stat(lock).catch(() => null))) {
+        throw new Error("browser ownership lock disappeared; retry");
+      }
+      throw new Error(
+        `browser ownership is busy (lock pid ${lockPid || "unknown"})`
+      );
     }
-    throw new Error(
-      `browser ownership is busy (lock pid ${lockPid || "unknown"})`
-    );
   }
   await fs.writeFile(path.join(lock, "pid"), `${process.pid}\n`);
   try {
@@ -207,7 +212,7 @@ export const acquireManagedDogfoodChrome = async ({
   }
   const id = runId || `dogfood-${process.pid}-${Date.now()}`;
   const endpointOverride = process.env.DOGFOOD_CDP_ENDPOINT;
-  if (endpointOverride && process.env.DOGFOOD_TEST_WSL !== "1") {
+  if (endpointOverride && process.env.DOGFOOD_TEST_ALLOW_CDP_ENDPOINT !== "1") {
     throw new Error(
       "DOGFOOD_CDP_ENDPOINT is restricted to tests; dogfood must use the managed Windows Chrome launcher."
     );
@@ -288,7 +293,6 @@ export const acquireManagedDogfoodChrome = async ({
         ]);
       } catch (cleanupError) {
         error.message = `${error.message}; cleanup failed: ${cleanupError.message}`;
-        throw error;
       }
     }
     await releaseOwner(owner.ownerFile, id);

@@ -13,7 +13,7 @@ source: human
 
 ## Why Playwright is the standard path
 
-The runner writes deterministic artifacts (`report.md`, screenshots, videos, traces, console/network JSON) without feeding DOM dumps or trace bodies into the model context. This keeps `dogfood-to-issues` evidence reproducible and low-token.
+The runner writes deterministic artifacts (`report.md`, screenshots, traces, console/network JSON, and videos when the browser supports Playwright recording) without feeding DOM dumps or trace bodies into the model context. This keeps `dogfood-to-issues` evidence reproducible and low-token. WSL2's CDP path is intentionally video-free because `connectOverCDP` cannot reliably provide `recordVideo`; it uses an explicit 1440x1000 viewport instead.
 
 With the opt-in `--annotate` flag, Playwright CLI attaches over CDP to this same Managed Dogfood Chrome context after service-worker inspection. It does not launch a second browser. The runner detaches the CLI session before releasing the dogfood ownership record and retains annotation artifacts with the other evidence.
 
@@ -42,7 +42,7 @@ The runner writes all output under the directory passed to `--output` (use `dogf
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `report.md`                   | Finding candidates as `### ISSUE-NNN:` blocks (see [report-parsing.md](report-parsing.md)); MV3 runs include an Extension ID header; clean runs emit no ISSUE block |
 | `screenshots/initial.png`     | Full-page screenshot after navigation                                                                                                                               |
-| `videos/`                     | Screen recording (finalized after `context.close()`)                                                                                                                |
+| `videos/`                     | Screen recording for locally launched contexts (finalized after `context.close()`); not produced by WSL2 CDP runs                                                   |
 | `traces/playwright-trace.zip` | Playwright trace archive for deterministic local replay                                                                                                             |
 | `console.json`                | Captured console/page errors                                                                                                                                        |
 | `network.json`                | Captured failed requests and 5xx responses                                                                                                                          |
@@ -57,6 +57,8 @@ On WSL2 the runner uses `chromium.connectOverCDP` to the Managed Dogfood Chrome 
 
 - `--disable-extensions-except=<extension>` — disables all other extensions
 - `--load-extension=<extension>` — loads the unpacked MV3 extension
+
+Playwright does not reliably support `recordVideo` for an existing browser reached through `connectOverCDP`. WSL2 CDP runs therefore omit video capture and apply the required 1440x1000 viewport with `page.setViewportSize`, including when an extension run reuses `browser.contexts()[0]`. Their evidence contract requires the report, screenshot, trace, console/network data, and storage state; a `.webm` file is required only for locally launched contexts.
 
 The service worker is obtained by filtering for `chrome-extension://` workers (so a reused profile or an unrelated worker is not mistaken for the extension under test), with the `waitForEvent` wrapped so a timeout does not throw:
 
@@ -78,7 +80,7 @@ const extensionId = sw
   : "(unknown - service worker not registered)";
 ```
 
-This derives the extension ID from the SW URL (`chrome-extension://<id>/...`) without relying on `chrome.management` or a fixed ID. The context is always closed in a `finally` block so the profile lock is released and the video is finalized even when the SW or navigation fails.
+This derives the extension ID from the SW URL (`chrome-extension://<id>/...`) without relying on `chrome.management` or a fixed ID. The context is always closed in a `finally` block so the profile lock is released and any supported local video is finalized even when the SW or navigation fails.
 
 ## Headless vs headed
 
@@ -107,7 +109,7 @@ Expected outputs after the runner exits (the fixture's SW registers, so a clean 
 - `screenshots/initial.png`
 - `auth-state.json`
 - `traces/playwright-trace.zip`
-- `videos/` directory with a `.webm` file
+- `videos/` directory with a `.webm` file when run through a locally launched context; WSL2 CDP runs intentionally omit this directory entry
 
 ## Limitations
 

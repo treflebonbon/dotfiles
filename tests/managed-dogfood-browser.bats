@@ -49,6 +49,7 @@ STUB
 
   run env \
     DOGFOOD_TEST_WSL=1 \
+    DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1 \
     DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:9333 \
     DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
     DOGFOOD_WSLPATH="$BIN/wslpath" \
@@ -71,7 +72,7 @@ STUB
     DOGFOOD_WSLPATH="$BIN/wslpath" \
     DOGFOOD_PS_LOG="$LOG" \
     BROWSER_OWNERSHIP_DIR="$STATE" \
-    env -u DOGFOOD_TEST_WSL node --input-type=module -e \
+    node --input-type=module -e \
     "import { acquireManagedDogfoodChrome } from '$MODULE'; await acquireManagedDogfoodChrome({});"
 
   [ "$status" -ne 0 ]
@@ -87,6 +88,7 @@ STUB
 
   run env \
     DOGFOOD_TEST_WSL=1 \
+    DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1 \
     DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:9334 \
     DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
     DOGFOOD_WSLPATH="$BIN/wslpath" \
@@ -101,9 +103,31 @@ STUB
   ! grep -Fq -- '-Action Start' "$LOG"
 }
 
+@test "Managed Dogfood Chrome recovers a stale acquisition lock" {
+  mkdir "$STATE/acquire.lock"
+  printf '%s\n' 99999999 >"$STATE/acquire.lock/pid"
+
+  run env \
+    DOGFOOD_TEST_WSL=1 \
+    DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1 \
+    DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:9333 \
+    DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
+    DOGFOOD_WSLPATH="$BIN/wslpath" \
+    DOGFOOD_PS_LOG="$LOG" \
+    BROWSER_OWNERSHIP_DIR="$STATE" \
+    node --input-type=module -e \
+    "import { acquireManagedDogfoodChrome } from '$MODULE'; const b = await acquireManagedDogfoodChrome({ runId: 'stale-lock-run' }); console.log(b.endpoint); await b.close();"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"http://127.0.0.1:9333"* ]]
+  [ ! -e "$STATE/acquire.lock" ]
+  [ ! -e "$STATE/owner" ]
+}
+
 @test "Managed Dogfood Chrome records and releases its isolated ownership" {
   run env \
     DOGFOOD_TEST_WSL=1 \
+    DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1 \
     DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:9333 \
     DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
     DOGFOOD_WSLPATH="$BIN/wslpath" \
