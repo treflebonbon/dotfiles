@@ -95,6 +95,28 @@ setup() {
   grep -Fq 'Start requires a positive -DebugPort.' "$package"
 }
 
+@test "Managed Dogfood Chrome quotes Windows paths only when they contain whitespace" {
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
+
+  grep -Fq 'function Format-ChromePathArgument' "$package"
+  grep -Fq 'if ($Value -match "\s")' "$package"
+  grep -Fq "return ('\"' + \$Value + '\"')" "$package"
+  grep -Fq 'return $Value' "$package"
+  grep -Fq '$ProfileArgument = Format-ChromePathArgument $ProfileDir' "$package"
+  grep -Fq '"--user-data-dir=$ProfileArgument"' "$package"
+  grep -Fq '$ExtensionArgument = Format-ChromePathArgument $ExtensionPath' "$package"
+  grep -Fq '"--disable-extensions-except=$ExtensionArgument"' "$package"
+  grep -Fq '"--load-extension=$ExtensionArgument"' "$package"
+}
+
+@test "WSL2 ADR keeps the CDP evidence record video-free" {
+  local adr="$PROJECT_ROOT/docs/adr/0038-keep-wsl2-browser-free.md"
+
+  grep -Fq 'screenshot / traceを生成し' "$adr"
+  grep -Fq 'video-free契約のため、video artifactはこの経路の検証対象外' "$adr"
+  ! grep -Fq 'screenshot / trace / video' "$adr"
+}
+
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
@@ -289,6 +311,43 @@ setup() {
   ! grep -Eq 'chromium-[0-9]+' "$pkg"
   grep -q 'version = "0.1.17";' "$pkg"
   grep -q '"@playwright/cli": "0.1.17"' "$package_json"
+}
+
+@test "browser-free Playwright wrapper keeps makeWrapper flags in one shell command" {
+  local expr
+  local drv
+  local post_install
+
+  expr='
+      let
+        flake = builtins.getFlake (toString ./private_dot_config/nix-devshell);
+        pkgs = import flake.inputs.nixpkgs.outPath {
+          system = "x86_64-linux";
+          config.allowUnfree = true;
+          overlays = [ flake.inputs.llm-agents.overlays.shared-nixpkgs ];
+        };
+      in (pkgs.callPackage (flake.outPath + "/packages/playwright-cli.nix") {
+        playwright-driver = null;
+      }).drvPath
+    '
+
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/nix-cache"
+  mkdir -p "$XDG_CACHE_HOME"
+  run env TEST_PROJECT_ROOT="$PROJECT_ROOT" TEST_NIX_EXPR="$expr" \
+    bash -c 'cd "$TEST_PROJECT_ROOT" && nix eval --raw --impure --option use-xdg-base-directories true --expr "$TEST_NIX_EXPR"'
+  [ "$status" -eq 0 ]
+  drv="$output"
+
+  run nix derivation show "$drv"
+  [ "$status" -eq 0 ]
+  post_install="$(jq -r '.derivations | to_entries[0].value.env.postInstall' <<<"$output")"
+
+  awk '
+    /playwright-cli-upstream"/ { found = 1; next }
+    found && /--unset PLAYWRIGHT_BROWSERS_PATH/ { seen = 1; exit }
+    found && /^[[:space:]]*$/ { blank = 1 }
+    END { exit !(found && seen && !blank) }
+  ' <<<"$post_install"
 }
 
 @test "WSL2 Playwright skill documents managed headless and headed workflows" {
