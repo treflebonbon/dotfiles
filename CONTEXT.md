@@ -36,6 +36,14 @@ _Avoid_: headless Chrome, headed Chrome, 別ブラウザー
 Managed Playwright Chrome の headed モードを表示面として使う、CLI session とは独立した Playwright の操作画面。annotation は排他 lease を所有する session にだけ結び付く。
 _Avoid_: Dashboard tab, show 画面, headless Dashboard
 
+**Managed Dogfood Chrome**:
+WSL2 上の dogfood evidence 収集専用に管理され、隔離 profile と CDP endpoint、任意の unpacked extension を所有する Windows 側の browser identity。通常利用の既定ブラウザおよび Managed Playwright Chrome とは状態を共有しない。
+_Avoid_: Dogfood browser, extension Chrome, Managed Playwright Chrome
+
+**WSL2 browser boundary**:
+WSL2 が browser identity を所有せず、人間向け URL 表示は Windows の通常の既定ブラウザ、自動操作は用途別の Managed Playwright Chrome または Managed Dogfood Chrome へ分離して委譲する環境境界。
+_Avoid_: WSL Chrome, WSL browser, Windows Chrome only
+
 **Contract**:
 issue/PRD が定める「目的・AC・非目標・検証方法・関連ファイル/入口・判断済みtradeoff」の6項目。`ready-for-agent` 化の入口契約であり、`to-pr` が PR body へ埋め込む出口契約でもある。
 _Avoid_: 仕様, spec, 要件定義

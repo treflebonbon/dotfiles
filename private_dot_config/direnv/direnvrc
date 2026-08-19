@@ -13,10 +13,38 @@ _df_normalize_tmpdir_for_chrome() {
   esac
 }
 
+_df_is_wsl() {
+  [[ -n "${WSL_DISTRO_NAME:-}" ]] || {
+    [[ -r /proc/sys/kernel/osrelease ]] &&
+      grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null
+  }
+}
+
+_df_select_wsl_flake_output() {
+  _df_is_wsl || return
+  [[ -f "${DIRENV_ROOT:-$PWD}/.wsl-browser-free" ]] || return
+  [[ "${1:-}" == *'#'* ]] && return
+  if [[ $# -eq 0 ]]; then
+    printf '%s\n' '.#wsl'
+  elif [[ "$1" == "." || "$1" == "./" || "$1" == path:* ]]; then
+    printf '%s\n' "${1%/}#wsl"
+  fi
+}
+
 if declare -f use_flake >/dev/null && ! declare -f use_flake | grep -q '_df_normalize_tmpdir_for_chrome'; then
   eval "$(declare -f use_flake | sed '1s/use_flake/_df_original_use_flake/')"
   use_flake() {
-    _df_original_use_flake "$@" || return
+    local selected_flake
+    selected_flake="$(_df_select_wsl_flake_output "$@" || true)"
+    if [[ -n "$selected_flake" ]]; then
+      if [[ $# -eq 0 ]]; then
+        _df_original_use_flake "$selected_flake" || return
+      else
+        _df_original_use_flake "$selected_flake" "${@:2}" || return
+      fi
+    else
+      _df_original_use_flake "$@" || return
+    fi
     _df_normalize_tmpdir_for_chrome
   }
 fi

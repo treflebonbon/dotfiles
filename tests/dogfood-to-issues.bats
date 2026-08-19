@@ -6,6 +6,7 @@ setup_file() {
   cp "$SOURCE_REF_DIR/package.json" \
     "$SOURCE_REF_DIR/package-lock.json" \
     "$SOURCE_REF_DIR/playwright-dogfood-runner.mjs" \
+    "$SOURCE_REF_DIR/managed-dogfood-browser.mjs" \
     "$TEST_REF_DIR/"
   mkdir -p "$TEST_REF_DIR/fixtures"
   cp -R "$SOURCE_REF_DIR/fixtures/mv3-min" "$TEST_REF_DIR/fixtures/"
@@ -19,6 +20,7 @@ setup() {
   REF_DIR="$BATS_FILE_TMPDIR/references"
   RUNNER="$REF_DIR/playwright-dogfood-runner.mjs"
   export NODE_BIN="$(command -v node)"
+  export DOGFOOD_TEST_WSL=0
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
   export FAKE_CLI_LOG="$BATS_TEST_TMPDIR/playwright-cli.log"
   export PWTEST_DAEMON_SESSION_DIR="$BATS_TEST_TMPDIR/playwright-cli-daemon"
@@ -102,6 +104,17 @@ EOF
   grep -Fq 'paths relative to that root' "$parsing"
   grep -Fq 'read-only evidence root' "$worktree"
   grep -Fq 'Evidence root (local)' "$body"
+}
+
+@test "WSL CDP dogfood uses an explicit viewport without requiring video" {
+  local runner="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/playwright-dogfood-runner.mjs"
+  local contract="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/mv3-extension.md"
+  local verification="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/verification.md"
+
+  grep -Fq 'const cdpContextOptions = { viewport: evidenceViewport };' "$runner"
+  grep -Fq 'page.setViewportSize(evidenceViewport)' "$runner"
+  grep -Fq 'WSL2 CDP runs therefore omit video capture' "$contract"
+  grep -Fq 'intentionally does not produce a `.webm`' "$verification"
 }
 
 @test "approval protocol adapts to runtimes limited to three choices" {

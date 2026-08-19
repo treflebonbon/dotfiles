@@ -46,62 +46,71 @@
           gwq = pkgs.callPackage ./packages/gwq.nix { };
           gws = pkgs.callPackage ./packages/gws.nix { };
           flyline = pkgs.callPackage ./packages/flyline.nix { };
+          wslXdgOpen = pkgs.callPackage ./packages/wsl-xdg-open.nix { };
 
-          moduleArgs = {
-            inherit
-              pkgs
-              inputs
-              lib
-              system
-              flyline
-              ;
-          };
+          makeShell =
+            browserless:
+            let
+              moduleArgs = {
+                inherit
+                  pkgs
+                  inputs
+                  lib
+                  system
+                  flyline
+                  wslXdgOpen
+                  browserless
+                  ;
+              };
 
-          fragments = [
-            (import ./modules/node.nix moduleArgs)
-            (import ./modules/python.nix moduleArgs)
-            (import ./modules/runtimes.nix moduleArgs)
-            (import ./modules/formatters.nix moduleArgs)
-            (import ./modules/shell.nix moduleArgs)
-            (import ./modules/editor.nix moduleArgs)
-            (import ./modules/git.nix moduleArgs)
-            (import ./modules/k8s.nix moduleArgs)
-            (import ./modules/security.nix moduleArgs)
-            (import ./modules/testing.nix moduleArgs)
-            (import ./modules/docs.nix moduleArgs)
-            (import ./modules/ai.nix moduleArgs)
-          ];
+              fragments = [
+                (import ./modules/node.nix moduleArgs)
+                (import ./modules/python.nix moduleArgs)
+                (import ./modules/runtimes.nix moduleArgs)
+                (import ./modules/formatters.nix moduleArgs)
+                (import ./modules/shell.nix moduleArgs)
+                (import ./modules/editor.nix moduleArgs)
+                (import ./modules/git.nix moduleArgs)
+                (import ./modules/k8s.nix moduleArgs)
+                (import ./modules/security.nix moduleArgs)
+                (import ./modules/testing.nix moduleArgs)
+                (import ./modules/docs.nix moduleArgs)
+                (import ./modules/ai.nix moduleArgs)
+              ];
 
-          cicdPackages =
-            (with pkgs; [
-              act
-              cocogitto
-              lefthook
-              go-task
-              dive
-              atlas
-              tbls
-              ghq
-              overmind
-              graphviz
-            ])
-            ++ [
-              gws
-              gwq
-            ];
+              cicdPackages =
+                (with pkgs; [
+                  act
+                  cocogitto
+                  lefthook
+                  go-task
+                  dive
+                  atlas
+                  tbls
+                  ghq
+                  overmind
+                  graphviz
+                ])
+                ++ [
+                  gws
+                  gwq
+                ];
 
-          mergedPackages = builtins.concatLists (map (f: f.packages or [ ]) fragments);
-          mergedEnv = lib.foldl' (a: b: a // b) { } (map (f: f.env or { }) fragments);
-          mergedShellHook = lib.concatStringsSep "\n" (map (f: f.shellHook or "") fragments);
+              mergedPackages = builtins.concatLists (map (f: f.packages or [ ]) fragments);
+              mergedEnv = lib.foldl' (a: b: a // b) { } (map (f: f.env or { }) fragments);
+              mergedShellHook = lib.concatStringsSep "\n" (map (f: f.shellHook or "") fragments);
+            in
+            pkgs.mkShell (
+              {
+                packages = mergedPackages ++ cicdPackages;
+                shellHook = mergedShellHook;
+              }
+              // mergedEnv
+            );
         in
         {
-          default = pkgs.mkShell (
-            {
-              packages = mergedPackages ++ cicdPackages;
-              shellHook = mergedShellHook;
-            }
-            // mergedEnv
-          );
+          default = makeShell false;
+          wsl = makeShell true;
         }
       );
 

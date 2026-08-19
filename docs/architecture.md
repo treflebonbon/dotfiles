@@ -17,8 +17,8 @@ CLAUDE.md / AGENTS.md / `runtime/` バンドルは chezmoi が `~/` へ配備す
 
 混同しないこと:
 
-- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（chezmoi / lefthook / cocogitto / shellcheck / shfmt / oxfmt / bats / bun / playwright-driver など lint・format・test 一式）。`cd "$(chezmoi source-path)"` で direnv が自動ロード。加えて per-repo flake の `templates` output（go/rust/elixir/perl/gleam/bun）を公開する。
-- **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix` → `~/.config/nix-devshell/flake.nix`) — 汎用ランタイム（node / python3 / bun）+ 横断ツール + AI ツール。`nix-direnv` で評価結果をキャッシュ。node / python3 / bun は AI / 汎用ツールが script を実行する汎用ランタイムとして常駐する。プロジェクト言語（go/rust/elixir/perl/gleam）の toolchain は持たない。
+- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（chezmoi / lefthook / cocogitto / shellcheck / shfmt / oxfmt / bats / bun / playwright-driver など lint・format・test 一式）。通常の `.#default` は非 WSL の互換経路を維持し、WSL2 では marker `.wsl-browser-free` により `.#wsl`（browser binary なし）を自動選択する。`cd "$(chezmoi source-path)"` で direnv が自動ロード。加えて per-repo flake の `templates` output（go/rust/elixir/perl/gleam/bun）を公開する。
+- **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix` → `~/.config/nix-devshell/flake.nix`) — 汎用ランタイム（node / python3 / bun）+ 横断ツール + AI ツール。`.#default` は従来のローカル browser 互換経路、`.#wsl` は Playwright browser を closure に含めず Managed Windows CDP adapter だけを配布する。WSL2 の direnv と global environment cache は `.#wsl` を自動選択し、`nix-direnv` で評価結果をキャッシュする。node / python3 / bun は AI / 汎用ツールが script を実行する汎用ランタイムとして常駐する。プロジェクト言語（go/rust/elixir/perl/gleam）の toolchain は持たない。
 
 `flake.nix` は `modules/*.nix`（node, python, runtimes, shell, editor, git, k8s, security, formatters, testing, docs, ai）を plain fragment として import し、`pkgs.mkShell` に packages / env / shellHook を fold する。ユーザー環境と per-repo template はともに `nixpkgs-26.05-darwin` を使い、x86_64-linux / aarch64-linux / aarch64-darwin の3 system に対応する。x86_64-darwin は upstream package の対応縮小と local override の継続コストを受け、2026-08-06 にサポートを終了した（[ADR-0034](adr/0034-update-ai-toolset-safety-baselines.md)）。
 

@@ -22,13 +22,15 @@ Chrome** headless by default: Windows Google Chrome with CDP on
 - `show --annotate` requires the session that owns the managed lease.
 - `delete-data` is refused for a managed session. Reset the dedicated profile
   manually only after closing the session and Dashboard.
+- Managed Dogfood Chrome uses the same browser-ownership directory with role
+  `dogfood`; Playwright refuses to start while a dogfood run owns the browser.
 
 Explicit `--config`, `--browser`, `--profile`, `--persistent`, `--device`,
 or `--mobile` options, browser-shaping `PLAYWRIGHT_MCP_*` environment variables
 other than `PLAYWRIGHT_MCP_HEADLESS`, `PWTEST_CLI_GLOBAL_CONFIG`, project
-`.playwright/cli.config.json` files, and `attach` retain upstream behavior.
-An explicit override cannot replace the same session while it owns the managed
-lease; close that session first or use another session name.
+`.playwright/cli.config.json` files are rejected in WSL2 browser-free mode.
+Use `playwright-cli attach --cdp=<remote-endpoint>` for an explicit remote CDP
+browser. Non-WSL environments retain upstream behavior.
 
 The dedicated profile may reuse authentication that the user established
 manually. Authentication is not authorization for payments, production data

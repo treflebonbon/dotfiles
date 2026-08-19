@@ -56,7 +56,7 @@ node "$REF_DIR/playwright-dogfood-runner.mjs" \
 
 When `--extension <path>` is supplied, append `--extension "$(readlink -f "$EXTENSION_PATH")"`.
 When `--annotate` is supplied, append `--annotate`; reject it if `--resume` is also present. The runner waits for Playwright Dashboard feedback only after automated inspection.
-If that headless MV3 run exits non-zero because the service worker did not register, retry once with `--headed` under `xvfb-run -a`.
+If that headless MV3 run exits non-zero because the service worker did not register, retry once with `--headed` using the same output-derived Managed Dogfood profile identity. On WSL2 this is Windows Chrome over CDP and does not use `xvfb-run`; non-WSL callers may provide their normal display wrapper.
 
 The runner writes `report.md`, `screenshots/`, `videos/`, `traces/`, `console.json`, and `network.json` under `$WT_DIR/$OUTPUT_DIR`. Annotation runs also retain Playwright CLI's PNG/YAML artifacts and the original JSON response under that output root.
 

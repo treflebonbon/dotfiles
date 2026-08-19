@@ -47,10 +47,16 @@ refresh_nix_devshell_cache() {
   printf 'refresh-nix-devshell-cache: re-evaluating devshell (first run may take several minutes; downloads stream below)\n' >&2
 
   local tmp err
+  local -a nix_output_args=()
+  if [ -n "${WSL_DISTRO_NAME:-}" ] || {
+    [ -r /proc/sys/kernel/osrelease ] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null
+  }; then
+    nix_output_args=(".#wsl")
+  fi
   tmp=$(mktemp "${CACHE}.tmp.XXXXXX")
   err=$(mktemp "${LOG}.err.XXXXXX")
 
-  if (cd "$DIR" && nix print-dev-env 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)=') >"$tmp" && [ -s "$tmp" ]; then
+  if (cd "$DIR" && nix print-dev-env "${nix_output_args[@]}" 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)=') >"$tmp" && [ -s "$tmp" ]; then
     mv "$tmp" "$CACHE"
     tmp=""
     [ -s "$err" ] && cat "$err" >>"$LOG"

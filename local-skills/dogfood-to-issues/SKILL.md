@@ -32,12 +32,25 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
      ARGS+=(--annotate)
    fi
    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
-   node "$REF_DIR/playwright-dogfood-runner.mjs" "${ARGS[@]}"
+   if ! node "$REF_DIR/playwright-dogfood-runner.mjs" "${ARGS[@]}"; then
+     if [[ -n "${EXTENSION_PATH:-}" ]] &&
+       grep -Fq "MV3 service worker did not register" "$OUT_ABS/report.md"; then
+       if [[ -n "${WSL_DISTRO_NAME:-}" ]] || {
+         [ -r /proc/sys/kernel/osrelease ] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease;
+       }; then
+         node "$REF_DIR/playwright-dogfood-runner.mjs" "${ARGS[@]}" --headed
+       else
+         xvfb-run -a node "$REF_DIR/playwright-dogfood-runner.mjs" "${ARGS[@]}" --headed
+       fi
+     else
+       exit 1
+     fi
+   fi
    ```
 
-   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` resolves chromium from the nix `PLAYWRIGHT_BROWSERS_PATH` instead of downloading. Headless is the primary path; when `--extension` is supplied and the MV3 service worker never registers, retry once with `--headed` under `xvfb-run -a`. The runner does not use a separate browser daemon, so there is no DISPLAY conflict.
+   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` prevents npm from downloading a browser. On WSL2 the runner acquires Windows Managed Dogfood Chrome over loopback CDP; normal Web, MV3, and annotation share the output-derived profile identity and ownership record. Non-WSL environments retain the local Playwright path. Headless is primary; an MV3 service-worker failure retries once headed with the same profile identity, without starting a WSL browser or using `xvfb-run`.
 
-   With `--annotate`, the runner completes automated inspection before notifying the user that Playwright Dashboard input is awaited. It attaches a unique Playwright CLI session over the runner-owned Chromium's ephemeral CDP endpoint, collects visual annotations, then detaches before finalizing the browser context. Rectangles and overall feedback become finding candidates; an empty submission adds none. Annotation failures are explicit and non-zero, but the runner still finalizes its report, trace, and video for audit.
+   With `--annotate`, the runner completes automated inspection before notifying the user that Playwright Dashboard input is awaited. It attaches a unique Playwright CLI session over the Managed Dogfood Chrome CDP endpoint, collects visual annotations, then detaches before releasing the dogfood ownership record. Rectangles and overall feedback become finding candidates; an empty submission adds none. Annotation failures are explicit and non-zero, but the runner still finalizes its report, trace, and video where the connected browser supports recording.
 
 6. Parse `report.md` into structured finding candidates.
 7. Run dedup preflight with `gh search issues` and label preflight with `gh label list`.
@@ -67,7 +80,7 @@ For multi-cycle requests, track cycle count and zero-finding streak separately f
 - `--annotate`: optional visual feedback collection through Playwright CLI. It waits for human submission after automated checks and is incompatible with `--resume`.
 - `--parent #N`: optional parent issue. Never infer a parent automatically.
 - `--auth-from <profile|notes>`: optional authentication context. Not yet supported by the Playwright runner; supplying it stops the run so authenticated dogfood does not degrade into an unauthenticated login-page check.
-- `--extension <path>`: optional path to an unpacked MV3 Chrome extension. The Playwright runner loads it in a persistent Chromium context. Not compatible with `--auth-from` until authenticated MV3 state import is implemented.
+- `--extension <path>`: optional path to an unpacked MV3 Chrome extension. On WSL2 the Managed Dogfood Chrome process receives the extension flags; the runner verifies a `chrome-extension://` service worker. Not compatible with `--auth-from` until authenticated MV3 state import is implemented.
 
 ## Guardrails
 

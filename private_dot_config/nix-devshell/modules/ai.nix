@@ -2,6 +2,7 @@
   pkgs,
   inputs,
   lib,
+  browserless ? false,
   ...
 }:
 
@@ -167,7 +168,9 @@ let
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
-  playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix { };
+  playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix {
+    playwright-driver = if browserless then null else pkgs.playwright-driver;
+  };
   waza = pkgs.callPackage ../packages/waza.nix { };
 in
 {
@@ -209,6 +212,7 @@ in
   ];
 
   shellHook = ''
+    export DOGFOOD_WINDOWS_SCRIPT="${playwright-cli}/share/playwright-cli/dogfood-chrome-windows.ps1"
     mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
     ln -sfn "${playwright-cli}/share/playwright-cli/skills/playwright-cli" "$HOME/.agents/skills/playwright-cli"
     ln -sfn "../../.agents/skills/playwright-cli" "$HOME/.claude/skills/playwright-cli"

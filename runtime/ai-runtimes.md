@@ -181,7 +181,7 @@ orphan 化の懸念は隔離 HOME で実測して否定した。`apm prune` は 
 
 切り出した impeccable の判定（Issue #117）も同日に済ませた。結論は **pin を `1cf7d7ab` へ進める、ただし `Stop` 配線とセットで**。判定の根拠・隔離 HOME での実測値・代替案の却下理由は [ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md) にあり、実作業は Issue #119 へ起票した。
 
-2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL と明示 override は upstream へ透過し、通常利用の Windows Chrome profile は参照しない。設計境界は [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
+2026-07-29 JST、Playwright CLI 0.1.17 package に WSL2 wrapper を追加した。mirrored networking 上では Managed Playwright Chrome（Windows Chrome + 専用 profile + loopback CDP）を標準経路とし、Dashboard も WSL loopback server として同じ browser に表示する。非 WSL は upstream を維持し、WSL2 の local browser override は browser-free 境界で拒否、明示 remote CDP attach だけを許可する。設計境界は [ADR-0038](../docs/adr/0038-keep-wsl2-browser-free.md) と [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を参照。
 
 2026-08-05 JST、Managed Playwright Chrome の通常 `open` を headless 既定に変更した。`open --headed` と Dashboard / annotation は headed とし、両モードは同じ browser identity を排他的に使う。実 process の mode と要求が異なる場合は既存 consumer を変更せず、明示的な cleanup と再起動を要求する。
 

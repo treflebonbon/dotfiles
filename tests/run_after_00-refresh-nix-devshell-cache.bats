@@ -32,6 +32,7 @@ run_sut() {
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
+    WSL_DISTRO_NAME="${WSL_DISTRO_NAME:-}" \
     /bin/bash "$SUT"
 }
 
@@ -89,4 +90,20 @@ STUB
   assert_success
   assert_log_contains "nix print-dev-env"
   grep -q '/nix/store/fresh/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+}
+
+@test "WSL global cache selects the browser-free flake output" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+echo 'export PATH=/nix/store/wsl/bin:$PATH'
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  export WSL_DISTRO_NAME=Ubuntu
+
+  run_sut
+
+  assert_success
+  assert_log_contains "nix print-dev-env .#wsl"
+  grep -q '/nix/store/wsl/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
 }

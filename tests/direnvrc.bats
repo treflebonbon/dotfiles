@@ -28,11 +28,38 @@ EOF
 @test "use_flake normalizes long nix-shell TMPDIR after original function succeeds" {
   write_fake_nix_direnv
 
-  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" bash -c 'source "$1"; export TMPDIR="/tmp/nix-shell.abc/nix-shell.def/nix-shell.ghi"; use_flake . --impure; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" DIRENV_ROOT="$BATS_TEST_TMPDIR/no-marker" bash -c 'source "$1"; export TMPDIR="/tmp/nix-shell.abc/nix-shell.def/nix-shell.ghi"; use_flake . --impure; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
 
   [ "$status" -eq 0 ]
   [ "$output" = "/tmp" ]
   grep -q 'use_flake:. --impure' "$TEST_LOG"
+}
+
+@test "WSL repo marker selects the browser-free flake output" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" WSL_DISTRO_NAME=Ubuntu DIRENV_ROOT="$PROJECT_ROOT" bash -c 'source "$1"; use_flake . --impure' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  grep -q 'use_flake:.#wsl --impure' "$TEST_LOG"
+}
+
+@test "WSL repo marker selects the browser-free output for zero-argument use_flake" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" WSL_DISTRO_NAME=Ubuntu DIRENV_ROOT="$PROJECT_ROOT" bash -c 'source "$1"; use_flake' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  grep -q 'use_flake:.#wsl' "$TEST_LOG"
+}
+
+@test "explicit WSL flake outputs are preserved" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" WSL_DISTRO_NAME=Ubuntu DIRENV_ROOT="$PROJECT_ROOT" bash -c 'source "$1"; use_flake .#default --impure' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  grep -q 'use_flake:.#default --impure' "$TEST_LOG"
 }
 
 @test "use_nix normalizes long nix-shell TMPDIR after original function succeeds" {

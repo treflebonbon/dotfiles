@@ -11,6 +11,7 @@ setup() {
   POWERSHELL_LOG="$BATS_TEST_TMPDIR/powershell.log"
   POWERSHELL_STATE="$BATS_TEST_TMPDIR/powershell.state"
   RUNTIME_DIR="$BATS_TEST_TMPDIR/runtime"
+  BROWSER_OWNERSHIP_DIR="$BATS_TEST_TMPDIR/browser-ownership"
   PROC_ROOT="$BATS_TEST_TMPDIR/proc"
   DASHBOARD_CALL_LOG="$BATS_TEST_TMPDIR/dashboard-call.log"
   DASHBOARD_READY="$BATS_TEST_TMPDIR/dashboard-ready"
@@ -142,6 +143,11 @@ case "$action" in
     fi
     ;;
   Start)
+    if [[ "${PWCLI_FAKE_ASSERT_OWNER_ON_START:-0}" == "1" ]] &&
+      [[ ! -f "$BROWSER_OWNERSHIP_DIR/owner" ]]; then
+      printf '%s\n' 'browser ownership was not reserved before Start' >&2
+      exit 47
+    fi
     printf 'managed:%s:4242\n' "${mode:-headless}" >"$POWERSHELL_STATE"
     if [[ "${PWCLI_FAKE_INSPECT_FAIL_AFTER_START:-0}" == "1" ]]; then
       touch "$POWERSHELL_STATE.inspect-fail-once"
@@ -206,6 +212,7 @@ EOF
   export PWCLI_FLOCK
   PWCLI_FLOCK="$(command -v flock)"
   export PWCLI_RUNTIME_DIR="$RUNTIME_DIR"
+  export BROWSER_OWNERSHIP_DIR
   export PWCLI_CDP_TIMEOUT=1
 }
 
@@ -290,6 +297,25 @@ EOF
   [ "$(sed -n '2p' "$RUNTIME_DIR/playwright-cli/lease")" = "$PWD" ]
 }
 
+@test "managed Playwright refuses a Managed Dogfood Chrome owner" {
+  mkdir -p "$BROWSER_OWNERSHIP_DIR"
+  printf '%s\n' \
+    dogfood \
+    dogfood-run-1 \
+    4242 \
+    headed \
+    'C:\\Temp\\aiakos-dogfood-dogfood-run-1' \
+    http://127.0.0.1:49152 \
+    "$PWD" \
+    >"$BROWSER_OWNERSHIP_DIR/owner"
+
+  run bash "$WRAPPER" -s=alpha open https://example.com
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Managed Dogfood Chrome is owned by 'dogfood-run-1'"* ]]
+  [ ! -f "$POWERSHELL_LOG" ]
+}
+
 @test "managed open requests headless Windows Chrome by default" {
   export PWCLI_TEST_WSL=1
 
@@ -298,6 +324,17 @@ EOF
   [ "$status" -eq 0 ]
   grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
   [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+}
+
+@test "managed open reserves browser ownership before launching Chrome" {
+  export PWCLI_TEST_WSL=1
+  export PWCLI_FAKE_ASSERT_OWNER_ON_START=1
+
+  run bash "$WRAPPER" open https://example.com
+
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' "$BROWSER_OWNERSHIP_DIR/owner")" = "playwright" ]
+  [ "$(sed -n '3p' "$BROWSER_OWNERSHIP_DIR/owner")" = "4242" ]
 }
 
 @test "runtime state falls back to a user-only tmp directory" {
@@ -356,7 +393,7 @@ EOF
   grep -Fxq -- "https://example.com/headless" "$UPSTREAM_LOG"
 }
 
-@test "explicit open browser options bypass the managed WSL2 path" {
+@test "explicit local browser options are rejected in browser-free WSL2" {
   export PWCLI_TEST_WSL=1
   local option
   for option in \
@@ -368,15 +405,24 @@ EOF
     "--mobile"; do
     rm -f "$POWERSHELL_LOG"
     run bash "$WRAPPER" open "$option" https://example.com
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"local browser overrides are unsupported"* ]]
     [ ! -e "$POWERSHELL_LOG" ]
-    grep -Fq -- "$option" "$UPSTREAM_LOG"
-    ! grep -Fq -- "--config=$RUNTIME_DIR/playwright-cli/managed-cli-config.json" \
-      "$UPSTREAM_LOG"
   done
 }
 
-@test "an explicit override cannot replace its own managed session daemon" {
+@test "local browser options are rejected for managed Dashboard startup" {
+  export PWCLI_TEST_WSL=1
+
+  run bash "$WRAPPER" show --config=custom.json
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
+  [ ! -e "$POWERSHELL_LOG" ]
+  [ ! -e "$RUNTIME_DIR/playwright-cli" ]
+}
+
+@test "an explicit local browser option cannot replace its own managed session" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com/managed
   [ "$status" -eq 0 ]
@@ -384,14 +430,13 @@ EOF
   run bash "$WRAPPER" -s=alpha open --browser=firefox https://example.com/override
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"session 'alpha'"* ]]
-  [[ "$output" == *"close"* ]]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
   grep -Fxq -- "https://example.com/managed" "$UPSTREAM_LOG"
 }
 
-@test "a split-value config override cannot replace its own managed session daemon" {
+@test "a split-value local config override cannot replace its own managed session" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com/managed
   [ "$status" -eq 0 ]
@@ -409,8 +454,7 @@ EOF
   run bash "$WRAPPER" -s=alpha --config custom.json open
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"session 'alpha'"* ]]
-  [[ "$output" == *"close"* ]]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   cmp "$before/powershell.log" "$POWERSHELL_LOG"
   cmp "$before/cdp-close.log" "$CDP_CLOSE_LOG"
   cmp "$before/upstream.log" "$UPSTREAM_LOG"
@@ -419,31 +463,27 @@ EOF
   cmp "$before/lease" "$RUNTIME_DIR/playwright-cli/lease"
 }
 
-@test "an explicit override on another session retains upstream behavior" {
+@test "an explicit local browser option is rejected even for another session" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com/managed
   [ "$status" -eq 0 ]
 
   run bash "$WRAPPER" -s=beta open --browser=firefox --headed https://example.com/override
 
-  [ "$status" -eq 0 ]
-  grep -Fxq -- "-s=beta" "$UPSTREAM_LOG"
-  grep -Fxq -- "--browser=firefox" "$UPSTREAM_LOG"
-  grep -Fxq -- "--headed" "$UPSTREAM_LOG"
-  ! grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
 
-@test "an explicit override releases the managed runtime lock before upstream" {
+@test "a rejected local browser override leaves the managed runtime lock untouched" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha open https://example.com/managed
   [ "$status" -eq 0 ]
-  export PWCLI_FAKE_ASSERT_LOCK_RELEASED=1
-
   run bash "$WRAPPER" -s=beta open --browser=firefox https://example.com/override
 
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
@@ -534,7 +574,7 @@ EOF
   grep -Fxq -- "--annotate" "$UPSTREAM_LOG"
 }
 
-@test "project config and browser-shaping environment bypass the managed WSL2 path" {
+@test "project config and browser-shaping environment are rejected in browser-free WSL2" {
   export PWCLI_TEST_WSL=1
   local project="$BATS_TEST_TMPDIR/project"
   mkdir -p "$project/.playwright"
@@ -542,20 +582,23 @@ EOF
 
   cd "$project"
   run bash "$WRAPPER" open https://example.com
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ ! -e "$POWERSHELL_LOG" ]
 
   rm -f "$project/.playwright/cli.config.json" "$POWERSHELL_LOG"
   export PLAYWRIGHT_MCP_DEVICE="Pixel 10"
   run bash "$WRAPPER" open https://example.com
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ ! -e "$POWERSHELL_LOG" ]
   unset PLAYWRIGHT_MCP_DEVICE
 
   rm -f "$POWERSHELL_LOG"
   export PWTEST_CLI_GLOBAL_CONFIG="$project/global-config"
   run bash "$WRAPPER" open https://example.com
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ ! -e "$POWERSHELL_LOG" ]
   unset PWTEST_CLI_GLOBAL_CONFIG
 }
@@ -988,6 +1031,27 @@ EOF
   grep -Fxq -- "--port=7777" "$UPSTREAM_LOG"
 }
 
+@test "annotation Dashboard commands can use an explicitly attached external CDP owner" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$BROWSER_OWNERSHIP_DIR"
+  printf '%s\n' \
+    dogfood \
+    dogfood-run-1 \
+    4242 \
+    headed \
+    'C:\\Temp\\aiakos-dogfood-dogfood-run-1' \
+    http://127.0.0.1:49152 \
+    "$PWD" \
+    >"$BROWSER_OWNERSHIP_DIR/owner"
+  touch "$DASHBOARD_READY"
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 0 ]
+  grep -Fxq -- "show" "$UPSTREAM_LOG"
+  [ ! -e "$POWERSHELL_LOG" ]
+}
+
 @test "managed open refuses orphan Chrome and a conflicting CDP port" {
   export PWCLI_TEST_WSL=1
   printf '%s\n' 'managed:headless:4242' >"$POWERSHELL_STATE"
@@ -1042,4 +1106,18 @@ EOF
   [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
   [ -s "$CDP_CLOSE_LOG" ]
   ! grep -Fq -- "-Action Stop" "$POWERSHELL_LOG"
+}
+
+@test "kill-all from another workspace removes the recorded browser owner" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha open https://example.com
+  [ "$status" -eq 0 ]
+
+  local other_workspace="$BATS_TEST_TMPDIR/other-workspace"
+  mkdir -p "$other_workspace"
+  run bash -c 'cd "$1" && bash "$2" kill-all' _ "$other_workspace" "$WRAPPER"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$BROWSER_OWNERSHIP_DIR/owner" ]
+  [ ! -e "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
 }

@@ -13,19 +13,15 @@ source: human
 
 ## Why Playwright is the standard path
 
-The runner writes deterministic artifacts (`report.md`, screenshots, videos, traces, console/network JSON) without feeding DOM dumps or trace bodies into the model context. This keeps `dogfood-to-issues` evidence reproducible and low-token.
+The runner writes deterministic artifacts (`report.md`, screenshots, traces, console/network JSON, and videos when the browser supports Playwright recording) without feeding DOM dumps or trace bodies into the model context. This keeps `dogfood-to-issues` evidence reproducible and low-token. WSL2's CDP path is intentionally video-free because `connectOverCDP` cannot reliably provide `recordVideo`; it uses an explicit 1440x1000 viewport instead.
 
-With the opt-in `--annotate` flag, Playwright CLI attaches over CDP to this same persistent Chromium context after service-worker inspection. It does not launch a second browser. The runner detaches the CLI session before closing the context and retains annotation artifacts with the other evidence.
+With the opt-in `--annotate` flag, Playwright CLI attaches over CDP to this same Managed Dogfood Chrome context after service-worker inspection. It does not launch a second browser. The runner detaches the CLI session before releasing the dogfood ownership record and retains annotation artifacts with the other evidence.
 
-For MV3 extensions, Playwright is also required: `agent-browser` operates over headless CDP and does not register MV3 service workers — extensions loaded via `--load-extension` require a persistent browser context, which the agent-browser daemon does not expose.
-
-The headed-with-xvfb alternative also fails: the agent-browser daemon holds the `DISPLAY` from its own Xvfb session, and a second `xvfb-run -a` conflicts with that daemon DISPLAY assignment (see `mv3-spike.md` for the full spike results, #955).
-
-The runner therefore bypasses the agent-browser daemon entirely and drives Playwright directly, avoiding both issues.
+For MV3 extensions, the runner always verifies a `chrome-extension://` service worker. On WSL2 the Windows Managed Dogfood Chrome process receives `--disable-extensions-except` and `--load-extension` and is reached over loopback CDP; no browser binary or X server is installed in WSL. Non-WSL environments retain the local Playwright persistent-context path.
 
 ## Playwright version and browser supply
 
-`references/package.json` pins `playwright@1.59.1`. This version expects `chromium-1217`, which matches the nix `PLAYWRIGHT_BROWSERS_PATH` chromium build in this environment.
+`references/package.json` pins `playwright@1.59.1` for the runner API. On WSL2 it is a CDP client only; it does not download or launch a local browser.
 
 **Do not substitute `1.58.2`** (used by the uxaudit skill). That version expects `chromium-1208` and causes a browser-not-found mismatch (see #955 spike pin correction).
 
@@ -36,7 +32,7 @@ REF_DIR="${CLAUDE_SKILL_DIR:-${CODEX_SKILL_DIR:-.}}/references"
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 ```
 
-`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` tells Playwright to skip its own browser download and resolve chromium from the nix `PLAYWRIGHT_BROWSERS_PATH` instead. `npm ci` (not `install`) is used so the committed `package-lock.json` is honoured exactly.
+`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` tells npm/Playwright not to download a browser. `npm ci` (not `install`) is used so the committed `package-lock.json` is honoured exactly.
 
 ## Evidence contract
 
@@ -46,7 +42,7 @@ The runner writes all output under the directory passed to `--output` (use `dogf
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `report.md`                   | Finding candidates as `### ISSUE-NNN:` blocks (see [report-parsing.md](report-parsing.md)); MV3 runs include an Extension ID header; clean runs emit no ISSUE block |
 | `screenshots/initial.png`     | Full-page screenshot after navigation                                                                                                                               |
-| `videos/`                     | Screen recording (finalized after `context.close()`)                                                                                                                |
+| `videos/`                     | Screen recording for locally launched contexts (finalized after `context.close()`); not produced by WSL2 CDP runs                                                   |
 | `traces/playwright-trace.zip` | Playwright trace archive for deterministic local replay                                                                                                             |
 | `console.json`                | Captured console/page errors                                                                                                                                        |
 | `network.json`                | Captured failed requests and 5xx responses                                                                                                                          |
@@ -57,10 +53,12 @@ The runner emits findings in the `report-parsing.md` block contract so Step 5 pa
 
 ## Launch mechanism
 
-The runner uses `chromium.launchPersistentContext` with `channel: 'chromium'`. For `--extension` runs it also passes:
+On WSL2 the runner uses `chromium.connectOverCDP` to the Managed Dogfood Chrome endpoint. For `--extension` runs the Windows process also receives:
 
 - `--disable-extensions-except=<extension>` — disables all other extensions
 - `--load-extension=<extension>` — loads the unpacked MV3 extension
+
+Playwright does not reliably support `recordVideo` for an existing browser reached through `connectOverCDP`. WSL2 CDP runs therefore omit video capture and apply the required 1440x1000 viewport with `page.setViewportSize`, including when an extension run reuses `browser.contexts()[0]`. Their evidence contract requires the report, screenshot, trace, console/network data, and storage state; a `.webm` file is required only for locally launched contexts.
 
 The service worker is obtained by filtering for `chrome-extension://` workers (so a reused profile or an unrelated worker is not mistaken for the extension under test), with the `waitForEvent` wrapped so a timeout does not throw:
 
@@ -82,18 +80,18 @@ const extensionId = sw
   : "(unknown - service worker not registered)";
 ```
 
-This derives the extension ID from the SW URL (`chrome-extension://<id>/...`) without relying on `chrome.management` or a fixed ID. The context is always closed in a `finally` block so the profile lock is released and the video is finalized even when the SW or navigation fails.
+This derives the extension ID from the SW URL (`chrome-extension://<id>/...`) without relying on `chrome.management` or a fixed ID. The context is always closed in a `finally` block so the profile lock is released and any supported local video is finalized even when the SW or navigation fails.
 
 ## Headless vs headed
 
-Headless is the primary path. When the MV3 service worker never registers in headless mode the runner exits non-zero; on that failure retry once with `--headed` under `xvfb-run -a` (in headed mode a missing SW is final and is recorded as the Critical finding):
+Headless is the primary path. When the MV3 service worker never registers in headless mode, retry once with `--headed` using the same output-derived profile identity (in headed mode a missing SW is final and is recorded as the Critical finding):
 
 ```bash
 REF_DIR="${CLAUDE_SKILL_DIR:-${CODEX_SKILL_DIR:-.}}/references"
-xvfb-run -a node "$REF_DIR/playwright-dogfood-runner.mjs" --target "$TARGET_URL" --extension "$EXT_ABS" --output "$OUT_ABS" --headed
+node "$REF_DIR/playwright-dogfood-runner.mjs" --target "$TARGET_URL" --extension "$EXT_ABS" --output "$OUT_ABS" --headed
 ```
 
-Because the runner does not use the agent-browser daemon, there is no DISPLAY conflict when invoking `xvfb-run -a` independently.
+On WSL2 this retry is headed Windows Chrome and does not use `xvfb-run`; non-WSL callers may wrap the command in their normal display provider.
 
 ## Self-test (no external extension required)
 
@@ -111,7 +109,7 @@ Expected outputs after the runner exits (the fixture's SW registers, so a clean 
 - `screenshots/initial.png`
 - `auth-state.json`
 - `traces/playwright-trace.zip`
-- `videos/` directory with a `.webm` file
+- `videos/` directory with a `.webm` file when run through a locally launched context; WSL2 CDP runs intentionally omit this directory entry
 
 ## Limitations
 

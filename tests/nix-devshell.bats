@@ -70,6 +70,31 @@ setup() {
   grep -q 'zsh-syntax-highlighting.zsh' "$module"
 }
 
+@test "Linux user devShell installs WSL-aware xdg-open and sets BROWSER only on WSL" {
+  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
+  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/wsl-xdg-open.nix"
+  local wrapper="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/wsl-xdg-open.sh"
+  local powershell="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/wsl-open-url.ps1"
+
+  grep -q 'wslXdgOpen = pkgs.callPackage ./packages/wsl-xdg-open.nix' "$flake"
+  grep -q 'wslXdgOpen' "$module"
+  grep -q 'lib.optionals pkgs.stdenv.isLinux' "$module"
+  grep -q 'export BROWSER=xdg-open' "$module"
+  grep -q 'WSL_DISTRO_NAME' "$module"
+  grep -q 'xdg-utils' "$package"
+  grep -q '\[Hh\]\[Tt\]\[Tt\]\[Pp\]' "$wrapper"
+  grep -q 'powershell.exe' "$wrapper"
+  grep -q 'Start-Process -FilePath' "$powershell"
+}
+
+@test "Managed Dogfood Chrome rejects a zero DebugPort before launch" {
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
+
+  grep -Fq 'if ($DebugPort -le 0)' "$package"
+  grep -Fq 'Start requires a positive -DebugPort.' "$package"
+}
+
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
@@ -109,6 +134,27 @@ setup() {
   grep -q 'playwright-driver' "$flake"
   grep -q 'PLAYWRIGHT_BROWSERS_PATH' "$flake"
   grep -q 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$flake"
+}
+
+@test "repo and user flakes expose a browser-free WSL output" {
+  local repo_flake="$PROJECT_ROOT/flake.nix"
+  local user_flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  local testing="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/testing.nix"
+  local ai="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
+  local direnvrc="$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+  local global_envrc="$PROJECT_ROOT/private_dot_config/nix-devshell/dot_envrc"
+
+  grep -q 'wsl = pkgs.mkShell' "$repo_flake"
+  grep -q 'wsl = makeShell true' "$user_flake"
+  grep -q 'browserless ? false' "$ai"
+  grep -q 'playwright-driver = if browserless then null' "$ai"
+  grep -q 'lib.optionals (!browserless)' "$testing"
+  grep -q 'playwright-driver ? null' "$package"
+  grep -q 'dogfood-chrome-windows.ps1' "$package"
+  grep -q '_df_select_wsl_flake_output' "$direnvrc"
+  grep -q 'use flake .#wsl' "$global_envrc"
+  [ -f "$PROJECT_ROOT/.wsl-browser-free" ]
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
@@ -216,10 +262,11 @@ setup() {
   grep -q 'playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix' "$module"
   grep -q '^    playwright-cli$' "$module"
   grep -q 'share/playwright-cli/skills/playwright-cli' "$module"
+  grep -q 'DOGFOOD_WINDOWS_SCRIPT' "$module"
   grep -q '\.agents/skills/playwright-cli' "$module"
   grep -q '\.claude/skills/playwright-cli' "$module"
   grep -q 'pname = "playwright-cli";' "$pkg"
-  grep -q '^  playwright-driver,$' "$pkg"
+  grep -q '^  playwright-driver ? null,$' "$pkg"
   grep -q '^  util-linux,$' "$pkg"
   grep -Fq 'find -L ${playwright-driver.browsers}' "$pkg"
   grep -Fq 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' "$pkg"
@@ -229,6 +276,7 @@ setup() {
   grep -q -- '--unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$pkg"
   grep -q 'playwright-cli-wrapper.sh' "$pkg"
   grep -q 'playwright-cli-windows.ps1' "$pkg"
+  grep -q 'dogfood-chrome-windows.ps1' "$pkg"
   grep -q 'playwright-cli-cdp-close.js' "$pkg"
   grep -q 'PWTEST_CLI_MANAGED_CHROME' "$pkg"
   grep -q 'playwright-cli-wsl-skill.md' "$pkg"
