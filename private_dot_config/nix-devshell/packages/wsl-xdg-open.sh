@@ -7,6 +7,7 @@ set -u
 upstream="${WSL_XDG_OPEN_UPSTREAM:-@xdgOpen@}"
 powershell="${WSL_XDG_OPEN_POWERSHELL:-@powershell@}"
 windows_script="${WSL_XDG_OPEN_SCRIPT:-@windowsScript@}"
+osrelease="${WSL_XDG_OPEN_OSRELEASE:-/proc/sys/kernel/osrelease}"
 
 is_wsl() {
   case "${WSL_XDG_OPEN_TEST_WSL:-}" in
@@ -15,8 +16,8 @@ is_wsl() {
   esac
 
   [ -n "${WSL_DISTRO_NAME:-}" ] && return 0
-  [ -r /proc/sys/kernel/osrelease ] || return 1
-  grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease
+  [ -r "$osrelease" ] || return 1
+  grep -Eqi '(microsoft|wsl)' "$osrelease"
 }
 
 if ! is_wsl || [ "$#" -ne 1 ]; then
