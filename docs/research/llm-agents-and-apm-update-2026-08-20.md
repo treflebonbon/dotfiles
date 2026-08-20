@@ -133,4 +133,4 @@ APM の upstream ref resolution と `git ls-remote` で確認した candidate �
 5. Claude 2.1.237 の print smoke と Codex 0.148.0 の candidate binary version smoke、各 CLI の help/version 境界を確認した。provider 応答を伴う background/message、MCP OAuth、worktree、skill argument の長時間実運用は別途実環境で確認する。`CLAUDE_CODE_ENABLE_TODO_TOOLS=1` は恒久設定していない。
 6. 全 source gate 後に配備 source、ADR、runtime baseline、testsを同じ変更として更新した。managed session の home filesystem が read-only のため `chezmoi apply` / live `apm install --frozen` / live smoke は実行完了できず、topic commit 後の環境で再実行する。
 
-関連: [ADR-0036](../adr/0036-update-llm-agents-and-validated-skill-pins.md) / [ADR-0037](../adr/0037-update-llm-agents-and-compatible-skill-pins.md) / [skill-harness](../runtime/skill-harness.md)
+関連: [ADR-0036](../adr/0036-update-llm-agents-and-validated-skill-pins.md) / [ADR-0037](../adr/0037-update-llm-agents-and-compatible-skill-pins.md) / [skill-harness](../../runtime/skill-harness.md)
