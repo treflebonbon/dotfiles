@@ -25,9 +25,9 @@ dependencies:
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices
+    - remotion-dev/skills/skills/remotion-best-practices#21320596cf9008cf6ccaa6bf1a2b9f71c8f191c3
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0
     # mizchi/skills
     - mizchi/skills/meta/empirical-prompt-tuning
     # mattpocock/skills — 設計→実装ワークフロー。v1.1.0 の promoted セットに整合
@@ -68,6 +68,6 @@ dependencies:
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli
+    - stablyai/orca/skills/orca-cli#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use

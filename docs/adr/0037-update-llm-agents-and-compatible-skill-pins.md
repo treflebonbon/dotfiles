@@ -4,7 +4,7 @@ title: llm-agents と互換性を検証した APM skill pin を更新する
 description: Claude Code 2.1.233 と互換な APM 更新を採用候補として評価し、interactive gate 通過まで配備 source から分離する
 tags: [adr, nix, llm-agents, apm, skills, claude-code, impeccable]
 timestamp: 2026-08-18
-status: proposed
+status: superseded
 ---
 
 # llm-agents と互換性を検証した APM skill pin を更新する

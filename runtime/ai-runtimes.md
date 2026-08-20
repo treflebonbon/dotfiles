@@ -94,7 +94,7 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.232` / `0.147.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離・permission/trust boundary の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れ・permission bypass・trust boundary の修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.237` / `0.148.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離・permission/trust boundary の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れ・permission bypass・trust boundary の修正）。
 
 **pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも pin 済みの `llm.*` packageを直接使う。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
 
