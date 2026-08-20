@@ -26,7 +26,7 @@ ADR-0031 は通常の Playwright 操作を Windows の Managed Playwright Chrome
 
 - WSL内browserを明示overrideとdogfood用に残す案は、browser-free境界を破り、URL openerとの二重起動経路を残すため採用しない。
 - `xdg-open` をManaged Playwright Chromeへ接続する案は、人間の日常閲覧と自動操作のprofile・lease・権限を混ぜるため採用しない。通常のWindows browserと用途別Managed Chromeが同時に存在すること自体は許容する。
-- WSL2の`dogfood-to-issues`を廃止する案は採用しない。2026-08-19の実機probeで、Windows Google Chrome 151へのCDP接続から通常Webのscreenshot / trace / videoを生成し、隔離profileへ渡したunpacked MV3 fixtureのservice workerも観測できた。
+- WSL2の`dogfood-to-issues`を廃止する案は採用しない。2026-08-19の実機probeで、Windows Google Chrome 151へのCDP接続から通常Webのscreenshot / traceを生成し、隔離profileへ渡したunpacked MV3 fixtureのservice workerも観測できた。WSL2 CDP runはvideo-free契約のため、video artifactはこの経路の検証対象外とする。
 - Windows Playwright Chromiumを追加導入する案は、別browserの配布とlifecycleを増やすため今回は採用しない。PlaywrightがCDP接続を低fidelityとし、extension検証にbundled Chromiumを推奨している点は、Windows Chromeでservice worker登録を必須確認してfail closedにすることで監視する。
 
 ## Consequences

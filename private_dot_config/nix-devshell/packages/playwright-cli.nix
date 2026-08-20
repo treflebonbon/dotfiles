@@ -59,9 +59,11 @@ buildNpmPackage {
     mkdir -p "$out/bin" "$out/libexec" "$out/share/playwright-cli"
 
     makeWrapper ${nodejs}/bin/node "$out/libexec/playwright-cli-upstream" \
-      ${lib.optionalString (
-        playwright-driver != null
-      ) ''--set-default PWTEST_CLI_GLOBAL_CONFIG "$config_root" \''}
+      ${
+        lib.optionalString (
+          playwright-driver != null
+        ) ''--set-default PWTEST_CLI_GLOBAL_CONFIG "$config_root"''
+      } \
       --unset PLAYWRIGHT_BROWSERS_PATH \
       --unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD \
       --add-flags "$pkg/playwright-cli.js"

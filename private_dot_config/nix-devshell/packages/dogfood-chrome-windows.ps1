@@ -138,11 +138,23 @@ if ($DebugPort -le 0) {
 }
 
 New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
+
+function Format-ChromePathArgument {
+    param([string]$Value)
+
+    if ($Value -match "\s") {
+        $escapedValue = $Value -replace '(\\+)$', '$1$1'
+        return ('"' + $escapedValue + '"')
+    }
+    return $Value
+}
+
+$ProfileArgument = Format-ChromePathArgument $ProfileDir
 $ChromeArguments = @(
     "--remote-debugging-address=$DebugAddress",
     "--remote-debugging-port=$DebugPort",
     "--remote-allow-origins=*",
-    "--user-data-dir=$ProfileDir",
+    "--user-data-dir=$ProfileArgument",
     "--no-first-run",
     "--no-default-browser-check",
     "about:blank"
@@ -151,9 +163,10 @@ if ($Mode -eq "headless") {
     $ChromeArguments = @("--headless=new") + $ChromeArguments
 }
 if ($ExtensionPath) {
+    $ExtensionArgument = Format-ChromePathArgument $ExtensionPath
     $ChromeArguments = @(
-        "--disable-extensions-except=$ExtensionPath",
-        "--load-extension=$ExtensionPath"
+        "--disable-extensions-except=$ExtensionArgument",
+        "--load-extension=$ExtensionArgument"
     ) + $ChromeArguments
 }
 Start-Process -FilePath $Chrome -ArgumentList $ChromeArguments | Out-Null
