@@ -355,8 +355,8 @@ PS
 
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/nix-cache"
   mkdir -p "$XDG_CACHE_HOME"
-  run env TEST_PROJECT_ROOT="$PROJECT_ROOT" TEST_NIX_EXPR="$expr" \
-    bash -c 'cd "$TEST_PROJECT_ROOT" && nix eval --raw --impure --option use-xdg-base-directories true --expr "$TEST_NIX_EXPR"'
+  run bash -c 'cd "$1" && nix eval --raw --impure --option use-xdg-base-directories true --expr "$2"' \
+    _ "$PROJECT_ROOT" "$expr"
   [ "$status" -eq 0 ]
   drv="$output"
 
