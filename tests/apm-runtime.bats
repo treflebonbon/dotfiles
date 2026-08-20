@@ -42,6 +42,30 @@ setup() {
   grep -Fq '.claude/skills/grilling/agents/openai.yaml' "$lock"
 }
 
+@test "APM advances changed selected payloads without pinning revision-only updates" {
+  local manifest="$PROJECT_ROOT/apm.yml"
+  local lock="$PROJECT_ROOT/apm.lock.yaml"
+
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#21320596cf9008cf6ccaa6bf1a2b9f71c8f191c3' "$manifest"
+  grep -Fq 'stablyai/orca/skills/orca-cli#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$manifest"
+  ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
+  ! grep -Fq 'shadcn-ui/ui/skills/shadcn#25be24cca34d06eed29a4779c3f48c4816aa812c' "$manifest"
+  ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"
+  ! grep -Fq 'stablyai/orca/skills/computer-use#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$manifest"
+  ! grep -Fq 'stablyai/orca/skills/orchestration#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$manifest"
+
+  grep -Fq 'resolved_commit: 460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$lock"
+  grep -Fq 'content_hash: sha256:8951bdfc695fb4d9c5966ecf6b4a9bcc921a6a0a20b2b237b1619735fec0265d' "$lock"
+  grep -Fq 'resolved_commit: 21320596cf9008cf6ccaa6bf1a2b9f71c8f191c3' "$lock"
+  grep -Fq 'content_hash: sha256:9bf98c09ab9209e1b40868146b012e220b7b08857653480024e7c07cb946f7c8' "$lock"
+  [ "$(grep -Fc 'resolved_commit: 5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$lock")" -eq 1 ]
+  grep -Fq 'content_hash: sha256:cca6a9098e0dff08ce6fef999da77d98e94255e826b8b9f8132749b5da66dad2' "$lock"
+  ! grep -Fq 'resolved_commit: 0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$lock"
+  ! grep -Fq 'resolved_commit: 25be24cca34d06eed29a4779c3f48c4816aa812c' "$lock"
+  ! grep -Fq 'resolved_commit: 435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$lock"
+}
+
 @test "APM runtime deploy targets remain git-ignored" {
   grep -q '^/\.agents/$' "$PROJECT_ROOT/.gitignore"
   grep -q '^/\.claude/agents/$' "$PROJECT_ROOT/.gitignore"

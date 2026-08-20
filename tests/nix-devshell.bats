@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "9b760dd766fc31e5ab8c5d6cc6c2c0a7fdd4fa0a"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/20766586959e0dcc2f9e7cff6d49b0c710de30d6' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "20766586959e0dcc2f9e7cff6d49b0c710de30d6"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "20766586959e0dcc2f9e7cff6d49b0c710de30d6"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -202,17 +202,17 @@ PS
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.232";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.237";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "proposed AI toolset revisions stay outside deployable chezmoi source" {
-  local adr="$PROJECT_ROOT/docs/adr/0037-update-llm-agents-and-compatible-skill-pins.md"
+@test "accepted AI toolset snapshot and selected payload are deployable" {
+  local adr="$PROJECT_ROOT/docs/adr/0039-update-llm-agents-and-selected-skill-payloads.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -q '^status: proposed$' "$adr"
-  ! grep -Fq '5b3a7eff4326cb9001a79938a53e2fc8662d38c2' "$flake"
-  ! grep -Fq '5c5553b1d7f9e89bb833f9179cea681742a17720' "$manifest"
+  grep -q '^status: accepted$' "$adr"
+  grep -Fq '20766586959e0dcc2f9e7cff6d49b0c710de30d6' "$flake"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$manifest"
 }
 
 @test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
@@ -230,7 +230,7 @@ PS
 @test "nix-devshell requires Codex with executor-provided skill support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.147\.0";' "$module"
+  grep -q 'minCodex = "0\.148\.0";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
 }
