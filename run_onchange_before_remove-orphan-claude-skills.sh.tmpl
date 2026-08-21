@@ -30,8 +30,8 @@ preserve_local_skills=(
 )
 
 # APM が配備する mattpocock/skills v1.2.3 の公式 full set。
-# ~/.claude/skills の real-dir cleanup から除外し、APM の install/prune に
-# managed payload の所有権を委ねる。lock の plugin record と同期させること。
+# ~/.agents/skills と ~/.claude/skills の real-dir cleanup から除外し、APM の
+# install/prune に managed payload の所有権を委ねる。lock の plugin record と同期させること。
 managed_apm_skills=(
   ask-matt
   code-review
@@ -239,6 +239,13 @@ remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
 remove_named_skill_entries "${HOME}/.codex/skills" "codex local duplicate" "${preserve_local_skills[@]}"
 if [ -n "$extra_codex_home" ]; then
   remove_named_skill_entries "$extra_codex_home/skills" "codex local duplicate" "${preserve_local_skills[@]}"
+fi
+
+# APM は Codex native location へ配備しないため、過去の Matt managed payloadも
+# shared hub の重複として撤去する。.agents/skills は APM の所有先なので保持する。
+remove_named_skill_entries "${HOME}/.codex/skills" "codex APM duplicate" "${managed_apm_skills[@]}"
+if [ -n "$extra_codex_home" ]; then
+  remove_named_skill_entries "$extra_codex_home/skills" "codex APM duplicate" "${managed_apm_skills[@]}"
 fi
 
 # 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)

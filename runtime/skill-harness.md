@@ -110,9 +110,9 @@ apm 外の user-scoped private skill は chezmoi で配布する。ソースは 
 - `~/.agents/skills/<name>/` — 共有ハブ。Antigravity / Codex はここを直接読む
 - `~/.claude/skills/<name>/` — Claude
 
-Codex native location（`${CODEX_HOME:-~/.codex}/skills`）へは配備しない。Codex は `~/.agents/skills/` で同じ skill を既に発見でき、native location にも置くと `to-pr` などのローカル skill が二重表示されるため。
+Codex native location（`${CODEX_HOME:-~/.codex}/skills`）へは配備しない。Codex は `~/.agents/skills/` で同じ skill を既に発見でき、native location にも置くと `to-pr` などのローカル skill が二重表示されるため。過去に native location へ materialize された Matt managed real directory も cleanup で撤去する。
 
-deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走り apm 配備を上書きしない。`run_onchange_before_remove-orphan-claude-skills.sh.tmpl` は `~/.claude/skills/` の unmanaged real dir を削除するため、ローカル skill は `preserve_local_skills`、Matt Pocock v1.2.3 の managed full set は `managed_apm_skills` allowlist で除外する（両者の skill 名リストは、それぞれの配備元と一致させること）。旧 `writing-great-skills` は retired entry として全 runtime target から撤去する。
+deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走り apm 配備を上書きしない。`run_onchange_before_remove-orphan-claude-skills.sh.tmpl` は `~/.claude/skills/` の unmanaged real dir を削除し、Codex native location の Matt managed duplicate も撤去するため、ローカル skill は `preserve_local_skills`、APM の配備先にある Matt Pocock v1.2.3 の managed full set は `managed_apm_skills` allowlist で除外する（両者の skill 名リストは、それぞれの配備元と一致させること）。旧 `writing-great-skills` は retired entry として全 runtime target から撤去する。
 
 構造は **flat な `local-skills/<name>/`**（SKILL.md + references/ + 必要なら scripts/ 同梱で完結）。hooks / agents / marketplace 登録を要するメガパッケージ型の 3層 plugin 構造（`plugins/<ns>/{claude,codex,common}` 型）は不採用: あの構造の必然性は hooks + agents + bin + marketplace 登録というメガパッケージ要件にあり、skill-only なら不要。将来分離したくなったら `local-skills/` ごと新 repo に切り出して apm pin 化すればよい。
 
