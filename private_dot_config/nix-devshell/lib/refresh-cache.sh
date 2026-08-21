@@ -5,15 +5,19 @@ refresh_nix_devshell_cache() {
   local DIR="${1:-$HOME/.config/nix-devshell}"
   local CACHE="${2:-$HOME/.cache/nix-devshell-global-env.bash}"
   local LOG="${3:-$HOME/.cache/nix-devshell-refresh.log}"
+  local required="${NIX_DEVSHELL_CACHE_REQUIRED:-0}"
 
-  [ -d "$DIR" ] || return 0
-  command -v nix >/dev/null 2>&1 || return 0
+  if [ ! -d "$DIR" ] || ! command -v nix >/dev/null 2>&1; then
+    [ "$required" = "1" ] && return 1
+    return 0
+  fi
 
   export NIX_CONFIG="${NIX_CONFIG:-extra-experimental-features = nix-command flakes}"
 
   if [ -d "$DIR/.git" ] && command -v git >/dev/null 2>&1; then
     if git -C "$DIR" rev-parse --verify HEAD >/dev/null 2>&1; then
       printf 'refresh-nix-devshell-cache: %s/.git has user commits; skipping recovery (manual cleanup needed)\n' "$DIR" >&2
+      [ "$required" = "1" ] && return 1
       return 0
     fi
     rm -rf "$DIR/.git"
@@ -71,5 +75,6 @@ refresh_nix_devshell_cache() {
   } >>"$LOG"
   rm -f "$tmp" "$err"
   printf 'refresh-nix-devshell-cache: nix print-dev-env failed (see %s)\n' "$LOG" >&2
+  [ "$required" = "1" ] && return 1
   return 0
 }

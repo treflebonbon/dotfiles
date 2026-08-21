@@ -12,6 +12,18 @@
 #
 set -euo pipefail
 
+REFRESH_LIB="$HOME/.config/nix-devshell/lib/refresh-cache.sh"
+if [ ! -f "$REFRESH_LIB" ]; then
+  echo "WARN: nix-devshell cache refresh が見つかりません。APM install を中止します。" >&2
+  exit 1
+fi
+# shellcheck disable=SC1090
+. "$REFRESH_LIB"
+if ! NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache; then
+  echo "WARN: nix-devshell snapshot の refresh に失敗したため、APM install を中止します。" >&2
+  exit 1
+fi
+
 LIB="$HOME/.config/nix-devshell/lib/ensure-env.sh"
 # shellcheck disable=SC1090
 [ -f "$LIB" ] && . "$LIB" && ensure_nix_devshell_env

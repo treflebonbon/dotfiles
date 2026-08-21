@@ -24,6 +24,10 @@ _Avoid_: hook test, latest pin, smoke check
 導入済み AI ツールについて、運用上不可欠な挙動を保証する最低 release。snapshot の実際の version とは独立し、具体的な品質根拠がある場合だけ引き上げる。
 _Avoid_: 最新版, pin version, minimum version
 
+**更新単位**:
+同じ互換性ゲート、検証結果、配備境界、rollback 境界を共有して一緒に採用する導入済み AI ツールセットまたは Agent Skill セットの変更群。payload や workflow 契約が大きく異なる変更は、同じ upstream 更新でも別の更新単位に分ける。
+_Avoid_: 一括更新, 全部入り update, upstream の更新
+
 **Managed Playwright Chrome**:
 WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。専用 profile の手動認証状態を、排他的な CLI session と Dashboard が再利用する。
 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome

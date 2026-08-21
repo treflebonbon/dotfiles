@@ -82,9 +82,11 @@ let
   # 2.1.233-2.1.237: skill/command argument の再展開、NT namespace path の validation bypass、Linux sandbox の
   #                  idle CPU、remote file/session restore、background permission、MCP diagnostics の secret
   #                  redaction、macOS sandbox deny precedence、background/session messaging の不具合を修正。
+  # 2.1.238: headers helper の consent/trust、継承 credential の分離、MCP 初期化順序、memory/session/Remote
+  #          Control の信頼性を修正。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.237";
-  minCodex = "0.148.0";
+  minClaudeCode = "2.1.238";
+  minCodex = "0.149.0";
 
   claudeCode =
     let
@@ -126,7 +128,8 @@ let
         protected-path の sandbox bypass、GitLab token redaction、project settings による sandbox.ripgrep override を
         修正する 2.1.229-2.1.232 に加え、skill/command argument の再展開、NT namespace path の validation bypass、
         Linux/macOS sandbox、background permission、MCP diagnostics の secret redaction、session messaging を
-        修正する 2.1.233-2.1.237 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
+        修正する 2.1.233-2.1.237 に加え、headers helper の consent/trust、継承 credential の分離、MCP 初期化順序、
+        memory/session/Remote Control の信頼性を修正する 2.1.238 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
@@ -161,7 +164,9 @@ let
         表示コマンド・履歴再生からの secret / bearer token redaction 強化を含む 0.147.0 を
         品質ベースラインとして要求します。さらに、denied / unreadable path の sandbox fail-closed、
         MCP OAuth 再認証後の server recovery、plugin/skill root loading、resume 時の working directory と
-        approval policy 復元を含む 0.148.0 を品質ベースラインとして要求します。
+        approval policy 復元を含む 0.148.0 に加え、agents dashboard、cwd commands、queue、resume/fork の permission
+        profile 復元、skill catalog、MCP hooks/async message、skill/OAuth/sandbox hardening を含む 0.149.0 を
+        品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
           cd ~/.config/nix-devshell
