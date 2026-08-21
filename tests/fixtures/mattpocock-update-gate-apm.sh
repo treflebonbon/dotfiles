@@ -2,7 +2,7 @@
 set -euo pipefail
 
 command_log=${MATTPOCOCK_GATE_COMMAND_LOG:-$HOME/apm-command.log}
-mkdir -p -- "$(dirname -- "$command_log")"
+mkdir -p "$(dirname "$command_log")"
 printf 'apm %s\n' "$*" >>"$command_log"
 
 [[ "$PWD" != "$MATTPOCOCK_GATE_SOURCE_DIR" ]] || exit 20
