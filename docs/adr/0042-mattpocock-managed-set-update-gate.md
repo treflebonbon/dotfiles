@@ -19,13 +19,15 @@ status: accepted
 
 Matt Pocock managed set の更新は、次の ordered gate を全て通過した候補だけを source に採用する。
 
-1. **隔離 runtime**: candidate revision を一つの exact commit として一時ディレクトリへコピーした manifest から materialize する。live home、`~/.agents/skills`、`~/.claude/skills` は使わない。
-2. **lock generation**: candidate manifest を一時 runtime へ置き、`apm install --update --target claude,codex --https` で生成された lock を正本とする。手書きの hash や `apm lock` 単体の結果は採用しない。候補以外の依存や deployment が変わった場合は、その候補を reject する。
+1. **隔離 runtime**: candidate revision を一つの exact commit として一時ディレクトリへコピーした manifest から materialize する。live home、`~/.agents/skills`、`~/.claude/skills` は使わない。実行入口は `tests/mattpocock-update-gate.sh` とし、accepted lock も隔離 runtime にコピーする。
+2. **lock generation**: gate は candidate 以外の依存を accepted lock の `resolved_commit` で一時 manifest 内だけ pin し、candidate manifest の Matt 行以外を変更していないことを先に比較する。その上で `apm install --update --target claude,codex --https` で生成された lock を正本とする。手書きの hash や `apm lock` 単体の結果は採用しない。生成後の lock から Matt collection の record を除外して accepted lock と比較し、候補以外の依存や deployment が変わった場合は、その候補を reject する。APM が pinned dependency に補う冗長な `resolved_ref` は `resolved_commit` と一致することを別検査した上で比較から除外する。つまり非 Matt dependency の再解決による drift は採用しない。
 3. **frozen install**: 生成 lock の hash を保存して `apm install --frozen --target claude,codex --https` を再実行し、lock が書き戻されないことを確認する。
 4. **audit**: 同じ隔離 runtime で `apm audit --ci` を実行し、source、lock、materialized payload の drift がないことを確認する。
 5. **skill discovery**: `.agents/skills` と `.claude/skills` の full set が一致し、Codex / Claude の discovery が managed target を読むことを disposable runtime で確認する。
 6. **workflow contract tests**: `tests/apm-runtime.bats`、`tests/run_onchange_before_remove-orphan-claude-skills.bats`、`tests/workflow-contract.bats` と全 `bats tests/` を実行する。full set、cleanup ownership、workflow safety の境界を同じ検証 matrix で追跡する。
-7. **chezmoi dry-run**: source を `chezmoi --source "$SOURCE_DIR" apply --dry-run` で評価し、意図した source だけが配備対象になることを確認する。live apply はこの gate に含めない。
+7. **chezmoi dry-run**: isolated HOME 内で `chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false` により template data を生成し、続けて `chezmoi --source "$SOURCE_DIR" apply --dry-run` で意図した source だけが配備対象になることを確認する。live apply はこの gate に含めない。
+
+この順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、full-set discovery、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。
 
 候補は次の条件を満たさない限り reject する。
 
@@ -38,13 +40,13 @@ rollback は直前の accepted manifest / lock pair を保持したまま、候�
 
 ## Verification Matrix
 
-| 契約                                           | 正本                                                                | 検証 seam                                                    |
-| ---------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| exact revision と full set                     | `apm.yml` / `apm.lock.yaml`                                         | `tests/apm-runtime.bats`                                     |
-| APM の配布 ownership と prune                  | `run_onchange_after_apm-install.sh.tmpl`                            | `tests/apm-runtime.bats`                                     |
-| cleanup が full set を保持し orphan を削除する | `run_onchange_before_remove-orphan-claude-skills.sh.tmpl`           | `tests/run_onchange_before_remove-orphan-claude-skills.bats` |
-| discovery / workflow / safety boundary         | `AGENTS.md`、`CLAUDE.md`、`runtime/skill-harness.md`、ADR-0040/0041 | `tests/workflow-contract.bats` と disposable runtime         |
-| candidate update gate と rollback              | 本 ADR と `runtime/skill-harness.md`                                | `tests/mattpocock-update-gate.bats`、手順の各 gate           |
+| 契約                                           | 正本                                                                | 検証 seam                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| exact revision と full set                     | `apm.yml` / `apm.lock.yaml`                                         | `tests/apm-runtime.bats`                                               |
+| APM の配布 ownership と prune                  | `run_onchange_after_apm-install.sh.tmpl`                            | `tests/apm-runtime.bats`                                               |
+| cleanup が full set を保持し orphan を削除する | `run_onchange_before_remove-orphan-claude-skills.sh.tmpl`           | `tests/run_onchange_before_remove-orphan-claude-skills.bats`           |
+| discovery / workflow / safety boundary         | `AGENTS.md`、`CLAUDE.md`、`runtime/skill-harness.md`、ADR-0040/0041 | `tests/workflow-contract.bats` と disposable runtime                   |
+| candidate update gate と rollback              | 本 ADR と `runtime/skill-harness.md`                                | `tests/mattpocock-update-gate.sh`、`tests/mattpocock-update-gate.bats` |
 
 ## Consequences
 
@@ -52,5 +54,13 @@ rollback は直前の accepted manifest / lock pair を保持したまま、候�
 - upstream の更新速度より、隔離 materialization と cross-file contract の再現性を優先する。
 - 旧20 skill rename-only 調査は候補選定の履歴として残るが、現在の採用条件や full-set の acceptance criterion ではない。
 - discovery の実機挙動や live home への apply は、isolated gate の成功後に別途人間が確認する。未確認の live behavior を source gate の成功とは扱わない。
+
+実 APM 評価は次のコマンドで行い、`apm install --update` が生成した lock の非 Matt 部分、`apm install --frozen` 前後の lock SHA-256、audit、discovery、workflow、chezmoi dry-run の全てを記録する。
+
+```bash
+tests/mattpocock-update-gate.sh \
+  --source "$SOURCE_DIR" \
+  --candidate-manifest "$CANDIDATE_MANIFEST"
+```
 
 関連: [Issue #172](https://github.com/treflebonbon/dotfiles/issues/172) / [Issue #168](https://github.com/treflebonbon/dotfiles/issues/168) / [ADR-0040](0040-adopt-mattpocock-v1-2-3-full-set.md) / [ADR-0041](0041-adopt-mattpocock-v1-2-3-workflow-semantics.md) / [skill-harness](../../runtime/skill-harness.md)
