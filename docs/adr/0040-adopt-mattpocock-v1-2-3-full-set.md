@@ -42,4 +42,4 @@ APM 0.28.0 は plugin collection を一つの lock record として materialize 
 - APM lock は plugin collection の一つの recordと、その配備ファイル一覧を持つ。従来の skillごとの Matt recordとは形式が変わる。
 - APM / native plugin / universal installerの二重管理を避けるため、既存の orphan cleanup は APM real directoryを所有する契約に従う。
 
-関連: [Issue #169](https://github.com/treflebonbon/dotfiles/issues/169) / [ADR-0002](0002-mattpocock-over-superpowers.md) / [ADR-0010](0010-productivity-skill-audit.md) / [ADR-0022](0022-align-mattpocock-v1-1-workflow.md) / [ADR-0039](0039-update-llm-agents-and-selected-skill-payloads.md) / [skill-harness](../../runtime/skill-harness.md)
+関連: [Issue #169](https://github.com/treflebonbon/dotfiles/issues/169) / [ADR-0002](0002-mattpocock-over-superpowers.md) / [ADR-0010](0010-productivity-skill-audit.md) / [ADR-0022](0022-align-mattpocock-v1-1-workflow.md) / [ADR-0039](0039-update-llm-agents-and-selected-skill-payloads.md) / [ADR-0041](0041-adopt-mattpocock-v1-2-3-workflow-semantics.md) / [skill-harness](../../runtime/skill-harness.md)

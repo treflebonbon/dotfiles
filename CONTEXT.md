@@ -69,12 +69,20 @@ bash と zsh の両方で揃える対話シェル体験の最小集合。完全�
 _Avoid_: parity, 同一実装
 
 **Planner**:
-設計協働フェーズ（`grill-with-docs`→`to-spec`→`to-tickets`）の呼称。人間が対話を通じて意思決定する主体であり、確認ポイントは削減しない（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md), [ADR-0022](docs/adr/0022-align-mattpocock-v1-1-workflow.md)）。
+設計協働フェーズ（`grill-with-docs`→`to-spec`→`to-tickets`）の呼称。`grilling` の frontier round で依存関係が解決済みの質問をまとめて提示し、人間の回答を待って次の frontier を開く主体であり、確認ポイントは削減しない（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md), [ADR-0022](docs/adr/0022-align-mattpocock-v1-1-workflow.md), [ADR-0041](docs/adr/0041-adopt-mattpocock-v1-2-3-workflow-semantics.md)）。
 _Avoid_: 計画フェーズ, 設計フェーズ
 
 **Builder-Evaluator**:
-実装検証フェーズ（`implement` を入口に、内部で `tdd`↔`code-review` を使う）の呼称。`to-tickets` が生成した ticket をまたいで自律的にループしてよい自動化された主体（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md), [ADR-0022](docs/adr/0022-align-mattpocock-v1-1-workflow.md)）。
+実装検証フェーズ（`implement` を入口に、内部で `tdd`↔`code-review` を使う）の呼称。`to-tickets` が生成した ticket を同一 worktree/branch でまたいで自律的にループしてよい自動化された主体。関連 context が同じ harness / directory に残るなら phase boundary で `/compact` を優先し、別 harness / directory への portability が必要な場合だけ `/handoff` を使う（[ADR-0019](docs/adr/0019-builder-evaluator-cross-issue-autonomy.md), [ADR-0022](docs/adr/0022-align-mattpocock-v1-1-workflow.md), [ADR-0041](docs/adr/0041-adopt-mattpocock-v1-2-3-workflow-semantics.md)）。
 _Avoid_: 実装フェーズ, ビルドフェーズ
+
+**Phase Boundary**:
+phase 間だけで選ぶ公式5択。`Continue → /clear → /handoff → Subagent → /compact` の順に、同じ phase の途中では判断しない。`Continue` を最初に検討し、同じ harness / directory の relevant context は `/compact`、portability が必要な場合だけ `/handoff` とする。
+_Avoid_: phase 中の compact, handoff の常用
+
+**Prototype Primary Source**:
+設計上の state model を検証する single self-contained HTML。build / server 不要で、検証した decision を本実装へ反映した後も、prototype 全体は throwaway branch に primary source として残し、implementation issue から参照する。main branch には決定だけを残す。
+_Avoid_: prototype の本番化, モックを仕様の正本にすること
 
 **親完了条件**:
 親 issue の全 direct child ticket が既に close 済み、または同一の最終 PR の close 対象になっている状態。merge 前でも直接の親を安全に close できる見込みが立った状態を指し、未処理 ticket が残る状態と区別する。
