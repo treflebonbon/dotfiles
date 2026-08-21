@@ -198,6 +198,35 @@ cleanup_managed_skills() {
   ' "$1" | sort
 }
 
+official_matt_skills() {
+  printf '%s\n' \
+    ask-matt \
+    code-review \
+    codebase-design \
+    diagnosing-bugs \
+    domain-modeling \
+    grill-me \
+    grill-with-docs \
+    grilling \
+    handoff \
+    implement \
+    improve-codebase-architecture \
+    prototype \
+    research \
+    resolving-merge-conflicts \
+    setup-matt-pocock-skills \
+    tdd \
+    teach \
+    to-questionnaire \
+    to-spec \
+    to-tickets \
+    triage \
+    wait-what \
+    wayfinder \
+    wizard \
+    writing-for-agents
+}
+
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
@@ -221,15 +250,24 @@ list_installed_skills() {
   done | sort
 }
 
-validate_discovery_payload() {
+discover_skills() {
   local root=$1 expected=$2 skill_file
-  while IFS= read -r skill; do
-    [[ -n "$skill" ]] || continue
-    skill_file="$root/$skill/SKILL.md"
+  local -a skill_files=("$root"/*/SKILL.md)
+  for skill_file in "${skill_files[@]}"; do
+    [[ -f "$skill_file" ]] || continue
     grep -Eq '^---$' "$skill_file" || return 1
     grep -Eq '^name:[[:space:]]+' "$skill_file" || return 1
     grep -Eq '^description:' "$skill_file" || return 1
+  done
+  while IFS= read -r skill; do
+    [[ -n "$skill" ]] || continue
+    skill_file="$root/$skill/SKILL.md"
+    [[ -f "$skill_file" ]] || return 1
   done <"$expected"
+  for skill_file in "${skill_files[@]}"; do
+    [[ -f "$skill_file" ]] || continue
+    basename "$(dirname "$skill_file")"
+  done | sort
 }
 
 snapshot_home_paths() {
@@ -291,13 +329,20 @@ apm audit --ci
 record_phase skill-discovery
 expected_managed_agents=$(mktemp "$runtime/expected-managed-agents.XXXXXX")
 expected_managed_claude=$(mktemp "$runtime/expected-managed-claude.XXXXXX")
+expected_official_matt=$(mktemp "$runtime/expected-official-matt.XXXXXX")
 expected_target_agents=$(mktemp "$runtime/expected-target-agents.XXXXXX")
 expected_target_claude=$(mktemp "$runtime/expected-target-claude.XXXXXX")
 lock_managed_skills '.agents/skills' "$runtime/apm.lock.yaml" >"$expected_managed_agents"
 lock_managed_skills '.claude/skills' "$runtime/apm.lock.yaml" >"$expected_managed_claude"
+official_matt_skills >"$expected_official_matt"
 lock_target_skills '.agents/skills' "$runtime/apm.lock.yaml" >"$expected_target_agents"
 lock_target_skills '.claude/skills' "$runtime/apm.lock.yaml" >"$expected_target_claude"
-[[ $(wc -l <"$expected_managed_agents") -eq 25 ]] || reject "generated lock does not contain 25 managed skills"
+cmp "$expected_official_matt" "$expected_managed_agents" || {
+  diff -u "$expected_official_matt" "$expected_managed_agents" >&2 || true
+  reject "candidate does not contain the exact official Matt Pocock v1.2.3 full set"
+}
+cmp "$expected_official_matt" "$expected_managed_claude" ||
+  reject "Claude lock target does not contain the exact official Matt full set"
 cmp "$expected_managed_agents" "$expected_managed_claude" ||
   reject "lock targets do not expose the same managed full set"
 cmp "$expected_target_agents" "$expected_target_claude" ||
@@ -305,6 +350,8 @@ cmp "$expected_target_agents" "$expected_target_claude" ||
 
 actual_agents=$(mktemp "$runtime/actual-agents.XXXXXX")
 actual_claude=$(mktemp "$runtime/actual-claude.XXXXXX")
+discovered_agents=$(mktemp "$runtime/discovered-agents.XXXXXX")
+discovered_claude=$(mktemp "$runtime/discovered-claude.XXXXXX")
 for target in .agents/skills .claude/skills; do
   actual=$(mktemp "$runtime/actual-skills.XXXXXX")
   list_installed_skills "$runtime/$target" >"$actual" ||
@@ -323,10 +370,12 @@ cmp "$expected_target_agents" "$actual_agents" || {
   diff -u "$expected_target_agents" "$actual_agents" >&2 || true
   reject "discovery does not expose exactly the generated lock target set"
 }
-validate_discovery_payload "$runtime/.agents/skills" "$expected_target_agents" ||
+discover_skills "$runtime/.agents/skills" "$expected_target_agents" >"$discovered_agents" ||
   reject "Codex discovery target contains an invalid skill payload"
-validate_discovery_payload "$runtime/.claude/skills" "$expected_target_claude" ||
+discover_skills "$runtime/.claude/skills" "$expected_target_claude" >"$discovered_claude" ||
   reject "Claude discovery target contains an invalid skill payload"
+cmp "$actual_agents" "$discovered_agents" || reject "Codex discovery does not match deployed skill directories"
+cmp "$actual_claude" "$discovered_claude" || reject "Claude discovery does not match deployed skill directories"
 
 cleanup_skills=$(mktemp "$runtime/cleanup-skills.XXXXXX")
 cleanup_managed_skills "$CLEANUP_SCRIPT" >"$cleanup_skills"

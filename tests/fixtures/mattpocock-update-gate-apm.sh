@@ -9,6 +9,24 @@ printf 'apm %s\n' "$*" >>"$command_log"
 [[ "$HOME" != "$MATTPOCOCK_GATE_SOURCE_DIR" ]] || exit 21
 
 if [[ " $* " == *" --update "* ]]; then
+  if [[ -n "${MATT_GATE_ALIAS_SKILL:-}" ]]; then
+    awk '
+      /^- repo_url: mattpocock\/skills$/ { active = 1 }
+      active && /^- repo_url:/ && $0 !~ /mattpocock\/skills$/ { active = 0 }
+      active && /^  - \.agents\/skills\/ask-matt$/ {
+        print "  - .agents/skills/not-ask-matt"
+        next
+      }
+      active && /^  - \.claude\/skills\/ask-matt$/ {
+        print "  - .claude/skills/not-ask-matt"
+        next
+      }
+      {
+        print
+      }
+    ' apm.lock.yaml >apm.lock.yaml.rewritten
+    mv apm.lock.yaml.rewritten apm.lock.yaml
+  fi
   if [[ -n "${MATT_GATE_MUTATE_NON_MATT:-}" ]]; then
     awk '
       !replaced && /^  resolved_commit: / {

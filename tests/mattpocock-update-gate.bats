@@ -137,6 +137,15 @@ cleanup_managed_skills() {
   [[ "$output" == *"exactly the generated lock target set"* ]]
 }
 
+@test "managed-set update gate rejects an aliased Matt skill" {
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATT_GATE_ALIAS_SKILL=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"exact official Matt Pocock v1.2.3 full set"* ]]
+}
+
 @test "managed-set update gate documents the cross-file contract" {
   [ -f "$ADR" ]
   [ -x "$GATE" ]
