@@ -29,17 +29,28 @@ setup() {
   ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
 }
 
-@test "APM pins the Matt Pocock workflow to one validated revision with Codex metadata" {
+@test "APM pins the official Matt Pocock v1.2.3 full set" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local revision="ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+  local revision="6acc160e4e0cd062dbbbd7a1b26ae92855edf07e"
+  local skill
 
-  [ "$(grep -Fc "mattpocock/skills/skills/" "$manifest")" -eq 20 ]
-  [ "$(grep -Fc "#$revision" "$manifest")" -eq 20 ]
-  grep -Fq "resolved_commit: $revision" "$lock"
-  grep -Fq '.agents/skills/grill-with-docs/agents/openai.yaml' "$lock"
-  grep -Fq '.agents/skills/implement/agents/openai.yaml' "$lock"
-  grep -Fq '.claude/skills/grilling/agents/openai.yaml' "$lock"
+  grep -Fq "mattpocock/skills#$revision" "$manifest"
+  [ "$(grep -Fc "mattpocock/skills/skills/" "$manifest")" -eq 0 ]
+  [ "$(grep -Fc "#$revision" "$manifest")" -eq 1 ]
+  [ "$(grep -Fc "resolved_commit: $revision" "$lock")" -eq 1 ]
+  grep -Fq 'name: mattpocock-skills' "$lock"
+  grep -Fq 'package_type: marketplace_plugin' "$lock"
+  for skill in \
+    ask-matt diagnosing-bugs grill-with-docs triage improve-codebase-architecture \
+    setup-matt-pocock-skills tdd to-spec to-tickets wayfinder implement prototype \
+    research domain-modeling codebase-design code-review resolving-merge-conflicts \
+    wizard grill-me grilling handoff teach to-questionnaire wait-what writing-for-agents; do
+    grep -Fq "  - .agents/skills/$skill" "$lock"
+    grep -Fq "  - .claude/skills/$skill" "$lock"
+  done
+  ! grep -Fq 'writing-great-skills' "$manifest"
+  ! grep -Fq 'writing-great-skills' "$lock"
 }
 
 @test "APM advances changed selected payloads without pinning revision-only updates" {
