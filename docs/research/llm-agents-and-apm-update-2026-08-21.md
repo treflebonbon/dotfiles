@@ -126,13 +126,21 @@ research skill が要求する補助 background agent については、`codex e
 
 公式 [`v0.28.0 release`](https://github.com/microsoft/apm/releases/tag/v0.28.0) が引き続き最新の release tag。公式 main の最新確認値は [`8993dcc6`](https://github.com/microsoft/apm/commit/8993dcc6fd7171ef3881a9021a7f25b9439e1a29)（2026-08-16 08:44:43 UTC）で、前回メモ以降の新規 commit / release tag は **未確認**。`apm` binary を main commit へ置き換える根拠はない。
 
+## 採用 round の verification record（2026-08-21）
+
+候補を source に採用する前に、既存 `.env*` の権限制限を避けた clean temporary source で Nix の深い評価を実行した。`nix flake check --no-build --all-systems` は `x86_64-linux`、`aarch64-linux`、`aarch64-darwin` の devShell / formatter 全出力で成功した。候補 package metadata も Nix evaluation で Claude `2.1.238`、Codex `0.149.0`、Antigravity `1.1.17` と一致した。構築済み Claude は `--version`、Antigravity は `--version` / `--help` の smoke を通過した。
+
+APM は `/tmp` の isolated runtime layout で `apm install --frozen --https --no-audit` を実行し、lock SHA-256 は実行前後で `0515ee2e20b9ab0242789f8e1b4e2f446105cc7ca4781ff0b3be3f006d9ef834` と一致した。同じ cwd の `apm audit --ci` は10 checksを通過し、Remotion の `.agents/skills/remotion-best-practices` は137 filesとして materialize / discoveryできた。repo の targeted APM runtime tests（10 tests）と accepted update contract test も成功した。
+
+Codex `0.149.0` の Linux binary build は、Nix daemon の cache SQLite write restriction により無出力のまま継続したため中断した。Nix source evaluation と package metadata は確認済みだが、Codex binary の実行 smoke と aarch64-darwin 実機実行は未確認として残す。`chezmoi apply` と live home discovery は source worktree と管理対象 home の境界を保つため、この managed session では実行していない。
+
 ## 未確認事項と検証境界
 
 - Antigravity CLI 1.1.17 の version 固有 changelog / upstream release tag は **未確認**。`llm-agents.nix` の metadata 以上の変更内容は記録していない。
-- `llm-agents.nix@d205793b` の3 system Nix deep evaluation / build、Claude 2.1.238 と Codex 0.149.0 の candidate binary smoke、aarch64-darwin 実機実行は未実施。
-- Remotion 4.0.514 の selected subtree materialization、既存 project での `<HtmlInCanvas>` nested usage の有無、browser regression は未確認。
+- Codex 0.149.0 の candidate binary smoke と aarch64-darwin 実機実行は未実施。3 system の Nix deep evaluation、Claude / Antigravity の version/help smoke は上記 verification record で確認済み。
+- Remotion 4.0.514 の isolated selected subtree materialization / discovery は確認済み。既存 project での `<HtmlInCanvas>` nested usage の有無、browser regression は未確認。
 - Matt Pocock candidate の `apm install --frozen`、`writing-for-agents` 移行、local UI grill override と phase-boundary の end-to-end は未実施。
-- APM 0.28.0 の frozen install / audit は今回の調査では再実行していない。APM main を採用する場合の lock schema / trust-bin / marketplace validation の実運用差分も未確認。
+- APM 0.28.0 の isolated frozen install / audit は上記 verification record で確認済み。APM main を採用する場合の lock schema / trust-bin / marketplace validation の実運用差分は未確認。
 - upstream の「公式 docs に変更がない」ことを網羅的に証明するものではない。GitHub の対象 repository、release、tag、commit と selected path の範囲で確認できなかったものは **未確認** と扱った。
 
 ## 次回の採用時ゲート
