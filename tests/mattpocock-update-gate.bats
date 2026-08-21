@@ -1,6 +1,10 @@
 #!/usr/bin/env bats
 
 setup() {
+  if [[ -n "${MATTPOCOCK_GATE_RUNNING:-}" ]]; then
+    skip "managed-set gate invokes the full suite"
+  fi
+
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   MANIFEST="$PROJECT_ROOT/apm.yml"
   LOCK="$PROJECT_ROOT/apm.lock.yaml"
@@ -11,8 +15,8 @@ setup() {
   FAKE_BIN="$BATS_TEST_TMPDIR/fake-bin"
   COMMAND_LOG="$BATS_TEST_TMPDIR/commands.log"
   mkdir -p "$FAKE_BIN"
-  ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-apm" "$FAKE_BIN/apm"
-  ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-chezmoi" "$FAKE_BIN/chezmoi"
+  ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-apm.sh" "$FAKE_BIN/apm"
+  ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-chezmoi.sh" "$FAKE_BIN/chezmoi"
 }
 
 lock_managed_skills() {
@@ -67,6 +71,7 @@ cleanup_managed_skills() {
     PATH="$FAKE_BIN:$PATH" \
     MATTPOCOCK_GATE_LOG="$phase_log" \
     MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATTPOCOCK_GATE_SKIP_FULL_TESTS=1 \
     "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
 
   [ "$status" -eq 0 ]
@@ -95,7 +100,7 @@ cleanup_managed_skills() {
   cp "$MANIFEST" "$candidate_source/apm.yml"
   cp "$LOCK" "$candidate_source/apm.lock.yaml"
   cp "$CLEANUP" "$candidate_source/run_onchange_before_remove-orphan-claude-skills.sh.tmpl"
-  printf 'enabledPlugins: mattpocock@official\n' >"$candidate_source/private_dot_claude/settings.json"
+  printf '{\n  "enabledPlugins": [\n    "mattpocock@official"\n  ]\n}\n' >"$candidate_source/private_dot_claude/settings.json"
 
   run env PATH="$FAKE_BIN:$PATH" "$GATE" --source "$candidate_source" --candidate-manifest "$candidate_source/apm.yml"
   [ "$status" -ne 0 ]

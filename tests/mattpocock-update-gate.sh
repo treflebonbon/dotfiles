@@ -42,6 +42,15 @@ done
 }
 SOURCE_DIR=$(cd -- "$SOURCE_DIR" && pwd)
 CANDIDATE_MANIFEST=${CANDIDATE_MANIFEST:-$SOURCE_DIR/apm.yml}
+ORIGINAL_HOME=${HOME:-}
+ORIGINAL_XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-}
+ORIGINAL_XDG_CONFIG_HOME_SET=${XDG_CONFIG_HOME+x}
+ORIGINAL_XDG_DATA_HOME=${XDG_DATA_HOME:-}
+ORIGINAL_XDG_DATA_HOME_SET=${XDG_DATA_HOME+x}
+ORIGINAL_CODEX_HOME=${CODEX_HOME:-}
+ORIGINAL_CODEX_HOME_SET=${CODEX_HOME+x}
+ORIGINAL_CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-}
+ORIGINAL_CLAUDE_CONFIG_DIR_SET=${CLAUDE_CONFIG_DIR+x}
 
 SOURCE_LOCK="$SOURCE_DIR/apm.lock.yaml"
 CLEANUP_SCRIPT="$SOURCE_DIR/run_onchange_before_remove-orphan-claude-skills.sh.tmpl"
@@ -57,9 +66,10 @@ reject() {
   exit 1
 }
 
-mapfile -t matt_lines < <(
-  grep -E '^[[:space:]]*-[[:space:]]+mattpocock/skills([#/]|[[:space:]]*$)' "$CANDIDATE_MANIFEST" || true
-)
+matt_lines=()
+while IFS= read -r matt_line; do
+  matt_lines+=("$matt_line")
+done < <(grep -E '^[[:space:]]*-[[:space:]]+mattpocock/skills([#/]|[[:space:]]*$)' "$CANDIDATE_MANIFEST" || true)
 [[ ${#matt_lines[@]} -eq 1 ]] || reject "candidate must contain exactly one Matt Pocock collection dependency"
 
 candidate_matt_spec=$(sed -E 's/^[[:space:]]*-[[:space:]]*//' <<<"${matt_lines[0]}")
@@ -74,8 +84,21 @@ normalize_manifest() {
 cmp <(normalize_manifest "$SOURCE_DIR/apm.yml") <(normalize_manifest "$CANDIDATE_MANIFEST") ||
   reject "candidate changes dependencies outside mattpocock/skills"
 
-if grep -R -Eiq 'npx[[:space:]]+skills|enabledPlugins.*mattpocock|mattpocock.*enabledPlugins' \
-  "$SOURCE_DIR/private_dot_claude" "$SOURCE_DIR/private_dot_config" 2>/dev/null; then
+native_managed_route_present() {
+  local root file compact
+  for root in "$SOURCE_DIR/private_dot_claude" "$SOURCE_DIR/private_dot_config"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r file; do
+      compact=$(tr -d '[:space:]' <"$file")
+      if grep -Eiq 'npxskills|enabledPlugins.*mattpocock|mattpocock.*enabledPlugins' <<<"$compact"; then
+        return 0
+      fi
+    done < <(find "$root" -type f -print)
+  done
+  return 1
+}
+
+if native_managed_route_present; then
   reject "native Claude plugin or universal npx skills route is enabled"
 fi
 
@@ -168,22 +191,41 @@ cleanup_managed_skills() {
   ' "$1" | sort
 }
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    reject "sha256sum or shasum is required"
+  fi
+}
+
+list_installed_skills() {
+  local root=$1 skill_path
+  local -a skill_paths=("$root"/*)
+  for skill_path in "${skill_paths[@]}"; do
+    [[ -d "$skill_path" || -L "$skill_path" ]] || continue
+    basename "$skill_path"
+  done | sort
+}
+
 runtime=$(mktemp -d "${TMPDIR:-/tmp}/mattpocock-update-gate.XXXXXX")
 phase_log=${MATTPOCOCK_GATE_LOG:-$runtime/gate.log}
-mkdir -p -- "$(dirname -- "$phase_log")"
+mkdir -p "$(dirname "$phase_log")"
 : >"$phase_log"
 
 cleanup_runtime() {
   if [[ -n "${MATTPOCOCK_GATE_KEEP_RUNTIME:-}" ]]; then
     printf 'Runtime retained at %s\n' "$runtime" >&2
   else
-    rm -rf -- "$runtime"
+    rm -rf "$runtime"
   fi
 }
 trap cleanup_runtime EXIT
 
 mkdir -p "$runtime/home" "$runtime/config" "$runtime/data"
-cp -- "$SOURCE_LOCK" "$runtime/apm.lock.yaml"
+cp "$SOURCE_LOCK" "$runtime/apm.lock.yaml"
 pin_baseline_dependencies >"$runtime/apm.yml"
 
 export HOME="$runtime/home"
@@ -211,10 +253,10 @@ matt_lock_revision=$(awk '
 [[ "$matt_lock_revision" == "$CANDIDATE_REVISION" ]] ||
   reject "generated lock does not resolve the candidate Matt revision"
 
-lock_before=$(sha256sum "$runtime/apm.lock.yaml" | awk '{print $1}')
+lock_before=$(sha256_file "$runtime/apm.lock.yaml")
 record_phase frozen-install
 apm install --frozen --target claude,codex --https
-lock_after=$(sha256sum "$runtime/apm.lock.yaml" | awk '{print $1}')
+lock_after=$(sha256_file "$runtime/apm.lock.yaml")
 [[ "$lock_before" == "$lock_after" ]] || reject "frozen install rewrote apm.lock.yaml"
 
 record_phase audit
@@ -232,11 +274,11 @@ actual_agents=$(mktemp "$runtime/actual-agents.XXXXXX")
 actual_claude=$(mktemp "$runtime/actual-claude.XXXXXX")
 for target in .agents/skills .claude/skills; do
   actual=$(mktemp "$runtime/actual-skills.XXXXXX")
-  find "$runtime/$target" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -printf '%f\n' | sort >"$actual"
+  list_installed_skills "$runtime/$target" >"$actual"
   if [[ "$target" == ".agents/skills" ]]; then
-    cp -- "$actual" "$actual_agents"
+    cp "$actual" "$actual_agents"
   else
-    cp -- "$actual" "$actual_claude"
+    cp "$actual" "$actual_claude"
   fi
 done
 cmp "$actual_agents" "$actual_claude" || {
@@ -258,6 +300,34 @@ bats \
   "$SOURCE_DIR/tests/apm-runtime.bats" \
   "$SOURCE_DIR/tests/run_onchange_before_remove-orphan-claude-skills.bats" \
   "$SOURCE_DIR/tests/workflow-contract.bats"
+if [[ -z "${MATTPOCOCK_GATE_SKIP_FULL_TESTS:-}" ]]; then
+  export HOME="$ORIGINAL_HOME"
+  if [[ -n "$ORIGINAL_XDG_CONFIG_HOME_SET" ]]; then
+    export XDG_CONFIG_HOME="$ORIGINAL_XDG_CONFIG_HOME"
+  else
+    unset XDG_CONFIG_HOME
+  fi
+  if [[ -n "$ORIGINAL_XDG_DATA_HOME_SET" ]]; then
+    export XDG_DATA_HOME="$ORIGINAL_XDG_DATA_HOME"
+  else
+    unset XDG_DATA_HOME
+  fi
+  if [[ -n "$ORIGINAL_CODEX_HOME_SET" ]]; then
+    export CODEX_HOME="$ORIGINAL_CODEX_HOME"
+  else
+    unset CODEX_HOME
+  fi
+  if [[ -n "$ORIGINAL_CLAUDE_CONFIG_DIR_SET" ]]; then
+    export CLAUDE_CONFIG_DIR="$ORIGINAL_CLAUDE_CONFIG_DIR"
+  else
+    unset CLAUDE_CONFIG_DIR
+  fi
+  export MATTPOCOCK_GATE_RUNNING=1
+  bats "$SOURCE_DIR/tests"
+  unset MATTPOCOCK_GATE_RUNNING
+  export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
+  unset CODEX_HOME CLAUDE_CONFIG_DIR
+fi
 
 record_phase chezmoi-dry-run
 chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false

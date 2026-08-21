@@ -27,7 +27,7 @@ Matt Pocock managed set の更新は、次の ordered gate を全て通過した
 6. **workflow contract tests**: `tests/apm-runtime.bats`、`tests/run_onchange_before_remove-orphan-claude-skills.bats`、`tests/workflow-contract.bats` と全 `bats tests/` を実行する。full set、cleanup ownership、workflow safety の境界を同じ検証 matrix で追跡する。
 7. **chezmoi dry-run**: isolated HOME 内で `chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false` により template data を生成し、続けて `chezmoi --source "$SOURCE_DIR" apply --dry-run` で意図した source だけが配備対象になることを確認する。live apply はこの gate に含めない。
 
-この順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、full-set discovery、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。
+この順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、full-set discovery、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。gate が full `bats tests/` を呼ぶ際は `MATTPOCOCK_GATE_RUNNING` を継承し、gate 自身の Bats file だけが再帰を避けて skip する。
 
 候補は次の条件を満たさない限り reject する。
 
