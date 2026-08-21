@@ -66,6 +66,43 @@ setup() {
   ! grep -Fq 'resolved_commit: 435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$lock"
 }
 
+@test "APM install is gated on a successful nix-devshell snapshot refresh" {
+  local script="$PROJECT_ROOT/run_onchange_after_apm-install.sh.tmpl"
+  local refresh_line
+  local install_line
+
+  grep -q 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script"
+  refresh_line="$(grep -n 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script" | cut -d: -f1)"
+  install_line="$(grep -n '^apm install --frozen$' "$script" | cut -d: -f1)"
+  [ "$refresh_line" -lt "$install_line" ]
+}
+
+@test "APM Remotion assertions keep commit and content hash in one lock entry" {
+  local lock="$PROJECT_ROOT/apm.lock.yaml"
+  local remotion_entry
+
+  remotion_entry="$(awk '
+    /^- repo_url: / {
+      if (active && repo == "- repo_url: remotion-dev/skills") {
+        print block
+        exit
+      }
+      repo = $0
+      block = $0 ORS
+      active = 1
+      next
+    }
+    active { block = block $0 ORS }
+    END {
+      if (active && repo == "- repo_url: remotion-dev/skills") print block
+    }
+  ' "$lock")"
+
+  [ -n "$remotion_entry" ]
+  grep -Fq 'resolved_commit: 7fc6dea333869e23f58bf9e9861010e9ba589e5e' <<<"$remotion_entry"
+  grep -Fq 'content_hash: sha256:7e361522d093e36666b234e3f0a4eaae11bd1a160de4bbfd6baea9a3228c595a' <<<"$remotion_entry"
+}
+
 @test "APM runtime deploy targets remain git-ignored" {
   grep -q '^/\.agents/$' "$PROJECT_ROOT/.gitignore"
   grep -q '^/\.claude/agents/$' "$PROJECT_ROOT/.gitignore"

@@ -1,13 +1,13 @@
 ---
 type: decision
-title: llm-agents snapshot と Remotion payload の更新単位を分離する
+title: llm-agents snapshot と Remotion payload を一つの更新単位として採用する
 description: llm-agents の品質 floor と実体が変わる Remotion payload を一つの atomic update unit として採用し、Impeccable と Matt Pocock / APM main の変更は別境界に保つ
 tags: [adr, nix, llm-agents, apm, remotion, claude-code, codex, antigravity]
 timestamp: 2026-08-21
 status: accepted
 ---
 
-# llm-agents snapshot と Remotion payload の更新単位を分離する
+# llm-agents snapshot と Remotion payload を一つの更新単位として採用する
 
 2026-08-21 の調査と grilling で、導入済み AI ツールセットと導入済み Agent Skill セットのうち、同じ互換性ゲート・検証結果・配備境界・rollback 境界を共有する変更だけを一つの更新単位として採用することを決めた。
 
