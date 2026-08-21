@@ -31,7 +31,7 @@ APM 0.28.0 は plugin collection を一つの lock record として materialize 
 - `tests/apm-runtime.bats`: 10/10 pass。manifestの単一 root dependency、exact commit、`marketplace_plugin` lock record、25 skillの shared hub / Claude deploymentを確認。
 - 隔離 runtime の `apm install --frozen --target claude,codex --https`: lock hash不変、25 skill全ての `.agents/skills` / `.claude/skills` directoryを確認。
 - 同じ隔離 runtime の `apm audit --ci`: 10/10 pass、driftなし。
-- 同じ隔離 runtime で `codex debug prompt-input` を実行し、共有 hub 由来の `writing-for-agents` を model-visible skill として確認。Claude target には同 skill を含む対応する25 directoryを確認。
+- 同じ隔離 runtime で、25 skill全てについて shared hub / Claude skill directoryの pair を照合。さらに `codex debug prompt-input` で共有 hub 由来の model-invoked `writing-for-agents` を確認した。`grill-me` / `teach` など user-invoked skill が Codex の model-visible prompt に出ないのは invocation分類上の境界であり、managed directoryからの明示起動対象としては配備済みと記録する。
 - `bats tests/`: 340/340 pass。
 - 既存 lock と新 lock の非 Matt dependencyについて、key、resolved commit、resolved ref、version、package type、content hashを比較し差分なし。
 
