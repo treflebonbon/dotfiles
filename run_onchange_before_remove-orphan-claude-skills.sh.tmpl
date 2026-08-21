@@ -29,9 +29,48 @@ preserve_local_skills=(
   worktree-gc
 )
 
+# APM が配備する mattpocock/skills v1.2.3 の公式 full set。
+# ~/.claude/skills の real-dir cleanup から除外し、APM の install/prune に
+# managed payload の所有権を委ねる。lock の plugin record と同期させること。
+managed_apm_skills=(
+  ask-matt
+  code-review
+  codebase-design
+  diagnosing-bugs
+  domain-modeling
+  grill-me
+  grill-with-docs
+  grilling
+  handoff
+  implement
+  improve-codebase-architecture
+  prototype
+  research
+  resolving-merge-conflicts
+  setup-matt-pocock-skills
+  tdd
+  teach
+  to-questionnaire
+  to-spec
+  to-tickets
+  triage
+  wait-what
+  wayfinder
+  wizard
+  writing-for-agents
+)
+
 is_preserved_local_skill() {
   local name="$1" p
   for p in "${preserve_local_skills[@]}"; do
+    [ "$name" = "$p" ] && return 0
+  done
+  return 1
+}
+
+is_managed_apm_skill() {
+  local name="$1" p
+  for p in "${managed_apm_skills[@]}"; do
     [ "$name" = "$p" ] && return 0
   done
   return 1
@@ -77,7 +116,8 @@ cleanup_repo_local_apm_targets
 if [ -d "$skills_dir" ]; then
   removed=0
   while IFS= read -r -d '' entry; do
-    if is_preserved_local_skill "$(basename "$entry")"; then
+    if is_preserved_local_skill "$(basename "$entry")" || \
+      is_managed_apm_skill "$(basename "$entry")"; then
       continue
     fi
     rm -rf -- "$entry"
@@ -149,14 +189,13 @@ retired_apm_skills=(
   agent-browser
   autofix
   baseline-ui
-  code-review
   dogfood
   fixing-accessibility
   fixing-metadata
   fixing-motion-performance
-  grill-me
   uxaudit
   webapp-testing
+  writing-great-skills
 )
 
 remove_named_skill_entries() {
