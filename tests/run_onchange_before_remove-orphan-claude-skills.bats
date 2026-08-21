@@ -274,26 +274,134 @@ run_script() {
   [ -d "$codex_home/skills/frontend-design" ]
 }
 
-@test "removes retired agent-browser and grill-me from agent runtime skill dirs" {
+@test "removes retired agent-browser and obsolete writing skill while preserving official Matt skills" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
-    mkdir -p "$dir/agent-browser" "$dir/grill-me" "$dir/modern-web-guidance"
+  local hub_dirs=(
+    "$FAKE_HOME/.agents/skills"
+  )
+  local claude_dirs=(
+    "$FAKE_HOME/.claude/skills"
+  )
+  local native_dirs=(
+    "$FAKE_HOME/.codex/skills"
+    "$codex_home/skills"
+  )
+  local other_dirs=(
+    "$FAKE_HOME/.gemini/skills"
+    "$FAKE_HOME/.copilot/skills"
+  )
+
+  for dir in "${hub_dirs[@]}" "${claude_dirs[@]}" "${native_dirs[@]}" "${other_dirs[@]}"; do
+    mkdir -p "$dir/agent-browser" "$dir/grill-me" "$dir/teach" "$dir/writing-for-agents" "$dir/writing-great-skills" "$dir/modern-web-guidance"
   done
 
   HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
+  for dir in "${hub_dirs[@]}"; do
+    [ ! -e "$dir/agent-browser" ]
+    [ -d "$dir/grill-me" ]
+    [ -d "$dir/teach" ]
+    [ -d "$dir/writing-for-agents" ]
+    [ ! -e "$dir/writing-great-skills" ]
+    [ -d "$dir/modern-web-guidance" ]
+  done
+
+  for dir in "${claude_dirs[@]}"; do
+    [ ! -e "$dir/agent-browser" ]
+    [ -d "$dir/grill-me" ]
+    [ -d "$dir/teach" ]
+    [ -d "$dir/writing-for-agents" ]
+    [ ! -e "$dir/writing-great-skills" ]
+    [ ! -e "$dir/modern-web-guidance" ]
+  done
+
+  for dir in "${native_dirs[@]}"; do
     [ ! -e "$dir/agent-browser" ]
     [ ! -e "$dir/grill-me" ]
+    [ ! -e "$dir/teach" ]
+    [ ! -e "$dir/writing-for-agents" ]
+    [ ! -e "$dir/writing-great-skills" ]
+    [ -d "$dir/modern-web-guidance" ]
+  done
+
+  for dir in "${other_dirs[@]}"; do
+    [ ! -e "$dir/agent-browser" ]
+    [ -d "$dir/grill-me" ]
+    [ -d "$dir/teach" ]
+    [ -d "$dir/writing-for-agents" ]
+    [ ! -e "$dir/writing-great-skills" ]
     [ -d "$dir/modern-web-guidance" ]
   done
 }
 
-@test "removes retired coderabbit (autofix/code-review) and uxaudit skills from agent runtime skill dirs" {
+@test "preserves every Matt Pocock v1.2.3 skill across managed runtime directories" {
+  local codex_home="$BATS_TEST_TMPDIR/codex-home"
+  local matt_skills=(
+    ask-matt
+    code-review
+    codebase-design
+    diagnosing-bugs
+    domain-modeling
+    grill-me
+    grill-with-docs
+    grilling
+    handoff
+    implement
+    improve-codebase-architecture
+    prototype
+    research
+    resolving-merge-conflicts
+    setup-matt-pocock-skills
+    tdd
+    teach
+    to-questionnaire
+    to-spec
+    to-tickets
+    triage
+    wait-what
+    wayfinder
+    wizard
+    writing-for-agents
+  )
+  local managed_dirs=(
+    "$FAKE_HOME/.agents/skills"
+    "$FAKE_HOME/.claude/skills"
+  )
+  local native_dirs=(
+    "$FAKE_HOME/.codex/skills"
+    "$codex_home/skills"
+  )
+
+  for dir in "${managed_dirs[@]}" "${native_dirs[@]}"; do
+    for skill in "${matt_skills[@]}"; do
+      mkdir -p "$dir/$skill"
+    done
+    mkdir -p "$dir/writing-great-skills"
+  done
+
+  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+
+  for dir in "${managed_dirs[@]}"; do
+    for skill in "${matt_skills[@]}"; do
+      [ -d "$dir/$skill" ]
+    done
+    [ ! -e "$dir/writing-great-skills" ]
+  done
+
+  for dir in "${native_dirs[@]}"; do
+    for skill in "${matt_skills[@]}"; do
+      [ ! -e "$dir/$skill" ]
+    done
+    [ ! -e "$dir/writing-great-skills" ]
+  done
+}
+
+@test "removes retired coderabbit (autofix) and uxaudit skills from agent runtime skill dirs" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
-    mkdir -p "$dir/autofix" "$dir/code-review" "$dir/uxaudit" "$dir/modern-web-guidance"
+    mkdir -p "$dir/autofix" "$dir/uxaudit" "$dir/modern-web-guidance"
   done
 
   HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
@@ -301,7 +409,6 @@ run_script() {
 
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
     [ ! -e "$dir/autofix" ]
-    [ ! -e "$dir/code-review" ]
     [ ! -e "$dir/uxaudit" ]
     [ -d "$dir/modern-web-guidance" ]
   done

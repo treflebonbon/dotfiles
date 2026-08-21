@@ -25,6 +25,14 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 - raw issue: `triage` で ready-for-agent 化してから `implement`
 - 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review` → `to-pr`
 
+## v1.2.3 workflow contract
+
+- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、各 round の人間の回答を待つ。事実は環境から調べ、decision は推測して進めない。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
+- phase boundary の公式5択は `Continue → /clear → /handoff → Subagent → /compact`。次 phase が現 phase を primary source として必要、または smart zone（目安 ~150k tokens）に収まるなら `Continue`。context が無関係なら `/clear`。portability が必要な場合だけ `/handoff`。AFK の scoped task は `Subagent`。同じ harness / directory の relevant context は `/compact` で引き継ぐ。
+- Builder-Evaluator は同じ worktree/branch で ticket をまたいで継続できる。ticket 境界でも同じ harness / directory なら `/compact`、portability が必要な場合だけ `/handoff` とし、既存の tdd / code-review / Verification Matrix / `to-pr` 一回の境界を維持する。
+- model-invoked discipline は current repository の実装契約内で動く。外部書込みは親 Contract または明示的に起動した user-invoked skill の範囲に限り、機密情報・credential・CI secret を読み出し、出力、commit、無断変更しない。権限拡大や permission bypass は推測せず、runtime profile に従い必要ならユーザーへ戻す。
+- `prototype` の logic path は single self-contained HTML とし、build / server 不要で、inline pure logic、free-play、guided walkthroughs、操作後の全 state 表示を持つ。決定を本実装へ反映した後も prototype 全体を throwaway branch に primary source として残し、implementation issue から参照する。main branch には decision だけを残す。
+
 自律実行範囲、Contract、Verification Matrix、Parent Reconciliation、各 skill のローカル上書きは `runtime/skill-harness.md` と関連 ADR を正本とする。特に次を守る:
 
 - `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、close/reopen/delete は確認する。

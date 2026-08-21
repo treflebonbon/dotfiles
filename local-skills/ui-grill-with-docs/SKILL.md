@@ -1,20 +1,24 @@
 ---
 name: ui-grill-with-docs
-description: "UI/UX の比重が高い設計を詰める grill-with-docs 派生。レイアウト・コンポーネント配置・画面遷移の比較検討が争点になる質問だけ、使い捨ての静的 HTML モックアップ（tmp/wireframe-<screen>.html）を見せながら聞く。それ以外の質問は通常どおりチャットで一問一答する。Use when grilling a UI/UX-heavy plan or design where visual comparison would sharpen the question."
+description: "UI/UX の比重が高い設計を詰める grill-with-docs 派生。frontier round の質問を進め、レイアウト・コンポーネント配置・画面遷移の比較検討が争点になる質問だけ、使い捨ての静的 HTML モックアップ（tmp/wireframe-<screen>.html）を見せる。Use when grilling a UI/UX-heavy plan or design where visual comparison would sharpen the question."
 disable-model-invocation: true
 ---
 
 # ui-grill-with-docs
 
-Run the same one-question-at-a-time loop as `grill-with-docs`, using `grilling`
-and `domain-modeling`. Use `codebase-design` when the discussion reaches module
-interfaces or seams. This skill adds only the visual-question behavior below;
-do not fork or replace those skills.
+Run the same frontier-round loop as `grill-with-docs`, using `grilling` and
+`domain-modeling`. In each round, ask every decision whose prerequisites are
+settled, give a recommendation for each, and wait for the human's answers
+before opening the next frontier. Facts are explored from the environment;
+decisions are not guessed or silently applied. Use `codebase-design` when the
+discussion reaches module interfaces or seams. This skill adds only the
+visual-question behavior below; do not fork or replace those skills.
 
 ## Choose the question format
 
-Keep most questions in chat, following `grilling`: ask one question with a
-recommended answer, then wait for feedback before continuing.
+Keep most questions in chat, following `grilling`: ask every currently
+unblocked frontier question with a recommended answer, then wait for the
+human's round of feedback before continuing.
 
 Add a static HTML/CSS mockup only when the decision itself concerns one of:
 
