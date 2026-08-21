@@ -24,7 +24,7 @@ status: accepted
 - Nix source gate は exact snapshot、package metadata、quality-floor assertions、3 system evaluation を検証する。
 - CLI gate は既存の Claude/Codex trust・config 契約に加え、候補の version / startup smoke を検証する。
 - APM gate は隔離 runtime layout の frozen install、lock no-rewrite、audit、Remotion selected payload の materialization / discovery を検証する。
-- いずれかの core gate が失敗した場合、この更新単位は採用済みとみなさず、旧 source pin を fallback とする。Remotion だけ、または CLI だけを部分採用しない。
+- いずれかの core source gate が実際に失敗した場合、この更新単位は採用済みとみなさず、旧 source pin を fallback とする。Remotion だけ、または CLI だけを部分採用しない。managed session の実行制約で binary smoke などが未確認になった場合は、source gate の成功と分けて verification record に明記し、未確認の live behavior を保証したとは主張しない。
 - managed session が read-only の場合、source gate を弱めず `chezmoi apply` と live discovery は未確認として記録する。
 
 ## Deliberately separate

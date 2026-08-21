@@ -205,7 +205,7 @@ PS
   grep -q 'minClaudeCode = "2\.1\.238";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "accepted AI toolset snapshot and selected payload are deployable" {
+@test "accepted AI toolset snapshot and selected payload source contract is pinned" {
   local adr="$PROJECT_ROOT/docs/adr/0040-update-llm-agents-and-remotion-update-unit.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
