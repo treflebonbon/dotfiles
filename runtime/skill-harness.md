@@ -54,7 +54,7 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 - `prototype` — 設計質問に答える捨てプロトタイプ
 - `research` — 一次情報リサーチを background agent で行い cited Markdown を残す
 
-実装フェーズの user-invoked entrypoint は `implement`。`tdd` / `code-review` / `resolving-merge-conflicts` / `diagnosing-bugs` などは model-invoked discipline として必要時に発火する。`grilling`（productivity/Model-invoked、`grill-with-docs`/`grill-me` の共通ループ）は [ADR-0009](../docs/adr/0009-add-grilling-skill.md) で導入済み。`grill-me`（productivity/User-invoked、no-codebase 向け）は [ADR-0002](../docs/adr/0002-mattpocock-over-superpowers.md) が軽量化のため意図的に除去したまま。`teach` は [ADR-0010](../docs/adr/0010-productivity-skill-audit.md) により「設計→実装ワークフロー」スコープ外として非導入。
+実装フェーズの user-invoked entrypoint は `implement`。`tdd` / `code-review` / `resolving-merge-conflicts` / `diagnosing-bugs` などは model-invoked discipline として必要時に発火する。`grilling`（productivity/Model-invoked、`grill-with-docs`/`grill-me` の共通ループ）は [ADR-0009](../docs/adr/0009-add-grilling-skill.md) で導入済み。公式 v1.2.3 full set の APM 配備により `grill-me` と `teach` も managed set に含めるが、これは既存 main flow を自動変更する判断ではない。旧除外判断の supersede と v1.2.3 の workflow semantics は [ADR-0040](../docs/adr/0040-adopt-mattpocock-v1-2-3-full-set.md) および後続の workflow migration ticket で管理する。
 
 このワークフローは per-repo で完結する。ラベル provisioning は dotfiles では持たず、各 repo で `gh label create` または skill のランタイム挙動に任せる。domain doc は mattpocock ネイティブの `CONTEXT.md`/`docs/adr` を使い、この `runtime/` バンドルとは混ぜない（`runtime/` は home-wide ambient 知識専用）。
 
