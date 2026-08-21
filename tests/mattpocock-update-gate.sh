@@ -183,6 +183,19 @@ lock_managed_skills() {
   ' "$2" | sort
 }
 
+lock_target_skills() {
+  local path=$1
+  awk -v path="$path" '
+    {
+      prefix = "  - " path "/"
+      if (index($0, prefix) == 1) {
+        skill = substr($0, length(prefix) + 1)
+        if (skill !~ /\//) print skill
+      }
+    }
+  ' "$2" | sort -u
+}
+
 cleanup_managed_skills() {
   awk '
     /^managed_apm_skills=\(/ { active = 1; next }
@@ -204,6 +217,10 @@ sha256_file() {
 list_installed_skills() {
   local root=$1 skill_path
   local -a skill_paths=("$root"/*)
+  for skill_path in "${skill_paths[@]}"; do
+    [[ -d "$skill_path" || -L "$skill_path" ]] || continue
+    [[ -f "$skill_path/SKILL.md" ]] || return 1
+  done
   for skill_path in "${skill_paths[@]}"; do
     [[ -d "$skill_path" || -L "$skill_path" ]] || continue
     basename "$skill_path"
@@ -263,18 +280,26 @@ record_phase audit
 apm audit --ci
 
 record_phase skill-discovery
-expected_agents=$(mktemp "$runtime/expected-agents.XXXXXX")
-expected_claude=$(mktemp "$runtime/expected-claude.XXXXXX")
-lock_managed_skills '.agents/skills' "$runtime/apm.lock.yaml" >"$expected_agents"
-lock_managed_skills '.claude/skills' "$runtime/apm.lock.yaml" >"$expected_claude"
-[[ $(wc -l <"$expected_agents") -eq 25 ]] || reject "generated lock does not contain 25 managed skills"
-cmp "$expected_agents" "$expected_claude" || reject "lock targets do not expose the same managed full set"
+expected_managed_agents=$(mktemp "$runtime/expected-managed-agents.XXXXXX")
+expected_managed_claude=$(mktemp "$runtime/expected-managed-claude.XXXXXX")
+expected_target_agents=$(mktemp "$runtime/expected-target-agents.XXXXXX")
+expected_target_claude=$(mktemp "$runtime/expected-target-claude.XXXXXX")
+lock_managed_skills '.agents/skills' "$runtime/apm.lock.yaml" >"$expected_managed_agents"
+lock_managed_skills '.claude/skills' "$runtime/apm.lock.yaml" >"$expected_managed_claude"
+lock_target_skills '.agents/skills' "$runtime/apm.lock.yaml" >"$expected_target_agents"
+lock_target_skills '.claude/skills' "$runtime/apm.lock.yaml" >"$expected_target_claude"
+[[ $(wc -l <"$expected_managed_agents") -eq 25 ]] || reject "generated lock does not contain 25 managed skills"
+cmp "$expected_managed_agents" "$expected_managed_claude" ||
+  reject "lock targets do not expose the same managed full set"
+cmp "$expected_target_agents" "$expected_target_claude" ||
+  reject "lock targets do not expose the same complete skill set"
 
 actual_agents=$(mktemp "$runtime/actual-agents.XXXXXX")
 actual_claude=$(mktemp "$runtime/actual-claude.XXXXXX")
 for target in .agents/skills .claude/skills; do
   actual=$(mktemp "$runtime/actual-skills.XXXXXX")
-  list_installed_skills "$runtime/$target" >"$actual"
+  list_installed_skills "$runtime/$target" >"$actual" ||
+    reject "discovery target contains a skill without SKILL.md: $target"
   if [[ "$target" == ".agents/skills" ]]; then
     cp "$actual" "$actual_agents"
   else
@@ -285,49 +310,44 @@ cmp "$actual_agents" "$actual_claude" || {
   diff -u "$actual_agents" "$actual_claude" >&2 || true
   reject "Claude and Codex discovery targets differ"
 }
-missing_skills=$(comm -23 "$expected_agents" "$actual_agents")
-if [[ -n "$missing_skills" ]]; then
-  printf 'Missing managed Matt skills:\n%s\n' "$missing_skills" >&2
-  reject "discovery is missing a managed Matt skill"
-fi
+cmp "$expected_target_agents" "$actual_agents" || {
+  diff -u "$expected_target_agents" "$actual_agents" >&2 || true
+  reject "discovery does not expose exactly the generated lock target set"
+}
 
 cleanup_skills=$(mktemp "$runtime/cleanup-skills.XXXXXX")
 cleanup_managed_skills "$CLEANUP_SCRIPT" >"$cleanup_skills"
-cmp "$expected_agents" "$cleanup_skills" || reject "orphan cleanup does not own the generated full set"
+cmp "$expected_managed_agents" "$cleanup_skills" || reject "orphan cleanup does not own the generated full set"
 
 record_phase workflow-contract-tests
 bats \
   "$SOURCE_DIR/tests/apm-runtime.bats" \
   "$SOURCE_DIR/tests/run_onchange_before_remove-orphan-claude-skills.bats" \
   "$SOURCE_DIR/tests/workflow-contract.bats"
-if [[ -z "${MATTPOCOCK_GATE_SKIP_FULL_TESTS:-}" ]]; then
-  export HOME="$ORIGINAL_HOME"
-  if [[ -n "$ORIGINAL_XDG_CONFIG_HOME_SET" ]]; then
-    export XDG_CONFIG_HOME="$ORIGINAL_XDG_CONFIG_HOME"
-  else
-    unset XDG_CONFIG_HOME
-  fi
-  if [[ -n "$ORIGINAL_XDG_DATA_HOME_SET" ]]; then
-    export XDG_DATA_HOME="$ORIGINAL_XDG_DATA_HOME"
-  else
-    unset XDG_DATA_HOME
-  fi
-  if [[ -n "$ORIGINAL_CODEX_HOME_SET" ]]; then
-    export CODEX_HOME="$ORIGINAL_CODEX_HOME"
-  else
-    unset CODEX_HOME
-  fi
-  if [[ -n "$ORIGINAL_CLAUDE_CONFIG_DIR_SET" ]]; then
-    export CLAUDE_CONFIG_DIR="$ORIGINAL_CLAUDE_CONFIG_DIR"
-  else
-    unset CLAUDE_CONFIG_DIR
-  fi
-  export MATTPOCOCK_GATE_RUNNING=1
-  bats "$SOURCE_DIR/tests"
-  unset MATTPOCOCK_GATE_RUNNING
-  export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
-  unset CODEX_HOME CLAUDE_CONFIG_DIR
+export HOME="$ORIGINAL_HOME"
+if [[ -n "$ORIGINAL_XDG_CONFIG_HOME_SET" ]]; then
+  export XDG_CONFIG_HOME="$ORIGINAL_XDG_CONFIG_HOME"
+else
+  unset XDG_CONFIG_HOME
 fi
+if [[ -n "$ORIGINAL_XDG_DATA_HOME_SET" ]]; then
+  export XDG_DATA_HOME="$ORIGINAL_XDG_DATA_HOME"
+else
+  unset XDG_DATA_HOME
+fi
+if [[ -n "$ORIGINAL_CODEX_HOME_SET" ]]; then
+  export CODEX_HOME="$ORIGINAL_CODEX_HOME"
+else
+  unset CODEX_HOME
+fi
+if [[ -n "$ORIGINAL_CLAUDE_CONFIG_DIR_SET" ]]; then
+  export CLAUDE_CONFIG_DIR="$ORIGINAL_CLAUDE_CONFIG_DIR"
+else
+  unset CLAUDE_CONFIG_DIR
+fi
+bats "$SOURCE_DIR/tests"
+export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
+unset CODEX_HOME CLAUDE_CONFIG_DIR
 
 record_phase chezmoi-dry-run
 chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false

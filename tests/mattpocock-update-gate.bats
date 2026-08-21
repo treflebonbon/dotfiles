@@ -1,10 +1,6 @@
 #!/usr/bin/env bats
 
 setup() {
-  if [[ -n "${MATTPOCOCK_GATE_RUNNING:-}" ]]; then
-    skip "managed-set gate invokes the full suite"
-  fi
-
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   MANIFEST="$PROJECT_ROOT/apm.yml"
   LOCK="$PROJECT_ROOT/apm.lock.yaml"
@@ -16,6 +12,7 @@ setup() {
   COMMAND_LOG="$BATS_TEST_TMPDIR/commands.log"
   mkdir -p "$FAKE_BIN"
   ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-apm.sh" "$FAKE_BIN/apm"
+  ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-bats.sh" "$FAKE_BIN/bats"
   ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-chezmoi.sh" "$FAKE_BIN/chezmoi"
 }
 
@@ -71,7 +68,6 @@ cleanup_managed_skills() {
     PATH="$FAKE_BIN:$PATH" \
     MATTPOCOCK_GATE_LOG="$phase_log" \
     MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
-    MATTPOCOCK_GATE_SKIP_FULL_TESTS=1 \
     "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
 
   [ "$status" -eq 0 ]
@@ -80,13 +76,17 @@ cleanup_managed_skills() {
   grep -Fq 'apm install --update --target claude,codex --https' "$COMMAND_LOG"
   grep -Fq 'apm install --frozen --target claude,codex --https' "$COMMAND_LOG"
   grep -Fq 'apm audit --ci' "$COMMAND_LOG"
+  grep -Fq 'bats ' "$COMMAND_LOG"
+  grep -Fq 'bats '"$PROJECT_ROOT/tests" "$COMMAND_LOG"
   grep -Fq 'chezmoi --source' "$COMMAND_LOG"
 }
 
 @test "managed-set update gate rejects an unpinned candidate" {
   local candidate="$BATS_TEST_TMPDIR/latest.yml"
   cp "$MANIFEST" "$candidate"
-  sed -E -i 's/mattpocock\/skills#[0-9a-f]{40}/mattpocock\/skills#@latest/' "$candidate"
+  sed -E 's/mattpocock\/skills#[0-9a-f]{40}/mattpocock\/skills#@latest/' \
+    "$candidate" >"$candidate.rewritten"
+  mv "$candidate.rewritten" "$candidate"
 
   run env PATH="$FAKE_BIN:$PATH" "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$candidate"
 
@@ -126,6 +126,15 @@ cleanup_managed_skills() {
     "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
   [ "$status" -ne 0 ]
   [[ "$output" == *"frozen install rewrote"* ]]
+}
+
+@test "managed-set update gate rejects extra discovered skills" {
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATT_GATE_ADD_EXTRA=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"exactly the generated lock target set"* ]]
 }
 
 @test "managed-set update gate documents the cross-file contract" {
