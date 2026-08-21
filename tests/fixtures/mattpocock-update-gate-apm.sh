@@ -22,8 +22,10 @@ if [[ " $* " == *" --update "* ]]; then
   fi
   while IFS= read -r skill; do
     mkdir -p "$PWD/.agents/skills/$skill" "$PWD/.claude/skills/$skill"
-    : >"$PWD/.agents/skills/$skill/SKILL.md"
-    : >"$PWD/.claude/skills/$skill/SKILL.md"
+    printf '%s\n' '---' "name: $skill" 'description: fake skill payload' '---' \
+      >"$PWD/.agents/skills/$skill/SKILL.md"
+    printf '%s\n' '---' "name: $skill" 'description: fake skill payload' '---' \
+      >"$PWD/.claude/skills/$skill/SKILL.md"
   done < <(
     awk '
       /^  - \.agents\/skills\/[^/]+$/ {
@@ -34,8 +36,10 @@ if [[ " $* " == *" --update "* ]]; then
   )
   if [[ -n "${MATT_GATE_ADD_EXTRA:-}" ]]; then
     mkdir -p "$PWD/.agents/skills/unexpected-extra" "$PWD/.claude/skills/unexpected-extra"
-    : >"$PWD/.agents/skills/unexpected-extra/SKILL.md"
-    : >"$PWD/.claude/skills/unexpected-extra/SKILL.md"
+    printf '%s\n' '---' 'name: unexpected-extra' 'description: fake extra payload' '---' \
+      >"$PWD/.agents/skills/unexpected-extra/SKILL.md"
+    printf '%s\n' '---' 'name: unexpected-extra' 'description: fake extra payload' '---' \
+      >"$PWD/.claude/skills/unexpected-extra/SKILL.md"
   fi
 fi
 

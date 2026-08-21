@@ -43,14 +43,8 @@ done
 SOURCE_DIR=$(cd -- "$SOURCE_DIR" && pwd)
 CANDIDATE_MANIFEST=${CANDIDATE_MANIFEST:-$SOURCE_DIR/apm.yml}
 ORIGINAL_HOME=${HOME:-}
-ORIGINAL_XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-}
-ORIGINAL_XDG_CONFIG_HOME_SET=${XDG_CONFIG_HOME+x}
-ORIGINAL_XDG_DATA_HOME=${XDG_DATA_HOME:-}
-ORIGINAL_XDG_DATA_HOME_SET=${XDG_DATA_HOME+x}
-ORIGINAL_CODEX_HOME=${CODEX_HOME:-}
-ORIGINAL_CODEX_HOME_SET=${CODEX_HOME+x}
-ORIGINAL_CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-}
-ORIGINAL_CLAUDE_CONFIG_DIR_SET=${CLAUDE_CONFIG_DIR+x}
+ORIGINAL_PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-}
+ORIGINAL_PLAYWRIGHT_BROWSERS_PATH_SET=${PLAYWRIGHT_BROWSERS_PATH+x}
 
 SOURCE_LOCK="$SOURCE_DIR/apm.lock.yaml"
 CLEANUP_SCRIPT="$SOURCE_DIR/run_onchange_before_remove-orphan-claude-skills.sh.tmpl"
@@ -227,6 +221,21 @@ list_installed_skills() {
   done | sort
 }
 
+validate_discovery_payload() {
+  local root=$1 expected=$2 skill_file
+  while IFS= read -r skill; do
+    [[ -n "$skill" ]] || continue
+    skill_file="$root/$skill/SKILL.md"
+    grep -Eq '^---$' "$skill_file" || return 1
+    grep -Eq '^name:[[:space:]]+' "$skill_file" || return 1
+    grep -Eq '^description:' "$skill_file" || return 1
+  done <"$expected"
+}
+
+snapshot_home_paths() {
+  find "$HOME" -print | sed '1d' | sort
+}
+
 runtime=$(mktemp -d "${TMPDIR:-/tmp}/mattpocock-update-gate.XXXXXX")
 phase_log=${MATTPOCOCK_GATE_LOG:-$runtime/gate.log}
 mkdir -p "$(dirname "$phase_log")"
@@ -314,6 +323,10 @@ cmp "$expected_target_agents" "$actual_agents" || {
   diff -u "$expected_target_agents" "$actual_agents" >&2 || true
   reject "discovery does not expose exactly the generated lock target set"
 }
+validate_discovery_payload "$runtime/.agents/skills" "$expected_target_agents" ||
+  reject "Codex discovery target contains an invalid skill payload"
+validate_discovery_payload "$runtime/.claude/skills" "$expected_target_claude" ||
+  reject "Claude discovery target contains an invalid skill payload"
 
 cleanup_skills=$(mktemp "$runtime/cleanup-skills.XXXXXX")
 cleanup_managed_skills "$CLEANUP_SCRIPT" >"$cleanup_skills"
@@ -324,26 +337,18 @@ bats \
   "$SOURCE_DIR/tests/apm-runtime.bats" \
   "$SOURCE_DIR/tests/run_onchange_before_remove-orphan-claude-skills.bats" \
   "$SOURCE_DIR/tests/workflow-contract.bats"
-export HOME="$ORIGINAL_HOME"
-if [[ -n "$ORIGINAL_XDG_CONFIG_HOME_SET" ]]; then
-  export XDG_CONFIG_HOME="$ORIGINAL_XDG_CONFIG_HOME"
+full_suite_home="$runtime/full-suite-home"
+full_suite_config="$runtime/full-suite-config"
+full_suite_data="$runtime/full-suite-data"
+mkdir -p "$full_suite_home" "$full_suite_config" "$full_suite_data"
+export HOME="$full_suite_home" XDG_CONFIG_HOME="$full_suite_config" XDG_DATA_HOME="$full_suite_data"
+unset CODEX_HOME CLAUDE_CONFIG_DIR
+if [[ -n "$ORIGINAL_PLAYWRIGHT_BROWSERS_PATH_SET" ]]; then
+  export PLAYWRIGHT_BROWSERS_PATH="$ORIGINAL_PLAYWRIGHT_BROWSERS_PATH"
+elif [[ -d "$ORIGINAL_HOME/.cache/ms-playwright" ]]; then
+  export PLAYWRIGHT_BROWSERS_PATH="$ORIGINAL_HOME/.cache/ms-playwright"
 else
-  unset XDG_CONFIG_HOME
-fi
-if [[ -n "$ORIGINAL_XDG_DATA_HOME_SET" ]]; then
-  export XDG_DATA_HOME="$ORIGINAL_XDG_DATA_HOME"
-else
-  unset XDG_DATA_HOME
-fi
-if [[ -n "$ORIGINAL_CODEX_HOME_SET" ]]; then
-  export CODEX_HOME="$ORIGINAL_CODEX_HOME"
-else
-  unset CODEX_HOME
-fi
-if [[ -n "$ORIGINAL_CLAUDE_CONFIG_DIR_SET" ]]; then
-  export CLAUDE_CONFIG_DIR="$ORIGINAL_CLAUDE_CONFIG_DIR"
-else
-  unset CLAUDE_CONFIG_DIR
+  unset PLAYWRIGHT_BROWSERS_PATH
 fi
 bats "$SOURCE_DIR/tests"
 export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
@@ -351,7 +356,13 @@ unset CODEX_HOME CLAUDE_CONFIG_DIR
 
 record_phase chezmoi-dry-run
 chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false
+chezmoi_home_before=$(mktemp "$runtime/chezmoi-home-before.XXXXXX")
+chezmoi_home_after=$(mktemp "$runtime/chezmoi-home-after.XXXXXX")
+snapshot_home_paths >"$chezmoi_home_before"
 chezmoi --source "$SOURCE_DIR" apply --dry-run --no-tty
+snapshot_home_paths >"$chezmoi_home_after"
+cmp "$chezmoi_home_before" "$chezmoi_home_after" ||
+  reject "chezmoi dry-run changed the isolated HOME"
 
 expected_phases=$(printf '%s\n' \
   lock-generation frozen-install audit skill-discovery workflow-contract-tests chezmoi-dry-run)

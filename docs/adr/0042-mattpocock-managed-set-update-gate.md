@@ -25,9 +25,9 @@ Matt Pocock managed set の更新は、次の ordered gate を全て通過した
 4. **audit**: 同じ隔離 runtime で `apm audit --ci` を実行し、source、lock、materialized payload の drift がないことを確認する。
 5. **skill discovery**: `.agents/skills` と `.claude/skills` の full set が一致し、Codex / Claude の discovery が managed target を読むことを disposable runtime で確認する。
 6. **workflow contract tests**: `tests/apm-runtime.bats`、`tests/run_onchange_before_remove-orphan-claude-skills.bats`、`tests/workflow-contract.bats` と全 `bats tests/` を実行する。full set、cleanup ownership、workflow safety の境界を同じ検証 matrix で追跡する。
-7. **chezmoi dry-run**: isolated HOME 内で `chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false` により template data を生成し、続けて `chezmoi --source "$SOURCE_DIR" apply --dry-run` で意図した source だけが配備対象になることを確認する。live apply はこの gate に含めない。
+7. **chezmoi dry-run**: isolated HOME 内で `chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false` により template data を生成し、続けて `chezmoi --source "$SOURCE_DIR" apply --dry-run` を実行する。dry-run 前後の isolated HOME の path snapshot が一致することも強制し、live apply や対象 HOME への書き込みをこの gate に含めない。
 
-この順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、full-set discovery、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。テスト用の fake `bats` は gate が同じ Bats fileを再帰的に起動することだけを防ぎ、実 APM 評価の `bats tests/` は全テストを実行する。
+この順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、full-set discovery、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。テスト用の fake `bats` は gate が同じ Bats fileを再帰的に起動することだけを防ぎ、実 APM 評価の `bats tests/` は candidate runtime と分離した disposable test HOME / XDG directory で全テストを実行する。Playwright browser cache は既存の cache を read-only 参照し、live home/config はテスト対象にしない。
 
 候補は次の条件を満たさない限り reject する。
 
