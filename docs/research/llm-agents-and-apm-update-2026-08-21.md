@@ -132,7 +132,7 @@ research skill が要求する補助 background agent については、`codex e
 
 APM は `/tmp` の isolated runtime layout で `apm install --frozen --https --no-audit` を実行し、lock SHA-256 は実行前後で `0515ee2e20b9ab0242789f8e1b4e2f446105cc7ca4781ff0b3be3f006d9ef834` と一致した。同じ cwd の `apm audit --ci` は10 checksを通過し、Remotion の `.agents/skills/remotion-best-practices` は137 filesとして materialize / discoveryできた。repo の targeted APM runtime tests（10 tests）と accepted update contract test も成功した。
 
-Codex `0.149.0` の Linux binary build は、Nix daemon の cache SQLite write restriction により無出力のまま継続したため中断した。Nix source evaluation と package metadata は確認済みだが、Codex binary の実行 smoke と aarch64-darwin 実機実行は未確認として残す。`chezmoi apply` と live home discovery は source worktree と管理対象 home の境界を保つため、この managed session では実行していない。
+Codex `0.149.0` の Linux binary build は、Nix daemon の cache SQLite write restriction により無出力のまま継続したため中断した。Nix source evaluation と package metadata は確認済みだが、Codex binary の実行 smoke と aarch64-darwin 実機実行は未確認として残す。source boundary を指定した `chezmoi apply --dry-run` は exit 0 で完了したが、管理対象 home を変更する実 apply と live home discovery はこの managed session では実行していない。
 
 ## 未確認事項と検証境界
 
