@@ -33,6 +33,15 @@ run_refresh() {
     /bin/bash --noprofile --norc -c ". '$LIB' && refresh_nix_devshell_cache"
 }
 
+run_required_refresh() {
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR" \
+    HOME="$FAKE_HOME" \
+    TEST_LOG="$TEST_LOG" \
+    NIX_DEVSHELL_CACHE_REQUIRED=1 \
+    /bin/bash --noprofile --norc -c ". '$LIB' && refresh_nix_devshell_cache"
+}
+
 @test "lib を source して関数が定義される" {
   run /bin/bash -c ". '$LIB' && declare -F refresh_nix_devshell_cache >/dev/null"
   assert_success
@@ -160,6 +169,23 @@ STUB
   grep -q '/nix/store/old/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
   echo "$output" | grep -q "see .*nix-devshell-refresh.log"
   grep -q "flake evaluation failed" "$FAKE_HOME/.cache/nix-devshell-refresh.log"
+}
+
+@test "required refresh は nix print-dev-env 失敗時に fail closed し cache を温存する" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "error: flake evaluation failed" >&2
+exit 1
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  echo 'export PATH=/nix/store/old/bin:$PATH' >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  touch -d '2020-01-01' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  touch -d '2030-01-01' "$FAKE_HOME/.config/nix-devshell/flake.lock"
+
+  run_required_refresh
+
+  assert_failure
+  grep -q '/nix/store/old/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
 }
 
 @test "fail-open: 失敗しても return 0" {
