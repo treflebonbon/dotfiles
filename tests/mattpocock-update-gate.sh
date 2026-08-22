@@ -251,13 +251,28 @@ list_installed_skills() {
 }
 
 discover_skills() {
-  local root=$1 expected=$2 skill_file
+  local root=$1 expected=$2 skill_file line has_name has_description closed
   local -a skill_files=("$root"/*/SKILL.md)
   for skill_file in "${skill_files[@]}"; do
     [[ -f "$skill_file" ]] || continue
-    grep -Eq '^---$' "$skill_file" || return 1
-    grep -Eq '^name:[[:space:]]+' "$skill_file" || return 1
-    grep -Eq '^description:' "$skill_file" || return 1
+    has_name=0
+    has_description=0
+    closed=0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ -z "${frontmatter_open:-}" ]]; then
+        [[ "$line" == '---' ]] || return 1
+        frontmatter_open=1
+        continue
+      fi
+      if [[ "$line" == '---' ]]; then
+        closed=1
+        break
+      fi
+      [[ "$line" =~ ^name:[[:space:]]+ ]] && has_name=1
+      [[ "$line" =~ ^description: ]] && has_description=1
+    done <"$skill_file"
+    unset frontmatter_open
+    ((closed == 1 && has_name == 1 && has_description == 1)) || return 1
   done
   while IFS= read -r skill; do
     [[ -n "$skill" ]] || continue
@@ -271,7 +286,23 @@ discover_skills() {
 }
 
 snapshot_home_paths() {
-  find "$HOME" -print | sed '1d' | sort
+  local path relative
+  while IFS= read -r path; do
+    if [[ "$path" == "$HOME" ]]; then
+      relative=.
+    else
+      relative=${path#"$HOME"/}
+    fi
+    if [[ -L "$path" ]]; then
+      printf 'symlink\t%s\t%s\n' "$relative" "$(readlink "$path")"
+    elif [[ -f "$path" ]]; then
+      printf 'file\t%s\t%s\n' "$relative" "$(sha256_file "$path")"
+    elif [[ -d "$path" ]]; then
+      printf 'directory\t%s\n' "$relative"
+    else
+      printf 'other\t%s\n' "$relative"
+    fi
+  done < <(find "$HOME" -print | sort)
 }
 
 runtime=$(mktemp -d "${TMPDIR:-/tmp}/mattpocock-update-gate.XXXXXX")
@@ -402,6 +433,9 @@ fi
 bats "$SOURCE_DIR/tests"
 export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
 unset CODEX_HOME CLAUDE_CONFIG_DIR
+
+printf 'unchanged\n' >"$HOME/.mattpocock-gate-sentinel"
+ln -s "$HOME/.mattpocock-gate-sentinel" "$HOME/.mattpocock-gate-link"
 
 record_phase chezmoi-dry-run
 chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false

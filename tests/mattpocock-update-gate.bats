@@ -62,16 +62,21 @@ cleanup_managed_skills() {
 }
 
 @test "managed-set update gate executes the ordered verification seam" {
+  local candidate="$BATS_TEST_TMPDIR/candidate.yml"
+  local candidate_revision=1111111111111111111111111111111111111111
   local phase_log="$BATS_TEST_TMPDIR/phases.log"
+
+  sed "s/mattpocock\/skills#[0-9a-f]\{40\}/mattpocock\/skills#$candidate_revision/" \
+    "$MANIFEST" >"$candidate"
 
   run env \
     PATH="$FAKE_BIN:$PATH" \
     MATTPOCOCK_GATE_LOG="$phase_log" \
     MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
-    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$candidate"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"PASS: Matt Pocock managed-set update gate completed"* ]]
+  [[ "$output" == *"PASS: Matt Pocock managed-set update gate completed for $candidate_revision"* ]]
   [ "$(cat "$phase_log")" = "$(printf '%s\n' lock-generation frozen-install audit skill-discovery workflow-contract-tests chezmoi-dry-run)" ]
   grep -Fq 'apm install --update --target claude,codex --https' "$COMMAND_LOG"
   grep -Fq 'apm install --frozen --target claude,codex --https' "$COMMAND_LOG"
@@ -79,6 +84,34 @@ cleanup_managed_skills() {
   grep -Fq 'bats ' "$COMMAND_LOG"
   grep -Fq 'bats '"$PROJECT_ROOT/tests" "$COMMAND_LOG"
   grep -Fq 'chezmoi --source' "$COMMAND_LOG"
+}
+
+@test "managed-set update gate rejects frontmatter metadata in the body" {
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATT_GATE_INVALID_FRONTMATTER=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"discovery target contains an invalid skill payload"* ]]
+}
+
+@test "managed-set update gate rejects chezmoi dry-run content or symlink changes" {
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_MUTATE_CHEZMOI_FILE=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"chezmoi dry-run changed the isolated HOME"* ]]
+
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_MUTATE_CHEZMOI_SYMLINK=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"chezmoi dry-run changed the isolated HOME"* ]]
 }
 
 @test "managed-set update gate rejects an unpinned candidate" {
