@@ -1,0 +1,188 @@
+---
+type: research
+title: Matt Pocock skills migration 調査
+description: 現行 ed37663c pin から upstream v1.2.3 以降へ移行する際の rename、workflow、APM lock、配備互換性を調査する
+tags: [research, skills, mattpocock, apm, migration]
+timestamp: 2026-08-21
+status: research
+---
+
+# Matt Pocock skills migration 調査
+
+## 結論
+
+- **確認済み**: この repo は `mattpocock/skills` の 20 skill を、全て commit `ed37663cc5fbef691ddfecd080dff42f7e7e350d` に固定している。現行 manifest には `writing-great-skills` の旧 path が残り、lock も旧 virtual path と `GLOSSARY.md` を配備対象としている。[`apm.yml`](../../apm.yml#L33-L65) [`apm.lock.yaml`](../../apm.lock.yaml#L748-L769) [`apm.lock.yaml`](../../apm.lock.yaml#L1234-L1259) [upstream pinned commit](https://github.com/mattpocock/skills/commit/ed37663cc5fbef691ddfecd080dff42f7e7e350d)
+- **確認済み**: upstream の公開済み `v1.2.3` は commit `6acc160e4e0cd062dbbbd7a1b26ae92855edf07e` で、`writing-great-skills` を `writing-for-agents` に alias なしで rename し、skill-only mechanics を `SKILL-MECHANICS.md` に分離し、model-invoked に変更した。また `ask-matt` の phase boundary、round-based grilling、shareable HTML prototype が同じ release 系列に入っている。[v1.2.3 release](https://github.com/mattpocock/skills/releases/tag/v1.2.3) [v1.2.3 tree](https://github.com/mattpocock/skills/tree/v1.2.3) [rename commit](https://github.com/mattpocock/skills/commit/17f22a371b664caa1fc0dd53cc8f0d4ea0e9ef25)
+- **推定**: 旧 `writing-great-skills` path の hash だけを更新すると、APM は新しい `skills/productivity/writing-for-agents` を解決できず、manifest と lock のどちらかだけを更新すると旧 skill の残存または `--frozen` drift になる。APM の nested skill layout と lock の役割から導く推定であり、実際の移行 install はまだ実行していない。[APM package layout](https://github.com/microsoft/apm/blob/main/packages/apm-guide/.apm/skills/apm-usage/package-authoring.md) [APM quickstart](https://microsoft.github.io/apm/quickstart/) [APM install reference](https://microsoft.github.io/apm/reference/cli/install/)
+- **推奨**: 将来の実装は、まず既存 20 skill の「名前変更を含む同一 revision migration」として `v1.2.3` を exact commit pin する。`wizard`、`to-questionnaire`、`wait-what` などの新規 promoted skill の採否と、`main` の未リリース差分は別 issue / 別更新単位にする。これにより現行の local workflow contract と APM 配備の変更を一つの検証境界に閉じ込められる。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L16-L30) [`CONTEXT.md`](../../CONTEXT.md#L20-L29) [`ADR-0039`](../adr/0039-update-llm-agents-and-selected-skill-payloads.md#L18-L31)
+- **未確認**: この調査では `apm install`、live skill discovery、Claude/Codex の interactive invocation、`chezmoi apply` を実行していない。以下の verification gates は将来 migration 実装時の受入条件である。
+
+## 調査範囲と一次情報
+
+調査日は 2026-08-21。upstream は公式 GitHub repository の commit、release、tree、skill source、compare を参照した。repo 側は現行 `apm.yml`、`apm.lock.yaml`、`runtime/skill-harness.md`、`AGENTS.md`、関連 ADR を参照した。APM の lock / frozen install / skill layout だけ公式 `microsoft/apm` の source/docs で補った。[upstream repository](https://github.com/mattpocock/skills) [APM repository](https://github.com/microsoft/apm)
+
+## 1. 現行 baseline
+
+### 1.1 選択している skill set
+
+**確認済み**: manifest は Engineering 17 件と Productivity 3 件の合計 20 件を宣言している。Engineering は `setup-matt-pocock-skills`、`grill-with-docs`、`to-spec`、`to-tickets`、`implement`、`triage`、`ask-matt`、`improve-codebase-architecture`、`wayfinder`、`tdd`、`code-review`、`resolving-merge-conflicts`、`diagnosing-bugs`、`domain-modeling`、`codebase-design`、`prototype`、`research`、Productivity は `grilling`、`handoff`、`writing-great-skills` である。[`apm.yml`](../../apm.yml#L42-L65)
+
+**確認済み**: この選定は upstream v1.1.0 の promoted set を基準にし、`grill-me` と `teach` を意図的に除外した過去の判断を引き継いでいる。`grilling` は `grill-with-docs` / `grill-me` の共通 loop として導入済みである。[`ADR-0010`](../adr/0010-productivity-skill-audit.md#L17-L37) [`ADR-0009`](../adr/0009-add-grilling-skill.md#L17-L36) [`ADR-0022`](../adr/0022-align-mattpocock-v1-1-workflow.md#L23-L38)
+
+### 1.2 pin と配備
+
+**確認済み**: 20 dependency の manifest pin は全て `ed37663cc5fbef691ddfecd080dff42f7e7e350d` で、lock の各 Matt Pocock entry も同じ `resolved_commit` / `resolved_ref` を持つ。`writing-great-skills` entry は `skills/productivity/writing-great-skills` を virtual path とし、`.agents/skills/` と `.claude/skills/` の双方に `GLOSSARY.md`、`SKILL.md`、Codex metadata を配備する。[`apm.yml`](../../apm.yml#L38-L65) [`apm.lock.yaml`](../../apm.lock.yaml#L1234-L1259)
+
+**確認済み**: repo の配布契約では APM skill を共有 hub の `~/.agents/skills/` と Claude 向け `~/.claude/skills/` に展開し、Codex / Antigravity は共有 hub を読む。lock は target を再現した隔離ディレクトリで `apm install` して生成し、同じ環境の `apm install --frozen` で書き戻しがないことを確認する。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L61-L63)
+
+**確認済み**: repo 固有の main flow は `grill-with-docs → to-spec → to-tickets → implement → to-pr` であり、外部 skill の差分は upstream fork ではなく project / runtime 指示層の local skill override で解決する。[`AGENTS.md`](../../AGENTS.md#L19-L34) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L18-L30) [`ADR-0023`](../adr/0023-resolve-external-skill-contracts-locally.md#L18-L33)
+
+## 2. upstream v1.2.3 で変わること
+
+### 2.1 `writing-great-skills` → `writing-for-agents`
+
+**確認済み**: rename commit は次を同時に行っている。
+
+- `skills/productivity/writing-great-skills/` を `skills/productivity/writing-for-agents/` へ移動する。
+- `GLOSSARY.md` の内容を `SKILL.md` に統合する。
+- skill 固有の frontmatter、invocation mode、router の説明を `SKILL-MECHANICS.md` に分離する。
+- description を skills だけでなく `AGENTS.md`、`CLAUDE.md`、pointer 経由の docs を対象にする。
+- skill を model-invoked にし、旧名の alias は提供しない。[rename commit](https://github.com/mattpocock/skills/commit/17f22a371b664caa1fc0dd53cc8f0d4ea0e9ef25) [new `SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/SKILL.md) [new `SKILL-MECHANICS.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/SKILL-MECHANICS.md)
+
+**確認済み**: v1.2.2 では rename 時に残った Codex metadata の不整合も修正され、`policy.allow_implicit_invocation: false` が削除され、display name / short description が新名に更新された。v1.2.3 の metadata は `Writing for Agents` と model-invocation の既定値に対応する。[v1.2.2 changelog](https://github.com/mattpocock/skills/blob/v1.2.3/CHANGELOG.md#L35-L45) [Codex metadata fix](https://github.com/mattpocock/skills/commit/4aaccb58d40559d7e3c59a029b2290ae5ba538de) [new metadata](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/agents/openai.yaml)
+
+**推定**: この変更は単なる表示名変更ではなく、`AGENTS.md` / `CLAUDE.md` の編集時にも model-invoked skill が候補になる trigger 面の変更である。現行 repo は `AGENTS.md` と `CLAUDE.md` を別々に保守し、常時ロードされる指示層を持つため、意図しない自動発火が許容されるかを migration 時に決める必要がある。[`AGENTS.md`](../../AGENTS.md#L5-L7) [new `SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/SKILL.md#L1-L8)
+
+### 2.2 grilling と `grill-with-docs`
+
+**確認済み**: upstream の `grilling` は frontier を計算し、依存が settled な質問を round 単位でまとめて提示し、回答後に次の frontier を再計算する共通 interview primitive になっている。v1.2.3 の変更では質問の round-by-round 表現、推奨回答、`grill-me` / `grill-with-docs` への routing が整理された。[`grilling/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/grilling/SKILL.md) [v1.2.3 compare](https://github.com/mattpocock/skills/compare/ed37663cc5fbef691ddfecd080dff42f7e7e350d...6acc160e4e0cd062dbbbd7a1b26ae92855edf07e)
+
+**確認済み**: `grill-with-docs` 自体は軽量な wrapper となり、Skill tool を `grilling` と `domain-modeling` に対して呼び出す構成である。[`grill-with-docs/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/grill-with-docs/SKILL.md)
+
+**推定**: 現行 repo の `grill-with-docs`、`domain-modeling`、`CONTEXT.md` / ADR 更新、質問 UX はすでに独自の実効契約を持つため、upstream の文面をそのまま採用するのではなく、同じ round/frontier semantics が local override と衝突しないかを実 session で確認する必要がある。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L18-L30) [`CONTEXT.md`](../../CONTEXT.md#L75-L80) [`ADR-0023`](../adr/0023-resolve-external-skill-contracts-locally.md#L18-L33)
+
+### 2.3 prototype
+
+**確認済み**: v1.2.3 の logic prototype は、terminal app ではなく、build step や server を必要としない単一の self-contained HTML を成果物にする。HTML には state panel、常時利用できる free-play buttons、tabbed guided walkthroughs を持たせ、純粋な logic module を real code へ lift できる形を要求する。[v1.2.3 changelog](https://github.com/mattpocock/skills/blob/v1.2.3/CHANGELOG.md#L55-L64) [`prototype/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/prototype/SKILL.md) [`prototype/LOGIC.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/prototype/LOGIC.md)
+
+**確認済み**: prototype は回答後に削除するだけではなく、`prototype/<name>` の throwaway branch に primary source として保存し、implementation issue から pointer を残す方針になった。[`prototype/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/prototype/SKILL.md#L28-L35) [v1.2.3 changelog](https://github.com/mattpocock/skills/blob/v1.2.3/CHANGELOG.md#L55-L64)
+
+**推定**: これは `tmp/` に一時 HTML を置く repo-local convention と、実装 issue / ADR に判断を残す現行方針を直接置き換える変更ではない。しかし prototype artifact の保存場所と lifecycle を明文化しないと、upstream の primary-source requirement と local の throwaway expectation が別方向を向く。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L54-L59) [`AGENTS.md`](../../AGENTS.md#L28-L34)
+
+### 2.4 phase boundary と workflow router
+
+**確認済み**: `ask-matt` は phase boundary で次の順に判断する decision tree を追加した。
+
+1. Continue
+2. `/clear`
+3. `/handoff`
+4. Subagent
+5. `/compact`
+
+upstream の説明では Continue は primary source を維持し、`/handoff` は harness / directory / colleague / side-task のように何かを移動させる場合に限定し、`/compact` は最後の default とされる。decision tree の詳細は `PHASE-BOUNDARIES.md` に分離された。[`ask-matt/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/ask-matt/SKILL.md#L39-L55) [`PHASE-BOUNDARIES.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/ask-matt/PHASE-BOUNDARIES.md)
+
+**確認済み**: upstream router は `grilling`、`resolving-merge-conflicts`、`grill-me` を明示的な route として扱い、working directory の有無で `grill-with-docs` と `grill-me` を分ける。engineering には `wizard`、productivity には `to-questionnaire`、`wait-what` が v1.2.x で追加されている。[`ask-matt/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/ask-matt/SKILL.md) [v1.2.3 engineering tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/engineering) [v1.2.3 productivity tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/productivity)
+
+**推定**: repo の `runtime/skill-harness.md` は smart-zone 到達時に `/handoff` を案内し、`AGENTS.md` は main flow と local execution boundaries を正本としている。上流の `/compact` default と自動 Subagent option を採用する場合、context hygiene の local policy、`handoff` の用途、同一 worktree で ticket を跨ぐ Builder-Evaluator の運用を一緒に決め直す必要がある。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L18-L30) [`AGENTS.md`](../../AGENTS.md#L19-L34) [`ADR-0019`](../adr/0019-builder-evaluator-cross-issue-autonomy.md) [`ADR-0022`](../adr/0022-align-mattpocock-v1-1-workflow.md#L25-L38)
+
+### 2.5 v1.2.3 後の `main`
+
+**確認済み**: 調査時点の upstream `main` は commit `0ab1b63a410a03d3627979a109c8695de27af954`（2026-08-20）で、v1.2.3 commit より 33 commits ahead である。[upstream main commit](https://github.com/mattpocock/skills/commit/0ab1b63a410a03d3627979a109c8695de27af954) [v1.2.3..main compare](https://github.com/mattpocock/skills/compare/6acc160e4e0cd062dbbbd7a1b26ae92855edf07e...0ab1b63a410a03d3627979a109c8695de27af954)
+
+**確認済み**: `v1.2.3` 後の main には、cross-skill invocation の `Call the Skill tool with ...` への統一、user-invoked skill を別 skill から呼ばない境界、`CONTEXT-MAP.md` 対応、frontmatter の YAML 修正、grilling round 間の horizontal rule などが含まれる。[v1.2.3..main compare](https://github.com/mattpocock/skills/compare/6acc160e4e0cd062dbbbd7a1b26ae92855edf07e...0ab1b63a410a03d3627979a109c8695de27af954) [latest main tree](https://github.com/mattpocock/skills/tree/main)
+
+**推奨**: 初回 migration の target は未リリースの `main` ではなく、公開済み `v1.2.3` の exact commit `6acc160e...` とする。main の 33 commit 分は別の candidate review とし、特に invocation wording の実効差を同じ migration に混ぜない。[upstream releases](https://github.com/mattpocock/skills/releases) [v1.2.3 release](https://github.com/mattpocock/skills/releases/tag/v1.2.3)
+
+## 3. path / name / lock / deployment compatibility
+
+### 3.1 manifest の path
+
+**確認済み**: v1.2.3 tree に存在するのは `skills/productivity/writing-for-agents/` であり、旧 `writing-great-skills/` ではない。rename commit の本文も「no alias」と明記する。[v1.2.3 tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/productivity) [rename commit](https://github.com/mattpocock/skills/commit/17f22a371b664caa1fc0dd53cc8f0d4ea0e9ef25)
+
+**推定**: APM manifest の `repo/skills/<name>` は upstream の `skills/<name>/SKILL.md` を選ぶため、旧 path を残したまま revision だけ v1.2.3 に進めるのは互換性のある pin 更新ではない。APM の package authoring docs は `skills/<name>/SKILL.md` を multi-skill repository の signal とし、各 nested skill を promote する layout と説明している。[APM package layout](https://github.com/microsoft/apm/blob/main/packages/apm-guide/.apm/skills/apm-usage/package-authoring.md) [`apm.yml`](../../apm.yml#L45-L55)
+
+### 3.2 lock の差分
+
+**確認済み**: APM lock は resolved commit と content hash だけでなく、`deployed_files` と `deployed_file_hashes` を記録する。現行 `writing-great-skills` entry には old path、`GLOSSARY.md`、旧 metadata が並ぶ。[`apm.lock.yaml`](../../apm.lock.yaml#L1234-L1259) [APM quickstart](https://microsoft.github.io/apm/quickstart/)
+
+**推定**: 移行後の entry は少なくとも次を同じ lock generation で更新する必要がある。
+
+- `name` / `virtual_path`: `writing-for-agents`
+- `resolved_commit` / `resolved_ref`: `6acc160e4e0cd062dbbbd7a1b26ae92855edf07e`
+- deployed path: `.agents/skills/writing-for-agents` と `.claude/skills/writing-for-agents`
+- payload: `SKILL.md`、`SKILL-MECHANICS.md`、`agents/openai.yaml`
+- 旧 `GLOSSARY.md` と `writing-great-skills` path の削除
+- 新しい `deployed_file_hashes` と `content_hash`
+
+この差分は APM の実行結果として生成し、手書きで hash を推測しない。[APM quickstart](https://microsoft.github.io/apm/quickstart/) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L61-L63)
+
+### 3.3 frozen install と配備
+
+**確認済み**: APM の `apm.lock.yaml` は resolved tree と content hash を固定し、`apm install --frozen` は `apm.yml` と lock が同期していない場合に install を拒否する。`--refresh` は upstream から再取得して ref を再解決するオプションであり、`--force` は ref refresh の代替ではない。[APM README](https://github.com/microsoft/apm/blob/main/README.md) [APM install reference](https://microsoft.github.io/apm/reference/cli/install/) [APM command source/docs](https://github.com/microsoft/apm/blob/main/packages/apm-guide/.apm/skills/apm-usage/commands.md)
+
+**確認済み**: この repo は home の live skill directories を直接更新せず、隔離 runtime で manifest / lock / materialization を確認する local procedure を持つ。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L61-L63)
+
+**未確認**: v1.2.3 candidate の full 20-skill manifest を APM 0.28.0 で materialize した結果、Codex metadata が実際の prompt input に現れるか、Claude が rename 後の skill を discovery するかは未実行である。
+
+## 4. migration risk matrix
+
+| リスク                                    | 判定   | 根拠と影響                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 旧 path のまま revision だけ更新          | 高     | `writing-for-agents` は旧名 alias を持たず、APM は nested `skills/<name>/SKILL.md` を解決する。manifest / lock の path drift または resolve failure になり得る。[rename commit](https://github.com/mattpocock/skills/commit/17f22a371b664caa1fc0dd53cc8f0d4ea0e9ef25) [APM package layout](https://github.com/microsoft/apm/blob/main/packages/apm-guide/.apm/skills/apm-usage/package-authoring.md) **実 install は未確認**                                                                  |
+| lock を手書きまたは partial update        | 高     | lock は content hash と deployed file list を持ち、`--frozen` は manifest / lock drift を拒否する。旧 `.agents` / `.claude` directory が残ると discovery が二重化する可能性がある。後半は配備構造からの推定。[APM quickstart](https://microsoft.github.io/apm/quickstart/) [APM install reference](https://microsoft.github.io/apm/reference/cli/install/) [`apm.lock.yaml`](../../apm.lock.yaml#L1234-L1259)                                                                                 |
+| writing skill の implicit invocation 拡大 | 中〜高 | v1.2.2 で Codex の `allow_implicit_invocation: false` が削除され、`AGENTS.md` / `CLAUDE.md` 編集も trigger description に入った。意図した model-invoked 化か、常時指示層への追加 load かを live smoke で確認する必要がある。[v1.2.2 changelog](https://github.com/mattpocock/skills/blob/v1.2.3/CHANGELOG.md#L35-L45) [new `SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/SKILL.md) **runtime は未確認**                                 |
+| phase boundary の local policy 衝突       | 高     | upstream は `/clear`、Subagent、`/compact` default を追加する一方、repo は smart-zone / worktree / Builder-Evaluator / `/handoff` を local contract として保持する。どちらを優先するか未決定なら、context loss と worktree continuity の挙動が変わる。[`AGENTS.md`](../../AGENTS.md#L19-L34) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L18-L30) [upstream phase boundary](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/ask-matt/PHASE-BOUNDARIES.md) |
+| grilling の round/frontier semantics      | 中     | `grilling` は shared primitive なので、`grill-with-docs`、`triage`、`wayfinder` 等に波及する。質問の分割・回答待ち・facts の取得は live conversation でしか確認できない。[`grilling/SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/grilling/SKILL.md) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L46-L57) **runtime は未確認**                                                                                                              |
+| prototype artifact lifecycle              | 中     | self-contained HTML と throwaway branch を primary source とする upstream 方針が、repo の local temporary artifact / issue / ADR の扱いと一致するか未合意である。[`prototype/LOGIC.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/prototype/LOGIC.md) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L54-L59)                                                                                                                                          |
+| 新規 promoted skill の同時導入            | 中     | v1.2.3 には `wizard`、`to-questionnaire`、`wait-what` などがあるが、現行 20 skill には含まれない。skill discovery 面と router / policy 面が同時に変わるため、rename migration と混ぜると rollback 単位が広がる。[v1.2.3 engineering tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/engineering) [v1.2.3 productivity tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/productivity) [`apm.yml`](../../apm.yml#L42-L65)                                            |
+| v1.2.3 後の main を暗黙採用               | 中     | main は v1.2.3 より 33 commits ahead で、cross-skill invocation、user-invoked boundary、frontmatter、grilling 表現など別の変更が含まれる。release tag と main を混同しない。[v1.2.3..main compare](https://github.com/mattpocock/skills/compare/6acc160e4e0cd062dbbbd7a1b26ae92855edf07e...0ab1b63a410a03d3627979a109c8695de27af954) **未リリース部分の採用判断は未確認**                                                                                                                     |
+
+## 5. 推奨する future migration scope
+
+### 採用する scope
+
+**推奨**: 既存 20 dependency のみを `v1.2.3` exact commit `6acc160e4e0cd062dbbbd7a1b26ae92855edf07e` へ進め、`writing-great-skills` だけは manifest 上の name/path を `writing-for-agents` に変更する。残り 19 skill は同じ revision の payload 更新として lock を再生成する。rename と workflow 差分を同じ upstream revision から受けるため、revision は分けず、採否の境界は「既存 20 skill に限定する」ことで切る。[v1.2.3 release](https://github.com/mattpocock/skills/releases/tag/v1.2.3) [`apm.yml`](../../apm.yml#L42-L65) [`ADR-0039`](../adr/0039-update-llm-agents-and-selected-skill-payloads.md#L18-L31)
+
+### 今回は含めない scope
+
+- `wizard`、`to-questionnaire`、`wait-what` は新規 capability の採否判断が必要なので、今回の 20-skill compatibility migration に含めない。[v1.2.3 engineering tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/engineering) [v1.2.3 productivity tree](https://github.com/mattpocock/skills/tree/v1.2.3/skills/productivity)
+- `grill-me` と `teach` は、現行 ADR が意図的に除外しているため、upstream tree に存在することだけを理由に追加しない。[`ADR-0010`](../adr/0010-productivity-skill-audit.md#L28-L37) [`ADR-0022`](../adr/0022-align-mattpocock-v1-1-workflow.md#L30-L38)
+- upstream `main` の 33 commit は v1.2.3 migration の acceptance criteria に含めず、別 candidate として再調査する。[v1.2.3..main compare](https://github.com/mattpocock/skills/compare/6acc160e4e0cd062dbbbd7a1b26ae92855edf07e...0ab1b63a410a03d3627979a109c8695de27af954)
+- local skill の fork、APM materialized directory の直接編集、home への live apply は行わない。外部 skill の契約差は local instruction layer で解決する。[`ADR-0023`](../adr/0023-resolve-external-skill-contracts-locally.md#L18-L33) [`AGENTS.md`](../../AGENTS.md#L3-L7)
+
+## 6. future migration verification gates
+
+以下は future implementation で全て確認する gate である。ここでの「未確認」は今回の research session が実行していないという意味であり、failure を意味しない。
+
+| Gate                      | 実行内容                                                                                                                                                                                                                | pass 条件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Source / tree             | upstream `v1.2.3` exact commit を取得し、選択する 20 path と old/new rename を tree と compare で確認する。                                                                                                             | 20 dependency 全てが commit `6acc160e...` を参照し、旧 `skills/productivity/writing-great-skills` が manifest candidate に残らず、新 `writing-for-agents/SKILL.md`、`SKILL-MECHANICS.md`、`agents/openai.yaml` が存在する。[upstream v1.2.3 tree](https://github.com/mattpocock/skills/tree/v1.2.3)                                                                                                                                                                                              |
+| Manifest / lock atomicity | `apm.yml` を isolated directory にコピーし、repo の targets と HTTPS transport を再現して `apm install --refresh` を実行する。生成 lock を戻し、同じ layout で `apm install --frozen` を実行する。                      | frozen install が成功し、前後の lock SHA が一致し、20 Matt entry の `resolved_commit`、`virtual_path`、`deployed_files`、`deployed_file_hashes`、`content_hash` が生成値と一致する。[APM install reference](https://microsoft.github.io/apm/reference/cli/install/) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L61-L63)                                                                                                                                                         |
+| APM audit                 | 同じ isolated materialization に対して `apm audit --ci` を実行する。                                                                                                                                                    | hidden Unicode / policy / deployed content の audit failure がなく、lock の source と deployed payload が一致する。[APM quickstart](https://microsoft.github.io/apm/quickstart/) [APM governance source](https://github.com/microsoft/apm/tree/main/docs/src/content/docs)                                                                                                                                                                                                                       |
+| Deploy layout             | materialized `.agents/skills/` と `.claude/skills/` を read-only 比較する。                                                                                                                                             | `writing-for-agents` の両 target が存在し、`SKILL.md`、`SKILL-MECHANICS.md`、`agents/openai.yaml` があり、`writing-great-skills` と `GLOSSARY.md` が active deployment に残らない。APM native shared hub の target は repo runtime contract と一致する。[`runtime/skill-harness.md`](../../runtime/skill-harness.md#L61-L63) [APM package layout](https://github.com/microsoft/apm/blob/main/packages/apm-guide/.apm/skills/apm-usage/package-authoring.md)                                      |
+| Static manifest contract  | `tests/apm-runtime.bats` 相当の test を新 path / exact revision / count に更新して実行する。                                                                                                                            | selected count は 20、old name は active manifest / lock にない、new path と `agents/openai.yaml` が lock にある。過去 ADR や research note の履歴参照は除外する。                                                                                                                                                                                                                                                                                                                               |
+| Codex metadata            | materialized `agents/openai.yaml` と Codex の skill-visible prompt input を確認する。explicit `$writing-for-agents` と、`AGENTS.md` / `CLAUDE.md` を編集する model-invoked trigger を短い isolated session で確認する。 | display name が `Writing for Agents`、旧 `allow_implicit_invocation: false` がなく、意図した trigger だけが発火する。実 session が必要なため static test だけでは gate 完了にしない。[new metadata](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/agents/openai.yaml) [new `SKILL.md`](https://github.com/mattpocock/skills/blob/v1.2.3/skills/productivity/writing-for-agents/SKILL.md)                                                               |
+| Claude discovery          | isolated または disposable Claude skill directory で name discovery と explicit invocation を確認する。                                                                                                                 | `/writing-for-agents` が discovery され、`/writing-great-skills` は active name として残らず、skill-only mechanics への pointer が解決する。live home apply は別の承認境界とする。                                                                                                                                                                                                                                                                                                               |
+| Workflow contract         | `ask-matt`、`grilling`、`grill-with-docs`、`prototype` の representative session を確認し、local `AGENTS.md` / runtime contract と upstream semantics を照合する。                                                      | frontier round、質問待ち、`domain-modeling` の docs 更新、phase boundary の Continue / clear / handoff / subagent / compact の優先順位、prototype HTML / primary-source lifecycle が repo の意図と一致する。差分は ADR または local override に明記する。[`AGENTS.md`](../../AGENTS.md#L19-L34) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L18-L30) [upstream phase boundary](https://github.com/mattpocock/skills/blob/v1.2.3/skills/engineering/ask-matt/PHASE-BOUNDARIES.md) |
+| chezmoi boundary          | source worktree に対する `chezmoi --source <source> apply --dry-run` を実行し、live home は変更しない。                                                                                                                 | dry-run が成功し、意図した APM source / templates だけが対象になる。実 apply と live discovery は別 gate として人間確認を残す。[`AGENTS.md`](../../AGENTS.md#L3-L7) [`runtime/skill-harness.md`](../../runtime/skill-harness.md#L61-L63)                                                                                                                                                                                                                                                         |
+| Rollback                  | candidate が path resolve、frozen、discovery、workflow のいずれかで失敗した場合、manifest と lock を旧 `ed37663c` の整合した pair に戻す手順を disposable worktree で確認する。                                         | partial adoption を残さず、old name / old lock / old deployed paths が一つの整合した rollback unit として復元できる。rollback は `git revert` 等の recoverable operation を用い、live home を直接削除しない。                                                                                                                                                                                                                                                                                    |
+| Repository regression     | targeted APM tests、関連 shell tests、pre-commit、必要なら full test suite を実行し、最後に `git diff --check` と status を確認する。                                                                                   | skill migration 以外の変更がなく、特に `.env*` と既存 user changes が変更されない。研究時点ではこの gate は未実行。                                                                                                                                                                                                                                                                                                                                                                              |
+
+## 7. 判定ラベル
+
+- **確認済み**: source / lock / tree / official docs に直接現れる事実、または API / file inspection で確認した事実。
+- **推定**: upstream の path / invocation 変更と repo の配備・local contract を組み合わせた影響予測。実 install または実 session で再確認する。
+- **未確認**: 今回の research scope では実行していない runtime behavior、live deployment、interactive discovery、rollback execution。
+
+## 参照した現行 repo 文書
+
+- [`apm.yml`](../../apm.yml)
+- [`apm.lock.yaml`](../../apm.lock.yaml)
+- [`runtime/skill-harness.md`](../../runtime/skill-harness.md)
+- [`AGENTS.md`](../../AGENTS.md)
+- [`ADR-0009`](../adr/0009-add-grilling-skill.md)
+- [`ADR-0010`](../adr/0010-productivity-skill-audit.md)
+- [`ADR-0019`](../adr/0019-builder-evaluator-cross-issue-autonomy.md)
+- [`ADR-0022`](../adr/0022-align-mattpocock-v1-1-workflow.md)
+- [`ADR-0023`](../adr/0023-resolve-external-skill-contracts-locally.md)
+- [`ADR-0039`](../adr/0039-update-llm-agents-and-selected-skill-payloads.md)
