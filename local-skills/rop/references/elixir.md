@@ -61,7 +61,8 @@ defp safe_http_get(url) do
   case Req.get(url) do
     {:ok, %Req.Response{status: 200, body: body}} -> {:ok, body}
     {:ok, %Req.Response{status: status}} -> {:error, Error.http(status)}
-    {:error, exception} -> {:error, Error.network(Exception.message(exception))}
+    {:error, %Req.TransportError{reason: reason}} -> {:error, Error.network(reason)}
+    {:error, exception} -> {:error, Error.unexpected(exception)}
   end
 rescue
   e -> {:error, Error.unexpected(e)}
