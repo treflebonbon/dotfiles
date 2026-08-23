@@ -58,10 +58,11 @@ Wrap external calls that raise exceptions:
 
 ```elixir
 defp safe_http_get(url) do
-  case HTTPoison.get(url) do
-    {:ok, %{status_code: 200, body: body}} -> {:ok, body}
-    {:ok, %{status_code: code}} -> {:error, Error.http(code)}
-    {:error, %HTTPoison.Error{reason: reason}} -> {:error, Error.network(reason)}
+  case Req.get(url) do
+    {:ok, %Req.Response{status: 200, body: body}} -> {:ok, body}
+    {:ok, %Req.Response{status: status}} -> {:error, Error.http(status)}
+    {:error, %Req.TransportError{reason: reason}} -> {:error, Error.network(reason)}
+    {:error, exception} -> {:error, Error.unexpected(exception)}
   end
 rescue
   e -> {:error, Error.unexpected(e)}

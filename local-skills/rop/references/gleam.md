@@ -137,6 +137,6 @@ pub fn process(input) {
 
 ## Gotchas
 
-- **`result.tap` は stdlib にない**: Gleam 0.x 時点で `gleam/result` に `tap` は未実装。カスタム定義が必要（上記 tee セクション参照）
+- **`result.tap` は stdlib にない**: Gleam は 1.0 を超えて安定運用されているが、現行の `gleam_stdlib` でも `gleam/result` と `gleam/function` のいずれにも `tap` は実装されていない。カスタム定義が必要（上記 tee セクション参照）
 - **`use` のスコープ**: `use` は残りの関数本体全体をコールバックに変換する。早期リターンの意味ではなく、continuation passing style
 - **Error 型の統一**: `Result(a, ErrorA)` と `Result(b, ErrorB)` を `use` で連鎖するには共通のエラー型（union type）が必要。Gleam に自動エラー合成はない
