@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/d205793bf7c7f4cb41ce73ba0983c5f7a5e2c6da' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "d205793bf7c7f4cb41ce73ba0983c5f7a5e2c6da"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "d205793bf7c7f4cb41ce73ba0983c5f7a5e2c6da"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/3c16acbe5229040ee8f4d6f7b85de757e14b4bda' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "3c16acbe5229040ee8f4d6f7b85de757e14b4bda"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "3c16acbe5229040ee8f4d6f7b85de757e14b4bda"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -202,16 +202,16 @@ PS
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.238";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.239";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "accepted AI toolset snapshot and selected payload source contract is pinned" {
-  local adr="$PROJECT_ROOT/docs/adr/0040-update-llm-agents-and-remotion-update-unit.md"
+  local adr="$PROJECT_ROOT/docs/adr/0043-update-llm-agents-and-impeccable-update-unit.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
   grep -q '^status: accepted$' "$adr"
-  grep -Fq 'd205793bf7c7f4cb41ce73ba0983c5f7a5e2c6da' "$flake"
+  grep -Fq '3c16acbe5229040ee8f4d6f7b85de757e14b4bda' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$manifest"
 }
 

@@ -84,8 +84,13 @@ let
   #                  redaction、macOS sandbox deny precedence、background/session messaging の不具合を修正。
   # 2.1.238: headers helper の consent/trust、継承 credential の分離、MCP 初期化順序、memory/session/Remote
   #          Control の信頼性を修正。
+  # 2.1.239: extensions.worktreeConfig が設定された repo で Linux sandbox が存在しない .git/config.worktree を
+  #          unreadable と誤判定し、sandbox 化された git コマンドを壊す不具合、working directory 削除後の
+  #          hook が posix_spawn ENOENT で失敗する不具合、ListAgents/SendMessage の自己名解決と live teammate
+  #          一覧を修正。teammateMode: auto と worktree 隔離の信頼性に直結するため床上げする。2.1.240-2.1.241
+  #          は release note に床上げ根拠となる具体記述がないが、pin 自体がここまで進むため床も揃える。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.238";
+  minClaudeCode = "2.1.239";
   minCodex = "0.149.0";
 
   claudeCode =
@@ -129,7 +134,10 @@ let
         修正する 2.1.229-2.1.232 に加え、skill/command argument の再展開、NT namespace path の validation bypass、
         Linux/macOS sandbox、background permission、MCP diagnostics の secret redaction、session messaging を
         修正する 2.1.233-2.1.237 に加え、headers helper の consent/trust、継承 credential の分離、MCP 初期化順序、
-        memory/session/Remote Control の信頼性を修正する 2.1.238 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
+        memory/session/Remote Control の信頼性を修正する 2.1.238 に加え、extensions.worktreeConfig 設定 repo での
+        Linux sandbox の .git/config.worktree 誤判定・working directory 削除後の hook ENOENT・
+        ListAgents/SendMessage の自己名解決と live teammate 一覧を修正する 2.1.239 を根拠に、
+        現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
