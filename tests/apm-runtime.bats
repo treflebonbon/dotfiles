@@ -7,7 +7,7 @@ setup() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#5a149f3fdb1b5793f10567233b1dcab98fc305fd' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#c39b6425fa54a093749b9a236adcd003818167c1' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -21,8 +21,8 @@ setup() {
 
   grep -Fq 'apm_version: 0.28.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: 5a149f3fdb1b5793f10567233b1dcab98fc305fd' "$lock"
-  grep -Fq 'content_hash: sha256:b34f5d2af061c9666acf7c0c49c8c502384a16eaa5ca24b819a726b16d303504' "$lock"
+  grep -Fq 'resolved_commit: c39b6425fa54a093749b9a236adcd003818167c1' "$lock"
+  grep -Fq 'content_hash: sha256:d79bd3df1397211f532c7384ff1f120be24d85930384fc5d5e7f7ea6f006cd8e' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"
@@ -74,7 +74,9 @@ setup() {
   grep -Fq 'content_hash: sha256:cca6a9098e0dff08ce6fef999da77d98e94255e826b8b9f8132749b5da66dad2' "$lock"
   ! grep -Fq 'resolved_commit: 0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$lock"
   ! grep -Fq 'resolved_commit: 25be24cca34d06eed29a4779c3f48c4816aa812c' "$lock"
-  ! grep -Fq 'resolved_commit: 435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$lock"
+  # find-skills is unpinned; vercel-labs/skills main has since genuinely reached
+  # 435076e7 (verified via `git ls-remote`), so it no longer denotes a rejected
+  # candidate and is not asserted against here.
 }
 
 @test "APM install is gated on a successful nix-devshell snapshot refresh" {

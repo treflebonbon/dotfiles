@@ -180,4 +180,10 @@ Impeccable `5c5553b1d7f9e89bb833f9179cea681742a17720`をAPM 0.28.0の隔離runti
 
 Claude Code / CodexのPostToolUse + Stop配線、timeout、理由付き`ignore-value`と明示承認が必要な`ignore-file` / `ignore-rule`の境界は変更しない。既知のboth-tiers Stop交互報告も残るためcharacterization testを維持する。Claude interactive gateが未完了なので、配備sourceの採用pinは`5a149f3fdb1b5793f10567233b1dcab98fc305fd`のまま維持する。候補の採用条件は [ADR-0037](0037-update-llm-agents-and-compatible-skill-pins.md) を参照する。
 
+## 補足（2026-08-24 の更新時）
+
+Impeccable `c39b6425fa54a093749b9a236adcd003818167c1`を APM 0.28.0 の隔離 runtime layout に materialize した。live-server の `/source` が symlink 経由でワークスペース外へ出られてしまう不具合の修正、page 側が制御可能な poller field を agent 入力へ渡す前に strip する修正、Claude agent installation / home-scoped agent freshness / marketplace hook repair / Windows hook migration dedupe など hook・agent installation 周りの修正を複数含む。`tests/design-hook.bats` は候補 runtime で 9/9、managed hook の fail-open テストも通過したため、新しい検証済み Skill Pin として採用した。
+
+既知の both-tiers Stop 交互報告 defect はこの revision にも残っており、characterization test は変更しない。Claude Code / Codex の hook 配線（`PostToolUse` + `Stop`、timeout、`ignore-value` の理由付き自己適用境界）にも変更はない。採用判断は [ADR-0043](0043-update-llm-agents-and-impeccable-update-unit.md) を参照する。
+
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)
