@@ -9,7 +9,7 @@ dependencies:
     # この pin を動かすときは Claude / Codex 双方の hook 配線を必ず見直す（ADR-0029）。
     # 上流は per-edit を immediate tier へ絞り残りを Stop の deep pass へ移したので、
     # 配線を追従させないと壊れずに検出範囲だけが静かに狭まる。
-    - pbakaus/impeccable/.agents/skills/impeccable#5a149f3fdb1b5793f10567233b1dcab98fc305fd
+    - pbakaus/impeccable/.agents/skills/impeccable#c39b6425fa54a093749b9a236adcd003818167c1
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
