@@ -29,6 +29,10 @@ status: accepted
 - リポジトリ既存の bats full suite が通過すること。
 - いずれかの gate が実際に失敗した場合、この更新単位は採用済みとみなさず、旧 source pin / 旧 Impeccable pin を fallback とする。nix devshell 側だけ、または Impeccable だけを部分採用しない。
 
+## 未確認事項
+
+調査ノートのゲート項目1は「3 system の Nix deep evaluation と worktree/teammate messaging の smoke」の両方を求めていたが、実施したのは前者（3 system の `nix flake check` と host での `nix develop` 実ビルド / CLI version 実測）のみである。2.1.239 の床上げ根拠そのもの（`extensions.worktreeConfig` 下の sandbox 誤判定修正、`ListAgents`/`SendMessage` の自己名解決と live teammate 一覧の修正）を機能的に検証する smoke は実施していない。これは過去の複数ラウンド（例: 2026-08-15 の「Claude interactive session の background / fork 既定化と wait / message delivery / context 継承...は未確認」）と同型の gap であり、pin/floor 自体の採用判断を覆すものではないが、上記の理由から**未確認**として明記する。次回このバイナリで worktree/teammate 系の不具合修正を検証する機会（実機の多 agent session）があれば、この gap を合わせて解消する。
+
 ## Deliberately separate
 
 - Remotion の main 進行（`7fc6dea3` → `baf0b919`）は `version: 4.0.514` → `4.0.515` の version marker 更新のみで、`<HtmlInCanvas>` 等のガイダンス本文に変更はない。実体差分がないため、この更新単位には含めない。
