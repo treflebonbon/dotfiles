@@ -3,6 +3,7 @@ set -euo pipefail
 
 workspace="$(pwd -P)"
 codex_args=(-C "$workspace")
+export TMPDIR=/tmp
 
 if git_common_dir="$(
   env -u GIT_DIR -u GIT_COMMON_DIR \
@@ -22,6 +23,6 @@ PY
   codex_args+=(-c "$filesystem_override")
 fi
 
-exec codex \
+exec env -u GIT_DIR -u GIT_COMMON_DIR codex \
   "${codex_args[@]}" \
   "$@"
