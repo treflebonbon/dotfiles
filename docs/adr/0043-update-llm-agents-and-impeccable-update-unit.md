@@ -26,8 +26,8 @@ status: accepted
 - Nix source gate: `nix flake check --no-build --all-systems` が3 system で成功すること。x86_64-linux (host) では `nix develop` で実ビルドし、claude-code / codex / copilot-cli / antigravity-cli(`agy`) / rtk / apm の実測 version が snapshot の package metadata と一致すること。
 - APM gate: `apm.yml` を隔離ディレクトリへコピーし、隔離 `$HOME` で `apm install --https` を実行して lock を再生成する。生成された `apm.lock.yaml` をそのまま repo へ戻し、同じ隔離環境で `apm install --frozen --https` が書き戻しなし（SHA-256 一致）で完了すること、`apm audit --ci` が全 check を通過すること。
 - Design Hook gate: 隔離 materialize した候補 Impeccable の `scripts/hook.mjs` を `IMPECCABLE_HOOK_RUNTIME` に指定して `tests/design-hook.bats` を実行し、既存の quiet / immediate tier / Stop deep pass / dedupe / edit threshold / sensitive・generated path filter / Stop re-entry の契約を維持すること（9/9）。managed hook の fail-open は `tests/codex-config.bats` の該当テストで別途確認する。
-- リポジトリ既存の bats full suite が通過すること。
-- いずれかの gate が実際に失敗した場合、この更新単位は採用済みとみなさず、旧 source pin / 旧 Impeccable pin を fallback とする。nix devshell 側だけ、または Impeccable だけを部分採用しない。
+- リポジトリ既存の bats full suite が通過すること。ただし `tests/mattpocock-update-gate.bats` の4 test（フィクスチャ経由の managed-set update gate 実行系）は例外とする。`git stash` で `origin/main` 相当の状態に戻しても同一に失敗することを確認済みの既存不具合であり、この更新単位が新たに引き起こしたものではない。gate failure として扱うのは、この4 test 以外の失敗、またはこの4 test の失敗内容（メッセージ・失敗箇所）が `origin/main` と異なる場合に限る。
+- いずれかの gate が実際に失敗した場合（上記の既知の例外を除く）、この更新単位は採用済みとみなさず、旧 source pin / 旧 Impeccable pin を fallback とする。nix devshell 側だけ、または Impeccable だけを部分採用しない。
 
 ## 未確認事項
 
