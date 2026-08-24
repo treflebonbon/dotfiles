@@ -67,7 +67,9 @@ for path in sys.argv[1:]:
     assert filesystem[":workspace_roots"][".git"] == "write"
     assert filesystem[os.environ["CODEX_SOURCE_GIT_COMMON_DIR"]] == "write"
     assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
-    assert filesystem["~/.ssh/**"] == "deny"
+    assert filesystem["~/.ssh"] == "deny"
+    assert filesystem["~/.aws"] == "deny"
+    assert filesystem["~/.config/gcloud"] == "deny"
 PY
 }
 
@@ -137,9 +139,9 @@ render_codex_managed_config() {
   grep -q '^\[permissions\."dotfiles-secure"\.filesystem\]' "$config"
   grep -q '^":workspace_roots" = .*"\*\*/\.env\*" = "deny"' "$config"
   grep -q '^":workspace_roots" = .*"\*\*/\*\.pem" = "deny"' "$config"
-  grep -q '^"~/\.ssh/\*\*" = "deny"$' "$config"
-  grep -q '^"~/\.aws/\*\*" = "deny"$' "$config"
-  grep -q '^"~/\.config/gcloud/\*\*" = "deny"$' "$config"
+  grep -q '^"~/\.ssh" = "deny"$' "$config"
+  grep -q '^"~/\.aws" = "deny"$' "$config"
+  grep -q '^"~/\.config/gcloud" = "deny"$' "$config"
   ! grep -q '^codex_hooks = ' "$config"
   grep -q '^\[plugins\."github@openai-curated"\]' "$config"
   ! grep -q '^\[plugins\."superpowers@openai-curated"\]' "$config"
@@ -147,6 +149,27 @@ render_codex_managed_config() {
   ! grep -q '^\[notice\.' "$config"
   ! grep -q '^\[tui\.' "$config"
   assert_dotfiles_permission_profile "$config"
+}
+
+@test "dotfiles-secure sandbox starts without expanding protected home trees" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local codex_home="$home/.codex"
+  mkdir -p "$workspace" "$codex_home" "$home/.ssh"
+  printf 'protected\n' >"$home/.ssh/config"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- true
+
+  [ "$status" -eq 0 ]
+
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    sh -c 'printf "overwritten\\n" >"$HOME/.ssh/config"'
+
+  [ "$status" -ne 0 ]
+  [ "$(cat "$home/.ssh/config")" = "protected" ]
 }
 
 @test "Codex package script does not override the managed permission profile" {
@@ -181,22 +204,23 @@ PY
   render_codex_managed_config "$repo_a" "$codex_home/config.toml"
 
   printf 'linked\n' >"$worktree_b/linked.txt"
-  run env HOME="$home" CODEX_HOME="$codex_home" codex sandbox -P dotfiles-secure \
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp codex sandbox -P dotfiles-secure \
     -C "$worktree_b" -- git add linked.txt
 
   [ "$status" -ne 0 ]
   [ -z "$(git -C "$worktree_b" diff --cached --name-only)" ]
 
   run env HOME="$home" CODEX_HOME="$codex_home" \
+    TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
     GIT_DIR="$repo_a/.git" GIT_COMMON_DIR="$repo_a/.git" bash -c \
-    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- env -u GIT_DIR -u GIT_COMMON_DIR git add linked.txt' \
+    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git add linked.txt' \
     _ "$worktree_b" "$CODEX_ORCA"
 
   [ "$status" -eq 0 ]
   [ "$(git -C "$worktree_b" diff --cached --name-only)" = "linked.txt" ]
 
   printf 'protected\n' >"$worktree_b/.env"
-  run env HOME="$home" CODEX_HOME="$codex_home" bash -c \
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp bash -c \
     'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- sh -c "printf '\''overwritten\\n'\'' >.env"' \
     _ "$worktree_b" "$CODEX_ORCA"
 
@@ -212,18 +236,20 @@ PY
 
   cat >"$bin/codex" <<'EOF'
 #!/usr/bin/env bash
+printf 'TMPDIR=%s\n' "$TMPDIR"
 printf '%s\n' "$@"
 EOF
   chmod +x "$bin/codex"
 
-  run env HOME="$home" PATH="$bin:$PATH" bash -c \
+  run env HOME="$home" TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" PATH="$bin:$PATH" bash -c \
     'cd "$1" && exec "$2" --version' \
     _ "$workspace" "$CODEX_ORCA"
 
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "-C" ]
-  [ "${lines[1]}" = "$workspace" ]
-  [ "${lines[2]}" = "--version" ]
+  [ "${lines[0]}" = "TMPDIR=/tmp" ]
+  [ "${lines[1]}" = "-C" ]
+  [ "${lines[2]}" = "$workspace" ]
+  [ "${lines[3]}" = "--version" ]
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {
@@ -856,7 +882,7 @@ EOF
   grep -q '^glob_scan_max_depth = 4$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
   grep -q '^"\*\*/\.env\*" = "deny"$' "$home/.codex/config.toml"
-  grep -q '^"~/\.ssh/\*\*" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"~/\.ssh" = "deny"$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.serena\]$' "$home/.codex/config.toml"
