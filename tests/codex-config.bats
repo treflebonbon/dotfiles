@@ -3,9 +3,248 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CODEX_ORCA="$PROJECT_ROOT/private_dot_local/bin/executable_codex-orca"
+  export CODEX_WORKTREE="$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree"
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
+}
+
+install_codex_launch_sentinel() {
+  local bin="$1"
+  mkdir -p "$bin"
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+touch "$CODEX_LAUNCHED"
+EOF
+  chmod +x "$bin/codex"
+}
+
+create_linked_worktree() {
+  local repo="$1"
+  local worktree="$2"
+  local relative_paths="${3:-}"
+  local worktree_args=()
+  mkdir -p "$repo"
+  git -C "$repo" init -q
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name Test
+  printf 'base\n' >"$repo/base.txt"
+  git -C "$repo" add base.txt
+  git -C "$repo" commit -qm 'test: initialize repository'
+  if [ "$relative_paths" = "relative" ]; then
+    worktree_args+=(--relative-paths)
+  fi
+  git -C "$repo" worktree add "${worktree_args[@]}" -qb linked "$worktree"
+}
+
+assert_codex_worktree_rejects_boundary_argument() {
+  local worktree="$1"
+  local bin="$2"
+  local launched="$3"
+  shift 3
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1"; shift; adapter="$1"; shift; exec "$adapter" "$@"' \
+    _ "$worktree" "$CODEX_WORKTREE" "$@"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$launched" ]
+}
+
+@test "codex-worktree launches Codex at a linked worktree with only its active Git metadata boundary" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local git_dir
+  local git_common_dir
+  mkdir -p "$bin"
+  create_linked_worktree "$repo" "$worktree"
+  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
+  git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)"
+
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+printf 'TMPDIR=<%s>\n' "$TMPDIR"
+printf 'GIT_DIR=<%s>\n' "${GIT_DIR-unset}"
+printf 'GIT_COMMON_DIR=<%s>\n' "${GIT_COMMON_DIR-unset}"
+printf 'GIT_WORK_TREE=<%s>\n' "${GIT_WORK_TREE-unset}"
+printf 'CODEX_PERMISSION_PROFILE=<%s>\n' "${CODEX_PERMISSION_PROFILE-unset}"
+printf 'arg=<%s>\n' "$@"
+EOF
+  chmod +x "$bin/codex"
+
+  run env PATH="$bin:$PATH" TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
+    GIT_DIR="$repo/.git" GIT_COMMON_DIR="$repo/.git" GIT_WORK_TREE="$repo" \
+    CODEX_PERMISSION_PROFILE=unrestricted \
+    bash -c 'cd "$1" && exec "$2" --model "model with space" "prompt with space"' \
+    _ "$worktree" "$CODEX_WORKTREE"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "TMPDIR=</tmp>" ]
+  [ "${lines[1]}" = "GIT_DIR=<unset>" ]
+  [ "${lines[2]}" = "GIT_COMMON_DIR=<unset>" ]
+  [ "${lines[3]}" = "GIT_WORK_TREE=<unset>" ]
+  [ "${lines[4]}" = "CODEX_PERMISSION_PROFILE=<unset>" ]
+  [ "${lines[5]}" = "arg=<-C>" ]
+  [ "${lines[6]}" = "arg=<$worktree>" ]
+  [ "${lines[7]}" = "arg=<-c>" ]
+  [ "${lines[8]}" = 'arg=<default_permissions="dotfiles-secure">' ]
+  [ "${lines[9]}" = "arg=<-c>" ]
+  [ "${lines[10]}" = \
+    "arg=<permissions.dotfiles-secure.filesystem={\"$git_dir\"=\"write\",\"$git_common_dir\"=\"write\"}>" ]
+  [ "${lines[11]}" = "arg=<--model>" ]
+  [ "${lines[12]}" = "arg=<model with space>" ]
+  [ "${lines[13]}" = "arg=<prompt with space>" ]
+}
+
+@test "codex-worktree launches Codex when linked-worktree metadata uses relative paths" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  create_linked_worktree "$repo" "$worktree" relative
+  install_codex_launch_sentinel "$bin"
+  grep -q '^gitdir: \.\.' "$worktree/.git"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
+
+  [ "$status" -eq 0 ]
+  [ -e "$launched" ]
+}
+
+@test "codex-worktree rejects a primary checkout without launching Codex" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  mkdir -p "$repo"
+  git -C "$repo" init -q
+  install_codex_launch_sentinel "$bin"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$repo" "$CODEX_WORKTREE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$launched" ]
+}
+
+@test "codex-worktree rejects a non-Git directory without launching Codex" {
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  mkdir -p "$workspace"
+  install_codex_launch_sentinel "$bin"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$workspace" "$CODEX_WORKTREE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$launched" ]
+}
+
+@test "codex-worktree rejects unresolved linked-worktree metadata without launching Codex" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  local git_dir
+  create_linked_worktree "$repo" "$worktree"
+  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
+  mv "$git_dir" "$git_dir.unresolved"
+  install_codex_launch_sentinel "$bin"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$launched" ]
+}
+
+@test "codex-worktree rejects linked-worktree metadata owned by another repository without launching Codex" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local foreign_repo="$BATS_TEST_TMPDIR/foreign-repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  local git_dir
+  local foreign_common_dir
+  create_linked_worktree "$repo" "$worktree"
+  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
+  git -C "$BATS_TEST_TMPDIR" init -q "$foreign_repo"
+  foreign_common_dir="$(git -C "$foreign_repo" rev-parse --path-format=absolute --git-common-dir)"
+  printf '%s\n' "$foreign_common_dir" >"$git_dir/commondir"
+  install_codex_launch_sentinel "$bin"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$launched" ]
+}
+
+@test "codex-worktree rejects arguments that can replace its working, permission, or trust boundary" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  create_linked_worktree "$repo" "$worktree"
+  install_codex_launch_sentinel "$bin"
+
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    -C "$BATS_TEST_TMPDIR/elsewhere"
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --cd="$BATS_TEST_TMPDIR/elsewhere"
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --add-dir "$BATS_TEST_TMPDIR/elsewhere"
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    -c 'permissions.dotfiles-secure.filesystem={"/"="write"}'
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --config='default_permissions="danger-full-access"'
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    exec --sandbox danger-full-access prompt
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --dangerously-bypass-approvals-and-sandbox
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --yolo
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --dangerously-bypass-hook-trust
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --profile unrestricted
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --approve-for-me
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    exec --ignore-user-config prompt
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    exec --ignore-rules prompt
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    sandbox --permission-profile unrestricted -- true
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    sandbox --permissions-profile=unrestricted -- true
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    sandbox --sandbox-state-json '{}' -- true
+}
+
+@test "codex-orca preserves every argument when forwarding to codex-worktree" {
+  local bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$bin"
+  cat >"$bin/codex-worktree" <<'EOF'
+#!/usr/bin/env bash
+printf 'forwarded=<%s>\n' "$@"
+EOF
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+printf 'wrong-entrypoint\n'
+EOF
+  chmod +x "$bin/codex-worktree" "$bin/codex"
+
+  run env PATH="$bin:$PATH" "$CODEX_ORCA" --model "model with space" "" "prompt with space"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "forwarded=<--model>" ]
+  [ "${lines[1]}" = "forwarded=<model with space>" ]
+  [ "${lines[2]}" = "forwarded=<>" ]
+  [ "${lines[3]}" = "forwarded=<prompt with space>" ]
+  [ "${#lines[@]}" -eq 4 ]
 }
 
 assert_codex_managed_values() {
@@ -64,8 +303,9 @@ for path in sys.argv[1:]:
     assert profile["network"]["domains"] == expected_domains
 
     filesystem = profile["filesystem"]
-    assert filesystem[":workspace_roots"][".git"] == "write"
-    assert filesystem[os.environ["CODEX_SOURCE_GIT_COMMON_DIR"]] == "write"
+    assert filesystem[":workspace_roots"]["."] == "write"
+    assert ".git" not in filesystem[":workspace_roots"]
+    assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
     assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
     assert filesystem["~/.ssh"] == "deny"
     assert filesystem["~/.aws"] == "deny"
@@ -185,23 +425,28 @@ assert "--sandbox" not in command
 PY
 }
 
-@test "Orca Codex launcher permits another repository's linked worktree Git metadata writes despite ambient overrides" {
+@test "codex-worktree permits linked-worktree Git writes while protected paths stay denied" {
   local home="$BATS_TEST_TMPDIR/home"
   local repo_a="$BATS_TEST_TMPDIR/repo-a"
   local repo_b="$BATS_TEST_TMPDIR/repo-b"
   local worktree_b="$BATS_TEST_TMPDIR/worktree-b"
+  local remote="$worktree_b/remote"
+  local bin="$BATS_TEST_TMPDIR/bin"
   local codex_home="$home/.codex"
-  mkdir -p "$repo_a" "$repo_b" "$codex_home"
+  local base_head
+  local topic_head
+  mkdir -p "$repo_a" "$codex_home" "$bin"
 
   git -C "$repo_a" init -q
-  git -C "$repo_b" init -q
-  git -C "$repo_b" config user.email test@example.com
-  git -C "$repo_b" config user.name Test
-  printf 'base\n' >"$repo_b/base.txt"
-  git -C "$repo_b" add base.txt
-  git -C "$repo_b" commit -qm 'test: initialize repository'
-  git -C "$repo_b" worktree add -qb linked "$worktree_b"
+  create_linked_worktree "$repo_b" "$worktree_b"
+  git init -q --bare "$remote"
+  git --git-dir "$remote" symbolic-ref HEAD refs/heads/main
+  git -C "$repo_b" remote add origin "$remote"
+  git -C "$repo_b" push -q origin HEAD:main
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$bin/git-push-topic"
+  chmod +x "$bin/git-push-topic"
   render_codex_managed_config "$repo_a" "$codex_home/config.toml"
+  base_head="$(git -C "$worktree_b" rev-parse HEAD)"
 
   printf 'linked\n' >"$worktree_b/linked.txt"
   run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp codex sandbox -P dotfiles-secure \
@@ -214,42 +459,34 @@ PY
     TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
     GIT_DIR="$repo_a/.git" GIT_COMMON_DIR="$repo_a/.git" bash -c \
     'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git add linked.txt' \
-    _ "$worktree_b" "$CODEX_ORCA"
+    _ "$worktree_b" "$CODEX_WORKTREE"
 
   [ "$status" -eq 0 ]
   [ "$(git -C "$worktree_b" diff --cached --name-only)" = "linked.txt" ]
 
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp bash -c \
+    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git commit -qm "test: linked worktree write"' \
+    _ "$worktree_b" "$CODEX_WORKTREE"
+
+  [ "$status" -eq 0 ]
+  topic_head="$(git -C "$worktree_b" rev-parse HEAD)"
+  [ "$topic_head" != "$base_head" ]
+
+  run env HOME="$home" CODEX_HOME="$codex_home" PATH="$bin:$PATH" TMPDIR=/tmp bash -c \
+    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git-push-topic' \
+    _ "$worktree_b" "$CODEX_WORKTREE"
+
+  [ "$status" -eq 0 ]
+  [ "$(git --git-dir "$remote" rev-parse refs/heads/linked)" = "$topic_head" ]
+  [ "$(git -C "$worktree_b" config branch.linked.remote)" = "origin" ]
+
   printf 'protected\n' >"$worktree_b/.env"
   run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp bash -c \
     'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- sh -c "printf '\''overwritten\\n'\'' >.env"' \
-    _ "$worktree_b" "$CODEX_ORCA"
+    _ "$worktree_b" "$CODEX_WORKTREE"
 
   [ "$status" -ne 0 ]
   [ "$(cat "$worktree_b/.env")" = "protected" ]
-}
-
-@test "Orca Codex launcher keeps non-Git folder contexts usable" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local workspace="$BATS_TEST_TMPDIR/workspace"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  mkdir -p "$home" "$workspace" "$bin"
-
-  cat >"$bin/codex" <<'EOF'
-#!/usr/bin/env bash
-printf 'TMPDIR=%s\n' "$TMPDIR"
-printf '%s\n' "$@"
-EOF
-  chmod +x "$bin/codex"
-
-  run env HOME="$home" TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" PATH="$bin:$PATH" bash -c \
-    'cd "$1" && exec "$2" --version' \
-    _ "$workspace" "$CODEX_ORCA"
-
-  [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "TMPDIR=/tmp" ]
-  [ "${lines[1]}" = "-C" ]
-  [ "${lines[2]}" = "$workspace" ]
-  [ "${lines[3]}" = "--version" ]
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {
@@ -1092,28 +1329,51 @@ EOF
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
 }
 
-@test "Codex config merge script strips stale concrete-path filesystem roots" {
+@test "Codex config merge script strips stale managed filesystem rules" {
   local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex" "$home/.codex"
+  local codex_home="$BATS_TEST_TMPDIR/orca-codex-home"
+  mkdir -p "$home/.config/codex" "$home/.codex" "$codex_home"
   render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   # Codex self-expands :workspace_roots into a concrete-path table and writes it
-  # back. Newer Codex then rejects its suffix-glob denies on load. The merge must
-  # drop it while keeping scalar/glob baselines like :minimal.
+  # back. Older managed config also wrote static .git rules as root and workspace
+  # scalars. The merge must drop them while keeping baselines like :minimal.
   cat >"$home/.codex/config.toml" <<'EOF'
 [permissions.dotfiles-secure.filesystem]
 ":minimal" = "read"
+"/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" = "write"
+
+[permissions.dotfiles-secure.filesystem.":workspace_roots"]
+".git" = "write"
 
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.local/share/chezmoi"]
 "." = "write"
 "**/*.key" = "none"
+
+[permissions.dotfiles-secure.filesystem."/home/ubuntu/.config/protected"]
+"**/credentials.json" = "deny"
 EOF
+  cp "$home/.codex/config.toml" "$codex_home/config.toml"
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  ! grep -q '^\[permissions\.dotfiles-secure\.filesystem\."/home/ubuntu/\.local/share/chezmoi"\]$' "$home/.codex/config.toml"
-  grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
-  grep -q '^":minimal" = "read"$' "$home/.codex/config.toml"
+  python3 - "$home/.codex/config.toml" "$codex_home/config.toml" <<'PY'
+import sys
+import tomllib
+
+for path in sys.argv[1:]:
+    with open(path, "rb") as f:
+        config = tomllib.load(f)
+
+    filesystem = config["permissions"]["dotfiles-secure"]["filesystem"]
+    assert filesystem[":minimal"] == "read"
+    assert "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" not in filesystem
+    assert "/home/ubuntu/.local/share/chezmoi" not in filesystem
+    assert filesystem["/home/ubuntu/.config/protected"] == {
+        "**/credentials.json": "deny"
+    }
+    assert ".git" not in filesystem[":workspace_roots"]
+PY
 }
 
 @test "Codex config merge script keeps path rules in user-defined profiles" {

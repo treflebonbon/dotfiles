@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'codex-worktree: %s\n' "$1" >&2
+  exit 1
+}
+
+validate_arguments() {
+  local argument
+  local expect_permission_profile_value=""
+
+  for argument in "$@"; do
+    if [ -n "$expect_permission_profile_value" ]; then
+      [ "$argument" = "dotfiles-secure" ] ||
+        fail "permission profile must remain dotfiles-secure"
+      expect_permission_profile_value=""
+      continue
+    fi
+
+    case "$argument" in
+    --) break ;;
+    -P | --permission-profile | --permissions-profile) expect_permission_profile_value="yes" ;;
+    -P?*)
+      [ "${argument#-P}" = "dotfiles-secure" ] ||
+        fail "permission profile must remain dotfiles-secure"
+      ;;
+    --permission-profile=* | --permissions-profile=*)
+      [ "${argument#*=}" = "dotfiles-secure" ] ||
+        fail "permission profile must remain dotfiles-secure"
+      ;;
+    -C | -C?* | --cd | --cd=* | -c | -c?* | --config | --config=* | \
+      -s | -s?* | --sandbox | --sandbox=* | --add-dir | --add-dir=* | \
+      -p | -p?* | --profile | --profile=* | --approve-for-me | \
+      --dangerously-bypass-approvals-and-sandbox | --yolo | --ignore-user-config | --ignore-rules | \
+      --dangerously-bypass-hook-trust | \
+      --remote | --remote=* | --remote-auth-token-env | --remote-auth-token-env=* | \
+      --sandbox-state-json | --sandbox-state-json=* | \
+      --sandbox-state-readable-root | --sandbox-state-readable-root=*)
+      fail "argument can replace the worktree runtime boundary: $argument"
+      ;;
+    esac
+  done
+
+  [ -z "$expect_permission_profile_value" ] || fail "missing permission profile value"
+}
+
+validate_arguments "$@"
+
+git_environment=("${!GIT_@}")
+for variable in "${git_environment[@]}"; do
+  unset "$variable"
+done
+unset CODEX_PERMISSION_PROFILE
+
+export TMPDIR=/tmp
+caller_dir="$(pwd -P)" || fail "cannot resolve the current directory"
+worktree="$(git -C "$caller_dir" rev-parse --show-toplevel 2>/dev/null)" ||
+  fail "current directory is not a linked Git worktree"
+git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)" ||
+  fail "cannot resolve the worktree Git directory"
+git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ||
+  fail "cannot resolve the Git common directory"
+
+worktree="$(cd "$worktree" && pwd -P)" || fail "cannot resolve the worktree root"
+git_dir="$(cd "$git_dir" && pwd -P)" || fail "cannot resolve the worktree Git directory"
+git_common_dir="$(cd "$git_common_dir" && pwd -P)" || fail "cannot resolve the Git common directory"
+
+[[ -f "$worktree/.git" && "$git_dir" != "$git_common_dir" ]] ||
+  fail "current directory is not a linked Git worktree"
+
+if ! python3 - "$worktree" "$git_dir" "$git_common_dir" <<'PY'; then
+import sys
+from pathlib import Path
+
+
+def metadata_target(path: Path, prefix: str = "") -> Path:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 1 or (prefix and not lines[0].startswith(prefix)):
+        raise ValueError("invalid Git metadata pointer")
+    target = lines[0][len(prefix) :].strip()
+    if not target:
+        raise ValueError("empty Git metadata pointer")
+    target_path = Path(target)
+    if not target_path.is_absolute():
+        target_path = path.parent / target_path
+    return target_path.resolve(strict=True)
+
+
+try:
+    worktree = Path(sys.argv[1]).resolve(strict=True)
+    git_dir = Path(sys.argv[2]).resolve(strict=True)
+    git_common_dir = Path(sys.argv[3]).resolve(strict=True)
+    worktree_dot_git = worktree / ".git"
+    common_worktrees_dir = (git_common_dir / "worktrees").resolve(strict=True)
+
+    valid = (
+        metadata_target(worktree_dot_git, "gitdir:") == git_dir
+        and metadata_target(git_dir / "commondir") == git_common_dir
+        and git_dir.parent == common_worktrees_dir
+        and metadata_target(git_dir / "gitdir") == worktree_dot_git.resolve(strict=True)
+    )
+except (OSError, RuntimeError, ValueError):
+    valid = False
+
+sys.exit(0 if valid else 1)
+PY
+  fail "linked worktree metadata ownership does not match"
+fi
+
+filesystem_override="$(
+  python3 - "$git_dir" "$git_common_dir" <<'PY'
+import json
+import sys
+
+git_dir, git_common_dir = (json.dumps(path, ensure_ascii=False) for path in sys.argv[1:])
+print(
+    "permissions.dotfiles-secure.filesystem="
+    f'{{{git_dir}="write",{git_common_dir}="write"}}'
+)
+PY
+)"
+
+exec codex \
+  -C "$worktree" \
+  -c 'default_permissions="dotfiles-secure"' \
+  -c "$filesystem_override" \
+  "$@"

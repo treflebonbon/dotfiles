@@ -56,6 +56,30 @@ _Avoid_: 仕様, spec, 要件定義
 `to-pr` が PR body に載せる AC ごとの検証記録表（列: AC / 種別 / 実行コマンドまたは理由 / 結果 / 未確認理由）。UI・CLI・API・infra 全ての AC を1つの表に統合する。
 _Avoid_: evidence table, 検証エビデンス, verdict
 
+**Worktree Owner**:
+task の worktree を作成・選択し、workflow の全 phase を同じ checkout に留める責務を持つ実行環境。Orca session、Codex native worktree、Claude Code では各 runtime がこの責務を持ち、raw CLI では host 側の起動境界が担う。
+_Avoid_: worktree launcher, worktree tool, checkout owner
+
+**Worktree Entry Point**:
+実行環境ごとの Worktree Owner へ処理を振り分ける、workflow 共通の入口。すでに task worktree 内なら新たに作らず、その checkout を検証して後続 phase へ渡す。
+_Avoid_: Orca worktree command, worktree creator, runtime-specific entry
+
+**Worktree Activation**:
+作成済みの task worktree を agent session の working root と Technical Sandbox Boundary に一致させる phase boundary。worktree の作成や shell 内だけの `cd` とは区別する。
+_Avoid_: worktree creation, directory change, session resume
+
+**Active Git Metadata Boundary**:
+現在の task worktree から解決した worktree 固有 Git dir と Git common dir だけを、その session の書込み対象へ加える権限範囲。別 repository の Git metadata や静的な repository 例外は含めない。
+_Avoid_: `.git` write access, repository-wide permission, global Git exception
+
+**Technical Sandbox Boundary**:
+Git の checkout 隔離とは独立して、agent の filesystem・network access を runtime が強制する権限境界。worktree 自体はこの境界に含めない。
+_Avoid_: worktree sandbox, repository isolation, permission mode
+
+**Runtime Adapter**:
+Worktree Owner が持つ実行 context を agent runtime の公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。
+_Avoid_: custom launcher, wrapper, glue
+
 **Design Hook**:
 UI コードに対して決定論的なデザイン検査を行い、修正対象となる finding だけをエージェントの作業文脈へ返す advisory 型の自動フィードバック経路。二層で走る — 編集直後（per-edit）はその場で直すべき機械的な層だけ、残りはセッション終端の deep pass でまとめて返す。変更を拒否する品質ゲートではなく、人間が画面を見て判断する要素指差しフィードバックや、実装後の Verification Matrix とも異なる。
 _Avoid_: visual lint, UI review, 見た目確認
