@@ -79,6 +79,49 @@ setup() {
   done
 }
 
+@test "to-worktree routes representative runtime owners through one Worktree Entry Point" {
+  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
+
+  grep -Fq 'Worktree Entry Point' "$skill"
+  grep -Fq '**Existing linked worktree**' "$skill"
+  grep -Fq '**Orca**' "$skill"
+  grep -Fq '`orca-cli` skill' "$skill"
+  grep -Fq 'version-matched' "$skill"
+  grep -Fq 'native worktree' "$skill"
+  grep -Fq 'creation and full handoff' "$skill"
+  grep -Fq 'stop the original session' "$skill"
+  grep -Fq '**Codex Desktop**' "$skill"
+  grep -Fq '**Claude Code**' "$skill"
+  grep -Fq '**raw Codex CLI**' "$skill"
+  grep -Fq '`EnterWorktree`' "$skill"
+  grep -Fq '`codex-worktree`' "$skill"
+  grep -Fq 'fresh session' "$skill"
+}
+
+@test "to-worktree preserves the caller checkout and never reuses another worktree" {
+  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
+
+  grep -Fq 'caller `HEAD`' "$skill"
+  grep -Fq 'Do not fetch' "$skill"
+  grep -Fq 'Leave every parent change untouched' "$skill"
+  grep -Fq 'Reuse only the current linked worktree' "$skill"
+  grep -Fq 'same-topic worktree at any other path is a conflict' "$skill"
+}
+
+@test "instruction layers align Worktree Entry Point ownership without merging runtime guidance" {
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq 'Worktree Entry Point' "$instructions"
+    grep -Fq '同じ checkout' "$instructions"
+    grep -Fq '`orca-cli` の version-matched native create / full handoff' "$instructions"
+    grep -Fq '元セッションを停止' "$instructions"
+  done
+
+  grep -Fq 'Codex Desktop' "$PROJECT_ROOT/AGENTS.md"
+  grep -Fq 'raw Codex CLI' "$PROJECT_ROOT/AGENTS.md"
+  grep -Fq '`EnterWorktree`' "$PROJECT_ROOT/CLAUDE.md"
+  ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
+}
+
 @test "workflow migration ADR supersedes old exclusions and pins" {
   local adr="$PROJECT_ROOT/docs/adr/0041-adopt-mattpocock-v1-2-3-workflow-semantics.md"
 

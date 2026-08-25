@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'codex-worktree: %s\n' "$1" >&2
+  exit 1
+}
+
+validate_arguments() {
+  local argument
+  local expect_permission_profile_value=""
+
+  for argument in "$@"; do
+    if [ -n "$expect_permission_profile_value" ]; then
+      [ "$argument" = "dotfiles-secure" ] ||
+        fail "permission profile must remain dotfiles-secure"
+      expect_permission_profile_value=""
+      continue
+    fi
+
+    case "$argument" in
+    --) break ;;
+    -P | --permission-profile | --permissions-profile) expect_permission_profile_value="yes" ;;
+    -P?*)
+      [ "${argument#-P}" = "dotfiles-secure" ] ||
+        fail "permission profile must remain dotfiles-secure"
+      ;;
+    --permission-profile=* | --permissions-profile=*)
+      [ "${argument#*=}" = "dotfiles-secure" ] ||
+        fail "permission profile must remain dotfiles-secure"
+      ;;
+    -C | -C?* | --cd | --cd=* | -c | -c?* | --config | --config=* | \
+      -s | -s?* | --sandbox | --sandbox=* | --add-dir | --add-dir=* | \
+      -p | -p?* | --profile | --profile=* | --approve-for-me | \
+      --dangerously-bypass-approvals-and-sandbox | --yolo | --ignore-user-config | \
+      --dangerously-bypass-hook-trust | \
+      --remote | --remote=* | --remote-auth-token-env | --remote-auth-token-env=* | \
+      --sandbox-state-json | --sandbox-state-json=* | \
+      --sandbox-state-readable-root | --sandbox-state-readable-root=*)
+      fail "argument can replace the worktree runtime boundary: $argument"
+      ;;
+    esac
+  done
+
+  [ -z "$expect_permission_profile_value" ] || fail "missing permission profile value"
+}
+
+validate_arguments "$@"
+
+git_environment=("${!GIT_@}")
+for variable in "${git_environment[@]}"; do
+  unset "$variable"
+done
+unset CODEX_PERMISSION_PROFILE
+
+export TMPDIR=/tmp
+caller_dir="$(pwd -P)" || fail "cannot resolve the current directory"
+worktree="$(git -C "$caller_dir" rev-parse --show-toplevel 2>/dev/null)" ||
+  fail "current directory is not a linked Git worktree"
+git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)" ||
+  fail "cannot resolve the worktree Git directory"
+git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ||
+  fail "cannot resolve the Git common directory"
+
+worktree="$(cd "$worktree" && pwd -P)" || fail "cannot resolve the worktree root"
+git_dir="$(cd "$git_dir" && pwd -P)" || fail "cannot resolve the worktree Git directory"
+git_common_dir="$(cd "$git_common_dir" && pwd -P)" || fail "cannot resolve the Git common directory"
+
+[[ -f "$worktree/.git" && "$git_dir" != "$git_common_dir" ]] ||
+  fail "current directory is not a linked Git worktree"
+
+filesystem_override="$(
+  python3 - "$git_dir" "$git_common_dir" <<'PY'
+import json
+import sys
+
+git_dir, git_common_dir = (json.dumps(path, ensure_ascii=False) for path in sys.argv[1:])
+print(
+    "permissions.dotfiles-secure.filesystem="
+    f'{{{git_dir}="write",{git_common_dir}="write"}}'
+)
+PY
+)"
+
+exec codex \
+  -C "$worktree" \
+  -c 'default_permissions="dotfiles-secure"' \
+  -c "$filesystem_override" \
+  "$@"

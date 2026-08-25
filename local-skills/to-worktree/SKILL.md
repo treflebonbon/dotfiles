@@ -1,63 +1,66 @@
 ---
 name: to-worktree
-description: "Set up an isolated git worktree before starting feature work, so the current checkout stays clean. Use at the start of the workflow chain — run /to-worktree first, then begin design with /grill-with-docs or jump straight into implementation."
+description: "Select and validate the runtime-owned task worktree before starting a workflow chain."
 disable-model-invocation: true
 ---
 
 # to-worktree
 
-Entry point of every workflow chain. Which chain follows depends on the scenario:
+Use this universal **Worktree Entry Point** once at the start of a workflow chain. Complete it
+when the runtime owns one validated linked worktree and every later phase will run in that same
+checkout, or when the current session has stopped with an explicit fresh-session command.
 
-- Requirements undetermined: `to-worktree → grill-with-docs → to-spec → to-tickets → implement → to-pr`
-- Requirements already decided: `to-worktree → implement → to-pr`
-- Bug fix: `to-worktree → diagnosing-bugs → code-review → to-pr`
+The next phase depends on the task:
 
-Isolate the upcoming work in a worktree so the current checkout is never dirtied. Design
-artifacts written along the way (`CONTEXT.md`, ADRs) land on the same branch and ride into
-the final PR naturally.
+- Requirements undetermined: `grill-with-docs → to-spec → to-tickets → implement → to-pr`
+- Requirements decided: `implement → to-pr`
+- Bug requiring diagnosis: `diagnosing-bugs → code-review → to-pr`
 
-## Steps
+## Establish the task context
 
-1. **Pick a topic.** Use the user's stated topic, or propose a short kebab-case slug from
-   the conversation and confirm it. Branch name follows Conventional style:
-   `feat/<topic>` (or `fix/<topic>` etc. when clearly not a feature).
+1. Derive a short kebab-case topic and a Conventional branch name from the user's request. Ask
+   only when that choice would materially change the task.
+2. Inspect the target repository's physical top level, current `HEAD`, status, current Git dir,
+   Git common dir, and `git worktree list --porcelain`. These are read-only facts.
+3. Leave every parent change untouched: do not stash, clean, reset, stage, or copy uncommitted
+   files. Base a new worktree on the caller `HEAD`. Do not fetch.
+4. Reuse only the current linked worktree. A same-topic worktree at any other path is a conflict;
+   report its path and stop instead of entering it or creating a duplicate.
 
-2. **Handle a dirty working tree.** "Dirty" means anything `git status` reports —
-   tracked modifications, staged changes, and untracked files alike. Ask the user: stash
-   them (`git stash -u` so untracked files are included), leave them in the current
-   checkout (default; leaves every category untouched), or abort. If the user cannot be
-   asked (non-interactive run), apply the default and say so in the report.
+## Route to the Worktree Owner
 
-3. **Create and enter the worktree.** Two paths; pick by precondition, not preference:
-   - **`EnterWorktree` tool (Claude Code)** — use it **only when the target repo is the
-     session's current repository** (the repo the harness was launched in, not merely the
-     shell's cwd). It places the worktree in a harness-managed location
-     (`.claude/worktrees/`, also covered by `worktree-gc` roots) and auto-removes it if
-     it ends up unchanged. Both properties are fine for normal feature work.
-   - **Manual path (other runtimes, a different target repo, or when the worktree must
-     persist regardless of changes)**:
+Evaluate these branches in order.
 
-     ```bash
-     git worktree add .worktrees/<topic> -b feat/<topic>
-     cd .worktrees/<topic>
-     ```
+- **Existing linked worktree** — when the current repository has a worktree-specific Git dir
+  distinct from its Git common dir, validate it idempotently and continue there. Do not create a
+  nested worktree. This is the only reusable checkout.
+- **Orca** — use the current Orca worktree when the existing-worktree branch applies. Otherwise,
+  invoke the `orca-cli` skill, load its version-matched guide, and use native worktree creation and full handoff through Orca. Do not hardcode Orca CLI commands here. After the handoff succeeds,
+  report the destination and stop the original session; the destination session validates its
+  current worktree before continuing.
+- **Codex Desktop** — use its native worktree flow. Once Codex has selected the native worktree,
+  validate that checkout through the existing-worktree branch and continue there.
+- **Claude Code** — use `EnterWorktree` when the target is the session repository. Let Claude own
+  creation and entry, then validate the resulting current checkout before continuing.
+- **raw Codex CLI** — request one scoped approval for exactly the new-worktree creation command:
 
-   When in doubt about which path applies, take the manual path — it is always correct.
-   Naming: the worktree directory uses the bare slug (`.worktrees/<topic>`), the branch
-   uses the type-prefixed slug (`feat/<topic>`).
+  ```bash
+  git worktree add .worktrees/<topic> -b <type>/<topic> HEAD
+  ```
 
-   Either location is collected by the `worktree-gc` skill later. Do not edit
-   `.gitignore` to hide `.worktrees/` — if the repo doesn't ignore it already, it showing
-   up as untracked in the parent checkout is acceptable noise.
+  After it succeeds, report the absolute path and branch, tell the user to start `codex-worktree`
+  from that path, and stop. The fresh session performs Worktree Activation; the current session
+  does not edit, commit, push, or continue the workflow in the new checkout.
 
-4. **Report and hand off.** Confirm the worktree path and branch, then point to the next
-   step: `/grill-with-docs` when the work starts from design, or the ready issue /
-   implementation task when the design already exists.
+- **Unknown runtime** — identify the missing Worktree Owner and stop. Do not guess a manual Git or
+  permission-bypass path.
 
-## Notes
+## Validation boundary
 
-- This skill only sets up isolation. It never commits, pushes, or opens PRs — that is
-  `/to-pr`'s job at the other end of the chain.
-- One worktree per topic. If a worktree for the topic already exists, reuse it instead of
-  creating a duplicate.
-- Cleanup is out of scope: leftover worktrees are collected by the `worktree-gc` skill.
+Before continuing to the next phase, confirm that the current checkout is a linked worktree and
+that shell/tool working directories resolve inside its physical top level. A primary checkout,
+non-Git directory, detached metadata pointer, or unresolved Git dir/common dir fails closed.
+
+Worktree creation is the owner's responsibility. Worktree Activation for raw Codex is the
+`codex-worktree` Runtime Adapter's responsibility. This skill does not widen permissions, run
+routine manual-shell Git in place of the workflow, clean up worktrees, or publish changes.

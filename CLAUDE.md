@@ -18,7 +18,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 ## 設計→実装ワークフロー
 
-1つの作業では1つの隔離 worktree を使う。Claude Code では `EnterWorktree`、Orca セッションでは Orca worktree、それ以外では `/to-worktree` を使い、以降の skill は同じ worktree で連続実行する。
+`/to-worktree` を共通の Worktree Entry Point とし、1つの作業では1つの隔離 worktree を使う。既存の linked worktree は冪等に検証して同じ checkout で続行する。Orca で新規 worktree が必要なら `orca-cli` の version-matched native create / full handoff を使い、成功後に元セッションを停止する。Claude Code の新規作成は `EnterWorktree` に委ねる。以降の skill は同じ checkout で連続実行する。
 
 - 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`
 - 要件確定済み: `implement` → `to-pr`
