@@ -172,6 +172,8 @@ EOF
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     exec --ignore-user-config prompt
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    exec --ignore-rules prompt
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     sandbox --permission-profile unrestricted -- true
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     sandbox --permissions-profile=unrestricted -- true

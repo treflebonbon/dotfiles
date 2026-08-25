@@ -32,7 +32,7 @@ validate_arguments() {
     -C | -C?* | --cd | --cd=* | -c | -c?* | --config | --config=* | \
       -s | -s?* | --sandbox | --sandbox=* | --add-dir | --add-dir=* | \
       -p | -p?* | --profile | --profile=* | --approve-for-me | \
-      --dangerously-bypass-approvals-and-sandbox | --yolo | --ignore-user-config | \
+      --dangerously-bypass-approvals-and-sandbox | --yolo | --ignore-user-config | --ignore-rules | \
       --dangerously-bypass-hook-trust | \
       --remote | --remote=* | --remote-auth-token-env | --remote-auth-token-env=* | \
       --sandbox-state-json | --sandbox-state-json=* | \
