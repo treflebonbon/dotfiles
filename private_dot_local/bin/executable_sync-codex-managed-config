@@ -132,13 +132,34 @@ def strip_stale_filesystem_roots(existing: dict[str, Any], managed: dict[str, An
         filesystem = profile.get("filesystem")
         if not isinstance(filesystem, dict):
             continue
+        managed_profile = managed_perms.get(name)
+        managed_filesystem = (
+            managed_profile.get("filesystem")
+            if isinstance(managed_profile, dict)
+            else None
+        )
+        managed_workspace_roots = (
+            managed_filesystem.get(":workspace_roots")
+            if isinstance(managed_filesystem, dict)
+            else None
+        )
+        managed_root_mode = (
+            managed_workspace_roots.get(".")
+            if isinstance(managed_workspace_roots, dict)
+            else None
+        )
         workspace_roots = filesystem.get(":workspace_roots")
         if isinstance(workspace_roots, dict) and workspace_roots.get(".git") == "write":
             del workspace_roots[".git"]
         for key, value in list(filesystem.items()):
-            # Remove Codex-expanded nested maps and the retired static Git write
-            # emitted by older managed config. Preserve other scalar baselines.
-            if isinstance(value, dict) and key != ":workspace_roots":
+            # Codex-expanded workspace maps use an absolute concrete root and
+            # retain the managed "." mode. Independent nested rules do not.
+            if (
+                isinstance(value, dict)
+                and key.startswith("/")
+                and managed_root_mode is not None
+                and value.get(".") == managed_root_mode
+            ):
                 del filesystem[key]
             elif (
                 value == "write"

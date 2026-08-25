@@ -19,19 +19,20 @@ linked worktree の worktree 固有 Git dir と Git common dir は checkout 外�
 
 - current checkout が linked worktree なら冪等に検証してその場で再利用する。再利用できるのは current checkout だけで、same-topic worktree が別 path にあれば conflict として停止する。
 - Orca は current Orca worktree を使う。新規作成時は `orca-cli` skill が実行時に取得する version-matched guide に従って native create / full handoff を行い、handoff 成功後に元セッションを停止する。具体 CLI は本 decision や `to-worktree` に固定しない。Codex Desktop は native worktree、Claude Code は `EnterWorktree` を使う。
-- raw Codex CLI だけは、caller `HEAD` を起点とする `git worktree add` 一回へ scoped approval を求める。parent の tracked / staged / untracked change は全て残し、fetch は行わない。作成後は current session で作業を続けず、new worktree を root とする fresh session のため停止する。
+- raw Codex CLI だけは、caller `HEAD` を起点とし、repository の absolute physical top level を `git -C` と absolute destination の両方に使う `git worktree add` 一回へ scoped approval を求める。parent の tracked / staged / untracked change は全て残し、fetch は行わない。作成後は current session で作業を続けず、new worktree を root とする fresh session のため停止する。
 
 raw Codex / Orca の **Worktree Activation** には canonical **Runtime Adapter** `codex-worktree` を使う。adapter は inherited `GIT_*` environment を除去してから current physical worktree root、absolute worktree Git dir、absolute Git common dir を解決し、次を全て満たす linked worktree だけを受理する。
 
 - current context が Git worktree として解決できる。
 - top-level `.git` が linked-worktree pointer file である。
 - worktree Git dir と Git common dir が存在し、異なる absolute physical path に解決できる。
+- `.git` pointer が worktree Git dir、worktree Git dir の `commondir` が Git common dir、worktree Git dir が common dir 直下の `worktrees/<entry>`、worktree Git dir の `gitdir` back-pointer が top-level `.git` を指す同一の ownership chain である。各 metadata file からの relative target は受理し、全 target を physical path に解決して比較する。
 
 受理後は Codex 公式 CLI の `-C` で worktree root を固定し、`-c 'default_permissions="dotfiles-secure"'` で profile 選択を session flag に固定してから、別の `-c` でその Git dir と common dir の exact absolute path だけを filesystem write に加える。ambient `CODEX_PERMISSION_PROFILE` は enforcement の根拠にせず除去する。Codex CLI 0.149.0 の top-level agent launch は `-P` を受理せず、`-P dotfiles-secure` は `codex sandbox` subcommand の直接検証に使う interface なので、agent launch では同じ profile を選択する公式 `default_permissions` config override を使う。`codex-orca` は引数を変更せず `codex-worktree` へ転送する thin compatibility entry とする。
 
 managed `dotfiles-secure` profile は workspace write、protected-path deny、network policy を保持するが、workspace-relative `.git` write と dotfiles common dir の static write exception は持たない。Active Git Metadata Boundary は session 起動時にだけ materialize する。
 
-配備時の `sync-codex-managed-config` は、既存の managed profile に残る旧 absolute `…/.git = "write"` と `:workspace_roots` 内の `".git" = "write"` を managed migration として除去する。`:minimal` など他の scalar baseline は保持し、dotfiles が所有しない user-defined profile の path rule には触れない。この migration は native Codex home と明示された `CODEX_HOME` の双方へ適用する。
+配備時の `sync-codex-managed-config` は、既存の managed profile に残る旧 absolute `…/.git = "write"` と `:workspace_roots` 内の `".git" = "write"` を managed migration として除去する。Codex が自己展開した concrete map は、absolute root と managed `:workspace_roots` の `"."` mode が一致するものだけを除去する。managed profile 内の独立した nested deny、`:minimal` など他の scalar baseline、dotfiles が所有しない user-defined profile の path rule は保持する。この migration は native Codex home と明示された `CODEX_HOME` の双方へ適用する。
 
 ## Boundaries
 
@@ -42,13 +43,13 @@ managed `dotfiles-secure` profile は workspace write、protected-path deny、ne
 
 ## Verification Matrix
 
-| Contract                                                        | Public seam                                                                                                   |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| linked worktree の working root と Active Git Metadata Boundary | `codex-worktree` が Codex へ渡す fixed profile / `-C` / exact `-c`、ambient profile 除去、sandboxed Git write |
-| invalid context の fail-closed                                  | primary checkout / non-Git / unresolved metadata で Codex stub が未起動                                       |
-| Orca compatibility                                              | `codex-orca` の全 argv forwarding                                                                             |
-| managed profile の静的例外撤去と deny 維持                      | chezmoi rendered config と native / explicit `CODEX_HOME` の merge migration                                  |
-| runtime routing                                                 | `to-worktree`、`AGENTS.md`、`CLAUDE.md` の workflow contract tests                                            |
+| Contract                                                        | Public seam                                                                                                      |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| linked worktree の working root と Active Git Metadata Boundary | `codex-worktree` が Codex へ渡す fixed profile / `-C` / exact `-c`、ambient profile 除去、sandboxed Git write    |
+| invalid context の fail-closed                                  | primary checkout / non-Git / unresolved・foreign-owned metadata で Codex stub が未起動、relative metadata は起動 |
+| Orca compatibility                                              | `codex-orca` の全 argv forwarding                                                                                |
+| managed profile の静的例外撤去と deny 維持                      | chezmoi rendered config と native / explicit `CODEX_HOME` の merge migration                                     |
+| runtime routing                                                 | `to-worktree`、`AGENTS.md`、`CLAUDE.md` の workflow contract tests                                               |
 
 ## Consequences
 

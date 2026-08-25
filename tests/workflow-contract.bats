@@ -108,6 +108,14 @@ setup() {
   grep -Fq 'same-topic worktree at any other path is a conflict' "$skill"
 }
 
+@test "to-worktree anchors raw Codex CLI creation to the repository physical top level" {
+  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
+
+  grep -Fq 'git -C <physical-top-level> worktree add <physical-top-level>/.worktrees/<topic> -b <type>/<topic> HEAD' "$skill"
+  grep -Fq 'same absolute physical top level for `-C` and the destination' "$skill"
+  grep -Fq '同じ absolute physical top level を `git -C` と destination の両方に使う1 commandの成功を完了条件' "$RUNTIME"
+}
+
 @test "instruction layers align Worktree Entry Point ownership without merging runtime guidance" {
   for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
     grep -Fq 'Worktree Entry Point' "$instructions"

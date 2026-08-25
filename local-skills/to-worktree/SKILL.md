@@ -45,12 +45,13 @@ Evaluate these branches in order.
 - **raw Codex CLI** — request one scoped approval for exactly the new-worktree creation command:
 
   ```bash
-  git worktree add .worktrees/<topic> -b <type>/<topic> HEAD
+  git -C <physical-top-level> worktree add <physical-top-level>/.worktrees/<topic> -b <type>/<topic> HEAD
   ```
 
-  After it succeeds, report the absolute path and branch, tell the user to start `codex-worktree`
-  from that path, and stop. The fresh session performs Worktree Activation; the current session
-  does not edit, commit, push, or continue the workflow in the new checkout.
+  Complete this branch only after that one command succeeds with the same absolute physical top level for `-C` and the destination.
+  Report the absolute path and branch, tell the user to start `codex-worktree` from that path, and
+  stop. The fresh session performs Worktree Activation; the current session does not edit, commit,
+  push, or continue the workflow in the new checkout.
 
 - **Unknown runtime** — identify the missing Worktree Owner and stop. Do not guess a manual Git or
   permission-bypass path.

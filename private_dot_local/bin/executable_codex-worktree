@@ -69,6 +69,45 @@ git_common_dir="$(cd "$git_common_dir" && pwd -P)" || fail "cannot resolve the G
 [[ -f "$worktree/.git" && "$git_dir" != "$git_common_dir" ]] ||
   fail "current directory is not a linked Git worktree"
 
+if ! python3 - "$worktree" "$git_dir" "$git_common_dir" <<'PY'; then
+import sys
+from pathlib import Path
+
+
+def metadata_target(path: Path, prefix: str = "") -> Path:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 1 or (prefix and not lines[0].startswith(prefix)):
+        raise ValueError("invalid Git metadata pointer")
+    target = lines[0][len(prefix) :].strip()
+    if not target:
+        raise ValueError("empty Git metadata pointer")
+    target_path = Path(target)
+    if not target_path.is_absolute():
+        target_path = path.parent / target_path
+    return target_path.resolve(strict=True)
+
+
+try:
+    worktree = Path(sys.argv[1]).resolve(strict=True)
+    git_dir = Path(sys.argv[2]).resolve(strict=True)
+    git_common_dir = Path(sys.argv[3]).resolve(strict=True)
+    worktree_dot_git = worktree / ".git"
+    common_worktrees_dir = (git_common_dir / "worktrees").resolve(strict=True)
+
+    valid = (
+        metadata_target(worktree_dot_git, "gitdir:") == git_dir
+        and metadata_target(git_dir / "commondir") == git_common_dir
+        and git_dir.parent == common_worktrees_dir
+        and metadata_target(git_dir / "gitdir") == worktree_dot_git.resolve(strict=True)
+    )
+except (OSError, RuntimeError, ValueError):
+    valid = False
+
+sys.exit(0 if valid else 1)
+PY
+  fail "linked worktree metadata ownership does not match"
+fi
+
 filesystem_override="$(
   python3 - "$git_dir" "$git_common_dir" <<'PY'
 import json

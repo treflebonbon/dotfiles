@@ -22,6 +22,8 @@ EOF
 create_linked_worktree() {
   local repo="$1"
   local worktree="$2"
+  local relative_paths="${3:-}"
+  local worktree_args=()
   mkdir -p "$repo"
   git -C "$repo" init -q
   git -C "$repo" config user.email test@example.com
@@ -29,7 +31,10 @@ create_linked_worktree() {
   printf 'base\n' >"$repo/base.txt"
   git -C "$repo" add base.txt
   git -C "$repo" commit -qm 'test: initialize repository'
-  git -C "$repo" worktree add -qb linked "$worktree"
+  if [ "$relative_paths" = "relative" ]; then
+    worktree_args+=(--relative-paths)
+  fi
+  git -C "$repo" worktree add "${worktree_args[@]}" -qb linked "$worktree"
 }
 
 assert_codex_worktree_rejects_boundary_argument() {
@@ -92,6 +97,22 @@ EOF
   [ "${lines[13]}" = "arg=<prompt with space>" ]
 }
 
+@test "codex-worktree launches Codex when linked-worktree metadata uses relative paths" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  create_linked_worktree "$repo" "$worktree" relative
+  install_codex_launch_sentinel "$bin"
+  grep -q '^gitdir: \.\.' "$worktree/.git"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
+
+  [ "$status" -eq 0 ]
+  [ -e "$launched" ]
+}
+
 @test "codex-worktree rejects a primary checkout without launching Codex" {
   local repo="$BATS_TEST_TMPDIR/repo"
   local bin="$BATS_TEST_TMPDIR/bin"
@@ -130,6 +151,28 @@ EOF
   create_linked_worktree "$repo" "$worktree"
   git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
   mv "$git_dir" "$git_dir.unresolved"
+  install_codex_launch_sentinel "$bin"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$launched" ]
+}
+
+@test "codex-worktree rejects linked-worktree metadata owned by another repository without launching Codex" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local foreign_repo="$BATS_TEST_TMPDIR/foreign-repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  local git_dir
+  local foreign_common_dir
+  create_linked_worktree "$repo" "$worktree"
+  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
+  git -C "$BATS_TEST_TMPDIR" init -q "$foreign_repo"
+  foreign_common_dir="$(git -C "$foreign_repo" rev-parse --path-format=absolute --git-common-dir)"
+  printf '%s\n' "$foreign_common_dir" >"$git_dir/commondir"
   install_codex_launch_sentinel "$bin"
 
   run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
@@ -1306,6 +1349,9 @@ EOF
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.local/share/chezmoi"]
 "." = "write"
 "**/*.key" = "none"
+
+[permissions.dotfiles-secure.filesystem."/home/ubuntu/.config/protected"]
+"**/credentials.json" = "deny"
 EOF
   cp "$home/.codex/config.toml" "$codex_home/config.toml"
 
@@ -1323,6 +1369,9 @@ for path in sys.argv[1:]:
     assert filesystem[":minimal"] == "read"
     assert "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" not in filesystem
     assert "/home/ubuntu/.local/share/chezmoi" not in filesystem
+    assert filesystem["/home/ubuntu/.config/protected"] == {
+        "**/credentials.json": "deny"
+    }
     assert ".git" not in filesystem[":workspace_roots"]
 PY
 }
