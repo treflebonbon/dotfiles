@@ -31,6 +31,8 @@ raw Codex / Orca の **Worktree Activation** には canonical **Runtime Adapter*
 
 managed `dotfiles-secure` profile は workspace write、protected-path deny、network policy を保持するが、workspace-relative `.git` write と dotfiles common dir の static write exception は持たない。Active Git Metadata Boundary は session 起動時にだけ materialize する。
 
+配備時の `sync-codex-managed-config` は、既存の managed profile に残る旧 absolute `…/.git = "write"` と `:workspace_roots` 内の `".git" = "write"` を managed migration として除去する。`:minimal` など他の scalar baseline は保持し、dotfiles が所有しない user-defined profile の path rule には触れない。この migration は native Codex home と明示された `CODEX_HOME` の双方へ適用する。
+
 ## Boundaries
 
 - Runtime Adapter は metadata の read-only discovery と Codex process launch だけを所有する。worktree create、branch naming、fetch、add、commit、push、PR、workflow policy は所有しない。
@@ -45,7 +47,7 @@ managed `dotfiles-secure` profile は workspace write、protected-path deny、ne
 | linked worktree の working root と Active Git Metadata Boundary | `codex-worktree` が Codex へ渡す fixed profile / `-C` / exact `-c`、ambient profile 除去、sandboxed Git write |
 | invalid context の fail-closed                                  | primary checkout / non-Git / unresolved metadata で Codex stub が未起動                                       |
 | Orca compatibility                                              | `codex-orca` の全 argv forwarding                                                                             |
-| managed profile の静的例外撤去と deny 維持                      | chezmoi rendered config                                                                                       |
+| managed profile の静的例外撤去と deny 維持                      | chezmoi rendered config と native / explicit `CODEX_HOME` の merge migration                                  |
 | runtime routing                                                 | `to-worktree`、`AGENTS.md`、`CLAUDE.md` の workflow contract tests                                            |
 
 ## Consequences

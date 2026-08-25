@@ -134,6 +134,8 @@ deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走
 
 **Codex Runtime Adapter**: `codex-worktree` は current linked worktree の physical root、absolute worktree Git dir、absolute Git common dir を inherited `GIT_*` なしで解決し、Codex の公式 `-C` / `-c` interface へ変換する。profile は ambient `CODEX_PERMISSION_PROFILE` や managed config の default に委ねず、top-level agent launch が受理する `-c 'default_permissions="dotfiles-secure"'` で固定する（`-P dotfiles-secure` は `codex sandbox` subcommand の直接検証で使う）。primary checkout、non-Git、unresolved metadata、working root / permission boundary を置換・拡張する caller argument、sandbox / hook trust を迂回する dangerous argument は fail closed とし、Git operation や workflow policy を持たない。`codex-orca` は argv をそのまま転送する compatibility entry である。managed `dotfiles-secure` config は secret-path deny と network policy を保持するが static repository Git write exception を持たず、Active Git Metadata Boundary は adapter が session ごとにだけ追加する（[ADR-0044](../docs/adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)）。
 
+`sync-codex-managed-config` は native Codex home と explicit `CODEX_HOME` の managed `dotfiles-secure` から、旧 absolute `…/.git = "write"` と `:workspace_roots` の `".git" = "write"` を除去する。`:minimal` など他の scalar baseline と user-defined profile の path rule は保持する。
+
 移植元スキルの `eval.yaml` / `tasks/`（skill 評価ハーネス）は持ち込まない。
 
 ## playwright-cli

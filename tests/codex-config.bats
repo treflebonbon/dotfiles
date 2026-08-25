@@ -1284,28 +1284,45 @@ EOF
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
 }
 
-@test "Codex config merge script strips stale concrete-path filesystem roots" {
+@test "Codex config merge script strips stale managed filesystem rules" {
   local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex" "$home/.codex"
+  local codex_home="$BATS_TEST_TMPDIR/orca-codex-home"
+  mkdir -p "$home/.config/codex" "$home/.codex" "$codex_home"
   render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   # Codex self-expands :workspace_roots into a concrete-path table and writes it
-  # back. Newer Codex then rejects its suffix-glob denies on load. The merge must
-  # drop it while keeping scalar/glob baselines like :minimal.
+  # back. Older managed config also wrote static .git rules as root and workspace
+  # scalars. The merge must drop them while keeping baselines like :minimal.
   cat >"$home/.codex/config.toml" <<'EOF'
 [permissions.dotfiles-secure.filesystem]
 ":minimal" = "read"
+"/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" = "write"
+
+[permissions.dotfiles-secure.filesystem.":workspace_roots"]
+".git" = "write"
 
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.local/share/chezmoi"]
 "." = "write"
 "**/*.key" = "none"
 EOF
+  cp "$home/.codex/config.toml" "$codex_home/config.toml"
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  ! grep -q '^\[permissions\.dotfiles-secure\.filesystem\."/home/ubuntu/\.local/share/chezmoi"\]$' "$home/.codex/config.toml"
-  grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
-  grep -q '^":minimal" = "read"$' "$home/.codex/config.toml"
+  python3 - "$home/.codex/config.toml" "$codex_home/config.toml" <<'PY'
+import sys
+import tomllib
+
+for path in sys.argv[1:]:
+    with open(path, "rb") as f:
+        config = tomllib.load(f)
+
+    filesystem = config["permissions"]["dotfiles-secure"]["filesystem"]
+    assert filesystem[":minimal"] == "read"
+    assert "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" not in filesystem
+    assert "/home/ubuntu/.local/share/chezmoi" not in filesystem
+    assert ".git" not in filesystem[":workspace_roots"]
+PY
 }
 
 @test "Codex config merge script keeps path rules in user-defined profiles" {

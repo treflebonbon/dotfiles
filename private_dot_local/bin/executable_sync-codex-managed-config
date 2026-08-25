@@ -132,10 +132,19 @@ def strip_stale_filesystem_roots(existing: dict[str, Any], managed: dict[str, An
         filesystem = profile.get("filesystem")
         if not isinstance(filesystem, dict):
             continue
-        for key in list(filesystem):
-            # Managed profiles declare only :workspace_roots. Remove legacy or
-            # self-expanded nested maps before the managed overlay is applied.
-            if isinstance(filesystem[key], dict) and key != ":workspace_roots":
+        workspace_roots = filesystem.get(":workspace_roots")
+        if isinstance(workspace_roots, dict) and workspace_roots.get(".git") == "write":
+            del workspace_roots[".git"]
+        for key, value in list(filesystem.items()):
+            # Remove Codex-expanded nested maps and the retired static Git write
+            # emitted by older managed config. Preserve other scalar baselines.
+            if isinstance(value, dict) and key != ":workspace_roots":
+                del filesystem[key]
+            elif (
+                value == "write"
+                and key.startswith("/")
+                and key.rstrip("/").endswith("/.git")
+            ):
                 del filesystem[key]
 
 
