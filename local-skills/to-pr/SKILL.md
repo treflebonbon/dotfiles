@@ -30,16 +30,21 @@ done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that pr
 - Resolve the linked issue's **Ticket Hierarchy** before drafting the PR:
   1. Read the linked issue with
      `gh issue view <issue> --json number,state,body,parent`.
-  2. If it has a native parent, read that issue with
+  2. If it has no native parent, inspect the bounded `## Parent` section. With exactly one
+     valid parent issue, complete [Hierarchy Repair](references/hierarchy-repair.md)
+     before Parent Reconciliation; a successful repair produces the native hierarchy
+     used by the remaining steps. A missing section means there is no hierarchy. A
+     present but invalid, ambiguous, or inaccessible declaration is a repair failure.
+  3. If it has a native parent, read that issue with
      `gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary`.
      GitHub native sub-issues are the source of truth; cross-check it against the ticket
      body's `## Parent`. If the hierarchy cannot be fetched or the two parent references
      are missing or disagree, do not infer a parent.
-  3. Consider only the parent's direct children. Do not recurse to a grandparent.
-  4. Read every open direct child with
+  4. Consider only the parent's direct children. Do not recurse to a grandparent.
+  5. Read every open direct child with
      `gh issue view <child> --json number,state,body`. Include each child Acceptance
      Criterion that this PR covers in the Contract and identify its ticket number.
-  5. Once the final PR is created, freeze this Ticket Hierarchy until merge. Put scope
+  6. Once the final PR is created, freeze this Ticket Hierarchy until merge. Put scope
      found during review under a separate parent issue instead of adding or reparenting
      children in this hierarchy.
 
@@ -165,11 +170,13 @@ Use the Ticket Hierarchy snapshot and Ticket Coverage from steps 1–2 to prepar
 body's `## Parent Reconciliation` section:
 
 - If there is no linked issue, record `対象なし` and omit all `Fixes` lines.
-- If the linked issue has no native parent, record `対象なし`, state the reason, and
+- If the linked issue has neither a native parent nor a body `## Parent` declaration,
+  record `対象なし`, state the reason, and
   preserve the ordinary `Fixes #N` line for the linked issue.
-- If the native hierarchy fetch or `## Parent` cross-check failed, record `未実施`,
-  explain the failure, preserve the ordinary `Fixes #N` line for the linked issue, omit
-  the parent `Fixes` line and continue creating the PR.
+- If Hierarchy Repair fails, or if the native hierarchy fetch or `## Parent` cross-check
+  fails, record `未実施`, explain the failure, and
+  preserve the ordinary `Fixes #N` line for the linked issue. Omit the parent `Fixes`
+  line and continue creating the PR.
 - Otherwise, treat an already-closed direct child as complete and an open direct child
   as complete only when it has Ticket Coverage. The **親完了条件** is satisfied only
   when every direct child is complete.
@@ -183,8 +190,9 @@ body's `## Parent Reconciliation` section:
 
 In all cases, the section records exactly one state — `確認済み`, `未実施`, or `対象なし`
 — plus the reason and the complete list of issues that the PR's closing keywords will
-close on merge. This reconciliation is one level only and never mutates issue hierarchy,
-labels, or state through the API; GitHub closes the listed issues only when the PR merges.
+close on merge. Parent Reconciliation is one level only and does not mutate labels or
+state through the API. Hierarchy Repair may add only the prevalidated missing edges
+declared in issue bodies; GitHub closes the listed issues only when the PR merges.
 Keep state labels unchanged when GitHub closes an issue.
 Repeat the Parent Reconciliation state, reason, and close targets in the completion report.
 
@@ -203,12 +211,14 @@ currently active session, so chaining it from here would not analyse anything us
 
 Invocation of this skill is authorization for the routine publication actions it
 performs: pushing the current topic branch, creating or editing the PR, uploading
-evidence images, and adding the already-reconciled `Fixes` references. Explicit
-AFK/autonomous completion authorization has the same effect. Do not ask for a second
-confirmation solely because these actions are outward-facing. This authorization does not
-cover force pushes, direct pushes to a default branch, merges, state transitions, deletions,
-releases, workflow dispatches, repository settings or secrets, or any action outside the
-user's requested scope.
+evidence images, adding the already-reconciled `Fixes` references, and adding missing
+native sub-issue edges already declared in issue bodies. Explicit AFK/autonomous completion
+authorization has the same effect. Do not ask for a second confirmation solely because
+these actions are outward-facing. This authorization covers missing edges only; it does
+not authorize changes to issue bodies, state, labels, assignees, or existing parent
+relationships. It also does not cover force pushes, direct pushes to a default branch,
+merges, deletions, releases, workflow dispatches, repository settings or secrets, or any
+action outside the user's requested scope.
 
 1. Determine whether the branch needs to be pushed and whether the evidence bundle has
    images to attach. Keep the exact list of child and parent issues that will close on
@@ -269,9 +279,9 @@ absolute path and a file list so the user can attach the images manually.
 ## Out of scope
 
 Wiki / ADR generation, change-effect graphs, auto-merge, recursive or grandparent
-reconciliation, issue-hierarchy mutation, state-label cleanup, verdict gates, evidence
-JSON schemas, and mandatory trace/video capture. Post-merge issue mutation or automation
-is also out of scope.
+reconciliation, undeclared issue-hierarchy mutation, relationship removal or reparenting,
+state-label cleanup, verdict gates, evidence JSON schemas, and mandatory trace/video
+capture. Post-merge issue mutation or automation is also out of scope.
 Also out of scope: running tests or any non-browser AC verification — that is assumed
 done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill.
 Also out of scope: invoking `harness-feedback` from this skill. The PR body's Contract /

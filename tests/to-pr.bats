@@ -3,6 +3,7 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   SKILL="$PROJECT_ROOT/local-skills/to-pr/SKILL.md"
+  HIERARCHY_REPAIR="$PROJECT_ROOT/local-skills/to-pr/references/hierarchy-repair.md"
 }
 
 @test "to-pr can be invoked by the model after implementation" {
@@ -15,6 +16,7 @@ setup() {
   local instructions
   for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
     grep -Fq 'ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない' "$instructions"
+    grep -Fq '本文で宣言済みの missing native edge の追加' "$instructions"
     ! grep -Fq 'push / PR 作成の確認は変更しない' "$instructions"
   done
 
@@ -38,6 +40,63 @@ setup() {
   grep -Fq 'freeze this Ticket Hierarchy until merge' "$SKILL"
 }
 
+@test "to-pr repairs every body-declared direct sibling before reconciliation" {
+  [ -f "$HIERARCHY_REPAIR" ]
+  grep -Fq '[Hierarchy Repair](references/hierarchy-repair.md)' "$SKILL"
+  grep -Fq 'gh api graphql --paginate --slurp' "$HIERARCHY_REPAIR"
+  grep -Fq 'issues(first: 100, after: $endCursor)' "$HIERARCHY_REPAIR"
+  grep -Fq 'excludes pull requests' "$HIERARCHY_REPAIR"
+  grep -Fq 'direct-child candidates' "$HIERARCHY_REPAIR"
+  grep -Fq 'current linked issue' "$HIERARCHY_REPAIR"
+  grep -Fq 'every missing edge' "$HIERARCHY_REPAIR"
+  grep -Fq 'replaceParent: false' "$HIERARCHY_REPAIR"
+  grep -Fq 'before Parent Reconciliation' "$HIERARCHY_REPAIR"
+}
+
+@test "Hierarchy Repair verifies both sides and fails safely" {
+  grep -Fq 'before the first mutation' "$HIERARCHY_REPAIR"
+  grep -Fq 'different native parent' "$HIERARCHY_REPAIR"
+  grep -Fq 'abort the whole repair before mutation' "$HIERARCHY_REPAIR"
+  grep -Fq 'gh issue view <candidate> --json number,state,body,parent' "$HIERARCHY_REPAIR"
+  grep -Fq 'gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary' "$HIERARCHY_REPAIR"
+  grep -Fq 'stop adding edges' "$HIERARCHY_REPAIR"
+  grep -Fq 'partially successful' "$HIERARCHY_REPAIR"
+  grep -Fq 'Parent Reconciliation as `未実施`' "$HIERARCHY_REPAIR"
+  grep -Fq 'failed issue numbers and reasons' "$HIERARCHY_REPAIR"
+  grep -Fq 'omit the parent `Fixes`' "$HIERARCHY_REPAIR"
+  grep -Fq 'continue creating the PR' "$HIERARCHY_REPAIR"
+
+  grep -Fq 'If Hierarchy Repair fails' "$SKILL"
+  grep -Fq 'neither a native parent nor a body `## Parent` declaration' "$SKILL"
+}
+
+@test "to-pr authorization covers only declared missing hierarchy edges" {
+  local authorization_section
+  authorization_section="$(sed -n '/^## 6\. Open the PR/,/^## 7\. Attach Playwright evidence/p' "$SKILL" | tr '\n' ' ' | tr -s ' ')"
+
+  [[ "$authorization_section" == *'adding missing native sub-issue edges already declared in issue bodies'* ]]
+  [[ "$authorization_section" == *'This authorization covers missing edges only'* ]]
+  [[ "$authorization_section" == *'issue bodies, state, labels, assignees, or existing parent relationships'* ]]
+  grep -Fq 'replaceParent: false' "$HIERARCHY_REPAIR"
+  ! grep -Fq 'replaceParent: true' "$HIERARCHY_REPAIR"
+  ! grep -Eq 'removeSubIssue|delete.*/sub_issue' "$HIERARCHY_REPAIR"
+}
+
+@test "project contract documents Hierarchy Repair and its safety conditions" {
+  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
+  local context="$PROJECT_ROOT/CONTEXT.md"
+  local adr="$PROJECT_ROOT/docs/adr/0027-to-pr-parent-reconciliation.md"
+
+  grep -Fq 'Hierarchy Repair' "$runtime"
+  grep -Fq 'missing edge の追加だけ' "$runtime"
+  grep -Fq '**Hierarchy Repair**' "$context"
+  grep -Fq '全 direct-child candidates' "$adr"
+  grep -Fq 'pagination' "$adr"
+  grep -Fq 'PR を除外' "$adr"
+  grep -Fq '両側から再検証' "$adr"
+  grep -Fq '既存 parent の削除・reparent' "$adr"
+}
+
 @test "to-pr closes a direct parent only with complete Ticket Coverage" {
   grep -Fq 'gh issue view <child> --json number,state,body' "$SKILL"
   grep -Fq '**Ticket Coverage**' "$SKILL"
@@ -58,11 +117,12 @@ setup() {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local context="$PROJECT_ROOT/CONTEXT.md"
   local adr="$PROJECT_ROOT/docs/adr/0027-to-pr-parent-reconciliation.md"
+  local publication_section
+  publication_section="$(sed -n '/^## 6\. Open the PR/,/^## 7\. Attach Playwright evidence/p' "$SKILL" | tr '\n' ' ' | tr -s ' ')"
 
   grep -Fq 'Invocation of this skill is authorization for the routine publication actions' "$SKILL"
   grep -Fq 'git-push-topic' "$SKILL"
-  grep -Fq 'Do not ask for a second' "$SKILL"
-  grep -Fq 'confirmation solely because these actions are outward-facing' "$SKILL"
+  [[ "$publication_section" == *'Do not ask for a second confirmation solely because these actions are outward-facing'* ]]
   ! grep -Fq 'Ask once for explicit confirmation' "$SKILL"
   ! grep -Fq 'After confirmation' "$SKILL"
   grep -Fq 'exact list of child and parent issues that will close on' "$SKILL"
