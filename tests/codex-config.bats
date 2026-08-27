@@ -1336,12 +1336,15 @@ EOF
   render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
 
   # Codex self-expands :workspace_roots into a concrete-path table and writes it
-  # back. Older managed config also wrote static .git rules as root and workspace
-  # scalars. The merge must drop them while keeping baselines like :minimal.
+  # back. Older managed config also wrote static .git rules and protected-home
+  # deny globs. The merge must drop them while keeping baselines like :minimal.
   cat >"$home/.codex/config.toml" <<'EOF'
 [permissions.dotfiles-secure.filesystem]
 ":minimal" = "read"
 "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" = "write"
+"~/.ssh/**" = "deny"
+"~/.aws/**" = "deny"
+"~/.config/gcloud/**" = "deny"
 
 [permissions.dotfiles-secure.filesystem.":workspace_roots"]
 ".git" = "write"
@@ -1369,6 +1372,12 @@ for path in sys.argv[1:]:
     assert filesystem[":minimal"] == "read"
     assert "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" not in filesystem
     assert "/home/ubuntu/.local/share/chezmoi" not in filesystem
+    assert "~/.ssh/**" not in filesystem
+    assert "~/.aws/**" not in filesystem
+    assert "~/.config/gcloud/**" not in filesystem
+    assert filesystem["~/.ssh"] == "deny"
+    assert filesystem["~/.aws"] == "deny"
+    assert filesystem["~/.config/gcloud"] == "deny"
     assert filesystem["/home/ubuntu/.config/protected"] == {
         "**/credentials.json": "deny"
     }
