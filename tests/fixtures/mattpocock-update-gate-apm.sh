@@ -46,9 +46,28 @@ if [[ " $* " == *" --update "* ]]; then
   fi
   if [[ -n "${MATT_GATE_MUTATE_NON_MATT:-}" ]]; then
     awk '
-      !replaced && /^  resolved_commit: / {
-        print "  resolved_commit: 0000000000000000000000000000000000000000 #"
+      /^- repo_url: / {
+        non_matt = $0 !~ /mattpocock\/skills$/
+      }
+      non_matt && !replaced && /^  content_hash: / {
+        print "  content_hash: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         replaced = 1
+        next
+      }
+      { print }
+    ' apm.lock.yaml >apm.lock.yaml.rewritten
+    mv apm.lock.yaml.rewritten apm.lock.yaml
+  fi
+  if [[ -n "${MATT_GATE_MUTATE_MATT_DEPLOYMENT:-}" ]]; then
+    awk '
+      /^deployments:$/ { deployments = 1 }
+      deployments && !replaced && /^  active_owner: mattpocock\/skills$/ {
+        matt_deployment = 1
+      }
+      matt_deployment && /^  content_hash: / {
+        print "  content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        replaced = 1
+        matt_deployment = 0
         next
       }
       { print }
@@ -69,6 +88,23 @@ if [[ " $* " == *" --update "* ]]; then
       }
     ' apm.lock.yaml | sort -u
   )
+  for target in .agents/skills .claude/skills; do
+    if [[ -n "${MATT_GATE_LEGACY_WORKFLOW:-}" ]]; then
+      printf '%s\n' 'Run the grilling skill.' >>"$PWD/$target/grill-with-docs/SKILL.md"
+      printf '%s\n' 'Call the Skill tool with "setup-matt-pocock-skills".' \
+        >>"$PWD/$target/code-review/SKILL.md"
+      continue
+    fi
+
+    printf '%s\n' 'Call the Skill tool twice, for "grilling" and "domain-modeling".' \
+      >>"$PWD/$target/grill-with-docs/SKILL.md"
+    printf '%s\n' 'Call the Skill tool with "grilling".' >>"$PWD/$target/grill-me/SKILL.md"
+    printf '%s\n' '---' >>"$PWD/$target/grilling/SKILL.md"
+    for skill in code-review to-spec to-tickets triage wayfinder; do
+      printf '%s\n' 'If setup is missing, tell the user to run /setup-matt-pocock-skills.' \
+        >>"$PWD/$target/$skill/SKILL.md"
+    done
+  done
   if [[ -n "${MATT_GATE_INVALID_FRONTMATTER:-}" ]]; then
     printf '%s\n' '---' 'name: ask-matt' '---' '# Body example' 'description: body-only' '---' \
       >"$PWD/.agents/skills/ask-matt/SKILL.md"

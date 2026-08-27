@@ -4,7 +4,7 @@ title: llm-agents と APM skill の更新を四つの更新単位に分ける
 description: snapshot、通常の skill payload、Design Hook、Matt Pocock workflow を個別の互換性ゲートと rollback 境界で更新する
 tags: [adr, nix, llm-agents, apm, skills, impeccable, matt-pocock]
 timestamp: 2026-08-27
-status: proposed
+status: accepted
 ---
 
 # llm-agents と APM skill の更新を四つの更新単位に分ける
@@ -73,7 +73,19 @@ Modern Web Guidanceはexact revision `457c381def89ce6213a171238f92eea63e9eaeb2`�
 
 候補runtimeを公開JSON event seamから実行したDesign Hook testは10/10で、`turn_id`付きCodex Stopがdeep-pass findingをnative schemaで返し、次のStopがsilentになることを確認した。旧both-tiers交互再報告characterizationもsilent convergenceへ更新した。managed hook testsは3/3、隔離APMのfrozen install前後でlock SHA-256は`fed402d5e258b8a7347b8995d0396d5be72da39856157a16f8554ea5feb1d451`のまま、auditはdriftなしで10/10 checksを通過した。
 
-これによりImpeccable更新単位も採用できる。Matt Pocock managed setは後続issueの互換性ゲート待ちであるため、本ADR全体のstatusは`proposed`を維持する。
+これによりImpeccable更新単位も採用できる。
+
+### Matt Pocock managed set（Issue #187）
+
+実装入口で `mattpocock/skills` の default branch が `main`、HEAD が `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76` であることを一度だけ再確認し、この revision を immutable candidate として固定した。plugin version は `1.2.3`、公式 membership は既存と同じ25 skillである。`implement-spec` と `retro` は in-progress bucket にのみ存在し plugin manifest 外であるため、APM collectionには追加していない。
+
+candidate payload の content hash は `sha256:30aaf1538e75a717db8608778e06e1c47ce38578f46fe88e53e599818cf30c9f` で、明示的な Skill tool 呼出し、frontier round の horizontal rule、setup 未済時に `setup-matt-pocock-skills` を自動実行せずユーザーへ案内する文面を含む。Builder-Evaluator、standalone code review、triage write、model-invoked safety、Review Round のローカル上書きは `AGENTS.md` / `CLAUDE.md` / runtime contract の既存 authority を維持した。
+
+実候補で ordered gate を走らせた際、Matt package block 外の deployment ledger hash まで non-Matt drift と誤認する既存 normalizer の欠陥が初めて露出した。normalizer は owner が `mattpocock/skills` だけの record のみ candidate-owned として除外し、複数 owner と真の non-Matt drift は比較対象に残すよう修正した。deterministic gate tests でこの許容と拒否を両方固定している。
+
+APM frozen install は lock を書き換えず、audit は10/10、関連 contract tests は48/48、full Bats suite は396/396（candidate runtimeを明示しないImpeccable materialization 9件はskip）、Claude/Codex両targetの25-skill discoveryとworkflow payload contract、isolated chezmoi dry-runが成功した。過去の4 test failureは再現せず、例外にしていない。live skill directoryへのapplyはこのsource gateでは行わず、親initiativeの最終配備境界に残す。
+
+四つの更新単位がそれぞれの互換性ゲートを通過したため、本ADRをacceptedとする。
 
 ## Verification boundary
 

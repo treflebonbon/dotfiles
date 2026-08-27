@@ -25,9 +25,10 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 - raw issue: `triage` で ready-for-agent 化してから `implement`
 - 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review` → `to-pr`
 
-## v1.2.3 workflow contract
+## Matt Pocock workflow contract
 
-- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、各 round の人間の回答を待つ。事実は環境から調べ、decision は推測して進めない。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
+- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round の人間の回答を待ち、事実は環境から調べ、decision は推測して進めない。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
+- cross-skill 呼出しは Skill tool と skill 名を明示する。setup 情報が未配備なら `setup-matt-pocock-skills` を別の user-invoked skill から自動実行せず、ユーザーへ明示起動を案内する。
 - phase boundary の公式5択は `Continue → /clear → /handoff → Subagent → /compact`。次 phase が現 phase を primary source として必要、または smart zone（目安 ~150k tokens）に収まるなら `Continue`。context が無関係なら `/clear`。portability が必要な場合だけ `/handoff`。AFK の scoped task は `Subagent`。同じ harness / directory の relevant context は `/compact` で引き継ぐ。
 - Builder-Evaluator は同じ worktree/branch で ticket をまたいで継続できる。ticket 境界でも同じ harness / directory なら `/compact`、portability が必要な場合だけ `/handoff` とし、既存の tdd / code-review / Verification Matrix / `to-pr` 一回の境界を維持する。
 - model-invoked discipline は current repository の実装契約内で動く。外部書込みは親 Contract または明示的に起動した user-invoked skill の範囲に限り、機密情報・credential・CI secret を読み出し、出力、commit、無断変更しない。権限拡大や permission bypass は推測せず、runtime profile に従い必要ならユーザーへ戻す。
