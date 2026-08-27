@@ -87,11 +87,16 @@ let
   # 2.1.239: extensions.worktreeConfig が設定された repo で Linux sandbox が存在しない .git/config.worktree を
   #          unreadable と誤判定し、sandbox 化された git コマンドを壊す不具合、working directory 削除後の
   #          hook が posix_spawn ENOENT で失敗する不具合、ListAgents/SendMessage の自己名解決と live teammate
-  #          一覧を修正。teammateMode: auto と worktree 隔離の信頼性に直結するため床上げする。2.1.240-2.1.241
-  #          は release note に床上げ根拠となる具体記述がないが、pin 自体がここまで進むため床も揃える。
+  #          一覧を修正。teammateMode: auto と worktree 隔離の信頼性に直結するため床上げする。
+  # 2.1.243: rootless/user namespace の cross-session messaging、background subagent wake、hook command
+  #          条件の誤発火を修正。
+  # 2.1.246: 人手作成 worktree の retention、malformed shell command の approval、third-party gateway
+  #          credential の telemetry 境界を修正。
+  # 2.1.247: chezmoi/Nix 管理 settings symlink、subagent fallback、hook output overflow、--agent session の
+  #          compact system prompt を修正。この repo の配備・worktree・多 agent 契約に直結するため床上げする。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.239";
-  minCodex = "0.149.0";
+  minClaudeCode = "2.1.247";
+  minCodex = "0.150.0";
 
   claudeCode =
     let
@@ -136,7 +141,11 @@ let
         修正する 2.1.233-2.1.237 に加え、headers helper の consent/trust、継承 credential の分離、MCP 初期化順序、
         memory/session/Remote Control の信頼性を修正する 2.1.238 に加え、extensions.worktreeConfig 設定 repo での
         Linux sandbox の .git/config.worktree 誤判定・working directory 削除後の hook ENOENT・
-        ListAgents/SendMessage の自己名解決と live teammate 一覧を修正する 2.1.239 を根拠に、
+        ListAgents/SendMessage の自己名解決と live teammate 一覧を修正する 2.1.239 に加え、rootless container の
+        cross-session messaging、background subagent wake、hook command 条件の誤発火を修正する 2.1.243、
+        人手作成 worktree の retention、malformed shell command の approval、third-party gateway credential の
+        telemetry 境界を修正する 2.1.246、chezmoi/Nix 管理 settings symlink、subagent fallback、hook output
+        overflow、--agent session の compact system prompt を修正する 2.1.247 を根拠に、
         現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
@@ -173,7 +182,9 @@ let
         品質ベースラインとして要求します。さらに、denied / unreadable path の sandbox fail-closed、
         MCP OAuth 再認証後の server recovery、plugin/skill root loading、resume 時の working directory と
         approval policy 復元を含む 0.148.0 に加え、agents dashboard、cwd commands、queue、resume/fork の permission
-        profile 復元、skill catalog、MCP hooks/async message、skill/OAuth/sandbox hardening を含む 0.149.0 を
+        profile 復元、skill catalog、MCP hooks/async message、skill/OAuth/sandbox hardening を含む 0.149.0 に加え、
+        untrusted project の project-level AGENTS.md 無視、permission update 後の managed deny-read 維持、
+        credential redaction、remote MCP auth/startup、Unix shutdown 修正を含む 0.150.0 を
         品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
