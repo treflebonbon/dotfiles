@@ -55,7 +55,7 @@ cleanup_managed_skills() {
   [ -n "$pin_line" ]
   ! grep -Eq 'mattpocock/skills#(@latest|main|v[0-9])' "$MANIFEST"
   [ "$(grep -Fc "resolved_commit: $revision" "$LOCK")" -eq 1 ]
-  grep -Fq 'content_hash: sha256:7c5f630f29793c83e7ed0998b07689fd022709c243e8d36174fd06a98a9029f2' "$LOCK"
+  grep -Fq 'content_hash: sha256:30aaf1538e75a717db8608778e06e1c47ce38578f46fe88e53e599818cf30c9f' "$LOCK"
   grep -Fq 'package_type: marketplace_plugin' "$LOCK"
   ! grep -R -Eiq 'npx[[:space:]]+skills|enabledPlugins.*mattpocock|mattpocock.*enabledPlugins' \
     "$PROJECT_ROOT/private_dot_claude" "$PROJECT_ROOT/private_dot_config" 2>/dev/null
@@ -159,6 +159,27 @@ cleanup_managed_skills() {
     "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
   [ "$status" -ne 0 ]
   [[ "$output" == *"frozen install rewrote"* ]]
+}
+
+@test "managed-set update gate accepts Matt-owned deployment metadata changes" {
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_MUTATE_MATT_DEPLOYMENT=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -eq 0 ]
+}
+
+@test "managed-set update gate rejects legacy workflow invocation semantics" {
+  run env \
+    PATH="$FAKE_BIN:$PATH" \
+    MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_LEGACY_WORKFLOW=1 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"candidate workflow payload"* ]]
 }
 
 @test "managed-set update gate rejects extra discovered skills" {

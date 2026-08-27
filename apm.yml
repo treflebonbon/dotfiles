@@ -30,9 +30,9 @@ dependencies:
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2
     # mizchi/skills
     - mizchi/skills/meta/empirical-prompt-tuning
-    # mattpocock/skills v1.2.3 — 公式 plugin collection の full set を一括管理。
-    # exact commit を pin し、APM の lock / frozen install で Claude と Codex を同期する。
-    - mattpocock/skills#6acc160e4e0cd062dbbbd7a1b26ae92855edf07e
+    # mattpocock/skills v1.2.3 plugin collection — 公式 full set を一括管理。
+    # 検証済み default-branch revision を pin し、APM の lock / frozen install で同期する。
+    - mattpocock/skills#6654f6b60cd9d5be8b54c6fafe44346dabeb3b76
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に

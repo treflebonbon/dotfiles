@@ -227,6 +227,8 @@ Codex 0.147.0 の release note には、不慣れな local project への明示�
 
 同日の Impeccable 更新単位では、4.1.2 tagの exact revision `63b04e2530f5c7b41ea83c133daab24f34912456`、selected content hash `sha256:eaf9d73a3348cbda6774b1a8268645c17f4d8cf5b5231743d2c44d71212cd755`を採用した。Codex Stop の旧`additionalContext`変換を除去し、`turn_id`を認識するcandidate runtimeのtop-level `decision` / `reason`をfail-openでpass-throughする。Claude Stopのschema、PostToolUse immediate tier、Stop deep pass、quiet/filter/dedupe/threshold/re-entry契約は維持し、both-tiers Stopは初回報告後silentに収束する。APM 0.28.0の隔離runtimeでDesign Hook 10/10、managed hook 3/3、frozen lock SHA-256 `fed402d5e258b8a7347b8995d0396d5be72da39856157a16f8554ea5feb1d451`のno-rewrite、audit 10/10を通過した。non-Impeccable lock entryはIssue #185 baselineから変更していない（→ [ADR-0045](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md)）。
 
+同日の Matt Pocock workflow 更新単位では、上流 default branch `main` の HEAD `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76` を一度だけ固定し、plugin version `1.2.3` と25-skill membershipを維持した。plugin未収録の`implement-spec` / `retro`は導入していない。selected content hashは`sha256:30aaf1538e75a717db8608778e06e1c47ce38578f46fe88e53e599818cf30c9f`で、明示的なSkill tool呼出し、frontier question separator、setup未済時のuser pointerを含む。専用ordered gateはfrozen no-rewrite、audit 10/10、related contract 48/48、full Bats 396/396（Impeccable materialization 9件skip）、Claude/Codex両targetの25-skill discovery、isolated chezmoi dry-runを通過した。live skill directoryへのapplyは親initiativeの最終配備境界に残す（→ [ADR-0045](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md)）。
+
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
 `settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。

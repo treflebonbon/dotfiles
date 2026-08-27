@@ -44,7 +44,7 @@ setup() {
 @test "APM pins the official Matt Pocock v1.2.3 full set" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local revision="6acc160e4e0cd062dbbbd7a1b26ae92855edf07e"
+  local revision="6654f6b60cd9d5be8b54c6fafe44346dabeb3b76"
   local skill
 
   grep -Fq "mattpocock/skills#$revision" "$manifest"

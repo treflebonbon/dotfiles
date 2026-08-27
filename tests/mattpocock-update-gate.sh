@@ -145,11 +145,34 @@ pin_baseline_dependencies() {
 
 normalize_lock() {
   awk '
+    function flush_deployment() {
+      if (deployment == "") return
+      if (!(matt_owner && !other_owner && matt_active)) printf "%s", deployment
+      deployment = ""
+      matt_owner = 0
+      other_owner = 0
+      matt_active = 0
+    }
     /^generated_at:/ { next }
     /^  resolved_ref:/ { next }
+    /^deployments:$/ {
+      skip = 0
+      in_deployments = 1
+      print
+      next
+    }
+    in_deployments {
+      if (/^- kind: /) flush_deployment()
+      deployment = deployment $0 ORS
+      if (/^  - mattpocock\/skills$/) matt_owner = 1
+      else if (/^  - /) other_owner = 1
+      if (/^  active_owner: mattpocock\/skills$/) matt_active = 1
+      next
+    }
     /^- repo_url: mattpocock\/skills$/ { skip = 1; next }
     skip && /^- repo_url:/ { skip = 0 }
     !skip { print }
+    END { flush_deployment() }
   ' "$1"
 }
 
@@ -285,6 +308,21 @@ discover_skills() {
   done | sort
 }
 
+validate_workflow_payload() {
+  local root=$1 skill
+
+  grep -Fxq 'Call the Skill tool twice, for "grilling" and "domain-modeling".' \
+    "$root/grill-with-docs/SKILL.md" || return 1
+  grep -Fxq 'Call the Skill tool with "grilling".' "$root/grill-me/SKILL.md" || return 1
+  [[ $(grep -c '^---$' "$root/grilling/SKILL.md") -ge 3 ]] || return 1
+
+  for skill in code-review to-spec to-tickets triage wayfinder; do
+    grep -Fq 'tell the user to run' "$root/$skill/SKILL.md" || return 1
+    grep -Fq '/setup-matt-pocock-skills' "$root/$skill/SKILL.md" || return 1
+  done
+  ! grep -R -Fq 'Call the Skill tool with "setup-matt-pocock-skills"' "$root"
+}
+
 snapshot_home_paths() {
   local path relative
   while IFS= read -r path; do
@@ -407,6 +445,8 @@ discover_skills "$runtime/.claude/skills" "$expected_target_claude" >"$discovere
   reject "Claude discovery target contains an invalid skill payload"
 cmp "$actual_agents" "$discovered_agents" || reject "Codex discovery does not match deployed skill directories"
 cmp "$actual_claude" "$discovered_claude" || reject "Claude discovery does not match deployed skill directories"
+validate_workflow_payload "$runtime/.agents/skills" || reject "Codex candidate workflow payload violates the invocation contract"
+validate_workflow_payload "$runtime/.claude/skills" || reject "Claude candidate workflow payload violates the invocation contract"
 
 cleanup_skills=$(mktemp "$runtime/cleanup-skills.XXXXXX")
 cleanup_managed_skills "$CLEANUP_SCRIPT" >"$cleanup_skills"

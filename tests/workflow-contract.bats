@@ -8,7 +8,8 @@ setup() {
 @test "grilling uses frontier rounds and waits for human decisions" {
   local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
 
-  grep -Fq 'frontier round でまとめて提示し、各質問へ推奨を添え、各 round の人間の回答を待つ' "$RUNTIME"
+  grep -Fq 'frontier round でまとめて提示し、各質問へ推奨を添え' "$RUNTIME"
+  grep -Fq '各 round の人間の回答を待ち' "$RUNTIME"
   grep -Fq '未回答の decision を推測して先へ進まない' "$RUNTIME"
   grep -Fq 'In each round, ask every decision whose prerequisites are' "$skill"
   grep -Fq "wait for the human's answers" "$skill"
@@ -35,6 +36,22 @@ setup() {
   grep -Fq 'ticket 境界で relevant context が同じ harness / directory にあるなら `/compact`' "$RUNTIME"
   grep -Fq '移植性が必要な場合だけ `/handoff`' "$RUNTIME"
   grep -Fq '`tdd` の red-green、commit、`code-review`、full verification の境界' "$RUNTIME"
+}
+
+@test "local workflow overrides preserve triage, review base, and Review Round authority" {
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq '`triage` は推薦根拠の read-only 検証' "$instructions"
+    grep -Fq 'standalone で base が不明な場合は確認する' "$instructions"
+    grep -Fq '`gh-review-thread` に統一する' "$instructions"
+    grep -Fq '1つの Review Round' "$instructions"
+    grep -Fq '`git-push-topic`' "$instructions"
+  done
+
+  grep -Fq '`triage` は推薦根拠を得る read-only 検証' "$RUNTIME"
+  grep -Fq 'standalone で fixed point が不明な場合だけ質問する' "$RUNTIME"
+  grep -Fq '専用 CLI `gh-review-thread` に統一する' "$RUNTIME"
+  grep -Fq '選択 thread 群の Review Round' "$RUNTIME"
+  grep -Fq '`git-push-topic`' "$RUNTIME"
 }
 
 @test "instruction layers guard model-invoked external writes, secrets, and permissions" {
@@ -74,9 +91,22 @@ setup() {
   ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
 
   for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq 'v1.2.3 workflow contract' "$instructions"
+    grep -Fq 'Matt Pocock workflow contract' "$instructions"
     grep -Fq '共有する workflow / safety contract は整合させる' "$instructions"
   done
+}
+
+@test "managed workflow revision uses explicit invocation, round separators, and setup pointers" {
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$instructions"
+    grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$instructions"
+    grep -Fq '別の user-invoked skill から自動実行せず' "$instructions"
+  done
+
+  grep -Fq '6654f6b60cd9d5be8b54c6fafe44346dabeb3b76' "$RUNTIME"
+  grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$RUNTIME"
+  grep -Fq 'Skill tool と skill 名を明示する' "$RUNTIME"
+  grep -Fq '`setup-matt-pocock-skills` を自動実行せず' "$RUNTIME"
 }
 
 @test "to-worktree routes representative runtime owners through one Worktree Entry Point" {
