@@ -1,12 +1,11 @@
 lockfile_version: '1'
-generated_at: '2026-08-27T08:00:03.482624+00:00'
+generated_at: '2026-08-27T09:26:11.914299+00:00'
 apm_version: 0.28.0
 dependencies:
 - repo_url: anthropics/skills
   name: pdf
   host: github.com
   resolved_commit: 3b3fad96af16a10759d930941b4520ba0c40edae
-  resolved_ref: 3b3fad96af16a10759d930941b4520ba0c40edae
   version: unknown
   virtual_path: skills/pdf
   is_virtual: true
@@ -68,7 +67,6 @@ dependencies:
   name: skill-creator
   host: github.com
   resolved_commit: 3b3fad96af16a10759d930941b4520ba0c40edae
-  resolved_ref: 3b3fad96af16a10759d930941b4520ba0c40edae
   version: unknown
   virtual_path: skills/skill-creator
   is_virtual: true
@@ -155,7 +153,6 @@ dependencies:
   name: effect-ts
   host: github.com
   resolved_commit: 28822c9e19998876a6b0e0d97877442012ed4391
-  resolved_ref: 28822c9e19998876a6b0e0d97877442012ed4391
   version: unknown
   virtual_path: skills/effect-ts
   is_virtual: true
@@ -1109,7 +1106,6 @@ dependencies:
   name: empirical-prompt-tuning
   host: github.com
   resolved_commit: 7a0d72866a0bb3e9ac3e2768c328b09ba2bc40c4
-  resolved_ref: 7a0d72866a0bb3e9ac3e2768c328b09ba2bc40c4
   version: unknown
   virtual_path: meta/empirical-prompt-tuning
   is_virtual: true
@@ -2331,7 +2327,6 @@ dependencies:
   name: shadcn
   host: github.com
   resolved_commit: 683a5a9b370acdb7785a0529434e6a3b8c7e0441
-  resolved_ref: 683a5a9b370acdb7785a0529434e6a3b8c7e0441
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2404,8 +2399,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 9c01e09ecc9d3c1203968ace9945d16edfb35dd2
-  resolved_ref: 9c01e09ecc9d3c1203968ace9945d16edfb35dd2
+  resolved_commit: 026389a3bc03da03ca2d65295e805493712b0774
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2440,8 +2434,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 9c01e09ecc9d3c1203968ace9945d16edfb35dd2
-  resolved_ref: 9c01e09ecc9d3c1203968ace9945d16edfb35dd2
+  resolved_commit: 026389a3bc03da03ca2d65295e805493712b0774
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2459,7 +2452,6 @@ dependencies:
   name: supabase-postgres-best-practices
   host: github.com
   resolved_commit: 8331f910845103c08d51f6ca1d86ebb7d1f745e3
-  resolved_ref: 8331f910845103c08d51f6ca1d86ebb7d1f745e3
   version: unknown
   virtual_path: skills/supabase-postgres-best-practices
   is_virtual: true
@@ -2617,7 +2609,6 @@ dependencies:
   name: vercel-composition-patterns
   host: github.com
   resolved_commit: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
-  resolved_ref: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
   version: unknown
   virtual_path: skills/composition-patterns
   is_virtual: true
@@ -2687,7 +2678,6 @@ dependencies:
   name: vercel-react-best-practices
   host: github.com
   resolved_commit: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
-  resolved_ref: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
   version: unknown
   virtual_path: skills/react-best-practices
   is_virtual: true
@@ -3005,7 +2995,6 @@ dependencies:
   name: vercel-react-view-transitions
   host: github.com
   resolved_commit: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
-  resolved_ref: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
   version: unknown
   virtual_path: skills/react-view-transitions
   is_virtual: true
@@ -3051,7 +3040,6 @@ dependencies:
   name: web-design-guidelines
   host: github.com
   resolved_commit: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
-  resolved_ref: dd089a8c752c966dee8bf0f27cb625ba193ffd9e
   version: unknown
   virtual_path: skills/web-design-guidelines
   is_virtual: true
@@ -3069,7 +3057,6 @@ dependencies:
   name: find-skills
   host: github.com
   resolved_commit: 435076e78988e1e6ec40d00b0b1d76bdbbc5419a
-  resolved_ref: 435076e78988e1e6ec40d00b0b1d76bdbbc5419a
   version: unknown
   virtual_path: skills/find-skills
   is_virtual: true

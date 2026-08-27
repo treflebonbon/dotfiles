@@ -20,20 +20,22 @@ status: accepted
 Matt Pocock managed set の更新は、次の ordered gate を全て通過した候補だけを source に採用する。
 
 1. **隔離 runtime**: candidate revision を一つの exact commit として一時ディレクトリへコピーした manifest から materialize する。live home、`~/.agents/skills`、`~/.claude/skills` は使わない。実行入口は `tests/mattpocock-update-gate.sh` とし、accepted lock も隔離 runtime にコピーする。
-2. **lock generation**: gate は candidate 以外の依存を accepted lock の `resolved_commit` で一時 manifest 内だけ pin し、candidate manifest の Matt 行以外を変更していないことを先に比較する。その上で `apm install --update --target claude,codex --https` で生成された lock を正本とする。手書きの hash や `apm lock` 単体の結果は採用しない。生成後の lock から Matt collection record と、owner が `mattpocock/skills` だけの deployment ledger record を除外して accepted lock と比較する。複数 owner の record は除外せず、候補以外の依存や deployment が変わった場合は candidate を reject する。APM が pinned dependency に補う冗長な `resolved_ref` は `resolved_commit` と一致することを別検査した上で比較から除外する。つまり非 Matt dependency の再解決による drift は採用しない。
+2. **lock generation**: gate は candidate 以外の依存を accepted lock の `resolved_commit` で一時 manifest 内だけ pin し、candidate manifest の Matt 行以外を変更していないことを先に比較する。その上で `apm install --update --target claude,codex --https` から検証用lockを生成する。手書きの hash や `apm lock` 単体の結果は使わない。生成後の lock から Matt collection record と、owner が `mattpocock/skills` だけの deployment ledger record を除外して accepted lock と比較する。複数 owner の record は除外せず、候補以外の依存や deployment が変わった場合は candidate を reject する。APM が一時 pin に補う`resolved_ref`は`resolved_commit`と一致することを別検査した上で比較から除外する。この検証用lockは実manifestよりexact pinが多い作業用evidenceであり、そのままsourceへ採用しない。
 3. **frozen install**: 生成 lock の hash を保存して `apm install --frozen --target claude,codex --https` を再実行し、lock が書き戻されないことを確認する。
 4. **audit**: 同じ隔離 runtime で `apm audit --ci` を実行し、source、lock、materialized payload の drift がないことを確認する。
 5. **skill discovery**: `.agents/skills` と `.claude/skills` の full set が一致し、各 target の `*/SKILL.md` を discovery probe で読み、先頭の `---` で囲まれた frontmatter block 内に `name` / `description` が存在することを disposable runtime で確認する。さらに、cross-skill 呼出しが Skill tool を明示すること、frontier round の複数質問が horizontal rule で区切られること、setup 未済時に `setup-matt-pocock-skills` を自動実行せずユーザーへ案内することを materialized payload で検証する。Claude / Codex CLI の対話的 loader はこの gate から起動せず、既存の最高 seam である managed target layout と payload を検証する。
 6. **workflow contract tests**: candidate-specific payload evaluation is complete at the isolated audit and discovery steps above. `tests/apm-runtime.bats`、`tests/run_onchange_before_remove-orphan-claude-skills.bats`、`tests/workflow-contract.bats` と全 `bats tests/` は、candidate payloadを直接 loaderへ渡す工程ではなく、source側の manifest / cleanup / instruction contract と repository regression を検証する後段の disposable test boundary として実行する。full set、cleanup ownership、workflow safety の境界を同じ検証 matrix で追跡する。
 7. **chezmoi dry-run**: isolated HOME 内で `chezmoi --source "$SOURCE_DIR" init --no-tty --guess-repo-url=false` により template data を生成し、続けて `chezmoi --source "$SOURCE_DIR" apply --dry-run` を実行する。dry-run 前後の isolated HOME の path、regular file の SHA-256、symlink target の snapshot が一致することも強制し、live apply や対象 HOME への書き込みをこの gate に含めない。
+8. **native lock adoption**: ordered gateが成功した後、実際に採用するunpinned candidate manifestを新しい隔離runtimeで`apm install --target claude,codex --https`へ渡し、source候補のnative lockを生成する。non-Matt dependencyのselected content hashがaccepted lockから変われば別更新単位として再評価し、revision-only movementだけならrevisionとhash不変をdecision recordへ記録する。同じmanifestでfrozen installのSHA-256不変とauditを再確認し、manifestのexact pin以外に`resolved_ref`を持たない生成物だけをsourceへ採用する。
 
-この順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、Matt 単独所有 deployment metadata の許容、non-Matt drift の拒否、full-set discovery、workflow payload、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。テスト用の fake `bats` は gate が同じ Bats fileを再帰的に起動することだけを防ぎ、実 APM 評価の `bats tests/` は candidate runtime と分離した disposable test HOME / XDG directory で全テストを実行する。Playwright browser cache は既存の cache を read-only 参照し、live home/config はテスト対象にしない。
+1〜7の順序は `tests/mattpocock-update-gate.bats` が実際に実行し、APM の呼び出し、isolated HOME、lock no-rewrite、Matt 単独所有 deployment metadata の許容、non-Matt drift の拒否、full-set discovery、workflow payload、native / universal route の拒否を検証する。Bats は deterministic な fake runtime で gate の順序と失敗境界を検証し、採用候補の実 APM 評価では同じ入口を fake なしで実行する。8はgate成功後のsource採用境界で、`tests/apm-runtime.bats`がnative lock shapeとactual revision / content hashを固定する。テスト用の fake `bats` は gate が同じ Bats fileを再帰的に起動することだけを防ぎ、実 APM 評価の `bats tests/` は candidate runtime と分離した disposable test HOME / XDG directory で全テストを実行する。Playwright browser cache は既存の cache を read-only 参照し、live home/config はテスト対象にしない。
 
 候補は次の条件を満たさない限り reject する。
 
 - `@latest`、`main`、未固定の tag、per-skill の個別 pin は使わない。
 - Claude native `enabledPlugins` や universal `npx skills` route を managed set の配布経路に追加しない。
 - manifest、lock、runtime deployment、cleanup、instruction layer、tests の一部だけを更新しない。
+- 一時pinを含むgateの検証用lockをsourceへコピーしない。
 - gate のどれか一つでも失敗した場合は accepted pair を変更せず、候補の partial materialization を commit しない。
 
 rollback は直前の accepted manifest / lock pair を保持したまま、候補 commit を `git revert` で戻す。live home の削除や手書き lock の復元は rollback 手順にしない。
@@ -50,7 +52,7 @@ rollback は直前の accepted manifest / lock pair を保持したまま、候�
 
 ## Consequences
 
-- accepted source は常に一つの exact commit と、その commit から生成された lock / deployment pair になる。
+- accepted source は常に一つの exact Matt commit と、実際のunpinned manifestから生成されたnative lock / deployment pairになる。
 - upstream の更新速度より、隔離 materialization と cross-file contract の再現性を優先する。
 - 旧20 skill rename-only 調査は候補選定の履歴として残るが、現在の採用条件や full-set の acceptance criterion ではない。
 - discovery の実機挙動や live home への apply は、isolated gate の成功後に別途人間が確認する。未確認の live behavior を source gate の成功とは扱わない。

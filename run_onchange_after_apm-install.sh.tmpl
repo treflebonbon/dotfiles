@@ -35,7 +35,10 @@ if ! command -v apm >/dev/null 2>&1; then
 fi
 
 cd "$HOME"
-apm install --frozen
+# lock 生成・検証時と同じ target / transport を再現する。省略すると
+# floating dependency が別条件で再解決され、frozen install が live lock を
+# 書き戻して chezmoi source との drift を作る。
+apm install --frozen --target claude,codex --https
 # apm.yml から除去されたパッケージ（撤去済み skill/plugin）の deployed_files を
 # 削除する。apm install --frozen は新規/更新分の反映のみで、不要になった
 # パッケージの実体（skills/agents/commands 配下）は自動削除しないため必須。
