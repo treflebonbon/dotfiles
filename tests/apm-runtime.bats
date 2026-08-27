@@ -57,19 +57,24 @@ setup() {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#7fc6dea333869e23f58bf9e9861010e9ba589e5e' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#7a3d0ca45d2f6a00bf35cb3c525734a36d55a834' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
-  ! grep -Fq 'shadcn-ui/ui/skills/shadcn#25be24cca34d06eed29a4779c3f48c4816aa812c' "$manifest"
+  ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
   ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"
-  ! grep -Fq 'stablyai/orca/skills/computer-use#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$manifest"
-  ! grep -Fq 'stablyai/orca/skills/orchestration#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$manifest"
+  ! grep -Fq 'stablyai/orca/skills/computer-use#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
+  ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
-  grep -Fq 'resolved_commit: 460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$lock"
-  grep -Fq 'content_hash: sha256:8951bdfc695fb4d9c5966ecf6b4a9bcc921a6a0a20b2b237b1619735fec0265d' "$lock"
-  grep -Fq 'resolved_commit: 7fc6dea333869e23f58bf9e9861010e9ba589e5e' "$lock"
-  grep -Fq 'content_hash: sha256:7e361522d093e36666b234e3f0a4eaae11bd1a160de4bbfd6baea9a3228c595a' "$lock"
+  grep -Fq 'resolved_commit: 457c381def89ce6213a171238f92eea63e9eaeb2' "$lock"
+  grep -Fq 'content_hash: sha256:07775fbfaed98fcf50795256434f646da296311bc10dd54f2de29075eca9095b' "$lock"
+  grep -Fq 'resolved_commit: 7a3d0ca45d2f6a00bf35cb3c525734a36d55a834' "$lock"
+  grep -Fq 'content_hash: sha256:2493dc60c3917d2e1153cd60d9e4df771b2775f64f3e17cbb1c2f1d011f888f3' "$lock"
+  grep -Fq 'resolved_commit: 683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$lock"
+  grep -Fq 'content_hash: sha256:8b8c1296ad947a237b32c21857837357f29197c53722131758777c80d26ed1ad' "$lock"
+  [ "$(grep -Fc 'resolved_commit: 9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$lock")" -eq 2 ]
+  grep -Fq 'content_hash: sha256:afe48be623c1f6190ade7dacc4c1d334d4150b503ed00b28dda23a499e5bdc30' "$lock"
+  grep -Fq 'content_hash: sha256:b5c364878fb07d21a369f091f2e96b823da94308b15b39636f2585d8b5621b51' "$lock"
   [ "$(grep -Fc 'resolved_commit: 5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$lock")" -eq 1 ]
   grep -Fq 'content_hash: sha256:cca6a9098e0dff08ce6fef999da77d98e94255e826b8b9f8132749b5da66dad2' "$lock"
   ! grep -Fq 'resolved_commit: 0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$lock"
@@ -112,8 +117,23 @@ setup() {
   ' "$lock")"
 
   [ -n "$remotion_entry" ]
-  grep -Fq 'resolved_commit: 7fc6dea333869e23f58bf9e9861010e9ba589e5e' <<<"$remotion_entry"
-  grep -Fq 'content_hash: sha256:7e361522d093e36666b234e3f0a4eaae11bd1a160de4bbfd6baea9a3228c595a' <<<"$remotion_entry"
+  grep -Fq 'resolved_commit: 7a3d0ca45d2f6a00bf35cb3c525734a36d55a834' <<<"$remotion_entry"
+  grep -Fq 'content_hash: sha256:2493dc60c3917d2e1153cd60d9e4df771b2775f64f3e17cbb1c2f1d011f888f3' <<<"$remotion_entry"
+}
+
+@test "APM refresh record distinguishes payload changes from revision-only movement" {
+  local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
+  local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md"
+  local harness="$PROJECT_ROOT/runtime/skill-harness.md"
+
+  grep -Fq '457c381def89ce6213a171238f92eea63e9eaeb2' "$adr"
+  grep -Fq '07775fbfaed98fcf50795256434f646da296311bc10dd54f2de29075eca9095b' "$adr"
+  grep -Fq '7a3d0ca45d2f6a00bf35cb3c525734a36d55a834' "$adr"
+  grep -Fq '2493dc60c3917d2e1153cd60d9e4df771b2775f64f3e17cbb1c2f1d011f888f3' "$adr"
+  grep -Fq '683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$adr"
+  grep -Fq '9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$adr"
+  grep -Fq 'revision-only' "$runtimes"
+  grep -Fq 'd43138a744099027b61ad50150b4a36246f747214d23761c9f970b3a38d03720' "$harness"
 }
 
 @test "APM runtime deploy targets remain git-ignored" {

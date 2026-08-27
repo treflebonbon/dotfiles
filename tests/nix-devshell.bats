@@ -212,7 +212,7 @@ PS
 
   grep -Fq '4a9441120caf6c6aff273af68995267a35c20fcd' "$adr"
   grep -Fq '4a9441120caf6c6aff273af68995267a35c20fcd' "$flake"
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2' "$manifest"
 }
 
 @test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
