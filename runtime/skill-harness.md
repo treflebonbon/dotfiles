@@ -94,11 +94,11 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 
 **Impeccable**: UI の設計・評価・改善を担う user-invoked / model-invoked skill。検証済み commit に pin し、共有ハブ経由で Codex / Antigravity、Claude skill dir 経由で Claude Code へ配布する。新規 UI の create / shape flow は `PRODUCT.md` / `DESIGN.md` の context setup へ誘導し、既存 UI の scoped 改善は context 文書がなくてもブロックしない。直接の前身である `frontend-design` は責務の重複を避けるため撤去した。
 
-**Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の固定 runtime を、存在確認後に `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。runtime 側は stdin の `hook_event_name` で振り分ける。
+**Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の固定 runtime を、存在確認後に `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。runtime 側は stdin の `hook_event_name` でイベントを、`turn_id` で Codex を判別する。Claude Stop は従来の `hookSpecificOutput.additionalContext`、Codex Stop は native の top-level `decision` / `reason` を返し、managed command は両方を fail-open でそのまま通す。
 
 検出ルールは二層で、**両方を配線して初めて全ルールが届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier だけ — 壊れた出力・contrast・design-system drift など、その場で直すべき機械的な指摘を編集箇所へ返す。コピーの調子・パレットや字組みの趣味・レイアウトの律動は `Stop` へ先送りされ、セッション中に触れた全 UI ファイルを full rule set で再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。`Stop` は `stop_hook_active` を見て再入時は即座に抜けるため、ターンが延命ループに入ることはない。
 
-**既知の上流不具合（採用pin `5a149f3f` 時点、実測）**: 1 つのファイルが immediate と deferred の両方の finding を持つ間、`Stop` はターン終端ごとに 2 つを**交互に**報告し続ける。`rememberFindings()` が記憶済みキーを置換する一方で `Stop` は fresh 分しか渡さないため、deferred を報告した時点で per-edit が覚えていた immediate 側が追い出され、次の `Stop` で再び新規に見える。immediate 側を直せば層が 1 つになり収束する。`tests/design-hook.bats` はこの**実挙動のほう**を固定してあるので、上流が直すとそのテストが落ちて気づける。候補`5c5553b1`でも同じ挙動を確認済みである。
+Impeccable 4.1.2 は Stop scan 後に fresh finding だけでなく live finding 全体を cache へ同期する。immediate / deferred の両 tier を持つファイルでも初回 deep pass 後の次回の `Stop` は無言になり、新しい finding が現れるまで再報告しない。4.1.1 までの交互再報告は解消済みで、`tests/design-hook.bats` はこの silent convergence を固定する。
 
 finding footerはsession内の初回だけfull policyを出し、以後はshort footerにする。full policyが許容する自己修復の境界はfinding単位の`ignore-value`までで、agentは確信のあるfalse positiveまたはユーザーが許容済みの例外に限って使い、理由をユーザーへ示す。file / rule全体を抑制する`ignore-file` / `ignore-rule`はユーザーの明示承認が必要である。
 

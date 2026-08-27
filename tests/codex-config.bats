@@ -543,17 +543,10 @@ with open(sys.argv[1], encoding="utf-8") as f:
 
 command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\""
 
-# Codex's Stop schema (codex-rs StopCommandOutputWire, deny_unknown_fields) has no
-# hookSpecificOutput field, only continue/decision/reason/stopReason/suppressOutput/
-# systemMessage. The runtime's PostToolUse-shaped {"hookSpecificOutput":{...}} is
-# invalid there and gets silently discarded, so deferred findings never reach the
-# agent. Stop pipes the runtime's stdout through a small transform that extracts
-# additionalContext and re-emits it as {"decision":"block","reason":...} instead.
-stop_command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; [ -n \"$output\" ] || exit 0; printf %s \"$output\" | node -e \"let input='';process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{try{const payload=JSON.parse(input);const additionalContext=payload&&payload.hookSpecificOutput&&payload.hookSpecificOutput.additionalContext;if(additionalContext)process.stdout.write(JSON.stringify({decision:'block',reason:additionalContext}))}catch{}})\""
-
 # Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
-# budget of 30s instead of the per-edit 5s: it rescans every UI file touched in the
-# session with the full rule set, surfacing the tier the per-edit pass deferred.
+# budget of 30s instead of the per-edit 5s. Impeccable recognizes Codex's turn_id
+# and emits the native top-level decision/reason schema itself, so both events use
+# the same fail-open pass-through command.
 assert data == {
     "hooks": {
         "PostToolUse": [
@@ -563,7 +556,7 @@ assert data == {
             }
         ],
         "Stop": [
-            {"hooks": [{"type": "command", "command": stop_command, "timeout": 30}]}
+            {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
         ],
     }
 }
@@ -666,26 +659,33 @@ PY
     [ -z "$output" ]
   done
 
-  # commands[0]=Claude PostToolUse [1]=Claude Stop [2]=Codex PostToolUse [3]=Codex Stop
-  # (python printed them path-then-event, in that order). The first three are plain
-  # pass-through, so a real impeccable-shaped payload survives byte-for-byte; Codex's
-  # Stop command instead transforms it into decision/reason (see the test above).
-  printf 'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:"Stop",additionalContext:"finding"}}));\n' \
-    >"$home/.agents/skills/impeccable/scripts/hook.mjs"
-  printf 'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:"Stop",additionalContext:"finding"}}));\n' \
-    >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+  # The synthetic candidate runtime distinguishes Codex by turn_id and owns the
+  # native Stop schema. Managed commands only preserve its stdout byte-for-byte.
+  local hook_runtime_fixture='let input="";process.stdin.on("data",chunk=>input+=chunk);process.stdin.on("end",()=>{const event=JSON.parse(input);const codexStop=event.turn_id&&event.hook_event_name==="Stop";process.stdout.write(JSON.stringify(codexStop?{decision:"block",reason:"finding"}:{hookSpecificOutput:{hookEventName:event.hook_event_name,additionalContext:"finding"}}))});'
+  printf '%s\n' "$hook_runtime_fixture" >"$home/.agents/skills/impeccable/scripts/hook.mjs"
+  printf '%s\n' "$hook_runtime_fixture" >"$home/.claude/skills/impeccable/scripts/hook.mjs"
 
-  local passthrough='{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"finding"}}'
+  local post_tool_use='{"session_id":"fixture","hook_event_name":"PostToolUse"}'
+  local claude_stop='{"session_id":"fixture","hook_event_name":"Stop"}'
+  local codex_post_tool_use='{"session_id":"fixture","turn_id":"turn-1","hook_event_name":"PostToolUse"}'
+  local codex_stop='{"session_id":"fixture","turn_id":"turn-1","hook_event_name":"Stop"}'
+  local passthrough_post_tool_use='{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"finding"}}'
+  local passthrough_stop='{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"finding"}}'
   local codex_stop_expected='{"decision":"block","reason":"finding"}'
 
-  local i
-  for i in 0 1 2; do
-    run env HOME="$home" bash -c "${commands[$i]}"
-    [ "$status" -eq 0 ]
-    [ "$output" = "$passthrough" ]
-  done
+  run env HOME="$home" bash -c "${commands[0]}" <<<"$post_tool_use"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$passthrough_post_tool_use" ]
 
-  run env HOME="$home" bash -c "${commands[3]}"
+  run env HOME="$home" bash -c "${commands[1]}" <<<"$claude_stop"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$passthrough_stop" ]
+
+  run env HOME="$home" bash -c "${commands[2]}" <<<"$codex_post_tool_use"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$passthrough_post_tool_use" ]
+
+  run env HOME="$home" bash -c "${commands[3]}" <<<"$codex_stop"
   [ "$status" -eq 0 ]
   [ "$output" = "$codex_stop_expected" ]
 }

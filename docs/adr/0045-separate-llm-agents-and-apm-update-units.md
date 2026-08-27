@@ -63,7 +63,17 @@ Modern Web Guidanceはexact revision `457c381def89ce6213a171238f92eea63e9eaeb2`�
 
 更新済みmanifestを隔離cwdへコピーし、隔離HOMEで`apm install --target claude,codex --https`を実行してdeployed files/hashを含むlockを生成した。同じ環境の`apm install --frozen --target claude,codex --https`前後でlock SHA-256は`d43138a744099027b61ad50150b4a36246f747214d23761c9f970b3a38d03720`のまま、`apm audit --ci`はdriftなしで10/10 checksを通過した。`.agents/skills` / `.claude/skills`の両targetでModern Web Guidance 141 files、Remotion 137 filesと上記guidanceを発見した。隔離cwdはGit remoteを持たないため、auditのorganization policy enforcementはwarning付きskipとなったが、manifest/lock/deployment/contentの10 checksはすべて成功した。live skill directoryと`chezmoi apply`には触れていない。
 
-これにより通常の APM payload refresh更新単位も採用できる。ImpeccableとMatt Pocock managed setの2更新単位は後続issueの互換性ゲート待ちであるため、本ADR全体のstatusは`proposed`を維持する。
+これにより通常の APM payload refresh更新単位も採用できる。
+
+### Impeccable 4.1.2（Issue #186）
+
+通常のAPM payload refreshで確定したlockをbaselineに、Impeccableだけを4.1.2 tagのexact revision `63b04e2530f5c7b41ea83c133daab24f34912456`へ進めた。selected content hashは`sha256:eaf9d73a3348cbda6774b1a8268645c17f4d8cf5b5231743d2c44d71212cd755`で、non-Impeccable entryはIssue #185 baselineから変更していない。
+
+4.1.2 runtimeは`turn_id`を持つeventをCodexと判別し、Stop findingをtop-level `decision` / `reason`で返す。このためCodex managed Stop commandの旧`hookSpecificOutput.additionalContext` transformを除去し、runtime stdoutをfail-openでpass-throughする配線へ更新した。Claude Stopは既存の`hookSpecificOutput.additionalContext`、両runtimeのPostToolUse immediate tier / Stop deep pass、quiet、dedupe、edit threshold、sensitive/generated path filter、Stop re-entry、runtime error時のfail-openを維持する。
+
+候補runtimeを公開JSON event seamから実行したDesign Hook testは10/10で、`turn_id`付きCodex Stopがdeep-pass findingをnative schemaで返し、次のStopがsilentになることを確認した。旧both-tiers交互再報告characterizationもsilent convergenceへ更新した。managed hook testsは3/3、隔離APMのfrozen install前後でlock SHA-256は`fed402d5e258b8a7347b8995d0396d5be72da39856157a16f8554ea5feb1d451`のまま、auditはdriftなしで10/10 checksを通過した。
+
+これによりImpeccable更新単位も採用できる。Matt Pocock managed setは後続issueの互換性ゲート待ちであるため、本ADR全体のstatusは`proposed`を維持する。
 
 ## Verification boundary
 
