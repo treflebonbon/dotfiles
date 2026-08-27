@@ -120,6 +120,10 @@ _Avoid_: 全 ticket 完了, epic completion
 親 issue と child ticket の関係。GitHub native subissues を正本とし、ticket 本文の `Parent` は人間向けの写しとして照合に使う。
 _Avoid_: Parent link, body hierarchy
 
+**Hierarchy Repair**:
+本文で単一の親を宣言した direct child 群を検証し、欠けている native subissue 関係を Parent Reconciliation より前に復元する安全側の整合処理。
+_Avoid_: hierarchy migration, automatic reparenting
+
 **Ticket Coverage**:
 child ticket の全 AC が PR の Contract に含まれ、Verification Matrix の行へ対応付けられている状態。行の検証結果は coverage を左右せず、issue 番号の参照だけでも coverage とみなさない。
 _Avoid_: issue reference, commit link
