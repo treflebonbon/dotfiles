@@ -1,96 +1,69 @@
 # Hierarchy Repair
 
-Use this branch only when the linked issue has no native parent and its bounded
-`## Parent` section declares exactly one valid issue in the current repository. Complete
-the repair before Parent Reconciliation so the existing native-only Ticket Coverage and
-parent-completion rules remain the only reconciliation path.
-
-## Discover the direct-child candidates
-
-Capture every issue in the repository with GraphQL cursor pagination:
+Use this branch only when the linked issue has no native parent. Run the deterministic
+repair helper before Parent Reconciliation:
 
 ```bash
-gh api graphql --paginate --slurp \
-  -F owner='{owner}' \
-  -F name='{repo}' \
-  -f query='
-    query($owner: String!, $name: String!, $endCursor: String) {
-      repository(owner: $owner, name: $name) {
-        issues(first: 100, after: $endCursor) {
-          nodes { id number body parent { id number } }
-          pageInfo { hasNextPage endCursor }
-        }
-      }
-    }'
+HIERARCHY_REPAIR_RESULT="$(mktemp "${TMPDIR:-/tmp}/to-pr-hierarchy.XXXXXX")"
+bash <skill-directory>/scripts/repair-ticket-hierarchy.sh <linked-issue-number> \
+  >"$HIERARCHY_REPAIR_RESULT"
+jq . "$HIERARCHY_REPAIR_RESULT"
 ```
 
-The repository `issues` connection excludes pull requests. Preserve all returned pages;
-`--slurp` emits an array of page objects, so flatten every page's `nodes` before matching.
-Do not impose a fixed issue-count limit.
+The helper models expected GitHub and validation failures as a JSON result with exit
+status zero so PR creation can continue. A nonzero exit means the helper itself could
+not run; handle it as `status: failed`. Interpret its JSON `status` as follows:
 
-For each issue, bound the Parent section from the `## Parent` heading to the next level-two
-heading or end of body. The **direct-child candidates** are every open or closed issue whose
-bounded section contains exactly one valid reference and resolves to the same parent as the
-linked issue. Do not infer relationships from prose outside that section.
+- `repaired`: use only the returned, re-fetched native `snapshot` for Ticket Coverage
+  and Parent Reconciliation.
+- `target-none`: record Parent Reconciliation as `対象なし`; there is no body Parent
+  declaration to repair.
+- `native-present`: a native parent appeared since the first read. Re-enter the native
+  hierarchy path in the main skill and cross-check the body declaration.
+- `failed`: record Parent Reconciliation as `未実施` using `failedIssues` and `reason`.
 
-Re-read the parent and every direct-child candidate from GitHub before the first mutation,
-using the same `gh issue view` fields listed under **Verify and return the native hierarchy**.
-The preflight succeeds only when the parent exists as an issue, the current linked issue is
-in the candidate set, every candidate still contains the same unambiguous body parent, and
-each candidate's native parent is either absent or already the target parent.
+## Canonical body parent
 
-If the parent or any candidate cannot be re-read, a Parent section is missing, invalid, or
-ambiguous, the current linked issue is absent, or a candidate has a **different native parent**,
-abort the whole repair before mutation. A relationship already attached to the target parent
-is valid and needs no mutation; a different parent is a conflict, never a reparent request.
+Bound `## Parent` from that exact level-two heading to the next level-two heading or end
+of body. Exactly one such heading and exactly one reference occurrence are required. The
+only accepted reference forms are `#<positive-decimal-issue-number>` and the canonical
+same-repository URL
+`https://github.com/<current-owner>/<current-repo>/issues/<positive-decimal-issue-number>`.
+Markdown list or link punctuation may surround the reference. Duplicate occurrences,
+multiple references, `owner/repo#N`, non-positive numbers, noncanonical or
+other-repository issue URLs, and multiple `## Parent` headings are invalid. Prose outside
+the bounded section is never a hierarchy source.
 
-## Add the complete candidate set
+The helper uses the linked issue's single canonical body parent to find the
+**direct-child candidates**. It captures every open or closed repository issue with
+GraphQL cursor pagination, flattens every returned page, and selects issues with the same
+single canonical body parent. GitHub's repository `issues` connection excludes pull requests.
+The current linked issue must be in the candidate set.
 
-Keep candidates already attached to the target parent and add **every missing edge** with
-the GraphQL `addSubIssue` mutation. Set `replaceParent: false` explicitly:
+## Safety and completion boundary
 
-```bash
-gh api graphql \
-  -F parentId='<parent-node-id>' \
-  -F childId='<candidate-node-id>' \
-  -f query='
-    mutation($parentId: ID!, $childId: ID!) {
-      addSubIssue(input: {
-        issueId: $parentId
-        subIssueId: $childId
-        replaceParent: false
-      }) {
-        issue { number }
-        subIssue { number }
-      }
-    }'
-```
+The helper re-reads the parent and every direct-child candidate before the first mutation.
+It requires the parent to exist, every candidate still to declare the same
+body parent, and every candidate's native parent to be absent or the target parent. A
+candidate with a **different native parent**, or any missing, ambiguous, changed, or
+unavailable issue, must abort the whole repair before mutation.
 
-Apply this mutation to every missing edge in the validated set before Parent Reconciliation.
-This batch boundary prevents the current linked issue from making the parent appear complete
-while a body-declared sibling remains outside the native hierarchy.
+The only permitted mutation is `addSubIssue` with `replaceParent: false`, applied in
+issue-number order to **every missing edge** in the prevalidated candidate set. Existing
+edges remain untouched. The helper never edits issue bodies, state, labels, assignees,
+or parent relationships and never removes or reparents a sub-issue.
 
-On any mutation failure, stop adding edges. GitHub does not make multiple `addSubIssue`
-mutations atomic, so a failed repair can be partially successful; preserve those additions
-and do not remove or reparent them.
+On a mutation failure, stop adding edges. GitHub does not make multiple mutations
+atomic, so a repair can be partially successful. Preserve additions already made; a
+partially successful repair is still a failure.
 
-## Verify and return the native hierarchy
+After all additions, and also after any mutation failure, the helper performs two-sided
+post-mutation verification: it re-reads every child and cursor-paginates the parent's
+native sub-issues. Success requires every candidate to report the target parent and the
+parent to list every candidate. Only a successful `repaired` result may proceed to the
+existing native-only Ticket Coverage and Parent Reconciliation path.
 
-After all additions, and also after any mutation failure, re-read every candidate and the
-parent:
-
-```bash
-gh issue view <candidate> --json number,state,body,parent
-gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary
-```
-
-Verification succeeds only when every candidate reports the target as its native parent and
-the parent's direct `subIssues` contains every candidate. Use that re-fetched native snapshot
-for Ticket Coverage and Parent Reconciliation; the body-declared candidate set is not a second
-reconciliation source.
-
-Any pagination, preflight, mutation, or verification failure records Parent Reconciliation as `未実施`.
-Include the failed issue numbers and reasons in the PR body and completion report,
-omit the parent `Fixes` reference, preserve the linked issue's ordinary `Fixes` reference, and
-continue creating the PR. A partially successful repair is still a verification failure until
-every candidate appears on both sides of the native hierarchy.
+For any pagination, preflight, mutation, or verification failure, record Parent
+Reconciliation as `未実施`. Include the failed issue numbers and reasons in the PR body
+and completion report, omit the parent `Fixes` reference, preserve the linked issue's
+ordinary `Fixes` reference, and continue creating the PR.

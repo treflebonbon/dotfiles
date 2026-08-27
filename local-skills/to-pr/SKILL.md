@@ -196,6 +196,25 @@ declared in issue bodies; GitHub closes the listed issues only when the PR merge
 Keep state labels unchanged when GitHub closes an issue.
 Repeat the Parent Reconciliation state, reason, and close targets in the completion report.
 
+For every linked issue, make this decision with the deterministic helper. Write a fresh
+JSON input containing `linkedIssue`, `coveredIssues` (the issue numbers with Ticket
+Coverage), and `hierarchy`. Pass through a Hierarchy Repair result as `hierarchy`; for an
+already-native hierarchy, use `status: "ready"`, its fetch/cross-check reason, and a
+`snapshot` shaped as `{parent: {number, state}, children: [{number, state}]}`. Represent
+the no-Parent path as `status: "target-none"` and hierarchy failures as `status: "failed"`
+with `failedIssues` and `reason`.
+
+```bash
+bash <skill-directory>/scripts/reconcile-ticket-hierarchy.sh <input-json-file>
+```
+
+Use the returned `state`, `reason`, `closeTargets`, and `fixes` verbatim in the PR body
+and completion report. The helper's `fixes` array is the complete permitted set of
+closing-keyword lines. If the helper cannot run or rejects its input, fail safe as
+`未実施`, preserve only the linked issue's ordinary `Fixes`, omit the parent `Fixes`, and
+continue creating the PR. The no-linked-issue case remains `対象なし` without invoking
+the helper.
+
 ## 5. Self-check before opening the PR
 
 Before creating the PR, do a quick pass over what steps 2–4 produced: is the code-review
