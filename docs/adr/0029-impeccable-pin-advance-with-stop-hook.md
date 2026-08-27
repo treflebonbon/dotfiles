@@ -186,4 +186,10 @@ Impeccable `c39b6425fa54a093749b9a236adcd003818167c1`を APM 0.28.0 の隔離 ru
 
 既知の both-tiers Stop 交互報告 defect はこの revision にも残っており、characterization test は変更しない。Claude Code / Codex の hook 配線（`PostToolUse` + `Stop`、timeout、`ignore-value` の理由付き自己適用境界）にも変更はない。採用判断は [ADR-0043](0043-update-llm-agents-and-impeccable-update-unit.md) を参照する。
 
+## 補足（2026-08-27、Issue #186 の更新時）
+
+Impeccable 4.1.2 の exact revision `63b04e2530f5c7b41ea83c133daab24f34912456` は、`turn_id` を持つイベントを Codex と判別し、Stop finding を Codex native の top-level `decision: "block"` / `reason` で返す。これに合わせ、Codex managed Stop command にあった `hookSpecificOutput.additionalContext` transform を除去し、runtime stdout の fail-open pass-through に統一した。Claude Stop は従来の `hookSpecificOutput.additionalContext` を維持する。
+
+同 revision は Stop scan の live finding 全体を cache へ同期するため、4.1.1 までの both-tiers 交互再報告 defect も解消する。旧 characterization を silent convergence 契約へ置き換え、`turn_id`付きCodex Stopのdeep-pass findingと次回Stopの無言化を加えたDesign Hook gateは10/10で通過した。quiet、dedupe、edit threshold、sensitive/generated path filter、Stop re-entry、Claude schema、managed fail-open、理由付き`ignore-value`と`ignore-file` / `ignore-rule`の承認境界は維持している。採用判断は [ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) を参照する。
+
 関連: [ai-runtimes](../../runtime/ai-runtimes.md) / [skill-harness](../../runtime/skill-harness.md) / [issue #117](https://github.com/treflebonbon/dotfiles/issues/117) / [issue #119](https://github.com/treflebonbon/dotfiles/issues/119) / [PR #118](https://github.com/treflebonbon/dotfiles/pull/118)

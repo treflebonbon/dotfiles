@@ -7,7 +7,7 @@ setup() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#c39b6425fa54a093749b9a236adcd003818167c1' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#63b04e2530f5c7b41ea83c133daab24f34912456' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -21,12 +21,24 @@ setup() {
 
   grep -Fq 'apm_version: 0.28.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: c39b6425fa54a093749b9a236adcd003818167c1' "$lock"
-  grep -Fq 'content_hash: sha256:d79bd3df1397211f532c7384ff1f120be24d85930384fc5d5e7f7ea6f006cd8e' "$lock"
+  grep -Fq 'resolved_commit: 63b04e2530f5c7b41ea83c133daab24f34912456' "$lock"
+  grep -Fq 'content_hash: sha256:eaf9d73a3348cbda6774b1a8268645c17f4d8cf5b5231743d2c44d71212cd755' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/hook.mjs' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/hook.mjs' "$lock"
   ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
+}
+
+@test "Impeccable 4.1.2 record documents native Codex Stop and silent convergence" {
+  local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
+  local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md"
+  local harness="$PROJECT_ROOT/runtime/skill-harness.md"
+
+  grep -Fq '63b04e2530f5c7b41ea83c133daab24f34912456' "$adr"
+  grep -Fq 'eaf9d73a3348cbda6774b1a8268645c17f4d8cf5b5231743d2c44d71212cd755' "$adr"
+  grep -Fq 'top-level `decision` / `reason`' "$runtimes"
+  grep -Fq '次回の `Stop` は無言' "$harness"
+  grep -Fq '4.1.2' "$harness"
 }
 
 @test "APM pins the official Matt Pocock v1.2.3 full set" {

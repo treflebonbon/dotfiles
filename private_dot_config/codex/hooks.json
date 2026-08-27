@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; [ -n \"$output\" ] || exit 0; printf %s \"$output\" | node -e \"let input='';process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{try{const payload=JSON.parse(input);const additionalContext=payload&&payload.hookSpecificOutput&&payload.hookSpecificOutput.additionalContext;if(additionalContext)process.stdout.write(JSON.stringify({decision:'block',reason:additionalContext}))}catch{}})\"",
+            "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
             "timeout": 30
           }
         ]

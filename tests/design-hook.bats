@@ -41,9 +41,15 @@ run_post_tool_use_hook() {
 run_stop_hook() {
   local session_id="$1"
   local stop_hook_active="${2:-false}"
+  local turn_id="${3:-}"
 
-  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"Stop","stop_hook_active":%s}\n' \
-    "$session_id" "$PROJECT" "$stop_hook_active" |
+  if [ -n "$turn_id" ]; then
+    printf '{"session_id":"%s","turn_id":"%s","cwd":"%s","hook_event_name":"Stop","stop_hook_active":%s}\n' \
+      "$session_id" "$turn_id" "$PROJECT" "$stop_hook_active"
+  else
+    printf '{"session_id":"%s","cwd":"%s","hook_event_name":"Stop","stop_hook_active":%s}\n' \
+      "$session_id" "$PROJECT" "$stop_hook_active"
+  fi |
     env IMPECCABLE_HOOK_QUIET=1 node "$RUNTIME"
 }
 
@@ -154,22 +160,34 @@ run_stop_hook() {
   [ -z "$output" ]
 }
 
-@test "materialized quiet Design Hook Stop pass alternates on a file with findings in both tiers (known upstream defect)" {
+@test "materialized quiet Design Hook emits native Codex Stop output for a turn-scoped deep-pass finding" {
   require_runtime
-  # rememberFindings() replaces a file's remembered finding keys and says so:
-  # "Callers must pass the complete current finding set, not just the fresh
-  # ones." runStopHook() passes only `fresh`, breaking that contract. So a Stop
-  # that reports the deferred finding evicts the immediate one the per-edit pass
-  # had remembered, which then reads as fresh on the next Stop, and so on: the
-  # two alternate on every turn end for as long as both remain unfixed. Upstream
-  # intends the opposite ("the next Stop fire is silent unless new issues
-  # appear" — hook-lib.mjs).
-  #
-  # This test pins the defect rather than the intent, so the suite tells us when
-  # a future pin fixes it instead of quietly passing either way. Each step
-  # asserts the other tier is ABSENT too, so a regression that reports both
-  # findings on every fire cannot slip through. When upstream fixes the
-  # eviction this test fails; replace it with a plain "surfaces once" assertion.
+  local file="$PROJECT/Card.css"
+  printf '%s\n' "$DEFERRED_CSS" >"$file"
+
+  run run_post_tool_use_hook "codex-deferred" "$file"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+
+  run run_stop_hook "codex-deferred" false "turn-1"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *'"reason":"'* ]]
+  [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" != *'"hookSpecificOutput"'* ]]
+
+  printf '.card { color: #123456; }\n' >"$file"
+  run run_post_tool_use_hook "codex-deferred" "$file"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+
+  run run_stop_hook "codex-deferred" false "turn-2"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "materialized quiet Design Hook Stop pass converges silently on a file with findings in both tiers" {
+  require_runtime
   local file="$PROJECT/Card.css"
   printf '%s\n' "$BOTH_TIERS_CSS" >"$file"
 
@@ -182,20 +200,6 @@ run_stop_hook() {
   [ "$status" -eq 0 ]
   [[ "$output" == *'[overused-font]'* ]]
   [[ "$output" != *'[gradient-text]'* ]]
-
-  run run_stop_hook "both-tiers"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'[gradient-text]'* ]]
-  [[ "$output" != *'[overused-font]'* ]]
-
-  # Fixing the immediate-tier finding leaves one tier, and the pass converges.
-  printf '%s\n' "$DEFERRED_CSS" >"$file"
-  run run_post_tool_use_hook "both-tiers" "$file"
-  [ "$status" -eq 0 ]
-
-  run run_stop_hook "both-tiers"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'[overused-font]'* ]]
 
   run run_stop_hook "both-tiers"
   [ "$status" -eq 0 ]
