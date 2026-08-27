@@ -68,6 +68,8 @@ setup() {
 @test "APM advances changed selected payloads without pinning revision-only updates" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
+  local manifest_pins
+  local lock_refs
 
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2' "$manifest"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#7a3d0ca45d2f6a00bf35cb3c525734a36d55a834' "$manifest"
@@ -89,7 +91,37 @@ setup() {
   grep -Fq 'content_hash: sha256:b5c364878fb07d21a369f091f2e96b823da94308b15b39636f2585d8b5621b51' "$lock"
   [ "$(grep -Fc 'resolved_commit: 5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$lock")" -eq 1 ]
   grep -Fq 'content_hash: sha256:cca6a9098e0dff08ce6fef999da77d98e94255e826b8b9f8132749b5da66dad2' "$lock"
-  [ "$(grep -Fc '  resolved_ref:' "$lock")" -eq 5 ]
+  manifest_pins="$(
+    sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
+      awk '{
+        count = split($1, parts, "/")
+        repo = tolower(parts[1] "/" parts[2])
+        path = ""
+        for (i = 3; i <= count; i++) {
+          path = path (path == "" ? "" : "/") parts[i]
+        }
+        print repo "|" path "|" $2
+      }' |
+      LC_ALL=C sort
+  )"
+  lock_refs="$(
+    awk '
+      function emit() {
+        if (ref != "") print tolower(repo) "|" path "|" ref
+      }
+      /^- repo_url: / {
+        emit()
+        repo = $3
+        path = ""
+        ref = ""
+        next
+      }
+      /^  virtual_path: / { path = $2; next }
+      /^  resolved_ref: / { ref = $2; next }
+      END { emit() }
+    ' "$lock" | LC_ALL=C sort
+  )"
+  [ "$lock_refs" = "$manifest_pins" ]
   ! grep -Fq 'resolved_commit: 0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$lock"
   ! grep -Fq 'resolved_commit: 25be24cca34d06eed29a4779c3f48c4816aa812c' "$lock"
   # find-skills is unpinned; vercel-labs/skills main has since genuinely reached
@@ -146,10 +178,10 @@ setup() {
   grep -Fq '683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$adr"
   grep -Fq '9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$adr"
   grep -Fq '026389a3bc03da03ca2d65295e805493712b0774' "$adr"
-  grep -Fq 'db4a0decf91aad223dbc4f33edad9ba57be399d5e64507b4d89b6d9b9a0740ee' "$adr"
+  grep -Fq '29186c40a47bf6c25d9fbf73d15ebba4dc9575be7242f381ddaeac82ed24e6c4' "$adr"
   grep -Fq 'revision-only' "$runtimes"
   grep -Fq 'd43138a744099027b61ad50150b4a36246f747214d23761c9f970b3a38d03720' "$harness"
-  grep -Fq 'db4a0decf91aad223dbc4f33edad9ba57be399d5e64507b4d89b6d9b9a0740ee' "$harness"
+  grep -Fq '29186c40a47bf6c25d9fbf73d15ebba4dc9575be7242f381ddaeac82ed24e6c4' "$harness"
 }
 
 @test "APM runtime deploy targets remain git-ignored" {
