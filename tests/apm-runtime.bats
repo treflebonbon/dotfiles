@@ -84,11 +84,12 @@ setup() {
   grep -Fq 'content_hash: sha256:2493dc60c3917d2e1153cd60d9e4df771b2775f64f3e17cbb1c2f1d011f888f3' "$lock"
   grep -Fq 'resolved_commit: 683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$lock"
   grep -Fq 'content_hash: sha256:8b8c1296ad947a237b32c21857837357f29197c53722131758777c80d26ed1ad' "$lock"
-  [ "$(grep -Fc 'resolved_commit: 9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$lock")" -eq 2 ]
+  [ "$(grep -Fc 'resolved_commit: 026389a3bc03da03ca2d65295e805493712b0774' "$lock")" -eq 2 ]
   grep -Fq 'content_hash: sha256:afe48be623c1f6190ade7dacc4c1d334d4150b503ed00b28dda23a499e5bdc30' "$lock"
   grep -Fq 'content_hash: sha256:b5c364878fb07d21a369f091f2e96b823da94308b15b39636f2585d8b5621b51' "$lock"
   [ "$(grep -Fc 'resolved_commit: 5ca747dad0d0583f4a1ac91c2655b345ba6c07eb' "$lock")" -eq 1 ]
   grep -Fq 'content_hash: sha256:cca6a9098e0dff08ce6fef999da77d98e94255e826b8b9f8132749b5da66dad2' "$lock"
+  [ "$(grep -Fc '  resolved_ref:' "$lock")" -eq 5 ]
   ! grep -Fq 'resolved_commit: 0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$lock"
   ! grep -Fq 'resolved_commit: 25be24cca34d06eed29a4779c3f48c4816aa812c' "$lock"
   # find-skills is unpinned; vercel-labs/skills main has since genuinely reached
@@ -103,7 +104,7 @@ setup() {
 
   grep -q 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script"
   refresh_line="$(grep -n 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script" | cut -d: -f1)"
-  install_line="$(grep -n '^apm install --frozen$' "$script" | cut -d: -f1)"
+  install_line="$(grep -n '^apm install --frozen --target claude,codex --https$' "$script" | cut -d: -f1)"
   [ "$refresh_line" -lt "$install_line" ]
 }
 
@@ -144,8 +145,11 @@ setup() {
   grep -Fq '2493dc60c3917d2e1153cd60d9e4df771b2775f64f3e17cbb1c2f1d011f888f3' "$adr"
   grep -Fq '683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$adr"
   grep -Fq '9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$adr"
+  grep -Fq '026389a3bc03da03ca2d65295e805493712b0774' "$adr"
+  grep -Fq 'db4a0decf91aad223dbc4f33edad9ba57be399d5e64507b4d89b6d9b9a0740ee' "$adr"
   grep -Fq 'revision-only' "$runtimes"
   grep -Fq 'd43138a744099027b61ad50150b4a36246f747214d23761c9f970b3a38d03720' "$harness"
+  grep -Fq 'db4a0decf91aad223dbc4f33edad9ba57be399d5e64507b4d89b6d9b9a0740ee' "$harness"
 }
 
 @test "APM runtime deploy targets remain git-ignored" {
@@ -157,11 +161,11 @@ setup() {
   grep -q '^/\.claude/apm-hooks\.json$' "$PROJECT_ROOT/.gitignore"
 }
 
-@test "APM install runs from HOME, not the chezmoi source checkout" {
+@test "APM install reproduces the lock generation layout from HOME" {
   local script="$PROJECT_ROOT/run_onchange_after_apm-install.sh.tmpl"
 
   grep -q '^cd "\$HOME"$' "$script"
-  grep -q '^apm install --frozen$' "$script"
+  grep -q '^apm install --frozen --target claude,codex --https$' "$script"
   ! grep -q 'APM_LEGACY_SKILL_PATHS=1' "$script"
 }
 

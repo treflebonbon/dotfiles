@@ -213,6 +213,8 @@ cleanup_managed_skills() {
   grep -Fq 'chezmoi dry-run' "$ADR"
   grep -Fq 'rollback' "$ADR"
   grep -Fq '非 Matt' "$ADR"
+  grep -Fq 'native lock adoption' "$ADR"
+  grep -Fq '検証用lock' "$ADR"
   grep -Fq '@latest' "$ADR"
   grep -Fq '0042-mattpocock-managed-set-update-gate' "$RUNTIME"
 }
