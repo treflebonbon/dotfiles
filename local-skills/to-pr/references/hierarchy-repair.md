@@ -5,10 +5,15 @@ repair helper before Parent Reconciliation:
 
 ```bash
 HIERARCHY_REPAIR_RESULT="$(mktemp "${TMPDIR:-/tmp}/to-pr-hierarchy.XXXXXX")"
-bash <skill-directory>/scripts/repair-ticket-hierarchy.sh <linked-issue-number> \
+SKILL_DIRECTORY="/absolute/path/to/the-loaded/to-pr-skill"
+LINKED_ISSUE_NUMBER=123
+bash "$SKILL_DIRECTORY/scripts/repair-ticket-hierarchy.sh" "$LINKED_ISSUE_NUMBER" \
   >"$HIERARCHY_REPAIR_RESULT"
 jq . "$HIERARCHY_REPAIR_RESULT"
 ```
+
+Set `SKILL_DIRECTORY` to the directory containing this skill's `SKILL.md` and
+`LINKED_ISSUE_NUMBER` to the actual linked issue before running the block.
 
 The helper models expected GitHub and validation failures as a JSON result with exit
 status zero so PR creation can continue. A nonzero exit means the helper itself could
@@ -60,8 +65,10 @@ partially successful repair is still a failure.
 After all additions, and also after any mutation failure, the helper performs two-sided
 post-mutation verification: it re-reads every child and cursor-paginates the parent's
 native sub-issues. Success requires every candidate to report the target parent and the
-parent to list every candidate. Only a successful `repaired` result may proceed to the
-existing native-only Ticket Coverage and Parent Reconciliation path.
+parent to list every candidate. The returned snapshot contains every paginated native
+direct child, including existing native children that were not body-derived candidates.
+Only a successful `repaired` result may proceed to the existing native-only Ticket
+Coverage and Parent Reconciliation path.
 
 For any pagination, preflight, mutation, or verification failure, record Parent
 Reconciliation as `未実施`. Include the failed issue numbers and reasons in the PR body

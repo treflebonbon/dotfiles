@@ -139,6 +139,41 @@ write_hierarchy_state() {
   grep -Fq 'subissues:1:post' "$FAKE_GH_LOG"
 }
 
+@test "Hierarchy Repair snapshot includes native children outside the body candidate set" {
+  write_hierarchy_state '[
+    {"id":"I1","number":1,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I2","number":2,"state":"CLOSED","body":"## Parent\n\n#1","parent":{"id":"I1","number":1}},
+    {"id":"I3","number":3,"state":"OPEN","body":"## Parent\n\n#1","parent":null},
+    {"id":"I5","number":5,"state":"OPEN","body":"## Acceptance Criteria\n\nNative-only child","parent":{"id":"I1","number":1}}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 3
+
+  [ "$status" -eq 0 ]
+  jq -e '
+    .status == "repaired"
+    and .candidates == [2, 3]
+    and .added == [3]
+    and .snapshot.children == [
+      {number: 2, state: "CLOSED"},
+      {number: 3, state: "OPEN"},
+      {number: 5, state: "OPEN"}
+    ]' <<<"$output"
+
+  repair_result="$output"
+  jq -n --argjson hierarchy "$repair_result" \
+    '{linkedIssue: 3, coveredIssues: [3], hierarchy: $hierarchy}' \
+    >"$TEST_TEMP/reconciliation.json"
+  run "$RECONCILIATION_SCRIPT" "$TEST_TEMP/reconciliation.json"
+
+  [ "$status" -eq 0 ]
+  jq -e '
+    .state == "未実施"
+    and .uncoveredIssues == [5]
+    and .closeTargets == {children: [3], parent: [], all: [3]}
+    and .fixes == ["Fixes #3"]' <<<"$output"
+}
+
 @test "Hierarchy Repair makes no mutation when a body parent is absent or ambiguous" {
   write_hierarchy_state '[
     {"id":"I1","number":1,"state":"OPEN","body":"# Parent","parent":null},
@@ -149,7 +184,7 @@ write_hierarchy_state() {
 
   [ "$status" -eq 0 ]
   jq -e '.status == "target-none" and .parent == null and .added == []' <<<"$output"
-  ! grep -q '^list$\|^add:' "$FAKE_GH_LOG"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
 
   : >"$FAKE_GH_LOG"
   write_hierarchy_state '[
@@ -161,7 +196,7 @@ write_hierarchy_state() {
 
   [ "$status" -eq 0 ]
   jq -e '.status == "failed" and .failedIssues == [2] and .added == []' <<<"$output"
-  ! grep -q '^list$\|^add:' "$FAKE_GH_LOG"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
 
   : >"$FAKE_GH_LOG"
   write_hierarchy_state '[
@@ -173,7 +208,7 @@ write_hierarchy_state() {
 
   [ "$status" -eq 0 ]
   jq -e '.status == "failed" and .failedIssues == [2] and .added == []' <<<"$output"
-  ! grep -q '^list$\|^add:' "$FAKE_GH_LOG"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
 }
 
 @test "Hierarchy Repair rejects a conflicting native parent before all mutations" {
@@ -275,6 +310,38 @@ write_hierarchy_state() {
   grep -Fq 'subissues:1:post' "$FAKE_GH_LOG"
 }
 
+@test "Hierarchy Repair preserves parent query failures and rejects an invalid parent state" {
+  write_hierarchy_state '[
+    {"id":"I1","number":1,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I2","number":2,"state":"OPEN","body":"## Parent\n\n#1","parent":null}
+  ]'
+  export FAKE_GH_FAIL_PARENT_VERIFY=1
+
+  run "$HIERARCHY_SCRIPT" 2
+
+  [ "$status" -eq 0 ]
+  jq -e '
+    .status == "failed"
+    and .failedIssues == [1]
+    and .reason == "parent #1 sub-issues could not be re-read after mutation"' <<<"$output"
+
+  export FAKE_GH_FAIL_PARENT_VERIFY=0
+  rm -f "$FAKE_GH_STATE.mutation-attempted"
+  : >"$FAKE_GH_LOG"
+  write_hierarchy_state '[
+    {"id":"I1","number":1,"state":"UNKNOWN","body":"# Parent","parent":null},
+    {"id":"I2","number":2,"state":"OPEN","body":"## Parent\n\n#1","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 2
+
+  [ "$status" -eq 0 ]
+  jq -e '
+    .status == "failed"
+    and .failedIssues == [1]
+    and .reason == "parent #1 did not report a valid consistent state after mutation"' <<<"$output"
+}
+
 @test "Parent Reconciliation suppresses early parent Fixes and emits last-child Fixes" {
   [ -x "$RECONCILIATION_SCRIPT" ]
   grep -Fq 'scripts/reconcile-ticket-hierarchy.sh' "$SKILL"
@@ -354,6 +421,21 @@ write_hierarchy_state() {
 
     [ "$status" -ne 0 ]
     [[ "$output" == *'invalid verified hierarchy snapshot'* ]]
+  done
+}
+
+@test "Parent Reconciliation requires a textual reason for every hierarchy status" {
+  local hierarchy_status
+
+  for hierarchy_status in target-none failed; do
+    jq -n --arg status "$hierarchy_status" \
+      '{linkedIssue: 4, coveredIssues: [4], hierarchy: {status: $status}}' \
+      >"$TEST_TEMP/reconciliation.json"
+
+    run "$RECONCILIATION_SCRIPT" "$TEST_TEMP/reconciliation.json"
+
+    [ "$status" -eq 65 ]
+    [[ "$output" == *'invalid Parent Reconciliation input'* ]]
   done
 }
 

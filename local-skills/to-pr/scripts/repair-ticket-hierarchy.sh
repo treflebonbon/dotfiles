@@ -329,7 +329,6 @@ for index in "${!missing_numbers[@]}"; do
   added_numbers+=("$candidate_number")
 done
 
-post_children='[]'
 postverify_failed=false
 postverify_reason=''
 for candidate_number in "${candidate_numbers[@]}"; do
@@ -350,13 +349,10 @@ for candidate_number in "${candidate_numbers[@]}"; do
     continue
   fi
 
-  post_children="$(jq -c \
-    --argjson number "$(jq -r '.number' <<<"$candidate_issue")" \
-    --arg state "$(jq -r '.state' <<<"$candidate_issue")" \
-    '. + [{number: $number, state: $state}]' <<<"$post_children")"
 done
 
 parent_pages=''
+parent_query_failed=false
 if ! parent_pages="$(gh api graphql --paginate --slurp \
   -F owner='{owner}' \
   -F name='{repo}' \
@@ -368,30 +364,62 @@ if ! parent_pages="$(gh api graphql --paginate --slurp \
           number
           state
           subIssues(first: 100, after: $endCursor) {
-            nodes { number }
+            nodes { number state }
             pageInfo { hasNextPage endCursor }
           }
         }
       }
     }' 2>/dev/null)"; then
   append_failed_number "$parent_number"
+  parent_query_failed=true
   postverify_failed=true
   postverify_reason="parent #$parent_number sub-issues could not be re-read after mutation"
 fi
 
 parent_state=''
-if [[ -n "$parent_pages" ]] && jq -e 'type == "array" and length > 0' >/dev/null <<<"$parent_pages"; then
+native_children='[]'
+if [[ "$parent_query_failed" != true ]] &&
+  jq -e '
+    type == "array"
+    and length > 0
+    and all(.[]; .data.repository.issue != null)
+    and all(.[]; .data.repository.issue.subIssues.nodes | type == "array")
+  ' >/dev/null <<<"$parent_pages"; then
   parent_state="$(jq -r '.[0].data.repository.issue.state // empty' <<<"$parent_pages")"
+
+  if [[ "$parent_state" != OPEN && "$parent_state" != CLOSED ]] ||
+    ! jq -e --argjson parent "$parent_number" --arg state "$parent_state" \
+      'all(.[]; .data.repository.issue.number == $parent and .data.repository.issue.state == $state)' \
+      >/dev/null <<<"$parent_pages"; then
+    append_failed_number "$parent_number"
+    postverify_failed=true
+    postverify_reason="parent #$parent_number did not report a valid consistent state after mutation"
+  fi
+
+  native_children="$(jq -c \
+    '[.[].data.repository.issue.subIssues.nodes[] | {number, state}] | sort_by(.number)' \
+    <<<"$parent_pages")"
+  if ! jq -e '
+    all(.[];
+      (.number | type == "number" and . > 0 and floor == .)
+      and (.state == "OPEN" or .state == "CLOSED")
+    )
+    and (map(.number) | length) == (map(.number) | unique | length)
+  ' >/dev/null <<<"$native_children"; then
+    append_failed_number "$parent_number"
+    postverify_failed=true
+    postverify_reason="parent #$parent_number returned an invalid native child snapshot after mutation"
+  fi
+
   for candidate_number in "${candidate_numbers[@]}"; do
     if ! jq -e --argjson number "$candidate_number" \
-      'any(.[].data.repository.issue.subIssues.nodes[]?; .number == $number)' \
-      >/dev/null <<<"$parent_pages"; then
+      'any(.[]; .number == $number)' >/dev/null <<<"$native_children"; then
       append_failed_number "$candidate_number"
       postverify_failed=true
       postverify_reason="parent #$parent_number does not list candidate #$candidate_number after mutation"
     fi
   done
-else
+elif [[ "$parent_query_failed" != true ]]; then
   append_failed_number "$parent_number"
   postverify_failed=true
   postverify_reason="parent #$parent_number sub-issues returned an invalid response after mutation"
@@ -409,6 +437,6 @@ fi
 snapshot="$(jq -cn \
   --argjson parent "$parent_number" \
   --arg parentState "$parent_state" \
-  --argjson children "$post_children" \
+  --argjson children "$native_children" \
   '{parent: {number: $parent, state: $parentState}, children: $children}')"
-emit_result repaired "$parent_number" 'all declared direct-child edges were verified on both sides' "$snapshot"
+emit_result repaired "$parent_number" 'all declared edges and native direct children were verified on both sides' "$snapshot"

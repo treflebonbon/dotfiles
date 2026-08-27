@@ -92,7 +92,7 @@ if [[ "$query" == *'subIssues(first: 100'* ]]; then
                   number: $parent.number,
                   state: $parent.state,
                   subIssues: {
-                    nodes: [$issues[] | select(.parent.number? == $number) | {number}],
+                    nodes: [$issues[] | select(.parent.number? == $number) | {number, state}],
                     pageInfo: {hasNextPage: false, endCursor: null}
                   }
                 }

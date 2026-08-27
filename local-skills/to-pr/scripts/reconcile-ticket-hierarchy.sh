@@ -17,6 +17,7 @@ if ! jq -e '
   (.linkedIssue | type == "number" and . > 0 and floor == .)
   and (.hierarchy | type == "object")
   and (.hierarchy.status | type == "string")
+  and (.hierarchy.reason | type == "string")
   and (.coveredIssues | type == "array")
   and all(.coveredIssues[]; type == "number" and . > 0 and floor == .)
 ' "$INPUT_FILE" >/dev/null; then
