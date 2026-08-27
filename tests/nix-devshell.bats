@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/3c16acbe5229040ee8f4d6f7b85de757e14b4bda' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "3c16acbe5229040ee8f4d6f7b85de757e14b4bda"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "3c16acbe5229040ee8f4d6f7b85de757e14b4bda"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/4a9441120caf6c6aff273af68995267a35c20fcd' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "4a9441120caf6c6aff273af68995267a35c20fcd"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "4a9441120caf6c6aff273af68995267a35c20fcd"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -202,16 +202,16 @@ PS
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.239";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.247";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "accepted AI toolset snapshot and selected payload source contract is pinned" {
-  local adr="$PROJECT_ROOT/docs/adr/0043-update-llm-agents-and-impeccable-update-unit.md"
+@test "AI toolset snapshot and selected payload source contract is documented" {
+  local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -q '^status: accepted$' "$adr"
-  grep -Fq '3c16acbe5229040ee8f4d6f7b85de757e14b4bda' "$flake"
+  grep -Fq '4a9441120caf6c6aff273af68995267a35c20fcd' "$adr"
+  grep -Fq '4a9441120caf6c6aff273af68995267a35c20fcd' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#460e5536b8e61034d83ff4af24bb0bf1112d2cb0' "$manifest"
 }
 
@@ -230,7 +230,7 @@ PS
 @test "nix-devshell requires Codex with executor-provided skill support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.149\.0";' "$module"
+  grep -q 'minCodex = "0\.150\.0";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
 }
@@ -292,6 +292,11 @@ PS
     run nix develop "path:$flake" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
     [ "$status" -eq 0 ]
     [ -f "$probe/.code-review-graph/graph.db" ]
+
+    run nix develop "path:$flake" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"is_error": false'* ]]
+    [[ "$output" == *'"total_nodes": 2'* ]]
   fi
 }
 

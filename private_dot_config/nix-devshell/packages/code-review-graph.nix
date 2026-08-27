@@ -58,8 +58,10 @@ upstream.overridePythonAttrs (old: {
 
   postPatch = ''
     substituteInPlace code_review_graph/parser.py \
-      --replace-fail 'sys.executable, "-I"' \
-        '"${python.withPackages (ps: [ ps.tree-sitter-language-pack ])}/bin/python", "-I"'
+      --replace-fail '[sys.executable, "-c", code, grammar]' \
+        '["${
+          python.withPackages (ps: [ ps.tree-sitter-language-pack ])
+        }/bin/python", "-c", code, grammar]'
   '';
 
   passthru = (old.passthru or { }) // {
