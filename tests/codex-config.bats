@@ -201,6 +201,18 @@ EOF
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     --config='default_permissions="danger-full-access"'
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --disable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --disable=network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --enable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --enable=network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    features disable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    features enable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     exec --sandbox danger-full-access prompt
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     --dangerously-bypass-approvals-and-sandbox
@@ -364,6 +376,18 @@ render_codex_managed_config() {
     >"$destination"
 }
 
+assert_codex_strict_config() {
+  local codex_home="$1"
+
+  run env HOME="$BATS_TEST_TMPDIR/strict-doctor-home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex --strict-config doctor --json
+
+  if [[ "$output" != *'"config.toml parse": "ok"'* ]]; then
+    printf 'Codex strict config check failed for %s:\n%s\n' "$codex_home" "$output" >&3
+  fi
+  [[ "$output" == *'"config.toml parse": "ok"'* ]]
+}
+
 @test "Codex config managed fragment exists without local state tables" {
   local config="$BATS_TEST_TMPDIR/config.toml"
   render_codex_managed_config "$PROJECT_ROOT" "$config"
@@ -408,6 +432,21 @@ render_codex_managed_config() {
   assert_dotfiles_permission_profile "$config"
 }
 
+@test "Codex strict parser accepts rendered and merged managed config" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$BATS_TEST_TMPDIR/codex-home"
+  mkdir -p "$home/.config/codex" "$home/.codex-app" "$codex_home"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+
+  assert_codex_strict_config "$home/.config/codex"
+
+  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+
+  assert_codex_strict_config "$home/.codex"
+  assert_codex_strict_config "$home/.codex-app"
+  assert_codex_strict_config "$codex_home"
+}
+
 @test "dotfiles-secure sandbox starts without expanding protected home trees" {
   local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
@@ -437,18 +476,7 @@ render_codex_managed_config() {
   mkdir -p "$workspace/one/two/three" "$codex_home"
   render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
 
-  python3 - "$codex_home/config.toml" <<'PY'
-import sys
-import tomllib
-
-with open(sys.argv[1], "rb") as f:
-    config = tomllib.load(f)
-
-workspace_rules = config["permissions"]["dotfiles-secure"]["filesystem"][":workspace_roots"]
-assert workspace_rules["**/.env"] == "deny"
-assert workspace_rules["**/.env.example?*"] == "deny"
-assert "**/.env*" not in workspace_rules
-PY
+  assert_dotfiles_permission_profile "$codex_home/config.toml"
   grep -q '^\*\*Environment Contract File\*\*:' "$PROJECT_ROOT/CONTEXT.md"
 
   for path in .envrc .env.example one/two/three/.envrc one/two/three/.env.example; do
