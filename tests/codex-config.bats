@@ -18,6 +18,14 @@ install_codex_package_test_commands() {
   ln -s "$CODEX_WORKTREE" "$bin/codex-worktree"
 }
 
+stage_codex_package_launcher() {
+  local context="$1"
+  local bin="$2"
+  cp "$PROJECT_ROOT/package.json" "$context/package.json"
+  cp "$PROJECT_ROOT/codex" "$context/codex"
+  install_codex_package_test_commands "$bin"
+}
+
 install_codex_launch_sentinel() {
   local bin="$1"
   mkdir -p "$bin"
@@ -558,9 +566,7 @@ assert_codex_strict_config() {
   local bin="$BATS_TEST_TMPDIR/bin"
   mkdir -p "$repo"
   git -C "$repo" init -q
-  cp "$PROJECT_ROOT/package.json" "$repo/package.json"
-  cp "$PROJECT_ROOT/codex" "$repo/codex"
-  install_codex_package_test_commands "$bin"
+  stage_codex_package_launcher "$repo" "$bin"
 
   cat >"$bin/codex" <<'EOF'
 #!/usr/bin/env bash
@@ -589,9 +595,7 @@ EOF
   local git_dir
   local git_common_dir
   create_linked_worktree "$repo" "$worktree"
-  cp "$PROJECT_ROOT/package.json" "$worktree/package.json"
-  cp "$PROJECT_ROOT/codex" "$worktree/codex"
-  install_codex_package_test_commands "$bin"
+  stage_codex_package_launcher "$worktree" "$bin"
   git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
   git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)"
 
@@ -625,9 +629,7 @@ EOF
   local bin="$BATS_TEST_TMPDIR/bin"
   local launched="$BATS_TEST_TMPDIR/codex-launched"
   mkdir -p "$workspace"
-  cp "$PROJECT_ROOT/package.json" "$workspace/package.json"
-  cp "$PROJECT_ROOT/codex" "$workspace/codex"
-  install_codex_package_test_commands "$bin"
+  stage_codex_package_launcher "$workspace" "$bin"
   install_codex_launch_sentinel "$bin"
 
   run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
@@ -645,9 +647,7 @@ EOF
   local launched="$BATS_TEST_TMPDIR/codex-launched"
   local git_dir
   create_linked_worktree "$repo" "$worktree"
-  cp "$PROJECT_ROOT/package.json" "$worktree/package.json"
-  cp "$PROJECT_ROOT/codex" "$worktree/codex"
-  install_codex_package_test_commands "$bin"
+  stage_codex_package_launcher "$worktree" "$bin"
   install_codex_launch_sentinel "$bin"
   git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
   printf '%s\n' "$BATS_TEST_TMPDIR/missing/.git" >"$git_dir/gitdir"
