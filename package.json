@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun install --frozen-lockfile && bats tests/",
-    "claude": "claude --permission-mode auto"
+    "test": "bun install --frozen-lockfile && bats tests/"
   },
   "devDependencies": {
     "bun-types": "^1.1.30",

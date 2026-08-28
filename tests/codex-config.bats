@@ -860,6 +860,23 @@ assert not any(
 PY
 }
 
+@test "Claude auto mode is managed in user settings without a package launcher alias" {
+  python3 - \
+    "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" \
+    "$PROJECT_ROOT/package.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    settings = json.load(f)
+with open(sys.argv[2], encoding="utf-8") as f:
+    package = json.load(f)
+
+assert settings["permissions"]["defaultMode"] == "auto"
+assert "claude" not in package["scripts"]
+PY
+}
+
 @test "managed Design Hook commands discard failed runtime output and fail open" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p \
