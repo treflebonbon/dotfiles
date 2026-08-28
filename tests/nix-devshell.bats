@@ -45,10 +45,10 @@ setup() {
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
-@test "project Codex launcher keeps supported auto-review escalation" {
+@test "project Codex launcher uses the canonical Orca Runtime Adapter" {
   local package_json="$PROJECT_ROOT/package.json"
 
-  jq -e '.scripts.codex == "codex --approve-for-me"' "$package_json"
+  jq -e '.scripts.codex == "codex-orca"' "$package_json"
 }
 
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
