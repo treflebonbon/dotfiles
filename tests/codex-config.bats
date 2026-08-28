@@ -258,7 +258,16 @@ for path in sys.argv[1:]:
 
     assert config["model"] == "gpt-5.6-sol"
     assert config["model_reasoning_effort"] == "xhigh"
+    assert config["model_reasoning_summary"] == "concise"
+    assert config["model_verbosity"] == "medium"
     assert config["personality"] == "pragmatic"
+    assert config["agents"] == {
+        "default_subagent_model": "gpt-5.6-luna",
+        "default_subagent_reasoning_effort": "high",
+        "max_concurrent_threads_per_session": 3,
+    }
+    assert "service_tier" not in config
+    assert "developer_instructions" not in config
     assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
     assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
@@ -388,6 +397,7 @@ render_codex_managed_config() {
   ! grep -q '^\[projects\.' "$config"
   ! grep -q '^\[notice\.' "$config"
   ! grep -q '^\[tui\.' "$config"
+  assert_codex_managed_values "$config"
   assert_dotfiles_permission_profile "$config"
 }
 
@@ -1133,7 +1143,14 @@ EOF
   cat >"$home/.config/codex/config.toml" <<'EOF'
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+model_reasoning_summary = "concise"
+model_verbosity = "medium"
 personality = "pragmatic"
+
+[agents]
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "high"
+max_concurrent_threads_per_session = 3
 
 [apps.github]
 default_tools_approval_mode = "approve"
@@ -1247,7 +1264,14 @@ EOF
   cat >"$home/.config/codex/config.toml" <<'EOF'
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+model_reasoning_summary = "concise"
+model_verbosity = "medium"
 personality = "pragmatic"
+
+[agents]
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "high"
+max_concurrent_threads_per_session = 3
 
 [apps.github]
 default_tools_approval_mode = "approve"
