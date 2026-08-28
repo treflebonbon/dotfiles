@@ -19,10 +19,10 @@ install_codex_package_test_commands() {
 }
 
 stage_codex_package_launcher() {
-  local context="$1"
+  local workspace="$1"
   local bin="$2"
-  cp "$PROJECT_ROOT/package.json" "$context/package.json"
-  cp "$PROJECT_ROOT/codex" "$context/codex"
+  cp "$PROJECT_ROOT/package.json" "$workspace/package.json"
+  cp "$PROJECT_ROOT/codex" "$workspace/codex"
   install_codex_package_test_commands "$bin"
 }
 
