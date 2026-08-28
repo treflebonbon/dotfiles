@@ -30,6 +30,33 @@ if [ -d "$worktree/.git" ]; then
   exec codex "$@"
 fi
 
+if [[ -f "$worktree/.git" && "$git_dir" = "$git_common_dir" ]]; then
+  if ! python3 - "$worktree/.git" "$git_dir" <<'PY'; then
+import sys
+from pathlib import Path
+
+try:
+    dot_git = Path(sys.argv[1])
+    lines = dot_git.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 1 or not lines[0].startswith("gitdir:"):
+        raise ValueError("invalid Git metadata pointer")
+    target = lines[0][len("gitdir:") :].strip()
+    if not target:
+        raise ValueError("empty Git metadata pointer")
+    target_path = Path(target)
+    if not target_path.is_absolute():
+        target_path = dot_git.parent / target_path
+    valid = target_path.resolve(strict=True) == Path(sys.argv[2]).resolve(strict=True)
+except (OSError, RuntimeError, ValueError):
+    valid = False
+
+sys.exit(0 if valid else 1)
+PY
+    fail "primary Git metadata ownership does not match"
+  fi
+  exec codex "$@"
+fi
+
 if [[ -f "$worktree/.git" && "$git_dir" != "$git_common_dir" ]]; then
   exec codex-worktree "$@"
 fi

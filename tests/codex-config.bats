@@ -588,6 +588,29 @@ EOF
   [ "${#lines[@]}" -eq 5 ]
 }
 
+@test "bun codex launches plain Codex from a primary checkout with a separate Git directory" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local separate_git_dir="$BATS_TEST_TMPDIR/separate.git"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  git init -q --separate-git-dir "$separate_git_dir" "$repo"
+  stage_codex_package_launcher "$repo" "$bin"
+
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+printf 'target=<plain>\n'
+printf 'arg=<%s>\n' "$@"
+EOF
+  chmod +x "$bin/codex"
+
+  run env PATH="$bin:$PATH" bash -c \
+    'cd "$1" && exec bun --silent codex prompt' _ "$repo"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "target=<plain>" ]
+  [ "${lines[1]}" = "arg=<prompt>" ]
+  [ "${#lines[@]}" -eq 2 ]
+}
+
 @test "bun codex routes a valid linked worktree through the canonical adapter without losing arguments" {
   local repo="$BATS_TEST_TMPDIR/repo"
   local worktree="$BATS_TEST_TMPDIR/worktree"
