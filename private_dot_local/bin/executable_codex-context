@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'codex-context: %s\n' "$1" >&2
+  exit 1
+}
+
+git_environment=("${!GIT_@}")
+for variable in "${git_environment[@]}"; do
+  unset "$variable"
+done
+
+caller_dir="$(pwd -P)" || fail "cannot resolve the current directory"
+worktree="$(git -C "$caller_dir" rev-parse --show-toplevel 2>/dev/null)" ||
+  fail "current directory is not a Git checkout"
+git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)" ||
+  fail "cannot resolve the Git directory"
+git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ||
+  fail "cannot resolve the Git common directory"
+
+worktree="$(cd "$worktree" && pwd -P)" || fail "cannot resolve the checkout root"
+git_dir="$(cd "$git_dir" && pwd -P)" || fail "cannot resolve the Git directory"
+git_common_dir="$(cd "$git_common_dir" && pwd -P)" || fail "cannot resolve the Git common directory"
+
+if [ -d "$worktree/.git" ]; then
+  primary_git_dir="$(cd "$worktree/.git" && pwd -P)" || fail "cannot resolve the primary Git directory"
+  [[ "$git_dir" = "$git_common_dir" && "$git_dir" = "$primary_git_dir" ]] ||
+    fail "primary Git metadata ownership does not match"
+  exec codex "$@"
+fi
+
+if [[ -f "$worktree/.git" && "$git_dir" != "$git_common_dir" ]]; then
+  exec codex-worktree "$@"
+fi
+
+fail "Git checkout metadata is unresolved"

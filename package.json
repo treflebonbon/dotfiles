@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "bun install --frozen-lockfile && bats tests/",
-    "claude": "claude --permission-mode auto",
-    "codex": "codex-orca"
+    "claude": "claude --permission-mode auto"
   },
   "devDependencies": {
     "bun-types": "^1.1.30",

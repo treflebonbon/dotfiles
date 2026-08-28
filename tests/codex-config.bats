@@ -3,10 +3,19 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CODEX_ORCA="$PROJECT_ROOT/private_dot_local/bin/executable_codex-orca"
+  export CODEX_CONTEXT="$PROJECT_ROOT/private_dot_local/bin/executable_codex-context"
   export CODEX_WORKTREE="$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree"
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
+}
+
+install_codex_package_test_commands() {
+  local bin="$1"
+  mkdir -p "$bin"
+  ln -s "$CODEX_CONTEXT" "$bin/codex-context"
+  ln -s "$CODEX_ORCA" "$bin/codex-orca"
+  ln -s "$CODEX_WORKTREE" "$bin/codex-worktree"
 }
 
 install_codex_launch_sentinel() {
@@ -544,17 +553,111 @@ assert_codex_strict_config() {
   [[ "$output" == *"CONNECT tunnel failed, response 403"* ]]
 }
 
-@test "Orca-compatible Codex package script uses the canonical Runtime Adapter" {
-  python3 - "$PROJECT_ROOT/package.json" <<'PY'
-import json
-import sys
+@test "bun codex launches plain Codex from a primary checkout without overriding managed settings" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$repo"
+  git -C "$repo" init -q
+  cp "$PROJECT_ROOT/package.json" "$repo/package.json"
+  cp "$PROJECT_ROOT/codex" "$repo/codex"
+  install_codex_package_test_commands "$bin"
 
-with open(sys.argv[1], encoding="utf-8") as f:
-    package = json.load(f)
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+printf 'target=<plain>\n'
+printf 'arg=<%s>\n' "$@"
+EOF
+  chmod +x "$bin/codex"
 
-command = package["scripts"]["codex"]
-assert command == "codex-orca"
-PY
+  run env PATH="$bin:$PATH" bash -c \
+    'cd "$1" && exec bun --silent codex --model "model with space" "" "prompt with space"' \
+    _ "$repo"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "target=<plain>" ]
+  [ "${lines[1]}" = "arg=<--model>" ]
+  [ "${lines[2]}" = "arg=<model with space>" ]
+  [ "${lines[3]}" = "arg=<>" ]
+  [ "${lines[4]}" = "arg=<prompt with space>" ]
+  [ "${#lines[@]}" -eq 5 ]
+}
+
+@test "bun codex routes a valid linked worktree through the canonical adapter without losing arguments" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local git_dir
+  local git_common_dir
+  create_linked_worktree "$repo" "$worktree"
+  cp "$PROJECT_ROOT/package.json" "$worktree/package.json"
+  cp "$PROJECT_ROOT/codex" "$worktree/codex"
+  install_codex_package_test_commands "$bin"
+  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
+  git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)"
+
+  cat >"$bin/codex" <<'EOF'
+#!/usr/bin/env bash
+printf 'arg=<%s>\n' "$@"
+EOF
+  chmod +x "$bin/codex"
+
+  run env PATH="$bin:$PATH" bash -c \
+    'cd "$1" && exec bun --silent codex --model "model with space" "" "prompt with space"' \
+    _ "$worktree"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "arg=<-C>" ]
+  [ "${lines[1]}" = "arg=<$worktree>" ]
+  [ "${lines[2]}" = "arg=<-c>" ]
+  [ "${lines[3]}" = 'arg=<default_permissions="dotfiles-secure">' ]
+  [ "${lines[4]}" = "arg=<-c>" ]
+  [ "${lines[5]}" = \
+    "arg=<permissions.dotfiles-secure.filesystem={\"$git_dir\"=\"write\",\"$git_common_dir\"=\"write\"}>" ]
+  [ "${lines[6]}" = "arg=<--model>" ]
+  [ "${lines[7]}" = "arg=<model with space>" ]
+  [ "${lines[8]}" = "arg=<>" ]
+  [ "${lines[9]}" = "arg=<prompt with space>" ]
+  [ "${#lines[@]}" -eq 10 ]
+}
+
+@test "bun codex fails closed outside Git without launching Codex" {
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  mkdir -p "$workspace"
+  cp "$PROJECT_ROOT/package.json" "$workspace/package.json"
+  cp "$PROJECT_ROOT/codex" "$workspace/codex"
+  install_codex_package_test_commands "$bin"
+  install_codex_launch_sentinel "$bin"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec bun --silent codex prompt' _ "$workspace"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"codex-context: current directory is not a Git checkout"* ]]
+  [ ! -e "$launched" ]
+}
+
+@test "bun codex fails closed for unresolved linked-worktree metadata without launching Codex" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local launched="$BATS_TEST_TMPDIR/codex-launched"
+  local git_dir
+  create_linked_worktree "$repo" "$worktree"
+  cp "$PROJECT_ROOT/package.json" "$worktree/package.json"
+  cp "$PROJECT_ROOT/codex" "$worktree/codex"
+  install_codex_package_test_commands "$bin"
+  install_codex_launch_sentinel "$bin"
+  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
+  printf '%s\n' "$BATS_TEST_TMPDIR/missing/.git" >"$git_dir/gitdir"
+
+  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
+    'cd "$1" && exec bun --silent codex prompt' _ "$worktree"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"codex-worktree: linked worktree metadata ownership does not match"* ]]
+  [ ! -e "$launched" ]
 }
 
 @test "codex-worktree permits linked-worktree Git writes while protected paths stay denied" {
@@ -625,6 +728,7 @@ PY
   local ignore="$PROJECT_ROOT/.chezmoiignore"
 
   grep -q '^\.codex$' "$ignore"
+  grep -q '^codex$' "$ignore"
   grep -q '^apm_modules/\*\*$' "$ignore"
   grep -q '^\.agents/\*\*$' "$ignore"
   grep -q '^\.claude/agents/\*\*$' "$ignore"

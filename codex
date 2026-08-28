@@ -1,0 +1,10 @@
+#!/usr/bin/env bun
+
+// Direct source execution preserves empty argv elements that package scripts discard.
+const child = Bun.spawn(["codex-context", ...Bun.argv.slice(2)], {
+  stdin: "inherit",
+  stdout: "inherit",
+  stderr: "inherit",
+});
+
+process.exit(await child.exited);
