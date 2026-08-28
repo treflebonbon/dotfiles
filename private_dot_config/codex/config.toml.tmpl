@@ -48,6 +48,10 @@ glob_scan_max_depth = 4
 [permissions."dotfiles-secure".filesystem.":workspace_roots"]
 "." = "write"
 "**/.env" = "deny"
+"**/.env[!.r]*" = "deny"
+"**/.envr" = "deny"
+"**/.envr[!c]*" = "deny"
+"**/.envrc?*" = "deny"
 "**/.env." = "deny"
 "**/.env.[!e]*" = "deny"
 "**/.env.e" = "deny"

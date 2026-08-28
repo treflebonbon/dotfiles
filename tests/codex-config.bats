@@ -329,6 +329,10 @@ for path in sys.argv[1:]:
     assert ".git" not in filesystem[":workspace_roots"]
     assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
     assert filesystem[":workspace_roots"]["**/.env"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.env[!.r]*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.envr"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.envr[!c]*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.envrc?*"] == "deny"
     assert filesystem[":workspace_roots"]["**/.env.example?*"] == "deny"
     assert "**/.env*" not in filesystem[":workspace_roots"]
     assert "**/.envrc" not in filesystem[":workspace_roots"]
@@ -494,7 +498,10 @@ assert_codex_strict_config() {
 
   for path in \
     .env .env. .env.local .env.e .env.experimental .env.example.local \
-    one/two/three/.env.production private.key credentials.json; do
+    .envrc.local .env-secret .environment \
+    one/two/three/.env.production one/two/three/.envrc.local \
+    one/two/three/.env-secret one/two/three/.environment \
+    private.key credentials.json; do
     printf 'protected\n' >"$workspace/$path"
     run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
       codex sandbox -P dotfiles-secure -C "$workspace" -- \
