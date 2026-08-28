@@ -56,6 +56,10 @@ _Avoid_: 仕様, spec, 要件定義
 `to-pr` が PR body に載せる AC ごとの検証記録表（列: AC / 種別 / 実行コマンドまたは理由 / 結果 / 未確認理由）。UI・CLI・API・infra 全ての AC を1つの表に統合する。
 _Avoid_: evidence table, 検証エビデンス, verdict
 
+**Environment Contract File**:
+Repository に追跡され、workspace が必要とする環境変数名と導出規則を秘密値なしで共有するファイル。実値を保持する credential や secret file とは区別する。
+_Avoid_: env file, dotenv, secret file
+
 **Worktree Owner**:
 task の worktree を作成・選択し、workflow の全 phase を同じ checkout に留める責務を持つ実行環境。Orca session、Codex native worktree、Claude Code では各 runtime がこの責務を持ち、raw CLI では host 側の起動境界が担う。
 _Avoid_: worktree launcher, worktree tool, checkout owner

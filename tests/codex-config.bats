@@ -315,7 +315,11 @@ for path in sys.argv[1:]:
     assert filesystem[":workspace_roots"]["."] == "write"
     assert ".git" not in filesystem[":workspace_roots"]
     assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
-    assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.env"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.env.example?*"] == "deny"
+    assert "**/.env*" not in filesystem[":workspace_roots"]
+    assert "**/.envrc" not in filesystem[":workspace_roots"]
+    assert "**/.env.example" not in filesystem[":workspace_roots"]
     assert filesystem["~/.ssh"] == "deny"
     assert filesystem["~/.aws"] == "deny"
     assert filesystem["~/.config/gcloud"] == "deny"
@@ -386,8 +390,9 @@ render_codex_managed_config() {
   grep -q '^\[permissions\."dotfiles-secure"\]$' "$config"
   grep -q '^extends = ":workspace"$' "$config"
   grep -q '^\[permissions\."dotfiles-secure"\.filesystem\]' "$config"
-  grep -q '^":workspace_roots" = .*"\*\*/\.env\*" = "deny"' "$config"
-  grep -q '^":workspace_roots" = .*"\*\*/\*\.pem" = "deny"' "$config"
+  grep -q '^\[permissions\."dotfiles-secure"\.filesystem\.":workspace_roots"\]$' "$config"
+  grep -q '^"\*\*/\.env" = "deny"$' "$config"
+  grep -q '^"\*\*/\*\.pem" = "deny"$' "$config"
   grep -q '^"~/\.ssh" = "deny"$' "$config"
   grep -q '^"~/\.aws" = "deny"$' "$config"
   grep -q '^"~/\.config/gcloud" = "deny"$' "$config"
@@ -420,6 +425,57 @@ render_codex_managed_config() {
 
   [ "$status" -ne 0 ]
   [ "$(cat "$home/.ssh/config")" = "protected" ]
+}
+
+@test "dotfiles-secure permits Environment Contract Files while preserving secret denies" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local codex_home="$home/.codex"
+  local path
+  mkdir -p "$workspace/one/two/three" "$codex_home"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+
+  python3 - "$codex_home/config.toml" <<'PY'
+import sys
+import tomllib
+
+with open(sys.argv[1], "rb") as f:
+    config = tomllib.load(f)
+
+workspace_rules = config["permissions"]["dotfiles-secure"]["filesystem"][":workspace_roots"]
+assert workspace_rules["**/.env"] == "deny"
+assert workspace_rules["**/.env.example?*"] == "deny"
+assert "**/.env*" not in workspace_rules
+PY
+  grep -q '^\*\*Environment Contract File\*\*:' "$PROJECT_ROOT/CONTEXT.md"
+
+  for path in .envrc .env.example one/two/three/.envrc one/two/three/.env.example; do
+    printf 'original\n' >"$workspace/$path"
+    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+      sh -c 'printf "updated\n" >"$1"' _ "$path"
+
+    if [ "$status" -ne 0 ]; then
+      printf '%s\n' "$output" >&3
+    fi
+    [ "$status" -eq 0 ]
+    [ "$(cat "$workspace/$path")" = "updated" ]
+  done
+
+  for path in \
+    .env .env. .env.local .env.e .env.experimental .env.example.local \
+    one/two/three/.env.production private.key credentials.json; do
+    printf 'protected\n' >"$workspace/$path"
+    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+      sh -c 'printf "overwritten\n" >"$1"' _ "$path"
+
+    if [ "$status" -eq 0 ]; then
+      printf 'unexpected write allowed: %s\n%s\n' "$path" "$output" >&3
+    fi
+    [ "$status" -ne 0 ]
+    [ "$(cat "$workspace/$path")" = "protected" ]
+  done
 }
 
 @test "Codex package script does not override the managed permission profile" {
@@ -1128,7 +1184,8 @@ EOF
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
   grep -q '^glob_scan_max_depth = 4$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
-  grep -q '^"\*\*/\.env\*" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"\*\*/\.env" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"\*\*/\.env\.example?\*" = "deny"$' "$home/.codex/config.toml"
   grep -q '^"~/\.ssh" = "deny"$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$home/.codex/config.toml"
