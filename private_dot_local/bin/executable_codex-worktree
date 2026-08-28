@@ -30,6 +30,7 @@ validate_arguments() {
         fail "permission profile must remain dotfiles-secure"
       ;;
     -C | -C?* | --cd | --cd=* | -c | -c?* | --config | --config=* | \
+      --enable | --enable=* | --disable | --disable=* | features | \
       -s | -s?* | --sandbox | --sandbox=* | --add-dir | --add-dir=* | \
       -p | -p?* | --profile | --profile=* | --approve-for-me | \
       --dangerously-bypass-approvals-and-sandbox | --yolo | --ignore-user-config | --ignore-rules | \

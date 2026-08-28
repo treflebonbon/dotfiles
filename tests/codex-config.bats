@@ -201,6 +201,18 @@ EOF
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     --config='default_permissions="danger-full-access"'
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --disable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --disable=network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --enable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --enable=network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    features disable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    features enable network_proxy
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     exec --sandbox danger-full-access prompt
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     --dangerously-bypass-approvals-and-sandbox
@@ -258,7 +270,17 @@ for path in sys.argv[1:]:
 
     assert config["model"] == "gpt-5.6-sol"
     assert config["model_reasoning_effort"] == "xhigh"
+    assert config["model_reasoning_summary"] == "concise"
+    assert config["model_verbosity"] == "medium"
     assert config["personality"] == "pragmatic"
+    assert config["agents"] == {
+        "default_subagent_model": "gpt-5.6-luna",
+        "default_subagent_reasoning_effort": "high",
+        "max_concurrent_threads_per_session": 3,
+    }
+    assert "service_tier" not in config
+    assert "developer_instructions" not in config
+    assert config["features"]["network_proxy"] is True
     assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
     assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
@@ -306,7 +328,15 @@ for path in sys.argv[1:]:
     assert filesystem[":workspace_roots"]["."] == "write"
     assert ".git" not in filesystem[":workspace_roots"]
     assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
-    assert filesystem[":workspace_roots"]["**/.env*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.env"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.env[!.r]*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.envr"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.envr[!c]*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.envrc?*"] == "deny"
+    assert filesystem[":workspace_roots"]["**/.env.example?*"] == "deny"
+    assert "**/.env*" not in filesystem[":workspace_roots"]
+    assert "**/.envrc" not in filesystem[":workspace_roots"]
+    assert "**/.env.example" not in filesystem[":workspace_roots"]
     assert filesystem["~/.ssh"] == "deny"
     assert filesystem["~/.aws"] == "deny"
     assert filesystem["~/.config/gcloud"] == "deny"
@@ -350,6 +380,18 @@ render_codex_managed_config() {
     >"$destination"
 }
 
+assert_codex_strict_config() {
+  local codex_home="$1"
+
+  run env HOME="$BATS_TEST_TMPDIR/strict-doctor-home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex --strict-config doctor --json
+
+  if [[ "$output" != *'"config.toml parse": "ok"'* ]]; then
+    printf 'Codex strict config check failed for %s:\n%s\n' "$codex_home" "$output" >&3
+  fi
+  [[ "$output" == *'"config.toml parse": "ok"'* ]]
+}
+
 @test "Codex config managed fragment exists without local state tables" {
   local config="$BATS_TEST_TMPDIR/config.toml"
   render_codex_managed_config "$PROJECT_ROOT" "$config"
@@ -368,6 +410,7 @@ render_codex_managed_config() {
   grep -q '^\[features\]' "$config"
   grep -q '^hooks = true$' "$config"
   grep -q '^goals = true$' "$config"
+  grep -q '^network_proxy = true$' "$config"
   grep -q '^\[mcp_servers\.context7\]$' "$config"
   grep -q '^command = "bunx"$' "$config"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$config"
@@ -377,8 +420,9 @@ render_codex_managed_config() {
   grep -q '^\[permissions\."dotfiles-secure"\]$' "$config"
   grep -q '^extends = ":workspace"$' "$config"
   grep -q '^\[permissions\."dotfiles-secure"\.filesystem\]' "$config"
-  grep -q '^":workspace_roots" = .*"\*\*/\.env\*" = "deny"' "$config"
-  grep -q '^":workspace_roots" = .*"\*\*/\*\.pem" = "deny"' "$config"
+  grep -q '^\[permissions\."dotfiles-secure"\.filesystem\.":workspace_roots"\]$' "$config"
+  grep -q '^"\*\*/\.env" = "deny"$' "$config"
+  grep -q '^"\*\*/\*\.pem" = "deny"$' "$config"
   grep -q '^"~/\.ssh" = "deny"$' "$config"
   grep -q '^"~/\.aws" = "deny"$' "$config"
   grep -q '^"~/\.config/gcloud" = "deny"$' "$config"
@@ -388,7 +432,23 @@ render_codex_managed_config() {
   ! grep -q '^\[projects\.' "$config"
   ! grep -q '^\[notice\.' "$config"
   ! grep -q '^\[tui\.' "$config"
+  assert_codex_managed_values "$config"
   assert_dotfiles_permission_profile "$config"
+}
+
+@test "Codex strict parser accepts rendered and merged managed config" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$BATS_TEST_TMPDIR/codex-home"
+  mkdir -p "$home/.config/codex" "$home/.codex-app" "$codex_home"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+
+  assert_codex_strict_config "$home/.config/codex"
+
+  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+
+  assert_codex_strict_config "$home/.codex"
+  assert_codex_strict_config "$home/.codex-app"
+  assert_codex_strict_config "$codex_home"
 }
 
 @test "dotfiles-secure sandbox starts without expanding protected home trees" {
@@ -412,7 +472,79 @@ render_codex_managed_config() {
   [ "$(cat "$home/.ssh/config")" = "protected" ]
 }
 
-@test "Codex package script does not override the managed permission profile" {
+@test "dotfiles-secure permits Environment Contract Files while preserving secret denies" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local codex_home="$home/.codex"
+  local path
+  mkdir -p "$workspace/one/two/three" "$codex_home"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+
+  assert_dotfiles_permission_profile "$codex_home/config.toml"
+  grep -q '^\*\*Environment Contract File\*\*:' "$PROJECT_ROOT/CONTEXT.md"
+
+  for path in .envrc .env.example one/two/three/.envrc one/two/three/.env.example; do
+    printf 'original\n' >"$workspace/$path"
+    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+      sh -c 'printf "updated\n" >"$1"' _ "$path"
+
+    if [ "$status" -ne 0 ]; then
+      printf '%s\n' "$output" >&3
+    fi
+    [ "$status" -eq 0 ]
+    [ "$(cat "$workspace/$path")" = "updated" ]
+  done
+
+  for path in \
+    .env .env. .env.local .env.e .env.experimental .env.example.local \
+    .envrc.local .env-secret .environment \
+    one/two/three/.env.production one/two/three/.envrc.local \
+    one/two/three/.env-secret one/two/three/.environment \
+    private.key credentials.json; do
+    printf 'protected\n' >"$workspace/$path"
+    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+      sh -c 'printf "overwritten\n" >"$1"' _ "$path"
+
+    if [ "$status" -eq 0 ]; then
+      printf 'unexpected write allowed: %s\n%s\n' "$path" "$output" >&3
+    fi
+    [ "$status" -ne 0 ]
+    [ "$(cat "$workspace/$path")" = "protected" ]
+  done
+}
+
+@test "dotfiles-secure command network proxy enforces the managed domain allowlist" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local codex_home="$home/.codex"
+  mkdir -p "$workspace" "$codex_home"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  assert_codex_managed_values "$codex_home/config.toml"
+  assert_dotfiles_permission_profile "$codex_home/config.toml"
+
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    sh -c 'test -n "$CODEX_NETWORK_PROXY_ACTIVE" && curl --silent --show-error --fail --max-time 20 https://registry.npmjs.org/-/ping >/dev/null'
+
+  if [ "$status" -ne 0 ]; then
+    printf 'allowlisted command network request failed:\n%s\n' "$output" >&3
+  fi
+  [ "$status" -eq 0 ]
+
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    curl --silent --show-error --output /dev/null --max-time 20 https://example.com/
+
+  if [[ "$output" != *"CONNECT tunnel failed, response 403"* ]]; then
+    printf 'non-allowlisted command network request had an unexpected failure:\n%s\n' "$output" >&3
+  fi
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"CONNECT tunnel failed, response 403"* ]]
+}
+
+@test "Orca-compatible Codex package script uses the canonical Runtime Adapter" {
   python3 - "$PROJECT_ROOT/package.json" <<'PY'
 import json
 import sys
@@ -421,7 +553,7 @@ with open(sys.argv[1], encoding="utf-8") as f:
     package = json.load(f)
 
 command = package["scripts"]["codex"]
-assert "--sandbox" not in command
+assert command == "codex-orca"
 PY
 }
 
@@ -1118,7 +1250,8 @@ EOF
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
   grep -q '^glob_scan_max_depth = 4$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
-  grep -q '^"\*\*/\.env\*" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"\*\*/\.env" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"\*\*/\.env\.example?\*" = "deny"$' "$home/.codex/config.toml"
   grep -q '^"~/\.ssh" = "deny"$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$home/.codex/config.toml"
@@ -1133,7 +1266,17 @@ EOF
   cat >"$home/.config/codex/config.toml" <<'EOF'
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+model_reasoning_summary = "concise"
+model_verbosity = "medium"
 personality = "pragmatic"
+
+[agents]
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "high"
+max_concurrent_threads_per_session = 3
+
+[features]
+network_proxy = true
 
 [apps.github]
 default_tools_approval_mode = "approve"
@@ -1247,7 +1390,17 @@ EOF
   cat >"$home/.config/codex/config.toml" <<'EOF'
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+model_reasoning_summary = "concise"
+model_verbosity = "medium"
 personality = "pragmatic"
+
+[agents]
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "high"
+max_concurrent_threads_per_session = 3
+
+[features]
+network_proxy = true
 
 [apps.github]
 default_tools_approval_mode = "approve"

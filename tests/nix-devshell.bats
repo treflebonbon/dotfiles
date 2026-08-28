@@ -45,12 +45,6 @@ setup() {
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
-@test "project Codex launcher keeps supported auto-review escalation" {
-  local package_json="$PROJECT_ROOT/package.json"
-
-  jq -e '.scripts.codex == "codex --approve-for-me"' "$package_json"
-}
-
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
   grep -q 'zsh-autosuggestions' "$module"
