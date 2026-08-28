@@ -268,6 +268,7 @@ for path in sys.argv[1:]:
     }
     assert "service_tier" not in config
     assert "developer_instructions" not in config
+    assert config["features"]["network_proxy"] is True
     assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
     assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
@@ -381,6 +382,7 @@ render_codex_managed_config() {
   grep -q '^\[features\]' "$config"
   grep -q '^hooks = true$' "$config"
   grep -q '^goals = true$' "$config"
+  grep -q '^network_proxy = true$' "$config"
   grep -q '^\[mcp_servers\.context7\]$' "$config"
   grep -q '^command = "bunx"$' "$config"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$config"
@@ -476,6 +478,35 @@ PY
     [ "$status" -ne 0 ]
     [ "$(cat "$workspace/$path")" = "protected" ]
   done
+}
+
+@test "dotfiles-secure command network proxy enforces the managed domain allowlist" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local codex_home="$home/.codex"
+  mkdir -p "$workspace" "$codex_home"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  assert_codex_managed_values "$codex_home/config.toml"
+  assert_dotfiles_permission_profile "$codex_home/config.toml"
+
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    sh -c 'test -n "$CODEX_NETWORK_PROXY_ACTIVE" && curl --silent --show-error --fail --max-time 20 https://registry.npmjs.org/-/ping >/dev/null'
+
+  if [ "$status" -ne 0 ]; then
+    printf 'allowlisted command network request failed:\n%s\n' "$output" >&3
+  fi
+  [ "$status" -eq 0 ]
+
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    curl --silent --show-error --output /dev/null --max-time 20 https://example.com/
+
+  if [[ "$output" != *"CONNECT tunnel failed, response 403"* ]]; then
+    printf 'non-allowlisted command network request had an unexpected failure:\n%s\n' "$output" >&3
+  fi
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"CONNECT tunnel failed, response 403"* ]]
 }
 
 @test "Codex package script does not override the managed permission profile" {
@@ -1209,6 +1240,9 @@ default_subagent_model = "gpt-5.6-luna"
 default_subagent_reasoning_effort = "high"
 max_concurrent_threads_per_session = 3
 
+[features]
+network_proxy = true
+
 [apps.github]
 default_tools_approval_mode = "approve"
 destructive_enabled = false
@@ -1329,6 +1363,9 @@ personality = "pragmatic"
 default_subagent_model = "gpt-5.6-luna"
 default_subagent_reasoning_effort = "high"
 max_concurrent_threads_per_session = 3
+
+[features]
+network_proxy = true
 
 [apps.github]
 default_tools_approval_mode = "approve"
