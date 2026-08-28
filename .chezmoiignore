@@ -27,6 +27,7 @@ tests/**
 # 配備するグローバル agent 指示ファイルであり、意図した deploy 対象（→ okf/architecture.md）。
 node_modules/**
 package.json
+codex
 bun.lock
 bunfig.toml
 tsconfig.json

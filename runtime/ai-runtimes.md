@@ -21,7 +21,7 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 workflow パイプライン（mattpocock skills）は Claude Code の Skill tool 前提だが、汎用コーディングは Codex でも行える二刀流を維持する。
 
-- **Claude**: `private_dot_claude/settings.json.tmpl` → `~/.claude/settings.json`。`language: japanese`、`effortLevel: xhigh`、`teammateMode: auto`、`model: sonnet` + `advisorModel: opus`（experimental advisor tool、下記参照）、deny ルール群、`enabledPlugins`（LSP / codex / security-guidance / claude-code-setup）。既存 `PreToolUse` に加え、quiet な Impeccable Design Hook を user-global の `PostToolUse`（per-edit、timeout 5s）と `Stop`（deep pass、matcher なし・timeout 30s）として持つ。個人・端末差分は `~/.claude/settings.local.json`（管理外）。
+- **Claude**: `private_dot_claude/settings.json.tmpl` → `~/.claude/settings.json`。`language: japanese`、`effortLevel: xhigh`、`permissions.defaultMode: auto`、`teammateMode: auto`、`model: sonnet` + `advisorModel: opus`（experimental advisor tool、下記参照）、deny ルール群、`enabledPlugins`（LSP / codex / security-guidance / claude-code-setup）。permission Auto mode は user settings が所有するため、package launcher alias を介さず `claude` を直接起動する。既存 `PreToolUse` に加え、quiet な Impeccable Design Hook を user-global の `PostToolUse`（per-edit、timeout 5s）と `Stop`（deep pass、matcher なし・timeout 30s）として持つ。個人・端末差分は `~/.claude/settings.local.json`（管理外）。
 - **Codex**: `private_dot_config/codex/`（config.toml / rules / AGENTS.md / hooks.json / environments）を `run_onchange_after_codex-*.sh.tmpl` が `~/.config/codex/` 経由で `~/.codex/`（`$CODEX_HOME`）へマージ配置する。managed `hooks.json` は共有ハブの Impeccable runtime を quiet な `PostToolUse` と `Stop` で呼ぶ（Claude と同じ二層）。4.1.2 runtime は `turn_id` で Codex を判別し、Stop finding を top-level `decision` / `reason` で返すため、managed command は追加変換せず fail-open で pass-through する。宣言的設定のみ管理しローカル state は保全する。**Codex の hook は entry 単位で trust が要る** — `config.toml` の `[hooks.state]` に `"<hooks.json path>:<event>:<idx>:<idx>"` をキーとして `trusted_hash` が積まれ、未登録の entry は "New hook - review required" として初回に承認を求められる。よって `hooks.json` に event を足した回は、Codex 側で一度承認するまでその hook は走らない。
 - **AGENTS.md** — Codex / OpenCode / Zed / Cursor 向け指示（`~/AGENTS.md`、`private_dot_gemini/AGENTS.md` は Gemini 向け）。CLAUDE.md は Claude Code 向けに別管理。
 
@@ -233,14 +233,14 @@ Issue #188 の最終配備では、更新済み source を live HOME へ apply �
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
-`settings.json` は変更せず、認識だけ合わせる。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
+以下は release 更新時の認識記録であり、現在の managed settings は上記「Claude Code / Codex マルチランタイム」を正とする。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
 
 - **subagent が既定で background 実行**（2.1.198）— 委譲中も本流が進み完了通知が来る。`teammateMode: auto` と整合。
 - **worktree 完了時に自動 commit / push / draft PR**（2.1.198）— `claude agents` 起動の background agent は worktree でのコード作業を終えると停止して尋ねず自動で draft PR を開く。`to-worktree` → `to-pr` の想定と重なるので二重 PR に注意。
 - **stacked slash-skill が先頭 5 個までロード**（2.1.199）— `/skill-a /skill-b ...` で先頭 skill だけでなく先頭 5 個を全ロード。user-invoked チェーンの連結起動に効く。
 - **subagent の error 伝搬修正**（2.1.199）— rate-limit / API error を「成功」と誤報せず親へ正確に伝える。多 agent 実行の信頼性が上がる。
 - **Explore agent が main model を継承**（opus cap, 2.1.198）／**`/agents` wizard 削除**（`.claude/agents/` 直接編集 or Claude に依頼）。
-- **default permission mode が `"default"` → `"Manual"` へ変更**（2.1.200）— `settings.json.tmpl` は `defaultMode` を明示していないため、この変更をそのまま受ける。`skipDangerousModePermissionPrompt` / `skipAutoPermissionPrompt` は 2.1.200 でも設定として残存しており、動作に競合はない（インストール済みバイナリの文字列を確認済み）。
+- **default permission mode が `"default"` → `"Manual"` へ変更**（2.1.200）— 当時は `defaultMode` を明示せず upstream default を受けていた。現在は user settings の `permissions.defaultMode: auto` で直接起動時の既定を固定し、`skipDangerousModePermissionPrompt` / `skipAutoPermissionPrompt` と併用する。
 - **AskUserQuestion がアイドルでも既定で自動継続しなくなった**（2.1.200）— `CLAUDE_AFK_TIMEOUT_MS` でアイドル自動継続へオプトイン可能だが、選択は自分で行いたいため意図的に設定せず、既定（自動継続しない）のままにしている。
 - **background session の安定化**（2.1.200）— sleep/resume 後や stale セッション再開時の途中終了、stale daemon による乗っ取りを修正。
 - **`/review <pr>` が単一パスに戻り、複数エージェントレビューは `/code-review <level> <pr#>` に変更**（2.1.202）— `code-review` は Claude Code 本体の built-in skill 名でもあり、この repo は同名の `code-review` skill（mattpocock 経由 vendored、`~/.claude/skills/code-review`）を導入済み。2.1.204 バイナリの文字列解析で「同名の project skill は built-in skill を完全に shadow する（例外は project-specific な追記を許す `verify` のみ）」という設計文言を確認済み。`code-review` は例外に含まれないため、この repo の `/code-review` は常にこの repo 自身の Standards/Spec レビュー skill が実行され、ネイティブの multi-agent ultra-review には衝突しない。
