@@ -5,7 +5,7 @@
   "scripts": {
     "test": "bun install --frozen-lockfile && bats tests/",
     "claude": "claude --permission-mode auto",
-    "codex": "codex --approve-for-me"
+    "codex": "codex-orca"
   },
   "devDependencies": {
     "bun-types": "^1.1.30",

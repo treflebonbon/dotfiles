@@ -509,7 +509,7 @@ PY
   [[ "$output" == *"CONNECT tunnel failed, response 403"* ]]
 }
 
-@test "Codex package script does not override the managed permission profile" {
+@test "Orca-compatible Codex package script uses the canonical Runtime Adapter" {
   python3 - "$PROJECT_ROOT/package.json" <<'PY'
 import json
 import sys
@@ -518,7 +518,7 @@ with open(sys.argv[1], encoding="utf-8") as f:
     package = json.load(f)
 
 command = package["scripts"]["codex"]
-assert "--sandbox" not in command
+assert command == "codex-orca"
 PY
 }
 
