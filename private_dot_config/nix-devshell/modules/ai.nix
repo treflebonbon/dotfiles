@@ -94,9 +94,13 @@ let
   #          credential の telemetry 境界を修正。
   # 2.1.247: chezmoi/Nix 管理 settings symlink、subagent fallback、hook output overflow、--agent session の
   #          compact system prompt を修正。この repo の配備・worktree・多 agent 契約に直結するため床上げする。
+  # 2.1.248-2.1.252: cross-session messaging の trust boundary、file tool の symlink swap、plugin command の
+  #                  path traversal、Workflow scriptPath の permission-before-read、Grep/Glob の symlink 経由
+  #                  deny rule、background worktree edit と teammate 応答を修正。2.1.251 の安全性・worktree・
+  #                  多 agent 修正を含む stable snapshot の 2.1.252 へ床を揃える。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.247";
-  minCodex = "0.150.0";
+  minClaudeCode = "2.1.252";
+  minCodex = "0.151.0";
 
   claudeCode =
     let
@@ -145,7 +149,10 @@ let
         cross-session messaging、background subagent wake、hook command 条件の誤発火を修正する 2.1.243、
         人手作成 worktree の retention、malformed shell command の approval、third-party gateway credential の
         telemetry 境界を修正する 2.1.246、chezmoi/Nix 管理 settings symlink、subagent fallback、hook output
-        overflow、--agent session の compact system prompt を修正する 2.1.247 を根拠に、
+        overflow、--agent session の compact system prompt を修正する 2.1.247 に加え、cross-session messaging の
+        trust boundary、file tool の symlink swap、plugin command の path traversal、Workflow scriptPath の
+        permission-before-read、Grep/Glob の symlink 経由 deny rule、background worktree edit と teammate 応答を
+        修正する 2.1.248-2.1.252 を根拠に、
         現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
@@ -184,7 +191,10 @@ let
         approval policy 復元を含む 0.148.0 に加え、agents dashboard、cwd commands、queue、resume/fork の permission
         profile 復元、skill catalog、MCP hooks/async message、skill/OAuth/sandbox hardening を含む 0.149.0 に加え、
         untrusted project の project-level AGENTS.md 無視、permission update 後の managed deny-read 維持、
-        credential redaction、remote MCP auth/startup、Unix shutdown 修正を含む 0.150.0 を
+        credential redaction、remote MCP auth/startup、Unix shutdown 修正を含む 0.150.0 に加え、
+        TUI turn をまたぐ permission profile 維持、`/cd` による sandbox restriction の弱化防止、executor の
+        実 HOME / OS / path semantics による remote sandbox enforcement、permission state 変更後の stale Guardian
+        classification 無効化を含む 0.151.0 を
         品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:

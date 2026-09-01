@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/4a9441120caf6c6aff273af68995267a35c20fcd' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "4a9441120caf6c6aff273af68995267a35c20fcd"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "4a9441120caf6c6aff273af68995267a35c20fcd"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -196,16 +196,21 @@ PS
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.247";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.252";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
-@test "AI toolset snapshot and selected payload source contract is documented" {
-  local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
+@test "AI toolset snapshot and managed skill runtime remain separate update units" {
+  local adr="$PROJECT_ROOT/docs/adr/0047-serialize-tool-snapshot-and-managed-skill-runtime.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '4a9441120caf6c6aff273af68995267a35c20fcd' "$adr"
-  grep -Fq '4a9441120caf6c6aff273af68995267a35c20fcd' "$flake"
+  grep -Fq 'ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$adr"
+  grep -Fq 'Claude Code 2.1.252' "$adr"
+  grep -Fq 'Codex 0.151.0' "$adr"
+  grep -Fq 'APM 0.29.0' "$adr"
+  grep -Fq 'Managed Skill Runtime' "$adr"
+  grep -Fq 'main にマージ' "$adr"
+  grep -Fq 'ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2' "$manifest"
 }
 
@@ -224,7 +229,7 @@ PS
 @test "nix-devshell requires Codex with executor-provided skill support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.150\.0";' "$module"
+  grep -q 'minCodex = "0\.151\.0";' "$module"
   grep -q 'llm\.codex\.version' "$module"
   grep -q 'llm\.codex;' "$module"
 }
