@@ -2,7 +2,7 @@
 
 chezmoi dotfiles repo。ログインシェルは bash。
 
-**重要**: 編集は `chezmoi source-path` が示す source 内で行い、`chezmoi apply` で `~/` に反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
+**重要**: 実装は validated task worktree 内の source を編集する。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi apply` して `~/` へ反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
 
 `CLAUDE.md` は Claude Code 向け、`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向けとして別々に保守する。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
 

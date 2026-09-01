@@ -369,11 +369,11 @@ EOF
     grep -Fq 'short commit SHA' "$guidance"
   done
 
-  for guidance in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq '`gh-address-comments`' "$guidance"
-    grep -Fq '`gh-review-thread`' "$guidance"
-    grep -Fq 'Review Round' "$guidance"
-  done
+  grep -Fq '`runtime/skill-harness.md`' "$PROJECT_ROOT/AGENTS.md"
+  ! grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/AGENTS.md"
+  grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '`gh-review-thread`' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq 'Review Round' "$PROJECT_ROOT/CLAUDE.md"
 
   grep -Fq '**Review Round**' "$PROJECT_ROOT/CONTEXT.md"
   grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/runtime/skill-harness.md"

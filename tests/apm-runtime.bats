@@ -26,6 +26,21 @@ extract_lock_entry() {
   ' "$lock"
 }
 
+assert_lock_entry() {
+  local lock="$1"
+  local repo="$2"
+  local name="$3"
+  local commit="$4"
+  local content_hash="$5"
+  local entry
+
+  entry="$(extract_lock_entry "$lock" "$repo" "$name")"
+
+  [ -n "$entry" ]
+  grep -Fq "resolved_commit: $commit" <<<"$entry"
+  grep -Fq "content_hash: $content_hash" <<<"$entry"
+}
+
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
@@ -102,17 +117,26 @@ extract_lock_entry() {
   ! grep -Fq 'stablyai/orca/skills/computer-use#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
   ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
-  grep -Fq 'resolved_commit: 56c61c9ee79a8df1a98822309c04847a57f56000' "$lock"
-  grep -Fq 'content_hash: sha256:cc46430506cf1b6fe0facf191ac30e6cacaa2e0ee4237361bb445ed17c5b9908' "$lock"
-  grep -Fq 'resolved_commit: 357a270803b23e16b32bec65df07c41a62e94bd9' "$lock"
-  grep -Fq 'content_hash: sha256:3ebdb1c3e503732103a92bba9611685e9e15812adb9b25c3a734ee8d3c228aeb' "$lock"
-  grep -Fq 'resolved_commit: 63c1308d112b6b1205d86244a156cca1abef5087' "$lock"
-  grep -Fq 'content_hash: sha256:b82236022a12b00cfc80621d5de272e62ce597fb38f496d0a4a586ff954e6ae7' "$lock"
+  assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
+    '56c61c9ee79a8df1a98822309c04847a57f56000' \
+    'sha256:cc46430506cf1b6fe0facf191ac30e6cacaa2e0ee4237361bb445ed17c5b9908'
+  assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
+    '357a270803b23e16b32bec65df07c41a62e94bd9' \
+    'sha256:3ebdb1c3e503732103a92bba9611685e9e15812adb9b25c3a734ee8d3c228aeb'
+  assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
+    '63c1308d112b6b1205d86244a156cca1abef5087' \
+    'sha256:b82236022a12b00cfc80621d5de272e62ce597fb38f496d0a4a586ff954e6ae7'
+  assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
+    '41ef1ddd80d69795749451116fe70568a3779ca9' \
+    'sha256:eaa770000cf2e806485dc142c815580de3c6df4dfdd0afc792c79498aa93cfec'
+  assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
+    'b44ef1e59db4399cbd3a0615d29345de601885e7' \
+    'sha256:83ece910d035d0684195095bb9df5911a028002b2efba1ebbeb4ae66de5e0903'
+  assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
+    '41ef1ddd80d69795749451116fe70568a3779ca9' \
+    'sha256:e611e8065f08f308823d063bb3cd8d4e283242202456b8a3e80058b2f59f0c3a'
   [ "$(grep -Fc 'resolved_commit: 41ef1ddd80d69795749451116fe70568a3779ca9' "$lock")" -eq 2 ]
-  grep -Fq 'content_hash: sha256:eaa770000cf2e806485dc142c815580de3c6df4dfdd0afc792c79498aa93cfec' "$lock"
-  grep -Fq 'content_hash: sha256:e611e8065f08f308823d063bb3cd8d4e283242202456b8a3e80058b2f59f0c3a' "$lock"
   [ "$(grep -Fc 'resolved_commit: b44ef1e59db4399cbd3a0615d29345de601885e7' "$lock")" -eq 1 ]
-  grep -Fq 'content_hash: sha256:83ece910d035d0684195095bb9df5911a028002b2efba1ebbeb4ae66de5e0903' "$lock"
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
       awk '{
@@ -196,17 +220,6 @@ extract_lock_entry() {
   refresh_line="$(grep -n 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script" | cut -d: -f1)"
   install_line="$(grep -n '^apm install --frozen --target claude,codex --https$' "$script" | cut -d: -f1)"
   [ "$refresh_line" -lt "$install_line" ]
-}
-
-@test "APM Remotion assertions keep commit and content hash in one lock entry" {
-  local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local remotion_entry
-
-  remotion_entry="$(extract_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices')"
-
-  [ -n "$remotion_entry" ]
-  grep -Fq 'resolved_commit: 357a270803b23e16b32bec65df07c41a62e94bd9' <<<"$remotion_entry"
-  grep -Fq 'content_hash: sha256:3ebdb1c3e503732103a92bba9611685e9e15812adb9b25c3a734ee8d3c228aeb' <<<"$remotion_entry"
 }
 
 @test "APM refresh record distinguishes payload changes from revision-only movement" {

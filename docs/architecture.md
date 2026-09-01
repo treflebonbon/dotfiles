@@ -9,7 +9,7 @@ tags: [chezmoi, nix, flake, devshell]
 
 chezmoi 管理の dotfiles。DevPod / VS Code Dev Containers で自動デプロイ。テーマは Dracula 統一。
 
-**編集ルール**: ファイル編集は chezmoi source（`chezmoi source-path` で確認。init 時の `--source` が chezmoi.toml の `sourceDir` に永続化される）内で行い、`chezmoi apply` で `~/` に反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source へ戻す。
+**編集・配備ルール**: engineering change は validated task worktree 内の source で行う。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi apply` して `~/` へ反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source へ戻す。live source は init 時の `--source` が chezmoi.toml の `sourceDir` に永続化される。
 
 CLAUDE.md / AGENTS.md / `runtime/` バンドルは chezmoi が `~/` へ配備する（`~/CLAUDE.md` がグローバル指示の実体、`~/runtime/` が agent 向け知識バンドル）。この `docs/architecture.md` 自体は repo ローカル専用（`.chezmoiignore` で `~/docs/` へは非配備）— dotfiles repo 自身の構造説明は他 repo で作業中の agent には価値が無いため。
 
