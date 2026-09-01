@@ -7,8 +7,9 @@ disable-model-invocation: true
 # to-worktree
 
 Use this **Worktree Entry Point** outside Orca once at the start of a workflow chain. Orca fulfills
-the same entry contract before agent launch by creating or selecting an Orca native worktree and
-starting the agent session in that checkout. Complete this skill when the non-Orca runtime owns one
+the same entry contract by creating or selecting an Orca native worktree and launching its built-in
+agent from the Agent Picker. Orca owns that agent's permission mode; do not replace the built-in
+launch with a repository Runtime Adapter. Complete this skill when the non-Orca runtime owns one
 validated linked worktree and every later phase will run in that same checkout, or when the current
 session has stopped with an explicit fresh-session command.
 
@@ -54,7 +55,8 @@ Evaluate these branches in order.
 - **Existing linked worktree** — when the current repository has a worktree-specific Git dir
   distinct from its Git common dir, validate it idempotently and continue there. Do not create a
   nested worktree. This is the only reusable checkout, including when this skill was invoked by
-  mistake inside Orca.
+  mistake inside Orca. In that Orca case, keep the built-in agent launch and its Orca-owned
+  permission mode; do not relaunch the agent through `codex-orca` or `codex-worktree`.
 - **Orca guard** — when the preflight identified an Orca native linked worktree but the
   existing-worktree branch did not apply, report the session-context and Git-metadata mismatch and
   stop. Keep the current checkout unchanged. Do not invoke Orca CLI or raw Git to create or enter a
@@ -83,6 +85,7 @@ Before continuing to the next phase, confirm that the current checkout is a link
 that shell/tool working directories resolve inside its physical top level. A primary checkout,
 non-Git directory, detached metadata pointer, or unresolved Git dir/common dir fails closed.
 
-Worktree creation is the owner's responsibility. Worktree Activation for raw Codex is the
-`codex-worktree` Runtime Adapter's responsibility. This skill does not widen permissions, run
-routine manual-shell Git in place of the workflow, clean up worktrees, or publish changes.
+Worktree creation and built-in agent launch are Orca's responsibility in Orca. Worktree Activation
+for raw Codex is the `codex-worktree` Runtime Adapter's responsibility. This skill does not widen
+permissions, run routine manual-shell Git in place of the workflow, clean up worktrees, or publish
+changes.

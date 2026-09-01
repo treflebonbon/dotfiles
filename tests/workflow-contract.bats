@@ -127,6 +127,9 @@ setup() {
   grep -Fq '**Orca guard**' "$skill"
   grep -Fq 'runtime self-identification' "$skill"
   grep -Fq 'Orca native worktree' "$skill"
+  grep -Fq 'launching its built-in' "$skill"
+  grep -Fq 'agent from the Agent Picker' "$skill"
+  grep -Fq "Orca owns that agent's permission mode" "$skill"
   grep -Fq 'new agent session' "$skill"
   grep -Fq 'Do not invoke Orca CLI or raw Git' "$skill"
   grep -Fq 'Do not probe `ORCA_*` environment variables' "$skill"
@@ -138,6 +141,7 @@ setup() {
   grep -Fq '`EnterWorktree`' "$skill"
   grep -Fq '`codex-worktree`' "$skill"
   grep -Fq 'fresh session' "$skill"
+  grep -Fq 'do not relaunch the agent through `codex-orca` or `codex-worktree`' "$skill"
 }
 
 @test "to-worktree preserves the caller checkout and never reuses another worktree" {
@@ -162,6 +166,12 @@ setup() {
   for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
     grep -Fq 'Worktree Entry Point は共通の入口契約' "$instructions"
     grep -Fq 'Orca では agent session を始める前に Orca native worktree' "$instructions"
+    grep -Fq 'Agent Picker から built-in agent' "$instructions"
+    grep -Fq '自律 workflow は shipped Yolo' "$instructions"
+    grep -Fq 'Manual と Orca Source Control' "$instructions"
+    grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$instructions"
+    grep -Fq 'OS sandbox ではない' "$instructions"
+    grep -Fq '信頼できる repository / host' "$instructions"
     grep -Fq '非 Orca runtime では `/to-worktree`' "$instructions"
     grep -Fq 'local file の変更につながる engineering flow' "$instructions"
     grep -Fq 'primary checkout' "$instructions"
@@ -176,10 +186,26 @@ setup() {
   grep -Fq 'Orca primary checkout' "$RUNTIME"
   grep -Fq 'Orca CLI や raw Git を呼ばず' "$RUNTIME"
   grep -Fq 'Worktree Entry Point（Orca native または `to-worktree`）→ `grill-with-docs`' "$RUNTIME"
+  grep -Fq '**Orca native agent launch**' "$RUNTIME"
+  grep -Fq '**Codex Runtime Adapter（raw CLI only）**' "$RUNTIME"
+  grep -Fq 'Orca native session の entry / activation には使わない' "$RUNTIME"
   grep -Fq 'Codex Desktop' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq 'raw Codex CLI' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq '`EnterWorktree`' "$PROJECT_ROOT/CLAUDE.md"
   ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
+}
+
+@test "ADR-0046 uses Orca built-in Codex launch and keeps the adapter outside Orca" {
+  local adr="$PROJECT_ROOT/docs/adr/0046-separate-orca-native-worktree-entry.md"
+
+  grep -Fq 'status: accepted' "$adr"
+  grep -Fq 'Agent Picker からの built-in agent 起動' "$adr"
+  grep -Fq 'Orca shipped Yolo' "$adr"
+  grep -Fq '`codex-orca` / `codex-worktree` や repository-owned permission override を挟まない' "$adr"
+  grep -Fq 'filesystem / network の security boundary ではない' "$adr"
+  grep -Fq 'Agent Permissions を Manual' "$adr"
+  grep -Fq 'Orca Source Control で stage / commit / push' "$adr"
+  grep -Fq 'raw Codex CLI の `codex-worktree` Worktree Activation' "$adr"
 }
 
 @test "workflow migration ADR supersedes old exclusions and pins" {

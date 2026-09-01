@@ -65,11 +65,11 @@ task の worktree を作成・選択し、workflow の全 phase を同じ checko
 _Avoid_: worktree launcher, worktree tool, checkout owner
 
 **Worktree Entry Point**:
-workflow を validated task worktree から始めるための共通の入口契約。Orca では agent session を始める前の native worktree 作成・選択がこの契約を満たし、非 Orca runtime では `/to-worktree` が Worktree Owner へ処理を振り分ける。
+workflow を validated task worktree から始めるための共通の入口契約。Orca では native worktree の作成・選択と built-in agent の起動がこの契約を満たし、非 Orca runtime では `/to-worktree` が Worktree Owner へ処理を振り分ける。
 _Avoid_: Orca worktree command, worktree creator, runtime-specific entry
 
 **Worktree Activation**:
-作成済みの task worktree を agent session の working root と Technical Sandbox Boundary に一致させる phase boundary。worktree の作成や shell 内だけの `cd` とは区別する。
+作成済みの task worktree を agent session の working root と runtime-owned permission mode に結びつける phase boundary。worktree の作成や shell 内だけの `cd` とは区別する。
 _Avoid_: worktree creation, directory change, session resume
 
 **Active Git Metadata Boundary**:
@@ -77,11 +77,11 @@ _Avoid_: worktree creation, directory change, session resume
 _Avoid_: `.git` write access, repository-wide permission, global Git exception
 
 **Technical Sandbox Boundary**:
-Git の checkout 隔離とは独立して、agent の filesystem・network access を runtime が強制する権限境界。worktree 自体はこの境界に含めない。
+Git の checkout 隔離とは独立して、agent の filesystem・network access を runtime が強制する権限境界。full-autonomy permission mode では存在せず、worktree isolation 自体もこの境界には含めない。
 _Avoid_: worktree sandbox, repository isolation, permission mode
 
 **Runtime Adapter**:
-Worktree Owner が持つ実行 context を agent runtime の公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。
+raw agent runtime の実行 context を公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。Worktree Owner が直接提供する built-in agent integration とは区別する。
 _Avoid_: custom launcher, wrapper, glue
 
 **Design Hook**:
