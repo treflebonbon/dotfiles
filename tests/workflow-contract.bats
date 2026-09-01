@@ -111,14 +111,17 @@ setup() {
 
 @test "to-worktree is the non-Orca entry and fails closed inside an Orca primary checkout" {
   local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
-  local orca_gate_line git_inspection_line
+  local orca_gate_line unknown_runtime_gate_line git_inspection_line
 
   grep -Fq 'Use this **Worktree Entry Point** outside Orca' "$skill"
   orca_gate_line="$(grep -nF 'Before running any Git command, use runtime-provided session context' "$skill" | cut -d: -f1)"
+  unknown_runtime_gate_line="$(grep -nF 'If runtime self-identification is unavailable' "$skill" | cut -d: -f1)"
   git_inspection_line="$(grep -nF "Inspect the target repository's physical top level" "$skill" | cut -d: -f1)"
   [ -n "$orca_gate_line" ]
+  [ -n "$unknown_runtime_gate_line" ]
   [ -n "$git_inspection_line" ]
   [ "$orca_gate_line" -lt "$git_inspection_line" ]
+  [ "$unknown_runtime_gate_line" -lt "$git_inspection_line" ]
   grep -Fq 'stop before repository inspection' "$skill"
   grep -Fq '**Existing linked worktree**' "$skill"
   grep -Fq '**Orca guard**' "$skill"

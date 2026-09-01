@@ -30,7 +30,11 @@ environment variables.
   validation below.
 - If it identifies Orca but cannot classify the current checkout, fail closed and stop before
   repository inspection.
-- Otherwise, continue to establish the non-Orca task context.
+- If runtime self-identification is unavailable, identify the missing Worktree Owner and stop
+  before repository inspection.
+- If it identifies one of the non-Orca Worktree Owners listed below, continue to establish the task
+  context. For any other runtime, identify the missing Worktree Owner and stop before repository
+  inspection.
 
 ## Establish the task context
 
