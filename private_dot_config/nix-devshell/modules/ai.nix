@@ -2,12 +2,17 @@
   pkgs,
   inputs,
   lib,
+  system,
   browserless ? false,
   ...
 }:
 
 let
   llm = pkgs.llm-agents;
+  # Codex is a large Rust/LTO build. Use the same immutable llm-agents input's
+  # CI-built package so the Numtide cache works even though this devShell keeps
+  # its shared nixpkgs on the stable branch.
+  codexPackage = inputs.llm-agents.packages.${system}.codex;
 
   # Evaluate only these newer package definitions against the shared package set.
   defuddle = pkgs.callPackage (
@@ -94,9 +99,15 @@ let
   #          credential の telemetry 境界を修正。
   # 2.1.247: chezmoi/Nix 管理 settings symlink、subagent fallback、hook output overflow、--agent session の
   #          compact system prompt を修正。この repo の配備・worktree・多 agent 契約に直結するため床上げする。
+  # 2.1.251-2.1.252: file tool の symlink swap、plugin path traversal、Grep/Glob の symlink deny rule、
+  #                  background worktree lock、managed settings による sandbox 弱化、移動・link 済み task
+  #                  output path、project local settings がない場合の always-allow 保存を修正する。
+  #                  source 配備、worktree、permission 境界に直結するため 2.1.252 へ床上げする。
+  # Codex 0.151.0: permission profile 復元、/cd 後の sandbox 維持、remote executor の HOME/OS/path
+  #                semantics、stale Guardian approval、MCP cache/error を修正するため床上げする。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.247";
-  minCodex = "0.150.0";
+  minClaudeCode = "2.1.252";
+  minCodex = "0.151.0";
 
   claudeCode =
     let
@@ -145,7 +156,9 @@ let
         cross-session messaging、background subagent wake、hook command 条件の誤発火を修正する 2.1.243、
         人手作成 worktree の retention、malformed shell command の approval、third-party gateway credential の
         telemetry 境界を修正する 2.1.246、chezmoi/Nix 管理 settings symlink、subagent fallback、hook output
-        overflow、--agent session の compact system prompt を修正する 2.1.247 を根拠に、
+        overflow、--agent session の compact system prompt を修正する 2.1.247 に加え、file tool の symlink
+        swap、plugin path traversal、Grep/Glob の symlink deny rule、background worktree lock、managed settings に
+        よる sandbox 弱化、移動・link 済み task output path、always-allow 保存を修正する 2.1.251-2.1.252 を根拠に、
         現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
@@ -162,7 +175,7 @@ let
 
   codex =
     let
-      v = llm.codex.version or null;
+      v = codexPackage.version or null;
       ok = v != null && lib.versionAtLeast v minCodex;
       msg = ''
         codex ${toString v} は最低バージョン ${minCodex} を満たしていません。
@@ -184,7 +197,9 @@ let
         approval policy 復元を含む 0.148.0 に加え、agents dashboard、cwd commands、queue、resume/fork の permission
         profile 復元、skill catalog、MCP hooks/async message、skill/OAuth/sandbox hardening を含む 0.149.0 に加え、
         untrusted project の project-level AGENTS.md 無視、permission update 後の managed deny-read 維持、
-        credential redaction、remote MCP auth/startup、Unix shutdown 修正を含む 0.150.0 を
+        credential redaction、remote MCP auth/startup、Unix shutdown 修正を含む 0.150.0 に加え、
+        permission profile 復元、/cd 後の sandbox 維持、remote executor の HOME/OS/path semantics、
+        stale Guardian approval、MCP cache/error を修正する 0.151.0 を
         品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
@@ -194,7 +209,7 @@ let
       '';
     in
     assert lib.assertMsg ok msg;
-    llm.codex;
+    codexPackage;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
