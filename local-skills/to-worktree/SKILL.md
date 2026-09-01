@@ -18,6 +18,20 @@ The next phase depends on the task:
 - Requirements decided: `implement → to-pr`
 - Bug requiring diagnosis: `diagnosing-bugs → code-review → to-pr`
 
+## Guard Orca before repository inspection
+
+Before running any Git command, use runtime-provided session context for runtime self-identification
+and determine whether the current session is running in Orca. Never infer this from `ORCA_*`
+environment variables.
+
+- If it identifies an Orca primary checkout, tell the user to create or select an Orca native
+  worktree and start a new agent session there, then stop before repository inspection.
+- If it identifies an Orca native linked worktree, continue with the read-only inspection and
+  validation below.
+- If it identifies Orca but cannot classify the current checkout, fail closed and stop before
+  repository inspection.
+- Otherwise, continue to establish the non-Orca task context.
+
 ## Establish the task context
 
 1. Derive a short kebab-case topic and a Conventional branch name from the user's request. Ask
@@ -37,11 +51,10 @@ Evaluate these branches in order.
   distinct from its Git common dir, validate it idempotently and continue there. Do not create a
   nested worktree. This is the only reusable checkout, including when this skill was invoked by
   mistake inside Orca.
-- **Orca guard** — when runtime self-identification says the current session is running in Orca and
-  the existing-worktree branch did not apply, stop and tell the user to create or select an Orca
-  native worktree and start a new agent session there. Do not invoke Orca CLI or raw Git from the
-  agent session. Do not probe `ORCA_*` environment variables to classify the runtime; if the runtime
-  cannot identify itself, use the unknown-runtime branch.
+- **Orca guard** — when the preflight identified an Orca native linked worktree but the
+  existing-worktree branch did not apply, report the session-context and Git-metadata mismatch and
+  stop. Keep the current checkout unchanged. Do not invoke Orca CLI or raw Git to create or enter a
+  replacement worktree. Do not probe `ORCA_*` environment variables to classify the runtime.
 - **Codex Desktop** — use its native worktree flow. Once Codex has selected the native worktree,
   validate that checkout through the existing-worktree branch and continue there.
 - **Claude Code** — use `EnterWorktree` when the target is the session repository. Let Claude own
