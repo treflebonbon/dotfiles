@@ -5,14 +5,16 @@ setup() {
   RUNTIME="$PROJECT_ROOT/runtime/skill-harness.md"
 }
 
-@test "AGENTS separates task worktree edits from live chezmoi deployment" {
-  local instructions="$PROJECT_ROOT/AGENTS.md"
+@test "agent instructions separate task worktree edits from live chezmoi deployment" {
   local architecture="$PROJECT_ROOT/docs/architecture.md"
 
-  grep -Fq 'validated task worktree 内の source を編集する' "$instructions"
-  grep -Fq '`chezmoi source-path` が示す live source' "$instructions"
-  grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$instructions"
-  grep -Fq '受入後に live source で `chezmoi apply`' "$instructions"
+  local instructions
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq 'validated task worktree 内の source を編集する' "$instructions"
+    grep -Fq '`chezmoi source-path` が示す live source' "$instructions"
+    grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$instructions"
+    grep -Fq '受入後に live source で `chezmoi apply`' "$instructions"
+  done
 
   grep -Fq 'validated task worktree 内の source で行う' "$architecture"
   grep -Fq '`chezmoi source-path` が示す live source' "$architecture"
