@@ -65,7 +65,7 @@ task の worktree を作成・選択し、workflow の全 phase を同じ checko
 _Avoid_: worktree launcher, worktree tool, checkout owner
 
 **Worktree Entry Point**:
-実行環境ごとの Worktree Owner へ処理を振り分ける、workflow 共通の入口。すでに task worktree 内なら新たに作らず、その checkout を検証して後続 phase へ渡す。
+workflow を validated task worktree から始めるための共通の入口契約。Orca では agent session を始める前の native worktree 作成・選択がこの契約を満たし、非 Orca runtime では `/to-worktree` が Worktree Owner へ処理を振り分ける。
 _Avoid_: Orca worktree command, worktree creator, runtime-specific entry
 
 **Worktree Activation**:

@@ -1,14 +1,16 @@
 ---
 name: to-worktree
-description: "Select and validate the runtime-owned task worktree before starting a workflow chain."
+description: "Select and validate the non-Orca runtime-owned task worktree before starting a workflow chain."
 disable-model-invocation: true
 ---
 
 # to-worktree
 
-Use this universal **Worktree Entry Point** once at the start of a workflow chain. Complete it
-when the runtime owns one validated linked worktree and every later phase will run in that same
-checkout, or when the current session has stopped with an explicit fresh-session command.
+Use this **Worktree Entry Point** outside Orca once at the start of a workflow chain. Orca fulfills
+the same entry contract before agent launch by creating or selecting an Orca native worktree and
+starting the agent session in that checkout. Complete this skill when the non-Orca runtime owns one
+validated linked worktree and every later phase will run in that same checkout, or when the current
+session has stopped with an explicit fresh-session command.
 
 The next phase depends on the task:
 
@@ -33,11 +35,13 @@ Evaluate these branches in order.
 
 - **Existing linked worktree** — when the current repository has a worktree-specific Git dir
   distinct from its Git common dir, validate it idempotently and continue there. Do not create a
-  nested worktree. This is the only reusable checkout.
-- **Orca** — use the current Orca worktree when the existing-worktree branch applies. Otherwise,
-  invoke the `orca-cli` skill, load its version-matched guide, and use native worktree creation and full handoff through Orca. Do not hardcode Orca CLI commands here. After the handoff succeeds,
-  report the destination and stop the original session; the destination session validates its
-  current worktree before continuing.
+  nested worktree. This is the only reusable checkout, including when this skill was invoked by
+  mistake inside Orca.
+- **Orca guard** — when runtime self-identification says the current session is running in Orca and
+  the existing-worktree branch did not apply, stop and tell the user to create or select an Orca
+  native worktree and start a new agent session there. Do not invoke Orca CLI or raw Git from the
+  agent session. Do not probe `ORCA_*` environment variables to classify the runtime; if the runtime
+  cannot identify itself, use the unknown-runtime branch.
 - **Codex Desktop** — use its native worktree flow. Once Codex has selected the native worktree,
   validate that checkout through the existing-worktree branch and continue there.
 - **Claude Code** — use `EnterWorktree` when the target is the session repository. Let Claude own

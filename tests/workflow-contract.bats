@@ -109,17 +109,19 @@ setup() {
   grep -Fq '`setup-matt-pocock-skills` を自動実行せず' "$RUNTIME"
 }
 
-@test "to-worktree routes representative runtime owners through one Worktree Entry Point" {
+@test "to-worktree is the non-Orca entry and fails closed inside an Orca primary checkout" {
   local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
 
-  grep -Fq 'Worktree Entry Point' "$skill"
+  grep -Fq 'Use this **Worktree Entry Point** outside Orca' "$skill"
   grep -Fq '**Existing linked worktree**' "$skill"
-  grep -Fq '**Orca**' "$skill"
-  grep -Fq '`orca-cli` skill' "$skill"
-  grep -Fq 'version-matched' "$skill"
-  grep -Fq 'native worktree' "$skill"
-  grep -Fq 'creation and full handoff' "$skill"
-  grep -Fq 'stop the original session' "$skill"
+  grep -Fq '**Orca guard**' "$skill"
+  grep -Fq 'runtime self-identification' "$skill"
+  grep -Fq 'Orca native worktree' "$skill"
+  grep -Fq 'new agent session' "$skill"
+  grep -Fq 'Do not invoke Orca CLI or raw Git' "$skill"
+  grep -Fq 'Do not probe `ORCA_*` environment variables' "$skill"
+  ! grep -Fq '`orca-cli` skill' "$skill"
+  ! grep -Fq 'creation and full handoff through Orca' "$skill"
   grep -Fq '**Codex Desktop**' "$skill"
   grep -Fq '**Claude Code**' "$skill"
   grep -Fq '**raw Codex CLI**' "$skill"
@@ -148,12 +150,22 @@ setup() {
 
 @test "instruction layers align Worktree Entry Point ownership without merging runtime guidance" {
   for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq 'Worktree Entry Point' "$instructions"
+    grep -Fq 'Worktree Entry Point は共通の入口契約' "$instructions"
+    grep -Fq 'Orca では agent session を始める前に Orca native worktree' "$instructions"
+    grep -Fq '非 Orca runtime では `/to-worktree`' "$instructions"
+    grep -Fq 'local file の変更につながる engineering flow' "$instructions"
+    grep -Fq 'primary checkout' "$instructions"
+    grep -Fq 'read-only' "$instructions"
+    grep -Fq '新しい agent session' "$instructions"
     grep -Fq '同じ checkout' "$instructions"
-    grep -Fq '`orca-cli` の version-matched native create / full handoff' "$instructions"
-    grep -Fq '元セッションを停止' "$instructions"
+    ! grep -Fq '`orca-cli` の version-matched native create / full handoff' "$instructions"
   done
 
+  grep -Fq 'runtime 自己認識' "$RUNTIME"
+  grep -Fq '`ORCA_*` environment の汎用判定' "$RUNTIME"
+  grep -Fq 'Orca primary checkout' "$RUNTIME"
+  grep -Fq 'Orca CLI や raw Git を呼ばず' "$RUNTIME"
+  grep -Fq 'Worktree Entry Point（Orca native または `to-worktree`）→ `grill-with-docs`' "$RUNTIME"
   grep -Fq 'Codex Desktop' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq 'raw Codex CLI' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq '`EnterWorktree`' "$PROJECT_ROOT/CLAUDE.md"
