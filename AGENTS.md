@@ -29,7 +29,7 @@ Matt Pocock skill の workflow / safety contract、phase boundary、自律実行
 
 ## ブラウザ操作ツール
 
-Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright-cli`、外部 browser window や native app の OS/window-level 操作は `computer-use` を使う。Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、実行ランタイムの要素指差しフィードバック機能を追加チャネルとして使う。役割の違いは ADR-0017 を参照する。
+Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright-cli` または CDP、外部 browser window や native app の OS/window-level 操作は `computer-use` を使う。Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、実行ランタイムの要素指差しフィードバック機能を追加チャネルとして使う。役割の違いは ADR-0017 を参照する。
 
 ## Skill 配布経路の選択
 

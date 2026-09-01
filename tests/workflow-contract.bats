@@ -7,11 +7,16 @@ setup() {
 
 @test "AGENTS separates task worktree edits from live chezmoi deployment" {
   local instructions="$PROJECT_ROOT/AGENTS.md"
+  local architecture="$PROJECT_ROOT/docs/architecture.md"
 
   grep -Fq 'validated task worktree 内の source を編集する' "$instructions"
   grep -Fq '`chezmoi source-path` が示す live source' "$instructions"
   grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$instructions"
   grep -Fq '受入後に live source で `chezmoi apply`' "$instructions"
+
+  grep -Fq 'validated task worktree 内の source で行う' "$architecture"
+  grep -Fq '`chezmoi source-path` が示す live source' "$architecture"
+  grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$architecture"
 }
 
 @test "grilling uses frontier rounds and waits for human decisions" {
@@ -119,7 +124,7 @@ setup() {
   local instructions="$PROJECT_ROOT/AGENTS.md"
 
   grep -Fq 'Orca 内蔵 page は `orca-cli`' "$instructions"
-  grep -Fq '外部 Web page の自動操作は `playwright-cli`' "$instructions"
+  grep -Fq '外部 Web page の自動操作は `playwright-cli` または CDP' "$instructions"
   grep -Fq '外部 browser window や native app の OS/window-level 操作は `computer-use`' "$instructions"
   grep -Fq 'Chrome MV3 拡張は persistent Chromium context' "$instructions"
   grep -Fq '要素指差しフィードバック機能' "$instructions"
