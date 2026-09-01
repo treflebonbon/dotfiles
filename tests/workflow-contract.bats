@@ -5,6 +5,15 @@ setup() {
   RUNTIME="$PROJECT_ROOT/runtime/skill-harness.md"
 }
 
+@test "AGENTS separates task worktree edits from live chezmoi deployment" {
+  local instructions="$PROJECT_ROOT/AGENTS.md"
+
+  grep -Fq 'validated task worktree 内の source を編集する' "$instructions"
+  grep -Fq '`chezmoi source-path` が示す live source' "$instructions"
+  grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$instructions"
+  grep -Fq '受入後に live source で `chezmoi apply`' "$instructions"
+}
+
 @test "grilling uses frontier rounds and waits for human decisions" {
   local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
 
@@ -26,11 +35,9 @@ setup() {
 }
 
 @test "Builder-Evaluator keeps ticket crossing in one worktree and branch" {
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq '同じ worktree/branch' "$instructions"
-    grep -Fq '/compact' "$instructions"
-    grep -Fq '/handoff' "$instructions"
-  done
+  grep -Fq '同じ worktree/branch' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '/compact' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '/handoff' "$PROJECT_ROOT/CLAUDE.md"
 
   grep -Fq '同一 worktree/branch では ticket をまたいで' "$RUNTIME"
   grep -Fq 'ticket 境界で relevant context が同じ harness / directory にあるなら `/compact`' "$RUNTIME"
@@ -39,13 +46,11 @@ setup() {
 }
 
 @test "local workflow overrides preserve triage, review base, and Review Round authority" {
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq '`triage` は推薦根拠の read-only 検証' "$instructions"
-    grep -Fq 'standalone で base が不明な場合は確認する' "$instructions"
-    grep -Fq '`gh-review-thread` に統一する' "$instructions"
-    grep -Fq '1つの Review Round' "$instructions"
-    grep -Fq '`git-push-topic`' "$instructions"
-  done
+  grep -Fq '`triage` は推薦根拠の read-only 検証' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq 'standalone で base が不明な場合は確認する' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '`gh-review-thread` に統一する' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '1つの Review Round' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '`git-push-topic`' "$PROJECT_ROOT/CLAUDE.md"
 
   grep -Fq '`triage` は推薦根拠を得る read-only 検証' "$RUNTIME"
   grep -Fq 'standalone で fixed point が不明な場合だけ質問する' "$RUNTIME"
@@ -55,14 +60,12 @@ setup() {
 }
 
 @test "instruction layers guard model-invoked external writes, secrets, and permissions" {
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq 'model-invoked discipline' "$instructions"
-    grep -Fq '外部書込みは親 Contract' "$instructions"
-    grep -Fq '機密情報・credential・CI secret' "$instructions"
-    grep -Fq '読み出し、出力、commit' "$instructions"
-    grep -Fq '無断変更' "$instructions"
-    grep -Fq 'permission bypass' "$instructions"
-  done
+  grep -Fq 'model-invoked discipline' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '外部書込みは親 Contract' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '機密情報・credential・CI secret' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '読み出し、出力、commit' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '無断変更' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq 'permission bypass' "$PROJECT_ROOT/CLAUDE.md"
 
   grep -Fq 'model-invoked discipline' "$RUNTIME"
   grep -Fq '外部書込み（Issue / PR / shared service など）は親の Contract' "$RUNTIME"
@@ -73,7 +76,7 @@ setup() {
 }
 
 @test "prototype contract is a self-contained HTML primary source" {
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md" "$RUNTIME"; do
+  for instructions in "$PROJECT_ROOT/CLAUDE.md" "$RUNTIME"; do
     grep -Fq 'single self-contained HTML' "$instructions"
     grep -Fq 'build / server 不要' "$instructions"
     grep -Fq 'pure logic' "$instructions"
@@ -90,23 +93,36 @@ setup() {
   [ -f "$PROJECT_ROOT/CLAUDE.md" ]
   ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
 
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq 'Matt Pocock workflow contract' "$instructions"
-    grep -Fq '共有する workflow / safety contract は整合させる' "$instructions"
-  done
+  grep -Fq 'Matt Pocock skill の workflow / safety contract' "$PROJECT_ROOT/AGENTS.md"
+  grep -Fq '`runtime/skill-harness.md`' "$PROJECT_ROOT/AGENTS.md"
+  ! grep -Fq '## Matt Pocock workflow contract' "$PROJECT_ROOT/AGENTS.md"
+  ! grep -Fq 'model-invoked discipline' "$PROJECT_ROOT/AGENTS.md"
+  ! grep -Fq 'single self-contained HTML' "$PROJECT_ROOT/AGENTS.md"
+
+  grep -Fq 'Matt Pocock workflow contract' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '共有する workflow / safety contract は整合させる' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '**Instruction ownership**' "$RUNTIME"
 }
 
 @test "managed workflow revision uses explicit invocation, round separators, and setup pointers" {
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$instructions"
-    grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$instructions"
-    grep -Fq '別の user-invoked skill から自動実行せず' "$instructions"
-  done
+  grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '別の user-invoked skill から自動実行せず' "$PROJECT_ROOT/CLAUDE.md"
 
   grep -Fq '6654f6b60cd9d5be8b54c6fafe44346dabeb3b76' "$RUNTIME"
   grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$RUNTIME"
   grep -Fq 'Skill tool と skill 名を明示する' "$RUNTIME"
   grep -Fq '`setup-matt-pocock-skills` を自動実行せず' "$RUNTIME"
+}
+
+@test "AGENTS routes browser work by interaction surface" {
+  local instructions="$PROJECT_ROOT/AGENTS.md"
+
+  grep -Fq 'Orca 内蔵 page は `orca-cli`' "$instructions"
+  grep -Fq '外部 Web page の自動操作は `playwright-cli`' "$instructions"
+  grep -Fq '外部 browser window や native app の OS/window-level 操作は `computer-use`' "$instructions"
+  grep -Fq 'Chrome MV3 拡張は persistent Chromium context' "$instructions"
+  grep -Fq '要素指差しフィードバック機能' "$instructions"
 }
 
 @test "to-worktree is the non-Orca entry and fails closed inside an Orca primary checkout" {
@@ -163,7 +179,18 @@ setup() {
 }
 
 @test "instruction layers align Worktree Entry Point ownership without merging runtime guidance" {
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+  local agents="$PROJECT_ROOT/AGENTS.md"
+
+  grep -Fq 'Worktree Entry Point は validated task worktree' "$agents"
+  grep -Fq 'Orca native worktree' "$agents"
+  grep -Fq 'Agent Picker' "$agents"
+  grep -Fq 'current checkout が linked worktree か read-only に検証' "$agents"
+  grep -Fq 'primary checkout' "$agents"
+  grep -Fq '新しい agent session' "$agents"
+  grep -Fq '非 Orca runtime では `/to-worktree`' "$agents"
+  grep -Fq '同じ checkout' "$agents"
+
+  for instructions in "$PROJECT_ROOT/CLAUDE.md"; do
     grep -Fq 'Worktree Entry Point は共通の入口契約' "$instructions"
     grep -Fq 'Orca では agent session を始める前に Orca native worktree' "$instructions"
     grep -Fq 'Agent Picker から built-in agent' "$instructions"
@@ -189,8 +216,6 @@ setup() {
   grep -Fq '**Orca native agent launch**' "$RUNTIME"
   grep -Fq '**Codex Runtime Adapter（raw CLI only）**' "$RUNTIME"
   grep -Fq 'Orca native session の entry / activation には使わない' "$RUNTIME"
-  grep -Fq 'Codex Desktop' "$PROJECT_ROOT/AGENTS.md"
-  grep -Fq 'raw Codex CLI' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq '`EnterWorktree`' "$PROJECT_ROOT/CLAUDE.md"
   ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
 }
