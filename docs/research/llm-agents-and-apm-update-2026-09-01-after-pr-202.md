@@ -212,3 +212,49 @@ rg -n 'repo_url:|name:|resolved_commit:|resolved_ref:|version:' apm.lock.yaml
 検証中に、shared overlay の Codexがconsumer側のstable nixpkgsで別derivationになり、設定済みのNumtide cacheをhitせず大規模なRust source / release LTO buildになることを確認した。上流READMEとoverlay自身も、shared overlayのcacheはconsumerと上流のnixpkgs revisionが一致する場合だけhitすると明記している。実測したrevisionはconsumer `fca2dbd4c00c3063235e56bb91758e24fc67b7b8`、上流 `174eb786fb68e3a13e4e535a3deea479a0c07a6a`で、Codex derivationも異なった。
 
 共有nixpkgs全体を動かさず、Codexだけを同じimmutable `llm-agents` inputのdirect packageへ切り替えた。direct outputはx86_64-linux / aarch64-linux / aarch64-darwinの3 systemともNumtide cacheに存在する。切替後のx86_64-linux WSL devShell dry-runはCodex derivationをbuild対象に含めず、実buildはshell derivation 1件だけを2.00秒で完了した。隔離HOMEでのstartupと6 CLIのversion/help、3-system flake check/metadata eval、専用Bats 32/32、workflow contract 14/14、full Bats suite 404/404（runtime mount条件の1件はskip）が成功した。さらにcandidate Codex 0.151.0を一時`CODEX_HOME`・read-only sandboxで実行し、`update_plan`なしで`tdd` skill flowを開始して同じsessionを`resume --last`で継続した。aarch64実機実行、candidate Codexのinteractive UI、fresh hostのcache download時間は未確認である。
+
+## Issue #205 実装結果
+
+PR #207を含む`origin/main`と同じcommit `c66c0312f09da62bd19dcc0be79219a69d625445`から新しいOrca native worktreeを開始した。`nix develop ./private_dot_config/nix-devshell#wsl --command apm --version`で採用済みAPM 0.29.0を確認し、manifestの3 exact candidateを更新してから、隔離cwd/HOMEで`apm install --target claude,codex --https`を一度だけ実行した。lockの手編集、`apm lock`、別updater、live HOMEへのapplyは行っていない。
+
+生成した通常payloadは次のとおりである。
+
+| Skill                  | 解決revision                               | `content_hash`                                                     | 採否・境界                                                                 |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Modern Web Guidance    | `56c61c9ee79a8df1a98822309c04847a57f56000` | `cc46430506cf1b6fe0facf191ac30e6cacaa2e0ee4237361bb445ed17c5b9908` | exact pinをv0.0.186へ更新。IME-safe submit guideとretrieval guidanceを確認 |
+| Remotion               | `357a270803b23e16b32bec65df07c41a62e94bd9` | `3ebdb1c3e503732103a92bba9611685e9e15812adb9b25c3a734ee8d3c228aeb` | exact pinを4.0.519 markerへ更新                                            |
+| shadcn                 | `63c1308d112b6b1205d86244a156cca1abef5087` | `b82236022a12b00cfc80621d5de272e62ce597fb38f496d0a4a586ff954e6ae7` | floating解決。chat SSR scroll/CSP guidanceを確認                           |
+| Effect-TS              | `2309e6f27d9955b434c0e3f394b945c136e89fd2` | `6bdb9b95aa83071eca2f67ae947b7d398a22e9e6e08f6cfa35de9516b03efa6e` | floating解決。setupは`effect@rc`、beta記述なし、setup時だけのtriggerを確認 |
+| React View Transitions | `063bee94c3f4df8453406c830b0a7df0f2860278` | `0d0012537fe7619026f0a844fe505958beb2d525afb8f854ac7217798a2785e2` | floating解決。候補`0c04547b`以後selected subtree不変                       |
+| Orca `orca-cli`        | `b44ef1e59db4399cbd3a0615d29345de601885e7` | `83ece910d035d0684195095bb9df5911a028002b2efba1ebbeb4ae66de5e0903` | selected payload変更をexact pinへ反映                                      |
+| Orca `computer-use`    | `41ef1ddd80d69795749451116fe70568a3779ca9` | `eaa770000cf2e806485dc142c815580de3c6df4dfdd0afc792c79498aa93cfec` | floating解決。`b44ef1e5`以後selected subtree不変                           |
+| Orca `orchestration`   | `41ef1ddd80d69795749451116fe70568a3779ca9` | `e611e8065f08f308823d063bb3cd8d4e283242202456b8a3e80058b2f59f0c3a` | floating解決。`b44ef1e5`以後selected subtree不変                           |
+
+Orcaの3 `SKILL.md`は同じ`b44ef1e5` changesetで変更され、その後の`41ef1ddd`までselected subtreeに差分がない。3件ともOrca embedded pageは`orca-cli`、external page automationはPlaywright/CDP、external browser/native appのOS/window-level操作はComputer Useへroutingする。PR #202のOrca native worktree、Agent Picker、permission ownership、非Orca runtimeの`to-worktree`、Orca native Codexでwrapperを使わない契約は変更していない。
+
+Effect-TS候補はClaude/Codex双方の`SKILL.md` SHA-256が`509ed4e10def32dc3f6b20854c9ae50a56b7dc525a14a02ab9871eef53a2052e`で一致し、`effect@rc` setup、`effect@beta`不在、setup repositoryだけに限定したfrontmatter triggerを確認した。React View Transitions候補は両targetの`SKILL.md` SHA-256が`1520343c8814c972fee001cac6d6185976d6eb3f4edcac33afe95c10f3b3228b`で一致した。React一次資料が示すCanary限定の`ViewTransition` / `addTransitionType`、Transition/Suspense trigger、type mapと、Next.js一次資料が示すApp RouterのReact Canary、`Link` / `useRouter`の`transitionTypes`に整合する。Next.jsの`experimental.viewTransition`はdeeper framework integration用で、候補が扱う直接APIと明示的`transitionTypes`には必須でないため、候補の「旧flagを追加しない」境界を採用した。
+
+Impeccableはmanifest pinとlock blockが完全に不変である。Matt Pocockはexact revision `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76`、25 skill membership、全deployed file/hashが不変だった。APM 0.29が生成したpackage aggregate `content_hash`だけは`30aaf153…`から`22de78eb0eca8ad3f1830f955999ff588650e1f6bbb1f436236eff4fb0296eda`へ変わったが、比較対象のpayload byteとmembershipには差分がない。Vercelのcomposition / React best practices / web-designは`063bee94`へrevision-onlyで進みcontent hash不変、内容不変のdependencyへ新しいexact pinは追加していない。OpenCode、新規skill、追加runtime target、`tools.update_plan.enabled`も追加していない。
+
+同じ隔離runtimeの`apm install --frozen --target claude,codex --https`前後でlock SHA-256は`d343147e73c22f76eb0ccbb4a22838987fa29cd6857cd51c8d4002f3fc0e4369`から変わらず、`apm audit --ci`は10/10でdriftなしとなった。隔離cwdはGit remoteを持たないためorganization policy enforcementだけはwarning付きskipである。対象8 skillを含む42 skillすべてが`.agents/skills`と`.claude/skills`にmaterializeされ、対象8 skillの`SKILL.md`はtarget間でbyte一致した。`.codex`への追加配備とplugin registrationはなく、APM-only ownershipを維持した。
+
+planning toolなしの開始・継続は、今回の隔離runtimeと一時`CODEX_HOME`、read-only sandboxでCodex 0.151.0を実行して再確認した。開始turnはmaterialize済み`.agents/skills/tdd/SKILL.md`を読み、`apm install --frozen`を公開seamとして選んで`STARTED_NO_PLAN`を返した。続いて明示した同一thread `01a05bf5-7519-76b2-8b7d-97f75e0c7d68`をresumeし、追加commandやfile変更なしで`CONTINUED_SAME_SESSION_NO_PLAN`を返した。両turnのJSON eventにplanning tool callはなく、repositoryにも`tools.update_plan.enabled`を追加していない。
+
+### Verification Matrix
+
+| Acceptance criterion                           | 検証                                                                                    | 結果 / 未確認理由                                                                                            |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| #204 merge後のmain起点                         | `HEAD` / `origin/main` / merge-baseを`c66c0312`で照合                                   | 成功                                                                                                         |
+| APM 0.29・一度の隔離標準install                | candidate manifestを隔離cwd/HOMEへコピーし、non-frozen installを一度だけ実行            | 成功                                                                                                         |
+| 対象8 skillのfile list/hash                    | native lockの`deployed_files` / `deployed_file_hashes` / `content_hash`と隔離実体を照合 | 成功                                                                                                         |
+| exact/floating方針                             | manifest exact refとlock `resolved_ref`の集合一致、floatingへのpin追加なし              | 成功                                                                                                         |
+| Orca 3 skill changeset/routing                 | `b44ef1e5..41ef1ddd`のselected diffなしと3 materialized `SKILL.md`を確認                | 成功                                                                                                         |
+| PR #202 worktree ownership                     | 既存workflow contract regression seam                                                   | 成功（focused 14/14、full suiteにも収録）                                                                    |
+| Effect-TS compatibility                        | `effect@rc`、beta不在、setup trigger、両target SHA/discovery                            | 成功                                                                                                         |
+| React View Transitions compatibility           | React/Next.js一次資料、trigger、Canary/API境界、両target SHA/discovery                  | 成功                                                                                                         |
+| frozen no-rewrite / audit                      | lock SHA前後一致、audit 10/10                                                           | 成功。org policy enforcementのみ隔離cwdにremoteがなくskip                                                    |
+| Claude/Codex discovery                         | 42/42 directory、対象8 `SKILL.md`のtarget間byte一致                                     | 成功                                                                                                         |
+| planning toolなしworkflow                      | 今回の隔離payloadをCodex 0.151.0で開始し、同一threadを明示resume                        | 成功（`STARTED_NO_PLAN` / `CONTINUED_SAME_SESSION_NO_PLAN`、planning call・file変更なし）                    |
+| Impeccable/Matt/OpenCode/target非回帰          | Impeccable block一致、Matt file/hash集合一致、manifest target/dependency比較            | 成功                                                                                                         |
+| repository full suite / lint / commit contract | Bats、Nix eval、lefthook、cog、diff check                                               | 成功（Bats 406/406、repo/user flake 3-system eval、pre-commit、diff check。commit-msg hookはcommit時に実行） |
+| live HOME非変更                                | `chezmoi apply`とlive APM installを未実行                                               | 成功。live discoveryはmerge後の別運用境界                                                                    |

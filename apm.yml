@@ -25,9 +25,9 @@ dependencies:
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#7a3d0ca45d2f6a00bf35cb3c525734a36d55a834
+    - remotion-dev/skills/skills/remotion-best-practices#357a270803b23e16b32bec65df07c41a62e94bd9
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#56c61c9ee79a8df1a98822309c04847a57f56000
     # mizchi/skills
     - mizchi/skills/meta/empirical-prompt-tuning
     # mattpocock/skills v1.2.3 plugin collection — 公式 full set を一括管理。
@@ -38,6 +38,6 @@ dependencies:
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli#5ca747dad0d0583f4a1ac91c2655b345ba6c07eb
+    - stablyai/orca/skills/orca-cli#b44ef1e59db4399cbd3a0615d29345de601885e7
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use

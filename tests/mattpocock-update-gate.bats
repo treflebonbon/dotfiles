@@ -55,7 +55,7 @@ cleanup_managed_skills() {
   [ -n "$pin_line" ]
   ! grep -Eq 'mattpocock/skills#(@latest|main|v[0-9])' "$MANIFEST"
   [ "$(grep -Fc "resolved_commit: $revision" "$LOCK")" -eq 1 ]
-  grep -Fq 'content_hash: sha256:30aaf1538e75a717db8608778e06e1c47ce38578f46fe88e53e599818cf30c9f' "$LOCK"
+  grep -Fq 'content_hash: sha256:22de78eb0eca8ad3f1830f955999ff588650e1f6bbb1f436236eff4fb0296eda' "$LOCK"
   grep -Fq 'package_type: marketplace_plugin' "$LOCK"
   ! grep -R -Eiq 'npx[[:space:]]+skills|enabledPlugins.*mattpocock|mattpocock.*enabledPlugins' \
     "$PROJECT_ROOT/private_dot_claude" "$PROJECT_ROOT/private_dot_config" 2>/dev/null

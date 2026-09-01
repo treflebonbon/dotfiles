@@ -206,7 +206,7 @@ PS
 
   grep -Fq 'ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$adr"
   grep -Fq 'ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$flake"
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#457c381def89ce6213a171238f92eea63e9eaeb2' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#56c61c9ee79a8df1a98822309c04847a57f56000' "$manifest"
 }
 
 @test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
