@@ -180,6 +180,8 @@ extract_lock_entry() {
   grep -Fq 'd343147e73c22f76eb0ccbb4a22838987fa29cd6857cd51c8d4002f3fc0e4369' "$record"
   grep -Fq 'Effect-TS compatibility' "$record"
   grep -Fq 'React View Transitions compatibility' "$record"
+  grep -Fq 'STARTED_NO_PLAN' "$record"
+  grep -Fq 'CONTINUED_SAME_SESSION_NO_PLAN' "$record"
   grep -Fq 'live HOME非変更' "$record"
   grep -Fq 'APM 0.29.0の隔離cwd/HOME' "$harness"
   grep -Fq 'Claude/Codex 42/42 discovery' "$harness"
@@ -200,22 +202,7 @@ extract_lock_entry() {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
   local remotion_entry
 
-  remotion_entry="$(awk '
-    /^- repo_url: / {
-      if (active && repo == "- repo_url: remotion-dev/skills") {
-        print block
-        exit
-      }
-      repo = $0
-      block = $0 ORS
-      active = 1
-      next
-    }
-    active { block = block $0 ORS }
-    END {
-      if (active && repo == "- repo_url: remotion-dev/skills") print block
-    }
-  ' "$lock")"
+  remotion_entry="$(extract_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices')"
 
   [ -n "$remotion_entry" ]
   grep -Fq 'resolved_commit: 357a270803b23e16b32bec65df07c41a62e94bd9' <<<"$remotion_entry"
