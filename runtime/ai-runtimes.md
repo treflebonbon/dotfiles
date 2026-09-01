@@ -94,9 +94,11 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
-baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.247` / `0.150.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離・permission/trust boundary の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れ・permission bypass・trust boundary の修正）。
+baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する（現 `2.1.252` / `0.151.0`）。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-5.6 context window）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離・permission/trust boundary の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れ・permission bypass・trust boundary の修正）。
 
-**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも pin 済みの `llm.*` packageを直接使う。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
+**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも同じ pin 済み `llm-agents` input の packageを使う。通常は shared overlay で consumer nixpkgs と dependency を共有するが、source/LTO build が大きい Codex は `inputs.llm-agents.packages.${system}.codex` を使う。Numtide CI と同じ package set の binary cacheを利用し、consumer側のstable nixpkgsとの差による毎回のsource buildを避けるための限定的な例外である。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
+
+2026-09-01 の Tool Snapshot（Issue #204）は、実装入口で upstream default branch を一度だけ再確認し、`llm-agents.nix` の immutable revision `ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6` を採用した。3 system の metadata は Claude Code 2.1.252、Codex 0.151.0、Copilot CLI 1.0.82、Antigravity CLI 1.1.22、RTK 0.46.0、APM 0.29.0 で一致する。Codex 0.152.0 は snapshot に未収録のため待機せず、repository から `tools.update_plan.enabled` を opt-in しない。OpenCode は upstream snapshot に存在しても user devShell へ配備しない。通常の APM skill manifest / lock payload は別の更新単位として維持する。Codex の direct output は3 systemとも Numtide cache に存在し、x86_64-linux の user devShell は source build対象を持たず shell derivationだけを2.00秒でbuildした。採用判断と検証 matrix は [ADR-0045](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md) を参照する。
 
 APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物**を source へ入れる（手順の正は [skill-harness](skill-harness.md)）。`apm lock --update` は `resolved_commit` だけを進め `deployed_files` と content hash を旧 commit のまま残すため、そのまま commit すると `chezmoi apply`（`apm install --frozen` → `apm prune`）のたびに `~/apm.lock.yaml` が書き換わり source と drift する。
 

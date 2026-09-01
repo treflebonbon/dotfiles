@@ -20,7 +20,37 @@ status: accepted
 
 各更新単位は、候補の一部だけを採用しない。互換性ゲートに失敗した単位は旧 snapshot、旧 pin、または旧 manifest/lock pair を維持し、他の更新単位の採否とは分離する。
 
+## 2026-09-01 amendment
+
+PR #202 が Orca native の Worktree Entry Point を確立した後の更新は、Tool Snapshot と通常の APM payload refresh の直列2 PRへ分ける。Tool Snapshot の実装入口で upstream default branch を一度だけ確認し、immutable revision `ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6` に固定した。この snapshot は Claude Code 2.1.252、Codex 0.151.0、Copilot CLI 1.0.82、Antigravity CLI 1.1.22、RTK 0.46.0、APM 0.29.0 を含む。Codex 0.152.0 は未収録のため待機せず、`tools.update_plan.enabled` も opt-in しない。
+
+通常の APM payload refresh は Tool Snapshot の main への merge を blocker とする別の更新単位で、採用済み APM 0.29.0 を使う。両更新単位とも PR #202 の worktree ownership contract を変更しない。Impeccable と Matt Pocock managed set は今回の2更新単位に含めない。
+
 ## Implementation status
+
+### llm-agents snapshot（Issue #204）
+
+Issue #204 の実装入口で `numtide/llm-agents.nix` の default branch HEAD を一度だけ再確認し、調査時点候補と同じ immutable revision `ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6` を採用した。source URL と lock の `original.rev` / `locked.rev` は同じ revision を指す。3 system の package metadata は Claude Code 2.1.252、Codex 0.151.0、Copilot CLI 1.0.82、Antigravity CLI 1.1.22、RTK 0.46.0、APM 0.29.0 で一致した。Codex 0.152.0 は未収録のため待機せず、repository に `tools.update_plan.enabled` を追加していない。OpenCode 1.18.25 は snapshot に存在するが user devShell へ配備していない。
+
+最初の x86_64-linux devShell build では、shared overlay の Codex derivationがconsumer側のstable nixpkgsで再計算され、Numtide cacheと一致せずRust source / release LTO buildになった。上流のdirect packageは上流自身のpin済みnixpkgsでCI buildされるため、Codexだけを同じimmutable inputの`inputs.llm-agents.packages.${system}.codex`へ切り替えた。direct Codex outputはx86_64-linux / aarch64-linux / aarch64-darwinの3 systemすべてでNumtide cacheに存在する。切替後のx86_64-linux WSL devShell dry-runはCodexをbuild対象に含めず、実buildはshell derivation 1件だけを2.00秒で完了した。snapshot/version/floorは変えず、他のAI packageはshared overlayを維持する。
+
+`minClaudeCode`は2.1.252、`minCodex`は0.151.0へ引き上げた。`nix flake check --no-build --all-systems`、3-system metadata eval、x86_64-linux WSL devShell build/startup、隔離HOMEでの6 CLI version/help、`tests/nix-devshell.bats` 32/32、`tests/workflow-contract.bats` 14/14、full Bats suite 404/404（runtime mount条件の1件はskip）が成功した。candidate Codex 0.151.0 は一時`CODEX_HOME`とread-only sandboxで`tdd` skill flowを開始し、同じsessionを`resume --last`で継続できた。両turnとも`update_plan`は使っていない。APM manifest/lockはHEADから不変で、`chezmoi source-path`がprimary checkoutを指すためlive applyは行っていない。
+
+#### Verification Matrix（Issue #204）
+
+| AC                                            | 種別              | 検証                                                                                                    | 結果      | 未確認理由                                     |
+| --------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
+| stable/default HEADを一度だけ固定             | infra             | 実装入口でdefault branchを一度だけ再確認し`ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6`を固定              | 確認済み  | —                                              |
+| source / lock / metadataの整合                | infra             | `flake.nix`とlockの`original.rev` / `locked.rev`、3-system metadata evalを照合                          | 確認済み  | —                                              |
+| 導入済み5 CLIとAPMを更新                      | CLI / infra       | Claude 2.1.252、Codex 0.151.0、Copilot 1.0.82、`agy` 1.1.22、APM 0.29.0。RTK 0.46.0も同じsnapshotで確認 | 確認済み  | version固有機能のinteractive再現は未実施       |
+| Codex 0.152の収録待ちをしない                 | policy            | 一度の再確認で未収録を確認し0.151.0を採用                                                               | 確認済み  | —                                              |
+| `update_plan`を強制opt-inしない               | config / workflow | repository configに設定なし、workflow contract 14/14、candidate Codexで`tdd`の開始と`resume --last`継続 | 確認済み  | —                                              |
+| OpenCodeを新規配備しない                      | config            | `modules/ai.nix`に`llm.opencode`なし                                                                    | 確認済み  | —                                              |
+| supported systemsのNix evaluation             | infra             | `nix flake check --no-build --all-systems`と3-system metadata eval                                      | 確認済み  | aarch64-linux / aarch64-darwin実機実行は未実施 |
+| Linux devShell build/startupとCLI smoke/floor | CLI / infra       | cacheable direct Codex、2.00秒build、隔離HOME startup、6 CLI version/help、floor tests                  | 確認済み  | fresh hostでのdownload時間は未計測             |
+| PR #202 workflow regression                   | workflow          | `tests/workflow-contract.bats` 14/14                                                                    | 確認済み  | —                                              |
+| APM payload不変・live applyなし               | safety            | `git diff --quiet -- apm.yml apm.lock.yaml`、`chezmoi source-path`を確認                                | 確認済み  | —                                              |
+| Verification Matrix                           | docs              | source側の本表を作成                                                                                    | 後続phase | PR本文への転記は`/to-pr`で行う                 |
 
 ### llm-agents snapshot（Issue #184）
 
