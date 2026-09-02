@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/775405507404a6c28246aec9a848e091d3d8478c' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "775405507404a6c28246aec9a848e091d3d8478c"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "775405507404a6c28246aec9a848e091d3d8478c"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -196,7 +196,7 @@ PS
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.252";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.257";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
@@ -204,8 +204,8 @@ PS
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$adr"
-  grep -Fq 'ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6' "$flake"
+  grep -Fq '775405507404a6c28246aec9a848e091d3d8478c' "$adr"
+  grep -Fq '775405507404a6c28246aec9a848e091d3d8478c' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#56c61c9ee79a8df1a98822309c04847a57f56000' "$manifest"
 }
 
@@ -224,7 +224,7 @@ PS
 @test "nix-devshell requires Codex with executor-provided skill support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.151\.0";' "$module"
+  grep -q 'minCodex = "0\.152\.0";' "$module"
   grep -q 'codexPackage\.version' "$module"
   grep -q 'codexPackage;' "$module"
 }

@@ -52,6 +52,31 @@ Issue #204 の実装入口で `numtide/llm-agents.nix` の default branch HEAD �
 | APM payload不変・live applyなし               | safety            | `git diff --quiet -- apm.yml apm.lock.yaml`、`chezmoi source-path`を確認                                | 確認済み  | —                                              |
 | Verification Matrix                           | docs              | source側の本表を作成                                                                                    | 後続phase | PR本文への転記は`/to-pr`で行う                 |
 
+### llm-agents snapshot（2026-09-02 follow-up、v2.1.257 release note トリガー）
+
+Claude Code v2.1.257 の公式 release note を更新トリガーとして、実装入口で upstream default branch HEAD を一度だけ再確認し、`llm-agents.nix` の immutable revision を `ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6` から `775405507404a6c28246aec9a848e091d3d8478c` へ更新した。ユーザー devShell が共有する nixpkgs（`fca2dbd4c00c3063235e56bb91758e24fc67b7b8`）と対応3 system は変更していない。
+
+3 system の package metadata は Claude Code 2.1.258、Codex 0.152.0、Copilot CLI 1.0.82（変化なし）、Antigravity CLI 1.1.23、RTK 0.46.0（変化なし）、APM 0.29.0（変化なし）、code-review-graph 2.3.8（local override、変化なし）で一致した。
+
+Claude Code の公式 CHANGELOG（2.1.257）を確認した結果、auto mode への Containment Escape rule 追加、working directory 外読み取りの one-time prompt、compound command / subshell 内での `permissions.ask` 迂回の修正、`Read()`/`Edit()` deny ルールの redirect / reader コマンド適用漏れの修正、plugin コンポーネント path の symlink traversal 修正、linked worktree での sandboxed git 書込み権限喪失の修正、worktree 隔離 session の git 非関与コマンドに対する false-positive 拒否の修正、teammate mailbox 二重応答の修正、background daemon の複数安定化が見つかった。worktree 隔離・auto mode の trust boundary・`teammateMode: auto` の信頼性に直結するため `minClaudeCode` を `2.1.252` から `2.1.257` へ引き上げた。pin 自体は 2.1.258 まで進むが、その2件の修正（macOS 12 起動regression、再送 permission approval のcontent欠落）には床上げ根拠となる記述がないため、床は 2.1.257 に留めた。
+
+Codex の公式 release note（0.152.0）を確認した結果、信頼できない backend URL を拒否し redirect を無効化して保存済み credential を保護する修正、MCP tool のキャッシュ更新・remote plugin 変更をまたいだ可用性維持と認証再試行時の refreshed header 使用が見つかった。credential/trust boundary に直結するため `minCodex` を `0.151.0` から `0.152.0` へ引き上げた。同版で `tools.update_plan.enabled` が既定 disabled の opt-in 設定へ変わったが、この repo は元々同 flag を設定しておらず、Issue #204 時点の判断（opt-in しない）を継続するだけで挙動への影響はない。
+
+検証は `nix flake check --no-build --all-systems`（3 system で新 pin・新 floor が通過）、3 system の `nix build --dry-run` による7パッケージの version/store path 一致確認、x86_64-linux host での実 `nix develop` build と7 CLI (`claude` 2.1.258 / `codex` 0.152.0 / `copilot` 1.0.82 / `agy` 1.1.23 / `rtk` 0.46.0 / `apm` 0.29.0 / `code-review-graph` 2.3.8) の version 実測、`tests/nix-devshell.bats` 32/32、`tests/workflow-contract.bats` 16/16（Issue #204 時点の14/14から、後続の PR #209「fix: align agent guidance and APM lock tests」で2 testが増えた分で、regressionではない）、full Bats suite 407中399/407（既知の環境依存 pre-existing failure 8件のみを除き全通過。原因はいずれも本更新の差分と無関係であることを個別に確認済み、詳細は下記）まで行った。
+
+full Bats suite で確認した2件の pre-existing failure はいずれも、このセッションのシェル環境に設定済みの `FORCE_COLOR=3` に起因し、原因を実験で確定させた（推測ではない）：
+
+- `code-review-graph package meets its FastMCP floor on all supported systems` — `fastmcp call --json` の出力が rich の ANSI 装飾付きで返り、`"is_error": false` の厳密な部分文字列一致に失敗する。同じ呼び出しに `FORCE_COLOR=0` を前置しても装飾は消えず（rich は値を見ず環境変数の有無だけで force_terminal を有効化する挙動と推測される）、装飾を剥がした上での構造化出力自体は `is_error: false` / `total_nodes: 2` を含む正しい内容だった。`code-review-graph.nix` は本更新で変更しておらず、`nix build --dry-run` で `code-review-graph-2.3.8` が3 system とも再ビルド対象に含まれず前回検証済み derivation と同一であることも確認済み。
+- `non-WSL dogfood leaves browser ownership untouched`（`tests/managed-dogfood-browser.bats`）— Node の `console.log(null)` が ANSI 装飾付き `null` を出力し、厳密一致 `[ "$output" = "null" ]` に失敗する。こちらは `FORCE_COLOR=0` を前置すると装飾なしの `null` に戻り、`bats tests/managed-dogfood-browser.bats` 7/7 全通過を確認した。対象の `.mjs` も本更新では変更していない。
+
+このほか、full Bats suite 実行時には `tests/mattpocock-update-gate.bats` の6 testも一時的に failed だったが、こちらは `FORCE_COLOR` ではなく `LANG=en_US.UTF-8` によるロケール依存の GNU `sort` 収集順序差が原因であることを実験で確定させた：candidate/expected skill 一覧の diffが `code-review`/`codebase-design`、`grilling`/`grill-me` の並び順違いのみで要素集合自体は同一であることを確認し、`LC_ALL=C bats tests/mattpocock-update-gate.bats` を実行したところ13/13全通過した（通常実行では7/13、failしていた6 testが全て通過に転じた）。`code-review-graph.nix` 同様、Matt Pocock 関連ファイルも本更新では一切変更していない。
+
+以上のとおり、mattpocock-update-gate の6件を含む計8件の failure は、本更新の差分（`flake.nix` / `flake.lock` / `modules/ai.nix` / `tests/nix-devshell.bats` / `runtime/ai-runtimes.md` / 本 ADR）とは無関係な、このセッション固有のシェル環境変数（`FORCE_COLOR=3`、`LANG=en_US.UTF-8`）に起因する事象であることを実行結果で確認済みである。修正（rich/Nodeの色制御差異の吸収、またはgateスクリプトへの`LC_ALL=C`固定）は本更新のスコープ外とする。
+
+aarch64-linux / aarch64-darwin の実機実行、2.1.257 の床上げ根拠そのもの（Containment Escape rule 等）の interactive 機能的 smoke は未確認のまま。APM manifest/lock はこの更新単位では変更していない。
+
+これにより llm-agents snapshot 更新単位（follow-up）も採用できる。
+
 ### llm-agents snapshot（Issue #184）
 
 Issue #184 の実装入口では、upstream stable/default branch HEAD を一度だけ再確認し、調査候補と同じ `4a9441120caf6c6aff273af68995267a35c20fcd` を採用 revision として固定した。source URL と lock の `original.rev` / `locked.rev` は同じ exact revision を指し、pre-release は導入していない。ユーザー devShell が共有する nixpkgs `fca2dbd4c00c3063235e56bb91758e24fc67b7b8`、対応3 system、Copilot CLI 1.0.80、APM 0.28.0 は変更していない。
