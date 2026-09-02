@@ -103,11 +103,36 @@ let
   #                  background worktree lock、managed settings による sandbox 弱化、移動・link 済み task
   #                  output path、project local settings がない場合の always-allow 保存を修正する。
   #                  source 配備、worktree、permission 境界に直結するため 2.1.252 へ床上げする。
+  # 2.1.253-2.1.256: 公式 CHANGELOG に版が存在しない（2.1.252 の次の公開版は 2.1.257）。
+  # 2.1.257: auto mode に Containment Escape rule を追加（cloud metadata-credential 取得・egress
+  #          回避・cross-tenant reach を環境が想定済みと明示しない限り自動承認しない）、working
+  #          directory 外への最初のファイル読み取り前に one-time prompt を追加
+  #          （`permissions.blockReadsOutsideWorkingDirectories` でブロック可）、compound command /
+  #          subshell 内で `permissions.ask` ルールが auto mode で迂回される不具合、
+  #          `Read()`/`Edit()` の deny ルールが `< file` リダイレクトや `tac`/`egrep` などの reader
+  #          コマンドに適用されない不具合、plugin の command/agent/skill/hooks 等のコンポーネント
+  #          path が symlink 経由で自 plugin ディレクトリ外を読める不具合、linked worktree で
+  #          sandboxed git が subdirectory へ `cd` した後に共有 `.git` への書込み権限を失う不具合を
+  #          修正する。加えて worktree 隔離済み session が git に触れない Bash loop / `$VAR` 参照 /
+  #          `"$(…)"` / heredoc を「worktree 内に留まることを検証できない」として拒否していた
+  #          false-positive も修正し、teammate の permission request がリーダーの mailbox 書込み
+  #          競合で二重応答される不具合・background daemon の安定化（起動失敗の待機、detach した
+  #          background command の stop/exit 後残存防止、stop 済み background subagent の monitor
+  #          残存防止、旧 binary のまま残る background session の retire）も含む。worktree 隔離・
+  #          auto mode の trust boundary・teammateMode: auto の信頼性に直結するため 2.1.257 へ床上げする。
+  #          pin 自体は macOS 12 起動regressionと再送 permission approval のcontent欠落のみを修正する
+  #          2.1.258 まで進むが、この2件は床上げ根拠にならないため床は 2.1.257 に留める。
   # Codex 0.151.0: permission profile 復元、/cd 後の sandbox 維持、remote executor の HOME/OS/path
   #                semantics、stale Guardian approval、MCP cache/error を修正するため床上げする。
+  # Codex 0.152.0: cloud task request が信頼できない backend URL を拒否し redirect を無効化して
+  #                保存済み credential を保護する修正、MCP tool のキャッシュ更新・remote plugin
+  #                変更をまたいだ可用性維持と認証再試行時の refreshed header 使用を含むため床上げする。
+  #                同版で `tools.update_plan.enabled` が既定 disabled のopt-in設定へ変更されたが、
+  #                この repo は元々同 flag を設定しておらず（ADR-0045）、挙動は変わらないため
+  #                追加の設定変更はしない。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.252";
-  minCodex = "0.151.0";
+  minClaudeCode = "2.1.257";
+  minCodex = "0.152.0";
 
   claudeCode =
     let
@@ -158,8 +183,16 @@ let
         telemetry 境界を修正する 2.1.246、chezmoi/Nix 管理 settings symlink、subagent fallback、hook output
         overflow、--agent session の compact system prompt を修正する 2.1.247 に加え、file tool の symlink
         swap、plugin path traversal、Grep/Glob の symlink deny rule、background worktree lock、managed settings に
-        よる sandbox 弱化、移動・link 済み task output path、always-allow 保存を修正する 2.1.251-2.1.252 を根拠に、
-        現在の ${minClaudeCode} を品質ベースラインとして固定しています
+        よる sandbox 弱化、移動・link 済み task output path、always-allow 保存を修正する 2.1.251-2.1.252 に加え、
+        auto mode への Containment Escape rule 追加（cloud metadata-credential 取得・egress 回避・
+        cross-tenant reach の自動承認停止）、working directory 外への最初のファイル読み取り前の
+        one-time prompt（`permissions.blockReadsOutsideWorkingDirectories`）、compound command / subshell
+        内での `permissions.ask` 迂回、`Read()`/`Edit()` deny ルールが redirect や `tac`/`egrep` に
+        適用されない不具合、plugin コンポーネント path の symlink 経由traversal、linked worktree で
+        sandboxed git が subdirectory `cd` 後に共有 `.git` 書込み権限を失う不具合、worktree 隔離
+        session の git 非関与 Bash loop / `$VAR` / `"$(…)"` / heredoc に対する false-positive 拒否、
+        teammate permission request の mailbox 競合二重応答、background daemon の複数安定化を修正する
+        2.1.257 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
@@ -199,7 +232,10 @@ let
         untrusted project の project-level AGENTS.md 無視、permission update 後の managed deny-read 維持、
         credential redaction、remote MCP auth/startup、Unix shutdown 修正を含む 0.150.0 に加え、
         permission profile 復元、/cd 後の sandbox 維持、remote executor の HOME/OS/path semantics、
-        stale Guardian approval、MCP cache/error を修正する 0.151.0 を
+        stale Guardian approval、MCP cache/error を修正する 0.151.0 に加え、cloud task request が
+        信頼できない backend URL を拒否し redirect を無効化して保存済み credential を保護する修正、
+        MCP tool のキャッシュ更新・remote plugin 変更をまたいだ可用性維持と認証再試行時の
+        refreshed header 使用を含む 0.152.0 を
         品質ベースラインとして要求します。
         llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:

@@ -52,6 +52,24 @@ Issue #204 の実装入口で `numtide/llm-agents.nix` の default branch HEAD �
 | APM payload不変・live applyなし               | safety            | `git diff --quiet -- apm.yml apm.lock.yaml`、`chezmoi source-path`を確認                                | 確認済み  | —                                              |
 | Verification Matrix                           | docs              | source側の本表を作成                                                                                    | 後続phase | PR本文への転記は`/to-pr`で行う                 |
 
+### llm-agents snapshot（2026-09-02 follow-up、v2.1.257 release note トリガー）
+
+Claude Code v2.1.257 の公式 release note を更新トリガーとして、実装入口で upstream default branch HEAD を一度だけ再確認し、`llm-agents.nix` の immutable revision を `ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6` から `775405507404a6c28246aec9a848e091d3d8478c` へ更新した。ユーザー devShell が共有する nixpkgs（`fca2dbd4c00c3063235e56bb91758e24fc67b7b8`）と対応3 system は変更していない。
+
+3 system の package metadata は Claude Code 2.1.258、Codex 0.152.0、Copilot CLI 1.0.82（変化なし）、Antigravity CLI 1.1.23、RTK 0.46.0（変化なし）、APM 0.29.0（変化なし）、code-review-graph 2.3.8（local override、変化なし）で一致した。
+
+Claude Code の公式 CHANGELOG（2.1.257）を確認した結果、auto mode への Containment Escape rule 追加、working directory 外読み取りの one-time prompt、compound command / subshell 内での `permissions.ask` 迂回の修正、`Read()`/`Edit()` deny ルールの redirect / reader コマンド適用漏れの修正、plugin コンポーネント path の symlink traversal 修正、linked worktree での sandboxed git 書込み権限喪失の修正、worktree 隔離 session の git 非関与コマンドに対する false-positive 拒否の修正、teammate mailbox 二重応答の修正、background daemon の複数安定化が見つかった。worktree 隔離・auto mode の trust boundary・`teammateMode: auto` の信頼性に直結するため `minClaudeCode` を `2.1.252` から `2.1.257` へ引き上げた。pin 自体は 2.1.258 まで進むが、その2件の修正（macOS 12 起動regression、再送 permission approval のcontent欠落）には床上げ根拠となる記述がないため、床は 2.1.257 に留めた。
+
+Codex の公式 release note（0.152.0）を確認した結果、信頼できない backend URL を拒否し redirect を無効化して保存済み credential を保護する修正、MCP tool のキャッシュ更新・remote plugin 変更をまたいだ可用性維持と認証再試行時の refreshed header 使用が見つかった。credential/trust boundary に直結するため `minCodex` を `0.151.0` から `0.152.0` へ引き上げた。同版で `tools.update_plan.enabled` が既定 disabled の opt-in 設定へ変わったが、この repo は元々同 flag を設定しておらず、Issue #204 時点の判断（opt-in しない）を継続するだけで挙動への影響はない。
+
+検証は `nix flake check --no-build --all-systems`（3 system で新 pin・新 floor が通過）、3 system の `nix build --dry-run` による7パッケージの version/store path 一致確認、x86_64-linux host での実 `nix develop` build と7 CLI (`claude` 2.1.258 / `codex` 0.152.0 / `copilot` 1.0.82 / `agy` 1.1.23 / `rtk` 0.46.0 / `apm` 0.29.0 / `code-review-graph` 2.3.8) の version 実測、`tests/nix-devshell.bats` 32/32、`tests/workflow-contract.bats` 16/16、full Bats suite（本 ADR の rev/floor 文字列更新後は既知の環境依存 pre-existing failure 1件のみを除き全通過。詳細は下記）まで行った。
+
+full Bats suite では、この Tool Snapshot 差分と無関係な pre-existing failure を1件確認した：`code-review-graph package meets its FastMCP floor on all supported systems`（`fastmcp call --json` の出力が、このセッションのシェル環境に設定済みの `FORCE_COLOR=3` によって rich の ANSI 装飾付きで返り、`"is_error": false` の厳密な部分文字列一致に失敗する）。同じ MCP 呼び出しを手動実行すると `is_error: false` / `total_nodes: 2` を含む正しい構造化結果が得られており、機能自体は正常に動作している。この失敗は `code-review-graph.nix` / `fastmcp` のいずれも本更新で変更していないこと、`nix build --dry-run` で `code-review-graph-2.3.8` が3 system とも再ビルド対象に含まれず前回検証済み derivation と同一であることから、この Tool Snapshot 差分に起因しない環境依存の pre-existing failure と判断した。同様に、通常の bats 実行（このADRの検証範囲外）でも `LANG=en_US.UTF-8` によるロケール依存の GNU `sort` 収集順序差、および Node/rich の `FORCE_COLOR` 依存の ANSI 装飾により、Matt Pocock managed-set gate と dogfood browser ownership のテストで同種の環境依存 failure が再現することを確認した。いずれも `code-review-graph.nix` を含む本更新の差分（`flake.nix` / `flake.lock` / `modules/ai.nix` / `tests/nix-devshell.bats` / `runtime/ai-runtimes.md` / 本 ADR）とは無関係で、修正は本更新のスコープ外とする。
+
+aarch64-linux / aarch64-darwin の実機実行、2.1.257 の床上げ根拠そのもの（Containment Escape rule 等）の interactive 機能的 smoke は未確認のまま。APM manifest/lock はこの更新単位では変更していない。
+
+これにより llm-agents snapshot 更新単位（follow-up）も採用できる。
+
 ### llm-agents snapshot（Issue #184）
 
 Issue #184 の実装入口では、upstream stable/default branch HEAD を一度だけ再確認し、調査候補と同じ `4a9441120caf6c6aff273af68995267a35c20fcd` を採用 revision として固定した。source URL と lock の `original.rev` / `locked.rev` は同じ exact revision を指し、pre-release は導入していない。ユーザー devShell が共有する nixpkgs `fca2dbd4c00c3063235e56bb91758e24fc67b7b8`、対応3 system、Copilot CLI 1.0.80、APM 0.28.0 は変更していない。
