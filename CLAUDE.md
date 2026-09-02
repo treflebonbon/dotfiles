@@ -39,6 +39,7 @@ Worktree Entry Point は共通の入口契約とし、1つの作業では1つの
 - `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、close/reopen/delete は確認する。
 - Builder-Evaluator 内の `code-review` は既知の base（通常 `origin/main`）を使う。standalone で base が不明な場合は確認する。
 - `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
+- `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
 
 実装依頼の入口は `implement`。必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
 

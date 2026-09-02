@@ -66,6 +66,18 @@ setup() {
   grep -Fq '`git-push-topic`' "$RUNTIME"
 }
 
+@test "empirical prompt tuning does not claim strict convergence without usage metrics" {
+  local instructions
+
+  grep -Fq '外部 skill を実行・評価するときのローカル上書き' "$PROJECT_ROOT/AGENTS.md"
+  for instructions in "$PROJECT_ROOT/CLAUDE.md" "$RUNTIME"; do
+    grep -Fq '`tool_uses` または `duration_ms` を取得できない round' "$instructions"
+    grep -Fq 'strict convergence の判定に含めない' "$instructions"
+    grep -Fq '`qualitative plateau; quantitative convergence unverified`' "$instructions"
+    grep -Fq '明示的な `resource cutoff`' "$instructions"
+  done
+}
+
 @test "instruction layers guard model-invoked external writes, secrets, and permissions" {
   grep -Fq 'model-invoked discipline' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq '外部書込みは親 Contract' "$PROJECT_ROOT/CLAUDE.md"
@@ -183,6 +195,14 @@ setup() {
   grep -Fq 'git -C <physical-top-level> worktree add <physical-top-level>/.worktrees/<topic> -b <type>/<topic> HEAD' "$skill"
   grep -Fq 'same absolute physical top level for `-C` and the destination' "$skill"
   grep -Fq '同じ absolute physical top level を `git -C` と destination の両方に使う1 commandの成功を完了条件' "$RUNTIME"
+}
+
+@test "to-worktree stops when the exact raw Codex creation command is rejected" {
+  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
+
+  grep -Fq 'runtime rejects this exact command, treat the branch as terminally blocked' "$skill"
+  grep -Fq 'overrides any general suggestion to retry with alternate Git syntax' "$skill"
+  grep -Fq 'no further worktree command, file write, or workflow phase is authorized' "$skill"
 }
 
 @test "instruction layers align Worktree Entry Point ownership without merging runtime guidance" {
