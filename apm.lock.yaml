@@ -1,11 +1,11 @@
 lockfile_version: '1'
-generated_at: '2026-09-01T07:22:40.422927+00:00'
+generated_at: '2026-09-03T03:16:11.886132+00:00'
 apm_version: 0.29.0
 dependencies:
 - repo_url: anthropics/skills
   name: pdf
   host: github.com
-  resolved_commit: 3b3fad96af16a10759d930941b4520ba0c40edae
+  resolved_commit: 53048666b05b4799081517d00e09e0a2dd688678
   version: unknown
   virtual_path: skills/pdf
   is_virtual: true
@@ -66,7 +66,7 @@ dependencies:
 - repo_url: anthropics/skills
   name: skill-creator
   host: github.com
-  resolved_commit: 3b3fad96af16a10759d930941b4520ba0c40edae
+  resolved_commit: 53048666b05b4799081517d00e09e0a2dd688678
   version: unknown
   virtual_path: skills/skill-creator
   is_virtual: true
@@ -2330,7 +2330,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 63c1308d112b6b1205d86244a156cca1abef5087
+  resolved_commit: 71e50952fbb7eda2c992660d36cd58671a2edf42
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2403,7 +2403,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 41ef1ddd80d69795749451116fe70568a3779ca9
+  resolved_commit: 40d9927f014199ac7a96b669df14c2246a445814
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2438,7 +2438,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 41ef1ddd80d69795749451116fe70568a3779ca9
+  resolved_commit: 40d9927f014199ac7a96b669df14c2246a445814
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
