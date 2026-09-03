@@ -21,11 +21,12 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - on-ramp（raw issue: `to-tickets` の産出物には使わない）: `triage` → ready-for-agent 化 → `implement` へ合流
 - on-ramp（ハードなバグ）: `diagnosing-bugs` → `code-review` → `to-pr`。raw な報告ならまず `triage` を通す
 
-外部 skill は APM 配布物を fork せず、repo の指示層で必要な差分だけを **ローカル skill 上書き**として定義する（[ADR-0023](../docs/adr/0023-resolve-external-skill-contracts-locally.md)）。現行の上書きは次の3点:
+外部 skill は APM 配布物を fork せず、repo の指示層で必要な差分だけを **ローカル skill 上書き**として定義する（[ADR-0023](../docs/adr/0023-resolve-external-skill-contracts-locally.md)）。現行の上書きは次の4点:
 
 - `triage` は推薦根拠を得る read-only 検証を推薦前に実行してよい。推薦・適用内容の判断点は維持するが、内容確定後の非破壊な GitHub 定型書込みは二重確認しない。close/reopen/delete は引き続き確認する。
 - Builder-Evaluator 内の `code-review` は branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone で fixed point が不明な場合だけ質問する。
 - `gh-address-comments` は GitHub plugin の flat な comment read と `gh api graphql` を併用せず、thread-aware な取得・返信・resolve を専用 CLI `gh-review-thread` に統一する。review 対応依頼は選択 thread 群の Review Round（修正・検証・`fix: address PR review feedback` commit・`git-push-topic`・日本語返信・resolve）を承認する。コード修正は commit が現在の PR 履歴に含まれた後だけ短縮 SHA・修正要約・検証結果を返信して resolve する。説明のみは `--explanation-only` を明示し、根拠を返信して空 commit を作らない。同一本文の自分の返信は再投稿せず未完了の resolve から再開し、thread 単位の失敗は open のまま理由を記録して残りを続行する（[ADR-0032](../docs/adr/0032-automate-review-round.md)）。
+- `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
 
 ### Managed workflow semantics と local safety boundary
 

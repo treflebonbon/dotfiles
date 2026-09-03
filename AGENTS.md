@@ -25,7 +25,7 @@ Worktree Entry Point は validated task worktree から workflow を始める共
 - raw issue: `triage` で ready-for-agent 化してから `implement`
 - 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review` → `to-pr`
 
-Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、Contract、Verification Matrix、Parent Reconciliation、ローカル上書きを判断するときは `runtime/skill-harness.md` と関連 ADR を読む。
+Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、Contract、Verification Matrix、Parent Reconciliation、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。
 
 ## ブラウザ操作ツール
 
