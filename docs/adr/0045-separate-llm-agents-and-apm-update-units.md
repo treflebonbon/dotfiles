@@ -77,13 +77,15 @@ aarch64-linux / aarch64-darwin の実機実行、2.1.257 の床上げ根拠そ�
 
 これにより llm-agents snapshot 更新単位（follow-up）も採用できる。
 
-### Codex 0.153.2 local override（2026-09-04、GPT-6 Astra）
+### Codex 0.153.2 local override（2026-09-04、GPT-6 Astra 対応）
 
 GPT-6 Astra を明示設定できる Codex 0.153.1 と Fast tier 表示を訂正した 0.153.2 の公式 release note を確認した。実装入口で `numtide/llm-agents.nix` の default branch HEAD を一度だけ再確認したところ、`10e3dca999e12a0d07f1e9e470707f4386dc3178` の Codex package は 0.153.0 だった。既存 snapshot を進めると他の CLI も同時に変わり得るため、この変更単位では flake pin と lock を維持し、既存 direct Codex package の `version`、source hash、`cargoHash` だけを 0.153.2 へ local override する。source hash は `sha256-R97lEHS2XfMQNbAc9k8v7EbcQCnwxND7zhnK3EBsI3Y=`、Cargo vendor hash は `sha256-GG6kOXmCdq+bZLU2ul0DIVL8lDuweayvZvXn6+bcUZw=` である。V8 は pin 側と同じ 150.4.0 のため、3 system の既存 artifact hash を再利用する。
 
-`minCodex` を 0.153.2 へ上げ、管理 config の既定モデルを `gpt-6-astra` にする。モデル catalog が対応する `xhigh` は維持し、役割とコストが異なる subagent は `gpt-5.6-luna` / `high` のままにする。0.153.0 で追加された `features.context_management.experimental_mode` は disabled-by-default の experimental 機能であり、今回の目的には不要なので設定しない。upstream snapshot が 0.153.2 以上を収録した次回更新で local override を削除する。
+`minCodex` を 0.153.2 へ上げ、管理 config の既定モデルを一度 `gpt-6-astra` にした。モデル catalog が対応する `xhigh` は維持し、役割とコストが異なる subagent は `gpt-5.6-luna` / `high` のままにする。0.153.0 で追加された `features.context_management.experimental_mode` は disabled-by-default の experimental 機能であり、今回の目的には不要なので設定しない。upstream snapshot が 0.153.2 以上を収録した次回更新で local override を削除する。
 
 Codex 管理設定 63/63、nix-devshell 32/32、`nix flake check --no-build --all-systems`、3 system の devShell closure における `codex-0.153.2` derivation、x86_64-linux host の実 devShell buildと `codex-cli 0.153.2`、`gpt-6-astra` / `xhigh` override の strict-config 読み込みを確認した。aarch64-linux / aarch64-darwin は derivation 評価のみで実機実行は未確認、GPT-6 Astra の実リクエストは段階的 rollout と利用資格に依存するため未確認である。task worktree から live HOME への `chezmoi apply` は行わない。この境界で Codex 0.153.2 local override 更新単位を採用する。
+
+その後の follow-up 診断で、Codex 0.153.2 の bundled catalog は Astra を非表示で含む一方、この ChatGPT 認証アカウントの更新 catalog は Astra を返さず、`codex exec --model gpt-6-astra` も unsupported model の 400 応答になることを確認した。OpenAI 公式 model page も Trusted Access Program から各プラン/APIへ段階展開中としており、CLI の strict-config 対応は account availability の証拠にならない。よって local override と `minCodex = "0.153.2"` は維持するが、管理既定値は実リクエスト確認済みの `gpt-5.6-sol` / `xhigh` へ戻す。Astra の既定化は、認証後 catalog への出現と実リクエスト成功を前提とする別変更に分離する。
 
 ### llm-agents snapshot（Issue #184）
 
