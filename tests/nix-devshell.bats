@@ -221,19 +221,23 @@ PS
   [ "$status" -ne 0 ]
 }
 
-@test "nix-devshell requires Codex with executor-provided skill support" {
+@test "nix-devshell requires Codex with GPT-6 Astra support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.152\.0";' "$module"
-  grep -q 'codexPackage\.version' "$module"
-  grep -q 'codexPackage;' "$module"
+  grep -q 'minCodex = "0\.153\.2";' "$module"
+  grep -q 'codex1532 = codexPackage\.override {' "$module"
+  grep -q 'version = "0\.153\.2";' "$module"
+  grep -Fq 'hash = "sha256-R97lEHS2XfMQNbAc9k8v7EbcQCnwxND7zhnK3EBsI3Y=";' "$module"
+  grep -Fq 'cargoHash = "sha256-GG6kOXmCdq+bZLU2ul0DIVL8lDuweayvZvXn6+bcUZw=";' "$module"
+  grep -q 'v = codex1532\.version' "$module"
+  grep -q '^    codex1532;$' "$module"
 }
 
-@test "nix-devshell uses the cacheable direct Codex package and pinned Copilot and Antigravity packages" {
+@test "nix-devshell uses the direct Codex package as its override base and keeps other agents pinned" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
   grep -Fq 'codexPackage = inputs.llm-agents.packages.${system}.codex;' "$module"
-  grep -q '^    codexPackage;$' "$module"
+  grep -q 'codex1532 = codexPackage\.override {' "$module"
   grep -q '^    llm\.copilot-cli$' "$module"
   grep -q '^    llm\.antigravity-cli$' "$module"
   run grep -q 'x86_64-darwin' "$module"

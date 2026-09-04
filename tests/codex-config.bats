@@ -285,7 +285,7 @@ for path in sys.argv[1:]:
     with open(path, "rb") as f:
         config = tomllib.load(f)
 
-    assert config["model"] == "gpt-5.6-sol"
+    assert config["model"] == "gpt-6-astra"
     assert config["model_reasoning_effort"] == "xhigh"
     assert config["model_reasoning_summary"] == "concise"
     assert config["model_verbosity"] == "medium"
@@ -298,6 +298,7 @@ for path in sys.argv[1:]:
     assert "service_tier" not in config
     assert "developer_instructions" not in config
     assert config["features"]["network_proxy"] is True
+    assert "context_management" not in config["features"]
     assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
     assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
@@ -414,7 +415,7 @@ assert_codex_strict_config() {
   render_codex_managed_config "$PROJECT_ROOT" "$config"
 
   [ -f "$config" ]
-  grep -q '^model = "gpt-5.6-sol"$' "$config"
+  grep -q '^model = "gpt-6-astra"$' "$config"
   grep -q '^model_reasoning_effort = ' "$config"
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
@@ -428,6 +429,7 @@ assert_codex_strict_config() {
   grep -q '^hooks = true$' "$config"
   grep -q '^goals = true$' "$config"
   grep -q '^network_proxy = true$' "$config"
+  ! grep -q '^context_management' "$config"
   grep -q '^\[mcp_servers\.context7\]$' "$config"
   grep -q '^command = "bunx"$' "$config"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$config"
@@ -1073,7 +1075,7 @@ PY
   HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
     bash -c '. "$1"' _ "$home/.bash_profile"
 
-  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-6-astra"$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
   cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
@@ -1100,7 +1102,7 @@ EOF
     CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
     bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
 
-  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-6-astra"$' "$home/.codex-app/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
@@ -1408,7 +1410,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
@@ -1452,7 +1454,7 @@ EOF
 
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex/config.toml"
+  grep -q '^model = "gpt-6-astra"$' "$home/.codex/config.toml"
   grep -q '^model_reasoning_effort = "xhigh"$' "$home/.codex/config.toml"
   grep -q '^personality = "pragmatic"$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
@@ -1532,7 +1534,7 @@ EOF
   mkdir -p "$home/.config/codex" "$codex_home"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
@@ -1707,7 +1709,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 EOF
   printf 'model = \n' >"$home/.codex/config.toml"
 

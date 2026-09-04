@@ -9,9 +9,10 @@
 
 let
   llm = pkgs.llm-agents;
-  # Codex is a large Rust/LTO build. Use the same immutable llm-agents input's
-  # CI-built package so the Numtide cache works even though this devShell keeps
-  # its shared nixpkgs on the stable branch.
+  # Codex is a large Rust/LTO build. Use the immutable llm-agents input's direct
+  # package as the base so upstream versions match the Numtide cache even though
+  # this devShell keeps its shared nixpkgs on the stable branch. A temporary
+  # version override builds from source until upstream catches up.
   codexPackage = inputs.llm-agents.packages.${system}.codex;
 
   # Evaluate only these newer package definitions against the shared package set.
@@ -130,9 +131,12 @@ let
   #                同版で `tools.update_plan.enabled` が既定 disabled のopt-in設定へ変更されたが、
   #                この repo は元々同 flag を設定しておらず（ADR-0045）、挙動は変わらないため
   #                追加の設定変更はしない。
+  # Codex 0.153.1-0.153.2: GPT-6 Astra の明示設定と正しい Fast tier 表示を提供する。既定モデルを
+  #                        `gpt-6-astra` へ切り替えるため、表示修正済みの 0.153.2 を床にする。
+  #                        0.153.0 で追加された experimental context management は opt-in しない。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
   minClaudeCode = "2.1.257";
-  minCodex = "0.152.0";
+  minCodex = "0.153.2";
 
   claudeCode =
     let
@@ -208,7 +212,14 @@ let
 
   codex =
     let
-      v = codexPackage.version or null;
+      codex1532 = codexPackage.override {
+        version = "0.153.2";
+        hash = "sha256-R97lEHS2XfMQNbAc9k8v7EbcQCnwxND7zhnK3EBsI3Y=";
+        cargoVendor = {
+          cargoHash = "sha256-GG6kOXmCdq+bZLU2ul0DIVL8lDuweayvZvXn6+bcUZw=";
+        };
+      };
+      v = codex1532.version or null;
       ok = v != null && lib.versionAtLeast v minCodex;
       msg = ''
         codex ${toString v} は最低バージョン ${minCodex} を満たしていません。
@@ -235,17 +246,20 @@ let
         stale Guardian approval、MCP cache/error を修正する 0.151.0 に加え、cloud task request が
         信頼できない backend URL を拒否し redirect を無効化して保存済み credential を保護する修正、
         MCP tool のキャッシュ更新・remote plugin 変更をまたいだ可用性維持と認証再試行時の
-        refreshed header 使用を含む 0.152.0 を
+        refreshed header 使用を含む 0.152.0 に加え、GPT-6 Astra の明示設定を追加した 0.153.1 と
+        Fast tier の表示を修正した 0.153.2 を
         品質ベースラインとして要求します。
-        llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
+        llm-agents.nix の pin がまだ 0.153.2 を取り込んでいないため、この repo では
+        upstream package definition を使いながら version/hash/cargoHash だけを local override します。
         修復手順:
+          upstream llm-agents.nix が codex 0.153.2 以上を取り込んだら override を削除
           cd ~/.config/nix-devshell
           flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
     assert lib.assertMsg ok msg;
-    codexPackage;
+    codex1532;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
