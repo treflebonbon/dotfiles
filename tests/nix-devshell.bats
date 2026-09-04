@@ -221,10 +221,11 @@ PS
   [ "$status" -ne 0 ]
 }
 
-@test "nix-devshell requires Codex with GPT-6 Astra support" {
+@test "nix-devshell requires Codex with executor-provided skill and GPT-6 Astra support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
   grep -q 'minCodex = "0\.153\.2";' "$module"
+  grep -q 'executor が提供する skill の discover/read' "$module"
   grep -q 'codex1532 = codexPackage\.override {' "$module"
   grep -q 'version = "0\.153\.2";' "$module"
   grep -Fq 'hash = "sha256-R97lEHS2XfMQNbAc9k8v7EbcQCnwxND7zhnK3EBsI3Y=";' "$module"

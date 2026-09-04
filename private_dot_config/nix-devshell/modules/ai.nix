@@ -131,8 +131,9 @@ let
   #                同版で `tools.update_plan.enabled` が既定 disabled のopt-in設定へ変更されたが、
   #                この repo は元々同 flag を設定しておらず（ADR-0045）、挙動は変わらないため
   #                追加の設定変更はしない。
-  # Codex 0.153.1-0.153.2: GPT-6 Astra の明示設定と正しい Fast tier 表示を提供する。既定モデルを
-  #                        `gpt-6-astra` へ切り替えるため、表示修正済みの 0.153.2 を床にする。
+  # Codex 0.153.1-0.153.2: GPT-6 Astra の明示設定と正しい Fast tier 表示を提供する。Astra の
+  #                        account rollout と CLI 対応は独立しているため、既定モデルは利用可能な
+  #                        `gpt-5.6-sol` を維持しつつ表示修正済みの 0.153.2 を床にする。
   #                        0.153.0 で追加された experimental context management は opt-in しない。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
   minClaudeCode = "2.1.257";
