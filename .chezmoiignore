@@ -17,6 +17,10 @@ apm_modules/**
 .claude/apm-hooks.json
 .claude/worktrees/**
 
+# background agent/job のランタイム状態（session ID・host固有の絶対パス・PR リンク・
+# transcript 抽出物を含む生成物）。chezmoi 管理対象ではない。
+.claude/jobs/**
+
 # 開発用テスト (lefthook / bats)。chezmoi の deploy / run-once 解釈から除外する。
 # 特に tests/run_once_before_*.bats は chezmoi が script と解釈して毎 apply で実行を試み、
 # test_helper が temp dir で見つからず失敗するため除外必須。
