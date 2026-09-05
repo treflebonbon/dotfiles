@@ -102,7 +102,7 @@ assert_lock_entry() {
   ! grep -Fq 'writing-great-skills' "$lock"
 }
 
-@test "APM advances changed selected payloads without pinning revision-only updates" {
+@test "APM advances validated selected payloads and floating revision-only updates" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
   local manifest_pins
@@ -120,22 +120,28 @@ assert_lock_entry() {
   assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
     '56c61c9ee79a8df1a98822309c04847a57f56000' \
     'sha256:cc46430506cf1b6fe0facf191ac30e6cacaa2e0ee4237361bb445ed17c5b9908'
+  assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
+    '41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f' \
+    'sha256:69e2ac9eb2bbe2881df26acc53b46b39a15cfda206f5357e5f9c83feb0fadcc7'
+  assert_lock_entry "$lock" 'anthropics/skills' 'skill-creator' \
+    '41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f' \
+    'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
     '357a270803b23e16b32bec65df07c41a62e94bd9' \
     'sha256:3ebdb1c3e503732103a92bba9611685e9e15812adb9b25c3a734ee8d3c228aeb'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    '71e50952fbb7eda2c992660d36cd58671a2edf42' \
-    'sha256:b82236022a12b00cfc80621d5de272e62ce597fb38f496d0a4a586ff954e6ae7'
+    '7c9eaba1c0a6404c990c144a654792e3313c650d' \
+    'sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '40d9927f014199ac7a96b669df14c2246a445814' \
+    'af82126058de7ff0864f4cfb0ed347914595de91' \
     'sha256:eaa770000cf2e806485dc142c815580de3c6df4dfdd0afc792c79498aa93cfec'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'b44ef1e59db4399cbd3a0615d29345de601885e7' \
     'sha256:83ece910d035d0684195095bb9df5911a028002b2efba1ebbeb4ae66de5e0903'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '40d9927f014199ac7a96b669df14c2246a445814' \
-    'sha256:e611e8065f08f308823d063bb3cd8d4e283242202456b8a3e80058b2f59f0c3a'
-  [ "$(grep -Fc 'resolved_commit: 40d9927f014199ac7a96b669df14c2246a445814' "$lock")" -eq 2 ]
+    'af82126058de7ff0864f4cfb0ed347914595de91' \
+    'sha256:267220527affa563cbd727b6af7d4351631f9d2e7da058db6408e361a24fd72d'
+  [ "$(grep -Fc 'resolved_commit: af82126058de7ff0864f4cfb0ed347914595de91' "$lock")" -eq 2 ]
   [ "$(grep -Fc 'resolved_commit: b44ef1e59db4399cbd3a0615d29345de601885e7' "$lock")" -eq 1 ]
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |

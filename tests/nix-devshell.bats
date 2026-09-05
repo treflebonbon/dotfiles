@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/775405507404a6c28246aec9a848e091d3d8478c' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "775405507404a6c28246aec9a848e091d3d8478c"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "775405507404a6c28246aec9a848e091d3d8478c"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/896d09ccef580902e01e716e6f4646421087c252' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "896d09ccef580902e01e716e6f4646421087c252"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "896d09ccef580902e01e716e6f4646421087c252"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
 }
 
@@ -196,7 +196,7 @@ PS
 }
 
 @test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.257";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+  grep -q 'minClaudeCode = "2\.1\.261";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
@@ -204,8 +204,8 @@ PS
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '775405507404a6c28246aec9a848e091d3d8478c' "$adr"
-  grep -Fq '775405507404a6c28246aec9a848e091d3d8478c' "$flake"
+  grep -Fq '896d09ccef580902e01e716e6f4646421087c252' "$adr"
+  grep -Fq '896d09ccef580902e01e716e6f4646421087c252' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#56c61c9ee79a8df1a98822309c04847a57f56000' "$manifest"
 }
 
@@ -224,21 +224,18 @@ PS
 @test "nix-devshell requires Codex with executor-provided skill and GPT-6 Astra support" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.153\.2";' "$module"
+  grep -q 'minCodex = "0\.153\.4";' "$module"
   grep -q 'executor が提供する skill の discover/read' "$module"
-  grep -q 'codex1532 = codexPackage\.override {' "$module"
-  grep -q 'version = "0\.153\.2";' "$module"
-  grep -Fq 'hash = "sha256-R97lEHS2XfMQNbAc9k8v7EbcQCnwxND7zhnK3EBsI3Y=";' "$module"
-  grep -Fq 'cargoHash = "sha256-GG6kOXmCdq+bZLU2ul0DIVL8lDuweayvZvXn6+bcUZw=";' "$module"
-  grep -q 'v = codex1532\.version' "$module"
-  grep -q '^    codex1532;$' "$module"
+  grep -q 'v = codexPackage\.version' "$module"
+  grep -q '^    codexPackage;$' "$module"
+  ! grep -q 'codexPackage\.override' "$module"
 }
 
-@test "nix-devshell uses the direct Codex package as its override base and keeps other agents pinned" {
+@test "nix-devshell uses the direct upstream Codex package and keeps other agents pinned" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
   grep -Fq 'codexPackage = inputs.llm-agents.packages.${system}.codex;' "$module"
-  grep -q 'codex1532 = codexPackage\.override {' "$module"
+  ! grep -q 'codexPackage\.override' "$module"
   grep -q '^    llm\.copilot-cli$' "$module"
   grep -q '^    llm\.antigravity-cli$' "$module"
   run grep -q 'x86_64-darwin' "$module"
