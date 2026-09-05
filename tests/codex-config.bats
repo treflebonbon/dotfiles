@@ -825,7 +825,7 @@ PY
   ! grep -q 'security-guidance' "$hooks"
 }
 
-@test "Claude settings keep the existing hook and add the quiet global Impeccable Design Hook" {
+@test "Claude settings enforce read boundaries and keep the global hooks" {
   local settings="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
 
   python3 -m json.tool "$settings" >/dev/null
@@ -842,6 +842,13 @@ assert data["permissions"]["additionalDirectories"] == [
     "~/.claude/jobs",
     "~/runtime",
 ]
+assert "Edit(**/.env*)" in data["permissions"]["deny"]
+assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
+assert "Edit(~/runtime/**)" in data["permissions"]["deny"]
+assert "Read(~/runtime/**)" not in data["permissions"]["deny"]
+assert not any(
+    rule.startswith("Write(") for rule in data["permissions"]["deny"]
+)
 assert data["hooks"]["PreToolUse"] == [
     {
         "matcher": "Bash",

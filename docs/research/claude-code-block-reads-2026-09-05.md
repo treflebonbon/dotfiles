@@ -25,7 +25,8 @@ timestamp: 2026-09-05
   "permissions": {
     "defaultMode": "auto",
     "additionalDirectories": ["~/.claude/jobs", "~/runtime"],
-    "blockReadsOutsideWorkingDirectories": true
+    "blockReadsOutsideWorkingDirectories": true,
+    "deny": ["Edit(~/runtime/**)"]
   }
 }
 ```
@@ -44,7 +45,7 @@ timestamp: 2026-09-05
 
 Claude Code は、起動したディレクトリを session の primary working directory とする。`--add-dir <path>`、`/add-dir`、または settings の `permissions.additionalDirectories` で追加したディレクトリも working directories になる。追加ディレクトリ内の file read は prompt なしで扱われ、file edit は現在の permission mode に従う。[公式 permissions docs — Working directories](https://code.claude.com/docs/en/permissions#working-directories)、[公式 CLI reference — `--add-dir`](https://code.claude.com/docs/en/cli-usage#cli-flags)
 
-`additionalDirectories` は file access の拡張であり、完全な configuration root ではない。追加ディレクトリの `.claude/skills/` は live reload される例外だが、その他の `.claude` configuration（subagents、commands、output styles、hooks など）は原則として追加ディレクトリから discovery されない。`CLAUDE.md` / `.claude/rules/` / `CLAUDE.local.md` を追加ディレクトリから読むには `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` が必要である。[公式 permissions docs — Additional directories grant file access, not configuration](https://code.claude.com/docs/en/permissions#additional-directories-grant-file-access-not-configuration)、[公式 memory docs](https://code.claude.com/docs/en/memory#load-from-additional-directories)
+`additionalDirectories` は file access の拡張であり、完全な configuration root ではない。追加ディレクトリ内は読み取りだけでなく、permission mode に応じた file edit も可能になるため、read-only で公開する path には `Edit(path/**)` deny が必要である。path 付き `Write(...)` は file permission check に使われず、`Edit(...)` が Edit / Write / NotebookEdit を一括して制御する。追加ディレクトリの `.claude/skills/` は live reload される例外だが、その他の `.claude` configuration（subagents、commands、output styles、hooks など）は原則として追加ディレクトリから discovery されない。`CLAUDE.md` / `.claude/rules/` / `CLAUDE.local.md` を追加ディレクトリから読むには `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` が必要である。[公式 permissions docs — Additional directories grant file access, not configuration](https://code.claude.com/docs/en/permissions#additional-directories-grant-file-access-not-configuration)、[公式 permission rule syntax](https://code.claude.com/docs/en/permissions#read-and-edit)、[公式 memory docs](https://code.claude.com/docs/en/memory#load-from-additional-directories)
 
 `/cd <path>` は追加ではなく primary working directory を移動し、移動先の project configuration / skills / plugins 等を読み込む。main session の `cd` は primary または追加 directory 内に留まる限り後続 Bash に保持され、それ以外へ出ると project directory に戻される。subagent の working-directory 変更は親 session へ継承されない。[公式 permissions docs](https://code.claude.com/docs/en/permissions#move-the-session-to-another-directory)、[公式 tools reference](https://code.claude.com/docs/en/tools-reference#bash)
 
@@ -81,14 +82,14 @@ Claude Code は、起動したディレクトリを session の primary working 
 | [`private_dot_config/nix-devshell/modules/ai.nix`](../../private_dot_config/nix-devshell/modules/ai.nix#L101-L140) | `minClaudeCode = "2.1.257"`、snapshot package は 2.1.258                                                           | 2.1.260 fix を floor 根拠にできるかを release gate で決め、少なくとも 2.1.260 を候補にする。snapshot を 2.1.261 へ追従する場合は `minClaudeCode` も同じ compatibility gate で決める |
 | [`private_dot_config/nix-devshell/flake.lock`](../../private_dot_config/nix-devshell/flake.lock#L58-L80)           | `llm-agents.nix` exact revision `7754055…`                                                                         | upstream [`896d09c…`](https://github.com/numtide/llm-agents.nix/commit/896d09ccef580902e01e716e6f4646421087c252) への tool snapshot 更新候補                                        |
 | `~/.claude/jobs`                                                                                                   | 実在し、`state.json` / `timeline.jsonl` 等を持つ。現行 settings で追加済み                                         | 維持。job read を block 設定で壊さないため必要                                                                                                                                      |
-| `~/runtime`                                                                                                        | 実在し、`index.md` / `ai-runtimes.md` / `skill-harness.md` 等を持つ。global `CLAUDE.md` が参照を要求               | `additionalDirectories` へ追加推奨。読み取りだけでなく mode に応じた edit scope も広がるので実動作 gate が必要                                                                      |
+| `~/runtime`                                                                                                        | 実在し、`index.md` / `ai-runtimes.md` / `skill-harness.md` 等を持つ。global `CLAUDE.md` が参照を要求               | `additionalDirectories` へ追加し、`Edit(~/runtime/**)` deny で read-only にする。validated source worktree を経由しない書込みは許可しない                                           |
 | `~/.agents/skills`                                                                                                 | 実在する共有 hub。Codex / Antigravity 向け。Claude 用 `~/.claude/skills` は別に配備済み                            | Claude の additional directory には追加しない。`Skill` discovery と file-tool read を混同しない                                                                                     |
 | `~/.gitconfig` / linked worktree の共通 `.git`                                                                     | 実在。worktree Git dir は共通 git dir を参照                                                                       | path を追加して境界を広げない。2.1.260 の git-config / subagent checkout fix を含む candidate で git smoke を行う                                                                   |
 
 ### 採用を進める条件
 
 1. `llm-agents.nix` snapshot と APM payload を同じ lock / rollback 単位にしない。tool snapshot は upstream exact revision と Claude version assert の変更、skill payload は APM の selected subtree / lock hash を独立して review する。
-2. `blockReadsOutsideWorkingDirectories: true` を設定する前に、`~/runtime` を追加した candidate settings を隔離した `CODEX_HOME` / Claude config で検証する。live `~/.claude/jobs`、live `~/.agents/skills`、live deployment はテスト fixture にしない。
+2. `blockReadsOutsideWorkingDirectories: true` を設定する前に、`~/runtime` を追加し `Edit(~/runtime/**)` で書込みを拒否する candidate settings を隔離した `CODEX_HOME` / Claude config で検証する。live `~/.claude/jobs`、live `~/.agents/skills`、live deployment はテスト fixture にしない。
 3. v2.1.260 の修正対象である global git config、linked worktree common `.git`、worktree-isolated subagent 自身の checkout を必須 smoke にする。
 4. direct `Read` / `Grep` / `Glob`、recognized Bash reader、input redirect、symlink、非対話 `-p`、background session の結果を分けて記録する。docs から推測して一つの「外部 read は全部拒否」というテスト結果にまとめない。
 
@@ -153,9 +154,9 @@ fixture/
 - `Grep` / `Glob` / LSP、全 permission mode の個別比較、scheduled job / background session、明示 `permissions.allow` との細かい優先順位は未確認とする。
 - `LSP` や plugin 内部の file read が direct `Read` / `Grep` / `Glob` と同じ fence に入るかは、公式 current docs の一般的な「file tools」という説明だけではこの repo の enabled plugins に対して確定できない。LSP plugin を使う fixture を matrix に追加し、結果を別記する。
 
-## 実装結果（2026-09-05）
+## 実装結果（2026-09-05、Review Round 2026-09-06）
 
-tool snapshotを`896d09ccef580902e01e716e6f4646421087c252`へ固定し、Claude Code floorを2.1.261へ上げた。managed settingsには`blockReadsOutsideWorkingDirectories: true`を追加し、`additionalDirectories`は`~/.claude/jobs`と`~/runtime`だけにした。`~/.agents/skills`、user git config、共有`.git`、親checkoutは許可directoryへ追加していない。
+tool snapshotを`896d09ccef580902e01e716e6f4646421087c252`へ固定し、Claude Code floorを2.1.261へ上げた。managed settingsには`blockReadsOutsideWorkingDirectories: true`を追加し、`additionalDirectories`は`~/.claude/jobs`と`~/runtime`だけにした。`~/runtime`は`Edit(~/runtime/**)` denyでread-onlyに保つ。併せて、file permission checkに使われない既存のpath付き`Write(...)`ルールを`Edit(...)`へ置き換えた。`~/.agents/skills`、user git config、共有`.git`、親checkoutは許可directoryへ追加していない。
 
 候補Claude Code 2.1.261を一時fixtureと明示settingsで`--print --no-session-persistence`実行し、stream JSONのtool event / denial reasonまで確認した。
 
@@ -163,6 +164,7 @@ tool snapshotを`896d09ccef580902e01e716e6f4646421087c252`へ固定し、Claude 
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | primary directoryのdirect `Read`                 | `PRIMARY_OK`を取得                                                                                |
 | 明示`additionalDirectories`のdirect `Read`       | `EXTRA_OK`を取得                                                                                  |
+| 明示`additionalDirectories`へのdirect `Write`    | `Edit(...)` denyを理由に実行前拒否し、fixtureにfileを作成しない                                   |
 | outside fileのdirect `Read`                      | `permissions.blockReadsOutsideWorkingDirectories`を理由に拒否                                     |
 | primary内symlinkからoutside targetへの`Read`     | 同じread fenceを理由に拒否                                                                        |
 | outside fileへのBash `cat` / input redirect      | `bypassPermissions` modeでも両方ともread fenceを理由に実行前拒否                                  |
