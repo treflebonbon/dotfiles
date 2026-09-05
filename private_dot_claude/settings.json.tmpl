@@ -8,7 +8,8 @@
   "editorMode": "normal",
   "permissions": {
     "defaultMode": "auto",
-    "additionalDirectories": ["~/.claude/jobs"],
+    "blockReadsOutsideWorkingDirectories": true,
+    "additionalDirectories": ["~/.claude/jobs", "~/runtime"],
     "allow": [
       "Skill",
       "Bash(git-push-topic:*)",
@@ -37,8 +38,9 @@
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(~/.config/gcloud/**)",
-      "Write(**/.env*)",
-      "Write(~/.ssh/**)",
+      "Edit(**/.env*)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/runtime/**)",
       "Bash(rm ~:*)",
       "Bash(rm /:*)",
       "Bash(rm -r ~:*)",

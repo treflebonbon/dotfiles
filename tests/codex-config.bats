@@ -285,13 +285,13 @@ for path in sys.argv[1:]:
     with open(path, "rb") as f:
         config = tomllib.load(f)
 
-    assert config["model"] == "gpt-5.6-sol"
+    assert config["model"] == "gpt-6-astra"
     assert config["model_reasoning_effort"] == "xhigh"
     assert config["model_reasoning_summary"] == "concise"
     assert config["model_verbosity"] == "medium"
     assert config["personality"] == "pragmatic"
     assert config["agents"] == {
-        "default_subagent_model": "gpt-5.6-luna",
+        "default_subagent_model": "gpt-5.6-terra",
         "default_subagent_reasoning_effort": "high",
         "max_concurrent_threads_per_session": 3,
     }
@@ -415,7 +415,7 @@ assert_codex_strict_config() {
   render_codex_managed_config "$PROJECT_ROOT" "$config"
 
   [ -f "$config" ]
-  grep -q '^model = "gpt-5.6-sol"$' "$config"
+  grep -q '^model = "gpt-6-astra"$' "$config"
   grep -q '^model_reasoning_effort = ' "$config"
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
@@ -825,7 +825,7 @@ PY
   ! grep -q 'security-guidance' "$hooks"
 }
 
-@test "Claude settings keep the existing hook and add the quiet global Impeccable Design Hook" {
+@test "Claude settings enforce read boundaries and keep the global hooks" {
   local settings="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
 
   python3 -m json.tool "$settings" >/dev/null
@@ -837,6 +837,18 @@ with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
 assert data["editorMode"] == "normal"
+assert data["permissions"]["blockReadsOutsideWorkingDirectories"] is True
+assert data["permissions"]["additionalDirectories"] == [
+    "~/.claude/jobs",
+    "~/runtime",
+]
+assert "Edit(**/.env*)" in data["permissions"]["deny"]
+assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
+assert "Edit(~/runtime/**)" in data["permissions"]["deny"]
+assert "Read(~/runtime/**)" not in data["permissions"]["deny"]
+assert not any(
+    rule.startswith("Write(") for rule in data["permissions"]["deny"]
+)
 assert data["hooks"]["PreToolUse"] == [
     {
         "matcher": "Bash",
@@ -1075,7 +1087,7 @@ PY
   HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
     bash -c '. "$1"' _ "$home/.bash_profile"
 
-  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-6-astra"$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
   cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
@@ -1102,7 +1114,7 @@ EOF
     CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
     bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
 
-  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-6-astra"$' "$home/.codex-app/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
@@ -1410,14 +1422,14 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
 personality = "pragmatic"
 
 [agents]
-default_subagent_model = "gpt-5.6-luna"
+default_subagent_model = "gpt-5.6-terra"
 default_subagent_reasoning_effort = "high"
 max_concurrent_threads_per_session = 3
 
@@ -1454,7 +1466,7 @@ EOF
 
   env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
 
-  grep -q '^model = "gpt-5.6-sol"$' "$home/.codex/config.toml"
+  grep -q '^model = "gpt-6-astra"$' "$home/.codex/config.toml"
   grep -q '^model_reasoning_effort = "xhigh"$' "$home/.codex/config.toml"
   grep -q '^personality = "pragmatic"$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
@@ -1534,14 +1546,14 @@ EOF
   mkdir -p "$home/.config/codex" "$codex_home"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
 personality = "pragmatic"
 
 [agents]
-default_subagent_model = "gpt-5.6-luna"
+default_subagent_model = "gpt-5.6-terra"
 default_subagent_reasoning_effort = "high"
 max_concurrent_threads_per_session = 3
 
@@ -1709,7 +1721,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 EOF
   printf 'model = \n' >"$home/.codex/config.toml"
 

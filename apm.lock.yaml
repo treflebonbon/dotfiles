@@ -1,11 +1,11 @@
 lockfile_version: '1'
-generated_at: '2026-09-03T03:16:11.886132+00:00'
+generated_at: '2026-09-05T13:01:01.590198+00:00'
 apm_version: 0.29.0
 dependencies:
 - repo_url: anthropics/skills
   name: pdf
   host: github.com
-  resolved_commit: 53048666b05b4799081517d00e09e0a2dd688678
+  resolved_commit: 41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f
   version: unknown
   virtual_path: skills/pdf
   is_virtual: true
@@ -66,7 +66,7 @@ dependencies:
 - repo_url: anthropics/skills
   name: skill-creator
   host: github.com
-  resolved_commit: 53048666b05b4799081517d00e09e0a2dd688678
+  resolved_commit: 41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f
   version: unknown
   virtual_path: skills/skill-creator
   is_virtual: true
@@ -2330,7 +2330,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 71e50952fbb7eda2c992660d36cd58671a2edf42
+  resolved_commit: 7c9eaba1c0a6404c990c144a654792e3313c650d
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2383,7 +2383,7 @@ dependencies:
     .agents/skills/shadcn/rules/composition.md: sha256:f282df828d83a91132a846ddb62eea149a7c7c94822e9ca88cfddf85af01aa41
     .agents/skills/shadcn/rules/forms.md: sha256:29593e14381e34626f8e0e9c15c59f3394b92a0623af6a6ec94585400123853c
     .agents/skills/shadcn/rules/icons.md: sha256:d4a58266648872d9ee07d0c2368843a1cb88b8253b7f528dd7bda9d68b6c2535
-    .agents/skills/shadcn/rules/styling.md: sha256:47bd2c3b6216b96af0ab169063a83dfef7f80c58536cf69445a6f4d22753326c
+    .agents/skills/shadcn/rules/styling.md: sha256:f88fbd72dff862805b786dc7d7e4c74c83030fc278c5b97c993e4e665001798c
     .claude/skills/shadcn/SKILL.md: sha256:deba6c5152d9835892fa7dffeb1fedbb689ddac7e59e14e57ec5eaf9463309e4
     .claude/skills/shadcn/agents/openai.yml: sha256:35db91b1eef58b2abe01da9b88577de5a44e233b740cd93d692ddeeadd2afe4d
     .claude/skills/shadcn/assets/shadcn-small.png: sha256:0ecc62d682727f68fc4937eed19960c706714fa084d44f63028d611ae02bf3d7
@@ -2398,12 +2398,12 @@ dependencies:
     .claude/skills/shadcn/rules/composition.md: sha256:f282df828d83a91132a846ddb62eea149a7c7c94822e9ca88cfddf85af01aa41
     .claude/skills/shadcn/rules/forms.md: sha256:29593e14381e34626f8e0e9c15c59f3394b92a0623af6a6ec94585400123853c
     .claude/skills/shadcn/rules/icons.md: sha256:d4a58266648872d9ee07d0c2368843a1cb88b8253b7f528dd7bda9d68b6c2535
-    .claude/skills/shadcn/rules/styling.md: sha256:47bd2c3b6216b96af0ab169063a83dfef7f80c58536cf69445a6f4d22753326c
-  content_hash: sha256:b82236022a12b00cfc80621d5de272e62ce597fb38f496d0a4a586ff954e6ae7
+    .claude/skills/shadcn/rules/styling.md: sha256:f88fbd72dff862805b786dc7d7e4c74c83030fc278c5b97c993e4e665001798c
+  content_hash: sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 40d9927f014199ac7a96b669df14c2246a445814
+  resolved_commit: af82126058de7ff0864f4cfb0ed347914595de91
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2438,7 +2438,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 40d9927f014199ac7a96b669df14c2246a445814
+  resolved_commit: af82126058de7ff0864f4cfb0ed347914595de91
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2449,9 +2449,9 @@ dependencies:
   - .claude/skills/orchestration
   - .claude/skills/orchestration/SKILL.md
   deployed_file_hashes:
-    .agents/skills/orchestration/SKILL.md: sha256:a7e3350f037698ebbce36b2818d8383ec6e96c2a4825537caab39a83b4fb4b7f
-    .claude/skills/orchestration/SKILL.md: sha256:a7e3350f037698ebbce36b2818d8383ec6e96c2a4825537caab39a83b4fb4b7f
-  content_hash: sha256:e611e8065f08f308823d063bb3cd8d4e283242202456b8a3e80058b2f59f0c3a
+    .agents/skills/orchestration/SKILL.md: sha256:19ffdc1fe0d2c97dae845e8d636edb16781453ce2ec26f65a323c492ef90da18
+    .claude/skills/orchestration/SKILL.md: sha256:19ffdc1fe0d2c97dae845e8d636edb16781453ce2ec26f65a323c492ef90da18
+  content_hash: sha256:267220527affa563cbd727b6af7d4351631f9d2e7da058db6408e361a24fd72d
 - repo_url: supabase/agent-skills
   name: supabase-postgres-best-practices
   host: github.com
@@ -6372,7 +6372,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:a7e3350f037698ebbce36b2818d8383ec6e96c2a4825537caab39a83b4fb4b7f
+  content_hash: sha256:19ffdc1fe0d2c97dae845e8d636edb16781453ce2ec26f65a323c492ef90da18
 - kind: project-relative
   target: claude
   value: .claude/skills/pdf
@@ -8829,7 +8829,7 @@ deployments:
   owners:
   - shadcn-ui/ui/skills/shadcn
   active_owner: shadcn-ui/ui/skills/shadcn
-  content_hash: sha256:47bd2c3b6216b96af0ab169063a83dfef7f80c58536cf69445a6f4d22753326c
+  content_hash: sha256:f88fbd72dff862805b786dc7d7e4c74c83030fc278c5b97c993e4e665001798c
 - kind: project-relative
   target: claude
   value: .claude/skills/skill-creator
@@ -13005,7 +13005,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:a7e3350f037698ebbce36b2818d8383ec6e96c2a4825537caab39a83b4fb4b7f
+  content_hash: sha256:19ffdc1fe0d2c97dae845e8d636edb16781453ce2ec26f65a323c492ef90da18
 - kind: project-relative
   target: codex
   value: .agents/skills/pdf
@@ -15462,7 +15462,7 @@ deployments:
   owners:
   - shadcn-ui/ui/skills/shadcn
   active_owner: shadcn-ui/ui/skills/shadcn
-  content_hash: sha256:47bd2c3b6216b96af0ab169063a83dfef7f80c58536cf69445a6f4d22753326c
+  content_hash: sha256:f88fbd72dff862805b786dc7d7e4c74c83030fc278c5b97c993e4e665001798c
 - kind: project-relative
   target: codex
   value: .agents/skills/skill-creator

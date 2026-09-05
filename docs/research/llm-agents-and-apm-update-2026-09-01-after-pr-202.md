@@ -258,3 +258,19 @@ planning toolなしの開始・継続は、今回の隔離runtimeと一時`CODEX
 | Impeccable/Matt/OpenCode/target非回帰          | Impeccable block一致、Matt file/hash集合一致、manifest target/dependency比較            | 成功                                                                                                         |
 | repository full suite / lint / commit contract | Bats、Nix eval、lefthook、cog、diff check                                               | 成功（Bats 406/406、repo/user flake 3-system eval、pre-commit、diff check。commit-msg hookはcommit時に実行） |
 | live HOME非変更                                | `chezmoi apply`とlive APM installを未実行                                               | 成功。live discoveryはmerge後の別運用境界                                                                    |
+
+## 2026-09-05 skill payload 再確認
+
+`apm outdated` は7 dependencyを候補として返した。採用済み revisionと公式 upstreamのGit tree / compare APIをselected pathに限定して照合した結果は次のとおりである。
+
+| Dependency                        | 採用済み → upstream                             | selected payload                                                    | 判断                                          |
+| --------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------- |
+| Anthropic `pdf` / `skill-creator` | `53048666` → `41bbe19d`                         | 各directoryのGit tree SHAとcontent hashが同一                       | revision-onlyとしてfloating lockへ反映        |
+| shadcn                            | `71e50952` → `7c9eaba1`                         | `rules/styling.md`の`cn` importが`@/lib/utils`から独立packageへ変更 | upstream migrationとして採用                  |
+| Orca `computer-use`               | `40d9927f` → `af821260`（224 commits）          | content hash不変                                                    | revision-onlyとしてfloating lockへ反映        |
+| Orca `orchestration`              | `40d9927f` → `af821260`（224 commits）          | delegationとembedded browserのrouting説明を明確化                   | payload変更として採用                         |
+| Orca CLI                          | `b44ef1e5` → v1.4.197 `5ee4ace5`（339 commits） | selected pathの変更0件                                              | exact pinを維持                               |
+| Matt Pocock                       | `6654f6b6` → main `3cca18b3`                    | `skills/` tree SHAが同一                                            | managed-set pinを維持                         |
+| Impeccable                        | `63b04e25` → main `8dac6ae7`（170 commits）     | `SKILL.md`、agents、reference、runtime scriptsを含む大幅変更        | 通常refreshへ混ぜず専用Design Hook gateへ保留 |
+
+`apm.yml` のexact pinは変更せず、APM 0.29.0のnative updateでfloating依存を`apm.lock.yaml`へ反映した。最初のfrozen installではdeployment ledgerの正規化によりlockが一度更新されたため、その生成物を入力に2回目の `apm install --frozen --target claude,codex --https` を実行した。2回目の前後でlock SHA-256は`1d833fb947eb39a0e8a5a817530ca43e7c6d996b5ec0a65fdd45f5e5f53da010`のまま不変、`apm audit --ci`は10/10、`.agents/skills`と`.claude/skills`は各42件で一致した。organization policy enforcementだけは隔離cwdにremoteがなくwarning付きskipである。live HOME、live skill directory、`chezmoi apply`は変更していない。
