@@ -10,9 +10,8 @@
 let
   llm = pkgs.llm-agents;
   # Codex is a large Rust/LTO build. Use the immutable llm-agents input's direct
-  # package as the base so upstream versions match the Numtide cache even though
-  # this devShell keeps its shared nixpkgs on the stable branch. A temporary
-  # version override builds from source until upstream catches up.
+  # package so upstream versions match the Numtide cache even though this
+  # devShell keeps its shared nixpkgs on the stable branch.
   codexPackage = inputs.llm-agents.packages.${system}.codex;
 
   # Evaluate only these newer package definitions against the shared package set.
@@ -121,8 +120,11 @@ let
   #          background command の stop/exit 後残存防止、stop 済み background subagent の monitor
   #          残存防止、旧 binary のまま残る background session の retire）も含む。worktree 隔離・
   #          auto mode の trust boundary・teammateMode: auto の信頼性に直結するため 2.1.257 へ床上げする。
-  #          pin 自体は macOS 12 起動regressionと再送 permission approval のcontent欠落のみを修正する
-  #          2.1.258 まで進むが、この2件は床上げ根拠にならないため床は 2.1.257 に留める。
+  # 2.1.260: `permissions.blockReadsOutsideWorkingDirectories` が macOS の user git config と
+  #          worktree-isolated subagent 自身の checkout を隠す不具合を修正する。この設定を有効化する
+  #          前提条件として床へ含める。
+  # 2.1.261: background agent resume の tight loop、agent-team teammate の tool/skill announcement
+  #          再送、危険な `rm -rf` 検出を修正・強化するため、多 agent と safety の床へ含める。
   # Codex 0.151.0: permission profile 復元、/cd 後の sandbox 維持、remote executor の HOME/OS/path
   #                semantics、stale Guardian approval、MCP cache/error を修正するため床上げする。
   # Codex 0.152.0: cloud task request が信頼できない backend URL を拒否し redirect を無効化して
@@ -131,13 +133,13 @@ let
   #                同版で `tools.update_plan.enabled` が既定 disabled のopt-in設定へ変更されたが、
   #                この repo は元々同 flag を設定しておらず（ADR-0045）、挙動は変わらないため
   #                追加の設定変更はしない。
-  # Codex 0.153.1-0.153.2: GPT-6 Astra の明示設定と正しい Fast tier 表示を提供する。Astra の
-  #                        account rollout と CLI 対応は独立しているため、既定モデルは利用可能な
-  #                        `gpt-5.6-sol` を維持しつつ表示修正済みの 0.153.2 を床にする。
+  # Codex 0.153.1-0.153.2: GPT-6 Astra の明示設定と正しい Fast tier 表示を提供する。
   #                        0.153.0 で追加された experimental context management は opt-in しない。
+  # Codex 0.153.4: Astra を bundled model picker へ表示し、model 未指定時の bundled default にする。
+  #                account catalog と実リクエストでも利用可能になったため床へ含める。
   # 更新: flake.nix の llm-agents revision を更新し、nix flake lock 後に flake.lock を re-addする。
-  minClaudeCode = "2.1.257";
-  minCodex = "0.153.2";
+  minClaudeCode = "2.1.261";
+  minCodex = "0.153.4";
 
   claudeCode =
     let
@@ -197,7 +199,10 @@ let
         sandboxed git が subdirectory `cd` 後に共有 `.git` 書込み権限を失う不具合、worktree 隔離
         session の git 非関与 Bash loop / `$VAR` / `"$(…)"` / heredoc に対する false-positive 拒否、
         teammate permission request の mailbox 競合二重応答、background daemon の複数安定化を修正する
-        2.1.257 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
+        2.1.257 に加え、`permissions.blockReadsOutsideWorkingDirectories` が macOS の user git config と
+        worktree-isolated subagent 自身の checkout を隠す不具合を修正する 2.1.260、background agent
+        resume の tight loop、agent-team teammate の tool/skill announcement 再送、危険な `rm -rf`
+        検出を修正・強化する 2.1.261 を根拠に、現在の ${minClaudeCode} を品質ベースラインとして固定しています
         （2.1.228 の claude.ai 同期 skill hardening はこの repo が skill を apm / chezmoi / nix 経由でのみ
         取得するため対象外で、単独の根拠にはしていません）。
         この repo は多 agent ワークフロー・worktree 隔離・teammateMode: auto を主用するため床の根拠に据えます。
@@ -213,14 +218,7 @@ let
 
   codex =
     let
-      codex1532 = codexPackage.override {
-        version = "0.153.2";
-        hash = "sha256-R97lEHS2XfMQNbAc9k8v7EbcQCnwxND7zhnK3EBsI3Y=";
-        cargoVendor = {
-          cargoHash = "sha256-GG6kOXmCdq+bZLU2ul0DIVL8lDuweayvZvXn6+bcUZw=";
-        };
-      };
-      v = codex1532.version or null;
+      v = codexPackage.version or null;
       ok = v != null && lib.versionAtLeast v minCodex;
       msg = ''
         codex ${toString v} は最低バージョン ${minCodex} を満たしていません。
@@ -248,19 +246,18 @@ let
         信頼できない backend URL を拒否し redirect を無効化して保存済み credential を保護する修正、
         MCP tool のキャッシュ更新・remote plugin 変更をまたいだ可用性維持と認証再試行時の
         refreshed header 使用を含む 0.152.0 に加え、GPT-6 Astra の明示設定を追加した 0.153.1 と
-        Fast tier の表示を修正した 0.153.2 を
+        Fast tier の表示を修正した 0.153.2、Astra を bundled model picker に表示して model 未指定時の
+        bundled default にする 0.153.4 を
         品質ベースラインとして要求します。
-        llm-agents.nix の pin がまだ 0.153.2 を取り込んでいないため、この repo では
-        upstream package definition を使いながら version/hash/cargoHash だけを local override します。
+        llm-agents.nix の flake pin は codex ${minCodex} 以上を含む commit へ更新されている必要があります。
         修復手順:
-          upstream llm-agents.nix が codex 0.153.2 以上を取り込んだら override を削除
           cd ~/.config/nix-devshell
           flake.nix の llm-agents 互換revisionを更新して nix flake lock
           chezmoi re-add ~/.config/nix-devshell/flake.lock
       '';
     in
     assert lib.assertMsg ok msg;
-    codex1532;
+    codexPackage;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };

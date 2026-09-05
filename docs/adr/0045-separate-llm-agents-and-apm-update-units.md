@@ -87,6 +87,22 @@ Codex 管理設定 63/63、nix-devshell 32/32、`nix flake check --no-build --al
 
 その後の follow-up 診断で、Codex 0.153.2 の bundled catalog は Astra を非表示で含む一方、この ChatGPT 認証アカウントの更新 catalog は Astra を返さず、`codex exec --model gpt-6-astra` も unsupported model の 400 応答になることを確認した。OpenAI 公式 model page も Trusted Access Program から各プラン/APIへ段階展開中としており、CLI の strict-config 対応は account availability の証拠にならない。よって local override と `minCodex = "0.153.2"` は維持するが、管理既定値は実リクエスト確認済みの `gpt-5.6-sol` / `xhigh` へ戻す。Astra の既定化は、認証後 catalog への出現と実リクエスト成功を前提とする別変更に分離する。
 
+### llm-agents snapshot（2026-09-05、Claude read fence と Codex model 再評価）
+
+実装入口で `numtide/llm-agents.nix` の default branch HEAD を一度だけ確認し、immutable revision `896d09ccef580902e01e716e6f4646421087c252` を採用する。対応3 system と共有 nixpkgs は変更しない。この snapshot の package metadata は Claude Code 2.1.261、Codex 0.153.4、Copilot CLI 1.0.83、Antigravity CLI 1.1.27、RTK 0.48.0、APM 0.29.0、code-review-graph 2.3.8 で一致する。Codex 0.153.4 が Astra の bundled model picker 表示と model 未指定時の bundled default を修正したため、0.153.2 の local package override を削除し、同じ snapshot の direct upstream package へ戻す。
+
+Claude Code は `permissions.blockReadsOutsideWorkingDirectories` を使う前提として、macOS の user git config と worktree-isolated subagent 自身の checkout が隠れる不具合を修正した 2.1.260 を必要とする。2.1.261 は background agent resume の tight loop、agent-team teammate の tool/skill announcement 再送、危険な `rm -rf` 検出も修正・強化するため、`minClaudeCode` は pin と同じ 2.1.261 へ上げる。managed settings は read fence を有効にし、global contract に必要な `~/runtime` と既存 background job state の `~/.claude/jobs` だけを `additionalDirectories` にする。Claude が使わない共有 `~/.agents/skills`、user git config、共有 `.git`、親 checkout は additional directory に加えない。設定の一次情報と実動作 matrix は [2026-09-05 調査ノート](../research/claude-code-block-reads-2026-09-05.md)を正本とする。
+
+Codex については、OpenAI 公式 model guidance が Astra を複雑な推論・coding の第一候補、Terra を品質とコストの均衡、Luna を cost-sensitive/high-volume 向けと位置づける。さらに、このアカウントが取得した 2026-09-05 の model catalog で `gpt-6-astra` は `visibility: list`、Codex 0.153.2 からの実リクエストも `ASTRA_OK` を返した。前日の unavailable 判定は解消したため、managed main model は `gpt-6-astra` / `xhigh`、default subagent は `gpt-5.6-terra` / `high` とする。公式 docs が列挙しない `ultra` と experimental context management は opt-in しない。`minCodex` は Astra picker/default fix を含む 0.153.4 へ上げる。candidate Codex 0.153.4でもmanaged configのstrict parseと`gpt-6-astra`実リクエスト`ASTRA_01534_OK`を確認した。
+
+通常の APM payload refresh は ADR 本来の rollback 境界どおり、この Tool Snapshot と lock を混ぜずに候補 materialization と frozen no-rewrite / audit / discovery を別に検証する。Impeccable と Matt Pocock managed set は、それぞれの専用 gate なしに通常 payload 更新へ含めない。
+
+### 通常の APM payload 確認（2026-09-05）
+
+`apm outdated` が示した7件を採用済み revision から公式 upstream まで比較した。Anthropic の `pdf` / `skill-creator` は `53048666` から `41bbe19d` まで各 selected subtree の Git tree SHA が同一なので revision-only として floating lock へ自然反映する。shadcn `71e50952..7c9eaba1` には `rules/styling.md` の `cn` import を `@/lib/utils` から独立した `cn` package へ移す upstream migration があり、Orca `orchestration` `40d9927f..af821260` には agent delegation と embedded browser の routing 説明を明確にする変更があるため、両 payload を採用する。同じ Orca revision の `computer-use` は content hash 不変の revision-only 更新として採用する。
+
+Orca CLI は `b44ef1e5..v1.4.197`（`5ee4ace5`）で selected path が不変、Matt Pocock は pin `6654f6b6` と main `3cca18b3` の `skills/` tree SHA が同一なので exact pin を維持する。Impeccable main `8dac6ae7` は採用 pinから170 commit進み selected payloadも大幅に変わるため、通常 refresh へ混ぜず Design Hook compatibility gate の対象として保留する。`apm.yml` は変更せず、APM 0.29.0のnative生成でfloating依存だけを`apm.lock.yaml`へ更新した。隔離cwd/HOMEで2回目の frozen install 前後の lock SHA-256は`1d833fb947eb39a0e8a5a817530ca43e7c6d996b5ec0a65fdd45f5e5f53da010`で不変、`apm audit --ci` 10/10、Claude/Codex 42/42 discoveryを通過した。live HOME と `chezmoi apply` には触れない。
+
 ### llm-agents snapshot（Issue #184）
 
 Issue #184 の実装入口では、upstream stable/default branch HEAD を一度だけ再確認し、調査候補と同じ `4a9441120caf6c6aff273af68995267a35c20fcd` を採用 revision として固定した。source URL と lock の `original.rev` / `locked.rev` は同じ exact revision を指し、pre-release は導入していない。ユーザー devShell が共有する nixpkgs `fca2dbd4c00c3063235e56bb91758e24fc67b7b8`、対応3 system、Copilot CLI 1.0.80、APM 0.28.0 は変更していない。
