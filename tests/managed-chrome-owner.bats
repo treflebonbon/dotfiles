@@ -116,6 +116,47 @@ reserve() {
   [ "$(head -n 1 "$BROWSER_OWNERSHIP_DIR/owner")" = playwright ]
 }
 
+@test "recovery preserves records with malformed caller identities" {
+  reserve playwright malformed-caller >/dev/null
+  cp "$BROWSER_OWNERSHIP_DIR/owner" "$BATS_TEST_TMPDIR/valid-owner"
+  local field value
+  for field in start boot; do
+    for value in '' unknown; do
+      python3 - "$BATS_TEST_TMPDIR/valid-owner" "$BROWSER_OWNERSHIP_DIR/owner" "$field" "$value" <<'PY'
+import json, pathlib, sys
+record = json.loads(pathlib.Path(sys.argv[1]).read_text())
+record['caller'][sys.argv[3]] = sys.argv[4]
+pathlib.Path(sys.argv[2]).write_text(json.dumps(record))
+PY
+      cp "$BROWSER_OWNERSHIP_DIR/owner" "$BATS_TEST_TMPDIR/invalid-owner"
+      run owner recover
+      [ "$status" -ne 0 ]
+      [[ "$output" == *"invalid ownership"* ]]
+      cmp "$BROWSER_OWNERSHIP_DIR/owner" "$BATS_TEST_TMPDIR/invalid-owner"
+    done
+  done
+}
+
+@test "recovery preserves records whose phase contradicts the browser identity" {
+  reserve playwright malformed-phase >/dev/null
+  cp "$BROWSER_OWNERSHIP_DIR/owner" "$BATS_TEST_TMPDIR/valid-owner"
+  local phase
+  for phase in reserved starting settled active; do
+    python3 - "$BATS_TEST_TMPDIR/valid-owner" "$BROWSER_OWNERSHIP_DIR/owner" "$phase" <<'PY'
+import json, pathlib, sys
+record = json.loads(pathlib.Path(sys.argv[1]).read_text())
+record['phase'] = sys.argv[3]
+record['browserPid'] = None if record['phase'] == 'active' else 4242
+pathlib.Path(sys.argv[2]).write_text(json.dumps(record))
+PY
+    cp "$BROWSER_OWNERSHIP_DIR/owner" "$BATS_TEST_TMPDIR/invalid-owner"
+    run owner recover
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid ownership"* ]]
+    cmp "$BROWSER_OWNERSHIP_DIR/owner" "$BATS_TEST_TMPDIR/invalid-owner"
+  done
+}
+
 @test "Windows inspection distinguishes query failure from an absent browser" {
   command -v powershell.exe >/dev/null || skip "Windows PowerShell is unavailable"
   local harness script role query

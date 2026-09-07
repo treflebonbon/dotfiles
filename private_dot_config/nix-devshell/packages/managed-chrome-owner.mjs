@@ -36,10 +36,13 @@ const validEndpoint = (value) => {
   }
 };
 
+const validUUID = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value);
+
 const validOwner = (owner) =>
   owner?.version === 1 &&
-  typeof owner.token === "string" &&
-  /^[0-9a-f-]{36}$/u.test(owner.token) &&
+  validUUID(owner.token) &&
   ["playwright", "dogfood"].includes(owner.role) &&
   ["reserved", "starting", "settled", "active"].includes(owner.phase) &&
   ["headless", "headed"].includes(owner.mode) &&
@@ -50,9 +53,11 @@ const validOwner = (owner) =>
   Number.isInteger(owner.caller?.pid) &&
   owner.caller.pid > 0 &&
   typeof owner.caller.start === "string" &&
-  typeof owner.caller.boot === "string" &&
-  (owner.browserPid === null ||
-    (Number.isInteger(owner.browserPid) && owner.browserPid > 0));
+  /^[0-9]+$/u.test(owner.caller.start) &&
+  validUUID(owner.caller.boot) &&
+  (owner.phase === "active"
+    ? Number.isInteger(owner.browserPid) && owner.browserPid > 0
+    : owner.browserPid === null);
 
 const readOwner = async () => {
   try {
