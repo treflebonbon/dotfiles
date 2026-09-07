@@ -1,13 +1,14 @@
 #!/usr/bin/env bats
 
 load 'test_helper'
+load 'cache-deployment-concurrency-helper'
 load 'local-skills-helper'
 
 setup() {
   setup_test_env
   setup_local_skills_fixture
   local cmd
-  for cmd in find grep mkdir mv rm tee cat dirname mktemp date sha256sum tail readlink; do
+  for cmd in find grep mkdir mv rm tee cat dirname mktemp date sha256sum tail readlink perl; do
     stub_real_cmd "$cmd"
   done
   mkdir -p "$SKILL_HOME/.config/nix-devshell/lib" "$SKILL_HOME/.cache"
@@ -52,7 +53,7 @@ run_apm_deployment() {
 
 @test "APM 配備は必要な lib や Nix が無ければ旧キャッシュがあっても止まる" {
   local prerequisite
-  for prerequisite in "$SKILL_HOME/.config/nix-devshell/lib/refresh-cache.sh" "$TEST_BIN_DIR/nix"; do
+  for prerequisite in "$SKILL_HOME/.config/nix-devshell/lib/refresh-cache.sh" "$TEST_BIN_DIR/nix" "$TEST_BIN_DIR/perl"; do
     mv "$prerequisite" "$BATS_TEST_TMPDIR/held-prerequisite"
 
     run_apm_deployment
@@ -78,4 +79,20 @@ run_apm_deployment() {
   run_apm_deployment
   assert_success
   assert_log_contains 'nix print-dev-env'
+}
+
+@test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  check_deployment_cache_concurrency run_apm_deployment "$SKILL_HOME" stable
+}
+
+@test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  check_deployment_cache_concurrency run_apm_deployment "$SKILL_HOME" changing
+  refute_log_contains 'apm install'
+  refute_log_contains 'apm prune'
+}
+
+@test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  check_deployment_cache_concurrency run_apm_deployment "$SKILL_HOME" failure
+  refute_log_contains 'apm install'
+  refute_log_contains 'apm prune'
 }

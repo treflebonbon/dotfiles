@@ -22,7 +22,7 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "Installing treflebonbon/dotfiles with chezmoi..."
 
 # 前提条件チェック
-for cmd in git curl; do
+for cmd in git curl perl; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: $cmd is required but not installed."
     echo "Please install it using your system's package manager."

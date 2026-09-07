@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 load 'test_helper'
+load 'cache-deployment-concurrency-helper'
 
 setup() {
   setup_test_env
@@ -46,7 +47,7 @@ STUB
   touch "$test_home/.config/nix-devshell/flake.nix"
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
     "$test_home/.config/nix-devshell/lib/refresh-cache.sh"
-  for cmd in find cat tee mktemp date sha256sum tail readlink; do
+  for cmd in find cat tee mktemp date sha256sum tail readlink perl; do
     stub_real_cmd "$cmd"
   done
   # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
@@ -385,4 +386,29 @@ STUB
   assert_success
   assert_log_contains 'shasum -a 256'
   assert_log_contains 'nix print-dev-env'
+}
+
+@test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" stable
+}
+
+@test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" changing
+  refute_log_contains 'direnv allow'
+  refute_output --partial 'Dotfiles installed successfully!'
+}
+
+@test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" failure
+  refute_log_contains 'direnv allow'
+  refute_output --partial 'Dotfiles installed successfully!'
+}
+
+@test "初回導入は system perl 不在を配備前に検出する" {
+  mv "$TEST_BIN_DIR/perl" "$BATS_TEST_TMPDIR/held-perl"
+  run_install
+  assert_failure
+  assert_output --partial 'Error: perl is required but not installed.'
+  refute_log_contains 'chezmoi init'
+  refute_log_contains 'nix develop'
 }

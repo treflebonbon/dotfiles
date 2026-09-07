@@ -15,11 +15,15 @@ status: accepted
 
 - [#223](https://github.com/treflebonbon/dotfiles/issues/223) で実装済み: Nix の非0終了、空・bash 構文不正の出力、一時ファイル準備・置換の失敗では旧キャッシュを保持する。通常の配備・APM 配備・初回導入は既存の必須更新指定で停止し、対話シェルは背景更新の完了を待たず起動する。既存の読込み interface と shell option の扱いを維持する。
 - [#224](https://github.com/treflebonbon/dotfiles/issues/224) で実装済み: 入力内容と選択環境による鮮度判定、旧形式からの移行、キャッシュと対応入力情報の一体化。ファイル・ディレクトリの相対名、内容、実行可能性、symlink のリンク先、WSL／通常環境の選択を SHA-256 で比較する。入力情報は bash コメントとしてキャッシュに含め、検査済みの生成結果と一度の rename で採用する。比較情報の形式は内部実装であり、新しい公開 interface にしない。
-- [#225](https://github.com/treflebonbon/dotfiles/issues/225) で実装予定: 更新の排他、生成中の入力変更検知と有限再試行、更新プロセス終了時の後始末。以下の Decision は3件を通した合意であり、すべてが実装済みという意味ではない。
+- [#225](https://github.com/treflebonbon/dotfiles/issues/225) で実装済み: OS のファイルロックによる更新の排他、待機後の入力再確認、評価前後の入力照合と最大1回の再試行、更新プロセス終了後の復旧。背景更新は競合時に待たず省略し、必須更新は待機する。二度目の評価でも入力が変われば旧キャッシュを保持し、必須更新は失敗する。親の全14ACとの対応・最終形の実 Nix・未確認環境は [#225 検証記録](../research/user-environment-cache-225-verification.md) に残す。
 
-単独更新の比較対象は配備された devShell 配下のソース一式。ルートの `.git`／`.direnv` と、Nix の出力リンク `result`／`result-*` を除外する（`result*` は symlink の場合のみ）。拡張子・mtime に依存せず、空ディレクトリや隠しファイルも比較する。キャッシュと更新ログは既存どおりソース外の `~/.cache` に置く。
+比較対象は配備された devShell 配下のソース一式。ルートの `.git`／`.direnv` と、Nix の出力リンク `result`／`result-*` を除外する（`result*` は symlink の場合のみ）。拡張子・mtime に依存せず、空ディレクトリや隠しファイルも比較する。キャッシュと更新ログは既存どおりソース外の `~/.cache` に置く。
 
 指紋計算は初期 PATH の `sha256sum`、なければ `shasum -a 256` を使い、生成した devShell の Python／Node 等には依存しない。どちらも利用できない、またはソースを読めない場合は必須更新を失敗させる。確認済み環境・実 Nix の観測・未確認範囲は [#224 検証記録](../research/user-environment-cache-224-verification.md) を参照。
+
+排他には system Perl の `flock` を使い、native `flock(2)` を持つ Linux／WSL／macOS を対象とする。生成する devShell 自体の Perl や、macOS に標準搭載されない `flock` CLI には依存しない。`install.sh` は `git`／`curl` とともに `perl` の欠損を配備前に検出する。native flock のない Perl は emulation に委ねず失敗させる。
+
+ロック用ファイルは `<cache>.lock` に固定し、削除・置換しない。更新関数の呼出しに限定して開く記述子を Perl に渡し、終了・返却時の kernel による解放を使う。Nix の評価子と入力確認を待つ中間の Bash process には記述子を残さない。これにより更新元が終了しても残存する評価子によってロックを保持し続けない。生成物は一意な一時ファイルへ書かれ、更新元を失った子 process は採用処理へ進めない。正常終了・失敗時には一時出力を除き、強制終了で残った `<cache>.tmp.*`／`<cache>.err.*` は次回のロック取得後に回収する。呼出し元の signal trap は置換しない。
 
 ## Decision
 
@@ -54,6 +58,6 @@ status: accepted
 - 通常の配備・APM 配備・初回導入は必須更新の失敗で停止する。script の文字列・順序の検査だけで済ませず、入口から実行して後続処理が走らないことを確認する。
 - bash／zsh の既存の読み込み、シェル識別情報の保持、キャッシュ不在時の起動継続を維持する。これらの振る舞いを検証する既存テストを残し、旧更新方式に依存する検査は同じ interface から更新後の振る舞いを検証するものへ置き換える。
 
-実 Nix での生成・読込み確認は一時領域で行い、task worktree から live source や HOME の配備を更新しない。この節は実装時の検証計画であり、実行済みの結果ではない。
+実 Nix での生成・読込み確認は一時領域で行い、task worktree から live source や HOME の配備を更新しない。実行済みの結果と確認範囲は #224／#225 の検証記録を参照する。
 
 関連: [実装仕様 #222](https://github.com/treflebonbon/dotfiles/issues/222) / [CONTEXT.md](../../CONTEXT.md) / [ADR-0001](0001-bash-over-zsh.md) / [ADR-0020](0020-macos-keeps-zsh-login-shell.md) / [ADR-0038](0038-keep-wsl2-browser-free.md)

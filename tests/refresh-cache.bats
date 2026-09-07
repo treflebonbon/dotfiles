@@ -26,6 +26,7 @@ setup() {
   stub_real_cmd sha256sum
   stub_real_cmd tail
   stub_real_cmd readlink
+  stub_real_cmd perl
 }
 
 run_refresh() {
@@ -577,4 +578,27 @@ STUB
     "$zsh_bin" -c '. "$1"; true' _ "$BATS_TEST_DIRNAME/../dot_zshrc.tmpl"
   assert_success
   assert_log_contains plugin-loaded
+}
+
+@test "ロックの依存や保存先の不備では旧キャッシュを保護し復旧後に更新できる" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  printf 'export CACHE_VERSION=old\n' >"$cache"
+  mv "$TEST_BIN_DIR/perl" "$FAKE_HOME/held-perl"
+  run_required_refresh
+  assert_failure
+  refute_log_contains 'nix print-dev-env'
+  run_refresh
+  assert_success
+  assert_cache_version old
+
+  mv "$FAKE_HOME/held-perl" "$TEST_BIN_DIR/perl"
+  mkdir "$cache.lock"
+  run_required_refresh
+  assert_failure
+  assert_cache_version old
+  mv "$cache.lock" "$FAKE_HOME/held-lock-directory"
+  run_required_refresh
+  assert_success
+  assert_cache_version fresh
 }

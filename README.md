@@ -57,7 +57,7 @@ User Settings (JSON) に追加:
 
 ```bash
 # 前提条件をインストール
-sudo apt update && sudo apt install -y git curl
+sudo apt update && sudo apt install -y git curl perl
 
 # dotfiles をインストール
 git clone https://github.com/treflebonbon/dotfiles /tmp/dotfiles
@@ -68,6 +68,8 @@ exec bash -l
 ```
 
 ### 手動インストール
+
+初回の環境キャッシュ生成は、初期 PATH の `perl`（native `flock` 対応）と `sha256sum` または `shasum` を使います。Linux／WSL は OS のパッケージとして用意し、macOS も配備前にこれらを利用できることを確認してください。
 
 ```bash
 # chezmoi がインストール済みの場合
