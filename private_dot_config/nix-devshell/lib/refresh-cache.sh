@@ -7,7 +7,7 @@ refresh_nix_devshell_cache() {
   local LOG="${3:-$HOME/.cache/nix-devshell-refresh.log}"
   local required="${NIX_DEVSHELL_CACHE_REQUIRED:-0}"
 
-  if [ ! -d "$DIR" ] || ! command -v nix >/dev/null 2>&1; then
+  if [ ! -f "$DIR/flake.nix" ] || ! command -v nix >/dev/null 2>&1; then
     [ "$required" = "1" ] && return 1
     return 0
   fi
@@ -45,36 +45,38 @@ refresh_nix_devshell_cache() {
 
   [ "$stale" = "0" ] && return 0
 
-  mkdir -p "$(dirname "$CACHE")" "$(dirname "$LOG")"
-
   # silent 化される前に予告 — 初回 binary cache fetch は数分かかる
   printf 'refresh-nix-devshell-cache: re-evaluating devshell (first run may take several minutes; downloads stream below)\n' >&2
 
-  local tmp err
+  local tmp="" err=""
   local -a nix_output_args=()
   if [ -n "${WSL_DISTRO_NAME:-}" ] || {
     [ -r /proc/sys/kernel/osrelease ] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null
   }; then
     nix_output_args=(".#wsl")
   fi
-  tmp=$(mktemp "${CACHE}.tmp.XXXXXX")
-  err=$(mktemp "${LOG}.err.XXXXXX")
-
-  if (cd "$DIR" && nix print-dev-env "${nix_output_args[@]}" 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)=') >"$tmp" && [ -s "$tmp" ]; then
-    mv "$tmp" "$CACHE"
+  if mkdir -p "$(dirname "$CACHE")" "$(dirname "$LOG")" &&
+    tmp=$(mktemp "${CACHE}.tmp.XXXXXX") && err=$(mktemp "${LOG}.err.XXXXXX") &&
+    (
+      set -o pipefail
+      cd "$DIR" && nix print-dev-env "${nix_output_args[@]}" 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)='
+    ) >"$tmp" &&
+    [ -s "$tmp" ] && "$BASH" -n "$tmp" 2>>"$err" &&
+    # mv はディレクトリへの移動も成功とするが、キャッシュとしては読めない。
+    [ ! -d "$CACHE" ] && mv "$tmp" "$CACHE" 2>>"$err"; then
     tmp=""
-    [ -s "$err" ] && cat "$err" >>"$LOG"
-    rm -f "$err"
+    if [ -s "$err" ]; then cat "$err" >>"$LOG" || true; fi
+    rm -f "$err" || true
     printf 'refresh-nix-devshell-cache: cache refreshed\n'
     return 0
   fi
 
   {
-    printf '\n=== %s nix print-dev-env failed ===\n' "$(date -Iseconds 2>/dev/null || date)"
-    cat "$err"
-  } >>"$LOG"
-  rm -f "$tmp" "$err"
-  printf 'refresh-nix-devshell-cache: nix print-dev-env failed (see %s)\n' "$LOG" >&2
+    printf '\n=== %s cache refresh failed ===\n' "$(date -Iseconds 2>/dev/null || date)"
+    if [ -s "$err" ]; then cat "$err"; fi
+  } >>"$LOG" || true
+  rm -f "$tmp" "$err" || true
+  printf 'refresh-nix-devshell-cache: cache refresh failed (see %s)\n' "$LOG" >&2
   [ "$required" = "1" ] && return 1
   return 0
 }

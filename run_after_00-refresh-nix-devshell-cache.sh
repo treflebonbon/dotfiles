@@ -4,8 +4,11 @@
 set -euo pipefail
 
 LIB="$HOME/.config/nix-devshell/lib/refresh-cache.sh"
-[ -f "$LIB" ] || exit 0
+if [ ! -f "$LIB" ]; then
+  printf 'refresh-nix-devshell-cache: required library is missing: %s\n' "$LIB" >&2
+  exit 1
+fi
 
 # shellcheck source=/dev/null
 . "$LIB"
-refresh_nix_devshell_cache
+NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache

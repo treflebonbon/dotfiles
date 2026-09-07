@@ -174,31 +174,35 @@ chezmoi init --source="$DOTFILES_DIR" --apply --force
 
 # flake devShell の初回評価（ユーザー環境）
 echo "Setting up user devShell..."
-if [ -d "$HOME/.config/nix-devshell" ] && [ -f "$HOME/.config/nix-devshell/flake.nix" ]; then
-  # 初回評価で nix-store を warm up（次回 direnv 起動時のブロックを避ける）
-  echo "Building user devShell (this may take a while on first run)..."
-  (cd "$HOME/.config/nix-devshell" && nix develop --command true) ||
-    echo "Warning: user devShell build failed, run 'cd ~/.config/nix-devshell && nix develop' manually"
+if [ ! -f "$HOME/.config/nix-devshell/flake.nix" ]; then
+  echo "Error: required user devShell flake is missing."
+  exit 1
+fi
+# 初回評価で nix-store を warm up（次回 direnv 起動時のブロックを避ける）
+echo "Building user devShell (this may take a while on first run)..."
+(cd "$HOME/.config/nix-devshell" && nix develop --command true) ||
+  echo "Warning: user devShell build failed, run 'cd ~/.config/nix-devshell && nix develop' manually"
 
-  # devShell 由来ツール（gh, python3 等）を chezmoi テンプレートに反映
-  # run_onchange スクリプト（codex-managed-sync 等）が python3 に依存するため、
-  # devShell の PATH を継承したサブプロセスとして chezmoi apply を実行する
-  # （`nix develop --command true` はサブシェル限りで親プロセスの PATH は変わらない）
-  echo "Re-applying chezmoi templates..."
-  (cd "$HOME/.config/nix-devshell" && nix develop --command chezmoi apply --source="$DOTFILES_DIR" --force)
+# devShell 由来ツール（gh, python3 等）を chezmoi テンプレートに反映
+# run_onchange スクリプト（codex-managed-sync 等）が python3 に依存するため、
+# devShell の PATH を継承したサブプロセスとして chezmoi apply を実行する
+# （`nix develop --command true` はサブシェル限りで親プロセスの PATH は変わらない）
+echo "Re-applying chezmoi templates..."
+(cd "$HOME/.config/nix-devshell" && nix develop --command chezmoi apply --source="$DOTFILES_DIR" --force)
 
-  # 新規ターミナルでも AI CLI 等を即利用できるよう、bash 起動用キャッシュを self-heal + 再生成
-  if [ -f "$HOME/.config/nix-devshell/lib/refresh-cache.sh" ]; then
-    # shellcheck source=/dev/null
-    . "$HOME/.config/nix-devshell/lib/refresh-cache.sh"
-    refresh_nix_devshell_cache
-  fi
+# 新規ターミナルでも AI CLI 等を即利用できるよう、bash 起動用キャッシュを self-heal + 再生成
+if [ ! -f "$HOME/.config/nix-devshell/lib/refresh-cache.sh" ]; then
+  echo "Error: required user devShell cache refresh library is missing."
+  exit 1
+fi
+# shellcheck source=/dev/null
+. "$HOME/.config/nix-devshell/lib/refresh-cache.sh"
+NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache
 
-  # direnv を許可
-  if command -v direnv &>/dev/null; then
-    echo "Allowing direnv for ~/.config/nix-devshell..."
-    direnv allow "$HOME/.config/nix-devshell" 2>/dev/null || true
-  fi
+# direnv を許可
+if command -v direnv &>/dev/null; then
+  echo "Allowing direnv for ~/.config/nix-devshell..."
+  direnv allow "$HOME/.config/nix-devshell" 2>/dev/null || true
 fi
 
 echo "Dotfiles installed successfully!"
