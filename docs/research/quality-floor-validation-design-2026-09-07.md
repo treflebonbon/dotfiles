@@ -73,6 +73,8 @@ ai.nix 内の非公開関数が共通の判定と診断を持ち、Claude Code �
 | 一時コピーでの変更検出                                                                                           | Claude／Codex それぞれの floor 引き下げ・判定迂回の4件すべてで、拒否ケースのテスト失敗を確認           |
 | `bunx --no-install tsc --noEmit`                                                                                 | 成功                                                                                                   |
 | Nixfmt、ShellCheck、shfmt、Markdown 書式、差分・ローカルリンク                                                   | 成功                                                                                                   |
-| `env -u FORCE_COLOR LC_ALL=C bun run test`                                                                       | 実行中                                                                                                 |
+| `env -u FORCE_COLOR LC_ALL=C bun run test`                                                                       | 414/414 成功                                                                                           |
+
+`code-review` は `1744012...47714f4` を対象に Standards／Spec の2軸で実施し、それぞれ指摘0件だった。
 
 変更検出の試行は repository の実装を変更せず、一時コピーで既存テストを実行した。full suite のログは `/tmp/quality-floor-full-tests-alxj3_xj.log`、4件の変更検出ログは `/tmp/nix-shell.7yUKd9/quality-floor-mutations-kv92986d/` に保存した一時的な証跡である。
