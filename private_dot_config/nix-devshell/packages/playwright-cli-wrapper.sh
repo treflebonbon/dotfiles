@@ -209,7 +209,6 @@ pwcli_managed_owner=0
 pwcli_owner_session=
 pwcli_owner_workspace=
 pwcli_owner_reserved=0
-pwcli_chrome_start_attempted=0
 if [[ -f "$pwcli_lease" ]]; then
   pwcli_owner_session="$(sed -n '1p' "$pwcli_lease")"
   pwcli_owner_workspace="$(sed -n '2p' "$pwcli_lease")"
@@ -219,133 +218,39 @@ if [[ -f "$pwcli_lease" ]]; then
   pwcli_had_consumer=1
 fi
 
-pwcli_browser_ownership_dir="${BROWSER_OWNERSHIP_DIR:-${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/browser-ownership}"
-pwcli_browser_owner_file="$pwcli_browser_ownership_dir/owner"
-pwcli_browser_owner_lock="$pwcli_browser_ownership_dir/acquire.lock"
-pwcli_browser_owner_id="$pwcli_session@$pwcli_workspace"
+pwcli_owner_command="${MANAGED_CHROME_OWNER:-@managedChromeOwner@}"
+pwcli_owner_token_file="$pwcli_state_dir/owner.token"
+pwcli_owner_token="$(cat "$pwcli_owner_token_file" 2>/dev/null || true)"
 
-browser_owner_field() {
-  local field="$1"
-  sed -n "${field}p" "$pwcli_browser_owner_file" 2>/dev/null || true
-}
-
-acquire_browser_owner_lock() {
-  mkdir -p "$pwcli_browser_ownership_dir"
-  chmod 700 "$pwcli_browser_ownership_dir"
-  if ! mkdir "$pwcli_browser_owner_lock" 2>/dev/null; then
-    local lock_pid
-    lock_pid="$(cat "$pwcli_browser_owner_lock/pid" 2>/dev/null || true)"
-    if [[ "$lock_pid" =~ ^[0-9]+$ ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
-      rm -f "$pwcli_browser_owner_lock/pid"
-      rmdir "$pwcli_browser_owner_lock" 2>/dev/null || true
-    fi
-    if ! mkdir "$pwcli_browser_owner_lock" 2>/dev/null; then
-      fail "browser ownership is busy (lock pid ${lock_pid:-unknown}); retry"
-    fi
-  fi
-  printf '%s\n' "$$" >"$pwcli_browser_owner_lock/pid"
-}
-
-release_browser_owner_lock() {
-  rm -f "$pwcli_browser_owner_lock/pid"
-  rmdir "$pwcli_browser_owner_lock" 2>/dev/null || true
-}
-
-browser_owner_conflict_message() {
-  local existing_role existing_id existing_pid
-  existing_role="$(browser_owner_field 1)"
-  [[ -z "$existing_role" || "$existing_role" == playwright ]] && return
-  existing_id="$(browser_owner_field 2)"
-  existing_pid="$(browser_owner_field 3)"
-  if [[ "$existing_role" == dogfood ]]; then
-    printf "Managed Dogfood Chrome is owned by '%s' (pid %s). Close that consumer before starting Managed Playwright Chrome.\n" \
-      "${existing_id:-unknown}" "${existing_pid:-unknown}"
-    return 1
-  fi
-  printf "Managed %s Chrome is owned by '%s' (pid %s). Close that consumer before starting Managed Playwright Chrome.\n" \
-    "$existing_role" "${existing_id:-unknown}" "${existing_pid:-unknown}"
-  return 1
+browser_owner() {
+  "$pwcli_owner_command" "$@"
 }
 
 check_browser_owner_conflict() {
-  local conflict
-  if ! conflict="$(browser_owner_conflict_message)"; then
-    fail "$conflict"
-  fi
+  browser_owner check --role playwright --token "$pwcli_owner_token"
 }
 
 write_browser_owner() {
-  local pid="$1"
-  acquire_browser_owner_lock
-  local conflict
-  if ! conflict="$(browser_owner_conflict_message)"; then
-    release_browser_owner_lock
-    fail "$conflict"
-  fi
-  local existing_role existing_id
-  existing_role="$(browser_owner_field 1)"
-  existing_id="$(browser_owner_field 2)"
-  if [[ "$existing_role" == playwright && -n "$existing_id" && "$existing_id" != "$pwcli_browser_owner_id" ]]; then
-    release_browser_owner_lock
-    return
-  fi
-  local temporary_owner="$pwcli_browser_owner_file.$$"
-  printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
-    playwright \
-    "$pwcli_browser_owner_id" \
-    "$pid" \
-    "$pwcli_requested_mode" \
-    '%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile' \
-    "$pwcli_cdp_endpoint" \
-    "$pwcli_workspace" \
-    >"$temporary_owner"
-  chmod 600 "$temporary_owner"
-  mv -f "$temporary_owner" "$pwcli_browser_owner_file"
-  release_browser_owner_lock
+  browser_owner activate "$pwcli_owner_token"
   pwcli_owner_reserved=0
 }
 
 reserve_browser_owner() {
-  acquire_browser_owner_lock
-  local conflict existing_role
-  if ! conflict="$(browser_owner_conflict_message)"; then
-    release_browser_owner_lock
-    fail "$conflict"
+  local previous_token="$pwcli_owner_token"
+  pwcli_owner_token="$(browser_owner reserve --role playwright \
+    --id "$pwcli_session@$pwcli_workspace" --pid "$$" \
+    --mode "$pwcli_requested_mode" --profile '%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile' \
+    --endpoint "$pwcli_cdp_endpoint" --token "$previous_token")"
+  printf '%s\n' "$pwcli_owner_token" >"$pwcli_owner_token_file"
+  if [[ "$previous_token" != "$pwcli_owner_token" ]]; then
+    pwcli_owner_reserved=1
   fi
-  existing_role="$(browser_owner_field 1)"
-  if [[ "$existing_role" == playwright ]]; then
-    release_browser_owner_lock
-    return
-  fi
-  local temporary_owner="$pwcli_browser_owner_file.$$"
-  printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
-    playwright \
-    "$pwcli_browser_owner_id" \
-    0 \
-    "$pwcli_requested_mode" \
-    '%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile' \
-    "$pwcli_cdp_endpoint" \
-    "$pwcli_workspace" \
-    >"$temporary_owner"
-  chmod 600 "$temporary_owner"
-  mv -f "$temporary_owner" "$pwcli_browser_owner_file"
-  release_browser_owner_lock
-  pwcli_owner_reserved=1
 }
 
 remove_browser_owner() {
-  acquire_browser_owner_lock
-  local expected_pid="${1:-}"
-  local owner_role owner_id owner_pid
-  owner_role="$(browser_owner_field 1)"
-  owner_id="$(browser_owner_field 2)"
-  owner_pid="$(browser_owner_field 3)"
-  if [[ "$owner_role" == playwright &&
-    ("$owner_id" == "$pwcli_browser_owner_id" ||
-    (-n "$expected_pid" && "$owner_pid" == "$expected_pid")) ]]; then
-    rm -f "$pwcli_browser_owner_file"
-  fi
-  release_browser_owner_lock
+  browser_owner release "$pwcli_owner_token"
+  rm -f "$pwcli_owner_token_file"
+  pwcli_owner_token=
 }
 
 check_browser_owner_conflict
@@ -382,7 +287,11 @@ powershell_action() {
   if [[ -n "$mode" ]]; then
     powershell_args+=(-Mode "$mode")
   fi
-  "$pwcli_powershell" "${powershell_args[@]}" | tr -d '\r'
+  if [[ "$action" == "Start" ]]; then
+    browser_owner run "$pwcli_owner_token" -- "$pwcli_powershell" "${powershell_args[@]}"
+  else
+    "$pwcli_powershell" "${powershell_args[@]}" | tr -d '\r'
+  fi
 }
 
 inspect_chrome() {
@@ -572,8 +481,8 @@ close_chrome_if_unused() {
   recorded_pid="$(cat "$pwcli_state_dir/chrome.pid")"
   chrome_status="$(inspect_chrome || true)"
   if [[ "$chrome_status" == "absent" ]]; then
+    remove_browser_owner
     rm -f "$pwcli_state_dir/chrome.pid"
-    remove_browser_owner "$recorded_pid"
     return
   fi
   actual_pid="$(managed_status_pid "$chrome_status" || true)"
@@ -589,8 +498,8 @@ close_chrome_if_unused() {
       fail "could not inspect Managed Playwright Chrome after Browser.close. Close the dedicated Chrome manually; ownership state was preserved."
     fi
     if [[ "$chrome_status" == "absent" ]]; then
+      remove_browser_owner
       rm -f "$pwcli_state_dir/chrome.pid"
-      remove_browser_owner "$recorded_pid"
       return
     fi
     actual_pid="$(managed_status_pid "$chrome_status" || true)"
@@ -680,10 +589,9 @@ cleanup_failed_browser_start() {
   if ((pwcli_owner_reserved == 0)); then
     return
   fi
-  if ((pwcli_chrome_start_attempted)); then
-    powershell_action Cleanup >/dev/null 2>&1 || true
-  fi
-  release_reserved_browser_owner
+  # The common owner keeps any live or unconfirmed startup reserved.
+  # A failed start must not call an unsupported Windows Cleanup action.
+  release_reserved_browser_owner || true
 }
 
 trap 'cleanup_failed_browser_start; release_lock' EXIT
@@ -720,7 +628,6 @@ ensure_chrome() {
     fi
     ;;
   absent)
-    pwcli_chrome_start_attempted=1
     powershell_action Start "$pwcli_requested_mode" >/dev/null
     ;;
   chrome-missing)

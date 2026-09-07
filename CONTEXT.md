@@ -56,6 +56,10 @@ _Avoid_: Dashboard tab, show 画面, headless Dashboard
 WSL2 上の dogfood evidence 収集専用に管理され、隔離 profile と CDP endpoint、任意の unpacked extension を所有する Windows 側の browser identity。通常利用の既定ブラウザおよび Managed Playwright Chrome とは状態を共有しない。
 _Avoid_: Dogfood browser, extension Chrome, Managed Playwright Chrome
 
+**Managed Chrome 所有権**:
+Managed Playwright Chrome と Managed Dogfood Chrome のうち、一方だけに利用を認める共通の排他的な権利。Managed Playwright Chrome 内での CLI session の利用権とは区別する。
+_Avoid_: Chrome の PID, profile の所有者, CLI session lease
+
 **WSL2 browser boundary**:
 WSL2 が browser identity を所有せず、人間向け URL 表示は Windows の通常の既定ブラウザ、自動操作は用途別の Managed Playwright Chrome または Managed Dogfood Chrome へ分離して委譲する環境境界。
 _Avoid_: WSL Chrome, WSL browser, Windows Chrome only

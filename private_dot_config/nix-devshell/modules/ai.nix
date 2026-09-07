@@ -109,6 +109,7 @@ in
   ];
 
   shellHook = ''
+    export MANAGED_CHROME_OWNER="${playwright-cli}/bin/managed-chrome-owner"
     export DOGFOOD_WINDOWS_SCRIPT="${playwright-cli}/share/playwright-cli/dogfood-chrome-windows.ps1"
     mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
     ln -sfn "${playwright-cli}/share/playwright-cli/skills/playwright-cli" "$HOME/.agents/skills/playwright-cli"

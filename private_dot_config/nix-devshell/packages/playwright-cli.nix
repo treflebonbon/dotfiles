@@ -74,12 +74,17 @@ buildNpmPackage {
 
     cp ${./playwright-cli-windows.ps1} "$out/share/playwright-cli/windows.ps1"
     cp ${./dogfood-chrome-windows.ps1} "$out/share/playwright-cli/dogfood-chrome-windows.ps1"
+    cp ${./managed-chrome-owner.mjs} "$out/share/playwright-cli/managed-chrome-owner.mjs"
+    makeWrapper ${nodejs}/bin/node "$out/bin/managed-chrome-owner" \
+      --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
+      --add-flags "$out/share/playwright-cli/managed-chrome-owner.mjs"
     cp ${./playwright-cli-wrapper.sh} "$out/bin/playwright-cli"
     substituteInPlace "$out/bin/playwright-cli" \
       --replace-fail '@playwrightCliUpstream@' "$out/libexec/playwright-cli-upstream" \
       --replace-fail '@curl@' '${curl}' \
       --replace-fail '@cdpClose@' "$out/libexec/playwright-cli-cdp-close" \
       --replace-fail '@windowsScript@' "$out/share/playwright-cli/windows.ps1" \
+      --replace-fail '@managedChromeOwner@' "$out/bin/managed-chrome-owner" \
       --replace-fail '@flock@' '${util-linux}/bin/flock'
     chmod +x "$out/bin/playwright-cli"
 

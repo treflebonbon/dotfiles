@@ -168,6 +168,16 @@ WSL2 の通常の `playwright-cli open [URL]` は Managed Playwright Chrome の 
 
 `playwright-cli show` と `show --annotate` は headed モードを要求し、WSL2 の `127.0.0.1:9323` に Dashboard をバックグラウンド起動して `http://localhost:9323/` を開く。headless session が動作中なら、`close`、`open --headed`、`show` の順で開き直す。Dashboard は `show --kill` まで存続する。WSL2 では `--config` / `--browser` / `--profile` / `--persistent` / `--device` / `--mobile`、project config、browser/context shaping 環境変数を local browser escape として拒否し、明示 `playwright-cli attach --cdp=<remote-endpoint>` だけを remote CDP の互換経路とする。Dogfood の annotation は attach 後に外部 owner を明示して Dashboard コマンドを upstream へ渡す。詳細な境界と lifecycle は [ADR-0038](../docs/adr/0038-keep-wsl2-browser-free.md) と [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を正本とする。
 
+### Managed Chrome 所有権の確認と復旧
+
+WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `managed-chrome-owner` を共有する。`MANAGED_CHROME_OWNER` は同梱 CLI の絶対パスを指す。所有権は共通の `BROWSER_OWNERSHIP_DIR`、未指定なら `$XDG_RUNTIME_DIR/browser-ownership`、さらに未設定なら `${TMPDIR:-/tmp}/browser-ownership` に置く。Dogfood 固有のディレクトリ指定がこの場所と異なる場合は拒否する。
+
+`managed-chrome-owner status` で role・所有者・workspace・起動状態を確認する。終了に失敗した場合は記録された consumer を終了し、`managed-chrome-owner recover` を実行する。Windows 側の照会が成功し、Chrome が停止済みで、未確定の起動処理もない場合だけ解放する。Chrome の終了要求や profile 削除は行わない。`starting` のまま起動監視 process が異常終了した場合は、後から Chrome を起動し得る処理の完了を証明できないため、記録を保持して調査を要する。
+
+起動コマンドが戻った後の `settled` でも、呼出元が生存して CDP の準備を待っている間は `recover` による回収を拒否する。起動を一度も試みていない `reserved` の予約は、token が一致する caller の通常 `release` で取り消せる。この取消は起動処理と同じ lock 内で token を無効化するため、初期確認で Chrome 未インストールや port/profile 競合を検出した場合も、問題を解消してそのまま再試行できる。
+
+移行は旧版で managed CLI session・Dashboard・Dogfood run を終了してから、Nix package とローカル Dogfood skill を対応する版へ揃える。旧 `owner` や `acquire.lock` が残っている場合は起動を拒否するため、切替前に旧版の終了処理と Windows 側の状態を調査する。記録の削除による起動制限の迂回は行わない。設計判断は [ADR-0047](../docs/adr/0047-centralize-managed-chrome-ownership.md) を参照する。
+
 ## Claude Code plugin の二層管理
 
 プラグインは「配置（物流）」と「runtime 有効化」を別レイヤーで管理する:

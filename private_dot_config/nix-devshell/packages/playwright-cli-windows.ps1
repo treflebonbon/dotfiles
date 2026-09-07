@@ -53,7 +53,7 @@ function Get-ChromeState {
     }
 
     $ChromeProcesses = @(
-        Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction SilentlyContinue
+        Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction Stop
     )
     $EscapedProfile = [Regex]::Escape($ProfileDir)
     $ProfilePattern = "--user-data-dir=(?:`"$EscapedProfile`"|$EscapedProfile)(?:\s|$)"
@@ -72,11 +72,9 @@ function Get-ChromeState {
         }
     )
     $Listeners = @(
-        Get-NetTCPConnection `
-            -State Listen `
-            -LocalAddress $DebugAddress `
-            -LocalPort $DebugPort `
-            -ErrorAction SilentlyContinue
+        Get-NetTCPConnection -ErrorAction Stop | Where-Object {
+            $_.State -eq 'Listen' -and $_.LocalAddress -eq $DebugAddress -and $_.LocalPort -eq $DebugPort
+        }
     )
 
     if ($ManagedProcesses.Count -gt 0) {
