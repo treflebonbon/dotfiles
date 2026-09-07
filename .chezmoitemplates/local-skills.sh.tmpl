@@ -1,0 +1,57 @@
+{{- $root := joinPath .chezmoi.sourceDir "local-skills" -}}
+{{- $rootInfo := stat $root -}}
+{{- if not (and $rootInfo $rootInfo.isDir) -}}
+  {{- fail (printf "local skill source missing: %s" $root) -}}
+{{- end -}}
+{{- $active := list -}}
+{{- range glob (joinPath $root "*") | sortAlpha }}
+{{- if (stat .).isDir }}
+  {{- $skillFile := joinPath . "SKILL.md" -}}
+  {{- $skillInfo := stat $skillFile -}}
+  {{- if not (and $skillInfo (eq $skillInfo.type "file")) -}}
+    {{- fail (printf "local skill SKILL.md missing: %s" $skillFile) -}}
+  {{- end -}}
+  {{- $active = append $active (base .) -}}
+{{- end }}
+{{- end }}
+{{- $apm := dict -}}
+{{- range (include "apm.lock.yaml" | fromYaml).dependencies -}}
+  {{- range .deployed_files -}}
+    {{- if regexMatch "^\\.(agents|claude)/skills/[^/]+(/|$)" . -}}
+      {{- $_ := set $apm (index (splitList "/" .) 2) true -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $retired := .localSkills.retired -}}
+{{- if not (kindIs "slice" $retired) -}}
+  {{- fail "local skill retirement must be a list of names" -}}
+{{- end -}}
+{{- range concat $active $retired -}}
+  {{- if not (kindIs "string" .) -}}
+    {{- fail "local skill names must be strings" -}}
+  {{- end -}}
+  {{- if not (regexMatch "^[a-z0-9][a-z0-9_-]*$" .) -}}
+    {{- fail (printf "invalid local skill name: %s" .) -}}
+  {{- end -}}
+  {{- if hasKey $apm . -}}
+    {{- fail (printf "APM owns local skill name: %s" .) -}}
+  {{- end -}}
+{{- end -}}
+{{- range $retired -}}
+  {{- if has . $active -}}
+    {{- fail (printf "active local skill is also retired: %s" .) -}}
+  {{- end -}}
+{{- end -}}
+src_root={{ $root | replace "'" "'\"'\"'" | printf "'%s'" }}
+local_skills=(
+{{- range $active }}
+  {{ . | replace "'" "'\"'\"'" | printf "'%s'" }}
+{{- end }}
+)
+retired_local_skills=(
+{{- range $retired }}
+  {{ . | replace "'" "'\"'\"'" | printf "'%s'" }}
+{{- end }}
+)
+
+{{ include ".chezmoitemplates/local-skills.sh" }}

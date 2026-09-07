@@ -122,14 +122,20 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 ## chezmoi 配布のローカル skill
 
-apm 外の user-scoped private skill は chezmoi で配布する。ソースは `local-skills/<name>/`（`.chezmoiignore` で `~/` へ直接 deploy せず SoT のみ）、`run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイムの skill dir へ `rsync` で materialize する:
+apm 外の user-scoped private skill は chezmoi で配布する。`local-skills/<name>/SKILL.md` の配置自体を配備対象の宣言とし、別の配備・保持一覧への登録は不要とする。ソースは `.chezmoiignore` で `~/` へ直接 deploy せず、`run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイムの skill dir へ `rsync` で materialize する:
 
 - `~/.agents/skills/<name>/` — 共有ハブ。Antigravity / Codex はここを直接読む
 - `~/.claude/skills/<name>/` — Claude
 
 Codex native location（`${CODEX_HOME:-~/.codex}/skills`）へは配備しない。Codex は `~/.agents/skills/` で同じ skill を既に発見でき、native location にも置くと `to-pr` などのローカル skill が二重表示されるため。過去に native location へ materialize された Matt managed real directory も cleanup で撤去する。
 
-deploy は `run_onchange_after_apm-install`（alphabetical 先行）の後に走り apm 配備を上書きしない。`run_onchange_before_remove-orphan-claude-skills.sh.tmpl` は `~/.claude/skills/` の unmanaged real dir を削除し、Codex native location の Matt managed duplicate も撤去するため、ローカル skill は `preserve_local_skills`、APM の配備先にある Matt Pocock v1.2.3 の managed full set は `managed_apm_skills` allowlist で除外する（両者の skill 名リストは、それぞれの配備元と一致させること）。旧 `writing-great-skills` は retired entry として全 runtime target から撤去する。
+cleanup → APM install / prune → ローカル配備の順序を維持する。cleanup と配備は `.chezmoitemplates/local-skills.sh.tmpl` / `local-skills.sh` の共通 module を実行用 script に展開し、同じ配備対象を保持する。HOME へ先に配備される helper には依存しない。APM の配備先にある Matt Pocock v1.2.3 の managed full set は従来の `managed_apm_skills` allowlist で保持し、APM lock と独立した採用ゲートで照合する。
+
+撤去・改名時は `.chezmoidata/local-skills.yaml` の `localSkills.retired` に旧名を追加し、該当するソースを撤去・改名する。明示した旧名は共有ハブ・Claude と旧 Codex native location から除く。配備履歴は保存せず、過去の配備先にも適用できるよう撤去対象の名前を残す。共有ハブの未知のディレクトリを一括削除する処理は追加しない。既存の Claude orphan cleanup と、旧 `writing-great-skills` などの APM 撤去処理は維持する。
+
+template 展開時に、ソースルート・各 skill の `SKILL.md`・名前の形式・配備対象と撤去対象の重複・APM の実配備先名との衝突を検査する。作業途中の skill は `local-skills/` の外に置き、APM 所有の名前をローカル配備で上書きしない。置換は配備先単位とし、途中失敗時は旧内容を保護するが、成功済みの更新は残る。修復後の再実行で両配備先を揃える。
+
+APM の変更検知には展開後の cleanup script の hash を含めるため、共通 module・配備対象・撤去対象の変更も再実行へ連動する。skill の本文や参照ファイルだけの変更はローカル配備を再実行する。一時 HOME での配置・撤去・再実行・失敗時の挙動は `tests/local-skills.bats`、既存 cleanup 契約は `tests/run_onchange_before_remove-orphan-claude-skills.bats` で検証する（[ADR-0047](../docs/adr/0047-local-skill-membership-and-explicit-retirement.md)）。
 
 構造は **flat な `local-skills/<name>/`**（SKILL.md + references/ + 必要なら scripts/ 同梱で完結）。hooks / agents / marketplace 登録を要するメガパッケージ型の 3層 plugin 構造（`plugins/<ns>/{claude,codex,common}` 型）は不採用: あの構造の必然性は hooks + agents + bin + marketplace 登録というメガパッケージ要件にあり、skill-only なら不要。将来分離したくなったら `local-skills/` ごと新 repo に切り出して apm pin 化すればよい。
 
