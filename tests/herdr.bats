@@ -6,16 +6,21 @@ setup() {
   cd "$PROJECT_ROOT" || return
 }
 
-@test "user devShell provides Herdr 0.8.2 on all supported systems and shell variants" {
+@test "user devShell provides pinned llm-agents Herdr on all supported systems and shell variants" {
+  # shellcheck disable=SC2016 # Nix expands ${system}.
   run nix eval --json --impure --no-write-lock-file --expr '
     let
       flake = builtins.getFlake (toString ./private_dot_config/nix-devshell);
-    in builtins.mapAttrs (_system: shells:
-      builtins.mapAttrs (_name: shell:
-        map (package: { inherit (package) version; path = toString package; })
-          (builtins.filter (package: (package.pname or null) == "herdr")
-            shell.nativeBuildInputs)
-      ) shells
+    in builtins.mapAttrs (system: shells:
+      let package = flake.inputs.llm-agents.packages.${system}.herdr;
+      in {
+        expected = { inherit (package) version; path = toString package; };
+        shells = builtins.mapAttrs (_name: shell:
+          map (package: { inherit (package) version; path = toString package; })
+            (builtins.filter (package: (package.pname or null) == "herdr")
+              shell.nativeBuildInputs)
+        ) shells;
+      }
     ) flake.devShells
   '
   [ "$status" -eq 0 ]
@@ -23,9 +28,9 @@ setup() {
   jq -e '
     keys == ["aarch64-darwin", "aarch64-linux", "x86_64-linux"] and
     all(.[];
-      (.default | length) == 1 and
-      .default == .wsl and
-      .default[0].version == "0.8.2"
+      .expected.version == "0.8.2" and
+      .shells.default == [.expected] and
+      .shells.wsl == [.expected]
     )
   ' <<<"$output"
 }

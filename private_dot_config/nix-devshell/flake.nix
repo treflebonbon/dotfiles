@@ -16,8 +16,6 @@
       # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
       url = "github:numtide/llm-agents.nix/896d09ccef580902e01e716e6f4646421087c252";
     };
-
-    herdr.url = "github:herdrdev/herdr/v0.8.2";
   };
 
   outputs =

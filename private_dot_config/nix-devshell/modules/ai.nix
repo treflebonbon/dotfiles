@@ -84,7 +84,8 @@ in
     llm.antigravity-cli
 
     # --- Terminal Workspaces ---
-    inputs.herdr.packages.${system}.herdr
+    # Keep the derivation aligned with the pinned Numtide binary cache.
+    inputs.llm-agents.packages.${system}.herdr
 
     # --- Token Optimization ---
     llm.rtk

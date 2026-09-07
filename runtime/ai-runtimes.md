@@ -12,14 +12,14 @@ tags: [ai, claude-code, codex, nix, llm-agents]
 AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`modules/ai.nix`）:
 
 - **LLM CLI**: claude-code, codex, copilot-cli, antigravity
-- **ワークフロー**: rtk
+- **ワークフロー**: rtk, herdr
 - **コードレビュー補助**: code-review-graph（CLI のみ常設、利用はリポジトリ単位で opt-in）
 
 外部 skill / plugin は apm が担当する（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。
 
 ## Herdr の手動利用
 
-Herdr は公式 source flake の安定版タグと lock で固定し、ユーザー devShell の `default` / `wsl` から供給する。上流のビルド定義を使うため、初回・更新時には Rust / Zig によるソースビルドが発生する。
+Herdr は `llm-agents.nix` の immutable snapshot と lock で固定し、ユーザー devShell の `default` / `wsl` から供給する。`inputs.llm-agents.packages.${system}.herdr` を直接参照して Numtide の binary cache と同じ derivation を使う。cache が利用できない場合は Rust / Zig によるソースビルドが必要になる。
 
 任意のプロジェクトディレクトリで起動する。
 
@@ -31,13 +31,13 @@ herdr
 
 `Ctrl-b` を押してから `q` を押すと detach する。pane 内の処理は継続し、もう一度 `herdr` を実行すると同じセッションへ戻る。
 
-更新は validated task worktree 内のユーザー環境用 flake の安定版タグを変更し、その flake のディレクトリで行う。
+更新は validated task worktree 内でユーザー環境用 flake の `llm-agents` の採用 revision を変更し、その flake のディレクトリで行う。
 
 ```bash
-nix flake update herdr
+nix flake update llm-agents
 ```
 
-タグ固定のため、lock の更新だけでは別 release へ進まない。対応 system の Nix 評価、host の再ビルドと起動を検証し、受入後に live source から `chezmoi apply` して通常のユーザー環境を再読み込みする。Nix 管理の Herdr は Nix 経由で更新する。
+revision 固定のため、lock の更新だけでは別 snapshot の release へ進まない。Herdr の採用版を変える場合は `tests/herdr.bats` の期待版も更新する。同じ snapshot に含まれる他の AI ツールの差分と品質 floor も、[既存の更新手順](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md)に沿って確認する。対応 system の Nix 評価、host の package 取得・ビルドと起動を検証し、受入後に live source から `chezmoi apply` して通常のユーザー環境を再読み込みする。Nix 管理の Herdr は Nix 経由で更新する。
 
 更新済みのコマンドが利用できても、稼働中の server は旧版のままの場合がある。既定セッションの pane 内の作業を終えてから、次を実行する。停止時には pane 内のプロセスも終了する。
 
@@ -46,7 +46,7 @@ herdr server stop
 herdr
 ```
 
-関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [公式 Nix 導入・更新手順](https://herdr.dev/docs/install/#install-with-nix)
+関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [llm-agents の Herdr package](https://github.com/numtide/llm-agents.nix/tree/main/packages/herdr)
 
 ## Claude Code / Codex マルチランタイム
 
