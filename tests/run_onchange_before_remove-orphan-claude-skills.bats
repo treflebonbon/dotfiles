@@ -1,9 +1,13 @@
 #!/usr/bin/env bats
 
+load local-skills-helper
+
 setup() {
-  export FAKE_HOME="$BATS_TEST_TMPDIR/home"
+  setup_local_skills_fixture
+  export FAKE_HOME="$SKILL_HOME"
   mkdir -p "$FAKE_HOME/.claude/skills"
-  SCRIPT="$BATS_TEST_DIRNAME/../run_onchange_before_remove-orphan-claude-skills.sh.tmpl"
+  SCRIPT="$BATS_TEST_TMPDIR/cleanup.sh"
+  skill_chezmoi execute-template --file "$SKILL_SOURCE/run_onchange_before_remove-orphan-claude-skills.sh.tmpl" >"$SCRIPT"
 }
 
 run_script() {

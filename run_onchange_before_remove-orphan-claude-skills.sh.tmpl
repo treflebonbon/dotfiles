@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-skills_dir="${HOME}/.claude/skills"
 codex_home="${CODEX_HOME:-$HOME/.codex}"
 
 # CODEX_HOME が .codex 以外に明示指定されていればそれを追加 cleanup 対象にする。
@@ -14,20 +13,7 @@ elif [ -d "$HOME/.codex-app" ]; then
   extra_codex_home="$HOME/.codex-app"
 fi
 
-# chezmoi 配布のローカル skill（apm 非管理）。real-dir wipe から除外する。
-# run_onchange_after_deploy-local-skills.sh.tmpl の local_skills=() と一致させること。
-preserve_local_skills=(
-  to-pr
-  to-worktree
-  dogfood-to-issues
-  harness-feedback
-  marp
-  md-agents-review
-  md-claude-review
-  rop
-  ui-grill-with-docs
-  worktree-gc
-)
+{{ includeTemplate "local-skills.sh.tmpl" . }}
 
 # APM が配備する mattpocock/skills v1.2.3 の公式 full set。
 # ~/.agents/skills と ~/.claude/skills の real-dir cleanup から除外し、APM の
@@ -59,14 +45,6 @@ managed_apm_skills=(
   wizard
   writing-for-agents
 )
-
-is_preserved_local_skill() {
-  local name="$1" p
-  for p in "${preserve_local_skills[@]}"; do
-    [ "$name" = "$p" ] && return 0
-  done
-  return 1
-}
 
 is_managed_apm_skill() {
   local name="$1" p
@@ -113,7 +91,7 @@ cleanup_repo_local_apm_targets() {
 
 cleanup_repo_local_apm_targets
 
-if [ -d "$skills_dir" ]; then
+if [ -d "$claude_skills_dir" ]; then
   removed=0
   while IFS= read -r -d '' entry; do
     if is_preserved_local_skill "$(basename "$entry")" || \
@@ -122,11 +100,11 @@ if [ -d "$skills_dir" ]; then
     fi
     rm -rf -- "$entry"
     removed=$((removed + 1))
-  done < <(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+  done < <(find "$claude_skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
 
   if [ "$removed" -gt 0 ]; then
     printf 'orphan-claude-skills: removed %d real directory entries from %s\n' \
-      "$removed" "$skills_dir" >&2
+      "$removed" "$claude_skills_dir" >&2
   fi
 fi
 
@@ -177,8 +155,8 @@ cleanup_symlinks() {
   fi
 }
 
-cleanup_symlinks "${HOME}/.agents/skills"
-cleanup_symlinks "$skills_dir"
+cleanup_symlinks "$shared_skills_dir"
+cleanup_symlinks "$claude_skills_dir"
 cleanup_symlinks "${HOME}/.codex/skills"
 if [ -n "$extra_codex_home" ]; then
   cleanup_symlinks "$extra_codex_home/skills"
@@ -198,34 +176,21 @@ retired_apm_skills=(
   writing-great-skills
 )
 
-remove_named_skill_entries() {
-  local dir="$1"
-  local label="$2"
-  shift 2
-  [ -d "$dir" ] || return 0
-
-  local removed=0
-  local skill
-  for skill in "$@"; do
-    local entry="$dir/$skill"
-    if [ -e "$entry" ] || [ -L "$entry" ]; then
-      rm -rf -- "$entry"
-      removed=$((removed + 1))
-    fi
-  done
-
-  if [ "$removed" -gt 0 ]; then
-    printf "orphan-claude-skills: removed %d retired %s skill entries from %s\n" \
-      "$removed" "$label" "$dir" >&2
-  fi
-}
-
 remove_retired_apm_skill_dirs() {
-  remove_named_skill_entries "$1" "apm" "${retired_apm_skills[@]}"
+  local dir="$1" skill
+  local retired=()
+  for skill in "${retired_apm_skills[@]}"; do
+    # 現在のローカル配備先では、旧 APM 名の再使用を保持する。
+    if [[ "$dir" == "$shared_skills_dir" || "$dir" == "$claude_skills_dir" ]] && is_preserved_local_skill "$skill"; then
+      continue
+    fi
+    retired+=("$skill")
+  done
+  remove_named_skill_entries "$dir" "apm" "${retired[@]}"
 }
 
-remove_retired_apm_skill_dirs "${HOME}/.agents/skills"
-remove_retired_apm_skill_dirs "$skills_dir"
+remove_retired_apm_skill_dirs "$shared_skills_dir"
+remove_retired_apm_skill_dirs "$claude_skills_dir"
 remove_retired_apm_skill_dirs "${HOME}/.codex/skills"
 if [ -n "$extra_codex_home" ]; then
   remove_retired_apm_skill_dirs "$extra_codex_home/skills"
@@ -233,13 +198,7 @@ fi
 remove_retired_apm_skill_dirs "${HOME}/.gemini/skills"
 remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
 
-# Codex は ~/.agents/skills を直接読むため、同じローカル skill を
-# ~/.codex/skills や runtime CODEX_HOME/skills にも置くと二重表示になる。
-# 旧 deploy-local-skills が materialize した real dir はここで撤去する。
-remove_named_skill_entries "${HOME}/.codex/skills" "codex local duplicate" "${preserve_local_skills[@]}"
-if [ -n "$extra_codex_home" ]; then
-  remove_named_skill_entries "$extra_codex_home/skills" "codex local duplicate" "${preserve_local_skills[@]}"
-fi
+local_skills_cleanup
 
 # APM は Codex native location へ配備しないため、過去の Matt managed payloadも
 # shared hub の重複として撤去する。.agents/skills は APM の所有先なので保持する。
@@ -249,7 +208,7 @@ if [ -n "$extra_codex_home" ]; then
 fi
 
 # 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)
-marker="${HOME}/.agents/skills/.managed-by-ai-nix"
+marker="$shared_skills_dir/.managed-by-ai-nix"
 if [ -f "$marker" ]; then
   rm -f -- "$marker"
 fi

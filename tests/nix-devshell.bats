@@ -398,26 +398,6 @@ PS
   grep -q 'markitdown/default\.nix' "$module"
 }
 
-@test "local skill deploy uses agents hub for Codex without native duplicate target" {
-  local deploy="$PROJECT_ROOT/run_onchange_after_deploy-local-skills.sh.tmpl"
-  local cleanup="$PROJECT_ROOT/run_onchange_before_remove-orphan-claude-skills.sh.tmpl"
-  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
-
-  grep -q '\.agents/skills/\$name' "$deploy"
-  grep -q '\.claude/skills/\$name' "$deploy"
-  ! grep -q 'codex_home/skills/\$name' "$deploy"
-  grep -q 'remove_named_skill_entries "\${HOME}/\.codex/skills" "codex local duplicate"' "$cleanup"
-  grep -q 'Codex native location.*へは配備しない' "$runtime"
-}
-
-@test "ui grill skill is available through local skill deployment" {
-  local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
-  local deploy="$PROJECT_ROOT/run_onchange_after_deploy-local-skills.sh.tmpl"
-
-  [ -f "$skill" ]
-  sed -n '/^local_skills=(/,/^)/p' "$deploy" | grep -qx '  ui-grill-with-docs'
-}
-
 @test "ui grill skill contract keeps visual aids disposable" {
   local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
