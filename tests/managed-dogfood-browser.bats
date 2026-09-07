@@ -159,6 +159,38 @@ STUB
   ! grep -Fq -- '-Action Start' "$LOG"
 }
 
+@test "Managed Dogfood Chrome can retry a preflight failure without manual recovery" {
+  export DOGFOOD_TEST_WSL=1
+  export DOGFOOD_POWERSHELL="$BIN/powershell.exe" DOGFOOD_WSLPATH="$BIN/wslpath"
+  export BROWSER_OWNERSHIP_DIR="$STATE"
+  run node --input-type=module - "$MODULE" <<'JS'
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import http from 'node:http';
+const { acquireManagedDogfoodChrome } = await import(process.argv[2]);
+const server = http.createServer((_request, response) => response.end('ok'));
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+process.env.DOGFOOD_CDP_PORT = String(server.address().port);
+try {
+  for (const state of ['chrome-missing', 'port-conflict:5150', 'profile-conflict:4242']) {
+    writeFileSync(process.env.DOGFOOD_PS_STATE, `${state}\n`);
+    await assert.rejects(
+      acquireManagedDogfoodChrome({ runId: 'preflight-retry' }),
+      error => error.message.includes(state)
+    );
+    assert.equal(execFileSync(process.env.MANAGED_CHROME_OWNER, ['status'], { encoding: 'utf8' }).trim(), 'null');
+    writeFileSync(process.env.DOGFOOD_PS_STATE, 'absent\n');
+    const browser = await acquireManagedDogfoodChrome({ runId: 'preflight-retry' });
+    await browser.close();
+  }
+} finally {
+  server.close();
+}
+JS
+  [ "$status" -eq 0 ]
+}
+
 @test "Managed Dogfood Chrome keeps ownership when cleanup cannot stop Chrome" {
   run env \
     DOGFOOD_TEST_WSL=1 \

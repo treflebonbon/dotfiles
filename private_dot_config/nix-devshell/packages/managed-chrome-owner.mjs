@@ -289,6 +289,10 @@ const release = async (owner, token, command) => {
   }
   if (command === "release") {
     matching(owner, token);
+    if (owner.phase === "reserved") {
+      // Cancellation shares run's lock; removing the token prevents a later start.
+      return fs.unlink(ownerFile);
+    }
   }
   if (owner.phase === "starting") {
     throw new Error(
@@ -297,7 +301,7 @@ const release = async (owner, token, command) => {
   }
   if (
     command === "recover" &&
-    owner.phase === "reserved" &&
+    ["reserved", "settled"].includes(owner.phase) &&
     (await callerAlive(owner))
   ) {
     throw new Error(

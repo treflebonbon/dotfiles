@@ -89,7 +89,56 @@ reserve() {
   [ "$recovery_status" -ne 0 ]
   [[ "$output" == *"in progress"* ]]
   run owner recover
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"live startup reservation"* ]]
+  owner release "$token"
+}
+
+@test "recovery keeps a live caller's reservation after the launcher returns" {
+  local token
+  token="$(reserve playwright waiting-for-cdp)"
+  owner run "$token" -- true
+
+  run owner recover
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"live startup reservation"* ]]
+  run reserve dogfood competing
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"already owned by 'waiting-for-cdp'"* ]]
+
+  owner release "$token"
+  run owner status
+  [ "$output" = null ]
+}
+
+@test "a caller can cancel an unused reservation despite a preflight conflict" {
+  local token state
+  for state in chrome-missing port-conflict:5150 profile-conflict:4242; do
+    token="$(reserve playwright cancelled)"
+    printf '%s\n' "$state" >"$OWNER_PROBE_STATE"
+
+    run owner release "$token"
+    [ "$status" -eq 0 ]
+    run owner status
+    [ "$output" = null ]
+
+    run owner run "$token" -- touch "$BATS_TEST_TMPDIR/unexpected-start"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"outdated request"* ]]
+    [ ! -e "$BATS_TEST_TMPDIR/unexpected-start" ]
+  done
+}
+
+@test "recovery reclaims a completed startup after its caller exits" {
+  bash -c '
+    token="$(node "$1" reserve --role playwright --id abandoned-startup --pid "$$" --mode headless --profile profile --endpoint http://127.0.0.1:9222)"
+    node "$1" run "$token" -- true
+  ' _ "$OWNER_CLI"
+
+  run owner recover
   [ "$status" -eq 0 ]
+  run owner status
+  [ "$output" = null ]
 }
 
 @test "old acquisition locks require an explicit cutover instead of automatic removal" {

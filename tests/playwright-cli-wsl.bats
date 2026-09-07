@@ -1117,13 +1117,33 @@ EOF
   [[ "$output" == *"already running without matching state"* ]]
   [[ "$output" == *"Close that dedicated Chrome manually"* ]]
 
-  printf '%s\n' absent >"$POWERSHELL_STATE"
-  "$MANAGED_CHROME_OWNER" recover
+  run "$MANAGED_CHROME_OWNER" status
+  [ "$output" = null ]
   printf '%s\n' 'port-conflict:5150' >"$POWERSHELL_STATE"
   run bash "$WRAPPER" open https://example.com
   [ "$status" -ne 0 ]
   [[ "$output" == *"127.0.0.1:9222 is owned by a process that is not"* ]]
   [[ "$output" == *"will not be replaced automatically"* ]]
+}
+
+@test "managed open can retry a preflight failure without manual ownership recovery" {
+  export PWCLI_TEST_WSL=1
+  local state
+  for state in chrome-missing port-conflict:5150 profile-conflict:4242; do
+    printf '%s\n' "$state" >"$POWERSHELL_STATE"
+    : >"$POWERSHELL_LOG"
+    run bash "$WRAPPER" -s=preflight-retry open https://example.com
+    [ "$status" -ne 0 ]
+    ! grep -Fq -- '-Action Start' "$POWERSHELL_LOG"
+    run "$MANAGED_CHROME_OWNER" status
+    [ "$output" = null ]
+
+    printf '%s\n' absent >"$POWERSHELL_STATE"
+    run bash "$WRAPPER" -s=preflight-retry open https://example.com
+    [ "$status" -eq 0 ]
+    run bash "$WRAPPER" -s=preflight-retry close
+    [ "$status" -eq 0 ]
+  done
 }
 
 @test "close-all reconciles the managed lease and closes Chrome gracefully" {
