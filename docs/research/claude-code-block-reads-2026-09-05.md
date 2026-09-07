@@ -173,6 +173,36 @@ tool snapshotを`896d09ccef580902e01e716e6f4646421087c252`へ固定し、Claude 
 
 これにより2.1.260の修正対象だったglobal git configとworktree-isolated subagent own checkoutを含む必須smokeは通過した。`nix flake check --no-build --all-systems`と3 systemのpackage metadata evaluationも成功している。task worktreeからlive HOMEへの`chezmoi apply`は行っていない。
 
+## 2026-09-07 追記
+
+2026-09-07、実際の稼働環境における session transcript（`~/.claude/projects/**/*.jsonl`、550 ファイル）を、cwd と既存 `additionalDirectories`（`~/.claude/jobs`、`~/runtime`）の外側を指す (a) file tool 操作（Read/Grep/Glob/LSP/Edit/Write）と (b) Bash コマンド内の絶対パス参照で集計し、Working-Directory Read Fence（[CONTEXT.md](../../CONTEXT.md)）の追加候補を再評価した。集計では既知の session scratchpad carve-out（`[/\\]claude[^/\\]*[/\\](?:[^/\\]+[/\\])+scratchpad(?:[/\\]|$)` に一致するパス）を除外している。
+
+### 実測順位（企業固有の org/repo 名は除いた集計）
+
+| ディレクトリ           | file ops | bash cmds | sessions |
+| ---------------------- | -------- | --------- | -------- |
+| `~/ghq/github.com`     | 532      | 2161      | 147      |
+| `/tmp`（carve-out 外） | 300      | 930       | 118      |
+| `~/.claude/projects`   | 467      | 341       | 136      |
+| `~/.claude/skills`     | 153      | 365       | 86       |
+| `~/orca/workspaces`    | 46       | 130       | 14       |
+| `/mnt/nfs`             | 3        | 126       | 33       |
+| `/nix/store`           | 1        | 69        | 21       |
+
+transcript 上で実際に deny まで到達した記録は3件のみ（通常は人間が承認して通すため記録が残らない）。うち2件が `~/.claude/skills/`、1件が `~/ghq/github.com` 配下の別 repo 参照だった。
+
+### この会話でのライブ実測により訂正した前提
+
+上記の transcript 集計だけでは「fence が実際にどう効くか」を取り違える。同じ環境で `Read` ツールと Bash を使い分けて直接検証したところ、次が判明した。
+
+1. **`~/.claude/skills/**`は Read tool の fence 対象外だった。**`impeccable/scripts/hook.mjs`、`tdd/SKILL.md`のいずれも working directory 外から直接`Read`で成功した。一方、同じセッションで`~/.bashrc`、`~/.claude/history.jsonl`、他プロジェクトの transcript（`~/.claude/projects/<他プロジェクト>/\*.jsonl`）は `the permissions.blockReadsOutsideWorkingDirectories setting blocks reads outside the working directories`で明確に block された。したがって`~/.claude/skills/` の transcript 上の deny 2件は、別 version か別状況での記録と考えられ、現行版では additionalDirectories への追加は不要である。
+2. **Bash 経由のアクセスは、この環境では fence の対象外だった。** `cat ~/.bashrc`、working directory 外への出力 redirect（`echo ... > /tmp/...`）のいずれも block されず成功した。公式ドキュメントおよび本ノート冒頭の検証表（bypassPermissions でも Bash `cat`/redirect は拒否される）と食い違う。Working-Directory Read Fence が実際に保護するのは direct file tool 呼び出しのみで、Bash 経由のファイルアクセスは別レイヤーの Technical Sandbox Boundary（この repo では `sandbox.filesystem` 未設定のため実質的に無制限）の管轄になる。この食い違いの原因（Claude Code の version 差分か、未文書化の仕様か）は未調査のまま残す。
+3. **`additionalDirectories` 追加 + `Edit(path/**)`deny の組合せで read-only にできる。**`permissions.allow`の`Read(...)`ルールでは fence を解除できないことは実測済みだが、これは「read だけを開ける手段が一切ない」ことを意味しない。既存の`~/runtime`+`Edit(~/runtime/\*\*)`deny がまさにこのパターンで、下記「実装結果」の検証表でも`additionalDirectories`への direct`Write`が`Edit(...)` deny を理由に実行前拒否されることを確認済みである。
+
+### 決定
+
+上記を踏まえた最終判断は [ADR-0048](../adr/0048-extend-additional-directories-with-edit-deny-readonly.md) に記録する。要約すると、`additionalDirectories` に `~/ghq/github.com`（`Edit(~/ghq/github.com/**)` deny 付き、read-only）、`~/.claude/projects`（書込み可、memory システムに必要）、`/nix/store`（OS immutable のため deny 不要）を追加し、`/tmp`・`~/.claude/skills`・`~/orca/workspaces`・`/mnt/nfs` は追加しない。
+
 ## 一次情報
 
 - [Anthropic: Configure permissions](https://code.claude.com/docs/en/permissions)

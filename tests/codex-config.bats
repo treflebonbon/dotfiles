@@ -841,11 +841,16 @@ assert data["permissions"]["blockReadsOutsideWorkingDirectories"] is True
 assert data["permissions"]["additionalDirectories"] == [
     "~/.claude/jobs",
     "~/runtime",
+    "~/.claude/projects",
+    "/nix/store",
+    "~/ghq/github.com",
 ]
 assert "Edit(**/.env*)" in data["permissions"]["deny"]
 assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
 assert "Edit(~/runtime/**)" in data["permissions"]["deny"]
 assert "Read(~/runtime/**)" not in data["permissions"]["deny"]
+assert "Edit(~/ghq/github.com/**)" in data["permissions"]["deny"]
+assert "Read(~/ghq/github.com/**)" not in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Write(") for rule in data["permissions"]["deny"]
 )
@@ -893,6 +898,25 @@ for rule in [
     assert rule in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Bash(git push --force") for rule in data["permissions"]["deny"]
+)
+PY
+}
+
+@test "Project-level Claude settings deny rules actually match file permission checks" {
+  local settings="$PROJECT_ROOT/.claude/settings.json"
+
+  python3 -m json.tool "$settings" >/dev/null
+  python3 - "$settings" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    data = json.load(f)
+
+assert "Edit(**/.env*)" in data["permissions"]["deny"]
+assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
+assert not any(
+    rule.startswith("Write(") for rule in data["permissions"]["deny"]
 )
 PY
 }
