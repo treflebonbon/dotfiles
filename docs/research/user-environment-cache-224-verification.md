@@ -45,3 +45,12 @@ tags: [nix, shell, cache, verification]
 Linux／WSL の初期 PATH は OS の coreutils を前提とし、この WSL2 環境の `/usr/bin/sha256sum`、`tail`、`readlink` で実行した。macOS 向け経路は OS の `shasum`／`tail`／`readlink` を前提とする。Linux 上で `sha256sum` を PATH から外し、`/usr/bin/shasum` だけで初回生成と移行を検証したが、macOS 実機の標準 PATH・Bash 3.2・BSD コマンドの組合せは未確認。通常 Linux の選択は adapter で検証し、非 WSL の実機での実 Nix 更新は未確認。
 
 実 Nix の確認は小さな `mkShell` の単独更新経路に限る。ユーザー devShell 全体の再ビルドや実配備、並行更新、評価中の入力変更、プロセス中断後の後始末は今回の実機確認に含まない。
+
+## 最終品質確認
+
+- `bun run test`: 全492件成功、失敗・skipなし。
+- 最終実装で `tests/refresh-cache.bats` と通常配備・APM・初回導入の4ファイルを再実行: 67件成功。
+- `bunx tsc --noEmit`、ShellCheck、shfmt、oxfmt、gitleaks、`cog verify` が成功。コミットフックの迂回なし。
+- `code-review` は開始 commit `8f810e8` からの変更を Standards／Spec の2軸で独立レビューし、各0件。呼出し元 IFS に依存する指紋解析を追加の red→green で修正した `0397042` も、両軸の再レビューで各0件。
+
+全体テストのログは `/tmp/issue-224-full.log`、最終実装の関連テストは `/tmp/issue-224-final-targeted.log` に残した。
