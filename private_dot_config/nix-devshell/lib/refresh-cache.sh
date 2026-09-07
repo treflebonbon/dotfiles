@@ -61,7 +61,9 @@ refresh_nix_devshell_cache() {
       set -o pipefail
       cd "$DIR" && nix print-dev-env "${nix_output_args[@]}" 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)='
     ) >"$tmp" &&
-    [ -s "$tmp" ] && "$BASH" -n "$tmp" 2>>"$err" && mv "$tmp" "$CACHE" 2>>"$err"; then
+    [ -s "$tmp" ] && "$BASH" -n "$tmp" 2>>"$err" &&
+    # mv はディレクトリへの移動も成功とするが、キャッシュとしては読めない。
+    [ ! -d "$CACHE" ] && mv "$tmp" "$CACHE" 2>>"$err"; then
     tmp=""
     if [ -s "$err" ]; then cat "$err" >>"$LOG" || true; fi
     rm -f "$err" || true

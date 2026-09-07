@@ -310,3 +310,19 @@ STUB
     [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
   done
 }
+
+@test "キャッシュの保存先がディレクトリなら必須更新を成功扱いにしない" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  mkdir "$cache"
+
+  run_required_refresh
+  assert_failure
+  [ -d "$cache" ]
+  [ -z "$(find "$cache" -type f)" ]
+
+  mv "$cache" "$FAKE_HOME/held-directory"
+  run_required_refresh
+  assert_success
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=fresh' ]
+}
