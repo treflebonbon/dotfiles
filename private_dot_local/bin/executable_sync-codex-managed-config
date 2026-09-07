@@ -1,94 +1,61 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-component="${1:-all}"
-case "$component" in
-all | config | hooks | rules | environment | agents) ;;
-*)
-  echo "Usage: sync-codex-managed-config [all|config|hooks|rules|environment|agents]" >&2
+if [ "$#" -ne 0 ]; then
+  echo "Usage: sync-codex-managed-config" >&2
   exit 2
-  ;;
-esac
+fi
 
 managed_root="$HOME/.config/codex"
 managed_config="$managed_root/config.toml"
-managed_hooks="$managed_root/hooks.json"
-managed_rules="$managed_root/rules/default.rules"
-managed_environment="$managed_root/environments/environment.toml"
-managed_agents="$managed_root/AGENTS.md"
+managed_files=(config.toml hooks.json rules/default.rules environments/environment.toml AGENTS.md)
+codex_homes=("$HOME/.codex")
+staged_files=()
+targets=()
+phase="prepare"
+target="$managed_root"
 
-managed_path() {
-  case "$1" in
-  config) printf '%s\n' "$managed_config" ;;
-  hooks) printf '%s\n' "$managed_hooks" ;;
-  rules) printf '%s\n' "$managed_rules" ;;
-  environment) printf '%s\n' "$managed_environment" ;;
-  agents) printf '%s\n' "$managed_agents" ;;
-  esac
-}
-
-if [ "$component" = "all" ]; then
-  for required_component in config hooks rules environment agents; do
-    required_path="$(managed_path "$required_component")"
-    if [ ! -f "$required_path" ]; then
-      echo "ERROR: Codex managed $required_component not found: $required_path" >&2
-      exit 1
-    fi
-  done
-else
-  required_path="$(managed_path "$component")"
-  if [ ! -f "$required_path" ]; then
-    echo "WARN: Codex managed $component not found: $required_path" >&2
-    exit 0
+cleanup() {
+  local status=$?
+  if [ "$status" -ne 0 ]; then
+    printf 'ERROR: Codex managed sync %s failed: %s\n' "$phase" "$target" >&2
   fi
-fi
+  local staged
+  for staged in "${staged_files[@]+"${staged_files[@]}"}"; do
+    rm -f -- "$staged"
+  done
+  return "$status"
+}
+trap cleanup EXIT
 
-codex_homes=()
+for relative_path in "${managed_files[@]}"; do
+  target="$managed_root/$relative_path"
+  if [ ! -f "$target" ]; then
+    echo "ERROR: Codex managed source not found: $target" >&2
+    exit 1
+  fi
+done
+
 append_codex_home() {
   local candidate="$1"
   local existing
-
   for existing in "${codex_homes[@]}"; do
     if [ "$existing" = "$candidate" ]; then
       return
     fi
   done
-
   codex_homes+=("$candidate")
 }
-
-append_codex_home "$HOME/.codex"
 
 if [ -d "$HOME/.codex-app" ]; then
   append_codex_home "$HOME/.codex-app"
 fi
-
 if [ -n "${CODEX_HOME:-}" ]; then
   append_codex_home "$CODEX_HOME"
 fi
 
-tmp=""
-trap 'rm -f "${tmp:-}"' EXIT
-
-copy_managed_file() {
-  local source="$1"
-  local target="$2"
-
-  mkdir -p "$(dirname "$target")"
-  tmp="$(mktemp "$target.tmp.XXXXXX")"
-  cp "$source" "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" "$target"
-  tmp=""
-}
-
 merge_config() {
-  local codex_config="$1"
-
-  mkdir -p "$(dirname "$codex_config")"
-  tmp="$(mktemp "$codex_config.tmp.XXXXXX")"
-
-  python3 - "$managed_config" "$codex_config" "$tmp" <<'PY'
+  python3 - "$managed_config" "$1" "$2" <<'PY'
 from __future__ import annotations
 
 import json
@@ -291,36 +258,39 @@ for key, value in result.items():
 
 tmp_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 PY
-
-  chmod 600 "$tmp"
-  mv "$tmp" "$codex_config"
-  tmp=""
 }
 
-sync_component() {
-  local requested_component="$1"
-  local codex_home="$2"
-
-  case "$requested_component" in
-  config) merge_config "$codex_home/config.toml" ;;
-  hooks) copy_managed_file "$managed_hooks" "$codex_home/hooks.json" ;;
-  rules) copy_managed_file "$managed_rules" "$codex_home/rules/default.rules" ;;
-  environment) copy_managed_file "$managed_environment" "$codex_home/environments/environment.toml" ;;
-  agents) copy_managed_file "$managed_agents" "$codex_home/AGENTS.md" ;;
-  esac
+prepare_file() {
+  local source="$1"
+  target="$2"
+  if [ -d "$target" ]; then
+    echo "ERROR: Codex managed target is a directory: $target" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$target")"
+  local staged
+  staged="$(mktemp "$target.tmp.XXXXXX")"
+  staged_files+=("$staged")
+  targets+=("$target")
+  if [ "$source" = "$managed_config" ]; then
+    merge_config "$target" "$staged"
+  else
+    cp "$source" "$staged"
+  fi
+  chmod 600 "$staged"
 }
 
 for codex_home in "${codex_homes[@]}"; do
-  if [ "$component" = "all" ]; then
-    for requested_component in config hooks rules environment agents; do
-      sync_component "$requested_component" "$codex_home"
-    done
-    if [ "$codex_home" = "$HOME/.codex-app" ]; then
-      copy_managed_file /dev/null "$codex_home/.managed-config-seeded"
-    fi
-  else
-    sync_component "$component" "$codex_home"
+  for relative_path in "${managed_files[@]}"; do
+    prepare_file "$managed_root/$relative_path" "$codex_home/$relative_path"
+  done
+  if [ "$codex_home" = "$HOME/.codex-app" ]; then
+    prepare_file /dev/null "$codex_home/.managed-config-seeded"
   fi
 done
 
-trap - EXIT
+phase="apply"
+for index in "${!targets[@]}"; do
+  target="${targets[$index]}"
+  mv -- "${staged_files[$index]}" "$target"
+done

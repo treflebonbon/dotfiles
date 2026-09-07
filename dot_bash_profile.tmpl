@@ -27,7 +27,7 @@ if [ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" = "Codex Desktop" ]; then
   codex_sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
   if [ ! -f "$codex_seed_marker" ]; then
     if [ -x "$codex_sync_command" ]; then
-      "$codex_sync_command" all || echo "WARN: failed to seed Codex Desktop managed config" >&2
+      "$codex_sync_command" || echo "WARN: failed to seed Codex Desktop managed config" >&2
     else
       echo "WARN: Codex managed config sync command not found: $codex_sync_command" >&2
     fi
