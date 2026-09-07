@@ -555,6 +555,7 @@ STUB
       set -euf
       shopt -s nullglob failglob dotglob
       export GLOBIGNORE="*.nix"
+      IFS=$(printf "\n\t")
       before="$SHELLOPTS:$BASHOPTS:$GLOBIGNORE"
       NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache
       [ "$before" = "$SHELLOPTS:$BASHOPTS:$GLOBIGNORE" ]

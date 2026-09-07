@@ -10,7 +10,7 @@ _nix_devshell_hash() (
     shasum -a 256
   fi | {
     local digest rest
-    read -r digest rest && printf '%s\n' "$digest"
+    IFS=' ' read -r digest rest && printf '%s\n' "$digest"
   }
 )
 
