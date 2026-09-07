@@ -17,6 +17,37 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 外部 skill / plugin は apm が担当する（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。
 
+## Herdr の手動利用
+
+Herdr は公式 source flake の安定版タグと lock で固定し、ユーザー devShell の `default` / `wsl` から供給する。上流のビルド定義を使うため、初回・更新時には Rust / Zig によるソースビルドが発生する。
+
+任意のプロジェクトディレクトリで起動する。
+
+```bash
+herdr
+```
+
+既定の background session を起動または再接続し、pane 内でシェルを利用できる。初回の案内から任意の agent integration 設定が開いた場合は、追加せず `Esc` で閉じて使い始める。設定ファイル、復元用 hook、追加 skill、ログイン時の自動起動は dotfiles から追加しない。
+
+`Ctrl-b` を押してから `q` を押すと detach する。pane 内の処理は継続し、もう一度 `herdr` を実行すると同じセッションへ戻る。
+
+更新は validated task worktree 内のユーザー環境用 flake の安定版タグを変更し、その flake のディレクトリで行う。
+
+```bash
+nix flake update herdr
+```
+
+タグ固定のため、lock の更新だけでは別 release へ進まない。対応 system の Nix 評価、host の再ビルドと起動を検証し、受入後に live source から `chezmoi apply` して通常のユーザー環境を再読み込みする。Nix 管理の Herdr は Nix 経由で更新する。
+
+更新済みのコマンドが利用できても、稼働中の server は旧版のままの場合がある。既定セッションの pane 内の作業を終えてから、次を実行する。停止時には pane 内のプロセスも終了する。
+
+```bash
+herdr server stop
+herdr
+```
+
+関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [公式 Nix 導入・更新手順](https://herdr.dev/docs/install/#install-with-nix)
+
 ## Claude Code / Codex マルチランタイム
 
 workflow パイプライン（mattpocock skills）は Claude Code の Skill tool 前提だが、汎用コーディングは Codex でも行える二刀流を維持する。

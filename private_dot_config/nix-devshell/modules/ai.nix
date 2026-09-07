@@ -83,6 +83,9 @@ in
     llm.copilot-cli
     llm.antigravity-cli
 
+    # --- Terminal Workspaces ---
+    inputs.herdr.packages.${system}.herdr
+
     # --- Token Optimization ---
     llm.rtk
 
