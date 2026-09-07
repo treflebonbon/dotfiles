@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# local skills tree hash: {{ output "bash" "-o" "pipefail" "-c" `find "$1" \( -type f -exec sha256sum {} + -o -type l -printf '%p -> %l\n' \) | LC_ALL=C sort | sha256sum | cut -d' ' -f1` "local-skills-hash" (joinPath .chezmoi.sourceDir "local-skills") }}
+# local skills tree hash: {{ output "python3" "-c" (include ".chezmoitemplates/local-skills-hash.py") (joinPath .chezmoi.sourceDir "local-skills") }}
 # Codex discovers local skills through the shared hub.
 set -euo pipefail
 

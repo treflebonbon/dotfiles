@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-skills_dir="${HOME}/.claude/skills"
 codex_home="${CODEX_HOME:-$HOME/.codex}"
 
 # CODEX_HOME が .codex 以外に明示指定されていればそれを追加 cleanup 対象にする。
@@ -92,7 +91,7 @@ cleanup_repo_local_apm_targets() {
 
 cleanup_repo_local_apm_targets
 
-if [ -d "$skills_dir" ]; then
+if [ -d "$claude_skills_dir" ]; then
   removed=0
   while IFS= read -r -d '' entry; do
     if is_preserved_local_skill "$(basename "$entry")" || \
@@ -101,11 +100,11 @@ if [ -d "$skills_dir" ]; then
     fi
     rm -rf -- "$entry"
     removed=$((removed + 1))
-  done < <(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+  done < <(find "$claude_skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
 
   if [ "$removed" -gt 0 ]; then
     printf 'orphan-claude-skills: removed %d real directory entries from %s\n' \
-      "$removed" "$skills_dir" >&2
+      "$removed" "$claude_skills_dir" >&2
   fi
 fi
 
@@ -156,8 +155,8 @@ cleanup_symlinks() {
   fi
 }
 
-cleanup_symlinks "${HOME}/.agents/skills"
-cleanup_symlinks "$skills_dir"
+cleanup_symlinks "$shared_skills_dir"
+cleanup_symlinks "$claude_skills_dir"
 cleanup_symlinks "${HOME}/.codex/skills"
 if [ -n "$extra_codex_home" ]; then
   cleanup_symlinks "$extra_codex_home/skills"
@@ -182,7 +181,7 @@ remove_retired_apm_skill_dirs() {
   local retired=()
   for skill in "${retired_apm_skills[@]}"; do
     # 現在のローカル配備先では、旧 APM 名の再使用を保持する。
-    if [[ "$dir" == "${HOME}/.agents/skills" || "$dir" == "$skills_dir" ]] && is_preserved_local_skill "$skill"; then
+    if [[ "$dir" == "$shared_skills_dir" || "$dir" == "$claude_skills_dir" ]] && is_preserved_local_skill "$skill"; then
       continue
     fi
     retired+=("$skill")
@@ -190,8 +189,8 @@ remove_retired_apm_skill_dirs() {
   remove_named_skill_entries "$dir" "apm" "${retired[@]}"
 }
 
-remove_retired_apm_skill_dirs "${HOME}/.agents/skills"
-remove_retired_apm_skill_dirs "$skills_dir"
+remove_retired_apm_skill_dirs "$shared_skills_dir"
+remove_retired_apm_skill_dirs "$claude_skills_dir"
 remove_retired_apm_skill_dirs "${HOME}/.codex/skills"
 if [ -n "$extra_codex_home" ]; then
   remove_retired_apm_skill_dirs "$extra_codex_home/skills"
@@ -209,7 +208,7 @@ if [ -n "$extra_codex_home" ]; then
 fi
 
 # 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)
-marker="${HOME}/.agents/skills/.managed-by-ai-nix"
+marker="$shared_skills_dir/.managed-by-ai-nix"
 if [ -f "$marker" ]; then
   rm -f -- "$marker"
 fi

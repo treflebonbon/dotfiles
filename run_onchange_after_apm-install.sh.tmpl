@@ -31,7 +31,7 @@ LIB="$HOME/.config/nix-devshell/lib/ensure-env.sh"
 if ! command -v apm >/dev/null 2>&1; then
   echo "WARN: apm CLI が見つかりません。nix-devshell cache 未生成の可能性。" >&2
   echo "      復旧: cd ~/.config/nix-devshell && direnv reload && chezmoi apply" >&2
-  exit 0
+  exit 1
 fi
 
 cd "$HOME"

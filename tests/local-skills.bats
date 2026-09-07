@@ -24,6 +24,40 @@ setup() {
   cmp "$SKILL_SOURCE/local-skills/sample-skill/SKILL.md" "$SKILL_HOME/.agents/skills/sample-skill/SKILL.md"
 }
 
+@test "local apply detects symlink changes without GNU find or sha256sum" {
+  setup_skill_apply
+  export SKILL_REAL_FIND="$(command -v find)"
+  cat >"$BATS_TEST_TMPDIR/bin/find" <<'EOF'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [ "$arg" = -printf ]; then
+    echo 'find: -printf: unknown primary or operator' >&2
+    exit 1
+  fi
+done
+exec "$SKILL_REAL_FIND" "$@"
+EOF
+  printf '#!/bin/sh\nexit 127\n' >"$BATS_TEST_TMPDIR/bin/sha256sum"
+  chmod +x "$BATS_TEST_TMPDIR/bin/find" "$BATS_TEST_TMPDIR/bin/sha256sum"
+  add_local_skill sample-skill
+  printf 'first asset\n' >"$SKILL_SOURCE/local-skills/sample-skill/first asset.txt"
+  printf 'second asset\n' >"$SKILL_SOURCE/local-skills/sample-skill/second asset.txt"
+  ln -s 'first asset.txt' "$SKILL_SOURCE/local-skills/sample-skill/linked.txt"
+
+  run skill_chezmoi init --apply
+  [ "$status" -eq 0 ]
+  [ "$(cat "$SKILL_HOME/.agents/skills/sample-skill/linked.txt")" = 'first asset' ]
+  ln -sfn 'second asset.txt' "$SKILL_SOURCE/local-skills/sample-skill/linked.txt"
+  run skill_chezmoi apply
+  [ "$status" -eq 0 ]
+  local dir
+  for dir in .agents .claude; do
+    [ "$(cat "$SKILL_HOME/$dir/skills/sample-skill/linked.txt")" = 'second asset' ]
+    [ ! -L "$SKILL_HOME/$dir/skills/sample-skill/linked.txt" ]
+  done
+  [ "$(wc -l <"$SKILL_APM_LOG")" -eq 2 ]
+}
+
 @test "unchanged applies do nothing and payload-only changes update local copies without rerunning APM" {
   setup_skill_apply
   add_local_skill sample-skill
@@ -100,6 +134,34 @@ setup() {
   [ "$(wc -l <"$SKILL_APM_LOG")" -eq 4 ]
   cmp "$SKILL_SOURCE/local-skills/sample-skill/SKILL.md" "$SKILL_HOME/.agents/skills/sample-skill/SKILL.md"
   cmp "$SKILL_SOURCE/local-skills/sample-skill/SKILL.md" "$SKILL_HOME/.claude/skills/sample-skill/SKILL.md"
+}
+
+@test "an unavailable APM after cleanup fails apply and retries when APM returns" {
+  setup_skill_apply
+  run skill_chezmoi apply
+  [ "$status" -eq 0 ]
+  add_local_skill sample-retry
+  cat >"$BATS_TEST_TMPDIR/apm-unavailable.bash" <<'EOF'
+command() {
+  if [ "$#" -eq 2 ] && [ "$1" = -v ] && [ "$2" = apm ]; then
+    return 1
+  fi
+  builtin command "$@"
+}
+EOF
+  export BASH_ENV="$BATS_TEST_TMPDIR/apm-unavailable.bash"
+  run skill_chezmoi apply
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"apm CLI"* ]]
+  [ ! -e "$SKILL_HOME/.claude/skills/pdf" ]
+  [ "$(wc -l <"$SKILL_APM_LOG")" -eq 2 ]
+
+  unset BASH_ENV
+  run skill_chezmoi apply
+  [ "$status" -eq 0 ]
+  [ "$(cat "$SKILL_HOME/.claude/skills/pdf/SKILL.md")" = 'APM payload' ]
+  [ "$(wc -l <"$SKILL_APM_LOG")" -eq 4 ]
+  cmp "$SKILL_SOURCE/local-skills/sample-retry/SKILL.md" "$SKILL_HOME/.claude/skills/sample-retry/SKILL.md"
 }
 
 @test "a failed placement restores the old symlink and a retry completes the local deployment" {

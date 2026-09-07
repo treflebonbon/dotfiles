@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Embedded in the chezmoi skill phases; inputs are emitted by local-skills.sh.tmpl.
+shared_skills_dir="$HOME/.agents/skills"
+claude_skills_dir="$HOME/.claude/skills"
+
 is_preserved_local_skill() {
   local name="$1" skill
   # shellcheck disable=SC2154
@@ -21,8 +24,8 @@ deploy_skill() {
 
   local target
   for target in \
-    "$HOME/.agents/skills/$name" \
-    "$HOME/.claude/skills/$name"; do
+    "$shared_skills_dir/$name" \
+    "$claude_skills_dir/$name"; do
 
     mkdir -p "$(dirname "$target")"
     local tmp
@@ -86,7 +89,7 @@ remove_named_skill_entries() {
 
 local_skills_cleanup() {
   local dir
-  for dir in "$HOME/.agents/skills" "$HOME/.claude/skills"; do
+  for dir in "$shared_skills_dir" "$claude_skills_dir"; do
     # shellcheck disable=SC2154
     remove_named_skill_entries "$dir" "local" "${retired_local_skills[@]}"
   done
