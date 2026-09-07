@@ -37,4 +37,4 @@ Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright
 - user-scoped private skill は `local-skills/<name>/`
 - CLI バイナリは nix devshell
 
-配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。Codex 固有設定は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-*.sh.tmpl` で `$CODEX_HOME` へ反映する。
+配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。Codex 固有設定は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-managed-sync.sh.tmpl` で `$CODEX_HOME` へ反映する。

@@ -149,7 +149,7 @@ if [[ "${DOTFILES_SKIP_DIRENV:-}" != "1" ]]; then
 fi
 
 # python3 をブートストラップ用にインストール
-# run_onchange スクリプト（codex-config 等）は最初の chezmoi init --apply 実行時点
+# run_onchange スクリプト（codex-managed-sync 等）は最初の chezmoi init --apply 実行時点
 # （nix-devshell の devShell 評価より前）で python3 を必要とするため、先に用意する。
 # 通常時の python3 は nix-devshell（ユーザー環境）が汎用ランタイムとして供給する。
 if ! command -v python3 &>/dev/null; then
@@ -181,7 +181,7 @@ if [ -d "$HOME/.config/nix-devshell" ] && [ -f "$HOME/.config/nix-devshell/flake
     echo "Warning: user devShell build failed, run 'cd ~/.config/nix-devshell && nix develop' manually"
 
   # devShell 由来ツール（gh, python3 等）を chezmoi テンプレートに反映
-  # run_onchange スクリプト（codex-config 等）が python3 に依存するため、
+  # run_onchange スクリプト（codex-managed-sync 等）が python3 に依存するため、
   # devShell の PATH を継承したサブプロセスとして chezmoi apply を実行する
   # （`nix develop --command true` はサブシェル限りで親プロセスの PATH は変わらない）
   echo "Re-applying chezmoi templates..."
