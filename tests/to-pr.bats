@@ -214,6 +214,74 @@ write_hierarchy_state() {
   ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
 }
 
+@test "Hierarchy Repair accepts a multi-digit ## Parent reference" {
+  write_hierarchy_state '[
+    {"id":"I10","number":10,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I22","number":22,"state":"OPEN","body":"## Parent\n\n#10","parent":null},
+    {"id":"I227","number":227,"state":"OPEN","body":"## Parent\n\n#10","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 227
+
+  [ "$status" -eq 0 ]
+  jq -e '
+    .status == "repaired"
+    and .parent == 10
+    and .candidates == [22, 227]
+    and .added == [22, 227]
+    and .failedIssues == []' <<<"$output"
+}
+
+@test "Hierarchy Repair rejects malformed multi-digit ## Parent references" {
+  write_hierarchy_state '[
+    {"id":"I10","number":10,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I227","number":227,"state":"OPEN","body":"## Parent\n\n#227abc","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 227
+
+  [ "$status" -eq 0 ]
+  jq -e '.status == "failed" and .failedIssues == [227] and .added == []' <<<"$output"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
+
+  : >"$FAKE_GH_LOG"
+  write_hierarchy_state '[
+    {"id":"I10","number":10,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I227","number":227,"state":"OPEN","body":"## Parent\n\n#227-x","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 227
+
+  [ "$status" -eq 0 ]
+  jq -e '.status == "failed" and .failedIssues == [227] and .added == []' <<<"$output"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
+
+  : >"$FAKE_GH_LOG"
+  write_hierarchy_state '[
+    {"id":"I10","number":10,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I227","number":227,"state":"OPEN","body":"## Parent\n\nexample/project#10","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 227
+
+  [ "$status" -eq 0 ]
+  jq -e '.status == "failed" and .failedIssues == [227] and .added == []' <<<"$output"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
+
+  : >"$FAKE_GH_LOG"
+  write_hierarchy_state '[
+    {"id":"I10","number":10,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I20","number":20,"state":"OPEN","body":"# Other","parent":null},
+    {"id":"I227","number":227,"state":"OPEN","body":"## Parent\n\n#10\n#20","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 227
+
+  [ "$status" -eq 0 ]
+  jq -e '.status == "failed" and .failedIssues == [227] and .added == []' <<<"$output"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
+}
+
 @test "Hierarchy Repair rejects a conflicting native parent before all mutations" {
   write_hierarchy_state '[
     {"id":"I1","number":1,"state":"OPEN","body":"# Parent","parent":null},
