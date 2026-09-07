@@ -131,7 +131,7 @@ Codex native location（`${CODEX_HOME:-~/.codex}/skills`）へは配備しない
 
 cleanup → APM install / prune → ローカル配備の順序を維持する。cleanup と配備は `.chezmoitemplates/local-skills.sh.tmpl` / `local-skills.sh` の共通 module を実行用 script に展開し、同じ配備対象を保持する。HOME へ先に配備される helper には依存しない。APM の配備先にある Matt Pocock v1.2.3 の managed full set は従来の `managed_apm_skills` allowlist で保持し、APM lock と独立した採用ゲートで照合する。
 
-撤去・改名時は `.chezmoidata/local-skills.yaml` の `localSkills.retired` に旧名を追加し、該当するソースを撤去・改名する。明示した旧名は共有ハブ・Claude と旧 Codex native location から除く。配備履歴は保存せず、過去の配備先にも適用できるよう撤去対象の名前を残す。共有ハブの未知のディレクトリを一括削除する処理は追加しない。既存の Claude orphan cleanup と、旧 `writing-great-skills` などの APM 撤去処理は維持する。
+撤去・改名時は `.chezmoidata/local-skills.yaml` の `localSkills.retired` に旧名を追加し、該当するソースを撤去・改名する。明示した旧名は共有ハブ・Claude と旧 Codex native location から除く。配備履歴は保存せず、過去の配備先にも適用できるよう撤去対象の名前を残す。共有ハブの未知のディレクトリを一括削除する処理は追加しない。既存の Claude orphan cleanup と、旧 `writing-great-skills` などの APM 撤去処理は維持する。ただし、現在は APM 所有でない旧名を有効なローカル skill が再使用する場合、共有ハブ・Claude の配備は保持する。
 
 template 展開時に、ソースルート・各 skill の `SKILL.md`・名前の形式・配備対象と撤去対象の重複・APM の実配備先名との衝突を検査する。作業途中の skill は `local-skills/` の外に置き、APM 所有の名前をローカル配備で上書きしない。置換は配備先単位とし、途中失敗時は旧内容を保護するが、成功済みの更新は残る。修復後の再実行で両配備先を揃える。
 

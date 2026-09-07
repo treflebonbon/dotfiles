@@ -178,7 +178,16 @@ retired_apm_skills=(
 )
 
 remove_retired_apm_skill_dirs() {
-  remove_named_skill_entries "$1" "apm" "${retired_apm_skills[@]}"
+  local dir="$1" skill
+  local retired=()
+  for skill in "${retired_apm_skills[@]}"; do
+    # 現在のローカル配備先では、旧 APM 名の再使用を保持する。
+    if [[ "$dir" == "${HOME}/.agents/skills" || "$dir" == "$skills_dir" ]] && is_preserved_local_skill "$skill"; then
+      continue
+    fi
+    retired+=("$skill")
+  done
+  remove_named_skill_entries "$dir" "apm" "${retired[@]}"
 }
 
 remove_retired_apm_skill_dirs "${HOME}/.agents/skills"

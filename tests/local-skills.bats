@@ -211,3 +211,18 @@ EOF
   cmp "$SKILL_SOURCE/local-skills/ui-grill-with-docs/SKILL.md" "$SKILL_HOME/.agents/skills/ui-grill-with-docs/SKILL.md"
   [ ! -e "$SKILL_HOME/.codex/skills/sample-skill" ]
 }
+
+@test "a local skill reusing a retired APM name is preserved only in its current targets" {
+  add_local_skill autofix
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  mkdir -p "$SKILL_HOME/.codex/skills/autofix" "$SKILL_HOME/.copilot/skills/autofix"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  local dir
+  for dir in .agents .claude; do
+    cmp "$SKILL_SOURCE/local-skills/autofix/SKILL.md" "$SKILL_HOME/$dir/skills/autofix/SKILL.md"
+  done
+  [ ! -e "$SKILL_HOME/.codex/skills/autofix" ]
+  [ ! -e "$SKILL_HOME/.copilot/skills/autofix" ]
+}
