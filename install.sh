@@ -22,13 +22,24 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "Installing treflebonbon/dotfiles with chezmoi..."
 
 # 前提条件チェック
-for cmd in git curl; do
+for cmd in git curl perl; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: $cmd is required but not installed."
     echo "Please install it using your system's package manager."
     exit 1
   fi
 done
+
+if ! perl -MConfig -e 'exit($Config{d_flock} eq "define" ? 0 : 1)'; then
+  echo "Error: Perl with native flock support is required."
+  echo "Please install a compatible Perl using your system's package manager."
+  exit 1
+fi
+if ! command -v sha256sum &>/dev/null && ! command -v shasum &>/dev/null; then
+  echo "Error: sha256sum or shasum is required but not installed."
+  echo "Please install it using your system's package manager."
+  exit 1
+fi
 
 # ~/.local/bin を PATH に追加（chezmoi のインストール先）
 export PATH="$HOME/.local/bin:$PATH"

@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 load 'test_helper'
+load 'cache-deployment-concurrency-helper'
 
 readonly SUT="$BATS_TEST_DIRNAME/../run_after_00-refresh-nix-devshell-cache.sh"
 
@@ -26,6 +27,10 @@ setup() {
   stub_real_cmd mktemp
   stub_real_cmd date
   stub_real_cmd tee
+  stub_hash_cmd
+  stub_real_cmd tail
+  stub_real_cmd readlink
+  stub_real_cmd perl
 }
 
 run_sut() {
@@ -124,4 +129,32 @@ STUB
   run_sut
   assert_failure
   [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+}
+
+@test "配備入口は非 Nix 入力変更を反映し同じ入力を再評価しない" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  run_sut
+  assert_success
+  : >"$TEST_LOG"
+  run_sut
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+
+  printf 'package input\n' >"$FAKE_HOME/.config/nix-devshell/asset.json"
+  : >"$TEST_LOG"
+  run_sut
+  assert_success
+  assert_log_contains 'nix print-dev-env'
+}
+
+@test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  check_deployment_cache_concurrency run_sut "$FAKE_HOME" stable
+}
+
+@test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  check_deployment_cache_concurrency run_sut "$FAKE_HOME" changing
+}
+
+@test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  check_deployment_cache_concurrency run_sut "$FAKE_HOME" failure
 }

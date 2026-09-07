@@ -1,15 +1,17 @@
 #!/usr/bin/env bats
 
 load 'test_helper'
+load 'cache-deployment-concurrency-helper'
 load 'local-skills-helper'
 
 setup() {
   setup_test_env
   setup_local_skills_fixture
   local cmd
-  for cmd in find grep mkdir mv rm tee cat dirname mktemp date; do
+  for cmd in find grep mkdir mv rm tee cat dirname mktemp date tail readlink perl; do
     stub_real_cmd "$cmd"
   done
+  stub_hash_cmd
   mkdir -p "$SKILL_HOME/.config/nix-devshell/lib" "$SKILL_HOME/.cache"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/lib/"{refresh-cache,ensure-env}.sh \
     "$SKILL_HOME/.config/nix-devshell/lib/"
@@ -39,6 +41,25 @@ run_apm_deployment() {
   assert_log_contains 'apm prune CACHE_VERSION=fresh'
 }
 
+@test "APM 配備は shasum だけでも生成と再利用ができる" {
+  if [ "$HASH_COMMAND" = sha256sum ]; then
+    mv "$TEST_BIN_DIR/sha256sum" "$BATS_TEST_TMPDIR/held-sha256sum"
+  fi
+  stub_real_cmd shasum
+
+  run_apm_deployment
+  assert_success
+  assert_log_contains 'shasum -a 256'
+  assert_log_contains 'apm install --frozen --target claude,codex --https CACHE_VERSION=fresh'
+  assert_log_contains 'apm prune CACHE_VERSION=fresh'
+
+  : >"$TEST_LOG"
+  run_apm_deployment
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+  refute_log_contains 'sha256sum'
+}
+
 @test "APM 配備は Nix の途中出力を伴う失敗で後続処理を止める" {
   echo 'exit 23' >>"$TEST_BIN_DIR/nix"
 
@@ -52,7 +73,7 @@ run_apm_deployment() {
 
 @test "APM 配備は必要な lib や Nix が無ければ旧キャッシュがあっても止まる" {
   local prerequisite
-  for prerequisite in "$SKILL_HOME/.config/nix-devshell/lib/refresh-cache.sh" "$TEST_BIN_DIR/nix"; do
+  for prerequisite in "$SKILL_HOME/.config/nix-devshell/lib/refresh-cache.sh" "$TEST_BIN_DIR/nix" "$TEST_BIN_DIR/perl"; do
     mv "$prerequisite" "$BATS_TEST_TMPDIR/held-prerequisite"
 
     run_apm_deployment
@@ -62,4 +83,36 @@ run_apm_deployment() {
     refute_log_contains 'apm prune'
     mv "$BATS_TEST_TMPDIR/held-prerequisite" "$prerequisite"
   done
+}
+
+@test "配備入口は非 Nix 入力変更を反映し同じ入力を再評価しない" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  run_apm_deployment
+  assert_success
+  : >"$TEST_LOG"
+  run_apm_deployment
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+
+  printf 'package input\n' >"$SKILL_HOME/.config/nix-devshell/asset.json"
+  : >"$TEST_LOG"
+  run_apm_deployment
+  assert_success
+  assert_log_contains 'nix print-dev-env'
+}
+
+@test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  check_deployment_cache_concurrency run_apm_deployment "$SKILL_HOME" stable
+}
+
+@test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  check_deployment_cache_concurrency run_apm_deployment "$SKILL_HOME" changing
+  refute_log_contains 'apm install'
+  refute_log_contains 'apm prune'
+}
+
+@test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  check_deployment_cache_concurrency run_apm_deployment "$SKILL_HOME" failure
+  refute_log_contains 'apm install'
+  refute_log_contains 'apm prune'
 }

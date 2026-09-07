@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 load 'test_helper'
+load 'cache-deployment-concurrency-helper'
 
 setup() {
   setup_test_env
@@ -46,9 +47,10 @@ STUB
   touch "$test_home/.config/nix-devshell/flake.nix"
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
     "$test_home/.config/nix-devshell/lib/refresh-cache.sh"
-  for cmd in find cat tee mktemp date; do
+  for cmd in find cat tee mktemp date tail readlink perl; do
     stub_real_cmd "$cmd"
   done
+  stub_hash_cmd
   # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
   cp "$TEST_BIN_DIR/nix" "$test_home/nix-adapter"
   cat >"$TEST_BIN_DIR/sh" <<'STUB'
@@ -82,6 +84,32 @@ STUB
 
   assert_failure
   assert_output --partial "curl is required"
+}
+
+@test "native flock に対応しない Perl は導入を始める前に停止する" {
+  stub_cmd perl 1
+
+  run_install
+
+  assert_failure
+  assert_output --partial 'Perl with native flock support is required'
+  refute_log_contains 'chezmoi'
+  refute_log_contains 'curl'
+  refute_log_contains 'nix '
+  refute_log_contains 'direnv'
+}
+
+@test "SHA-256 コマンドがない場合は導入を始める前に停止する" {
+  mv "$TEST_BIN_DIR/$HASH_COMMAND" "$BATS_TEST_TMPDIR/held-hash-command"
+
+  run_install
+
+  assert_failure
+  assert_output --partial 'sha256sum or shasum is required'
+  refute_log_contains 'chezmoi'
+  refute_log_contains 'curl'
+  refute_log_contains 'nix '
+  refute_log_contains 'direnv'
 }
 
 # =============================================================================
@@ -305,7 +333,9 @@ STUB
 
   assert_success
   assert_output --partial "Dotfiles installed successfully!"
-  [ "$(cat "$BATS_TEST_TMPDIR/home/.cache/nix-devshell-global-env.bash")" = 'export CACHE_VERSION=fresh' ]
+  run /bin/bash -c '. "$1"; printf "%s\n" "$CACHE_VERSION"' _ "$BATS_TEST_TMPDIR/home/.cache/nix-devshell-global-env.bash"
+  assert_success
+  assert_output fresh
 }
 
 @test "初回導入は生成失敗時に旧キャッシュを保持し後続処理と成功表示を止める" {
@@ -357,4 +387,57 @@ STUB
   assert_success
   assert_log_contains "direnv allow"
   assert_log_contains ".config/nix-devshell"
+}
+
+@test "初回導入の必須更新は非 Nix 入力変更を反映し同じ入力を再評価しない" {
+  run_install
+  assert_success
+  : >"$TEST_LOG"
+  run_install
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+
+  printf 'package input\n' >"$BATS_TEST_TMPDIR/home/.config/nix-devshell/asset.json"
+  : >"$TEST_LOG"
+  run_install
+  assert_success
+  assert_log_contains 'nix print-dev-env'
+  assert_log_contains 'direnv allow'
+}
+
+@test "macOS の初回導入は shasum だけの初期 PATH でも生成できる" {
+  stub_cmd_with_output uname Darwin
+  if [ "$HASH_COMMAND" = sha256sum ]; then
+    mv "$TEST_BIN_DIR/sha256sum" "$BATS_TEST_TMPDIR/held-sha256sum"
+  fi
+  stub_real_cmd shasum
+  run_install
+  assert_success
+  assert_log_contains 'shasum -a 256'
+  assert_log_contains 'nix print-dev-env'
+}
+
+@test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" stable
+}
+
+@test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" changing
+  refute_log_contains 'direnv allow'
+  refute_output --partial 'Dotfiles installed successfully!'
+}
+
+@test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" failure
+  refute_log_contains 'direnv allow'
+  refute_output --partial 'Dotfiles installed successfully!'
+}
+
+@test "初回導入は system perl 不在を配備前に検出する" {
+  mv "$TEST_BIN_DIR/perl" "$BATS_TEST_TMPDIR/held-perl"
+  run_install
+  assert_failure
+  assert_output --partial 'Error: perl is required but not installed.'
+  refute_log_contains 'chezmoi init'
+  refute_log_contains 'nix develop'
 }
