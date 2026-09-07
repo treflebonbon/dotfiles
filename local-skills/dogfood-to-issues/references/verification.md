@@ -46,6 +46,10 @@ The browser tests use the current platform path (Windows Managed Dogfood Chrome 
 
 For a manual dashboard check, run the runner with `--annotate` against a disposable page, submit two rectangles, and confirm the latest and attempt reports, the Playwright CLI PNG/YAML files, and `annotations/response.json` are present inside the attempt. Review an older attempt through `--resume` to verify historical evidence paths. Do not treat Submit as approval to create issues; candidates still go through Keep/Skip/Edit.
 
+## Read-only Resume Check
+
+Resume is a skill procedure, not a runner CLI mode. Verify its report-reading step using an external, read-only output directory and [report-parsing.md](report-parsing.md). Include a legacy report without run status, a priority alias, valid evidence, and missing or escaping evidence paths. Confirm that the candidate survives, its severity is normalized, invalid evidence is shown as warnings, and the run remains unknown. Also review empty legacy, failed, and warning-only reports: none adds a clean cycle or proves the target passed. Compare file hashes, symlink targets, and directory contents before and after review to confirm no mutation. This check ends before candidate approval and does not launch a browser or create GitHub Issues.
+
 ## Skill Smoke Test
 
 Run against a low-risk public page:

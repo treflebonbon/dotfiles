@@ -186,8 +186,8 @@ const runCli = async (cliArgs, cwd, extraEnv = {}) => {
 };
 
 const collectAnnotations = async ({ cdpEndpoint, result, userDataDir }) => {
-  const { output, target } = result;
-  const help = await runCli(["show", "--help"], output);
+  const { attemptDir, target } = result;
+  const help = await runCli(["show", "--help"], attemptDir);
   if (!help.stdout.includes("--annotate")) {
     throw new Error("playwright-cli does not support show --annotate");
   }
@@ -196,21 +196,23 @@ const collectAnnotations = async ({ cdpEndpoint, result, userDataDir }) => {
     cdpEndpoint || `http://127.0.0.1:${await readDevToolsPort(userDataDir)}`;
   const session = `dogfood-annotate-${process.pid}-${Date.now()}`;
   try {
-    await runCli([`-s=${session}`, "attach", `--cdp=${endpoint}`], output);
+    await runCli([`-s=${session}`, "attach", `--cdp=${endpoint}`], attemptDir);
     process.stderr.write(
       "Waiting for visual annotations in Playwright Dashboard...\n"
     );
     const response = await runCli(
       [`-s=${session}`, "show", "--annotate", "--json"],
-      output,
+      attemptDir,
       { PWCLI_EXTERNAL_CDP: "1" }
     );
     const responseRel = "annotations/response.json";
     await result.capture(
       "annotation response",
       async () => {
-        await fs.mkdir(path.join(output, "annotations"), { recursive: true });
-        await fs.writeFile(path.join(output, responseRel), response.stdout);
+        await fs.mkdir(path.join(attemptDir, "annotations"), {
+          recursive: true,
+        });
+        await fs.writeFile(path.join(attemptDir, responseRel), response.stdout);
       },
       [responseRel]
     );
@@ -229,7 +231,7 @@ const collectAnnotations = async ({ cdpEndpoint, result, userDataDir }) => {
       );
     }
   } finally {
-    await runCli([`-s=${session}`, "detach"], output).catch((error) =>
+    await runCli([`-s=${session}`, "detach"], attemptDir).catch((error) =>
       result.fail("annotation detach", error)
     );
   }
@@ -256,7 +258,7 @@ if (args.annotate) {
 const evidenceViewport = { height: 1000, width: 1440 };
 const contextOptions = {
   recordVideo: {
-    dir: path.join(result.output, "videos"),
+    dir: path.join(result.attemptDir, "videos"),
     size: { height: 1000, width: 1440 },
   },
   viewport: evidenceViewport,
@@ -387,7 +389,7 @@ if (context) {
       () =>
         page.screenshot({
           fullPage: true,
-          path: path.join(result.output, screenshotRel),
+          path: path.join(result.attemptDir, screenshotRel),
           timeout: 5000,
         }),
       [screenshotRel]
@@ -396,7 +398,7 @@ if (context) {
       "storage state",
       () =>
         context.storageState({
-          path: path.join(result.output, "auth-state.json"),
+          path: path.join(result.attemptDir, "auth-state.json"),
         }),
       ["auth-state.json"]
     );
@@ -438,7 +440,7 @@ if (context) {
       "console",
       () =>
         fs.writeFile(
-          path.join(result.output, "console.json"),
+          path.join(result.attemptDir, "console.json"),
           `${JSON.stringify(consoleErrors, null, 2)}\n`
         ),
       ["console.json"]
@@ -447,14 +449,15 @@ if (context) {
       "network",
       () =>
         fs.writeFile(
-          path.join(result.output, "network.json"),
+          path.join(result.attemptDir, "network.json"),
           `${JSON.stringify(failedRequests, null, 2)}\n`
         ),
       ["network.json"]
     );
     await result.capture(
       "trace stop",
-      () => context.tracing.stop({ path: path.join(result.output, traceRel) }),
+      () =>
+        context.tracing.stop({ path: path.join(result.attemptDir, traceRel) }),
       [traceRel]
     );
     // Always close: releases the profile lock and finalizes local recordings.

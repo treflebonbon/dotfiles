@@ -4,6 +4,10 @@ case " $* " in
 *" show --help "*) printf '%s\n' '--annotate' ;;
 *" attach "*) ;;
 *" show --annotate --json "*)
+  if [[ ",${DOGFOOD_FAULTS:-}," == *,show,* ]]; then
+    printf '%s\n' 'show failed' >&2
+    exit 1
+  fi
   mkdir -p .playwright-cli
   printf '%s\n' image >.playwright-cli/annotation.png
   printf '%s\n' snapshot >.playwright-cli/annotation.yaml

@@ -89,6 +89,17 @@ PY
   [ -f "$OUT/$attempt/.playwright-cli/annotation.png" ]
 }
 
+@test "annotation and cleanup failures both survive alongside earlier findings" {
+  run env DOGFOOD_FAULTS=show,close node "$RUNNER" --target about:blank --output "$OUT" --annotate
+
+  [ "$status" -eq 1 ]
+  grep -Fq 'Run status: failed' "$OUT/report.md"
+  grep '^Failure: inspection:' "$OUT/report.md" | grep -Fq 'show failed'
+  grep '^Failure: context close:' "$OUT/report.md" | grep -Fq 'close failed'
+  grep -Fq 'observed console error' "$OUT/report.md"
+  ! grep '^Evidence:' "$OUT/report.md" | grep -Fq '.webm'
+}
+
 @test "zero-finding completed reports expose the collected evidence for audit" {
   run env DOGFOOD_OBSERVATION=none node "$RUNNER" --target about:blank --output "$OUT"
 

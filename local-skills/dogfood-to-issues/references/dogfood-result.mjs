@@ -6,23 +6,23 @@ const diagnostic = (value) => value.replaceAll(/\r?\n/gu, "\n    ");
 
 export class DogfoodResult {
   static async start({ output, target }) {
-    const root = path.resolve(output);
-    const attempts = path.join(root, "attempts");
+    const outputRoot = path.resolve(output);
+    const attempts = path.join(outputRoot, "attempts");
     await fs.mkdir(attempts, { recursive: true });
-    const directory = await fs.mkdtemp(path.join(attempts, "attempt-"));
+    const attemptDir = await fs.mkdtemp(path.join(attempts, "attempt-"));
     await Promise.all(
       ["screenshots", "videos", "traces"].map((name) =>
-        fs.mkdir(path.join(directory, name))
+        fs.mkdir(path.join(attemptDir, name))
       )
     );
-    const result = new DogfoodResult({ output: directory, root, target });
+    const result = new DogfoodResult({ attemptDir, outputRoot, target });
     await result.publish("running");
     return result;
   }
 
-  constructor({ output, root, target }) {
-    this.output = output;
-    this.root = root;
+  constructor({ attemptDir, outputRoot, target }) {
+    this.attemptDir = attemptDir;
+    this.outputRoot = outputRoot;
     this.target = target;
     this.findings = [];
     this.failures = [];
@@ -36,9 +36,9 @@ export class DogfoodResult {
   }
 
   async retainFile(relative) {
-    const file = path.join(this.output, relative);
+    const file = path.join(this.attemptDir, relative);
     const resolved = await fs.realpath(file);
-    const within = path.relative(await fs.realpath(this.output), resolved);
+    const within = path.relative(await fs.realpath(this.attemptDir), resolved);
     const stat = await fs.stat(file);
     if (
       within.startsWith("..") ||
@@ -68,7 +68,7 @@ export class DogfoodResult {
 
   render(status, reportRoot) {
     const evidencePath = (relative) =>
-      path.relative(reportRoot, path.join(this.output, relative));
+      path.relative(reportRoot, path.join(this.attemptDir, relative));
     let evidenceStatus = "unavailable";
     if (this.artifacts.size) {
       evidenceStatus = this.warnings.length ? "partial" : "complete";
@@ -77,7 +77,7 @@ export class DogfoodResult {
       "# Playwright Dogfood Report",
       "",
       `Target: ${this.target}`,
-      `Attempt directory: ${path.relative(reportRoot, this.output) || "."}`,
+      `Attempt directory: ${path.relative(reportRoot, this.attemptDir) || "."}`,
       `Run status: ${status}`,
       `Evidence status: ${evidenceStatus}`,
       ...(this.inspectionCompleted
@@ -120,7 +120,7 @@ export class DogfoodResult {
   }
 
   async publish(status) {
-    for (const directory of [this.output, this.root]) {
+    for (const directory of [this.attemptDir, this.outputRoot]) {
       const file = path.join(directory, "report.md");
       const temporary = `${file}.${randomUUID()}.tmp`;
       // eslint-disable-next-line no-await-in-loop -- publish the historical report before its latest view
@@ -142,7 +142,7 @@ export class DogfoodResult {
             "Video finalization was not confirmed because context close failed"
           );
         }
-        const entries = await fs.readdir(path.join(this.output, "videos"));
+        const entries = await fs.readdir(path.join(this.attemptDir, "videos"));
         const files = entries
           .filter((file) => file.endsWith(".webm"))
           .map((file) => `videos/${file}`);
