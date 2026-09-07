@@ -30,6 +30,16 @@ tags: [nix, shell, cache, verification]
 
 #223／#224 の根拠は [#224 検証記録](user-environment-cache-224-verification.md) と既存の入口テストに保持する。今回の更新経路に関係する95件を再実行し成功した。
 
+## PRレビュー後の保証範囲と確認
+
+2026-09-08、[レビュー5134154836](https://github.com/treflebonbon/dotfiles/pull/236#pullrequestreview-5134154836) で指摘された採用直前の競合を再現した。最終の入力照合が終わった後、`mv` adapter がキャッシュを置換する直前に入力のpayloadを `fresh` から `latest` へ変更すると、必須更新は終了状態0で `CACHE_VERSION=fresh` を採用した。採用時点の最新性を期待する再現テストは失敗した。
+
+ユーザーは、評価前後の照合による変更検出を保証範囲とし、最後の照合後の並行書込みは次回更新で反映する方針を選択した。採用後の検査・巻戻しやソースの書込み側への排他追加は行わない。上表AC6〜AC8・AC11の確認はこの境界での更新の直列化・変更検出・必須更新の結果伝播を意味し、任意の並行書込みに対する採用時点の最新性を確認したという意味ではない。詳細は [ADR-0050](../adr/0050-user-environment-cache-freshness.md#鮮度保証の境界) に記録する。
+
+一時環境の追加確認 `bats /tmp/pr-236-review.C0G7cO/documented-boundary.bats --filter 'documented boundary'` は1件成功した。上記の採用直前の変更後、2回目の必須更新は終了状態0で `CACHE_VERSION=latest` を採用し、3回目は再評価せず再利用した。Nix adapter の評価は `first:1:fresh` と `second:1:latest` の計2回。ログは `/tmp/pr-236-review.C0G7cO/documented-boundary.log`。これは境界と次回更新での復旧の確認であり、採用直前の競合自体を修正した結果ではない。一時証跡は永続保存を保証しない。
+
+同レビューのハッシュコマンドに関する指摘は `9c3ff40` で修正した。同期用ラッパーが検出済みの `sha256sum`／`shasum` adapterへ委譲するようにし、`shasum`のみの経路を追加した `bats tests/refresh-cache-concurrency.bats` は9件成功した。WSL2上での検証であり、macOS実機は引き続き未確認。
+
 ## 最終品質確認
 
 実装コミットは `44b23cf`（`fix(nix): serialize cache refreshes and retry changed inputs`）。最終実装で以下を確認した。
