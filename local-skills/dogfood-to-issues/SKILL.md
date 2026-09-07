@@ -50,6 +50,8 @@ Run the bundled Playwright dogfood runner against a web app, review the findings
 
    `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` prevents npm from downloading a browser. On WSL2 the runner acquires Windows Managed Dogfood Chrome over loopback CDP; normal Web, MV3, and annotation share the output-derived profile identity and ownership record. Non-WSL environments retain the local Playwright path. Headless is primary; an MV3 service-worker failure retries once headed with the same profile identity, without starting a WSL browser or using `xvfb-run`.
 
+   WSL2 requires the matching Nix `managed-chrome-owner` CLI (`MANAGED_CHROME_OWNER`). Startup and cleanup failures preserve ownership when Chrome's absence cannot be confirmed. Use `managed-chrome-owner status` to identify the consumer, finish that consumer, then run `managed-chrome-owner recover`. Recovery only verifies absence and releases ownership; it never closes Chrome or deletes profiles. Keep an uncertain startup reserved for investigation, and do not retry headed while ownership remains. Upgrade the Nix package and this local skill together after managed sessions and the Dashboard stop.
+
    With `--annotate`, the runner completes automated inspection before notifying the user that Playwright Dashboard input is awaited. It attaches a unique Playwright CLI session over the Managed Dogfood Chrome CDP endpoint, collects visual annotations, then detaches before releasing the dogfood ownership record. Rectangles and overall feedback become finding candidates; an empty submission adds none. Annotation failures are explicit and non-zero, but the runner still finalizes its report, trace, and video where the connected browser supports recording.
 
 6. Parse `report.md` into structured finding candidates.

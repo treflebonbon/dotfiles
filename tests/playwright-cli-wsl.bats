@@ -6,6 +6,7 @@ setup() {
   WINDOWS_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
   CDP_CLOSE_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-cdp-close.js"
   CDP_CLOSE_HARNESS="$PROJECT_ROOT/tests/fixtures/playwright-cli-cdp-close-harness.mjs"
+  export MANAGED_CHROME_OWNER="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs"
   FAKE_BIN="$BATS_TEST_TMPDIR/bin"
   UPSTREAM_LOG="$BATS_TEST_TMPDIR/upstream.log"
   POWERSHELL_LOG="$BATS_TEST_TMPDIR/powershell.log"
@@ -114,6 +115,9 @@ for argument in "$@"; do
   previous="$argument"
 done
 case "$action" in
+  Resolve)
+    printf '%s\n' 'C:\Temp\dogfood-race'
+    ;;
   Inspect)
     if [[ "${PWCLI_FAKE_INSPECT_FAIL:-0}" == "1" ]]; then
       exit 45
@@ -216,6 +220,65 @@ EOF
   export PWCLI_CDP_TIMEOUT=1
 }
 
+@test "managed Playwright publishes its lifecycle through the common ownership CLI" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=shared-owner open
+  [ "$status" -eq 0 ]
+  run "$MANAGED_CHROME_OWNER" status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"phase":"active"'* ]]
+  [[ "$output" == *'"browserPid":4242'* ]]
+  run bash "$WRAPPER" -s=shared-owner close
+  [ "$status" -eq 0 ]
+  run "$MANAGED_CHROME_OWNER" status
+  [ "$output" = null ]
+}
+
+@test "Playwright and Dogfood callers racing share exactly one ownership reservation" {
+  export PWCLI_TEST_WSL=1 DOGFOOD_TEST_WSL=1 DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1
+  export DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:19330
+  export DOGFOOD_POWERSHELL="$FAKE_BIN/powershell.exe" DOGFOOD_WINDOWS_SCRIPT='C:\fake\dogfood.ps1'
+  export CALLER_RACE_DIR="$BATS_TEST_TMPDIR/race"
+  mkdir -p "$CALLER_RACE_DIR"
+  (
+    if bash "$WRAPPER" -s=race open >"$CALLER_RACE_DIR/playwright.log" 2>&1; then
+      echo ok >"$CALLER_RACE_DIR/playwright.result"
+      while [[ ! -f "$CALLER_RACE_DIR/finish" ]]; do sleep 0.02; done
+      bash "$WRAPPER" -s=race close
+    else
+      echo blocked >"$CALLER_RACE_DIR/playwright.result"
+    fi
+  ) &
+  local playwright_pid=$!
+  node --input-type=module - "$PROJECT_ROOT/local-skills/dogfood-to-issues/references/managed-dogfood-browser.mjs" <<'JS' &
+import fs from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
+const root = process.env.CALLER_RACE_DIR;
+const { acquireManagedDogfoodChrome } = await import(process.argv[2]);
+let browser;
+try {
+  browser = await acquireManagedDogfoodChrome({ runId: 'race' });
+} catch {
+  await fs.writeFile(`${root}/dogfood.result`, 'blocked\n');
+}
+if (browser) {
+  await fs.writeFile(`${root}/dogfood.result`, 'ok\n');
+  while (!(await fs.stat(`${root}/finish`).catch(() => null))) await delay(20);
+  await browser.close();
+}
+JS
+  local dogfood_pid=$!
+  for _ in {1..500}; do
+    [[ -f "$CALLER_RACE_DIR/playwright.result" && -f "$CALLER_RACE_DIR/dogfood.result" ]] && break
+    sleep 0.02
+  done
+  touch "$CALLER_RACE_DIR/finish"
+  wait "$playwright_pid" "$dogfood_pid"
+  [ "$(cat "$CALLER_RACE_DIR/"*.result | sort | tr '\n' ' ')" = 'blocked ok ' ]
+  run "$MANAGED_CHROME_OWNER" status
+  [ "$output" = null ]
+}
+
 teardown() {
   local dashboard_pid_file="$RUNTIME_DIR/playwright-cli/dashboard.pid"
   if [[ -f "$dashboard_pid_file" ]]; then
@@ -298,21 +361,13 @@ EOF
 }
 
 @test "managed Playwright refuses a Managed Dogfood Chrome owner" {
-  mkdir -p "$BROWSER_OWNERSHIP_DIR"
-  printf '%s\n' \
-    dogfood \
-    dogfood-run-1 \
-    4242 \
-    headed \
-    'C:\\Temp\\aiakos-dogfood-dogfood-run-1' \
-    http://127.0.0.1:49152 \
-    "$PWD" \
-    >"$BROWSER_OWNERSHIP_DIR/owner"
+  "$MANAGED_CHROME_OWNER" reserve --role dogfood --id dogfood-run-1 --pid "$$" \
+    --mode headed --profile 'C:\Temp\aiakos-dogfood-dogfood-run-1' --endpoint http://127.0.0.1:49152
 
   run bash "$WRAPPER" -s=alpha open https://example.com
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"Managed Dogfood Chrome is owned by 'dogfood-run-1'"* ]]
+  [[ "$output" == *"Managed dogfood Chrome is already owned by 'dogfood-run-1'"* ]]
   [ ! -f "$POWERSHELL_LOG" ]
 }
 
@@ -333,8 +388,9 @@ EOF
   run bash "$WRAPPER" open https://example.com
 
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' "$BROWSER_OWNERSHIP_DIR/owner")" = "playwright" ]
-  [ "$(sed -n '3p' "$BROWSER_OWNERSHIP_DIR/owner")" = "4242" ]
+  run "$MANAGED_CHROME_OWNER" status
+  [[ "$output" == *'"role":"playwright"'* ]]
+  [[ "$output" == *'"browserPid":4242'* ]]
 }
 
 @test "runtime state falls back to a user-only tmp directory" {
@@ -1061,6 +1117,8 @@ EOF
   [[ "$output" == *"already running without matching state"* ]]
   [[ "$output" == *"Close that dedicated Chrome manually"* ]]
 
+  printf '%s\n' absent >"$POWERSHELL_STATE"
+  "$MANAGED_CHROME_OWNER" recover
   printf '%s\n' 'port-conflict:5150' >"$POWERSHELL_STATE"
   run bash "$WRAPPER" open https://example.com
   [ "$status" -ne 0 ]

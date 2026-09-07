@@ -1,7 +1,5 @@
 import { execFile } from "node:child_process";
 import fsSync from "node:fs";
-import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
@@ -41,92 +39,9 @@ export const isWsl = () => {
   );
 };
 
-const stateRoot = () =>
-  process.env.BROWSER_OWNERSHIP_DIR ||
-  process.env.DOGFOOD_BROWSER_OWNERSHIP_DIR ||
-  path.join(
-    process.env.XDG_RUNTIME_DIR || process.env.DOGFOOD_TMPDIR || os.tmpdir(),
-    "browser-ownership"
-  );
-
-const readOwner = async (ownerFile) => {
-  const content = await fs.readFile(ownerFile, "utf-8").catch(() => "");
-  const lines = content.split("\n").filter(Boolean);
-  if (!lines.length) {
-    return null;
-  }
-  return Object.fromEntries(
-    ["role", "id", "pid", "mode", "profile", "endpoint", "workspace"].map(
-      (key, index) => [key, lines[index] ?? ""]
-    )
-  );
-};
-
-const acquireOwner = async (owner) => {
-  const root = stateRoot();
-  await fs.mkdir(root, { mode: 0o700, recursive: true });
-  const lock = path.join(root, "acquire.lock");
-  const ownerFile = path.join(root, "owner");
-  let lockAcquired = true;
-  try {
-    await fs.mkdir(lock, { mode: 0o700 });
-  } catch {
-    lockAcquired = false;
-    const lockPid = Number(
-      await fs.readFile(path.join(lock, "pid"), "utf-8").catch(() => "0")
-    );
-    if (lockPid > 0) {
-      try {
-        process.kill(lockPid, 0);
-      } catch {
-        await fs.rm(lock, { force: true, recursive: true });
-        await fs.mkdir(lock, { mode: 0o700 });
-        lockAcquired = true;
-      }
-    }
-    if (!lockAcquired) {
-      if (!(await fs.stat(lock).catch(() => null))) {
-        throw new Error("browser ownership lock disappeared; retry");
-      }
-      throw new Error(
-        `browser ownership is busy (lock pid ${lockPid || "unknown"})`
-      );
-    }
-  }
-  await fs.writeFile(path.join(lock, "pid"), `${process.pid}\n`);
-  try {
-    const existing = await readOwner(ownerFile);
-    if (existing) {
-      throw new Error(
-        `Managed ${existing.role} Chrome is already owned by '${existing.id}' (pid ${existing.pid}). Close that consumer before starting Managed ${owner.role} Chrome.`
-      );
-    }
-    await fs.writeFile(
-      ownerFile,
-      [
-        owner.role,
-        owner.id,
-        String(owner.pid),
-        owner.mode,
-        owner.profile,
-        owner.endpoint,
-        owner.workspace,
-        "",
-      ].join("\n"),
-      { mode: 0o600 }
-    );
-  } finally {
-    await fs.rm(lock, { force: true, recursive: true });
-  }
-  return { ownerFile, root };
-};
-
-const releaseOwner = async (ownerFile, id) => {
-  const current = await readOwner(ownerFile);
-  if (current?.role === "dogfood" && current.id === id) {
-    await fs.rm(ownerFile, { force: true });
-  }
-};
+const ownerCommand = () =>
+  process.env.MANAGED_CHROME_OWNER || "managed-chrome-owner";
+const ownership = (...args) => run(ownerCommand(), args);
 
 const powershell = () => process.env.DOGFOOD_POWERSHELL || "powershell.exe";
 const script = () => {
@@ -152,9 +67,9 @@ const windowsScript = async () => {
   return windowsScriptPath;
 };
 
-const powershellAction = async (args) => {
+const powershellAction = async (args, token) => {
   const scriptPath = await windowsScript();
-  return run(powershell(), [
+  const command = [
     "-NoProfile",
     "-NonInteractive",
     "-ExecutionPolicy",
@@ -162,7 +77,10 @@ const powershellAction = async (args) => {
     "-File",
     scriptPath,
     ...args,
-  ]);
+  ];
+  return token
+    ? ownership("run", token, "--", powershell(), ...command)
+    : run(powershell(), command);
 };
 
 const choosePort = () => {
@@ -223,15 +141,21 @@ export const acquireManagedDogfoodChrome = async ({
   const extensionPath = extension
     ? await run(wslpath(), ["-w", path.resolve(extension)])
     : "";
-  const owner = await acquireOwner({
-    endpoint,
+  const token = await ownership(
+    "reserve",
+    "--role",
+    "dogfood",
+    "--id",
     id,
-    mode: headed ? "headed" : "headless",
-    pid: process.pid,
+    "--pid",
+    String(process.pid),
+    "--mode",
+    headed ? "headed" : "headless",
+    "--profile",
     profile,
-    role: "dogfood",
-    workspace: process.cwd(),
-  });
+    "--endpoint",
+    endpoint
+  );
 
   let started = false;
   try {
@@ -264,21 +188,25 @@ export const acquireManagedDogfoodChrome = async ({
           `Managed Dogfood Chrome is not available for a fresh run (status: ${status}). ${remediation}`
         );
       }
-      await powershellAction([
-        "-Action",
-        "Start",
-        "-RunId",
-        id,
-        "-Mode",
-        headed ? "headed" : "headless",
-        "-DebugPort",
-        port,
-        "-ProfileDir",
-        profile,
-        ...(extensionPath ? ["-ExtensionPath", extensionPath] : []),
-      ]);
       started = true;
+      await powershellAction(
+        [
+          "-Action",
+          "Start",
+          "-RunId",
+          id,
+          "-Mode",
+          headed ? "headed" : "headless",
+          "-DebugPort",
+          port,
+          "-ProfileDir",
+          profile,
+          ...(extensionPath ? ["-ExtensionPath", extensionPath] : []),
+        ],
+        token
+      );
       await waitForCdp(endpoint);
+      await ownership("activate", token);
     }
   } catch (error) {
     if (started) {
@@ -295,7 +223,11 @@ export const acquireManagedDogfoodChrome = async ({
         error.message = `${error.message}; cleanup failed: ${cleanupError.message}`;
       }
     }
-    await releaseOwner(owner.ownerFile, id);
+    try {
+      await ownership("release", token);
+    } catch (releaseError) {
+      error.message = `${error.message}; ${releaseError.message}`;
+    }
     throw error;
   }
 
@@ -318,7 +250,7 @@ export const acquireManagedDogfoodChrome = async ({
         cleanupError = error;
       } finally {
         try {
-          await releaseOwner(owner.ownerFile, id);
+          await ownership("release", token);
         } catch (error) {
           releaseError = error;
         }
@@ -348,7 +280,6 @@ export const acquireManagedDogfoodChrome = async ({
     endpoint,
     id,
     mode: headed ? "headed" : "headless",
-    ownerFile: owner.ownerFile,
     profile,
   };
 };

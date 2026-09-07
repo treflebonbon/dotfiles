@@ -24,6 +24,15 @@ Chrome** headless by default: Windows Google Chrome with CDP on
   manually only after closing the session and Dashboard.
 - Managed Dogfood Chrome uses the same browser-ownership directory with role
   `dogfood`; Playwright refuses to start while a dogfood run owns the browser.
+- `managed-chrome-owner status` shows the shared ownership. If startup or
+  shutdown fails, close the recorded consumer and use `managed-chrome-owner
+recover` to release ownership only after Windows confirms Chrome is absent.
+  Recovery never closes Chrome or deletes a profile. A live or uncertain
+  startup remains reserved; do not delete its record to bypass the conflict.
+- Upgrade the Nix browser package and local Dogfood skill together, after all
+  managed sessions and the Dashboard have stopped. Legacy ownership records
+  and acquisition locks require investigation with the old tools before
+  cutover; the new CLI preserves them.
 
 Explicit `--config`, `--browser`, `--profile`, `--persistent`, `--device`,
 or `--mobile` options, browser-shaping `PLAYWRIGHT_MCP_*` environment variables

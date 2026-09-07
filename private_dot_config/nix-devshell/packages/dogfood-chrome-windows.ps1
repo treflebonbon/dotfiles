@@ -45,7 +45,7 @@ function Find-ChromeExecutable {
 
 function Get-ChromeProcesses {
     @(
-        Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction SilentlyContinue |
+        Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction Stop |
             Where-Object { $_.CommandLine -and $_.CommandLine -match [Regex]::Escape($ProfileDir) }
     )
 }
@@ -96,7 +96,9 @@ if (-not $Chrome) {
 $ProfileProcesses = @(Get-ChromeProcesses)
 $Listeners = @(
     if ($DebugPort -gt 0) {
-        Get-NetTCPConnection -State Listen -LocalAddress $DebugAddress -LocalPort $DebugPort -ErrorAction SilentlyContinue
+        Get-NetTCPConnection -ErrorAction Stop | Where-Object {
+            $_.State -eq 'Listen' -and $_.LocalAddress -eq $DebugAddress -and $_.LocalPort -eq $DebugPort
+        }
     }
 )
 
