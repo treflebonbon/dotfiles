@@ -13,9 +13,14 @@ setup() {
   printf 'export CACHE_VERSION=old\n' >"$CACHE"
   PIDS=()
   local cmd
-  for cmd in find grep mkdir mv rm tee cat dirname mktemp date sha256sum tail readlink perl; do
+  for cmd in find grep mkdir mv rm tee cat dirname mktemp date tail readlink perl; do
     stub_real_cmd "$cmd"
   done
+  HASH_COMMAND=sha256sum
+  if [ ! -x /bin/sha256sum ] && [ ! -x /usr/bin/sha256sum ]; then
+    HASH_COMMAND=shasum
+  fi
+  stub_real_cmd "$HASH_COMMAND"
   cat >"$TEST_BIN_DIR/nix" <<'STUB'
 #!/bin/bash
 role=$UPDATE_ROLE
@@ -210,8 +215,9 @@ STUB
   assert_output changed-while-waiting
 }
 
-@test "採用前の指紋確認中に更新 process が終了しても候補を採用しない" {
-  cat >"$TEST_BIN_DIR/sha256sum" <<'STUB'
+check_pre_adoption_termination() {
+  mv "$TEST_BIN_DIR/$HASH_COMMAND" "$FAKE_HOME/$HASH_COMMAND"
+  cat >"$TEST_BIN_DIR/$HASH_COMMAND" <<'STUB'
 #!/bin/bash
 if [ "$UPDATE_ROLE" = first ] && [ -f "$SYNC_DIR/first.finished.1" ]; then
   : >"$SYNC_DIR/first.checking"
@@ -220,8 +226,9 @@ if [ "$UPDATE_ROLE" = first ] && [ -f "$SYNC_DIR/first.finished.1" ]; then
     /bin/sleep 0.02
   done
 fi
-exec /usr/bin/sha256sum "$@"
 STUB
+  printf 'exec "%s" "$@"\n' "$FAKE_HOME/$HASH_COMMAND" >>"$TEST_BIN_DIR/$HASH_COMMAND"
+  chmod +x "$TEST_BIN_DIR/$HASH_COMMAND"
   start_refresh first 1
   wait_for_file "$SYNC_DIR/first.entered.1"
   touch "$SYNC_DIR/first.release.1"
@@ -238,6 +245,21 @@ STUB
   touch "$SYNC_DIR/first.check-release"
   run /bin/bash -c '. "$1"; echo "$CACHE_VERSION"' _ "$CACHE"
   assert_output fresh
+}
+
+@test "採用前の指紋確認中に更新 process が終了しても候補を採用しない" {
+  check_pre_adoption_termination
+}
+
+@test "shasum のみの環境でも採用前の終了と次回更新を検証できる" {
+  if [ "$HASH_COMMAND" = sha256sum ]; then
+    mv "$TEST_BIN_DIR/sha256sum" "$FAKE_HOME/held-sha256sum"
+  fi
+  HASH_COMMAND=shasum
+  stub_real_cmd shasum
+  check_pre_adoption_termination
+  assert_log_contains 'shasum -a 256'
+  refute_log_contains 'sha256sum'
 }
 
 @test "失敗した評価の間に入力が変わった場合も最新入力で再試行する" {
