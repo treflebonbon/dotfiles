@@ -97,7 +97,7 @@ Git の checkout 隔離とは独立して、agent の filesystem・network acces
 _Avoid_: worktree sandbox, repository isolation, permission mode
 
 **Working-Directory Read Fence**:
-primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob、および追加済みディレクトリ内の Edit/Write）を拒否する permission 層の境界。Technical Sandbox Boundary（OS レベル、Bash 専用）とは別層で、Bash コマンド経由のファイルアクセスはこの fence の対象外である。
+primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否する permission 層の境界で、Bash コマンド経由のアクセスは対象外（Technical Sandbox Boundary が別途扱う、OS レベル・Bash 専用）。`additionalDirectories` 内の Edit/Write はこの fence では拒否されず、現在の permission mode に従い、明示的な `Edit(...)` deny があるパスだけが read-only になる。
 _Avoid_: block reads, sandbox, permission mode
 
 **Runtime Adapter**:
