@@ -40,6 +40,20 @@ tags: [nix, shell, cache, verification]
 
 同レビューのハッシュコマンドに関する指摘は `9c3ff40` で修正した。同期用ラッパーが検出済みの `sha256sum`／`shasum` adapterへ委譲するようにし、`shasum`のみの経路を追加した `bats tests/refresh-cache-concurrency.bats` は9件成功した。WSL2上での検証であり、macOS実機は引き続き未確認。
 
+## 追加レビュー5134196777
+
+`0c492dd` から [レビュー5134196777](https://github.com/treflebonbon/dotfiles/pull/236#pullrequestreview-5134196777) の4スレッド（指摘5件）と補足2件へ対応した。
+
+- `install.sh` の実入口で、native flock の前提確認が失敗する Perl と、SHA-256 コマンド不在を再現した。修正前は後続のセットアップへ進み、修正後は案内付きで非0終了し、chezmoi・curl・Nix・direnv を実行しない。native 対応の Perl と `shasum`のみの初期PATHでは導入が成功する。
+- テスト用のハッシュコマンド選択を共通化し、存在する `sha256sum` がない場合は `shasum`を選ぶ。APM・通常配備・初回導入・更新lib・競合テストへ揃え、失敗注入やコマンド退避も選択された実体を使う。APMの`shasum`のみの経路で生成・環境読込み・install／prune・変更なしの再利用を確認した。
+- 配備競合helperのPerl／Bash／sleepを、既存の`stub_real_cmd`と同じ `/bin`→`/usr/bin` の解決へ揃えた。Perlの同期markerはnative flockを呼ぶ場合だけ作り、追加した導入前のConfig確認で待機を解除しない。
+- Bash 5.3.9で`GLOBSORT=mtime`とmtimeのみの変更を与え、再評価しないことと呼出し側の変数保持を確認した。このテストは修正前から成功し、同ホストでは既存の`unset GLOBIGNORE`も列挙順を戻した。指摘されたキャッシュミスを再現したとは扱わず、入力照合の中では`GLOBSORT`も明示的に解除する変更とした。変数の仕様は [GNU Bashの公式マニュアル](https://www.gnu.org/software/bash/manual/html_node/Bash-Variables.html) を照合した。
+- READMEにDevPod／VS Code Dev Containersのイメージで自動導入前に依存を用意する手順を追加し、README・運用説明・ADRを毎回の更新に必要な依存として揃えた。このrepoはコンテナイメージを所有しておらず、利用者のイメージビルドは未実行。macOS実機も未確認のままとする。
+
+関連5ファイルのBatsは91件成功。`bunx tsc --noEmit`、更新したshellと共通helperのShellCheck、shfmt、`git diff --check`も成功した。関連テストログは `/tmp/pr-236-review-5134196777.KHlQvV/related.log`。
+
+共通テストhelperの変更を含む最終形で `bun run test` を実行し、全516件成功、失敗0件・skip0件を確認した。全体ログは `/tmp/pr-236-review-5134196777.KHlQvV/full.log`。
+
 ## 最終品質確認
 
 実装コミットは `44b23cf`（`fix(nix): serialize cache refreshes and retry changed inputs`）。最終実装で以下を確認した。

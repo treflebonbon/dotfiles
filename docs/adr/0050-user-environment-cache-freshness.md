@@ -21,7 +21,7 @@ status: accepted
 
 指紋計算は初期 PATH の `sha256sum`、なければ `shasum -a 256` を使い、生成した devShell の Python／Node 等には依存しない。どちらも利用できない、またはソースを読めない場合は必須更新を失敗させる。確認済み環境・実 Nix の観測・未確認範囲は [#224 検証記録](../research/user-environment-cache-224-verification.md) を参照。
 
-排他には system Perl の `flock` を使い、native `flock(2)` を持つ Linux／WSL／macOS を対象とする。生成する devShell 自体の Perl や、macOS に標準搭載されない `flock` CLI には依存しない。`install.sh` は `git`／`curl` とともに `perl` の欠損を配備前に検出する。native flock のない Perl は emulation に委ねず失敗させる。
+排他には system Perl の `flock` を使い、native `flock(2)` を持つ Linux／WSL／macOS を対象とする。生成する devShell 自体の Perl や、macOS に標準搭載されない `flock` CLI には依存しない。`install.sh` は `git`／`curl`／`perl` の欠損、Perl の native flock 非対応、`sha256sum` と `shasum` 両方の欠損を配備前に検出する。native flock のない Perl は emulation に委ねず失敗させる。これらの依存は初回生成に限らず、以後のキャッシュ更新でも必要になる。
 
 ロック用ファイルは `<cache>.lock` に固定し、削除・置換しない。更新関数の呼出しに限定して開く記述子を Perl に渡し、終了・返却時の kernel による解放を使う。Nix の評価子と入力確認を待つ中間の Bash process には記述子を残さない。これにより更新元が終了しても残存する評価子によってロックを保持し続けない。生成物は一意な一時ファイルへ書かれ、更新元を失った子 process は採用処理へ進めない。正常終了・失敗時には一時出力を除き、強制終了で残った `<cache>.tmp.*`／`<cache>.err.*` は次回のロック取得後に回収する。呼出し元の signal trap は置換しない。
 

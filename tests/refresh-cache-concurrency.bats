@@ -16,11 +16,7 @@ setup() {
   for cmd in find grep mkdir mv rm tee cat dirname mktemp date tail readlink perl; do
     stub_real_cmd "$cmd"
   done
-  HASH_COMMAND=sha256sum
-  if [ ! -x /bin/sha256sum ] && [ ! -x /usr/bin/sha256sum ]; then
-    HASH_COMMAND=shasum
-  fi
-  stub_real_cmd "$HASH_COMMAND"
+  stub_hash_cmd
   cat >"$TEST_BIN_DIR/nix" <<'STUB'
 #!/bin/bash
 role=$UPDATE_ROLE

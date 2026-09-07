@@ -36,6 +36,18 @@ DevPod および VS Code Dev Containers で自動的にインストールされ�
 
 ## セットアップ
 
+環境キャッシュの更新では、初回を含めて毎回、排他に PATH 上の `perl`（native `flock` 対応）、鮮度判定に `sha256sum` または `shasum` を使います。生成済みのキャッシュがあってもこれらは必要です。`install.sh` は導入を始める前に、`git`・`curl`・`perl` の存在、Perl の native `flock` 対応、SHA-256 コマンドの存在を確認します。
+
+### コンテナイメージの前提条件
+
+DevPod と VS Code Dev Containers では、dotfiles の自動インストールが始まる前に、コンテナイメージ内へ依存を用意してください。Debian／Ubuntu ベースなら、既存の Dockerfile の root で実行する箇所（`USER` で一般ユーザーへ切り替える前）に追加します。`git` と `curl` は従来どおりイメージ側で提供します。
+
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends perl coreutils
+```
+
+`coreutils` が `sha256sum` を提供します。ほかのディストリビューションでは、そのパッケージマネージャーで native `flock` 対応の Perl と SHA-256 コマンドを用意してください。イメージを再ビルドしてから、以下の自動インストール設定を利用します。
+
 ### DevPod
 
 ```bash
@@ -69,7 +81,7 @@ exec bash -l
 
 ### 手動インストール
 
-初回の環境キャッシュ生成は、初期 PATH の `perl`（native `flock` 対応）と `sha256sum` または `shasum` を使います。Linux／WSL は OS のパッケージとして用意し、macOS も配備前にこれらを利用できることを確認してください。
+上記の依存は初回生成から以後のキャッシュ更新まで必要です。Linux／WSL は OS のパッケージとして用意し、macOS も配備前にこれらを利用できることを確認してください。
 
 ```bash
 # chezmoi がインストール済みの場合

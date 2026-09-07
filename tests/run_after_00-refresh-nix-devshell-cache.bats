@@ -27,7 +27,7 @@ setup() {
   stub_real_cmd mktemp
   stub_real_cmd date
   stub_real_cmd tee
-  stub_real_cmd sha256sum
+  stub_hash_cmd
   stub_real_cmd tail
   stub_real_cmd readlink
   stub_real_cmd perl

@@ -23,7 +23,7 @@ setup() {
   stub_real_cmd dirname
   stub_real_cmd mktemp
   stub_real_cmd date
-  stub_real_cmd sha256sum
+  stub_hash_cmd
   stub_real_cmd tail
   stub_real_cmd readlink
   stub_real_cmd perl
@@ -472,7 +472,7 @@ STUB
       stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
       stub_cmd mv 1
       ;;
-    fingerprint) stub_cmd sha256sum 1 ;;
+    fingerprint) stub_cmd "$HASH_COMMAND" 1 ;;
     esac
     run_required_refresh
     assert_failure
@@ -480,7 +480,7 @@ STUB
     assert_cache_version old
 
     stub_real_cmd mv
-    stub_real_cmd sha256sum
+    stub_real_cmd "$HASH_COMMAND"
     mv "$source/asset" "$FAKE_HOME/held-asset"
     : >"$TEST_LOG"
     run_required_refresh
@@ -499,14 +499,14 @@ STUB
   refute_log_contains 'nix print-dev-env'
 }
 
-@test "初回生成に shasum を使えて sha256sum へ切り替わっても再評価しない" {
+@test "初回生成に shasum を使えて元のハッシュコマンドへ戻しても再評価しない" {
   stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
-  mv "$TEST_BIN_DIR/sha256sum" "$FAKE_HOME/held-sha256sum"
+  mv "$TEST_BIN_DIR/$HASH_COMMAND" "$FAKE_HOME/held-hash-command"
   stub_real_cmd shasum
   run_required_refresh
   assert_success
   assert_cache_version fresh
-  mv "$FAKE_HOME/held-sha256sum" "$TEST_BIN_DIR/sha256sum"
+  mv "$FAKE_HOME/held-hash-command" "$TEST_BIN_DIR/$HASH_COMMAND"
   : >"$TEST_LOG"
   run_required_refresh
   assert_success
@@ -517,7 +517,7 @@ STUB
   stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
   run_required_refresh
   assert_success
-  mv "$TEST_BIN_DIR/sha256sum" "$FAKE_HOME/held-sha256sum"
+  mv "$TEST_BIN_DIR/$HASH_COMMAND" "$FAKE_HOME/held-hash-command"
   : >"$TEST_LOG"
   run_required_refresh
   assert_failure
@@ -578,6 +578,31 @@ STUB
     "$zsh_bin" -c '. "$1"; true' _ "$BATS_TEST_DIRNAME/../dot_zshrc.tmpl"
   assert_success
   assert_log_contains plugin-loaded
+}
+
+@test "Bash 5.3 の GLOBSORT と mtime 変更は同じ入力の再評価を誘発しない" {
+  local bash_bin source="$FAKE_HOME/.config/nix-devshell"
+  bash_bin=$(command -v bash)
+  "$bash_bin" -c '(( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) ))' || skip 'Bash 5.3 not installed'
+  printf 'first\n' >"$source/a"
+  printf 'last\n' >"$source/z"
+  touch -t 200001010000 "$source/z"
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  run_required_refresh
+  assert_success
+
+  local timestamp
+  for timestamp in 200001010000 203001010000; do
+    touch -t "$timestamp" "$source/z"
+    : >"$TEST_LOG"
+    run /usr/bin/env -i PATH="$TEST_BIN_DIR" HOME="$FAKE_HOME" TEST_LOG="$TEST_LOG" \
+      GLOBSORT=mtime NIX_DEVSHELL_CACHE_REQUIRED=1 "$bash_bin" -c '
+        . "$1"
+        refresh_nix_devshell_cache && [ "$GLOBSORT" = mtime ]
+      ' _ "$LIB"
+    assert_success
+    refute_log_contains 'nix print-dev-env'
+  done
 }
 
 @test "ロックの依存や保存先の不備では旧キャッシュを保護し復旧後に更新できる" {

@@ -47,9 +47,10 @@ STUB
   touch "$test_home/.config/nix-devshell/flake.nix"
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
     "$test_home/.config/nix-devshell/lib/refresh-cache.sh"
-  for cmd in find cat tee mktemp date sha256sum tail readlink perl; do
+  for cmd in find cat tee mktemp date tail readlink perl; do
     stub_real_cmd "$cmd"
   done
+  stub_hash_cmd
   # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
   cp "$TEST_BIN_DIR/nix" "$test_home/nix-adapter"
   cat >"$TEST_BIN_DIR/sh" <<'STUB'
@@ -83,6 +84,32 @@ STUB
 
   assert_failure
   assert_output --partial "curl is required"
+}
+
+@test "native flock に対応しない Perl は導入を始める前に停止する" {
+  stub_cmd perl 1
+
+  run_install
+
+  assert_failure
+  assert_output --partial 'Perl with native flock support is required'
+  refute_log_contains 'chezmoi'
+  refute_log_contains 'curl'
+  refute_log_contains 'nix '
+  refute_log_contains 'direnv'
+}
+
+@test "SHA-256 コマンドがない場合は導入を始める前に停止する" {
+  mv "$TEST_BIN_DIR/$HASH_COMMAND" "$BATS_TEST_TMPDIR/held-hash-command"
+
+  run_install
+
+  assert_failure
+  assert_output --partial 'sha256sum or shasum is required'
+  refute_log_contains 'chezmoi'
+  refute_log_contains 'curl'
+  refute_log_contains 'nix '
+  refute_log_contains 'direnv'
 }
 
 # =============================================================================
@@ -380,7 +407,9 @@ STUB
 
 @test "macOS の初回導入は shasum だけの初期 PATH でも生成できる" {
   stub_cmd_with_output uname Darwin
-  mv "$TEST_BIN_DIR/sha256sum" "$BATS_TEST_TMPDIR/held-sha256sum"
+  if [ "$HASH_COMMAND" = sha256sum ]; then
+    mv "$TEST_BIN_DIR/sha256sum" "$BATS_TEST_TMPDIR/held-sha256sum"
+  fi
   stub_real_cmd shasum
   run_install
   assert_success

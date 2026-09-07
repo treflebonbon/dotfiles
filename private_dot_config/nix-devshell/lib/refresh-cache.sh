@@ -45,7 +45,7 @@ _nix_devshell_input_id() (
   export LC_ALL=C
   # caller の glob option が入力の列挙に影響しないようにする (bash 3.2 対応)。
   set +f
-  unset GLOBIGNORE
+  unset GLOBIGNORE GLOBSORT
   shopt -u dotglob failglob nullglob
   cd "$1" || exit 1
   { printf '%s\0' "$2" && _nix_devshell_source_entries .; } | _nix_devshell_hash

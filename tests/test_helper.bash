@@ -32,13 +32,19 @@ STUB_EOF
   chmod +x "$TEST_BIN_DIR/$name"
 }
 
+# OS のコマンドを同じ順序で解決する。
+system_cmd_path() {
+  local path="/bin/$1"
+  if [ ! -x "$path" ]; then
+    path="/usr/bin/$1"
+  fi
+  printf '%s\n' "$path"
+}
+
 # 実コマンドへ委譲するスタブ生成（ログは残す）
 stub_real_cmd() {
-  local name="$1"
-  local path="/bin/$name"
-  if [ ! -x "$path" ]; then
-    path="/usr/bin/$name"
-  fi
+  local name="$1" path
+  path=$(system_cmd_path "$name")
   {
     printf '%s\n' '#!/bin/bash'
     # shellcheck disable=SC2016 # generated stub should expand these at runtime
@@ -46,6 +52,14 @@ stub_real_cmd() {
     printf 'exec "%s" "$@"\n' "$path"
   } >"$TEST_BIN_DIR/$name"
   chmod +x "$TEST_BIN_DIR/$name"
+}
+
+stub_hash_cmd() {
+  HASH_COMMAND=sha256sum
+  if [ ! -x "$(system_cmd_path "$HASH_COMMAND")" ]; then
+    HASH_COMMAND=shasum
+  fi
+  stub_real_cmd "$HASH_COMMAND"
 }
 
 # 固定の標準出力を返すスタブ（OS 判定 (uname) 等の分岐を明示的に固定してテストするため）
