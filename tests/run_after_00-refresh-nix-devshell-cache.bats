@@ -26,6 +26,9 @@ setup() {
   stub_real_cmd mktemp
   stub_real_cmd date
   stub_real_cmd tee
+  stub_real_cmd sha256sum
+  stub_real_cmd tail
+  stub_real_cmd readlink
 }
 
 run_sut() {
@@ -124,4 +127,20 @@ STUB
   run_sut
   assert_failure
   [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+}
+
+@test "配備入口は非 Nix 入力変更を反映し同じ入力を再評価しない" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  run_sut
+  assert_success
+  : >"$TEST_LOG"
+  run_sut
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+
+  printf 'package input\n' >"$FAKE_HOME/.config/nix-devshell/asset.json"
+  : >"$TEST_LOG"
+  run_sut
+  assert_success
+  assert_log_contains 'nix print-dev-env'
 }

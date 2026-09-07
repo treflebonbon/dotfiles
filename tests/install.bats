@@ -46,7 +46,7 @@ STUB
   touch "$test_home/.config/nix-devshell/flake.nix"
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
     "$test_home/.config/nix-devshell/lib/refresh-cache.sh"
-  for cmd in find cat tee mktemp date; do
+  for cmd in find cat tee mktemp date sha256sum tail readlink; do
     stub_real_cmd "$cmd"
   done
   # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
@@ -305,7 +305,9 @@ STUB
 
   assert_success
   assert_output --partial "Dotfiles installed successfully!"
-  [ "$(cat "$BATS_TEST_TMPDIR/home/.cache/nix-devshell-global-env.bash")" = 'export CACHE_VERSION=fresh' ]
+  run /bin/bash -c '. "$1"; printf "%s\n" "$CACHE_VERSION"' _ "$BATS_TEST_TMPDIR/home/.cache/nix-devshell-global-env.bash"
+  assert_success
+  assert_output fresh
 }
 
 @test "初回導入は生成失敗時に旧キャッシュを保持し後続処理と成功表示を止める" {
@@ -357,4 +359,30 @@ STUB
   assert_success
   assert_log_contains "direnv allow"
   assert_log_contains ".config/nix-devshell"
+}
+
+@test "初回導入の必須更新は非 Nix 入力変更を反映し同じ入力を再評価しない" {
+  run_install
+  assert_success
+  : >"$TEST_LOG"
+  run_install
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+
+  printf 'package input\n' >"$BATS_TEST_TMPDIR/home/.config/nix-devshell/asset.json"
+  : >"$TEST_LOG"
+  run_install
+  assert_success
+  assert_log_contains 'nix print-dev-env'
+  assert_log_contains 'direnv allow'
+}
+
+@test "macOS の初回導入は shasum だけの初期 PATH でも生成できる" {
+  stub_cmd_with_output uname Darwin
+  mv "$TEST_BIN_DIR/sha256sum" "$BATS_TEST_TMPDIR/held-sha256sum"
+  stub_real_cmd shasum
+  run_install
+  assert_success
+  assert_log_contains 'shasum -a 256'
+  assert_log_contains 'nix print-dev-env'
 }

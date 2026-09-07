@@ -7,7 +7,7 @@ setup() {
   setup_test_env
   setup_local_skills_fixture
   local cmd
-  for cmd in find grep mkdir mv rm tee cat dirname mktemp date; do
+  for cmd in find grep mkdir mv rm tee cat dirname mktemp date sha256sum tail readlink; do
     stub_real_cmd "$cmd"
   done
   mkdir -p "$SKILL_HOME/.config/nix-devshell/lib" "$SKILL_HOME/.cache"
@@ -62,4 +62,20 @@ run_apm_deployment() {
     refute_log_contains 'apm prune'
     mv "$BATS_TEST_TMPDIR/held-prerequisite" "$prerequisite"
   done
+}
+
+@test "配備入口は非 Nix 入力変更を反映し同じ入力を再評価しない" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  run_apm_deployment
+  assert_success
+  : >"$TEST_LOG"
+  run_apm_deployment
+  assert_success
+  refute_log_contains 'nix print-dev-env'
+
+  printf 'package input\n' >"$SKILL_HOME/.config/nix-devshell/asset.json"
+  : >"$TEST_LOG"
+  run_apm_deployment
+  assert_success
+  assert_log_contains 'nix print-dev-env'
 }
