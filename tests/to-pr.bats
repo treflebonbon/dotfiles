@@ -280,6 +280,19 @@ write_hierarchy_state() {
   [ "$status" -eq 0 ]
   jq -e '.status == "failed" and .failedIssues == [227] and .added == []' <<<"$output"
   ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
+
+  : >"$FAKE_GH_LOG"
+  write_hierarchy_state '[
+    {"id":"I10","number":10,"state":"OPEN","body":"# Parent","parent":null},
+    {"id":"I20","number":20,"state":"OPEN","body":"# Other","parent":null},
+    {"id":"I227","number":227,"state":"OPEN","body":"## Parent\n\n#10 foo#20","parent":null}
+  ]'
+
+  run "$HIERARCHY_SCRIPT" 227
+
+  [ "$status" -eq 0 ]
+  jq -e '.status == "failed" and .failedIssues == [227] and .added == []' <<<"$output"
+  ! grep -Eq '^(list$|add:)' "$FAKE_GH_LOG"
 }
 
 @test "Hierarchy Repair rejects a conflicting native parent before all mutations" {

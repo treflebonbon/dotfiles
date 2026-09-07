@@ -124,6 +124,9 @@ parse_body_parent() {
   if grep -Eq '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+' <<<"$section"; then
     return 11
   fi
+  if grep -Eq '[[:alnum:]_/-]#[0-9]+' <<<"$section"; then
+    return 11
+  fi
 
   while IFS= read -r reference_token; do
     [[ -n "$reference_token" ]] || continue
