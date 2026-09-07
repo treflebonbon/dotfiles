@@ -147,7 +147,7 @@ export GIT_AUTHOR_NAME="Your Name"
 
 ### Codex
 
-Codex 固有の設定は `private_dot_config/codex/`（config.toml / rules / AGENTS.md / hooks.json / environments）を編集し、`run_onchange_after_codex-*.sh.tmpl` が `~/.config/codex/` 経由で `~/.codex/`（`$CODEX_HOME`）へマージ配置します。宣言的設定のみ管理し、runtime/cache/auth/session/state と project trust は管理対象外です。
+Codex 管理設定は `private_dot_config/codex/`（config.toml.tmpl / rules / AGENTS.md / hooks.json / environments）を編集し、`run_onchange_after_codex-managed-sync.sh.tmpl` が `~/.config/codex/` 経由で5種類をまとめて同期します。config.toml は既存設定へマージし、他4種類は管理ファイルで置換します。runtime/cache/auth/session/state と project trust は管理対象外です。配備先の追加・修復時は `sync-codex-managed-config` を引数なしで実行します（[同期と復旧の詳細](runtime/ai-runtimes.md#codex-管理設定の同期)）。
 
 Windows Codex Desktop の WSL mode では `CODEX_INTERNAL_ORIGINATOR_OVERRIDE=Codex Desktop` を検出した login shell が `CODEX_HOME=$HOME/.codex-app` を設定し、保存先を WSL native filesystem に置きます。
 
@@ -182,7 +182,7 @@ chezmoi update            # リモートから更新
 
 - **Bootstrap**: `install.sh`（エントリーポイント）、`.chezmoi.toml.tmpl`
 - **Dotfiles**（`dot_*` → `~/.*`）: `dot_bashrc.tmpl`, `dot_bash_profile.tmpl`, `dot_gitconfig.tmpl`, `dot_tmux.conf`
-- **Scripts**（`run_*`）: `run_after_setup-gh.sh`, `run_onchange_after_codex-*.sh.tmpl`, `run_onchange_after_apm-install.sh.tmpl` など
+- **Scripts**（`run_*`）: `run_after_setup-gh.sh`, `run_onchange_after_codex-managed-sync.sh.tmpl`, `run_onchange_after_apm-install.sh.tmpl` など
 - **Docs / Knowledge**: `CLAUDE.md` / `AGENTS.md`、`runtime/`（Open Knowledge Format で書かれた home-wide 知識バンドル）、`docs/`（repo ローカルな architecture/conventions/ADR）
 - `private_dot_claude/` → `~/.claude/`: `settings.json.tmpl`
 - `private_dot_config/` → `~/.config/`: `starship.toml`, `nvim/`, `wezterm/`, `codex/`, `nix-devshell/`（`flake.nix` / `modules/` / `packages/` / `lib/`）

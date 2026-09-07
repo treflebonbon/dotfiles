@@ -36,7 +36,7 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 
 ## Evidence contract
 
-The runner writes all output under the directory passed to `--output` (use `dogfood-output/<session>/` to match the standard dogfood layout):
+The runner keeps each attempt under `<output>/attempts/<id>/`. Its report and collected evidence use the paths below, relative to that attempt. The output root also has `report.md`, presenting the latest attempt with evidence paths prefixed by `attempts/<id>/`; the root retains the local `.chromium-profile/` identity. Use `dogfood-output/<session>/` as the output root.
 
 | Path                          | Contents                                                                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47,7 +47,6 @@ The runner writes all output under the directory passed to `--output` (use `dogf
 | `console.json`                | Captured console/page errors                                                                                                                                        |
 | `network.json`                | Captured failed requests and 5xx responses                                                                                                                          |
 | `auth-state.json`             | Playwright storage state snapshot                                                                                                                                   |
-| `.chromium-profile/`          | Persistent browser profile (gitignored)                                                                                                                             |
 
 The runner emits findings in the `report-parsing.md` block contract so Step 5 parses them directly: console/page errors become a `Category: console` finding, failed requests and 5xx responses become a `Category: network` finding, a missing MV3 service worker becomes a `Critical` `functional` finding, and navigation failures become `High` `functional` findings. Video files are finalized only after `context.close()`; the runner enumerates them after closing and lists them under each finding's `Evidence`.
 
@@ -58,7 +57,7 @@ On WSL2 the runner uses `chromium.connectOverCDP` to the Managed Dogfood Chrome 
 - `--disable-extensions-except=<extension>` — disables all other extensions
 - `--load-extension=<extension>` — loads the unpacked MV3 extension
 
-Playwright does not reliably support `recordVideo` for an existing browser reached through `connectOverCDP`. WSL2 CDP runs therefore omit video capture and apply the required 1440x1000 viewport with `page.setViewportSize`, including when an extension run reuses `browser.contexts()[0]`. Their evidence contract requires the report, screenshot, trace, console/network data, and storage state; a `.webm` file is required only for locally launched contexts.
+Playwright does not reliably support `recordVideo` for an existing browser reached through `connectOverCDP`. WSL2 CDP runs therefore omit video capture and apply the required 1440x1000 viewport with `page.setViewportSize`, including when an extension run reuses `browser.contexts()[0]`. Healthy-run verification requires report, screenshot, trace, console/network data, and storage state; a `.webm` is required only for locally launched contexts. Collection failures are explicitly reported: completed inspection with missing evidence returns 0 with warnings, while execution/cleanup/report failures return 1. The report retains observed findings, and Evidence includes only successfully saved files.
 
 The service worker is obtained by filtering for `chrome-extension://` workers (so a reused profile or an unrelated worker is not mistaken for the extension under test), with the `waitForEvent` wrapped so a timeout does not throw:
 
@@ -84,7 +83,7 @@ This derives the extension ID from the SW URL (`chrome-extension://<id>/...`) wi
 
 ## Headless vs headed
 
-Headless is the primary path. When the MV3 service worker never registers in headless mode, retry once with `--headed` using the same output-derived profile identity (in headed mode a missing SW is final and is recorded as the Critical finding):
+Headless is the primary path. Only when the runner returns exit 2 (headless service worker unregistered, with no execution/cleanup/publication failure), retry once with `--headed` using the same output-derived profile identity (in headed mode a missing SW is final and is recorded as the Critical finding):
 
 ```bash
 REF_DIR="${CLAUDE_SKILL_DIR:-${CODEX_SKILL_DIR:-.}}/references"
@@ -103,9 +102,9 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 node "$REF_DIR/playwright-dogfood-runner.mjs" --target about:blank --extension "$REF_DIR/fixtures/mv3-min" --output "$(mktemp -d)"
 ```
 
-Expected outputs after the runner exits (the fixture's SW registers, so a clean run reports no findings):
+Expected outputs inside the latest attempt after the runner exits (the fixture's SW registers, so a clean run reports no findings):
 
-- `report.md` containing an `Extension ID:` line (and `No findings:` for the clean fixture)
+- `report.md` containing an `Extension ID:` line (and `No findings recorded.` for the clean fixture)
 - `screenshots/initial.png`
 - `auth-state.json`
 - `traces/playwright-trace.zip`

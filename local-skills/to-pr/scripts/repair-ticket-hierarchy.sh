@@ -100,7 +100,7 @@ query_issue() {
 parse_body_parent() {
   local body="$1"
   local repository="$2"
-  local heading_count section url reference_repository reference_number
+  local heading_count section url reference_repository reference_number reference_token
   local -a references=()
 
   heading_count="$(printf '%s\n' "$body" | tr -d '\r' | awk '
@@ -124,9 +124,14 @@ parse_body_parent() {
   if grep -Eq '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+' <<<"$section"; then
     return 11
   fi
-  if grep -Eq '#[0-9]+[[:alnum:]_/-]' <<<"$section"; then
+  if grep -Eq '[[:alnum:]_/-]#[0-9]+' <<<"$section"; then
     return 11
   fi
+
+  while IFS= read -r reference_token; do
+    [[ -n "$reference_token" ]] || continue
+    [[ "$reference_token" =~ ^#[0-9]+$ ]] || return 11
+  done < <(grep -oE '#[0-9]+[[:alnum:]_/-]*' <<<"$section" || true)
 
   while IFS= read -r url; do
     [[ -n "$url" ]] || continue

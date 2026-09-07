@@ -459,11 +459,11 @@ assert_codex_strict_config() {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex" "$home/.codex-app" "$codex_home"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   assert_codex_strict_config "$home/.config/codex"
 
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_strict_config "$home/.codex"
   assert_codex_strict_config "$home/.codex-app"
@@ -841,11 +841,16 @@ assert data["permissions"]["blockReadsOutsideWorkingDirectories"] is True
 assert data["permissions"]["additionalDirectories"] == [
     "~/.claude/jobs",
     "~/runtime",
+    "~/.claude/projects",
+    "/nix/store",
+    "~/ghq/github.com",
 ]
 assert "Edit(**/.env*)" in data["permissions"]["deny"]
 assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
 assert "Edit(~/runtime/**)" in data["permissions"]["deny"]
 assert "Read(~/runtime/**)" not in data["permissions"]["deny"]
+assert "Edit(~/ghq/github.com/**)" in data["permissions"]["deny"]
+assert "Read(~/ghq/github.com/**)" not in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Write(") for rule in data["permissions"]["deny"]
 )
@@ -893,6 +898,25 @@ for rule in [
     assert rule in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Bash(git push --force") for rule in data["permissions"]["deny"]
+)
+PY
+}
+
+@test "Project-level Claude settings deny rules actually match file permission checks" {
+  local settings="$PROJECT_ROOT/.claude/settings.json"
+
+  python3 -m json.tool "$settings" >/dev/null
+  python3 - "$settings" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    data = json.load(f)
+
+assert "Edit(**/.env*)" in data["permissions"]["deny"]
+assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
+assert not any(
+    rule.startswith("Write(") for rule in data["permissions"]["deny"]
 )
 PY
 }
@@ -1155,170 +1179,6 @@ EOF
   [ ! -f "$home/.codex-app/.managed-config-seeded" ]
 }
 
-@test "Codex AGENTS deploy script writes to native Codex home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
-    "$home/.config/codex/AGENTS.md"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
-
-  [ -f "$home/.codex/AGENTS.md" ]
-  grep -q '^# Guidelines$' "$home/.codex/AGENTS.md"
-  grep -q 'Think in English, respond in Japanese\.' "$home/.codex/AGENTS.md"
-}
-
-@test "Codex AGENTS deploy script also updates existing Codex Desktop home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex" "$home/.codex-app"
-  cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
-    "$home/.config/codex/AGENTS.md"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
-
-  cmp "$home/.config/codex/AGENTS.md" "$home/.codex/AGENTS.md"
-  cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
-}
-
-@test "Codex AGENTS deploy script writes to native and CODEX_HOME when set" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  mkdir -p "$home/.config/codex" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
-    "$home/.config/codex/AGENTS.md"
-
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
-
-  cmp "$home/.config/codex/AGENTS.md" "$home/.codex/AGENTS.md"
-  cmp "$home/.config/codex/AGENTS.md" "$codex_home/AGENTS.md"
-  grep -q '^# Guidelines$' "$codex_home/AGENTS.md"
-}
-
-@test "Codex AGENTS deploy script writes to native and WSL CODEX_HOME" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
-  mkdir -p "$home/.config/codex" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" \
-    "$home/.config/codex/AGENTS.md"
-
-  HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
-    bash "$PROJECT_ROOT/run_onchange_after_codex-agents.sh.tmpl"
-
-  cmp "$home/.config/codex/AGENTS.md" "$home/.codex/AGENTS.md"
-  cmp "$home/.config/codex/AGENTS.md" "$codex_home/AGENTS.md"
-  grep -q '^# Guidelines$' "$codex_home/AGENTS.md"
-}
-
-@test "Codex hooks deploy script writes to native Codex home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex"
-  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" \
-    "$home/.config/codex/hooks.json"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
-
-  [ -f "$home/.codex/hooks.json" ]
-  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
-}
-
-@test "Codex hooks deploy script also updates existing Codex Desktop home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex" "$home/.codex-app"
-  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" \
-    "$home/.config/codex/hooks.json"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
-
-  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
-  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
-}
-
-@test "Codex hooks deploy script writes to native and CODEX_HOME when set" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  mkdir -p "$home/.config/codex" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" \
-    "$home/.config/codex/hooks.json"
-
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
-
-  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
-  cmp "$home/.config/codex/hooks.json" "$codex_home/hooks.json"
-}
-
-@test "Codex hooks deploy script writes to native and WSL CODEX_HOME" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
-  mkdir -p "$home/.config/codex" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" \
-    "$home/.config/codex/hooks.json"
-
-  HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
-    bash "$PROJECT_ROOT/run_onchange_after_codex-hooks.sh.tmpl"
-
-  cmp "$home/.config/codex/hooks.json" "$home/.codex/hooks.json"
-  cmp "$home/.config/codex/hooks.json" "$codex_home/hooks.json"
-}
-
-@test "Codex rules deploy script writes to native Codex home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex/rules"
-  cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" \
-    "$home/.config/codex/rules/default.rules"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
-
-  [ -f "$home/.codex/rules/default.rules" ]
-  grep -q 'pattern = \["rm", \["-r", "-R", "-rf", "-fr"\]\]' "$home/.codex/rules/default.rules"
-  [ "$(stat -c %a "$home/.codex/rules/default.rules")" = "600" ]
-}
-
-@test "Codex rules deploy script also updates existing Codex Desktop home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex/rules" "$home/.codex-app"
-  cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" \
-    "$home/.config/codex/rules/default.rules"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
-
-  cmp "$home/.config/codex/rules/default.rules" "$home/.codex/rules/default.rules"
-  cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
-  [ "$(stat -c %a "$home/.codex-app/rules/default.rules")" = "600" ]
-}
-
-@test "Codex rules deploy script writes to native and CODEX_HOME when set" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  mkdir -p "$home/.config/codex/rules" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" \
-    "$home/.config/codex/rules/default.rules"
-
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
-
-  cmp "$home/.config/codex/rules/default.rules" "$home/.codex/rules/default.rules"
-  cmp "$home/.config/codex/rules/default.rules" "$codex_home/rules/default.rules"
-  grep -q 'pattern = \["git", "push"\]' "$codex_home/rules/default.rules"
-  [ "$(stat -c %a "$home/.codex/rules/default.rules")" = "600" ]
-  [ "$(stat -c %a "$codex_home/rules/default.rules")" = "600" ]
-}
-
-@test "Codex rules deploy script writes to native and WSL CODEX_HOME" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
-  mkdir -p "$home/.config/codex/rules" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" \
-    "$home/.config/codex/rules/default.rules"
-
-  HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
-    bash "$PROJECT_ROOT/run_onchange_after_codex-rules.sh.tmpl"
-
-  cmp "$home/.config/codex/rules/default.rules" "$home/.codex/rules/default.rules"
-  cmp "$home/.config/codex/rules/default.rules" "$codex_home/rules/default.rules"
-  grep -q 'pattern = \[\["sudo", "su"\]\]' "$codex_home/rules/default.rules"
-  [ "$(stat -c %a "$home/.codex/rules/default.rules")" = "600" ]
-  [ "$(stat -c %a "$codex_home/rules/default.rules")" = "600" ]
-}
-
 @test "Codex environment managed fragment is repo-agnostic" {
   local environment="$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml"
 
@@ -1330,64 +1190,10 @@ EOF
   ! grep -q "devpod status dap" "$environment"
 }
 
-@test "Codex environment deploy script writes to native Codex home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex/environments"
-  cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" \
-    "$home/.config/codex/environments/environment.toml"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
-
-  [ -f "$home/.codex/environments/environment.toml" ]
-  grep -q '^name = "default"$' "$home/.codex/environments/environment.toml"
-  grep -q "direnv allow ." "$home/.codex/environments/environment.toml"
-}
-
-@test "Codex environment deploy script also updates existing Codex Desktop home" {
-  local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex/environments" "$home/.codex-app"
-  cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" \
-    "$home/.config/codex/environments/environment.toml"
-
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
-
-  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex/environments/environment.toml"
-  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
-}
-
-@test "Codex environment deploy script writes to native and CODEX_HOME when set" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  mkdir -p "$home/.config/codex/environments" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" \
-    "$home/.config/codex/environments/environment.toml"
-
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
-
-  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex/environments/environment.toml"
-  cmp "$home/.config/codex/environments/environment.toml" "$codex_home/environments/environment.toml"
-  grep -q '^name = "default"$' "$codex_home/environments/environment.toml"
-}
-
-@test "Codex environment deploy script writes to native and WSL CODEX_HOME" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
-  mkdir -p "$home/.config/codex/environments" "$codex_home"
-  cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" \
-    "$home/.config/codex/environments/environment.toml"
-
-  HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
-    bash "$PROJECT_ROOT/run_onchange_after_codex-environment.sh.tmpl"
-
-  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex/environments/environment.toml"
-  cmp "$home/.config/codex/environments/environment.toml" "$codex_home/environments/environment.toml"
-  grep -q '^name = "default"$' "$codex_home/environments/environment.toml"
-}
-
 @test "Codex config merge script writes managed permission profile" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 sandbox_mode = "workspace-write"
@@ -1400,7 +1206,7 @@ network_access = false
 "retired.example.com" = "allow"
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   grep -q '^approval_policy = "on-request"$' "$home/.codex/config.toml"
   grep -q '^approvals_reviewer = "auto_review"$' "$home/.codex/config.toml"
@@ -1419,6 +1225,7 @@ EOF
 
 @test "Codex config merge script preserves local project trust and app state" {
   local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
@@ -1464,7 +1271,7 @@ trust_level = "trusted"
 "gpt-5.5" = 4
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   grep -q '^model = "gpt-6-astra"$' "$home/.codex/config.toml"
   grep -q '^model_reasoning_effort = "xhigh"$' "$home/.codex/config.toml"
@@ -1484,7 +1291,7 @@ EOF
 @test "Codex config merge script removes retired superpowers plugin block" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 [plugins."superpowers@openai-curated"]
@@ -1494,7 +1301,7 @@ enabled = true
 enabled = true
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   ! grep -q 'superpowers@openai-curated' "$home/.codex/config.toml"
   grep -q '^\[plugins\."user-plugin@somewhere"\]$' "$home/.codex/config.toml"
@@ -1504,7 +1311,7 @@ EOF
 @test "Codex config merge script preserves local MCP servers while adding managed ones" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 [mcp_servers.github]
@@ -1512,7 +1319,7 @@ url = "https://api.githubcopilot.com/mcp/"
 bearer_token_env_var = "GITHUB_PAT_TOKEN"
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   grep -q '^\[mcp_servers\.github\]$' "$home/.codex/config.toml"
   grep -q '^url = "https://api.githubcopilot.com/mcp/"$' "$home/.codex/config.toml"
@@ -1523,14 +1330,14 @@ EOF
 @test "Codex config merge script also updates existing Codex Desktop home" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex" "$home/.codex-app"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   cat >"$home/.codex-app/config.toml" <<'EOF'
 [projects."/home/ubuntu/workspace/desktop"]
 trust_level = "trusted"
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_managed_values "$home/.codex/config.toml" "$home/.codex-app/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
@@ -1542,6 +1349,7 @@ EOF
 
 @test "Codex config merge script writes to native and CODEX_HOME when set" {
   local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
 
@@ -1582,7 +1390,7 @@ EOF
 trust_level = "trusted"
 EOF
 
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_managed_values "$home/.codex/config.toml" "$codex_home/config.toml"
   grep -q '^\[plugins\."example-curated@openai-curated"\]$' "$codex_home/config.toml"
@@ -1595,16 +1403,17 @@ EOF
   local codex_home="$BATS_TEST_TMPDIR/wsl-codex-home"
   mkdir -p "$home/.config/codex" "$codex_home"
 
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   HOME="$home" WSL_DISTRO_NAME="Ubuntu-24.04" CODEX_HOME="$codex_home" \
-    bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+    bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_managed_values "$home/.codex/config.toml" "$codex_home/config.toml"
 }
 
 @test "Codex config merge script removes deprecated codex_hooks feature flag" {
   local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
@@ -1617,7 +1426,7 @@ EOF
 codex_hooks = true
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   grep -q '^\[features\]$' "$home/.codex/config.toml"
   grep -q '^hooks = true$' "$home/.codex/config.toml"
@@ -1627,14 +1436,14 @@ EOF
 @test "Codex config merge script migrates legacy :project_roots filesystem key" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   cat >"$home/.codex/config.toml" <<'EOF'
 [permissions.dotfiles-secure.filesystem.":project_roots"]
 "**/*.key" = "none"
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   ! grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":project_roots"\]$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
@@ -1644,7 +1453,7 @@ EOF
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/orca-codex-home"
   mkdir -p "$home/.config/codex" "$home/.codex" "$codex_home"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   # Codex self-expands :workspace_roots into a concrete-path table and writes it
   # back. Older managed config also wrote static .git rules and protected-home
@@ -1669,7 +1478,7 @@ EOF
 EOF
   cp "$home/.codex/config.toml" "$codex_home/config.toml"
 
-  HOME="$home" CODEX_HOME="$codex_home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   python3 - "$home/.codex/config.toml" "$codex_home/config.toml" <<'PY'
 import sys
@@ -1699,7 +1508,7 @@ PY
 @test "Codex config merge script keeps path rules in user-defined profiles" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  stage_codex_managed_config "$home"
 
   # A profile the dotfiles do not manage may carry legitimate path-scoped rules.
   # Cleanup must be restricted to managed profiles and leave these untouched.
@@ -1709,7 +1518,7 @@ PY
 "build/**" = "write"
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   grep -q '^\[permissions\.project-edit\.filesystem\."/opt/sdk"\]$' "$home/.codex/config.toml"
   grep -q '^"\." = "read"$' "$home/.codex/config.toml"
@@ -1718,6 +1527,7 @@ EOF
 
 @test "Codex config merge script does not overwrite invalid existing config" {
   local home="$BATS_TEST_TMPDIR/home"
+  stage_codex_managed_config "$home"
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
@@ -1725,7 +1535,7 @@ model = "gpt-6-astra"
 EOF
   printf 'model = \n' >"$home/.codex/config.toml"
 
-  run env -u CODEX_HOME HOME="$home" bash "$PROJECT_ROOT/run_onchange_after_codex-config.sh.tmpl"
+  run env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   [ "$status" -ne 0 ]
   [ "$(cat "$home/.codex/config.toml")" = "model = " ]

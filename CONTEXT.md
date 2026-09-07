@@ -44,6 +44,10 @@ _Avoid_: 機能検証, 品質保証テスト
 同じ互換性ゲート、検証結果、配備境界、rollback 境界を共有して一緒に採用する導入済み AI ツールセットまたは Agent Skill セットの変更群。payload や workflow 契約が大きく異なる変更は、同じ upstream 更新でも別の更新単位に分ける。
 _Avoid_: 一括更新, 全部入り update, upstream の更新
 
+**Codex 管理設定**:
+dotfiles が内容の正本を持ち、Codex の各利用環境へまとめて同期する設定の集合。利用環境に固有の信頼設定や実行状態とは区別する。
+_Avoid_: Codex の全設定, Codex home, 更新単位
+
 **Managed Playwright Chrome**:
 WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。専用 profile の手動認証状態を、排他的な CLI session と Dashboard が再利用する。
 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
@@ -59,6 +63,14 @@ _Avoid_: Dashboard tab, show 画面, headless Dashboard
 **Managed Dogfood Chrome**:
 WSL2 上の dogfood evidence 収集専用に管理され、隔離 profile と CDP endpoint、任意の unpacked extension を所有する Windows 側の browser identity。通常利用の既定ブラウザおよび Managed Playwright Chrome とは状態を共有しない。
 _Avoid_: Dogfood browser, extension Chrome, Managed Playwright Chrome
+
+**Dogfood 実行結果**:
+Dogfood 試行における検査の完了状況、収集済み finding、証跡の充足と収集失敗をまとめた結果。finding の有無、検査の完了、証跡の充足はそれぞれ区別する。
+_Avoid_: finding 件数, 検査合格, 証跡一覧
+
+**Dogfood 試行**:
+対象の検査を開始してから結果を確定するまでの1回の実行。再試行は同じ検査目的と browser identity を引き継いでも別の試行であり、観測と証跡を区別する。
+_Avoid_: Dogfood サイクル, profile identity, 再開レビュー
 
 **Managed Chrome 所有権**:
 Managed Playwright Chrome と Managed Dogfood Chrome のうち、一方だけに利用を認める共通の排他的な権利。Managed Playwright Chrome 内での CLI session の利用権とは区別する。
@@ -99,6 +111,10 @@ _Avoid_: `.git` write access, repository-wide permission, global Git exception
 **Technical Sandbox Boundary**:
 Git の checkout 隔離とは独立して、agent の filesystem・network access を runtime が強制する権限境界。full-autonomy permission mode では存在せず、worktree isolation 自体もこの境界には含めない。
 _Avoid_: worktree sandbox, repository isolation, permission mode
+
+**Working-Directory Read Fence**:
+primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否する permission 層の境界で、Bash コマンド経由のアクセスは対象外（Technical Sandbox Boundary が別途扱う、OS レベル・Bash 専用）。`additionalDirectories` 内の Edit/Write はこの fence では拒否されず、現在の permission mode に従い、明示的な `Edit(...)` deny があるパスだけが read-only になる。
+_Avoid_: block reads, sandbox, permission mode
 
 **Runtime Adapter**:
 raw agent runtime の実行 context を公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。Worktree Owner が直接提供する built-in agent integration とは区別する。

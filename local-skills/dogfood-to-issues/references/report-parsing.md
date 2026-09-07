@@ -16,6 +16,16 @@ Parse the `dogfood` report into finding candidates before asking for approval. P
 
 Stop if `report.md` is missing or empty.
 
+## Run and Evidence Status
+
+Read status only from the report header before the first section heading. New reports include `Run status`, `Evidence status`, and `Attempt directory`; warnings and failures explain missing evidence or unfinished work. Finding count alone never proves a run completed or a target loaded.
+
+- `Run status: completed`: new runs may enter candidate review. `Evidence status: partial` or `unavailable` means warning-only completion; show every warning before reviewing candidates, including when no supplementary files exist.
+- `Run status: failed`, `running`, or `retryable`: stop automatic review. Explicit `--resume` may review recorded candidates while preserving the failed/unfinished status. It does not finish or rerun that attempt.
+- Missing, unrecognized, or inconsistent status in legacy/external reports: treat the run as unknown. Explicit `--resume` may review its candidates; do not infer success or rewrite the source report.
+
+Only a newly executed, completed cycle with complete evidence and no warnings can count toward the consecutive-zero-finding condition in `SKILL.md`. Warning, failed, unfinished, retryable, and unknown outcomes break the streak. Reviewing saved reports never adds a cycle. WSL2 video is unsupported, not missing evidence.
+
 ## Finding Block Contract
 
 Treat headings matching this shape as finding starts:
@@ -29,7 +39,7 @@ Accepted aliases are `### Finding 001:` and `### Bug 001:`. The parser should co
 Within each block, extract these fields when present:
 
 - `Severity`: `Critical`, `High`, `Medium`, or `Low`. Normalize resumed priority aliases P0/P1/P2/P3 to those values using [severity-label-mapping.md](severity-label-mapping.md).
-- `Category`: `visual`, `functional`, `ux`, `content`, `perf`, `console`, or `a11y`
+- `Category`: `visual`, `functional`, `ux`, `content`, `perf`, `console`, `network`, or `a11y`
 - `URL`
 - `Summary`
 - `Expected`
@@ -62,8 +72,10 @@ Annotation-generated blocks use the same contract. Each rectangle defaults to `M
 
 ## Evidence Paths
 
-Normalize relative evidence paths against `EVIDENCE_ROOT` and keep paths relative to that root. Drop entries that escape the root. For a normal dogfood worktree, render the familiar `dogfood-output/<session>/...` path. For an external resumed output, retain its absolute local evidence root in the Issue source section and render evidence paths relative to that root.
+Normalize relative evidence paths against `EVIDENCE_ROOT` and keep paths relative to that root. Drop entries that escape the root after resolving symlinks, are missing, or are not nonempty regular files. Display dropped entries as evidence warnings without discarding the finding; never rewrite an external resumed report. For a normal dogfood worktree, render the familiar `dogfood-output/<session>/...` path. For an external resumed output, retain its absolute local evidence root in the Issue source section and render evidence paths relative to that root.
+
+Root reports refer to `attempts/<id>/...`; historical reports inside an attempt refer to files relative to that attempt. Resolve each report independently against its own `EVIDENCE_ROOT`. The `Collected evidence` section lists available artifacts even when there are no finding blocks.
 
 ## Empty Reports
 
-If the report contains no findings, print a zero-finding summary and stop before opening issues unless the user explicitly asks to preserve the report.
+If the report contains no findings, report both the run status and evidence status, then stop before opening issues. For failed, unfinished, or unknown runs, say that no findings were recorded, not that the target passed or loaded. A completed run with evidence warnings is not a clean zero-finding cycle.
