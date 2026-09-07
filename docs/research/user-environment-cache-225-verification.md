@@ -28,7 +28,19 @@ tags: [nix, shell, cache, verification]
 | AC13 初回導入と依存                   | 全3件      | キャッシュ不在、初期PATHのOSコマンドとNix adapterで成功。shasumだけの経路も維持。system Perl不在は配備前に停止。WSL2で実Nixを確認。macOS実機／Bash3.2と非WSL Linux実機は未確認であり、全OS実機確認済みとはしない。                                          |
 | AC14 実Nixの生成・読込み              | #224・#225 | 下記の一時環境で最終形の生成、環境値・コンパイラの読込み、背景／必須の重なり、変更なしの再利用を確認。実ユーザーdevShell全体のビルド・実配備は対象外。                                                                                                      |
 
-#223／#224 の根拠は [#224 検証記録](user-environment-cache-224-verification.md) と既存の入口テストに保持する。今回の更新経路に関係する95件を再実行し成功した。全体テストの結果は最終品質確認に記録する。
+#223／#224 の根拠は [#224 検証記録](user-environment-cache-224-verification.md) と既存の入口テストに保持する。今回の更新経路に関係する95件を再実行し成功した。
+
+## 最終品質確認
+
+実装コミットは `44b23cf`（`fix(nix): serialize cache refreshes and retry changed inputs`）。最終実装で以下を確認した。
+
+- `bun run test`: 全511件成功、失敗0件、skip0件。ログは `/tmp/issue-225-full.log`。
+- `bunx tsc --noEmit`: 成功。
+- 更新ライブラリ・`install.sh`・追加した配備競合helperのShellCheck、およびコミット時のlefthook検査（shfmt、ShellCheck、oxfmt、gitleaks、Conventional Commits）: 成功。
+- `git diff --check`: 成功。
+- `6f8ffac...44b23cf` を対象に、独立した2つのagentで規約・仕様をレビュー。Standardsは規約違反0件・コードスメル0件、SpecはIssue #225・ADR・本検証記録との不一致0件。
+
+親の14ACについて、この環境で検証可能な自動テストと実Nix確認は成功した。OS実機ごとの未確認範囲はAC13と下記に明記する。
 
 ## 再現と終了処理の診断
 
