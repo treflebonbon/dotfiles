@@ -39,7 +39,7 @@ The repo's default branch (`origin/$BASE_BRANCH` — do not hardcode `main`; tar
 
 ## Resume
 
-When `--resume <path>` is supplied, do not run dogfood again. Resolve `<path>` to an absolute directory, validate that `report.md` exists, and validate evidence paths against that directory. It is the read-only evidence root. If it is already inside a `dogfood/*` worktree, reuse that worktree. Otherwise leave the external directory in place: do not create a wrapper worktree, move/copy its files, or mutate it.
+When `--resume <path>` is supplied, do not run dogfood again. Accept either the output root or a retained `attempts/<id>/` directory, and apply the run-status rules in [report-parsing.md](report-parsing.md). Resolve `<path>` to an absolute directory, validate that `report.md` exists, and validate evidence paths against that directory. It is the read-only evidence root. If it is already inside a `dogfood/*` worktree, reuse that worktree. Otherwise leave the external directory in place: do not create a wrapper worktree, move/copy its files, or mutate it.
 
 ## Dogfood Invocation
 
@@ -56,9 +56,9 @@ node "$REF_DIR/playwright-dogfood-runner.mjs" \
 
 When `--extension <path>` is supplied, append `--extension "$(readlink -f "$EXTENSION_PATH")"`.
 When `--annotate` is supplied, append `--annotate`; reject it if `--resume` is also present. The runner waits for Playwright Dashboard feedback only after automated inspection.
-If that headless MV3 run exits non-zero because the service worker did not register, retry once with `--headed` using the same output-derived Managed Dogfood profile identity. On WSL2 this is Windows Chrome over CDP and does not use `xvfb-run`; non-WSL callers may provide their normal display wrapper.
+Only if that headless MV3 run returns exit 2, retry once with `--headed` using the same output-derived Managed Dogfood profile identity. On WSL2 this is Windows Chrome over CDP and does not use `xvfb-run`; non-WSL callers may provide their normal display wrapper.
 
-The runner writes `report.md`, `screenshots/`, `videos/`, `traces/`, `console.json`, and `network.json` under `$WT_DIR/$OUTPUT_DIR`. Annotation runs also retain Playwright CLI's PNG/YAML artifacts and the original JSON response under that output root.
+The runner creates a fresh `attempts/<id>/` directory under `$WT_DIR/$OUTPUT_DIR`, with its report and collected evidence. `report.md` at the output root presents the latest attempt with root-relative evidence paths. Annotation CLI output and response JSON also live inside the attempt. Failed acquisitions are recorded as warnings, with no missing paths advertised. Earlier attempts remain available for audit and `--resume`. Profile identity remains tied to the output root, not the attempt directory. Exit 1 stops; report text is never a retry trigger.
 
 ## Cleanup
 

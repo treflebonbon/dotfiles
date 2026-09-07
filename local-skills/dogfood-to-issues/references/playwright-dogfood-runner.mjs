@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 
 import { chromium } from "playwright";
 
+import { DogfoodResult } from "./dogfood-result.mjs";
 import { acquireManagedDogfoodChrome } from "./managed-dogfood-browser.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -42,40 +43,6 @@ const parseArgs = (argv) => {
     throw new Error("--annotate cannot be combined with --resume");
   }
   return out;
-};
-
-// Render finding candidates in the report-parsing.md block contract
-// (### ISSUE-NNN: with Severity / Category / URL / Summary / Actual / Evidence).
-// No findings => no ### blocks, so the downstream parser reports a clean zero-finding run.
-const renderReport = ({ target, extensionId, findings }) => {
-  const header = [
-    "# Playwright Dogfood Report",
-    "",
-    `Target: ${target}`,
-    ...(extensionId ? [`Extension ID: ${extensionId}`] : []),
-    "",
-  ];
-  if (findings.length === 0) {
-    header.push(
-      "No findings: target loaded and no critical browser errors were detected.",
-      ""
-    );
-    return header.join("\n");
-  }
-  const blocks = findings.map((f, i) => {
-    const n = String(i + 1).padStart(3, "0");
-    return [
-      `### ISSUE-${n}: ${f.title}`,
-      `Severity: ${f.severity}`,
-      `Category: ${f.category}`,
-      `URL: ${f.url ?? target}`,
-      `Summary: ${f.summary}`,
-      `Actual: ${f.actual}`,
-      `Evidence: ${f.evidence.join(", ")}`,
-      "",
-    ].join("\n");
-  });
-  return [...header, ...blocks].join("\n");
 };
 
 const isExtSw = (w) => w.url().startsWith("chrome-extension://");
@@ -218,13 +185,9 @@ const runCli = async (cliArgs, cwd, extraEnv = {}) => {
   }
 };
 
-const collectAnnotations = async ({
-  cdpEndpoint,
-  output,
-  target,
-  userDataDir,
-}) => {
-  const help = await runCli(["show", "--help"], output);
+const collectAnnotations = async ({ cdpEndpoint, result, userDataDir }) => {
+  const { attemptDir, target } = result;
+  const help = await runCli(["show", "--help"], attemptDir);
   if (!help.stdout.includes("--annotate")) {
     throw new Error("playwright-cli does not support show --annotate");
   }
@@ -232,44 +195,50 @@ const collectAnnotations = async ({
   const endpoint =
     cdpEndpoint || `http://127.0.0.1:${await readDevToolsPort(userDataDir)}`;
   const session = `dogfood-annotate-${process.pid}-${Date.now()}`;
-  await runCli([`-s=${session}`, "attach", `--cdp=${endpoint}`], output);
-
-  let annotationResult;
-  let annotationError;
   try {
+    await runCli([`-s=${session}`, "attach", `--cdp=${endpoint}`], attemptDir);
     process.stderr.write(
       "Waiting for visual annotations in Playwright Dashboard...\n"
     );
-    annotationResult = await runCli(
+    const response = await runCli(
       [`-s=${session}`, "show", "--annotate", "--json"],
-      output,
+      attemptDir,
       { PWCLI_EXTERNAL_CDP: "1" }
     );
-  } catch (error) {
-    annotationError = error;
+    const responseRel = "annotations/response.json";
+    await result.capture(
+      "annotation response",
+      async () => {
+        await fs.mkdir(path.join(attemptDir, "annotations"), {
+          recursive: true,
+        });
+        await fs.writeFile(path.join(attemptDir, responseRel), response.stdout);
+      },
+      [responseRel]
+    );
+    const annotations = parseAnnotationResponse(
+      response.stdout,
+      target,
+      responseRel
+    );
+    result.findings.push(...annotations);
+    const files = new Set(annotations.flatMap((finding) => finding.evidence));
+    files.delete(responseRel);
+    for (const relative of files) {
+      // eslint-disable-next-line no-await-in-loop -- validate each annotation file before publishing its reference
+      await result.capture("annotation evidence", () =>
+        result.retainFile(relative)
+      );
+    }
+  } finally {
+    await runCli([`-s=${session}`, "detach"], attemptDir).catch((error) =>
+      result.fail("annotation detach", error)
+    );
   }
-  try {
-    await runCli([`-s=${session}`, "detach"], output);
-  } catch (error) {
-    annotationError ??= error;
-  }
-  if (annotationError) {
-    throw annotationError instanceof Error
-      ? annotationError
-      : new Error(String(annotationError));
-  }
-
-  const annotationDir = path.join(output, "annotations");
-  const responseRel = "annotations/response.json";
-  await fs.mkdir(annotationDir, { recursive: true });
-  await fs.writeFile(path.join(output, responseRel), annotationResult.stdout);
-  return parseAnnotationResponse(annotationResult.stdout, target, responseRel);
 };
 
 const args = parseArgs(process.argv);
-await fs.mkdir(path.join(args.output, "screenshots"), { recursive: true });
-await fs.mkdir(path.join(args.output, "videos"), { recursive: true });
-await fs.mkdir(path.join(args.output, "traces"), { recursive: true });
+const result = await DogfoodResult.start(args);
 
 const userDataDir = path.join(args.output, ".chromium-profile");
 const dogfoodRunId = `dogfood-${createHash("sha256")
@@ -289,7 +258,7 @@ if (args.annotate) {
 const evidenceViewport = { height: 1000, width: 1440 };
 const contextOptions = {
   recordVideo: {
-    dir: path.join(args.output, "videos"),
+    dir: path.join(result.attemptDir, "videos"),
     size: { height: 1000, width: 1440 },
   },
   viewport: evidenceViewport,
@@ -322,20 +291,27 @@ try {
   startupError = error;
 }
 
-const findings = [];
+const { findings } = result;
 const screenshotRel = "screenshots/initial.png";
 let extensionId;
 let swRegistered = !args.extension;
 const consoleErrors = [];
 const failedRequests = [];
 const traceRel = "traces/playwright-trace.zip";
-let runError = startupError;
+let videoFinalized = false;
+if (startupError) {
+  result.fail("startup", startupError);
+}
 
 if (context) {
   try {
-    await context.tracing
-      .start({ screenshots: true, snapshots: true, sources: false })
-      .catch(() => null);
+    await result.capture("trace start", () =>
+      context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: false,
+      })
+    );
 
     if (args.extension) {
       // Resolve the target extension's MV3 service worker. Filter to chrome-extension:// workers so a
@@ -408,21 +384,30 @@ if (context) {
         title: "Navigation to target failed",
       });
     }
-    await page
-      .screenshot({
-        fullPage: true,
-        path: path.join(args.output, "screenshots", "initial.png"),
-      })
-      .catch(() => null);
-    await context
-      .storageState({ path: path.join(args.output, "auth-state.json") })
-      .catch(() => null);
+    await result.capture(
+      "screenshot",
+      () =>
+        page.screenshot({
+          fullPage: true,
+          path: path.join(result.attemptDir, screenshotRel),
+          timeout: 5000,
+        }),
+      [screenshotRel]
+    );
+    await result.capture(
+      "storage state",
+      () =>
+        context.storageState({
+          path: path.join(result.attemptDir, "auth-state.json"),
+        }),
+      ["auth-state.json"]
+    );
 
     if (consoleErrors.length) {
       findings.push({
         actual: consoleErrors.map((e) => `- ${e}`).join("\n"),
         category: "console",
-        evidence: [screenshotRel, traceRel],
+        evidence: ["console.json", screenshotRel, traceRel],
         severity: "Medium",
         summary: `${consoleErrors.length} console/page error(s) were logged.`,
         title: "Console errors detected while dogfooding the target",
@@ -441,72 +426,64 @@ if (context) {
       });
     }
     if (args.annotate) {
-      findings.push(
-        ...(await collectAnnotations({
-          cdpEndpoint: managedDogfood?.endpoint,
-          output: args.output,
-          target: args.target,
-          userDataDir,
-        }))
-      );
+      await collectAnnotations({
+        cdpEndpoint: managedDogfood?.endpoint,
+        result,
+        userDataDir,
+      });
     }
+    result.inspectionCompleted = true;
   } catch (error) {
-    runError = error;
+    result.fail("inspection", error);
   } finally {
-    await fs
-      .writeFile(
-        path.join(args.output, "console.json"),
-        `${JSON.stringify(consoleErrors, null, 2)}\n`
-      )
-      .catch(() => null);
-    await fs
-      .writeFile(
-        path.join(args.output, "network.json"),
-        `${JSON.stringify(failedRequests, null, 2)}\n`
-      )
-      .catch(() => null);
-    await context.tracing
-      .stop({ path: path.join(args.output, traceRel) })
-      .catch(() => null);
+    await result.capture(
+      "console",
+      () =>
+        fs.writeFile(
+          path.join(result.attemptDir, "console.json"),
+          `${JSON.stringify(consoleErrors, null, 2)}\n`
+        ),
+      ["console.json"]
+    );
+    await result.capture(
+      "network",
+      () =>
+        fs.writeFile(
+          path.join(result.attemptDir, "network.json"),
+          `${JSON.stringify(failedRequests, null, 2)}\n`
+        ),
+      ["network.json"]
+    );
+    await result.capture(
+      "trace stop",
+      () =>
+        context.tracing.stop({ path: path.join(result.attemptDir, traceRel) }),
+      [traceRel]
+    );
     // Always close: releases the profile lock and finalizes local recordings.
-    await context.close().catch(() => null);
-    await browser?.close().catch(() => null);
+    try {
+      await context.close();
+      videoFinalized = true;
+    } catch (error) {
+      result.fail("context close", error);
+    }
+    await browser
+      ?.close()
+      .catch((error) => result.fail("browser close", error));
     await managedDogfood?.close().catch((error) => {
-      runError ??= error;
+      result.fail("managed Chrome cleanup", error);
     });
   }
 } else if (managedDogfood) {
+  await browser?.close().catch((error) => result.fail("browser close", error));
   await managedDogfood.close().catch((error) => {
-    runError ??= error;
+    result.fail("managed Chrome cleanup", error);
   });
 }
 
-// Video files exist only after context.close(); enumerate now and attach to each finding's evidence.
-let videoRels = [];
-try {
-  const videoFiles = await fs.readdir(path.join(args.output, "videos"));
-  videoRels = videoFiles
-    .filter((f) => f.endsWith(".webm"))
-    .map((f) => `videos/${f}`);
-} catch {
-  videoRels = [];
-}
-for (const f of findings) {
-  f.evidence.push(...videoRels);
-}
-
-await fs.writeFile(
-  path.join(args.output, "report.md"),
-  renderReport({ extensionId, findings, target: args.target })
-);
-
-if (runError) {
-  console.error(runError.message);
-  process.exitCode = 1;
-}
-
-// Headless run where the SW never registered: signal failure so SKILL.md Step 4 retries headed.
-// In headed mode a missing SW is final and is already captured as the Critical finding above.
-if (!swRegistered && !args.headed) {
-  process.exitCode = 1;
-}
+result.extensionId = extensionId;
+process.exitCode = await result.finish({
+  retryable: !swRegistered && !args.headed,
+  videoFinalized,
+  videoSupported: Boolean(context && !managedDogfood),
+});
