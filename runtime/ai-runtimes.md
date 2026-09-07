@@ -31,7 +31,7 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 管理ソースまたは同期処理が変わったときに chezmoi の `run_onchange_after_codex-managed-sync.sh.tmpl` が実行する。配備先の手編集や `CODEX_HOME` の変更だけでは再実行されないため、修復・新しい配備先への同期は `sync-codex-managed-config` を明示実行する。Desktop の初回ログインも同じコマンドを使い、同期済みならログイン時の再同期を省く。
 
-全配備先の出力生成と事前検証が成功してから、ファイルごとに原子的に置換する。失敗時は診断の `prepare` / `apply` と対象パスを確認する。`prepare` の失敗では既存ファイルを置換しない。`apply` 中の障害では成功済みの更新が残るため、原因修正後にコマンドを再実行して揃える。chezmoi 経由の失敗は次回 apply でも再試行する（[ADR-0048](../docs/adr/0048-sync-codex-managed-settings-as-a-set.md)）。
+全配備先の出力生成と事前検証が成功してから、ファイルごとに原子的に置換する。失敗時は診断の `prepare` / `apply` と対象パスを確認する。`prepare` の失敗では既存ファイルを置換しない。`apply` 中の障害では成功済みの更新が残るため、原因修正後にコマンドを再実行して揃える。chezmoi 経由の失敗は次回 apply でも再試行する（[ADR-0051](../docs/adr/0051-sync-codex-managed-settings-as-a-set.md)）。
 
 MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / serena / effect-docs）。
 
