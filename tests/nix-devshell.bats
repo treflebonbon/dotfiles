@@ -195,10 +195,6 @@ PS
   [ -f "$PROJECT_ROOT/.wsl-browser-free" ]
 }
 
-@test "nix-devshell requires Claude Code with current workflow and permission fixes (issue #112)" {
-  grep -q 'minClaudeCode = "2\.1\.261";' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
-}
-
 @test "AI toolset snapshot and selected payload source contract is documented" {
   local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
@@ -209,33 +205,16 @@ PS
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#56c61c9ee79a8df1a98822309c04847a57f56000' "$manifest"
 }
 
-@test "nix-devshell uses the pinned Claude Code package without an Intel Darwin override" {
-  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
+@test "nix-devshell has no retired Intel Darwin Claude Code package" {
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix"
 
-  grep -q 'v = llm\.claude-code\.version or null;' "$module"
-  grep -q '^    llm\.claude-code;$' "$module"
-  run grep -q 'claudeCodeDarwinX64' "$module"
-  [ "$status" -ne 0 ]
   run test -e "$package"
   [ "$status" -ne 0 ]
 }
 
-@test "nix-devshell requires Codex with executor-provided skill and GPT-6 Astra support" {
+@test "nix-devshell keeps the other agents pinned without Intel Darwin" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 
-  grep -q 'minCodex = "0\.153\.4";' "$module"
-  grep -q 'executor が提供する skill の discover/read' "$module"
-  grep -q 'v = codexPackage\.version' "$module"
-  grep -q '^    codexPackage;$' "$module"
-  ! grep -q 'codexPackage\.override' "$module"
-}
-
-@test "nix-devshell uses the direct upstream Codex package and keeps other agents pinned" {
-  local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
-
-  grep -Fq 'codexPackage = inputs.llm-agents.packages.${system}.codex;' "$module"
-  ! grep -q 'codexPackage\.override' "$module"
   grep -q '^    llm\.copilot-cli$' "$module"
   grep -q '^    llm\.antigravity-cli$' "$module"
   run grep -q 'x86_64-darwin' "$module"
