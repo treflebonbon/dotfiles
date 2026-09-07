@@ -6,6 +6,7 @@ setup_file() {
   cp "$SOURCE_REF_DIR/package.json" \
     "$SOURCE_REF_DIR/package-lock.json" \
     "$SOURCE_REF_DIR/playwright-dogfood-runner.mjs" \
+    "$SOURCE_REF_DIR/dogfood-result.mjs" \
     "$SOURCE_REF_DIR/managed-dogfood-browser.mjs" \
     "$TEST_REF_DIR/"
   mkdir -p "$TEST_REF_DIR/fixtures"
@@ -20,7 +21,11 @@ setup() {
   REF_DIR="$BATS_FILE_TMPDIR/references"
   RUNNER="$REF_DIR/playwright-dogfood-runner.mjs"
   export NODE_BIN="$(command -v node)"
-  export DOGFOOD_TEST_WSL=0
+  if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -Eqi 'microsoft|wsl' /proc/sys/kernel/osrelease 2>/dev/null; then
+    export DOGFOOD_TEST_WSL=1
+  else
+    export DOGFOOD_TEST_WSL=0
+  fi
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
   export FAKE_CLI_LOG="$BATS_TEST_TMPDIR/playwright-cli.log"
   export PWTEST_DAEMON_SESSION_DIR="$BATS_TEST_TMPDIR/playwright-cli-daemon"
@@ -137,9 +142,10 @@ EOF
   run node "$RUNNER" --target about:blank --output "$out"
 
   [ "$status" -eq 0 ]
-  grep -Fq 'No findings: target loaded and no critical browser errors were detected.' "$out/report.md"
+  grep -Fq 'No findings recorded.' "$out/report.md"
   [ ! -e "$FAKE_CLI_LOG" ]
-  [ ! -e "$out/annotations" ]
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ ! -e "$out/$attempt/annotations" ]
 }
 
 @test "annotation cannot be combined with resume" {
@@ -165,11 +171,12 @@ EOF
   grep -Fq 'Second line of the same comment' "$out/report.md"
   [[ "$(<"$out/report.md")" == *$'Comment: First annotation\n\nSecond line of the same comment'* ]]
   grep -Fq 'Viewport: 1440x1000' "$out/report.md"
-  grep -Fq 'Evidence: .playwright-cli/annotations.png, .playwright-cli/annotations.yaml, annotations/response.json' "$out/report.md"
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  grep -Fq "Evidence: $attempt/.playwright-cli/annotations.png, $attempt/.playwright-cli/annotations.yaml, $attempt/annotations/response.json" "$out/report.md"
   [ "$(sed -n 's/^### ISSUE-[0-9][0-9][0-9]: //p' "$out/report.md" | tail -1 | wc -c)" -eq 121 ]
-  [ -f "$out/.playwright-cli/annotations.png" ]
-  [ -f "$out/.playwright-cli/annotations.yaml" ]
-  [ -f "$out/annotations/response.json" ]
+  [ -f "$out/$attempt/.playwright-cli/annotations.png" ]
+  [ -f "$out/$attempt/.playwright-cli/annotations.yaml" ]
+  [ -f "$out/$attempt/annotations/response.json" ]
   grep -Fq 'attach --cdp=http://127.0.0.1:' "$FAKE_CLI_LOG"
   grep -Fq 'show --annotate --json' "$FAKE_CLI_LOG"
   grep -Fq 'detach' "$FAKE_CLI_LOG"
@@ -182,8 +189,9 @@ EOF
   run node "$RUNNER" --target about:blank --output "$out" --annotate
 
   [ "$status" -eq 0 ]
-  grep -Fq 'No findings: target loaded and no critical browser errors were detected.' "$out/report.md"
-  [ -f "$out/annotations/response.json" ]
+  grep -Fq 'No findings recorded.' "$out/report.md"
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ -f "$out/$attempt/annotations/response.json" ]
 }
 
 @test "annotation attaches to the runner-owned Chromium and leaves it alive" {
@@ -195,7 +203,8 @@ EOF
   [ "$status" -eq 0 ]
   grep -Fq 'about:blank' "$FAKE_CLI_LOG"
   grep -Fq 'detach' "$FAKE_CLI_LOG"
-  [ -f "$out/traces/playwright-trace.zip" ]
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ -f "$out/$attempt/traces/playwright-trace.zip" ]
 }
 
 @test "annotation attach failure still finalizes automated evidence" {
@@ -207,23 +216,33 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"attach failed"* ]]
   [ -f "$out/report.md" ]
-  [ -f "$out/traces/playwright-trace.zip" ]
-  [ "$(find "$out/videos" -name '*.webm' | wc -l)" -ge 1 ]
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ -f "$out/$attempt/traces/playwright-trace.zip" ]
+  if [ "$DOGFOOD_TEST_WSL" = 0 ]; then
+    [ "$(find "$out/$attempt/videos" -name '*.webm' | wc -l)" -ge 1 ]
+  fi
 }
 
 @test "missing Playwright CLI still finalizes automated evidence" {
   local out="$BATS_TEST_TMPDIR/output"
-  local path_without_cli="$BATS_TEST_TMPDIR/path-without-cli"
-  mkdir -p "$path_without_cli"
-  ln -s "$NODE_BIN" "$path_without_cli/node"
+  local path_without_cli="" entry
+  IFS=: read -r -a path_entries <<<"$PATH"
+  for entry in "${path_entries[@]}"; do
+    if [ ! -x "$entry/playwright-cli" ]; then
+      path_without_cli="${path_without_cli:+$path_without_cli:}$entry"
+    fi
+  done
 
   run env PATH="$path_without_cli" "$NODE_BIN" "$RUNNER" --target about:blank --output "$out" --annotate
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"playwright-cli show --help failed"* ]]
   [ -f "$out/report.md" ]
-  [ -f "$out/traces/playwright-trace.zip" ]
-  [ "$(find "$out/videos" -name '*.webm' | wc -l)" -ge 1 ]
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ -f "$out/$attempt/traces/playwright-trace.zip" ]
+  if [ "$DOGFOOD_TEST_WSL" = 0 ]; then
+    [ "$(find "$out/$attempt/videos" -name '*.webm' | wc -l)" -ge 1 ]
+  fi
 }
 
 @test "unsupported annotation command still finalizes automated evidence" {
@@ -235,7 +254,8 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"does not support show --annotate"* ]]
   [ -f "$out/report.md" ]
-  [ -f "$out/traces/playwright-trace.zip" ]
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ -f "$out/$attempt/traces/playwright-trace.zip" ]
 }
 
 @test "annotation dashboard failure detaches and finalizes automated evidence" {
@@ -248,7 +268,8 @@ EOF
   [[ "$output" == *"dashboard failed"* ]]
   grep -Fq 'detach' "$FAKE_CLI_LOG"
   [ -f "$out/report.md" ]
-  [ -f "$out/traces/playwright-trace.zip" ]
+  attempt="$(sed -n 's/^Attempt directory: //p' "$out/report.md")"
+  [ -f "$out/$attempt/traces/playwright-trace.zip" ]
 }
 
 @test "MV3 inspection and annotation share the persistent Chromium context" {

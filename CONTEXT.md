@@ -56,6 +56,14 @@ _Avoid_: Dashboard tab, show 画面, headless Dashboard
 WSL2 上の dogfood evidence 収集専用に管理され、隔離 profile と CDP endpoint、任意の unpacked extension を所有する Windows 側の browser identity。通常利用の既定ブラウザおよび Managed Playwright Chrome とは状態を共有しない。
 _Avoid_: Dogfood browser, extension Chrome, Managed Playwright Chrome
 
+**Dogfood 実行結果**:
+Dogfood 試行における検査の完了状況、収集済み finding、証跡の充足と収集失敗をまとめた結果。finding の有無、検査の完了、証跡の充足はそれぞれ区別する。
+_Avoid_: finding 件数, 検査合格, 証跡一覧
+
+**Dogfood 試行**:
+対象の検査を開始してから結果を確定するまでの1回の実行。再試行は同じ検査目的と browser identity を引き継いでも別の試行であり、観測と証跡を区別する。
+_Avoid_: Dogfood サイクル, profile identity, 再開レビュー
+
 **Managed Chrome 所有権**:
 Managed Playwright Chrome と Managed Dogfood Chrome のうち、一方だけに利用を認める共通の排他的な権利。Managed Playwright Chrome 内での CLI session の利用権とは区別する。
 _Avoid_: Chrome の PID, profile の所有者, CLI session lease
