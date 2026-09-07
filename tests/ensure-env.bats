@@ -48,3 +48,19 @@ CACHE
   assert_line "SHELL=/bin/bash"
   assert_line "BASH=/bin/bash"
 }
+
+@test "ensure-env は未定義変数を含むキャッシュの読込み後も shell option を保持する" {
+  echo 'export CACHE_VALUE="$UNDEFINED_CACHE_INPUT"' >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  local nounset
+  for nounset in +u -u; do
+    run /usr/bin/env -i HOME="$FAKE_HOME" PATH=/usr/bin:/bin /bin/bash -ec '
+      . "$1"
+      set "$2"
+      before=$SHELLOPTS
+      ensure_nix_devshell_env
+      [ "$before" = "$SHELLOPTS" ]
+      [ "$CACHE_VALUE" = "" ]
+    ' _ "$LIB" "$nounset"
+    assert_success
+  done
+}

@@ -42,6 +42,8 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 
 `~/.config/nix-devshell` の devShell を home など direnv 管轄外でも有効化するため、`nix print-dev-env` の出力を `~/.cache/nix-devshell-global-env.bash` にキャッシュし stale-while-revalidate で更新する。実体は `~/.config/nix-devshell/lib/{ensure-env,refresh-cache}.sh`（bash 関数）。`.bashrc` は起動時に現行キャッシュを source し、背景で次回向けに再生成、`PROMPT_COMMAND` で mtime 変化時にリロード（`chezmoi apply` 連携）。出力は bash として直接 source 可能なため zcompile は不要。
 
+通常の `chezmoi apply`、APM 配備、初回導入は `NIX_DEVSHELL_CACHE_REQUIRED=1` で更新し、必要な更新や前提の確認に失敗したら停止する。途中まで出力した Nix の非0終了、空・bash 構文不正の出力、キャッシュ置換の失敗は旧キャッシュを保持する。対話シェルの背景更新は引き続き起動を止めない。鮮度の判定は現時点では `.nix`／`flake.lock` の更新時刻を使い、入力内容や削除の検知、更新競合の制御は後続の実装対象（[ADR-0048](../docs/adr/0048-user-environment-cache-freshness.md)）。
+
 ## ghq + fzf リポジトリ管理
 
 `.bashrc` の関数で提供:

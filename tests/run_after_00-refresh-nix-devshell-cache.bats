@@ -25,6 +25,7 @@ setup() {
   stub_real_cmd dirname
   stub_real_cmd mktemp
   stub_real_cmd date
+  stub_real_cmd tee
 }
 
 run_sut() {
@@ -36,29 +37,29 @@ run_sut() {
     /bin/bash "$SUT"
 }
 
-@test "lib が無ければ何もせず exit 0" {
+@test "必須更新の lib が無ければ配備は失敗する" {
   rm -f "$FAKE_HOME/.config/nix-devshell/lib/refresh-cache.sh"
   stub_cmd nix
 
   run_sut
 
-  assert_success
+  assert_failure
   refute_log_contains "nix print-dev-env"
 }
 
-@test "nix が PATH に無ければ lib 経由で何もせず exit 0" {
+@test "nix が PATH に無ければ配備は失敗する" {
   run_sut
-  assert_success
+  assert_failure
   refute_log_contains "nix print-dev-env"
 }
 
-@test "~/.config/nix-devshell が無ければ lib 経由で何もせず exit 0" {
+@test "ユーザー環境の設定が無ければ配備は失敗する" {
   rm -rf "$FAKE_HOME/.config/nix-devshell"
   stub_cmd nix
 
   run_sut
 
-  assert_success
+  assert_failure
   refute_log_contains "nix print-dev-env"
 }
 
@@ -106,4 +107,21 @@ STUB
   assert_success
   assert_log_contains "nix print-dev-env .#wsl"
   grep -q '/nix/store/wsl/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+}
+
+@test "通常の配備はユーザー環境キャッシュの生成失敗を成功扱いにしない" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo 'export CACHE_VERSION=partial'
+echo 'evaluation failed' >&2
+exit 23
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  printf '%s\n' 'export CACHE_VERSION=old' >"$cache"
+  touch -d '2020-01-01' "$cache"
+
+  run_sut
+  assert_failure
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
 }

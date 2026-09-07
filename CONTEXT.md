@@ -4,6 +4,10 @@
 
 ## Language
 
+**ユーザー環境キャッシュ**:
+direnv 管轄外でユーザー環境のツールを利用するために再利用する評価結果。生成元のソースと選択環境との対応を持ち、プロジェクト固有の環境や Nix のビルド成果物キャッシュとは区別する。
+_Avoid_: Nix cache, direnv cache, ビルドキャッシュ
+
 **導入済み AI ツールセット**:
 ユーザー環境が共通の immutable upstream revision から公開する AI 関連 CLI の集合。upstream の全ツール一覧ではなく、実際に環境へ組み込まれたものだけを指す。
 _Avoid_: llm-agents ツール, 全 AI ツール, upstream catalog

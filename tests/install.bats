@@ -11,7 +11,15 @@ setup() {
 
   # 依存で使われるコマンドをスタブ
   stub_cmd chezmoi
-  stub_cmd nix
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "nix $*" >> "$TEST_LOG"
+echo "NIX_CONFIG=${NIX_CONFIG:-}" >> "$TEST_LOG"
+if [ "$1" = print-dev-env ]; then
+  echo 'export CACHE_VERSION=fresh'
+fi
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
   stub_cmd direnv
   stub_cmd sudo
 
@@ -31,6 +39,27 @@ setup() {
   stub_real_cmd rm
   stub_real_cmd mv
   stub_cmd gh
+
+  # chezmoi が配備する入力を用意し、キャッシュ生成は実際の lib を通す。
+  local test_home="$BATS_TEST_TMPDIR/home" cmd
+  mkdir -p "$test_home/.config/nix-devshell/lib"
+  touch "$test_home/.config/nix-devshell/flake.nix"
+  cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
+    "$test_home/.config/nix-devshell/lib/refresh-cache.sh"
+  for cmd in find cat tee mktemp date; do
+    stub_real_cmd "$cmd"
+  done
+  # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
+  cp "$TEST_BIN_DIR/nix" "$test_home/nix-adapter"
+  cat >"$TEST_BIN_DIR/sh" <<'STUB'
+#!/bin/bash
+echo "sh $*" >> "$TEST_LOG"
+if [[ "$*" == *--extra-conf* ]]; then
+  /bin/mkdir -p "$HOME/.nix-profile/bin" "$HOME/.local/bin"
+  /bin/cp "$HOME/nix-adapter" "$HOME/.nix-profile/bin/nix"
+  /bin/cp "$HOME/nix-adapter" "$HOME/.local/bin/nix"
+fi
+STUB
 }
 
 # =============================================================================
@@ -194,8 +223,6 @@ STUB
 }
 
 @test "NIX_CONFIG env で flakes をスクリプトスコープに付与" {
-  stub_cmd_with_env nix NIX_CONFIG
-
   run_install
 
   assert_success
@@ -273,21 +300,51 @@ STUB
   assert_log_contains "nix develop --command true"
 }
 
-@test "install.sh は refresh-cache lib を source して呼ぶ" {
-  local test_home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$test_home/.config/nix-devshell/lib"
-  touch "$test_home/.config/nix-devshell/flake.nix"
-  cat >"$test_home/.config/nix-devshell/lib/refresh-cache.sh" <<'STUB'
-#!/usr/bin/env bash
-refresh_nix_devshell_cache() {
-  echo "REFRESH_CALLED" >> "$TEST_LOG"
+@test "初回導入は実際の lib でキャッシュを生成して成功する" {
+  run_install
+
+  assert_success
+  assert_output --partial "Dotfiles installed successfully!"
+  [ "$(cat "$BATS_TEST_TMPDIR/home/.cache/nix-devshell-global-env.bash")" = 'export CACHE_VERSION=fresh' ]
 }
+
+@test "初回導入は生成失敗時に旧キャッシュを保持し後続処理と成功表示を止める" {
+  local cache="$BATS_TEST_TMPDIR/home/.cache/nix-devshell-global-env.bash"
+  mkdir -p "$(dirname "$cache")"
+  echo 'export CACHE_VERSION=old' >"$cache"
+  touch -t 202001010000 "$cache"
+  cat >>"$TEST_BIN_DIR/nix" <<'STUB'
+if [ "$1" = print-dev-env ]; then
+  echo 'evaluation failed' >&2
+  exit 23
+fi
 STUB
 
   run_install
 
-  assert_success
-  assert_log_contains "REFRESH_CALLED"
+  assert_failure
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+  refute_log_contains 'direnv allow'
+  refute_output --partial 'Dotfiles installed successfully!'
+}
+
+@test "初回導入は必須更新の lib が無ければ成功扱いにしない" {
+  mv "$BATS_TEST_TMPDIR/home/.config/nix-devshell/lib/refresh-cache.sh" "$BATS_TEST_TMPDIR/unused-lib"
+
+  run_install
+
+  assert_failure
+  refute_log_contains 'direnv allow'
+  refute_output --partial 'Dotfiles installed successfully!'
+}
+
+@test "初回導入はユーザー環境の flake が配備されていなければ成功扱いにしない" {
+  mv "$BATS_TEST_TMPDIR/home/.config/nix-devshell/flake.nix" "$BATS_TEST_TMPDIR/unused-flake"
+
+  run_install
+
+  assert_failure
+  refute_output --partial 'Dotfiles installed successfully!'
 }
 
 @test "direnv allow が ~/.config/nix-devshell で呼ばれる" {

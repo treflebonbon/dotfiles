@@ -61,6 +61,17 @@ run_required_refresh() {
   refute_log_contains "nix print-dev-env"
 }
 
+@test "必須更新はキャッシュがあっても flake の欠落で失敗する" {
+  stub_cmd nix
+  echo 'export CACHE_VERSION=old' >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  mv "$FAKE_HOME/.config/nix-devshell/flake.nix" "$FAKE_HOME/unused-flake"
+
+  run_required_refresh
+
+  assert_failure
+  [ "$(cat "$FAKE_HOME/.cache/nix-devshell-global-env.bash")" = 'export CACHE_VERSION=old' ]
+}
+
 @test ".git/ がコミット 0 件なら silent 削除し stdout に通知" {
   stub_cmd nix
   cat >"$TEST_BIN_DIR/git" <<'STUB'
@@ -199,4 +210,103 @@ STUB
   run_refresh
 
   assert_success
+}
+
+@test "ユーザー環境キャッシュは pipefail によらず Nix の失敗出力を採用しない" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo 'export CACHE_VERSION=partial'
+echo 'evaluation failed after partial output' >&2
+exit 23
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  printf '%s\n' 'export CACHE_VERSION=old' >"$cache"
+  touch -d '2020-01-01' "$cache"
+
+  local required pipefail
+  for required in 0 1; do
+    for pipefail in +o -o; do
+      run /usr/bin/env -i PATH="$TEST_BIN_DIR" HOME="$FAKE_HOME" TEST_LOG="$TEST_LOG" \
+        NIX_DEVSHELL_CACHE_REQUIRED="$required" \
+        /bin/bash --noprofile --norc -c '
+          . "$1"
+          set -eu
+          set "$2" pipefail
+          before=$SHELLOPTS
+          if refresh_nix_devshell_cache; then result=0; else result=$?; fi
+          [ "$before" = "$SHELLOPTS" ] || exit 99
+          exit "$result"
+        ' _ "$LIB" "$pipefail"
+      [ "$status" -eq "$required" ]
+      [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+      assert_output --partial 'failed'
+      grep -q 'evaluation failed after partial output' "$FAKE_HOME/.cache/nix-devshell-refresh.log"
+    done
+  done
+}
+
+@test "ユーザー環境キャッシュは壊れた生成結果を保持せず次の更新で復旧する" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+cat "$HOME/candidate"
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  printf '%s\n' 'export CACHE_VERSION=old' >"$cache"
+  touch -d '2020-01-01' "$cache"
+
+  local candidate
+  for candidate in "export CACHE_VERSION='" ''; do
+    printf '%s' "$candidate" >"$FAKE_HOME/candidate"
+    run_required_refresh
+    assert_failure
+    [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+  done
+
+  printf '%s\n' 'export CACHE_VERSION=fresh' >"$FAKE_HOME/candidate"
+  run_required_refresh
+  assert_success
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=fresh' ]
+}
+
+@test "ユーザー環境キャッシュの置換失敗は必須更新を失敗させ再実行できる" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo 'export CACHE_VERSION=fresh'
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  printf '%s\n' 'export CACHE_VERSION=old' >"$cache"
+  touch -d '2020-01-01' "$cache"
+  stub_cmd mv 1
+
+  run_required_refresh
+  assert_failure
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+
+  stub_real_cmd mv
+  run_required_refresh
+  assert_success
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=fresh' ]
+}
+
+@test "一時ファイルを準備できない更新は旧キャッシュを保持する" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  echo 'export CACHE_VERSION=old' >"$cache"
+  touch -t 202001010000 "$cache"
+  touch "$FAKE_HOME/blocked"
+
+  local required
+  for required in 0 1; do
+    run /usr/bin/env -i PATH="$TEST_BIN_DIR" HOME="$FAKE_HOME" TEST_LOG="$TEST_LOG" \
+      NIX_DEVSHELL_CACHE_REQUIRED="$required" /bin/bash -ec '
+        . "$1"
+        refresh_nix_devshell_cache "$HOME/.config/nix-devshell" "$2" "$HOME/blocked/refresh.log"
+      ' _ "$LIB" "$cache"
+
+    [ "$status" -eq "$required" ]
+    [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+  done
 }
