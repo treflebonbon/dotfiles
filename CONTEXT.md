@@ -96,6 +96,10 @@ _Avoid_: `.git` write access, repository-wide permission, global Git exception
 Git の checkout 隔離とは独立して、agent の filesystem・network access を runtime が強制する権限境界。full-autonomy permission mode では存在せず、worktree isolation 自体もこの境界には含めない。
 _Avoid_: worktree sandbox, repository isolation, permission mode
 
+**Working-Directory Read Fence**:
+primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否する permission 層の境界で、Bash コマンド経由のアクセスは対象外（Technical Sandbox Boundary が別途扱う、OS レベル・Bash 専用）。`additionalDirectories` 内の Edit/Write はこの fence では拒否されず、現在の permission mode に従い、明示的な `Edit(...)` deny があるパスだけが read-only になる。
+_Avoid_: block reads, sandbox, permission mode
+
 **Runtime Adapter**:
 raw agent runtime の実行 context を公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。Worktree Owner が直接提供する built-in agent integration とは区別する。
 _Avoid_: custom launcher, wrapper, glue

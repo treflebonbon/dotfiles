@@ -9,7 +9,13 @@
   "permissions": {
     "defaultMode": "auto",
     "blockReadsOutsideWorkingDirectories": true,
-    "additionalDirectories": ["~/.claude/jobs", "~/runtime"],
+    "additionalDirectories": [
+      "~/.claude/jobs",
+      "~/runtime",
+      "~/.claude/projects",
+      "/nix/store",
+      "~/ghq/github.com"
+    ],
     "allow": [
       "Skill",
       "Bash(git-push-topic:*)",
@@ -41,6 +47,7 @@
       "Edit(**/.env*)",
       "Edit(~/.ssh/**)",
       "Edit(~/runtime/**)",
+      "Edit(~/ghq/github.com/**)",
       "Bash(rm ~:*)",
       "Bash(rm /:*)",
       "Bash(rm -r ~:*)",
