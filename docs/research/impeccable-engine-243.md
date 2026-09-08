@@ -54,25 +54,38 @@ Codex の PostToolUse / Stop 出力は[公式 hook reference](https://learn.chat
 
 生ログは検証時の worktree 内 `tmp/issue-243-impeccable/` に保持する（Git 非追跡）。`materialization.json`、`payload-verification.json`、`engine-build.json`、`context-probe-verified/results.json`、`related.log`、`managed-hooks.log`、`full-suite.log` が対応する。将来この一時ディレクトリがなくても、採用 hash・検証方法・結果は本記録から確認できる。
 
+## Merge 後の配備と最終確認
+
+3単位は [PR #244](https://github.com/treflebonbon/dotfiles/pull/244) → [#245](https://github.com/treflebonbon/dotfiles/pull/245) → [#246](https://github.com/treflebonbon/dotfiles/pull/246) の順に merge 済み。[PR #246 の Post-merge deployment 記録](https://github.com/treflebonbon/dotfiles/pull/246) によると、2026-09-08 JST、live source `/home/ubuntu/ghq/github.com/treflebonbon/dotfiles` を受入 commit `11becf6c38609cc9a7b4dc1c4212ab675bdd9578` へ fast-forward し、同 source から `chezmoi apply` が exit 0 で完了した。Nix 環境キャッシュ、APM frozen install / prune、Codex managed sync、local skill 配備を反映し、新しい login shell の8 CLI起動と、設定のない隔離 project に対する実 global hook の14回の呼出し（全 exit 0、最大0.0739秒）を確認した。
+
+同日、別の validated task worktree `chore-ai-impeccable-2` から現在の配備結果を再確認した。今回の変更は本記録だけで、再配備は行っていない。
+
+- live source の HEAD は受入 commit `11becf6` と一致し、clean。`chezmoi status` は毎回実行する2 script の `R` 表示だけで、未反映ファイルはない。
+- source / live の lock SHA-256 は `0ed5562ed58323349baa0245557320667e8297fbca7b4b0b7bd35648a955de98` で一致。lock に記録された1,202ファイルの hash は現在の配備実体と全件一致し、1,286配備 record、両 target 各42スキルを確認した。
+- Codex の管理・native hooks に source の PostToolUse / Stop entry が含まれ、Claude global の command / timeout も source と一致した。
+- 通常環境の version 起動は Claude Code 2.1.263、Codex 0.153.4、APM 0.30.0、Herdr 0.9.0。`impeccable engine-probe` は `impeccable-engine 0.1.3`。engine identity はこの専用 probe で確認する。
+
+配備時の live `apm audit --ci` は、drift replay 中に稼働中 Codex の session / SQLite WAL が更新されたことを protected-path mutation として検出し、exit 1 となった。稼働中 session は停止せず、live `apm audit --ci --no-drift` の9/9成功と、隔離環境での完全な audit 10/10成功を区別して記録する。今回の hash 照合は配備実体の一致を確認するもので、live drift replay の成功を意味しない。organization policy 適用外、ARM 実機起動、Herdr 画像の実端末描画、上流 context の user-global 探索の制限は既存記録どおり。
+
 ## Verification Matrix
 
-| AC                  | 種別        | 実行コマンドまたは理由                                                          | 結果     | 未確認理由                                                  |
-| ------------------- | ----------- | ------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------- |
-| AC1 更新単位        | infra       | #244 → #245 の merge 後、`b6d0030` から第3単位を開始                            | 確認済み | 第3単位の受入はPR merge待ち                                 |
-| AC2 snapshot        | infra       | 第1単位の Tool Snapshot 記録、今回 snapshot / lock は不変                       | 確認済み | —                                                           |
-| AC3 対応環境        | CLI / infra | 3 system × 2 shell の engine 公開評価、Linux両 shell の起動                     | 確認済み | ARMの実機起動は環境なし。評価成功と区別                     |
-| AC4 floor / 設定    | infra       | 第1単位の採用記録、今回floor / model / reasoning不変                            | 確認済み | —                                                           |
-| AC5 Herdr           | CLI         | 第1単位の隔離起動・再接続・再起動・状態検出fixture                              | 確認済み | 実端末の画像描画は第1単位の記録どおり未確認                 |
-| AC6 通常スキル      | infra       | 第2単位の配備対象差分記録、今回他17依存不変                                     | 確認済み | —                                                           |
-| AC7 APM             | CLI / infra | native install → frozen hash不変 → audit 10/10                                  | 確認済み | organization policyは隔離環境で適用外                       |
-| AC8 discovery       | CLI / infra | 両target42、Matt25、1,202 hash / 1,286 ledger照合                               | 確認済み | live配備はAC16                                              |
-| AC9 Orca / 契約     | CLI         | 第2単位の3 guide取得、本単位でもsessionのguide取得                              | 確認済み | 契約変更なし                                                |
-| AC10 Impeccable配布 | CLI / infra | 公式skill4.2.2 / engine0.1.3、Nix評価・host build、launcher前のengine存在確認   | 確認済み | ARM実機はなし                                               |
-| AC11 global自動検査 | CLI         | 両providerの新規project、設定なしでPostToolUse / Stopに実 finding               | 確認済み | 上流contextのglobal設定探索は上記の既存制限あり             |
-| AC12 検出動作       | CLI         | 実engineのimmediate / deep / dedupe / reentry / both-tier / quiet               | 確認済み | —                                                           |
-| AC13 障害・運用     | CLI         | 実engine正常出力、4commandの障害注入、5秒 / 30秒、理由付き抑制・設定とcache所有 | 確認済み | —                                                           |
-| AC14 実体           | CLI         | native APM launcherとNix engineを明示、関連29項目skip 0                         | 確認済み | —                                                           |
-| AC15 回帰・説明     | CLI         | 関連29/29、管理3/3、full 523/523 skip 0、型検査、oxfmt / nixfmt、commit hook    | 確認済み | —                                                           |
-| AC16 配備境界       | infra       | validated linked worktreeだけを編集、taskからlive applyなし                     | 未確認   | 第3単位受入・merge後、live source同期・配備・通常起動を実施 |
+| AC                  | 種別        | 実行コマンドまたは理由                                                          | 結果     | 未確認理由                                                       |
+| ------------------- | ----------- | ------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------- |
+| AC1 更新単位        | infra       | #244 → #245 の merge 後、`b6d0030` から第3単位を開始。#246 も merge 済み        | 確認済み | —                                                                |
+| AC2 snapshot        | infra       | 第1単位の Tool Snapshot 記録、今回 snapshot / lock は不変                       | 確認済み | —                                                                |
+| AC3 対応環境        | CLI / infra | 3 system × 2 shell の engine 公開評価、Linux両 shell の起動                     | 確認済み | ARMの実機起動は環境なし。評価成功と区別                          |
+| AC4 floor / 設定    | infra       | 第1単位の採用記録、今回floor / model / reasoning不変                            | 確認済み | —                                                                |
+| AC5 Herdr           | CLI         | 第1単位の隔離起動・再接続・再起動・状態検出fixture                              | 確認済み | 実端末の画像描画は第1単位の記録どおり未確認                      |
+| AC6 通常スキル      | infra       | 第2単位の配備対象差分記録、今回他17依存不変                                     | 確認済み | —                                                                |
+| AC7 APM             | CLI / infra | native install → frozen hash不変 → audit 10/10                                  | 確認済み | organization policyは隔離環境で適用外                            |
+| AC8 discovery       | CLI / infra | 両target42、Matt25、1,202 hash / 1,286 ledger照合。live の全 file hash も一致   | 確認済み | —                                                                |
+| AC9 Orca / 契約     | CLI         | 第2単位の3 guide取得、本単位でもsessionのguide取得                              | 確認済み | 契約変更なし                                                     |
+| AC10 Impeccable配布 | CLI / infra | 公式skill4.2.2 / engine0.1.3、Nix評価・host build、launcher前のengine存在確認   | 確認済み | ARM実機はなし                                                    |
+| AC11 global自動検査 | CLI         | 両providerの新規project、設定なしでPostToolUse / Stopに実 finding               | 確認済み | 上流contextのglobal設定探索は上記の既存制限あり                  |
+| AC12 検出動作       | CLI         | 実engineのimmediate / deep / dedupe / reentry / both-tier / quiet               | 確認済み | —                                                                |
+| AC13 障害・運用     | CLI         | 実engine正常出力、4commandの障害注入、5秒 / 30秒、理由付き抑制・設定とcache所有 | 確認済み | —                                                                |
+| AC14 実体           | CLI         | native APM launcherとNix engineを明示、関連29項目skip 0                         | 確認済み | —                                                                |
+| AC15 回帰・説明     | CLI         | 関連29/29、管理3/3、full 523/523 skip 0、型検査、oxfmt / nixfmt、commit hook    | 確認済み | —                                                                |
+| AC16 配備境界       | infra       | 受入 `11becf6` の live source から配備済み。source / live 一致と通常起動を確認  | 確認済み | live audit の drift replay は稼働中 session 更新と競合。上記参照 |
 
-Standards / Spec の並行レビューでは実装の指摘は0件。Spec が残した AC15 の確認待ちは、full suite 523/523と上記format / hook成功により解消した。AC16は本PRの受入・merge後の配備として残す。
+Standards / Spec の並行レビューでは実装の指摘は0件。Spec が残した AC15 の確認待ちは、full suite 523/523と上記format / hook成功により解消した。AC16も受入・merge後の配備と上記の最終確認により確認済み。Issue #243 の close 操作は行っていない。
