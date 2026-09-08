@@ -202,7 +202,7 @@ PS
 
   grep -Fq '868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$record"
   grep -Fq '868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$flake"
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#56c61c9ee79a8df1a98822309c04847a57f56000' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902' "$manifest"
 }
 
 @test "nix-devshell has no retired Intel Darwin Claude Code package" {
