@@ -304,9 +304,13 @@ If the bundle has representative images, try to attach them after the PR exists:
    ```
 
 If no authenticated browser is available, browser control is unavailable, or any upload
-fails, do not retry by logging in and do not commit the images. Replace the affected
-image placeholders with `手動添付待ち`, update the PR body with `gh pr edit --body-file`,
-and hand the evidence bundle to the user. The completion report must include the bundle's
+fails, do not retry by logging in and do not commit the images. If `TO_PR_EVIDENCE_DIR`
+lives under a Session Scratchpad, copy it to a fresh `mktemp -d` under `${TMPDIR:-/tmp}`
+first — the user acts on the handed-off path after this step, possibly after this
+session has ended, and a Session Scratchpad is not guaranteed to survive past session end
+the way `${TMPDIR:-/tmp}` does. Replace the affected image placeholders with
+`手動添付待ち`, update the PR body with `gh pr edit --body-file`, and hand the (possibly
+copied) evidence bundle to the user. The completion report must include the bundle's
 absolute path and a file list so the user can attach the images manually.
 
 ## Out of scope

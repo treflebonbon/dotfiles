@@ -624,6 +624,14 @@ write_hierarchy_state() {
   ! grep -Fq 'mktemp "${TMPDIR:-/tmp}/to-pr-hierarchy.XXXXXX"' "$HIERARCHY_REPAIR"
 }
 
+@test "to-pr copies a scratchpad-resident evidence bundle to a durable path before manual handoff" {
+  grep -Fq 'copy it to a fresh `mktemp -d` under `${TMPDIR:-/tmp}`' "$SKILL"
+  grep -Fq 'not guaranteed to survive past session end' "$SKILL"
+  grep -Fq 'the (possibly' "$SKILL"
+
+  grep -Fq '（ただし scratchpad を特定できない場合の明示 fallback は除く）' "$PROJECT_ROOT/CONTEXT.md"
+}
+
 @test "to-pr publishes images through an authenticated Managed Playwright Chrome profile" {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local adr="$PROJECT_ROOT/docs/adr/0026-attach-playwright-evidence-to-pr.md"
