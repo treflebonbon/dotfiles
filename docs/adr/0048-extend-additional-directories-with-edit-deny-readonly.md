@@ -33,4 +33,6 @@ ADR-0045（2026-09-05）は Working-Directory Read Fence（[CONTEXT.md](../../CO
 
 (2026-09-08 追記) root cause として繰延べた「`to-pr` 等が `/tmp` ではなく session scratchpad を使うようにする」対応は [ADR-0052](0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md) で決着した。
 
-関連: [ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) / [ADR-0046](0046-separate-orca-native-worktree-entry.md) / [ADR-0052](0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md)
+(2026-09-08 追記、issue #248) 上記の「Working-Directory Read Fence は Bash コマンドを保護しない」という結論は、`cat` や `< file` / `> file` のような認識済み read-only reader・redirect に限って正しい。静的解析できない script（heredoc 経由の interpreter、`$(...)` / command substitution、裸の `$VAR`（simple expansion）、`sed`/`awk`/`python3 -c` 等の programmable reader、safe list 外の環境変数プレフィックス）は、working directory の内外を問わず同じ `permissions.blockReadsOutsideWorkingDirectories` を理由に一律で human confirmation を要求する。本 ADR が採用した実測 verification matrix はこの経路を一度もテストしておらず（outside file への Bash アクセスとして `cat` / input redirect のみを検証）、「Bash は保護されない」は認識済み reader についてのみ正しい結論だった。`permissions.allow` の Bash ルールもこの確認を回避しない（実測確認済み）。詳細な taxonomy と実測結果は [2026-09-05 調査ノートの 2026-09-08 追記](../research/claude-code-block-reads-2026-09-05.md#2026-09-08-追記issue-248) を参照する。TMPDIR carve-out gap への対応は [ADR-0054](0054-stabilize-nix-shell-tmpdir-base.md) を参照する。
+
+関連: [ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) / [ADR-0046](0046-separate-orca-native-worktree-entry.md) / [ADR-0052](0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md) / [ADR-0054](0054-stabilize-nix-shell-tmpdir-base.md)

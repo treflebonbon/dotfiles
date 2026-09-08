@@ -845,6 +845,7 @@ assert data["permissions"]["additionalDirectories"] == [
     "~/.claude/projects",
     "/nix/store",
     "~/ghq/github.com",
+    "~/.cache/nix-devshell-tmp",
 ]
 assert "Edit(**/.env*)" in data["permissions"]["deny"]
 assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
@@ -852,6 +853,7 @@ assert "Edit(~/runtime/**)" in data["permissions"]["deny"]
 assert "Read(~/runtime/**)" not in data["permissions"]["deny"]
 assert "Edit(~/ghq/github.com/**)" in data["permissions"]["deny"]
 assert "Read(~/ghq/github.com/**)" not in data["permissions"]["deny"]
+assert "Edit(~/.cache/nix-devshell-tmp/**)" not in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Write(") for rule in data["permissions"]["deny"]
 )
