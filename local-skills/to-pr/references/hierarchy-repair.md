@@ -1,10 +1,11 @@
 # Hierarchy Repair
 
 Use this branch only when the linked issue has no native parent. Run the deterministic
-repair helper before Parent Reconciliation:
+repair helper before Parent Reconciliation. `TO_PR_SCRATCH_BASE` is the Session Scratchpad
+base directory resolved in `SKILL.md` step 1 (empty if none was presented):
 
 ```bash
-HIERARCHY_REPAIR_RESULT="$(mktemp "${TMPDIR:-/tmp}/to-pr-hierarchy.XXXXXX")"
+HIERARCHY_REPAIR_RESULT="$(mktemp "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-hierarchy.XXXXXX")"
 SKILL_DIRECTORY="/absolute/path/to/the-loaded/to-pr-skill"
 LINKED_ISSUE_NUMBER=123
 bash "$SKILL_DIRECTORY/scripts/repair-ticket-hierarchy.sh" "$LINKED_ISSUE_NUMBER" \

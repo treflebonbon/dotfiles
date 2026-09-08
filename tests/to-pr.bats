@@ -602,6 +602,25 @@ write_hierarchy_state() {
   grep -Fq 'input paths to absolute paths' "$SKILL"
 }
 
+@test "to-pr resolves temp artifacts through the shared Session Scratchpad convention" {
+  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
+
+  grep -Fq '### Session Scratchpad' "$runtime"
+  grep -Fq '**Session Scratchpad**' "$PROJECT_ROOT/CONTEXT.md"
+
+  grep -Fq '**Session Scratchpad**' "$SKILL"
+  grep -Fq 'TO_PR_SCRATCH_BASE' "$SKILL"
+  grep -Fq 'leave `TO_PR_SCRATCH_BASE` unset' "$SKILL"
+  grep -Fq 'fallback in the completion report' "$SKILL"
+  grep -Fq 'TO_PR_EVIDENCE_DIR="$(mktemp -d "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-evidence.XXXXXX")"' "$SKILL"
+  grep -Fq 'a **fresh** temp file under `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"`' "$SKILL"
+  ! grep -Fq 'mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX"' "$SKILL"
+
+  grep -Fq 'TO_PR_SCRATCH_BASE' "$HIERARCHY_REPAIR"
+  grep -Fq 'HIERARCHY_REPAIR_RESULT="$(mktemp "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-hierarchy.XXXXXX")"' "$HIERARCHY_REPAIR"
+  ! grep -Fq 'mktemp "${TMPDIR:-/tmp}/to-pr-hierarchy.XXXXXX"' "$HIERARCHY_REPAIR"
+}
+
 @test "to-pr publishes images through an authenticated Managed Playwright Chrome profile" {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local adr="$PROJECT_ROOT/docs/adr/0026-attach-playwright-evidence-to-pr.md"
