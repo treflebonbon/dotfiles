@@ -36,6 +36,24 @@ EOF
   grep -q 'use_flake:. --impure' "$TEST_LOG"
 }
 
+@test "use_flake stabilizes nix-shell TMPDIR under a non-/tmp platform root (e.g. macOS)" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" DIRENV_ROOT="$BATS_TEST_TMPDIR/no-marker" bash -c 'source "$1"; export TMPDIR="/var/folders/xy/T/nix-shell.abc"; use_flake .; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TEST_HOME/.cache/nix-devshell-tmp" ]
+}
+
+@test "use_flake stabilizes nix-shell TMPDIR under a custom parent TMPDIR" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" DIRENV_ROOT="$BATS_TEST_TMPDIR/no-marker" bash -c 'source "$1"; export TMPDIR="/mnt/custom-tmp/nix-shell.abc"; use_flake .; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TEST_HOME/.cache/nix-devshell-tmp" ]
+}
+
 @test "WSL repo marker selects the browser-free flake output" {
   write_fake_nix_direnv
 
