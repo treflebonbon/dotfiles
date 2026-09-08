@@ -31,6 +31,8 @@ herdr
 
 `Ctrl-b` を押してから `q` を押すと detach する。pane 内の処理は継続し、もう一度 `herdr` を実行すると同じセッションへ戻る。
 
+0.9.0 では標準の状態検出と `update.manifest_check` の既定を維持し、画像機能も上流既定の有効状態で使う。`terminal.kitty_graphics` は端末の対応状況に依存するため、描画に問題がある端末では個人設定で `false` にできる。dotfiles は端末別 override を配備しない。今回の確認範囲は隔離した文字端末での再接続と画像 API の有効性までであり、対応端末の画像描画品質は[検証記録](../docs/research/ai-tool-snapshot-243.md)に未確認として残す。
+
 更新は validated task worktree 内でユーザー環境用 flake の `llm-agents` の採用 revision を変更し、その flake のディレクトリで行う。
 
 ```bash
@@ -295,6 +297,8 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 同日の account model catalog では `gpt-6-astra` が visible になり、Codex 0.153.2 の `codex exec --model gpt-6-astra` も実応答に成功した。OpenAI Docs は Astra を複雑な推論・coding の第一候補、Terra を品質とコストの均衡、Luna を cost-sensitive/high-volume 向けとしているため、managed main model を `gpt-6-astra` / `xhigh`、default subagent を `gpt-5.6-terra` / `high` にする。official docs が列挙しない `ultra` は管理値にせず、repository の delegation policy を維持する。
 
 候補runtimeではClaude Code 2.1.261のprimary/additional direct read、outside/symlink/Bash redirectの拒否、global git configを値非表示で参照するGit操作、worktree-isolated subagent own checkoutのreadを確認した。Codex 0.153.4はmanaged configのstrict parseが成功し、`gpt-6-astra`実リクエストも`ASTRA_01534_OK`を返した。詳細なClaude matrixと未確認axisは[調査ノート](../docs/research/claude-code-block-reads-2026-09-05.md)を参照する。
+
+2026-09-08 JST、Issue #243 の第1更新単位として `llm-agents.nix` を `868527bc9eb4e8bee8610fa1d4027fbb37cfc012` へ更新する。Claude Code 2.1.263、APM 0.30.0、Herdr 0.9.0 が候補となり、Codex 0.153.4、Copilot CLI 1.0.83、Antigravity CLI 1.1.27、RTK 0.48.0 は不変。品質 floor とモデル・権限設定を維持し、通常スキルと Impeccable はそれぞれ前段の merge を待つ別単位にする。全6 devShell の評価、Linux 両 shell の build / 7 CLI 起動、隔離 Herdr の再接続・server 再起動が成功した。採用範囲と残る gate は[Verification Matrix](../docs/research/ai-tool-snapshot-243.md)を参照する。
 
 ## claude-code 2.1.199 以降の挙動変更（設計→実装ワークフローへの影響）
 
