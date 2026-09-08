@@ -116,6 +116,10 @@ _Avoid_: worktree sandbox, repository isolation, permission mode
 primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否する permission 層の境界で、Bash コマンド経由のアクセスは対象外（Technical Sandbox Boundary が別途扱う、OS レベル・Bash 専用）。`additionalDirectories` 内の Edit/Write はこの fence では拒否されず、現在の permission mode に従い、明示的な `Edit(...)` deny があるパスだけが read-only になる。
 _Avoid_: block reads, sandbox, permission mode
 
+**Session Scratchpad**:
+agent のセッションに紐づく、working directory の外だが一時成果物を安全に書ける領域。提示方法は runtime 依存で env var の自動検出はできず、agent が自分のセッション context から都度確認する。特定できない runtime では `${TMPDIR:-/tmp}` を明示 fallback として使い、fallback を使用した場合はその旨を PR body 等の出力に明記する（[ADR-0052](docs/adr/0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md)）。
+_Avoid_: /tmp, TMPDIR, 一時ディレクトリ（ただし scratchpad を特定できない場合の明示 fallback は除く）
+
 **Runtime Adapter**:
 raw agent runtime の実行 context を公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。Worktree Owner が直接提供する built-in agent integration とは区別する。
 _Avoid_: custom launcher, wrapper, glue

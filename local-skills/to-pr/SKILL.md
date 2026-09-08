@@ -27,6 +27,15 @@ done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that pr
   (issues carrying the `ready-for-agent` label are expected to state these six fields —
   see `runtime/skill-harness.md`); otherwise extract it from the conversation. Mark any
   field that was never discussed as `未記載` rather than omitting it or inventing content.
+- Check whether your own session context presents a **Session Scratchpad** (see
+  `runtime/skill-harness.md`) and remember that absolute path (or that none was presented)
+  for the rest of this skill. This is a base directory for temporary artifacts (evidence
+  bundle, PR body draft, Hierarchy Repair result); every `mktemp` in this skill uses
+  `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` as its base directory. Each of the three sites
+  below is typically a separate shell invocation, so `TO_PR_SCRATCH_BASE` does not carry
+  over on its own — (re-)export it immediately before each command that uses it, from the
+  same path (or absence of one) you noted here. If no scratchpad was presented, disclose
+  the `${TMPDIR:-/tmp}` fallback in both the completion report and the PR body (step 6).
 - Resolve the linked issue's **Ticket Hierarchy** before drafting the PR:
   1. Read the linked issue with
      `gh issue view <issue> --json number,state,body,parent`.
@@ -93,9 +102,11 @@ Use the `playwright-cli` skill for all browser interaction, with two exceptions:
   resolve the conflict) — mark the criterion `未確認` noting the port conflict and move
   on.
 
-Before browser verification, create a fresh evidence bundle with
-`TO_PR_EVIDENCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX")"`. Keep all
-Playwright evidence in this directory; do not put it in the repository. Run every
+Before browser verification, re-export `TO_PR_SCRATCH_BASE` (the Session Scratchpad path
+you noted in step 1, or leave it unset) — this runs in its own shell — then create a fresh
+evidence bundle with
+`TO_PR_EVIDENCE_DIR="$(mktemp -d "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-evidence.XXXXXX")"`.
+Keep all Playwright evidence in this directory; do not put it in the repository. Run every
 Playwright CLI command from the bundle so its default `.playwright-cli/` snapshots and
 logs also stay there:
 
@@ -243,10 +254,13 @@ action outside the user's requested scope.
    images to attach. Keep the exact list of child and parent issues that will close on
    merge, grouped by role, in the PR body and completion report; if no parent will close,
    say so.
-2. Write the PR body to a **fresh** temp file (use `mktemp` or a branch-scoped name —
-   a fixed name like `pr-body.md` collides with stale content from previous runs). Write
-   it in the language of the conversation / repo. Canonical structure:
-   - A short change summary.
+2. Re-export `TO_PR_SCRATCH_BASE` (this step runs in its own shell), then write the PR
+   body to a **fresh** temp file under `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` (use
+   `mktemp` or a branch-scoped name — a fixed name like `pr-body.md` collides with stale
+   content from previous runs). Write it in the language of the conversation / repo.
+   Canonical structure:
+   - A short change summary. If any temp artifact above fell back to `${TMPDIR:-/tmp}`
+     because no Session Scratchpad was found, say so here.
    - `## Contract` — the six fields from step 1, verbatim (including any `未記載`).
    - `## Verification Matrix` — the table built in step 2.
    - `## Playwright Evidence` — for each UI criterion, copy the operation, observed
@@ -290,9 +304,13 @@ If the bundle has representative images, try to attach them after the PR exists:
    ```
 
 If no authenticated browser is available, browser control is unavailable, or any upload
-fails, do not retry by logging in and do not commit the images. Replace the affected
-image placeholders with `手動添付待ち`, update the PR body with `gh pr edit --body-file`,
-and hand the evidence bundle to the user. The completion report must include the bundle's
+fails, do not retry by logging in and do not commit the images. If `TO_PR_EVIDENCE_DIR`
+lives under a Session Scratchpad, copy it to a fresh `mktemp -d` under `${TMPDIR:-/tmp}`
+first — the user acts on the handed-off path after this step, possibly after this
+session has ended, and a Session Scratchpad is not guaranteed to survive past session end
+the way `${TMPDIR:-/tmp}` does. Replace the affected image placeholders with
+`手動添付待ち`, update the PR body with `gh pr edit --body-file`, and hand the (possibly
+copied) evidence bundle to the user. The completion report must include the bundle's
 absolute path and a file list so the user can attach the images manually.
 
 ## Out of scope

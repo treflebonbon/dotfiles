@@ -31,4 +31,6 @@ ADR-0045（2026-09-05）は Working-Directory Read Fence（[CONTEXT.md](../../CO
 
 一次情報と実動作の詳細は [2026-09-07 追記](../research/claude-code-block-reads-2026-09-05.md#2026-09-07-追記) を正本とする。
 
-関連: [ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) / [ADR-0046](0046-separate-orca-native-worktree-entry.md)
+(2026-09-08 追記) root cause として繰延べた「`to-pr` 等が `/tmp` ではなく session scratchpad を使うようにする」対応は [ADR-0052](0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md) で決着した。
+
+関連: [ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) / [ADR-0046](0046-separate-orca-native-worktree-entry.md) / [ADR-0052](0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md)
