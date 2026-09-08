@@ -5,12 +5,14 @@ if [ -f "$HOME/.nix-profile/share/nix-direnv/direnvrc" ]; then
   source "$HOME/.nix-profile/share/nix-direnv/direnvrc"
 fi
 
-_df_normalize_tmpdir_for_chrome() {
-  case "${TMPDIR:-}" in
-  /tmp/nix-shell.*)
-    export TMPDIR=/tmp
-    ;;
-  esac
+_DF_NIX_TMPDIR_BASE="$HOME/.cache/nix-devshell-tmp"
+
+_df_stabilize_nix_shell_tmpdir() {
+  local current="${TMPDIR:-/tmp}"
+  if [ "$current" = /tmp ] || [[ "${current##*/}" == nix-shell.* ]]; then
+    mkdir -p "$_DF_NIX_TMPDIR_BASE" 2>/dev/null || return 0
+    export TMPDIR="$_DF_NIX_TMPDIR_BASE"
+  fi
 }
 
 _df_is_wsl() {
@@ -31,7 +33,7 @@ _df_select_wsl_flake_output() {
   fi
 }
 
-if declare -f use_flake >/dev/null && ! declare -f use_flake | grep -q '_df_normalize_tmpdir_for_chrome'; then
+if declare -f use_flake >/dev/null && ! declare -f use_flake | grep -q '_df_stabilize_nix_shell_tmpdir'; then
   eval "$(declare -f use_flake | sed '1s/use_flake/_df_original_use_flake/')"
   use_flake() {
     local selected_flake
@@ -45,14 +47,14 @@ if declare -f use_flake >/dev/null && ! declare -f use_flake | grep -q '_df_norm
     else
       _df_original_use_flake "$@" || return
     fi
-    _df_normalize_tmpdir_for_chrome
+    _df_stabilize_nix_shell_tmpdir
   }
 fi
 
-if declare -f use_nix >/dev/null && ! declare -f use_nix | grep -q '_df_normalize_tmpdir_for_chrome'; then
+if declare -f use_nix >/dev/null && ! declare -f use_nix | grep -q '_df_stabilize_nix_shell_tmpdir'; then
   eval "$(declare -f use_nix | sed '1s/use_nix/_df_original_use_nix/')"
   use_nix() {
     _df_original_use_nix "$@" || return
-    _df_normalize_tmpdir_for_chrome
+    _df_stabilize_nix_shell_tmpdir
   }
 fi

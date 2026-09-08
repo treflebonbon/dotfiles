@@ -203,6 +203,37 @@ transcript 上で実際に deny まで到達した記録は3件のみ（通常�
 
 上記を踏まえた最終判断は [ADR-0048](../adr/0048-extend-additional-directories-with-edit-deny-readonly.md) に記録する。要約すると、`additionalDirectories` に `~/ghq/github.com`（`Edit(~/ghq/github.com/**)` deny 付き、read-only）、`~/.claude/projects`（書込み可、memory システムに必要）、`/nix/store`（OS immutable のため deny 不要）を追加し、`/tmp`・`~/.claude/skills`・`~/orca/workspaces`・`/mnt/nfs` は追加しない。
 
+## 2026-09-08 追記（issue #248）
+
+[Issue #248](https://github.com/treflebonbon/dotfiles/issues/248) の triage / implement セッションで、静的解析できない Bash コマンドに対する一律 human confirmation を実地で複数回再現した。2026-09-07 追記までの検証は、outside file への Bash アクセスとして `cat` / input redirect のみを対象にしており、この経路は一度もテストしていなかった。
+
+### 観測した denial テンプレート
+
+working directory **内側**のファイルに対する呼出しで6件、**外側**（working directory にも `additionalDirectories` にも属さないパス、例 `/etc/hostname`）に対する呼出しで1件（heredoc 経由 interpreter）を再現した。**同一の command class（heredoc）が内側・外側のどちらでも同じ denial テンプレートで再現しており、path の内外は分岐条件ではない。** プロンプト文言はすべて `permissions.blockReadsOutsideWorkingDirectories` を理由として明示的に引用する。
+
+| command class                                               | 内側での denial テンプレート（要旨）                                                                                                                                             | 外側での再現                                               |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| heredoc 経由の interpreter（`python3 - <<'PY' ... PY`）     | `code on stdin cannot be checked against the read block; ... a command the shell parser cannot analyze asks the person`                                                          | 確認済み（`/etc/hostname` 読み取りで同一テンプレート再現） |
+| `python3 -c` 相当の inline code                             | `python3 runs inline code, which cannot be checked against the read block; ...`                                                                                                  | 未実施                                                     |
+| command substitution（`$(...)` / backtick）                 | `Contains command_substitution; ...`                                                                                                                                             | 未実施                                                     |
+| 裸の `$VAR`（simple expansion）                             | `Contains simple_expansion; ...`                                                                                                                                                 | 未実施                                                     |
+| `sed`/`awk` 等 programmable reader（script 引数を取る）     | `This <command> script is not on the allowlist and can read or write any file, which cannot be checked against the read block (permissions.blockReadsOutsideWorkingDirectories)` | 未実施                                                     |
+| safe list 外の環境変数プレフィックス（`VAR=value cmd ...`） | `an environment variable prefix outside the safe list cannot be checked against the read block; ...`                                                                             | 未実施                                                     |
+
+heredoc 以外の5 command class は内側でのみ実測した。同一 gate（同じ denial 文言テンプレート群、同じ `permissions.blockReadsOutsideWorkingDirectories` 根拠）が内外で分岐する理由は見当たらないため、path 非依存という結論は heredoc の実測から他 class へも妥当に一般化できると判断するが、個別の実測ではない点を明記する。
+
+同じセッション内で、`;` による compound command、pipe、`2>&1` redirect、quoted regex alternation（`grep "a\|b"`）を含む8件の Bash 呼出しのうち、上記いずれのテンプレートにも該当しなかった7件は confirmation なしで実行された。**「compound / 複雑な構文なら一律に確認される」という単純化は誤りで、対象は上表の特定 command class に限られる。** 過去の issue #248 自身の代理指標（`$VAR`/`$(...)`/loop を含む呼出し数の単純カウント）はこの意味で上限見積もりであり、本追記の command-class ベースの分類を正本とする。
+
+### `permissions.allow` は回避策にならない
+
+`.claude/settings.local.json` に `permissions.allow: ["Bash(sed:*)"]` を追加した状態で同じ `sed` 呼出しを再実行したところ、実際の画面では引き続き手動承認が必要だった（allow ルールに一致しない heredoc 呼出しも同様）。allowlist はこのゲートに対する打ち手ではない。
+
+### 未確認のまま残す
+
+この gate がいつ（どの Claude Code version から）導入されたかは、承認済み prompt が session transcript に痕跡を残さないため、ローカルログの調査だけでは確定できない。version 差分を根拠にした主張はしない。
+
+TMPDIR carve-out gap（`tasks/*.output` を含む session をまたぐ temp 成果物が `additionalDirectories` の静的パスに載らない問題）への対応は [ADR-0054](../adr/0054-stabilize-nix-shell-tmpdir-base.md) を参照する。
+
 ## 一次情報
 
 - [Anthropic: Configure permissions](https://code.claude.com/docs/en/permissions)
