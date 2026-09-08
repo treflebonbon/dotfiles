@@ -234,6 +234,10 @@ heredoc 以外の5 command class は内側でのみ実測した。同一 gate（
 
 TMPDIR carve-out gap（`tasks/*.output` を含む session をまたぐ temp 成果物が `additionalDirectories` の静的パスに載らない問題）への対応は [ADR-0054](../adr/0054-stabilize-nix-shell-tmpdir-base.md) を参照する。
 
+## 2026-09-08 追記（issue #250）
+
+上記「実装結果」および「2026-09-07 追記」節は `~/ghq/github.com` を `Edit(~/ghq/github.com/**)` deny で read-only にする決定を記録していたが、この決定は撤回した。deny ルールは session の working directory に関わらずマッチするため、`~/ghq/github.com` 配下に実装対象の repository 自身（`EnterWorktree` が作る worktree を含む）が置かれる場合、Edit/Write ツールでの通常の編集が拒否される。実際に `~/ghq/github.com/<owner>/<repo>` 配下のファイルへの `Write` tool 呼び出しが "File is in a directory that is denied by your permission settings." で拒否されることを issue #250 の triage で実測した。`~/ghq/github.com` は `additionalDirectories` に残すが、`Edit(~/ghq/github.com/**)` deny は削除し、書込み抑止は validated task worktree 経由の運用契約に委ねる。詳細な決定理由は [ADR-0048 の 2026-09-08 追記](../adr/0048-extend-additional-directories-with-edit-deny-readonly.md) を参照する。`~/runtime` に対する `Edit(~/runtime/**)` deny は対象外で維持する。
+
 ## 一次情報
 
 - [Anthropic: Configure permissions](https://code.claude.com/docs/en/permissions)
