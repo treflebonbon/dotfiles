@@ -1,10 +1,11 @@
 # Hierarchy Repair
 
 Use this branch only when the linked issue has no native parent. Run the deterministic
-repair helper before Parent Reconciliation. `TO_PR_SCRATCH_BASE` is the Session Scratchpad
-base directory resolved in `SKILL.md` step 1 (empty if none was presented):
+repair helper before Parent Reconciliation. This runs in its own shell, separate from
+`SKILL.md` step 1, so re-set `TO_PR_SCRATCH_BASE` here too:
 
 ```bash
+TO_PR_SCRATCH_BASE="<the Session Scratchpad path you noted in SKILL.md step 1, or omit this line if none was presented>"
 HIERARCHY_REPAIR_RESULT="$(mktemp "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-hierarchy.XXXXXX")"
 SKILL_DIRECTORY="/absolute/path/to/the-loaded/to-pr-skill"
 LINKED_ISSUE_NUMBER=123
@@ -13,8 +14,11 @@ bash "$SKILL_DIRECTORY/scripts/repair-ticket-hierarchy.sh" "$LINKED_ISSUE_NUMBER
 jq . "$HIERARCHY_REPAIR_RESULT"
 ```
 
-Set `SKILL_DIRECTORY` to the directory containing this skill's `SKILL.md` and
-`LINKED_ISSUE_NUMBER` to the actual linked issue before running the block.
+Set `TO_PR_SCRATCH_BASE` to the same Session Scratchpad path from `SKILL.md` step 1 (or
+leave it unset), `SKILL_DIRECTORY` to the directory containing this skill's `SKILL.md`,
+and `LINKED_ISSUE_NUMBER` to the actual linked issue before running the block. If
+`TO_PR_SCRATCH_BASE` was left unset, disclose the `${TMPDIR:-/tmp}` fallback in the PR
+body and completion report per `SKILL.md` step 6.
 
 The helper models expected GitHub and validation failures as a JSON result with exit
 status zero so PR creation can continue. A nonzero exit means the helper itself could

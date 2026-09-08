@@ -610,14 +610,17 @@ write_hierarchy_state() {
 
   grep -Fq '**Session Scratchpad**' "$SKILL"
   grep -Fq 'TO_PR_SCRATCH_BASE' "$SKILL"
-  grep -Fq 'leave `TO_PR_SCRATCH_BASE` unset' "$SKILL"
-  grep -Fq 'fallback in the completion report' "$SKILL"
+  grep -Fq 'does not carry' "$SKILL"
   grep -Fq 'TO_PR_EVIDENCE_DIR="$(mktemp -d "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-evidence.XXXXXX")"' "$SKILL"
+  grep -Fq 're-export `TO_PR_SCRATCH_BASE`' "$SKILL"
   grep -Fq 'a **fresh** temp file under `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"`' "$SKILL"
+  grep -Fq 'Re-export `TO_PR_SCRATCH_BASE`' "$SKILL"
+  grep -Fq 'fell back to `${TMPDIR:-/tmp}`' "$SKILL"
   ! grep -Fq 'mktemp -d "${TMPDIR:-/tmp}/to-pr-evidence.XXXXXX"' "$SKILL"
 
-  grep -Fq 'TO_PR_SCRATCH_BASE' "$HIERARCHY_REPAIR"
+  grep -Fq 'TO_PR_SCRATCH_BASE="<the Session Scratchpad path you noted in SKILL.md step 1' "$HIERARCHY_REPAIR"
   grep -Fq 'HIERARCHY_REPAIR_RESULT="$(mktemp "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-hierarchy.XXXXXX")"' "$HIERARCHY_REPAIR"
+  grep -Fq 'disclose the `${TMPDIR:-/tmp}` fallback in the PR' "$HIERARCHY_REPAIR"
   ! grep -Fq 'mktemp "${TMPDIR:-/tmp}/to-pr-hierarchy.XXXXXX"' "$HIERARCHY_REPAIR"
 }
 
