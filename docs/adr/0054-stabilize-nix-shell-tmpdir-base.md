@@ -22,14 +22,22 @@ status: accepted
 - **`/tmp` 配下の固定サブディレクトリ（例 `/tmp/dotfiles-nix-tmp`）にする**: ADR-0048 は「`/tmp` 全体を additionalDirectories に加えると無関係な他ファイルへの read も許可してしまう」という理由で `/tmp` の恒久追加を見送っている。`/tmp` 配下の固定サブディレクトリでも同じ `/tmp` 上の境界の曖昧さが残るため、user-scoped であることが明確な `~/.cache` 配下を採用した。
 - **direnvrc の変更を見送り、settings.json.tmpl 側だけで対応する**: `additionalDirectories` はディレクトリの静的パス列挙であり、ランダムサフィックスを含むパスパターンをサポートする根拠が公式ドキュメントにない。direnvrc 側で TMPDIR の base 自体を静的化する以外に確実な手段がない。
 
-## Mechanism（実測で訂正）
+## Mechanism（実測で訂正、PR #249 レビューで再訂正）
 
 草案段階では「direnvrc の既存 Chrome 正規化は post-hoc collapse で、収束先を静的 base に変えるだけで十分」と考えたが、これは誤りだった。実際には次の2層になっている:
 
-1. リポジトリ直下の `direnv exec . env` は `TMPDIR=/tmp` を返す — `_df_stabilize_nix_shell_tmpdir`（旧 `_df_normalize_tmpdir_for_chrome`）による post-hoc collapse はここで確定して発生する。
-2. その後段で、ユーザー環境 devShell（`private_dot_config/nix-devshell/flake.nix`）自身の `nix develop` 呼出しが、その時点で継承した TMPDIR（step 1 の結果）を base として `mktemp -d "$TMPDIR/nix-shell.XXXXXX"` を実行し、ランダムサフィックス付きの leaf を生成する。
+1. リポジトリ直下の direnv（`use_flake` / `use_nix`）が nix-direnv 経由でこのリポジトリ自身の `./flake.nix` を評価する。
+2. その後段で、ユーザー環境 devShell（`private_dot_config/nix-devshell/flake.nix`）自身の別の `nix develop` 呼出しが、その時点で継承した TMPDIR を base として `mktemp -d "$TMPDIR/nix-shell.XXXXXX"` を実行し、ランダムサフィックス付きの leaf を生成する。
 
-したがって static base（`~/.cache/nix-devshell-tmp`）は additionalDirectories の grant anchor であり、session ごとの isolation は Claude Code 自身のディレクトリ構造にではなく、この step 2 の `mktemp -d` が生成するランダム leaf に由来する。実測で、同じ static base を共有する2つの `nix develop` 呼出しを並行実行したところ、異なるランダム leaf（例 `nix-shell.helIHi` / `nix-shell.eY7h1q`）を得て衝突しないことを確認した。`additionalDirectories` はディレクトリの再帰的な静的パス grant のため、static base 1エントリで両方の leaf（とその配下の `tasks/*.output` を含む全 session）をカバーする。
+`_df_stabilize_nix_shell_tmpdir`（旧 `_df_normalize_tmpdir_for_chrome`）は step 1 の直後、`use_flake` / `use_nix` の既存ラッパーからのみ呼ばれ、step 2 には介入できない。
+
+**PR #249 のレビューで、初回実装（`case "${TMPDIR##*/}" in nix-shell.*)`）はこの2層構造で機能しないと判明した。** step 1 完了時点で TMPDIR が既に `nix-shell.*` パターンでない場合（例えば plain `/tmp` のまま、または未設定のまま）、この条件にマッチせず何も collapse されない。その状態で step 2 が走ると `/tmp/nix-shell.XXXXXX` を生成し、`additionalDirectories` の対象外のまま残る——つまり本 ADR が解消しようとした carve-out gap がそのまま再発する。当初 Considered Options に書いた「`direnv exec . env` は `TMPDIR=/tmp` を返すことを確認した」という記述は、この task worktree の未反映ソースではなく live 配備済みの（旧）direnvrc を検証していたための誤認だった。
+
+対策として、`_df_stabilize_nix_shell_tmpdir` の条件を「TMPDIR が既に `nix-shell.*` パターン」から「TMPDIR が未設定・plain `/tmp`・または `nix-shell.*` パターンのいずれか」に拡張した。これにより step 1 終了時点で TMPDIR は必ず static base になり、step 2 の `mktemp -d "$TMPDIR/nix-shell.XXXXXX"` は必ず static base 配下に leaf を生成する。ユーザーが明示的に設定した他の TMPDIR（`/tmp` 以外の値）は従来どおり変更しない。
+
+static base（`~/.cache/nix-devshell-tmp`）は additionalDirectories の grant anchor であり、session ごとの isolation は Claude Code 自身のディレクトリ構造にではなく、この step 2 の `mktemp -d` が生成するランダム leaf に由来する。実測で、同じ static base を共有する2つの `nix develop` 呼出しを並行実行したところ、異なるランダム leaf（例 `nix-shell.helIHi` / `nix-shell.eY7h1q`）を得て衝突しないことを確認した。`additionalDirectories` はディレクトリの再帰的な静的パス grant のため、static base 1エントリで両方の leaf（とその配下の `tasks/*.output` を含む全 session）をカバーする。
+
+修正後の条件分岐は `tests/direnvrc.bats` の mock 化された `use_flake` / `use_nix` 経由で検証済み（plain `/tmp`、未設定、`nix-shell.*` の3パターンいずれも static base に収束、既存の custom TMPDIR 保持ケースは回帰なし）。task worktree の変更は live `~/.config/direnv/direnvrc` へまだ反映していないため、実際の `direnv exec` を通した end-to-end 実測はこの ADR の時点では行っていない——mock 化された単体テストと、static base を事前設定した `nix develop` の再親化実測（step 2 側の挙動）を組み合わせた検証にとどまる。
 
 ## Consequences
 

@@ -8,12 +8,11 @@ fi
 _DF_NIX_TMPDIR_BASE="$HOME/.cache/nix-devshell-tmp"
 
 _df_stabilize_nix_shell_tmpdir() {
-  case "${TMPDIR##*/}" in
-  nix-shell.*)
+  local current="${TMPDIR:-/tmp}"
+  if [ "$current" = /tmp ] || [[ "${current##*/}" == nix-shell.* ]]; then
     mkdir -p "$_DF_NIX_TMPDIR_BASE" 2>/dev/null || return 0
     export TMPDIR="$_DF_NIX_TMPDIR_BASE"
-    ;;
-  esac
+  fi
 }
 
 _df_is_wsl() {
