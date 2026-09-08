@@ -356,3 +356,5 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 - 経緯・判断根拠は [ADR-0005](../docs/adr/0005-advisor-tool-default-enable.md) を参照。
 
 関連: [architecture](../docs/architecture.md) / [skill-harness](skill-harness.md)
+
+2026-09-08 JST、Issue #243 第3単位は通常APM更新のmerge `b6d0030`から開始する。Impeccable skill 4.2.2 / launcherをAPM、engine 0.1.3をNixの固定release assetで供給し、`IMPECCABLE_BIN`経由で既存のClaude / Codex global PostToolUse・Stopを継続する。engine未配備時はlauncherに入らず、正常なfindingは透過、失敗出力は破棄する。理由付き抑制とproject設定・cacheの所有先を維持する。上流contextがglobal manifestを探索しない既存の制限と、live配備前に確認した実体・検査範囲は[ADR-0053](../docs/adr/0053-separate-impeccable-skill-and-engine.md) / [Verification Matrix](../docs/research/impeccable-engine-243.md)に記録する。

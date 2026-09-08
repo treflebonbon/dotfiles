@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
+            "command": "test -x \"${IMPECCABLE_BIN:-}\" && test -f \"$HOME/.agents/skills/impeccable/scripts/impeccable\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 sh \"$HOME/.agents/skills/impeccable/scripts/impeccable\" hook 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
             "timeout": 5
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
+            "command": "test -x \"${IMPECCABLE_BIN:-}\" && test -f \"$HOME/.agents/skills/impeccable/scripts/impeccable\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 sh \"$HOME/.agents/skills/impeccable/scripts/impeccable\" hook 2>/dev/null)\" || exit 0; printf '%s' \"$output\"",
             "timeout": 30
           }
         ]

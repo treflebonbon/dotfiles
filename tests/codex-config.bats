@@ -802,7 +802,8 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
-command = "test -f \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.agents/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\""
+command = data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+assert isinstance(command, str) and command
 
 # Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
 # budget of 30s instead of the per-edit 5s. Impeccable recognizes Codex's turn_id
@@ -860,7 +861,8 @@ assert data["hooks"]["PreToolUse"] == [
         "hooks": [{"type": "command", "command": "rtk hook claude"}],
     }
 ]
-command = "test -f \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" || exit 0; output=\"$(IMPECCABLE_HOOK_QUIET=1 node \"$HOME/.claude/skills/impeccable/scripts/hook.mjs\" 2>/dev/null)\" || exit 0; printf '%s' \"$output\""
+command = data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+assert isinstance(command, str) and command
 
 assert data["hooks"]["PostToolUse"] == [
     {
@@ -943,10 +945,14 @@ PY
   mkdir -p \
     "$home/.agents/skills/impeccable/scripts" \
     "$home/.claude/skills/impeccable/scripts"
-  printf 'process.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' \
-    >"$home/.agents/skills/impeccable/scripts/hook.mjs"
-  printf 'process.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' \
-    >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+  local engine="$home/engine"
+  local hub
+  for hub in .agents .claude; do
+    printf '#!/bin/sh\nprintf "invoked\\n" >>"$HOME/launcher-invocations"\nexec "$IMPECCABLE_BIN" "$@"\n' \
+      >"$home/$hub/skills/impeccable/scripts/impeccable"
+  done
+  printf '#!/usr/bin/env node\nprocess.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' >"$engine"
+  chmod +x "$engine"
 
   mapfile -t commands < <(
     python3 - \
@@ -968,7 +974,23 @@ PY
   [ "${#commands[@]}" -eq 4 ]
   local command
   for command in "${commands[@]}"; do
-    run env HOME="$home" bash -c "$command"
+    run env HOME="$home" IMPECCABLE_BIN="$engine" bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    local invocations
+    invocations="$(wc -l <"$home/launcher-invocations")"
+    # Missing or non-executable engines must not enter the launcher's downloader.
+    run env HOME="$home" IMPECCABLE_BIN= bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    run env HOME="$home" IMPECCABLE_BIN="$home/missing-engine" bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    run env HOME="$home" IMPECCABLE_BIN="$home/launcher-invocations" bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    [ "$(wc -l <"$home/launcher-invocations")" = "$invocations" ]
+    run env HOME="$BATS_TEST_TMPDIR/empty-home" IMPECCABLE_BIN="$engine" bash -c "$command"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
   done
@@ -976,8 +998,7 @@ PY
   # The synthetic candidate runtime distinguishes Codex by turn_id and owns the
   # native Stop schema. Managed commands only preserve its stdout byte-for-byte.
   local hook_runtime_fixture='let input="";process.stdin.on("data",chunk=>input+=chunk);process.stdin.on("end",()=>{const event=JSON.parse(input);const codexStop=event.turn_id&&event.hook_event_name==="Stop";process.stdout.write(JSON.stringify(codexStop?{decision:"block",reason:"finding"}:{hookSpecificOutput:{hookEventName:event.hook_event_name,additionalContext:"finding"}}))});'
-  printf '%s\n' "$hook_runtime_fixture" >"$home/.agents/skills/impeccable/scripts/hook.mjs"
-  printf '%s\n' "$hook_runtime_fixture" >"$home/.claude/skills/impeccable/scripts/hook.mjs"
+  printf '#!/usr/bin/env node\n%s\n' "$hook_runtime_fixture" >"$engine"
 
   local post_tool_use='{"session_id":"fixture","hook_event_name":"PostToolUse"}'
   local claude_stop='{"session_id":"fixture","hook_event_name":"Stop"}'
@@ -987,19 +1008,19 @@ PY
   local passthrough_stop='{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"finding"}}'
   local codex_stop_expected='{"decision":"block","reason":"finding"}'
 
-  run env HOME="$home" bash -c "${commands[0]}" <<<"$post_tool_use"
+  run env HOME="$home" IMPECCABLE_BIN="$engine" bash -c "${commands[0]}" <<<"$post_tool_use"
   [ "$status" -eq 0 ]
   [ "$output" = "$passthrough_post_tool_use" ]
 
-  run env HOME="$home" bash -c "${commands[1]}" <<<"$claude_stop"
+  run env HOME="$home" IMPECCABLE_BIN="$engine" bash -c "${commands[1]}" <<<"$claude_stop"
   [ "$status" -eq 0 ]
   [ "$output" = "$passthrough_stop" ]
 
-  run env HOME="$home" bash -c "${commands[2]}" <<<"$codex_post_tool_use"
+  run env HOME="$home" IMPECCABLE_BIN="$engine" bash -c "${commands[2]}" <<<"$codex_post_tool_use"
   [ "$status" -eq 0 ]
   [ "$output" = "$passthrough_post_tool_use" ]
 
-  run env HOME="$home" bash -c "${commands[3]}" <<<"$codex_stop"
+  run env HOME="$home" IMPECCABLE_BIN="$engine" bash -c "${commands[3]}" <<<"$codex_stop"
   [ "$status" -eq 0 ]
   [ "$output" = "$codex_stop_expected" ]
 }
