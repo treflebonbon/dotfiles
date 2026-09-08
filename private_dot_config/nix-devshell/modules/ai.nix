@@ -83,6 +83,10 @@ in
     llm.copilot-cli
     llm.antigravity-cli
 
+    # --- Terminal Workspaces ---
+    # Keep the derivation aligned with the pinned Numtide binary cache.
+    inputs.llm-agents.packages.${system}.herdr
+
     # --- Token Optimization ---
     llm.rtk
 
