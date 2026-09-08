@@ -57,21 +57,25 @@ Orca が返す worktree 操作例は command surface の説明として扱い、
 
 証跡は同じ worktree の `tmp/issue-243-apm/`。恒久的なログ保管先ではなく、ここには採用結果と限界を記録する。第1単位の結果は [Tool Snapshot 記録](ai-tool-snapshot-243.md) を参照する。
 
-| AC                    | 確認方法・証跡                                                            | 本単位の結果                            | 未確認・後続                                |
-| --------------------- | ------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------- |
-| AC1 更新単位          | PR #244 の merge commit と branch base                                    | 第2単位を merge 済み baseline から開始  | 第3単位は本単位の merge 後                  |
-| AC2 snapshot          | Nix source / lock 不変、第1単位記録                                       | 第1単位の採用値を維持                   | 再選定しない                                |
-| AC3 対応環境          | 第1単位の3 system / 両 shell 評価・host build                             | 第1単位の検証を継承                     | ARM 実機起動の未確認も継承                  |
-| AC4 floor / 設定      | floor / モデル設定不変、full suite                                        | 維持                                    | —                                           |
-| AC5 Herdr             | package / 設定不変、第1単位記録                                           | 第1単位の検証を継承                     | 画像の実描画等の未確認も継承                |
-| AC6 スキル選定        | `comparison.json`、公式比較、実体差分、Orca tree hash                     | 成功。本文・版参照・revision-onlyを区別 | 配備外の sibling 本文変更は含めない         |
-| AC7 再現性            | `materialization.json`、install / frozen / audit logs、source `sha256sum` | 成功。native lock不変、audit 10/10      | organization policy enforcement は skip     |
-| AC8 可視性            | `payload-verification.json`、1,396 hash / 全 target 照合                  | 成功。42/42、Matt25、Impeccable維持     | live session discovery は最終配備時         |
-| AC9 Orca              | 3 `skills get`、`status --json`、`--full`、実効契約の照合                 | 成功                                    | 新 `--references` は実行中1.4.197では非対応 |
-| AC10 Impeccable 配布  | 現 pin / launcher / 管理設定を維持                                        | 第3単位                                 | skill4.2.2 / engine0.1.3 は未導入           |
-| AC11 global hook      | 現 global PostToolUse / Stop を維持                                       | 第3単位                                 | 新 engine による確認は後続                  |
-| AC12 hook 動作        | 現4.1.2 materialized runtimeで既存テスト                                  | 現構成の回帰確認                        | 新 engine の互換性を意味しない              |
-| AC13 fail-open / 所有 | 管理 hook / timeout / 所有境界を維持                                      | 現構成の回帰確認                        | 新 engine の障害検証は後続                  |
-| AC14 実 engine        | 現4.1.2実体をfull suiteへ指定                                             | 第3単位                                 | Rust engine移行の成功とは扱わない           |
-| AC15 回帰             | 関連Bats、full suite、型検査、format、code-review                         | 検証中                                  | 完了時に結果を追記                          |
-| AC16 配備境界         | linked checkout確認、live source非変更                                    | source側を遵守                          | live apply / 最終起動は受入後               |
+| AC                    | 確認方法・証跡                                                              | 本単位の結果                            | 未確認・後続                                |
+| --------------------- | --------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------- |
+| AC1 更新単位          | PR #244 の merge commit と branch base                                      | 第2単位を merge 済み baseline から開始  | 第3単位は本単位の merge 後                  |
+| AC2 snapshot          | Nix source / lock 不変、第1単位記録                                         | 第1単位の採用値を維持                   | 再選定しない                                |
+| AC3 対応環境          | 第1単位の3 system / 両 shell 評価・host build                               | 第1単位の検証を継承                     | ARM 実機起動の未確認も継承                  |
+| AC4 floor / 設定      | floor / モデル設定不変、full suite                                          | 維持                                    | —                                           |
+| AC5 Herdr             | package / 設定不変、第1単位記録                                             | 第1単位の検証を継承                     | 画像の実描画等の未確認も継承                |
+| AC6 スキル選定        | `comparison.json`、公式比較、実体差分、Orca tree hash                       | 成功。本文・版参照・revision-onlyを区別 | 配備外の sibling 本文変更は含めない         |
+| AC7 再現性            | `materialization.json`、install / frozen / audit logs、source `sha256sum`   | 成功。native lock不変、audit 10/10      | organization policy enforcement は skip     |
+| AC8 可視性            | `payload-verification.json`、1,396 hash / 全 target 照合                    | 成功。42/42、Matt25、Impeccable維持     | live session discovery は最終配備時         |
+| AC9 Orca              | 3 `skills get`、`status --json`、`--full`、実効契約の照合                   | 成功                                    | 新 `--references` は実行中1.4.197では非対応 |
+| AC10 Impeccable 配布  | 現 pin / launcher / 管理設定を維持                                          | 第3単位                                 | skill4.2.2 / engine0.1.3 は未導入           |
+| AC11 global hook      | 現 global PostToolUse / Stop を維持                                         | 第3単位                                 | 新 engine による確認は後続                  |
+| AC12 hook 動作        | 現4.1.2 materialized runtimeで既存テスト                                    | 現構成の回帰確認                        | 新 engine の互換性を意味しない              |
+| AC13 fail-open / 所有 | 管理 hook / timeout / 所有境界を維持                                        | 現構成の回帰確認                        | 新 engine の障害検証は後続                  |
+| AC14 実 engine        | 現4.1.2実体をfull suiteへ指定                                               | 第3単位                                 | Rust engine移行の成功とは扱わない           |
+| AC15 回帰             | 関連34/34、Matt13/13、full519/519、型検査、format、commit hook、code-review | 必須検証成功                            | 初回fullの旧分類名assertionを修正。下記参照 |
+| AC16 配備境界         | linked checkout確認、live source非変更                                      | source側を遵守                          | live apply / 最終起動は受入後               |
+
+検証コマンドは `env -u FORCE_COLOR bats tests/apm-runtime.bats tests/nix-devshell.bats`（34/34）、`env -u FORCE_COLOR bats tests/mattpocock-update-gate.bats`（13/13）、`bunx tsc --noEmit`、変更YAML / Markdownの `bunx oxfmt --check`。commit hookのoxfmt / gitleaks / `cog verify`も成功した。
+
+初回full suiteは `tests/mattpocock-update-gate.bats` の旧 `package_type: marketplace_plugin` assertionだけで失敗した。pin / selected content / membershipに加え、実際の `active_owner: mattpocock/skills` を検証する形に修正した。修正後の `env -u FORCE_COLOR IMPECCABLE_HOOK_RUNTIME="$PWD/tmp/issue-243-apm/runtime/.agents/skills/impeccable/scripts/hook.mjs" bun run test` は519/519、skipなし、終了0。`full-suite.log` に初回失敗、`matt-green.log` に該当13件の成功、`full-suite-final.log` に最終full suiteの成功を保存した。現4.1.2実体を用いるDesign Hookの回帰も実行しており、未配備によるskipを成功に数えていない。
