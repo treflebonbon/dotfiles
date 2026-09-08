@@ -49,8 +49,8 @@ Codex の PostToolUse / Stop 出力は[公式 hook reference](https://learn.chat
 | 実体指定の `bats tests/design-hook.bats tests/apm-runtime.bats tests/impeccable-engine.bats`                                                                       | 29/29、skip 0。旧管理配線では即時 finding が失われる RED を確認後、launcher 配線で GREEN            |
 | managed hook の関連3項目                                                                                                                                           | 3/3成功                                                                                             |
 | `bunx tsc --noEmit`                                                                                                                                                | 成功                                                                                                |
-| 実体指定の `bun run test`                                                                                                                                          | 実行中                                                                                              |
-| 対象 lint / format、pre-commit / commit-msg                                                                                                                        | 実行前                                                                                              |
+| 実体指定の `bun run test`                                                                                                                                          | 523/523、skip 0、exit 0                                                                             |
+| 対象 lint / format、pre-commit / commit-msg                                                                                                                        | oxfmt / nixfmt、gitleaks、cog成功。変更対象のないshellcheck / oxlint等はhookの適用対象外            |
 
 生ログは検証時の worktree 内 `tmp/issue-243-impeccable/` に保持する（Git 非追跡）。`materialization.json`、`payload-verification.json`、`engine-build.json`、`context-probe-verified/results.json`、`related.log`、`managed-hooks.log`、`full-suite.log` が対応する。将来この一時ディレクトリがなくても、採用 hash・検証方法・結果は本記録から確認できる。
 
@@ -72,5 +72,7 @@ Codex の PostToolUse / Stop 出力は[公式 hook reference](https://learn.chat
 | AC12 検出動作       | CLI         | 実engineのimmediate / deep / dedupe / reentry / both-tier / quiet               | 確認済み | —                                                           |
 | AC13 障害・運用     | CLI         | 実engine正常出力、4commandの障害注入、5秒 / 30秒、理由付き抑制・設定とcache所有 | 確認済み | —                                                           |
 | AC14 実体           | CLI         | native APM launcherとNix engineを明示、関連29項目skip 0                         | 確認済み | —                                                           |
-| AC15 回帰・説明     | CLI         | 関連Bats、型検査、full suiteとformatは進行中                                    | 未確認   | full suite完了後に更新                                      |
+| AC15 回帰・説明     | CLI         | 関連29/29、管理3/3、full 523/523 skip 0、型検査、oxfmt / nixfmt、commit hook    | 確認済み | —                                                           |
 | AC16 配備境界       | infra       | validated linked worktreeだけを編集、taskからlive applyなし                     | 未確認   | 第3単位受入・merge後、live source同期・配備・通常起動を実施 |
+
+Standards / Spec の並行レビューでは実装の指摘は0件。Spec が残した AC15 の確認待ちは、full suite 523/523と上記format / hook成功により解消した。AC16は本PRの受入・merge後の配備として残す。
