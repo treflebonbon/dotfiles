@@ -36,10 +36,28 @@ EOF
   grep -q 'use_flake:. --impure' "$TEST_LOG"
 }
 
-@test "use_flake stabilizes nix-shell TMPDIR under a non-/tmp platform root (e.g. macOS)" {
+@test "use_flake stabilizes an already-suffixed nix-shell leaf under a non-/tmp platform root" {
   write_fake_nix_direnv
 
   run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" DIRENV_ROOT="$BATS_TEST_TMPDIR/no-marker" bash -c 'source "$1"; export TMPDIR="/var/folders/xy/T/nix-shell.abc"; use_flake .; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TEST_HOME/.cache/nix-devshell-tmp" ]
+}
+
+@test "use_flake stabilizes the bare macOS platform TMPDIR root before any nix-shell leaf forms (trailing slash)" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" DIRENV_ROOT="$BATS_TEST_TMPDIR/no-marker" bash -c 'source "$1"; export TMPDIR="/var/folders/xy/abcdefg1234/T/"; use_flake .; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TEST_HOME/.cache/nix-devshell-tmp" ]
+}
+
+@test "use_flake stabilizes the bare macOS platform TMPDIR root before any nix-shell leaf forms (no trailing slash)" {
+  write_fake_nix_direnv
+
+  run env HOME="$TEST_HOME" TEST_LOG="$TEST_LOG" DIRENV_ROOT="$BATS_TEST_TMPDIR/no-marker" bash -c 'source "$1"; export TMPDIR="/var/folders/xy/abcdefg1234/T"; use_flake .; printf "%s" "$TMPDIR"' _ "$PROJECT_ROOT/private_dot_config/direnv/direnvrc"
 
   [ "$status" -eq 0 ]
   [ "$output" = "$TEST_HOME/.cache/nix-devshell-tmp" ]

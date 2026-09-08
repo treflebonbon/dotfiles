@@ -39,6 +39,8 @@ static base（`~/.cache/nix-devshell-tmp`）は additionalDirectories の grant 
 
 修正後の条件分岐は `tests/direnvrc.bats` の mock 化された `use_flake` / `use_nix` 経由で検証済み（plain `/tmp`、未設定、`nix-shell.*` の3パターンいずれも static base に収束、既存の custom TMPDIR 保持ケースは回帰なし）。task worktree の変更は live `~/.config/direnv/direnvrc` へまだ反映していないため、実際の `direnv exec` を通した end-to-end 実測はこの ADR の時点では行っていない——mock 化された単体テストと、static base を事前設定した `nix develop` の再親化実測（step 2 側の挙動）を組み合わせた検証にとどまる。
 
+**[Issue #252](https://github.com/treflebonbon/dotfiles/issues/252) で再訂正（macOS 標準 root の4つ目のケース漏れ）**: 上記の3パターン条件は Linux 前提の記述で、macOS で launchd が設定する `TMPDIR=/var/folders/<xx>/<random>/T/`（末尾スラッシュ付き）という4つ目のケースを見落としていた。このパスは `/tmp` とも `nix-shell.*` サフィックスとも一致しないため step 1 で collapse されず、step 2 の `mktemp -d "$TMPDIR/nix-shell.XXXXXX"` が additionalDirectories 外に leaf を生成する carve-out gap が macOS では再発したままだった。条件を「比較前に末尾スラッシュを除去し、`/var/folders/*` も収束対象に含める」よう拡張して解消した。`/var/folders/*` 配下にユーザーが明示的に別の TMPDIR を設定した場合との区別はできないが、これは既存の plain `/tmp` の非区別と同種のトレードオフとして許容する。
+
 ## Consequences
 
 `~/.cache/nix-devshell-tmp` は tmpfs（`/tmp`）ではなく home filesystem 上に置かれる。WSL2 環境では実害はないが、`/tmp` の「再起動で自動的に空になる」特性は失われるため、長期的にはこのディレクトリの手動クリーンアップが必要になり得る。自動クリーンアップの仕組みは本 ADR のスコープ外とする。
