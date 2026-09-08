@@ -47,6 +47,8 @@ static base（`~/.cache/nix-devshell-tmp`）は additionalDirectories の grant 
 
 `managed-chrome-owner`（[ADR-0047](0047-centralize-managed-chrome-ownership.md)）の `BROWSER_OWNERSHIP_DIR` 既定解決は `XDG_RUNTIME_DIR || TMPDIR || "/tmp"` の順で、`XDG_RUNTIME_DIR` が未設定な環境では TMPDIR の収束先が `/tmp` から `~/.cache/nix-devshell-tmp` へ変わる。保存内容は所有権 lock ファイルのみで機密性・サイズとも無関係なため実害はないが、意図した変更として記録する。
 
+**セッション間の読み取り露出（PR #249 レビューで指摘、許容済みトレードオフ）**: `additionalDirectories` は静的パスの再帰的 grant であり、session 単位のスコープ指定ができない。`~/.cache/nix-devshell-tmp` を additionalDirectories に加えると、同時に動作する**他の** session の `nix-shell.<random>` leaf も direct file tool で読めるようになる。あるセッションがプロンプトインジェクションを受けた場合、別セッションの scratch 領域（background task output 等）に機密情報が含まれていればそれを読み取れてしまう。この repo は同種の広い grant（`~/.claude/projects`＝全 project の memory/transcript、`~/.claude/jobs`＝全 project の background job state、ADR-0045/0048 で許容済み）を既に持つが、それらは Claude Code 自身が生成・管理する内部状態であるのに対し、`~/.cache/nix-devshell-tmp` は同一 base 配下で動く任意の nix-shell 上の任意ツールが書き込みうる、より広い scratch 領域である点で性質が異なる。`additionalDirectories` に session 単位のスコープ機構がない以上、この差は解消できないため、`tasks/*.output` carve-out 解消という目的を優先し、前例と同種の許容されたトレードオフとして受け入れる。
+
 TMPDIR carve-out gap のうち、issue #248 が「dotfiles 側では解消不能」としていた background task の `tasks/*.output` は、本 ADR の static base 安定化によって同じ `additionalDirectories` エントリでカバーされる。
 
 関連: [ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) / [ADR-0052](0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md) / [ADR-0047](0047-centralize-managed-chrome-ownership.md)
