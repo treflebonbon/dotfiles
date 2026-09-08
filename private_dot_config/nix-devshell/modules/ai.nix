@@ -65,13 +65,17 @@ let
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
+  impeccable = pkgs.callPackage ../packages/impeccable.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix {
     playwright-driver = if browserless then null else pkgs.playwright-driver;
   };
   waza = pkgs.callPackage ../packages/waza.nix { };
 in
 {
-  env.DISABLE_TELEMETRY = "1";
+  env = {
+    DISABLE_TELEMETRY = "1";
+    IMPECCABLE_BIN = "${impeccable}/bin/impeccable";
+  };
 
   packages = [
     # --- AI Coding Agents ---
@@ -97,6 +101,7 @@ in
 
     # --- Specification & Design ---
     design-md-cli
+    impeccable
 
     # --- Browser Automation ---
     playwright-cli

@@ -2,8 +2,17 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  RUNTIME="${IMPECCABLE_HOOK_RUNTIME:-$HOME/.agents/skills/impeccable/scripts/hook.mjs}"
-  ADMIN="${RUNTIME%/hook.mjs}/hook-admin.mjs"
+  RUNTIME="${IMPECCABLE_HOOK_RUNTIME:-$HOME/.agents/skills/impeccable/scripts/impeccable}"
+  export HOME="$BATS_TEST_TMPDIR/home"
+  export XDG_CACHE_HOME="$HOME/.cache"
+  export CODEX_HOME="$HOME/.codex"
+  unset IMPECCABLE_CACHE_ROOT IMPECCABLE_SKILL_DIR IMPECCABLE_SELF IMPECCABLE_HOOK_HARNESS
+  PROVIDER=claude
+  mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills" "$CODEX_HOME"
+  ln -s "${RUNTIME%/scripts/impeccable}" "$HOME/.agents/skills/impeccable"
+  ln -s "${RUNTIME%/scripts/impeccable}" "$HOME/.claude/skills/impeccable"
+  cp "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" "$HOME/.claude/settings.json"
+  cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" "$CODEX_HOME/hooks.json"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$PROJECT"
   printf '{}\n' >"$PROJECT/package.json"
@@ -14,18 +23,30 @@ setup() {
   # A second, distinct gradient-text occurrence: a finding the per-edit pass has
   # not seen before in this session.
   IMMEDIATE_CSS_ALT='.hero { background: linear-gradient(90deg, #0ea5e9, #22d3ee); -webkit-background-clip: text; color: transparent; }'
-  # overused-font sits outside the immediate tier, so the per-edit pass defers it
+  # side-tab sits outside the immediate tier, so the per-edit pass defers it
   # and only the Stop deep pass surfaces it.
-  DEFERRED_CSS='.card { font-family: Inter, sans-serif; }'
+  DEFERRED_CSS='.card { border-left: 4px solid #6366f1; border-radius: 8px; }'
   # One declaration block carrying both tiers, composed from the two above so a
   # future pin's tier reshuffle is still a one-line edit up here.
-  BOTH_TIERS_CSS="${IMMEDIATE_CSS%\}} font-family: Inter, sans-serif; }"
+  BOTH_TIERS_CSS="$IMMEDIATE_CSS $DEFERRED_CSS"
 }
 
 require_runtime() {
-  if [ ! -f "$RUNTIME" ]; then
+  if [ ! -f "$RUNTIME" ] || [ ! -x "${IMPECCABLE_BIN:-}" ]; then
+    # Explicit migration runs must fail when either required artifact is absent.
+    [ -z "${IMPECCABLE_HOOK_RUNTIME:-}" ] || return 1
     skip "materialize Impeccable first or set IMPECCABLE_HOOK_RUNTIME"
   fi
+}
+
+run_managed_hook() {
+  local event="$1"
+  local manifest="$HOME/.claude/settings.json"
+  [ "$PROVIDER" != codex ] || manifest="$CODEX_HOME/hooks.json"
+  local command budget
+  command="$(jq -r --arg event "$event" '.hooks[$event][0].hooks[0].command' "$manifest")"
+  budget="$(jq -r --arg event "$event" '.hooks[$event][0].hooks[0].timeout' "$manifest")"
+  timeout "${budget}s" bash -c "$command"
 }
 
 run_post_tool_use_hook() {
@@ -33,15 +54,18 @@ run_post_tool_use_hook() {
   local file_path="$2"
   local tool_name="${3:-Write}"
 
-  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"%s","tool_input":{"file_path":"%s"}}\n' \
-    "$session_id" "$PROJECT" "$tool_name" "$file_path" |
-    env IMPECCABLE_HOOK_QUIET=1 node "$RUNTIME"
+  jq -nc --arg session "$session_id" --arg cwd "$PROJECT" --arg tool "$tool_name" \
+    --arg file "$file_path" --arg provider "$PROVIDER" \
+    '{session_id:$session,cwd:$cwd,hook_event_name:"PostToolUse",tool_name:$tool,tool_input:{file_path:$file}} + (if $provider == "codex" then {turn_id:"turn-1"} else {} end)' |
+    run_managed_hook PostToolUse
 }
 
 run_stop_hook() {
   local session_id="$1"
   local stop_hook_active="${2:-false}"
   local turn_id="${3:-}"
+  if [ "$PROVIDER" = codex ] && [ -z "$turn_id" ]; then turn_id=turn-1; fi
+  if [ -n "$turn_id" ]; then PROVIDER=codex; fi
 
   if [ -n "$turn_id" ]; then
     printf '{"session_id":"%s","turn_id":"%s","cwd":"%s","hook_event_name":"Stop","stop_hook_active":%s}\n' \
@@ -50,7 +74,7 @@ run_stop_hook() {
     printf '{"session_id":"%s","cwd":"%s","hook_event_name":"Stop","stop_hook_active":%s}\n' \
       "$session_id" "$PROJECT" "$stop_hook_active"
   fi |
-    env IMPECCABLE_HOOK_QUIET=1 node "$RUNTIME"
+    run_managed_hook Stop
 }
 
 @test "materialized quiet Design Hook reports an immediate-tier finding on the edit" {
@@ -76,7 +100,7 @@ run_stop_hook() {
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'Triage each finding'* ]]
-  [[ "$output" == *'hook-admin.mjs'* ]]
+  [[ "$output" == *'hooks ignore-value'* ]]
   [[ "$output" == *'ignore-value <rule>'* ]]
   [[ "$output" == *'--reason \"<who decided: evidence>\"'* ]]
   [[ "$output" == *'state in your reply what you fixed, what you suppressed, and what you left standing'* ]]
@@ -94,9 +118,8 @@ run_stop_hook() {
 
 @test "materialized Design Hook self-serve ignore persists only a reasoned detector value" {
   require_runtime
-  [ -f "$ADMIN" ]
 
-  run bash -c 'cd "$1" && node "$2" ignore-value overused-font Inter --reason "agent: documented fixture"' _ "$PROJECT" "$ADMIN"
+  run bash -c 'cd "$1" && sh "$2" hooks ignore-value overused-font Inter --reason "agent: documented fixture"' _ "$PROJECT" "$RUNTIME"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'detector.ignoreValues'* ]]
@@ -151,7 +174,7 @@ run_stop_hook() {
   run run_stop_hook "deferred"
   [ "$status" -eq 0 ]
   [[ "$output" == *'"hookEventName":"Stop"'* ]]
-  [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" == *'[side-tab]'* ]]
 
   # Once, not on every stop. This holds because the fixture carries findings in
   # only one tier; see the both-tiers test below for where it breaks down.
@@ -162,6 +185,7 @@ run_stop_hook() {
 
 @test "materialized quiet Design Hook emits native Codex Stop output for a turn-scoped deep-pass finding" {
   require_runtime
+  PROVIDER=codex
   local file="$PROJECT/Card.css"
   printf '%s\n' "$DEFERRED_CSS" >"$file"
 
@@ -173,7 +197,7 @@ run_stop_hook() {
   [ "$status" -eq 0 ]
   [[ "$output" == *'"decision":"block"'* ]]
   [[ "$output" == *'"reason":"'* ]]
-  [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" == *'[side-tab]'* ]]
   [[ "$output" != *'"hookSpecificOutput"'* ]]
 
   printf '.card { color: #123456; }\n' >"$file"
@@ -186,6 +210,81 @@ run_stop_hook() {
   [ -z "$output" ]
 }
 
+@test "global materialized hooks check new projects without opt-in for both providers" {
+  require_runtime
+  local file="$PROJECT/Card.css"
+  printf '%s\n' "$BOTH_TIERS_CSS" >"$file"
+  for PROVIDER in claude codex; do
+    [ ! -e "$PROJECT/.impeccable/config.json" ]
+    [ ! -e "$PROJECT/.impeccable/config.local.json" ]
+    [ ! -e "$PROJECT/.claude" ]
+    [ ! -e "$PROJECT/.codex" ]
+    run run_post_tool_use_hook "$PROVIDER-global" "$file"
+    [ "$status" -eq 0 ]
+    jq -e '.hookSpecificOutput.hookEventName == "PostToolUse" and (.hookSpecificOutput.additionalContext | contains("[gradient-text]"))' <<<"$output"
+    run run_stop_hook "$PROVIDER-global"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'[side-tab]'* ]]
+    if [ "$PROVIDER" = codex ]; then
+      jq -e '.decision == "block" and (.reason | contains("[side-tab]")) and (has("hookSpecificOutput") | not)' <<<"$output"
+    else
+      jq -e '.hookSpecificOutput.hookEventName == "Stop"' <<<"$output"
+    fi
+    run run_stop_hook "$PROVIDER-global"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+  done
+  [ ! -e "$PROJECT/.impeccable/config.json" ]
+}
+
+@test "materialized Codex apply_patch checks a symlinked monorepo target and converges" {
+  require_runtime
+  PROVIDER=codex
+  mkdir -p "$PROJECT/packages/web/src"
+  printf '{}\n' >"$PROJECT/packages/web/package.json"
+  printf '%s\n' "$BOTH_TIERS_CSS" >"$PROJECT/packages/web/src/Card.css"
+  ln -s packages/web "$PROJECT/web"
+  local payload
+  payload="$(jq -nc --arg cwd "$PROJECT" '{session_id:"monorepo",turn_id:"turn-1",cwd:$cwd,hook_event_name:"PostToolUse",tool_name:"apply_patch",tool_input:{command:"*** Begin Patch\n*** Update File: web/src/Card.css\n@@\n-old\n+new\n*** End Patch"}}')"
+  run run_managed_hook PostToolUse <<<"$payload"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[gradient-text]'* ]]
+  run run_post_tool_use_hook monorepo "$PROJECT/web/src/Card.css" Edit
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  run run_stop_hook monorepo
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[side-tab]'* ]]
+  run run_stop_hook monorepo
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "materialized hooks preserve project config and disposable cache ownership" {
+  require_runtime
+  mkdir -p "$PROJECT/.impeccable"
+  printf '{"hook":{"enabled":false}}\n' >"$PROJECT/.impeccable/config.local.json"
+  printf '%s\n' "$IMMEDIATE_CSS" >"$PROJECT/Card.css"
+  for PROVIDER in claude codex; do
+    run run_post_tool_use_hook "$PROVIDER-disabled" "$PROJECT/Card.css"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    run run_stop_hook "$PROVIDER-disabled"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+  done
+  jq -e '.hook.enabled == false' "$PROJECT/.impeccable/config.local.json"
+  printf '{}\n' >"$PROJECT/.impeccable/config.local.json"
+  run run_post_tool_use_hook cache-owner "$PROJECT/Card.css"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'[gradient-text]'* ]]
+  [ -f "$PROJECT/.impeccable/hook.cache.json" ]
+  [ ! -e "$HOME/.impeccable/hook.cache.json" ]
+  jq -e '. == {}' "$PROJECT/.impeccable/config.local.json"
+  [ ! -e "$HOME/.impeccable/config.json" ]
+  [ ! -e "$PROJECT/.impeccable/config.json" ]
+}
+
 @test "materialized quiet Design Hook Stop pass converges silently on a file with findings in both tiers" {
   require_runtime
   local file="$PROJECT/Card.css"
@@ -194,11 +293,11 @@ run_stop_hook() {
   run run_post_tool_use_hook "both-tiers" "$file"
   [ "$status" -eq 0 ]
   [[ "$output" == *'[gradient-text]'* ]]
-  [[ "$output" != *'[overused-font]'* ]]
+  [[ "$output" != *'[side-tab]'* ]]
 
   run run_stop_hook "both-tiers"
   [ "$status" -eq 0 ]
-  [[ "$output" == *'[overused-font]'* ]]
+  [[ "$output" == *'[side-tab]'* ]]
   [[ "$output" != *'[gradient-text]'* ]]
 
   run run_stop_hook "both-tiers"
