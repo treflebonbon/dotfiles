@@ -350,22 +350,34 @@ def dotenv_environment(repo, prepared, inherited):
 
 
 def launch_with_env(arguments):
+    reuse_prepared = arguments[:1] == ["--prepared"]
+    if reuse_prepared:
+        arguments = arguments[1:]
     if arguments[:1] == ["--"]:
         arguments = arguments[1:]
     if not arguments:
-        raise PreparationError("usage: devshell-env with-env -- command [args...]")
+        raise PreparationError(
+            "usage: devshell-env with-env [--prepared] -- command [args...]"
+        )
     inherited = git_environment()
     repo = Repository.discover(Path.cwd())
     identity = repo.identity()
-    if context := inherited.get("DEVSHELL_ENV_CONTEXT"):
+    if reuse_prepared:
+        context = inherited.get("DEVSHELL_ENV_CONTEXT")
+        if not context:
+            raise PreparationError(
+                "no prepared devShell; restart through codex-worktree"
+            )
         if context != prepared_context(repo):
             raise PreparationError(
                 "prepared devShell belongs to another root or flake; restart the session"
             )
         prepared = inherited
     else:
-        # An explicit app invocation authorizes preparation without automatic trust.
+        # The normal public entry always prepares, regardless of ambient metadata.
+        inherited.pop("DEVSHELL_ENV_CONTEXT", None)
         prepared = prepare_environment(repo, inherited, require_trust=False)
+        prepared.pop("DEVSHELL_ENV_CONTEXT", None)
     if Repository.discover(repo.root) != repo or repo.identity() != identity:
         raise InvalidContext("worktree metadata changed during preparation")
     environment = dotenv_environment(repo, prepared, inherited)

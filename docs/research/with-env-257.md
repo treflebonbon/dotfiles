@@ -11,9 +11,9 @@ tags: [nix, dotenv, codex, verification]
 
 ## 実装した境界
 
-人間は `nix run .#with-env -- command [args...]`、raw Codex は devShell 内に準備した同じ公開 package の `with-env command [args...]` を使う。dotenv は同梱の `python-dotenv` で Nix / shellHook 準備後に解析する。対象は現在地の Git root 直下の `.env` 一つで、親・main・別 worktree を探索しない。値は指定コマンドと子だけへ注入し、AI セッション全体には追加しない。独自の環境保存ファイルは作らない。
+人間は `nix run .#with-env -- command [args...]`、raw Codex は devShell 内に準備した同じ公開 package の `with-env --prepared -- command [args...]` を使う。dotenv は同梱の `python-dotenv` で Nix / shellHook 準備後に解析する。対象は現在地の Git root 直下の `.env` 一つで、親・main・別 worktree を探索しない。値は指定コマンドと子だけへ注入し、AI セッション全体には追加しない。独自の環境保存ファイルは作らない。
 
-root と Git metadata は準備前後で検証する。明示実行は trust 登録を要求せず、raw 自動準備は既存の登録を要求する。raw の再利用情報は root・repo identity・output・root の flake/lock hash だけを持ち、変更を検出したら正式入口を失敗させる。import した Nix file の変更も含め、devShell の更新後は常にセッションを再起動する。再利用情報は agent から改変できない認証情報ではない。
+root と Git metadata は準備前後で検証する。明示実行は trust 登録を要求せず、raw 自動準備は既存の登録を要求する。通常の公開入口は継承した照合情報を無視して常に準備し、`--prepared` の明示時だけ再利用する。情報不在・不一致の prepared mode は未起動で失敗する。raw の再利用情報は root・repo identity・output・root の flake/lock hash だけを持ち、変更を検出したら正式入口を失敗させる。import した Nix file の変更も含め、devShell の更新後は常にセッションを再起動する。再利用情報は agent から改変できない認証情報ではない。
 
 symlink の物理 target は root 内に限定し、解決後の各 path component を `O_NOFOLLOW` で開く。FIFO はブロックせず拒否する。raw の追加 read は通常ファイルの root `.env` に限定し、symlink には与えない。解析失敗は行番号だけを表示する。空値・引用符・複数行・変数展開・値のない名前は [python-dotenv の構文](https://bbc2.github.io/python-dotenv/#file-format) に従う。起動元、devShell、dotenv の順に同名の値を優先する。
 
@@ -40,7 +40,7 @@ shellcheck private_dot_local/bin/executable_sync-codex-managed-config
 TMPDIR=/tmp bun run test
 ```
 
-with-env と既存 Runtime Adapter の実 Nix opt-in は計30件。`with-env-preflight.py` は実 adapter と sandbox を通す受入スクリプトであり、以前の未成立条件を再現するだけのスクリプトから置き換えた。通常 Bats の実 Nix / sandbox 3件は opt-in とし、上記で別途実行する。
+with-env と既存 Runtime Adapter の実 Nix opt-in は計32件。`with-env-preflight.py` は実 adapter と sandbox を通す受入スクリプトであり、以前の未成立条件を再現するだけのスクリプトから置き換えた。通常 Bats の実 Nix / sandbox 3件は opt-in とし、上記で別途実行する。
 
 | #257 本文順の条件                             | 確認内容                                                                                                                                                                                                     |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -60,6 +60,6 @@ Git source 内の `.env` 不在も確認する。dotenv を Git や flake に含
 
 ## 結果とレビュー
 
-最終全体テストと2軸レビューの結果をこの節へ追記する。実 Nix / sandbox の詳細ログは `/tmp/with-env-257-real-final.log` と `/tmp/with-env-257-acceptance-final.log`、全 Bats は `/tmp/with-env-257-full-final.log` に記録する。実受入スクリプトはログ末尾に隔離 fixture と HOME の場所を表示する。
+Standards のレビューは指摘なし。Spec は通常の入口でも照合情報の継承により準備を省略する問題を指摘したため、通常入口は必ず準備し、raw のみ明示的な `--prepared` を使う方式へ修正した。対応する2件のテストで修正前の失敗を確認した。最終全体テストと再レビュー結果をこの節へ追記する。実 Nix / sandbox の詳細ログは `/tmp/with-env-257-real-final.log` と `/tmp/with-env-257-acceptance-final.log`、全 Bats は `/tmp/with-env-257-full-final.log` に記録する。実受入スクリプトはログ末尾に隔離 fixture と HOME の場所を表示する。
 
 3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備せず、live source と runtime 設定は変更していない。レビュー固定点は依存実装 `e025054` とする。

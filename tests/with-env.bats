@@ -44,7 +44,7 @@ printf 'export PROJECT_257=prepared\\n'
 EOF
   cat >"$FIXTURE/bin/codex" <<EOF
 #!/bin/sh
-exec '$CLI' with-env -- sh -c 'test "\$PROJECT_257" = prepared'
+exec '$CLI' with-env --prepared -- sh -c 'test "\$PROJECT_257" = prepared'
 EOF
   chmod +x "$FIXTURE/bin/codex"
   env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
@@ -52,6 +52,29 @@ EOF
     bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
   [ "$status" -eq 0 ]
   [ "$(wc -l <"$FIXTURE/nix-calls")" -eq 1 ]
+}
+
+@test "the normal entry prepares again even when it inherits a matching prepared context" {
+  cat >"$FIXTURE/bin/codex" <<'EOF'
+#!/bin/sh
+printf '#!/bin/sh\nexit 91\n' >"$TEST_NIX"
+exec "$TEST_CLI" with-env -- touch "$TEST_LAUNCHED"
+EOF
+  chmod +x "$FIXTURE/bin/codex"
+  env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
+  run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" PATH="$FIXTURE/bin:$PATH" \
+    TEST_NIX="$FIXTURE/bin/nix" TEST_CLI="$CLI" TEST_LAUNCHED="$FIXTURE/launched" \
+    bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'Nix preparation failed (91)'* ]]
+  [ ! -e "$FIXTURE/launched" ]
+}
+
+@test "prepared entry refuses to execute without successful adapter preparation" {
+  run env -u DEVSHELL_ENV_CONTEXT "$CLI" with-env --prepared -- touch "$FIXTURE/launched"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'no prepared devShell'* ]]
+  [ ! -e "$FIXTURE/launched" ]
 }
 
 @test "with-env rejects a prepared context after root, output or flake changes" {
@@ -63,7 +86,7 @@ case "$TEST_CHANGE" in
   flake) printf changed >> flake.nix;;
   lock) printf changed > flake.lock;;
 esac
-exec "$TEST_CLI" with-env -- touch "$TEST_LAUNCHED"
+exec "$TEST_CLI" with-env --prepared -- touch "$TEST_LAUNCHED"
 EOF
   chmod +x "$FIXTURE/bin/codex"
   env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"

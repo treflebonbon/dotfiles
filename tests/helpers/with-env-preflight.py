@@ -173,7 +173,7 @@ for path in [Path(".env"), *map(Path, json.loads(Path("protected.json").read_tex
         pass
     else:
         raise AssertionError("unexpected write: " + str(path))
-result = subprocess.run(["with-env", "python3", "child.py", "two words", "", shutil.which("git")])
+result = subprocess.run(["with-env", "--prepared", "--", "python3", "child.py", "two words", "", shutil.which("git")])
 assert result.returncode == 23
 assert "DOTENV_257" not in os.environ
 assert Path("hook-calls").read_text() == "hook\\n"
@@ -216,20 +216,29 @@ def sandbox(label, command, success=True):
 sandbox("untrusted", ["cat", ".env"], False)
 run([cli, "trust", str(work)], check=True)
 sandbox("trusted", ["python3", "observe.py"])
+app = run(
+    ["nix", "eval", "--raw", f"{source}#apps.{system}.with-env.program"], check=True
+).stdout.strip()
 run([cli, "untrust", str(work)], check=True)
 sandbox("revoked", ["cat", ".env"], False)
 run([cli, "trust", str(work)], check=True)
 (work / ".env").rename(work / ".env.saved")
-sandbox("absent", ["with-env", "sh", "-c", 'test "${DOTENV_257-unset}" = unset'])
+sandbox(
+    "absent",
+    ["with-env", "--prepared", "--", "sh", "-c", 'test "${DOTENV_257-unset}" = unset'],
+)
 (work / ".env").symlink_to(repo / ".env")
-sandbox("external-symlink", ["with-env", "touch", "launched"], False)
+sandbox(
+    "external-symlink", ["with-env", "--prepared", "--", "touch", "launched"], False
+)
 (work / ".env").rename(work / ".env.link")
 (work / ".env.saved").rename(work / ".env")
 (work / ".env").write_text('INVALID="' + dummy)
-sandbox("malformed", ["with-env", "touch", "launched"], False)
+sandbox("malformed", ["with-env", "--prepared", "--", "touch", "launched"], False)
 (work / ".env").write_text("DOTENV_257=" + dummy + "\n")
 (work / "flake.nix").write_text("invalid nix")
 sandbox("preparation-failed", ["cat", ".env"], False)
+sandbox("unprepared-entry", [app, "--prepared", "--", "touch", "launched"], False)
 assert not (work / "launched").exists()
 for directory in (home, fixture, Path((work / "temporary-path").read_text())):
     for path in directory.rglob("*"):

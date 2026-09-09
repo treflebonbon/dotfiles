@@ -55,7 +55,7 @@ repo の信頼登録・解除による永続書込みは、利用者が明示実
 
 [Issue #257](https://github.com/treflebonbon/dotfiles/issues/257) の root `.env` 読取りを成立させるため、利用者の承認を受けて worktree 外の読取りを含む標準 profile を見直した。workspace 内だけの秘密拒否では外の repo を保護できず、sandbox 内の Nix daemon 接続も成立しなかったため、`dotfiles-secure` は `:workspace` 継承を保って外側を既定で拒否し、最小ランタイム・Nix store・Git 用の限定した読取りと専用一時領域を許可する。home の個別 deny は外側の拒否へ統合する。重複した外側 deny は Linux の mount 構築を失敗させるため残さない。
 
-raw adapter は devShell 内に含めた公開 `with-env` package を起動前に準備する。コマンド実行時には root・repo identity・output・flake/lock hash のみの照合情報を使って環境を再利用し、Nix daemon へ接続せず `.env` を子へ注入する。この照合情報は秘密や環境の永続キャッシュではなく、agent に対する認証境界でもない。Nix input の変更はセッション再起動で反映する。
+raw adapter は devShell 内に含めた公開 `with-env` package を起動前に準備する。raw の正式入口は `with-env --prepared -- command` とし、通常の公開入口は継承情報に関係なく常に準備する。明示的な再利用モードだけが root・repo identity・output・flake/lock hash のみの照合情報を使って環境を再利用し、Nix daemon へ接続せず `.env` を子へ注入する。この照合情報は秘密や環境の永続キャッシュではなく、agent に対する認証境界でもない。Nix input の変更はセッション再起動で反映する。
 
 信頼済み準備が成功し root `.env` が通常ファイルのときだけ、その root の読取りを追加する。root と下位 dotenv の拒否規則を分離し、実効 Codex config の profile 継承を解決して追加 workspace root を無効化する。設定読取り失敗は起動を拒否する。Git metadata と dotenv の動的規則は単一 filesystem override として渡し、片方の設定で他方を消さない。移行では管理 profile の旧 `**/.env` と旧 home deny を除去し、user-defined profile は保持する。
 

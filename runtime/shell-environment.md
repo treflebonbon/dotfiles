@@ -70,7 +70,7 @@ dotenv は任意で、不在なら準備済み環境だけで実行する。存�
 
 Nix／shellHook の準備失敗も正式入口の失敗として止める。**AI は失敗した正式入口を任意コマンドの直接実行へ置き換えて迂回しない。** 必要変数の有無・内容の検証は各コマンドが担当する。dotenv を Git に追加したり、flake の `builtins.readFile` や shellHook から取り込んだりしない。Nix の Git source には追跡ファイルが入るため、`.env` は追跡対象外のままにする。
 
-raw Codex では選択する devShell の `packages` に `dotfiles.packages.${system}.with-env` を含め、sandbox 内では `with-env <command> [args...]` を使う。これは公開 app と同じ実行ファイルで、起動前に準備した環境を再利用する。dotfiles 自体の default / wsl devShell には含まれている。別 repo では dotfiles を flake input に追加して参照する。Nix daemon を必要とする `nix run` を sandbox 内で再実行しない。
+raw Codex では選択する devShell の `packages` に `dotfiles.packages.${system}.with-env` を含め、sandbox 内では `with-env --prepared -- <command> [args...]` を使う。これは公開 app と同じ実行ファイルの明示的な再利用モードで、起動前に準備した環境を使う。通常の入口は照合情報を継承していても必ず Nix を準備する。`--prepared` は準備成功の照合情報がないと失敗する。dotfiles 自体の default / wsl devShell には含まれている。別 repo では dotfiles を flake input に追加して参照する。Nix daemon を必要とする `nix run` を sandbox 内で再実行しない。
 
 準備完了の情報は `DEVSHELL_ENV_CONTEXT` に root・repo identity・output・root の `flake.nix` / `flake.lock` の hash だけを保持する。値を持つ環境キャッシュではない。別 root・output・この2ファイルの変更を検出したら正式入口を失敗させ、再起動を要求する。import した Nix file なども含め、devShell を変更したら常に再起動する。この情報は再利用対象の照合用であり、agent による環境変数改変を防ぐ認証情報ではない。
 
@@ -83,27 +83,27 @@ raw Codex では選択する devShell の `packages` に `dotfiles.packages.${sy
 ```nix
 let
   withEnv = dotfiles.packages.${system}.with-env;
-  dev = pkgs.writeShellScriptBin "dev" ''
-    exec ${withEnv}/bin/with-env bun run dev "$@"
-  '';
-  test = pkgs.writeShellScriptBin "test" ''
-    exec ${withEnv}/bin/with-env bun run test "$@"
-  '';
+  mkApp = name: {
+    type = "app";
+    program = "${pkgs.writeShellScriptBin "${name}-with-env" ''
+      exec ${withEnv}/bin/with-env bun run ${name} "$@"
+    ''}/bin/${name}-with-env";
+  };
 in
 {
   devShells.${system}.default = pkgs.mkShell {
-    packages = [ pkgs.bun withEnv dev test ];
+    packages = [ pkgs.bun withEnv ];
   };
   apps.${system} = {
-    dev = { type = "app"; program = "${dev}/bin/dev"; };
-    test = { type = "app"; program = "${test}/bin/test"; };
+    dev = mkApp "dev";
+    test = mkApp "test";
   };
 }
 ```
 
 たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。6言語テンプレートへの展開は #258 が担当する。
 
-人間は `nix run .#dev` / `nix run .#test`、raw Codex は準備済みの `dev` / `test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+人間は `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
 
 ## ghq + fzf リポジトリ管理
 

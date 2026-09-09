@@ -35,7 +35,7 @@
                   pkgs.bash
                 ]
               }"
-              exec ${python}/bin/python3 ${./private_dot_local/bin/executable_devshell-env} with-env -- "$@"
+              exec ${python}/bin/python3 ${./private_dot_local/bin/executable_devshell-env} with-env "$@"
             '';
           };
         }
