@@ -48,6 +48,20 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 
 ソースの書込み側はこのロックに参加しない。最後の入力照合後、採用直前にソースが変わると、その更新は変更前の入力のキャッシュを採用して成功することがある。この変更は次回更新の入力照合で検出する。配備中の並行編集まで含めた採用時点の最新性は保証しないため、編集が重なった場合は入力を安定させて必須更新を再実行する。保証範囲と判断理由は [ADR-0050の鮮度保証の境界](../docs/adr/0050-user-environment-cache-freshness.md#鮮度保証の境界) に従う。
 
+## raw Codex のプロジェクト開発環境
+
+`devshell-env trust [directory]` で repo を登録し、所属する linked worktree で `codex-worktree` を起動すると、その worktree の devShell を準備して Codex へ渡す。directory 省略時は現在地を使う。`devshell-env status [directory]` は信頼状態と flake の有無を表示し、`devshell-env untrust [directory]` は次回起動から自動評価を止める。通常の primary checkout でも登録できるが、`codex-worktree` の起動には linked worktree が必要。
+
+信頼は Git common directory の物理パスと filesystem identity に結び付き、同じ repo の正当な worktree と、その後の flake・shellHook の変更を含む。別 clone、移動・再作成した common directory は再登録する。登録情報だけを `${XDG_STATE_HOME:-$HOME/.local/state}/devshell-env/trust/` に保持し、repo 内を保存先にすることは拒否する。
+
+既定は現在の root の `#default`。WSL でその root に `.wsl-browser-free` があれば `#wsl` を選ぶ。`DEVSHELL_ENV_OUTPUT=custom codex-worktree` で同じ flake の output を明示でき、WSL の自動選択より優先する。direnv の `DIRENV_ROOT` や `IN_NIX_SHELL` で対象を選び直さない。プロジェクトの PATH を先頭に置き、起動元のツールも保持する。
+
+新経路は `.envrc` を読まず、dotenv や秘密取得を追加しない。Nix 評価と shellHook には HOME・PATH・証明書・Nix daemon 接続などの最小環境だけを渡し、起動元の任意変数を環境出力へ保存しない。shellHook は flake が定義する通常設定だけで初期化できるようにする。準備後の Codex には起動元の変数を継承し、プロジェクトの通常変数を重ねる。既に継承していた秘密の除去は行わない。Nix 出力と準備後の環境は pipe で渡し、独自の永続プロジェクト環境キャッシュは作らない。
+
+`untrusted`、`no flake.nix`、Nix／shellHook の失敗は stderr に理由を表示し、プロジェクト環境を追加せず調査用の Codex を起動する。`devshell-env status` で登録と root を確認し、表示された output の flake を修正してセッションを再起動する。新規 `flake.nix` は Git に追加してから使う。Nix の Git source と既存 lock を使い、lock は自動書換えしない。不正な metadata や working root・permission を置換する引数は起動そのものを拒否する。
+
+Nix は raw Codex の sandbox 起動前に準備する。標準 permission と Active Git Metadata Boundary は維持し、Nix／shellHook 後も検証済み root・Git metadata・起動元の Codex 実行ファイルを固定する。flake の編集はセッション再起動で反映する。Orca native Codex の built-in launch、Claude の hook、direnv の対話 shell hook、ユーザー環境キャッシュはこの slice の変更対象に含まれない。実行確認の環境と後続 slice の制約は [Issue #255 の検証記録](../docs/research/devshell-env-255.md) を参照。
+
 ## ghq + fzf リポジトリ管理
 
 `.bashrc` の関数で提供:
