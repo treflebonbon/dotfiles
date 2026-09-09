@@ -41,13 +41,17 @@ extends = ":workspace"
 
 [permissions."dotfiles-secure".filesystem]
 glob_scan_max_depth = 4
-"~/.ssh" = "deny"
-"~/.aws" = "deny"
-"~/.config/gcloud" = "deny"
+":root" = "deny"
+":minimal" = "read"
+":slash_tmp" = "deny"
+"/nix" = "read"
+"~/.gitconfig" = "read"
 
-[permissions."dotfiles-secure".filesystem.":workspace_roots"]
-"." = "write"
-"**/.env" = "deny"
+{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" }}
+[permissions."dotfiles-secure".filesystem."{{ $root }}"]
+"." = "{{ if eq $root ":workspace_roots" }}write{{ else }}read{{ end }}"
+".env" = "deny"
+"*/**/.env" = "deny"
 "**/.env[!.r]*" = "deny"
 "**/.envr" = "deny"
 "**/.envr[!c]*" = "deny"
@@ -76,6 +80,7 @@ glob_scan_max_depth = 4
 "**/secret.json" = "deny"
 "**/secrets.json" = "deny"
 "**/service-account*.json" = "deny"
+{{ end }}
 
 [permissions."dotfiles-secure".network]
 enabled = true

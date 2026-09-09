@@ -1,70 +1,65 @@
 ---
 type: research
-title: Issue 257 with-env の実装と sandbox の未成立条件
-description: 公開 Nix app の dotenv 注入、実行時だけの値の受渡し、Codex 権限の検証範囲
+title: Issue 257 with-env の実装と sandbox 検証
+description: 公開 Nix app の dotenv 注入、raw Codex の限定読取り、実行時だけの値の受渡し
 tags: [nix, dotenv, codex, verification]
 ---
 
 # Issue #257 の検証記録
 
-対象は [#257](https://github.com/treflebonbon/dotfiles/issues/257)、親は [#254](https://github.com/treflebonbon/dotfiles/issues/254)。依存 #255 の merge commit `e025054` を現在の validated task worktree に fast-forward して実装した。**Issue 全体は未完了**。公開 with-env app と人間の実行経路を実装し、raw Codex の権限変更は下記の未成立条件を解消するまで保留している。
+対象は [#257](https://github.com/treflebonbon/dotfiles/issues/257)、親は [#254](https://github.com/treflebonbon/dotfiles/issues/254)。依存 #255 の merge commit `e025054` を validated task worktree に fast-forward して実装した。公開 with-env app に加え、利用者が承認した worktree 外の読取り境界の見直しを実装し、raw Codex の実 sandbox でも検証した。
 
 ## 実装した境界
 
-`nix run .#with-env -- command [args...]` は同梱した `python-dotenv` と既存 Runtime Adapter の環境準備処理を使う。明示実行は trust 登録を要求せず、raw Codex の自動準備は既存どおり登録を要求する。dotenv の読取りは Nix と shellHook の終了後。親プロセスや AI セッション全体には注入しない。値と環境はメモリ・pipe で受け渡し、追加の環境保存ファイルは作らない。
+人間は `nix run .#with-env -- command [args...]`、raw Codex は devShell 内に準備した同じ公開 package の `with-env command [args...]` を使う。dotenv は同梱の `python-dotenv` で Nix / shellHook 準備後に解析する。対象は現在地の Git root 直下の `.env` 一つで、親・main・別 worktree を探索しない。値は指定コマンドと子だけへ注入し、AI セッション全体には追加しない。独自の環境保存ファイルは作らない。
 
-対象の root と Git metadata は準備前後で検証する。dotenv は root 直下の一つだけを選び、親・main・別 worktree を探索しない。symlink の物理 target が root 内にあることを確認し、解決後の各 path component を `O_NOFOLLOW` で開く。FIFO はブロックせず拒否し、解析エラーは行番号だけを表示する。空値・引用符・複数行・変数展開・値のない名前は [python-dotenv の構文](https://bbc2.github.io/python-dotenv/#file-format) に従う。
+root と Git metadata は準備前後で検証する。明示実行は trust 登録を要求せず、raw 自動準備は既存の登録を要求する。raw の再利用情報は root・repo identity・output・root の flake/lock hash だけを持ち、変更を検出したら正式入口を失敗させる。import した Nix file の変更も含め、devShell の更新後は常にセッションを再起動する。再利用情報は agent から改変できない認証情報ではない。
 
-## Codex sandbox の未成立条件
+symlink の物理 target は root 内に限定し、解決後の各 path component を `O_NOFOLLOW` で開く。FIFO はブロックせず拒否する。raw の追加 read は通常ファイルの root `.env` に限定し、symlink には与えない。解析失敗は行番号だけを表示する。空値・引用符・複数行・変数展開・値のない名前は [python-dotenv の構文](https://bbc2.github.io/python-dotenv/#file-format) に従う。起動元、devShell、dotenv の順に同名の値を優先する。
 
-2026-09-09、Codex 0.153.4 / x86_64 Linux で、隔離 HOME・管理設定のコピー・ダミー値を使って確認した。実行中の agent 自体は sandbox 無効なので、その成功を権限の証拠にはしていない。
+## 権限設計と確認した制約
 
-| 試行                                                                              | 実測結果                                                              | 判断                                                                                     |
-| --------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 管理 profile の `**/.env` deny に root の exact read を追加                       | #255 の先行検証では拒否                                               | 単純な allow 追加を採用しない                                                            |
-| 隔離した候補 profile で `.env` と `*/**/.env` の規則を分離し、root を read に変更 | root の read 成功、write 拒否、下位 `.env` の read 拒否               | root の read/write 分離自体は成立。source の管理設定には未採用                           |
-| 同じ候補 profile から worktree 外の別ディレクトリの `.env` を read                | **成功してしまう**。`/tmp` 外の隔離 HOME 配下でも再現                 | 既存 profile の workspace 内だけの deny では、Issue が求める他 repo の拒否を保証できない |
-| `:root=deny` と `:minimal=read` を候補へ加える                                    | 外の `.env` は見えなくなるが、通常の PATH 上の Nix も起動できなくなる | 広い境界変更を黙って導入しない                                                           |
-| 実 Runtime Adapter → 標準 sandbox → 公開 with-env app                             | Nix の Unix domain socket 作成を拒否し、exit=1、対象コマンド未起動    | #255 の制約を本実装でも再現。raw sandbox 内の実行は未完了                                |
+Codex 0.153.4 / x86_64 Linux、隔離 HOME・レンダリングした管理設定・ダミー値を使った実測である。この agent session 自体の sandbox 無効環境は権限の成功証拠に使っていない。
 
-候補 profile の root 規則を `:workspace_roots` 全体で read に変える方法は、profile-defined な追加 workspace root にも及び得る。そのため「信頼済みの対象 root だけ」という要件の完成実装としては採用していない。標準 profile、既存の引数制限・Active Git Metadata Boundary、network 設定、Claude の permission は変更していない。
+既存の workspace 内 `**/.env` deny と単純な root read の追加では root read が成立せず、workspace 内だけの拒否では外の repo を保護できなかった。Nix daemon 接続も標準 sandbox 内では失敗した。このため root と下位 dotenv の規則を分け、`:workspace` 継承を維持しながら外側を既定で拒否する方式へ変更した。実行に必要な最小ランタイム・Nix・Git 関連だけを読取り可能とし、専用 `TMPDIR` と Active Git Metadata Boundary を許可する。Nix は起動前に準備し、コマンド時は再利用する。
 
-[Codex の権限仕様](https://learn.chatgpt.com/docs/permissions#filesystem-permissions) は同じ path の deny が read より優先すること、workspace-relative な deny が各 workspace root 内に適用されることを説明する。上記の実測とは区別する。Nix の read-only local store も候補を調査したが、[公式の前提](https://nix.dev/manual/nix/2.34/store/types/local-store.html#store-local-store-read-only) は他プロセスを含めて database が変化しないことで、通常の共有 daemon 環境にはそのまま適用できない。
+[公式 Permissions](https://learn.chatgpt.com/docs/permissions#filesystem-permissions) にある workspace-only 構成と path scope に従う。追加 workspace root も同じ root-relative read の対象になるため、実 Codex `app-server config/read` で継承元を含む profile を解決し、追加 root をこの起動では無効化する。設定読取り失敗時は Codex を起動しない。Git metadata と root dotenv の動的規則は一つの filesystem override にまとめる。
 
-## 検証
+Linux の実測では、外側を拒否した後も home の個別 deny を残すと bubblewrap の mount 構築が失敗し、拒否した `/tmp` 下の read-only 例外は見えなくなる。旧 home deny は既定拒否へ統合し、インストールする home ツールは `/tmp` 外で検証する。専用一時領域は mode 0700 の `/tmp/codex-worktree-*`。環境保存先としては使わず、子の一時ファイル用途に限る。
 
-`python3 tests/helpers/with-env-preflight.py` で上記の実 adapter / sandbox / app 経路と候補 profile を再現できる。2026-09-09 の証拠は `/tmp/with-env-257-preflight-mdqmnl88/` に記録した。候補の実測は root read=0、root write=1、nested read=1、other repo read=0。スクリプトの成功は未成立条件の再現成功を意味し、raw Codex 機能の受入成功を意味しない。
+## 検証方法と受入条件
 
 ```bash
-TMPDIR=/tmp WITH_ENV_REAL_NIX=1 bats tests/with-env.bats
+TMPDIR=/tmp WITH_ENV_REAL_NIX=1 DEVSHELL_ENV_REAL_NIX=1 bats tests/with-env.bats tests/devshell-env.bats
+python3 tests/helpers/with-env-preflight.py
+TMPDIR=/tmp bats tests/codex-config.bats
 bunx tsc --noEmit
-ruff check private_dot_local/bin/executable_devshell-env
+ruff check private_dot_local/bin/executable_devshell-env tests/helpers/with-env-preflight.py tests/helpers/codex-config-reader.py
 nixfmt --check flake.nix
+shellcheck private_dot_local/bin/executable_sync-codex-managed-config
 TMPDIR=/tmp bun run test
 ```
 
-with-env の8件は実 Nix test を含めて成功。実 Nix test は公開 `nix run ...#with-env` から hello・通常変数・shellHook・dotenv・子プロセス・終了コード23を確認した。ダミー値は実行時に UUID として生成し、Nix の `print-dev-env` 出力、derivation JSON、app 出力、store 内の Git source、隔離 HOME・cache に値がないことを検索した。Git source 内に `.env` がないことも確認した。通常の全 Bats ではこの実 Nix test を opt-in として skip し、上記で別途実行する。
+with-env と既存 Runtime Adapter の実 Nix opt-in は計30件。`with-env-preflight.py` は実 adapter と sandbox を通す受入スクリプトであり、以前の未成立条件を再現するだけのスクリプトから置き換えた。通常 Bats の実 Nix / sandbox 3件は opt-in とし、上記で別途実行する。
 
-| #257 本文順の条件                                 | 状態                                                |
-| ------------------------------------------------- | --------------------------------------------------- |
-| 1: devShell 準備後の注入、`.envrc` 非依存         | 人間の公開 app で確認。raw sandbox での実行は未完了 |
-| 2: root 限定、探索なし、外部 symlink 拒否         | Bats で確認                                         |
-| 3: 不在許容、読取り・解析・準備失敗時の未起動     | Bats で確認                                         |
-| 4: 既存 parser、構文・変数優先・非実行            | Bats で確認                                         |
-| 5: 引数・終了コード・子プロセス限定               | Bats と実 Nix で確認                                |
-| 6: 信頼済み raw 起動の root read                  | 未完了。管理設定と adapter の permission は未変更   |
-| 7: 実 sandbox で限定 read と他秘密の拒否          | 上記の未成立条件あり。完成後受入は未完了            |
-| 8: ダミー秘密の非永続化                           | 実 Nix の生成結果・隔離 cache を検索し確認          |
-| 9: 通常／WSL 選択、direnv 継承                    | Bats で選択と PATH、3 system で app 出力評価を確認  |
-| 10: dev/test 組込み例、必要変数と失敗時停止の規約 | shell-environment に記載                            |
-| 11: Claude 非変更、品質、OS と配備の記録          | 全 Bats と関連検証成功。raw 完成後の受入は保留      |
+| #257 本文順の条件                             | 確認内容                                                                                                                                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1: devShell 準備後の注入、`.envrc` 非依存     | 公開 app の hello・通常変数・shellHook。raw で shellHook 1回、同じ devShell の Git 選択を保持                                                                                                                |
+| 2: root 限定、探索なし、外部 symlink 拒否     | Bats の親/main/subdirectory、実 sandbox の別 repo・sibling・外部 symlink                                                                                                                                     |
+| 3: 不在許容、読取り・解析・準備失敗時の未起動 | Bats の unreadable / FIFO / Nix / hook failure、実 sandbox の absent / malformed / symlink と未起動確認                                                                                                      |
+| 4: 既存 parser、構文・変数優先・非実行        | 空値・quotes・multiline・展開・caller 優先・shell text 非実行                                                                                                                                                |
+| 5: 引数・終了コード・子プロセス限定           | 空引数・空白付き引数・終了コード23・孫プロセス、raw 親環境の dotenv 不在                                                                                                                                     |
+| 6: 信頼済み raw 起動の root read              | 未登録・解除・Nix 失敗では拒否、信頼済みは read のみ。実効 profile の直接・継承追加 root の無効化                                                                                                            |
+| 7: 実 sandbox で限定 read と他秘密の拒否      | root write、下位・別名 dotenv、pem/key/pfx/p12、credentials/secret/service-account JSON、SSH/AWS/gcloud、外側 repo を拒否。Git add/commit と既存 push fixture、許可 registry / 非許可 example.com の network |
+| 8: ダミー秘密の非永続化                       | 実行時 UUID を生成。人間の Nix 環境出力・derivation・app・Git source・cache を検索。raw は dotenv と継承値の両方について隔離 HOME・fixture・専用 TMPDIR を検索                                               |
+| 9: 通常／WSL 選択、direnv 継承                | Bats の選択・PATH、3 system の app 出力評価                                                                                                                                                                  |
+| 10: dev/test 組込み例、必要変数と失敗時停止   | [利用方法](../../runtime/shell-environment.md#指定コマンドへの-dotenv-注入) に人間と raw の正式入口・変数検証・再起動を記載                                                                                  |
+| 11: Claude 非変更、品質、OS と配備の記録      | Claude の dotenv / permission は未変更。検証結果と制限は以下                                                                                                                                                 |
 
-3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備していない。Session Scratchpad の提示がなかったため、一時検証ファイルとログには `/tmp` を使った。
+Git source 内の `.env` 不在も確認する。dotenv を Git や flake に含めない運用が前提で、起動元の秘密を識別・除去する機能ではない。root `.env` の読取りは agent にも許可しており、agent 自身から秘密を隠す保証はしない。
 
-## レビューと品質確認
+## 結果とレビュー
 
-`code-review` の固定点は依存実装の `e025054`。Standards と Spec を独立した2 agent で実施した。Standards は Python 依存定義の重複を非ブロッキングな heuristic として指摘したため共有化した。Spec は実装済み範囲に新たな不適合・scope creep を指摘せず、raw Codex の既知の未完了条件を確認した。root 選択のテストは dotenv を先に継承させずサブディレクトリから直接実行する形へ強化した。
+最終全体テストと2軸レビューの結果をこの節へ追記する。実 Nix / sandbox の詳細ログは `/tmp/with-env-257-real-final.log` と `/tmp/with-env-257-acceptance-final.log`、全 Bats は `/tmp/with-env-257-full-final.log` に記録する。実受入スクリプトはログ末尾に隔離 fixture と HOME の場所を表示する。
 
-実 Nix を含む with-env は8/8、既存 Runtime Adapter の `DEVSHELL_ENV_REAL_NIX=1 bats tests/devshell-env.bats` は18/18成功。`bunx tsc --noEmit`、ruff check/format、nixfmt、diff whitespace 検査も成功した。pre-commit の gitleaks がテストのダミー文字列を検出したため、低エントロピーのダミーへ変更して該当テストを再実行し、hook を通過した。検査除外や `--no-verify` は使用していない。
-
-最終 `TMPDIR=/tmp bun run test` は終了コード0、570件中568件成功・2件skip・失敗0件。skip は上記2ファイルの実 Nix opt-in で、どちらも別途成功した。全体ログは `/tmp/with-env-257-full-bats.log`、with-env の最終実 Nix ログは `/tmp/with-env-257-tests-final.log`、adapter の実 Nix ログは `/tmp/with-env-257-adapter-tests.log`。Standards の重複指摘は `f66ebf1` を独立 reviewer が再確認して解消済み。Spec には上記の raw Codex 未完了条件が残り、Issue 全体の完了や `Fixes #257` は宣言していない。
+3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備せず、live source と runtime 設定は変更していない。レビュー固定点は依存実装 `e025054` とする。

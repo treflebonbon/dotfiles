@@ -56,7 +56,7 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 
 既定は現在の root の `#default`。WSL でその root に `.wsl-browser-free` があれば `#wsl` を選ぶ。`DEVSHELL_ENV_OUTPUT=custom codex-worktree` で同じ flake の output を明示でき、WSL の自動選択より優先する。direnv の `DIRENV_ROOT` や `IN_NIX_SHELL` で対象を選び直さない。プロジェクトの PATH を先頭に置き、起動元のツールも保持する。
 
-新経路は `.envrc` を読まず、dotenv や秘密取得を追加しない。Nix 評価と shellHook には HOME・PATH・証明書・Nix daemon 接続などの最小環境だけを渡し、起動元の任意変数を環境出力へ保存しない。shellHook は flake が定義する通常設定だけで初期化できるようにする。準備後の Codex には起動元の変数を継承し、プロジェクトの通常変数を重ねる。既に継承していた秘密の除去は行わない。Nix 出力と準備後の環境は pipe で渡し、独自の永続プロジェクト環境キャッシュは作らない。
+起動準備は `.envrc` を読まず、dotenv の値や秘密取得を追加しない。Nix 評価と shellHook には HOME・PATH・証明書・Nix daemon 接続などの最小環境だけを渡し、起動元の任意変数を環境出力へ保存しない。shellHook は flake が定義する通常設定だけで初期化できるようにする。準備後の Codex には起動元の変数を継承し、プロジェクトの通常変数を重ねる。既に継承していた秘密の除去は行わない。Nix 出力と準備後の環境は pipe で渡し、独自の永続プロジェクト環境キャッシュは作らない。
 
 `untrusted`、`no flake.nix`、Nix／shellHook の失敗は stderr に理由を表示し、プロジェクト環境を追加せず調査用の Codex を起動する。`devshell-env status` で登録と root を確認し、表示された output の flake を修正してセッションを再起動する。新規 `flake.nix` は Git に追加してから使う。Nix の Git source と既存 lock を使い、lock は自動書換えしない。不正な metadata や working root・permission を置換する引数は起動そのものを拒否する。
 
@@ -66,31 +66,44 @@ Nix は raw Codex の sandbox 起動前に準備する。標準 permission と A
 
 dotfiles の `nix run .#with-env -- <command> [args...]` は、現在地の Git root にある devShell を準備し、その root の `.env` を対象コマンドと子プロセスにだけ渡す。人間による明示実行では trust 登録は不要。`DEVSHELL_ENV_OUTPUT` と WSL の `.wsl-browser-free` 判定は raw adapter と共通で、`.envrc` は読まない。サブディレクトリからも同じ root の `.env` を使い、コマンドの作業ディレクトリは現在地を保つ。
 
-dotenv は任意で、不在なら準備済み環境だけで実行する。存在するファイルの読取り・解析失敗、worktree 外への symlink、通常ファイル以外は非0終了し、対象コマンドを起動しない。worktree 内のファイルへの symlink は受理する。解析は `python-dotenv` を使い、空値・引用符・複数行・`${NAME}` と `${NAME:-default}` を扱う。`$NAME` と `$(command)` は文字列のままになり、シェルとして実行しない。値のない `NAME` は無視し、同名の値は起動元、devShell、dotenv の順で優先する。
+dotenv は任意で、不在なら準備済み環境だけで実行する。存在するファイルの読取り・解析失敗、worktree 外への symlink、通常ファイル以外は非0終了し、対象コマンドを起動しない。人間の明示実行では worktree 内のファイルへの symlink を受理する。raw Codex の読取り許可は起動時に存在する通常の `.env` に限定し、symlink には追加しない。解析は `python-dotenv` を使い、空値・引用符・複数行・`${NAME}` と `${NAME:-default}` を扱う。`$NAME` と `$(command)` は文字列のままになり、シェルとして実行しない。値のない `NAME` は無視し、同名の値は起動元、devShell、dotenv の順で優先する。
 
 Nix／shellHook の準備失敗も正式入口の失敗として止める。**AI は失敗した正式入口を任意コマンドの直接実行へ置き換えて迂回しない。** 必要変数の有無・内容の検証は各コマンドが担当する。dotenv を Git に追加したり、flake の `builtins.readFile` や shellHook から取り込んだりしない。Nix の Git source には追跡ファイルが入るため、`.env` は追跡対象外のままにする。
 
-名前付き app へ組み込む例（既存 flake の system ごとの `apps` 定義内）:
+raw Codex では選択する devShell の `packages` に `dotfiles.packages.${system}.with-env` を含め、sandbox 内では `with-env <command> [args...]` を使う。これは公開 app と同じ実行ファイルで、起動前に準備した環境を再利用する。dotfiles 自体の default / wsl devShell には含まれている。別 repo では dotfiles を flake input に追加して参照する。Nix daemon を必要とする `nix run` を sandbox 内で再実行しない。
+
+準備完了の情報は `DEVSHELL_ENV_CONTEXT` に root・repo identity・output・root の `flake.nix` / `flake.lock` の hash だけを保持する。値を持つ環境キャッシュではない。別 root・output・この2ファイルの変更を検出したら正式入口を失敗させ、再起動を要求する。import した Nix file なども含め、devShell を変更したら常に再起動する。この情報は再利用対象の照合用であり、agent による環境変数改変を防ぐ認証情報ではない。
+
+信頼済みの準備が成功し、root に通常の `.env` が存在するときだけ、そのファイルを read に変更する。Codex の `app-server config/read` で実効 profile を読み、継承元も含む追加 workspace root をこの起動では無効にして、許可先を current root に限定する。設定を解決できなければ Codex を起動しない。未登録・信頼解除・準備失敗時には読取りを許可せず、起動後に `.env` を作った場合も再起動する。値は `with-env` の子だけへ注入するが、agent 自身も対象 `.env` を読める設計であり、agent から秘密を隠す境界ではない。
+
+標準 `dotfiles-secure` は worktree 外の読取りを既定で拒否し、Codex の最小ランタイム、`/nix`、Git 設定、`~/.local/bin` と `~/.config/git` / `~/.config/gh` を読取り可能にする。最後の3ディレクトリにも workspace と同じ秘密ファイル拒否規則を適用する。home の SSH・AWS・gcloud、別 repo、別名・下位の dotenv は拒否する。raw adapter は mode 0700 の専用 `/tmp/codex-worktree-*` を `TMPDIR` に割り当てる。環境を書き出す場所ではなく子コマンド用の一時領域で、終了後は OS の一時ファイル整理対象となる。絶対 `/tmp` への依存は避け `TMPDIR` を使う。Codex 0.153.4 / Linux では拒否した `/tmp` 下の read-only 例外が見えないため、home のツール・認証ディレクトリは `/tmp` の外に置く。
+
+名前付き dev / test app へ組み込む例（対象 flake で dotfiles を input に持ち、system ごとの output を定義する箇所）:
 
 ```nix
 let
-  withEnv = self.packages.${system}.with-env;
-  mkCommand = name: command: {
-    type = "app";
-    program = "${pkgs.writeShellScriptBin name ''
-      exec ${withEnv}/bin/with-env ${command} "$@"
-    ''}/bin/${name}";
-  };
+  withEnv = dotfiles.packages.${system}.with-env;
+  dev = pkgs.writeShellScriptBin "dev" ''
+    exec ${withEnv}/bin/with-env bun run dev "$@"
+  '';
+  test = pkgs.writeShellScriptBin "test" ''
+    exec ${withEnv}/bin/with-env bun run test "$@"
+  '';
 in
 {
-  dev = mkCommand "dev" "bun run dev";
-  test = mkCommand "test" "bun run test";
+  devShells.${system}.default = pkgs.mkShell {
+    packages = [ pkgs.bun withEnv dev test ];
+  };
+  apps.${system} = {
+    dev = { type = "app"; program = "${dev}/bin/dev"; };
+    test = { type = "app"; program = "${test}/bin/test"; };
+  };
 }
 ```
 
 たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。6言語テンプレートへの展開は #258 が担当する。
 
-raw Codex の標準 sandbox 内での with-env 利用は未完成。Nix daemon 接続と worktree 外の `.env` 保護に成立条件が残るため、現時点では dotenv の読取り権限を追加していない。Claude への dotenv 注入も対象外。詳細は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+人間は `nix run .#dev` / `nix run .#test`、raw Codex は準備済みの `dev` / `test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
 
 ## ghq + fzf リポジトリ管理
 

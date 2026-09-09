@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CLI="$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env"
+  export CODEX_CONFIG_READER_FIXTURE="$PROJECT_ROOT/tests/helpers/codex-config-reader.py"
   FIXTURE="$BATS_TEST_TMPDIR/fixture"
   mkdir -p "$FIXTURE/bin" "$FIXTURE/home"
   ADAPTER="$FIXTURE/bin/codex-worktree"
@@ -297,6 +298,7 @@ shellHook='/usr/bin/env > "$FIXTURE/hook-snapshot"; export DERIVED_255="prefix-\
 EOF
   cat >"$FIXTURE/bin/codex" <<'EOF'
 #!/bin/bash
+if [ "${1-}" = app-server ]; then exec python3 "$CODEX_CONFIG_READER_FIXTURE"; fi
 if [ "$DUMMY_SECRET_255" = sentinel-inherited-255 ]; then printf 'inherited secret retained\n'; fi
 printf 'derived=%s\n' "$DERIVED_255"
 EOF
@@ -307,6 +309,21 @@ EOF
   [[ "$output" == *"inherited secret retained"* && "$output" == *"derived=prefix-unset"* ]]
   [[ "$output" != *"sentinel-"* ]]
   ! rg -q 'sentinel-inherited-255|sentinel-dotenv-255' "$FIXTURE/nix-snapshot" "$FIXTURE/hook-snapshot" "$FIXTURE/state" "$FIXTURE/home"
+}
+
+@test "trusted dotenv launch fails closed when effective Codex config cannot be read" {
+  install_runtime_fixture
+  cli trust "$FIXTURE/repo"
+  printf 'DUMMY=fixture\n' >"$FIXTURE/worktree/.env"
+  cat >"$FIXTURE/bin/codex" <<EOF
+#!/bin/sh
+if [ "\${1-}" = app-server ]; then exit 1; fi
+touch '$FIXTURE/launched'
+EOF
+  run adapter
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'config/read closed unexpectedly'* ]]
+  [ ! -e "$FIXTURE/launched" ]
 }
 
 @test "metadata changed by initialization rejects launch instead of falling back to investigation" {
@@ -398,6 +415,7 @@ EOF
   cat >"$FIXTURE/bin/codex" <<'EOF'
 #!/bin/bash
 set -eu
+if [ "${1-}" = app-server ]; then exec python3 "$CODEX_CONFIG_READER_FIXTURE"; fi
 hello
 [ "$PROJECT_255/$HOOK_255/$DERIVED_255" = 'real-nix/real-hook/prefix-unset' ]
 [ "$DUMMY_SECRET_255" = sentinel-inherited-255 ]

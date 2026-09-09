@@ -36,6 +36,48 @@ with_env() {
   [ -z "${DUMMY_257+x}" ]
 }
 
+@test "raw Codex reuses its prepared devShell through with-env without another Nix invocation" {
+  cat >"$FIXTURE/bin/nix" <<EOF
+#!/bin/sh
+printf 'run\\n' >>'$FIXTURE/nix-calls'
+printf 'export PROJECT_257=prepared\\n'
+EOF
+  cat >"$FIXTURE/bin/codex" <<EOF
+#!/bin/sh
+exec '$CLI' with-env -- sh -c 'test "\$PROJECT_257" = prepared'
+EOF
+  chmod +x "$FIXTURE/bin/codex"
+  env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
+  run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" PATH="$FIXTURE/bin:$PATH" \
+    bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <"$FIXTURE/nix-calls")" -eq 1 ]
+}
+
+@test "with-env rejects a prepared context after root, output or flake changes" {
+  cat >"$FIXTURE/bin/codex" <<'EOF'
+#!/bin/sh
+case "$TEST_CHANGE" in
+  root) cd "$TEST_REPO";;
+  output) export DEVSHELL_ENV_OUTPUT=custom;;
+  flake) printf changed >> flake.nix;;
+  lock) printf changed > flake.lock;;
+esac
+exec "$TEST_CLI" with-env -- touch "$TEST_LAUNCHED"
+EOF
+  chmod +x "$FIXTURE/bin/codex"
+  env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
+  local change
+  for change in root output flake lock; do
+    run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" PATH="$FIXTURE/bin:$PATH" \
+      TEST_CHANGE="$change" TEST_REPO="$FIXTURE/repo" TEST_CLI="$CLI" TEST_LAUNCHED="$FIXTURE/launched" \
+      bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'restart the session'* ]]
+    [ ! -e "$FIXTURE/launched" ]
+  done
+}
+
 @test "dotenv parsing preserves values, expands variables with caller precedence, and never executes shell text" {
   cat >"$FIXTURE/worktree/.env" <<'EOF'
 EMPTY=
@@ -214,4 +256,12 @@ EOF
   [ ! -e "$input_source/.env" ]
   ! rg -a -q -F -e "$dotenv_dummy" -e "$inherited_dummy" \
     "$FIXTURE/nix-output" "$FIXTURE/derivation.json" "$FIXTURE/cache" "$FIXTURE/home" "${app%/bin/with-env}" "$input_source"
+}
+
+@test "real raw Codex confines dotenv, Git metadata and network while running the public app package" {
+  [ "${WITH_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with WITH_ENV_REAL_NIX=1; requires real Nix and Codex sandbox"
+  run python3 "$PROJECT_ROOT/tests/helpers/with-env-preflight.py"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'trusted: exit=0'* && "$output" == *'Evidence:'* ]]
 }

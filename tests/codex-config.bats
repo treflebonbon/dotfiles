@@ -105,7 +105,7 @@ EOF
     _ "$worktree" "$CODEX_WORKTREE"
 
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "TMPDIR=</tmp>" ]
+  [[ "${lines[0]}" == 'TMPDIR=</tmp/codex-worktree-'*'>' ]]
   [ "${lines[1]}" = "GIT_DIR=<unset>" ]
   [ "${lines[2]}" = "GIT_COMMON_DIR=<unset>" ]
   [ "${lines[3]}" = "GIT_WORK_TREE=<unset>" ]
@@ -354,7 +354,11 @@ for path in sys.argv[1:]:
     assert filesystem[":workspace_roots"]["."] == "write"
     assert ".git" not in filesystem[":workspace_roots"]
     assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
-    assert filesystem[":workspace_roots"]["**/.env"] == "deny"
+    assert filesystem[":root"] == "deny"
+    assert filesystem[":minimal"] == "read"
+    assert filesystem[":slash_tmp"] == "deny"
+    assert filesystem[":workspace_roots"][".env"] == "deny"
+    assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
     assert filesystem[":workspace_roots"]["**/.env[!.r]*"] == "deny"
     assert filesystem[":workspace_roots"]["**/.envr"] == "deny"
     assert filesystem[":workspace_roots"]["**/.envr[!c]*"] == "deny"
@@ -363,9 +367,9 @@ for path in sys.argv[1:]:
     assert "**/.env*" not in filesystem[":workspace_roots"]
     assert "**/.envrc" not in filesystem[":workspace_roots"]
     assert "**/.env.example" not in filesystem[":workspace_roots"]
-    assert filesystem["~/.ssh"] == "deny"
-    assert filesystem["~/.aws"] == "deny"
-    assert filesystem["~/.config/gcloud"] == "deny"
+    assert "~/.ssh" not in filesystem
+    assert "~/.aws" not in filesystem
+    assert "~/.config/gcloud" not in filesystem
 PY
 }
 
@@ -448,11 +452,12 @@ assert_codex_strict_config() {
   grep -q '^extends = ":workspace"$' "$config"
   grep -q '^\[permissions\."dotfiles-secure"\.filesystem\]' "$config"
   grep -q '^\[permissions\."dotfiles-secure"\.filesystem\.":workspace_roots"\]$' "$config"
-  grep -q '^"\*\*/\.env" = "deny"$' "$config"
+  grep -q '^"\.env" = "deny"$' "$config"
+  grep -q '^"\*/\*\*/\.env" = "deny"$' "$config"
   grep -q '^"\*\*/\*\.pem" = "deny"$' "$config"
-  grep -q '^"~/\.ssh" = "deny"$' "$config"
-  grep -q '^"~/\.aws" = "deny"$' "$config"
-  grep -q '^"~/\.config/gcloud" = "deny"$' "$config"
+  grep -q '^":root" = "deny"$' "$config"
+  grep -q '^":minimal" = "read"$' "$config"
+  grep -q '^":slash_tmp" = "deny"$' "$config"
   ! grep -q '^codex_hooks = ' "$config"
   grep -q '^\[plugins\."github@openai-curated"\]' "$config"
   ! grep -q '^\[plugins\."superpowers@openai-curated"\]' "$config"
@@ -497,6 +502,22 @@ assert_codex_strict_config() {
 
   [ "$status" -ne 0 ]
   [ "$(cat "$home/.ssh/config")" = "protected" ]
+}
+
+@test "dotfiles-secure denies files outside the workspace while Nix store tools remain executable" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$home/.codex"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  mkdir -p "$codex_home" "$workspace" "$home/other-repo"
+  printf 'protected\n' >"$home/other-repo/.env"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$home/other-repo/.env"
+  [ "$status" -ne 0 ]
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+    codex sandbox -P dotfiles-secure -C "$workspace" -- python3 -c 'print("runtime available")'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'runtime available'* ]]
 }
 
 @test "dotfiles-secure permits Environment Contract Files while preserving secret denies" {
@@ -699,14 +720,15 @@ EOF
   local repo_b="$BATS_TEST_TMPDIR/repo-b"
   local worktree_b="$BATS_TEST_TMPDIR/worktree-b"
   local remote="$worktree_b/remote"
-  local bin="$BATS_TEST_TMPDIR/bin"
+  local bin="$worktree_b/bin"
   local codex_home="$home/.codex"
   local base_head
   local topic_head
-  mkdir -p "$repo_a" "$codex_home" "$bin"
+  mkdir -p "$repo_a" "$codex_home"
 
   git -C "$repo_a" init -q
   create_linked_worktree "$repo_b" "$worktree_b"
+  mkdir -p "$bin"
   git init -q --bare "$remote"
   git --git-dir "$remote" symbolic-ref HEAD refs/heads/main
   git -C "$repo_b" remote add origin "$remote"
@@ -1245,9 +1267,9 @@ EOF
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
   grep -q '^glob_scan_max_depth = 4$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
-  grep -q '^"\*\*/\.env" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^"\.env" = "deny"$' "$home/.codex/config.toml"
   grep -q '^"\*\*/\.env\.example?\*" = "deny"$' "$home/.codex/config.toml"
-  grep -q '^"~/\.ssh" = "deny"$' "$home/.codex/config.toml"
+  grep -q '^":root" = "deny"$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
   grep -q '^args = \["-y", "@upstash/context7-mcp"\]$' "$home/.codex/config.toml"
   grep -q '^\[mcp_servers\.serena\]$' "$home/.codex/config.toml"
@@ -1493,12 +1515,16 @@ EOF
 [permissions.dotfiles-secure.filesystem]
 ":minimal" = "read"
 "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git" = "write"
+"~/.ssh" = "deny"
+"~/.aws" = "deny"
+"~/.config/gcloud" = "deny"
 "~/.ssh/**" = "deny"
 "~/.aws/**" = "deny"
 "~/.config/gcloud/**" = "deny"
 
 [permissions.dotfiles-secure.filesystem.":workspace_roots"]
 ".git" = "write"
+"**/.env" = "deny"
 
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.local/share/chezmoi"]
 "." = "write"
@@ -1526,13 +1552,17 @@ for path in sys.argv[1:]:
     assert "~/.ssh/**" not in filesystem
     assert "~/.aws/**" not in filesystem
     assert "~/.config/gcloud/**" not in filesystem
-    assert filesystem["~/.ssh"] == "deny"
-    assert filesystem["~/.aws"] == "deny"
-    assert filesystem["~/.config/gcloud"] == "deny"
+    assert "~/.ssh" not in filesystem
+    assert "~/.aws" not in filesystem
+    assert "~/.config/gcloud" not in filesystem
     assert filesystem["/home/ubuntu/.config/protected"] == {
         "**/credentials.json": "deny"
     }
     assert ".git" not in filesystem[":workspace_roots"]
+    assert "**/.env" not in filesystem[":workspace_roots"]
+    assert filesystem[":workspace_roots"][".env"] == "deny"
+    assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
+    assert filesystem[":root"] == "deny"
 PY
 }
 

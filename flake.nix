@@ -27,12 +27,14 @@
         {
           with-env = pkgs.writeShellApplication {
             name = "with-env";
-            runtimeInputs = [
-              pkgs.git
-              pkgs.nix
-              pkgs.bash
-            ];
             text = ''
+              export PATH="$PATH:${
+                pkgs.lib.makeBinPath [
+                  pkgs.git
+                  pkgs.nix
+                  pkgs.bash
+                ]
+              }"
               exec ${python}/bin/python3 ${./private_dot_local/bin/executable_devshell-env} with-env -- "$@"
             '';
           };
@@ -69,6 +71,7 @@
             nodejs_24
             bun
             pythonFor.${system}
+            self.packages.${system}.with-env
             git
           ];
         in
