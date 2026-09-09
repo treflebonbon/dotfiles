@@ -1,0 +1,123 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "local-skills/rop-visualizer/assets/report.html",
+          "tmp/rop-visualizer-draft/assets/report.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.163Z",
+        "reason": "Agent: these are renderer templates with injected __CSS__, not standalone pages; the draft is frozen evaluation evidence. Verify generated HTML with the actual report.css instead."
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/iteration-1/eval-effect-checkout-median/without_skill/run-1/outputs/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.251Z",
+        "reason": "Agent: detector omits h1 clamp(1.55rem,4vw,2.45rem); its minimum 24.8px is already 1.29 times h2 19.2px. Preserve this frozen baseline."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/iteration-1/eval-rust-checkout-median/without_skill/run-1/outputs/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.337Z",
+        "reason": "Agent: frozen without-skill comparison artifact from empirical evaluation. Preserve its original border and recorded output; the adopted renderer uses a uniform 1px border."
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/iteration-2/eval-effect-checkout-median/without_skill/run-1/outputs/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.431Z",
+        "reason": "Agent: 0.08em applies only to the short uppercase label EFFECT V3 / STATIC REVIEW MAP, not body prose. Preserve the frozen baseline."
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/iteration-1/eval-effect-checkout-median/without_skill/run-1/outputs/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.515Z",
+        "reason": "Agent: frozen without-skill evaluation artifact. Preserve the exact recorded styling for reproducible comparison; it is not the adopted renderer."
+      },
+      {
+        "rule": "em-dash-overuse",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/iteration-1/eval-effect-checkout-median/without_skill/run-1/outputs/railway.html",
+          "tmp/rop-visualizer-workspace/iteration-2/eval-effect-checkout-median/without_skill/run-1/outputs/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.608Z",
+        "reason": "Agent: frozen comparison artifacts include Mermaid arrow syntax and recorded review copy. Preserve the evaluated output text."
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/iteration-2/eval-effect-checkout-median/without_skill/run-1/outputs/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:41:50.703Z",
+        "reason": "Agent: repeating gradient draws the small dashed failure-line legend, not surface decoration; this is also a frozen evaluation artifact."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/final-examples/effect-checkout-median/railway.html",
+          "tmp/rop-visualizer-workspace/final-examples/holdout-local-scope-edge/railway.html",
+          "tmp/rop-visualizer-workspace/final-examples/rust-checkout-median/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:46:11.103Z",
+        "reason": "Agent: Mermaid SVG edge-label backgrounds are line masks, not content cards. Browser getBBox confirms geometry-based insets; CSS padding on SVG g is not applicable. Scope to these three generated previews."
+      },
+      {
+        "rule": "em-dash-overuse",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/final-examples/effect-checkout-median/railway.html",
+          "tmp/rop-visualizer-workspace/final-examples/holdout-local-scope-edge/railway.html",
+          "tmp/rop-visualizer-workspace/final-examples/rust-checkout-median/railway.html"
+        ],
+        "createdAt": "2026-09-09T08:46:11.110Z",
+        "reason": "Agent: browser body.innerText contains zero em-dashes. The detector counts embedded Mermaid arrow syntax; scope to these three generated previews."
+      },
+      {
+        "rule": "em-dash-overuse",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/layout-fixed/effect-checkout-median/railway-final.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/effect-checkout-median/railway-spaced.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/effect-checkout-median/railway.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/holdout-local-scope-edge/railway-final.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/holdout-local-scope-edge/railway-spaced.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/holdout-local-scope-edge/railway.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/rust-checkout-median/railway-final.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/rust-checkout-median/railway-spaced.html",
+          "tmp/rop-visualizer-workspace/layout-fixed/rust-checkout-median/railway.html"
+        ],
+        "createdAt": "2026-09-09T09:12:03.296Z",
+        "reason": "Agent: generated ROP previews contain Mermaid --> syntax inside the disclosed source code. Preserve that valid syntax; this advisory does not describe prose punctuation or diagram geometry."
+      },
+      {
+        "rule": "em-dash-overuse",
+        "value": "*",
+        "files": [
+          "tmp/rop-visualizer-workspace/flowchart-final/effect-checkout-median/report.html",
+          "tmp/rop-visualizer-workspace/flowchart-final/holdout-local-scope-edge/report.html",
+          "tmp/rop-visualizer-workspace/flowchart-final/rust-checkout-median/report.html"
+        ],
+        "createdAt": "2026-09-09T09:55:50.436Z",
+        "reason": "Agent: the 16, 15, and 13 reported double dashes exactly match the Mermaid edge counts. These are E0@--> connectors in the disclosed source, not prose punctuation. Preserve valid Mermaid source; scope to these three previews."
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+use crate::gateway::quote_tax; // Intentionally unavailable: its body must stay unknown.
+
+#[derive(Debug)]
+enum InvoiceError {
+    InvalidCountry,
+    TaxServiceDown,
+    ChargeDeclined,
+}
+
+fn normalize_country(country: &str) -> Result<&str, InvoiceError> {
+    if country.len() == 2 { Ok(country) } else { Err(InvoiceError::InvalidCountry) }
+}
+
+fn tax_rate(country: &str) -> Result<u8, InvoiceError> {
+    let normalized = normalize_country(country)?;
+    quote_tax(normalized).or_else(|error| match error {
+        InvoiceError::TaxServiceDown => Ok(0),
+        other => Err(other),
+    })
+}
+
+fn charge_invoice(country: &str) -> Result<String, InvoiceError> {
+    let rate = tax_rate(country)?;
+    if country == "XX" {
+        Err(InvoiceError::ChargeDeclined)
+    } else {
+        Ok(format!("charged-with-{rate}%"))
+    }
+}
