@@ -113,7 +113,7 @@ Git の checkout 隔離とは独立して、agent の filesystem・network acces
 _Avoid_: worktree sandbox, repository isolation, permission mode
 
 **Working-Directory Read Fence**:
-primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否する permission 層の境界で、Bash コマンド経由のアクセスは対象外（Technical Sandbox Boundary が別途扱う、OS レベル・Bash 専用）。`additionalDirectories` 内の Edit/Write はこの fence では拒否されず、現在の permission mode に従い、明示的な `Edit(...)` deny があるパスだけが read-only になる。
+primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否していた permission 層の境界。静的解析できない Bash コマンド（simple expansion、command substitution 等）にも working directory の内外を問わず同じ理由で human confirmation を要求していた。[ADR-0055](docs/adr/0055-disable-block-reads-outside-working-directories.md) により無効化され、現在この dotfiles では機能していない。`additionalDirectories` 内の Edit/Write の扱い（明示的な `Edit(...)` deny があるパスだけ read-only）は fence とは独立の仕組みで、無効化後も変わらない。
 _Avoid_: block reads, sandbox, permission mode
 
 **Session Scratchpad**:

@@ -856,7 +856,7 @@ PY
   ! grep -q 'security-guidance' "$hooks"
 }
 
-@test "Claude settings enforce read boundaries and keep the global hooks" {
+@test "Claude settings keep read-only Edit denies and global hooks" {
   local settings="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
 
   python3 -m json.tool "$settings" >/dev/null
@@ -868,15 +868,6 @@ with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
 assert data["editorMode"] == "normal"
-assert data["permissions"]["blockReadsOutsideWorkingDirectories"] is True
-assert data["permissions"]["additionalDirectories"] == [
-    "~/.claude/jobs",
-    "~/runtime",
-    "~/.claude/projects",
-    "/nix/store",
-    "~/ghq/github.com",
-    "~/.cache/nix-devshell-tmp",
-]
 assert "Edit(**/.env*)" in data["permissions"]["deny"]
 assert "Edit(~/.ssh/**)" in data["permissions"]["deny"]
 assert "Edit(~/runtime/**)" in data["permissions"]["deny"]
