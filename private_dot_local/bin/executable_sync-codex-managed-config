@@ -132,6 +132,15 @@ def strip_stale_managed_filesystem_rules(
             else None
         )
         workspace_roots = filesystem.get(":workspace_roots")
+        # Retire the pre-#200 dotenv glob without removing custom profile rules.
+        if (
+            name == "dotfiles-secure"
+            and isinstance(workspace_roots, dict)
+            and isinstance(managed_workspace_roots, dict)
+            and "**/.env*" not in managed_workspace_roots
+            and workspace_roots.get("**/.env*") == "deny"
+        ):
+            del workspace_roots["**/.env*"]
         if (
             isinstance(workspace_roots, dict)
             and isinstance(managed_workspace_roots, dict)

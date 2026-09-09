@@ -1530,6 +1530,7 @@ EOF
 
 [permissions.dotfiles-secure.filesystem.":workspace_roots"]
 ".git" = "write"
+"**/.env*" = "deny"
 "**/.env" = "deny"
 
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.local/share/chezmoi"]
@@ -1565,6 +1566,7 @@ for path in sys.argv[1:]:
         "**/credentials.json": "deny"
     }
     assert ".git" not in filesystem[":workspace_roots"]
+    assert "**/.env*" not in filesystem[":workspace_roots"]
     assert "**/.env" not in filesystem[":workspace_roots"]
     assert filesystem[":workspace_roots"][".env"] == "deny"
     assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
@@ -1583,6 +1585,9 @@ PY
 [permissions.project-edit.filesystem."/opt/sdk"]
 "." = "read"
 "build/**" = "write"
+
+[permissions.project-edit.filesystem.":workspace_roots"]
+"**/.env*" = "deny"
 EOF
 
   env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
@@ -1590,6 +1595,76 @@ EOF
   grep -q '^\[permissions\.project-edit\.filesystem\."/opt/sdk"\]$' "$home/.codex/config.toml"
   grep -q '^"\." = "read"$' "$home/.codex/config.toml"
   grep -q '^"build/\*\*" = "write"$' "$home/.codex/config.toml"
+  grep -Fq '"**/.env*" = "deny"' "$home/.codex/config.toml"
+}
+
+@test "Codex config migration restores root dotenv grants without weakening sandbox denies" {
+  local fixture_home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local codex_home path
+  local dotenv_grant='permissions.dotfiles-secure.filesystem={":workspace_roots"={".env"="read"}}'
+  mkdir -p "$fixture_home/.codex" "$fixture_home/.codex-app" "$workspace/nested" "$fixture_home/other-repo"
+  stage_codex_managed_config "$fixture_home"
+  for path in .env .envrc .env.example .env.local nested/.env private.key credentials.json; do
+    printf 'fixture\n' >"$workspace/$path"
+  done
+  printf 'fixture\n' >"$fixture_home/other-repo/.env"
+
+  for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
+    cat >"$codex_home/config.toml" <<'EOF'
+[permissions.dotfiles-secure.filesystem.":workspace_roots"]
+"**/.env*" = "deny"
+EOF
+  done
+
+  env -u CODEX_HOME HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
+    assert_dotfiles_permission_profile "$codex_home/config.toml"
+    cp "$codex_home/config.toml" "$codex_home/first-sync.toml"
+
+    run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+      codex sandbox -P dotfiles-secure -C "$workspace" -- cat .env
+    [ "$status" -ne 0 ]
+
+    for path in .env .envrc .env.example; do
+      run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+        codex sandbox -P dotfiles-secure -C "$workspace" -c "$dotenv_grant" -- \
+        sh -c 'test "$(cat "$1")" = fixture' _ "$path"
+      [ "$status" -eq 0 ]
+    done
+
+    run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+      codex sandbox -P dotfiles-secure -C "$workspace" -c "$dotenv_grant" -- \
+      sh -c 'printf overwritten >.env'
+    [ "$status" -ne 0 ]
+    [ "$(cat "$workspace/.env")" = fixture ]
+
+    for path in .env.local nested/.env private.key credentials.json "$fixture_home/other-repo/.env"; do
+      run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+        codex sandbox -P dotfiles-secure -C "$workspace" -c "$dotenv_grant" -- cat "$path"
+      [ "$status" -ne 0 ]
+    done
+  done
+
+  env -u CODEX_HOME HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
+    cmp "$codex_home/first-sync.toml" "$codex_home/config.toml"
+  done
+}
+
+@test "Codex config migration preserves an explicitly managed broad dotenv deny" {
+  local fixture_home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$fixture_home/.codex"
+  stage_codex_managed_config "$fixture_home"
+  cat >"$fixture_home/.config/codex/config.toml" <<'EOF'
+[permissions.dotfiles-secure.filesystem.":workspace_roots"]
+"**/.env*" = "deny"
+EOF
+  cp "$fixture_home/.config/codex/config.toml" "$fixture_home/.codex/config.toml"
+
+  env -u CODEX_HOME HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  grep -Fq '"**/.env*" = "deny"' "$fixture_home/.codex/config.toml"
 }
 
 @test "Codex config merge script does not overwrite invalid existing config" {
