@@ -154,6 +154,7 @@ APM の変更検知には展開後の cleanup script の hash を含めるため
 - `md-agents-review` — AGENTS.md / Codex rules の対話式レビュー（trim / progressive disclosure）
 - `md-claude-review` — プロジェクト CLAUDE.md の対話式レビュー（humanlayer ベストプラクティス基準）
 - `rop` — Railway Oriented Programming の two-track パターン強制（Elixir / Gleam / Rust / Effect-TS の言語別 references 同梱）
+- `rop-visualizer` — 既存の Effect / Rust Result 実装を読み、成功・失敗・回復を Mermaid railway の単一 HTML にする。ノード選択・ソース抜粋・実現可能経路の強調で実装理解とレビューを支援する。生成時は Playwright CLI と Mermaid を使い、閲覧はオフラインで完結する
 - `worktree-gc` — 緊急時（fd/inotify 枯渇）の repo-local worktree 手動 GC。`scripts/worktree-gc.sh` 同梱。SessionStart 自動 GC hook は持ち込まない（手動起動のみ）
 
 ### Session Scratchpad 解決

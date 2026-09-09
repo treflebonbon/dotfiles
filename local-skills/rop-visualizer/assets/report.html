@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"
+    />
+    <title>__TITLE__</title>
+    <style>
+      __CSS__
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>__TITLE__</h1>
+        <p id="summary"></p>
+        <p id="entry" class="muted"></p>
+      </header>
+      <section class="sheet" aria-label="処理の流れ">
+        <div class="legend">
+          <span class="success">緑：成功側の処理</span
+          ><span class="error">赤：失敗の伝播・終了</span
+          ><span class="recovery">黄：回復</span
+          ><span class="outside">紫：型付きエラーの範囲外</span
+          ><span>破線の枠：処理を実行せず引き継ぐ</span>
+        </div>
+        <div class="path-controls">
+          <label for="path">追う経路</label
+          ><select id="path">
+            <option value="">全体を表示</option>
+          </select>
+        </div>
+        <p id="path-description" class="muted" role="status">
+          コードから読み取れる経路です。実行ログではありません。
+        </p>
+        <p class="muted">上から下へ読みます。処理を選ぶと、分岐条件と次の処理を図の下に表示します。</p>
+        <div
+          id="graph"
+          tabindex="0"
+          aria-label="フローチャート。処理を選ぶと下に詳細を表示します。"
+        >
+          __SVG__
+        </div>
+        <nav id="steps" aria-label="処理の詳細を選ぶ"></nav>
+        <section id="detail" aria-labelledby="detail-title">
+          <h2 id="detail-title" tabindex="-1"></h2>
+          <p id="detail-kind" class="muted"></p>
+          <p id="detail-summary"></p>
+          <div id="transitions-section">
+            <h3>ここからの分岐</h3>
+            <ul id="transitions"></ul>
+          </div>
+          <details id="source-detail">
+            <summary>該当するコード</summary>
+            <p id="source-location" class="muted"></p>
+            <pre><code id="source-code"></code></pre>
+          </details>
+          <details id="notes-detail">
+            <summary>補足・レビューで確認する点</summary>
+            <ul id="notes"></ul>
+          </details>
+        </section>
+      </section>
+      <section id="limits-section">
+        <h2>読み取れた範囲と未確認事項</h2>
+        <ul id="limits"></ul>
+      </section>
+      <details>
+        <summary>図の Mermaid ソース</summary>
+        <pre><code>__MERMAID__</code></pre>
+      </details>
+      <p id="generated" class="muted"></p>
+      <noscript
+        >JavaScript
+        を有効にすると、処理の詳細と経路の強調を使えます。図はそのまま読めます。</noscript
+      >
+    </main>
+    <script type="application/json" id="flow-data">
+      __MODEL__
+    </script>
+    <script>
+      __APP__;
+    </script>
+  </body>
+</html>

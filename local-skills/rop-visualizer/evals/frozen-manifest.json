@@ -1,0 +1,8 @@
+{
+  "fixtures": {
+    "holdout-local-scope.rs.fixture": "21ebe44e848c20affdbbd8f15aa217e5bd8ec2278cde24a4b1727261d756af78",
+    "rust-checkout.rs.fixture": "6c6bf579e5f18c7da1b5d47b6ee1a194c93c8669f9a07c7a1e7c890eea1a35af",
+    "effect-checkout.ts.fixture": "217b29c1fa972a4fe19a46ca369ba61f70c8c26512969e319e5857175e730f6d"
+  },
+  "original_scenarios_sha256": "593e716637e3703b53d1d5801491a2f286de85b4f203a3aebddf92644966ee59"
+}

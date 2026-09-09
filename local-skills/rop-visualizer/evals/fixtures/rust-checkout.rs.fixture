@@ -1,0 +1,82 @@
+#[derive(Debug, PartialEq)]
+enum CatalogError {
+    MissingSku,
+    DatabaseDown,
+}
+
+#[derive(Debug, PartialEq)]
+enum CheckoutError {
+    InvalidSku,
+    Catalog(CatalogError),
+    InventoryUnavailable,
+    PaymentDeclined,
+    BackorderRejected,
+}
+
+#[derive(Debug, PartialEq)]
+enum ApiError {
+    BadRequest,
+    Unavailable,
+    PaymentRequired,
+    Internal,
+}
+
+impl From<CatalogError> for CheckoutError {
+    fn from(error: CatalogError) -> Self {
+        CheckoutError::Catalog(error)
+    }
+}
+
+impl From<CheckoutError> for ApiError {
+    fn from(error: CheckoutError) -> Self {
+        match error {
+            CheckoutError::InvalidSku => ApiError::BadRequest,
+            CheckoutError::Catalog(CatalogError::DatabaseDown) => ApiError::Unavailable,
+            CheckoutError::Catalog(CatalogError::MissingSku) => ApiError::BadRequest,
+            CheckoutError::InventoryUnavailable => ApiError::Unavailable,
+            CheckoutError::PaymentDeclined => ApiError::PaymentRequired,
+            CheckoutError::BackorderRejected => ApiError::Internal,
+        }
+    }
+}
+
+fn parse_sku(sku: &str) -> Result<&str, CheckoutError> {
+    if sku.starts_with("sku-") { Ok(sku) } else { Err(CheckoutError::InvalidSku) }
+}
+
+fn catalog_price(sku: &str) -> Result<u32, CatalogError> {
+    match sku {
+        "sku-down" => Err(CatalogError::DatabaseDown),
+        "sku-missing" => Err(CatalogError::MissingSku),
+        _ => Ok(1200),
+    }
+}
+
+fn load_price(sku: &str) -> Result<u32, CheckoutError> {
+    let normalized = parse_sku(sku)?;
+    let cents = catalog_price(normalized)?;
+    Ok(cents)
+}
+
+fn reserve(sku: &str) -> Result<&'static str, CheckoutError> {
+    match sku {
+        "sku-empty" | "sku-backorder-rejected" => Err(CheckoutError::InventoryUnavailable),
+        "sku-declined" => Err(CheckoutError::PaymentDeclined),
+        _ => Ok("reserved"),
+    }
+}
+
+fn reserve_backorder(sku: &str) -> Result<&'static str, CheckoutError> {
+    if sku == "sku-empty" { Ok("backorder") } else { Err(CheckoutError::BackorderRejected) }
+}
+
+fn checkout(sku: &str) -> Result<String, ApiError> {
+    let price = load_price(sku).map_err(ApiError::from)?;
+    reserve(sku)
+        .or_else(|error| match error {
+            CheckoutError::InventoryUnavailable => reserve_backorder(sku),
+            other => Err(other),
+        })
+        .map(|fulfillment| format!("{fulfillment}:{price}"))
+        .map_err(ApiError::from)
+}
