@@ -18,10 +18,45 @@ def main():
     output.mkdir(mode=0o700)
     root = Path(__file__).resolve().parents[1]
     nixpkgs = subprocess.check_output(
-        ["nix", "eval", "--offline", "--impure", "--raw", "--expr", f"(builtins.getFlake {json.dumps(str(root))}).inputs.nixpkgs.outPath"], text=True,
+        [
+            "nix",
+            "eval",
+            "--offline",
+            "--impure",
+            "--raw",
+            "--expr",
+            f"(builtins.getFlake {json.dumps(str(root))}).inputs.nixpkgs.outPath",
+        ],
+        text=True,
     ).strip()
-    command = ["nix", "build", "--impure", "--file", str(root / "tests/fixtures/secret-isolation/linux-vm.nix"), "driver", "--no-link", "--print-out-paths", "--argstr", "repoPath", str(root), "--argstr", "nixpkgsPath", nixpkgs]
-    for name, argument in (("nix", "nixRoot"), ("bash", "bashRoot"), ("cat", "coreutilsRoot"), ("python3", "pythonRoot"), ("git", "gitRoot"), ("codex", "codexRoot"), ("gh", "ghRoot"), ("bwrap", "bwrapRoot"), ("bats", "batsRoot")):
+    command = [
+        "nix",
+        "build",
+        "--impure",
+        "--file",
+        str(root / "tests/fixtures/secret-isolation/linux-vm.nix"),
+        "driver",
+        "--no-link",
+        "--print-out-paths",
+        "--argstr",
+        "repoPath",
+        str(root),
+        "--argstr",
+        "nixpkgsPath",
+        nixpkgs,
+    ]
+    for name, argument in (
+        ("nix", "nixRoot"),
+        ("bash", "bashRoot"),
+        ("cat", "coreutilsRoot"),
+        ("python3", "pythonRoot"),
+        ("git", "gitRoot"),
+        ("codex", "codexRoot"),
+        ("gh", "ghRoot"),
+        ("bwrap", "bwrapRoot"),
+        ("bats", "batsRoot"),
+        ("chezmoi", "chezmoiRoot"),
+    ):
         executable = shutil.which(name)
         if executable is None:
             raise ValueError(f"missing required tool: {name}")
@@ -38,8 +73,15 @@ def main():
     # group or shared /run/user settings are changed to run this test.
     with (output / "test.log").open("w") as log:
         result = subprocess.run(
-            [driver + "/bin/nixos-test-driver", "--no-interactive", "-o", str(output / "evidence")],
-            env=os.environ | {"XDG_RUNTIME_DIR": str(runtime)}, stdout=log, stderr=subprocess.STDOUT,
+            [
+                driver + "/bin/nixos-test-driver",
+                "--no-interactive",
+                "-o",
+                str(output / "evidence"),
+            ],
+            env=os.environ | {"XDG_RUNTIME_DIR": str(runtime)},
+            stdout=log,
+            stderr=subprocess.STDOUT,
         )
     print(f"Linux VM exit={result.returncode}; evidence: {output}")
     return result.returncode

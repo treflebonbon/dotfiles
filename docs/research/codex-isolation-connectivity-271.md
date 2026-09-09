@@ -134,3 +134,7 @@ gateway は次の固定 policy を持つ。
 - この dependency fetch は外側隔離内の Nix で測定した。Codex の managed proxy を重ねた経路は上記 source に基づく推論であり、まだ実測結果に含めない。
 
 再現には `SECRET_ISOLATION_REAL_MODEL=1`、`SECRET_ISOLATION_REAL_SERVICES=1`、`SECRET_ISOLATION_REAL_DEPENDENCIES=1` と公開 CA の `SECRET_ISOLATION_CA_BUNDLE` を指定する。最小 GitHub probe は公開 GET だけで、push・PR・private data・共有状態の変更は行わない。これらの実通信は WSL2 上で検証した。Linux VM では合成サービスと worktree transfer を検証し、実サービス認証を持ち込んでいない。
+
+## 共通入口での実測（2026-09-10）
+
+共通 raw entry で hosted model の編集・テスト・commit・返却、および Nix の初回依存取得と Codex managed proxy の連鎖に成功した。上記の proxy 連鎖に関する推論は、[実装・検証記録](raw-codex-isolation-271.md) の実測で更新する。DNS を渡さない構成では Codex の private-address 検査に拒否されたため、同じドメイン allowlist の公開 IP だけを返す専用 resolver を追加した。host DNS と host network は共有していない。

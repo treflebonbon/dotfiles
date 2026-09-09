@@ -64,17 +64,36 @@ dotfiles の WSL2 開発では `nix develop .#wsl` を使う。Nix 自体は `.w
 
 ## raw Codex のプロジェクト開発環境
 
-`devshell-env trust [directory]` で repo を登録し、所属する linked worktree で `codex-worktree` を起動すると、その worktree の devShell を準備して Codex へ渡す。directory 省略時は現在地を使う。`devshell-env status [directory]` は信頼状態と flake の有無を表示し、`devshell-env untrust [directory]` は次回起動から自動評価を止める。通常の primary checkout でも登録できるが、`codex-worktree` の起動には linked worktree が必要。
+Linux／WSL2 の `codex-worktree` は、Nix 評価・shellHook より前に専用の filesystem・user・PID・network namespace を作る。空の HOME、選択した Nix ツール closure のコピー、明示した公開ファイルと Git 履歴だけで初期化し、同じ physical root と Active Git Metadata Boundary を隔離内に再構成する。ホストの HOME、Nix daemon、任意の継承変数、未登録ファイルは渡さない。
 
-信頼は Git common directory の物理パスと filesystem identity に結び付き、同じ repo の正当な worktree と、その後の flake・shellHook の変更を含む。別 clone、移動・再作成した common directory は再登録する。登録情報だけを `${XDG_STATE_HOME:-$HOME/.local/state}/devshell-env/trust/` に保持し、repo 内を保存先にすることは拒否する。
+人間は validated linked worktree で、公開してよいファイルと **現在の HEAD から到達可能な Git 履歴全体** を確認してから登録する。`trust` は repo の初期化許可、`admit` はファイルの内容と公開 runtime 設定の宣言であり、別々に必要になる。
 
-既定は現在の root の `#default`。WSL でその root に `.wsl-browser-free` があれば `#wsl` を選ぶ。`DEVSHELL_ENV_OUTPUT=custom codex-worktree` で同じ flake の output を明示でき、WSL の自動選択より優先する。direnv の `DIRENV_ROOT` や `IN_NIX_SHELL` で対象を選び直さない。プロジェクトの PATH を先頭に置き、起動元のツールも保持する。
+```bash
+devshell-env trust
+# FULL_SHA は確認した現在の完全な commit SHA。FILES は公開ファイルを個別に列挙する。
+devshell-env admit --git-head FULL_SHA -- flake.nix flake.lock package.json src/index.ts
+codex-worktree
+```
 
-起動準備は `.envrc` を読まず、dotenv の値や秘密取得を追加しない。Nix 評価と shellHook には HOME・PATH・証明書・Nix daemon 接続などの最小環境だけを渡し、起動元の任意変数を環境出力へ保存しない。shellHook は flake が定義する通常設定だけで初期化できるようにする。準備後の Codex には起動元の変数を継承し、プロジェクトの通常変数を重ねる。既に継承していた秘密の除去は行わない。Nix 出力と準備後の環境は pipe で渡し、独自の永続プロジェクト環境キャッシュは作らない。
+`admit` は現在の managed `CODEX_HOME/config.toml`、存在する AGENTS・default rules、Git の user.name/email・署名設定と実行可能 hook も公開入力として記録する。これらにもプロジェクト秘密を含めない。初回の index は HEAD と一致させる。symlink・hardlink・特殊ファイルは公開入力として受理しない。ファイル名の denylist を公開可否の判定に使わないため、通常名に隠した秘密も列挙しなければ入らない。`.env`・鍵・認証ファイルを入力に加えて問題を回避しない。
 
-`untrusted`、`no flake.nix`、Nix／shellHook の失敗は stderr に理由を表示し、プロジェクト環境を追加せず調査用の Codex を起動する。`devshell-env status` で登録と root を確認し、表示された output の flake を修正してセッションを再起動する。新規 `flake.nix` は Git に追加してから使う。Nix の Git source と既存 lock を使い、lock は自動書換えしない。不正な metadata や working root・permission を置換する引数は起動そのものを拒否する。
+`devshell-env status [directory]` と `untrust [directory]` は従来どおり。信頼は Git common directory の physical path と inode に結び付き、同じ repo の正当な linked worktree に継承する。公開入力の登録は worktree ごとに必要。primary checkout で信頼登録はできるが、raw 起動は linked worktree に限定する。
 
-Nix は raw Codex の sandbox 起動前に準備する。標準 permission と Active Git Metadata Boundary は維持し、Nix／shellHook 後も検証済み root・Git metadata・起動元の Codex 実行ファイルを固定する。flake の編集はセッション再起動で反映する。Codex Desktop と Orca native Codex には自動 devShell 読込みを追加しない。Desktop の管理 setup script は空で、Orca は native worktree と built-in launch を維持する。実行確認の環境は [Issue #255 の検証記録](../docs/research/devshell-env-255.md) を参照。
+既定 output は `default`、WSL かつ現在の root に `.wsl-browser-free` があれば `wsl`。`DEVSHELL_ENV_OUTPUT=custom codex-worktree` で明示できる。devShell が生成する通常変数・PATH・shellHook の結果は Codex に渡すが、起動元の任意変数は復元しない。選択済みの Codex・Python・Git などの closure、launcher、管理ポリシーは読み取り専用にする。
+
+標準 `dotfiles-secure` を隔離内の `/etc/codex/requirements.toml` に固定し、当該 Git metadata だけ write に加える。追加 workspace root は無効にする。同名 profile を project config で再定義すると起動を拒否する。root dotenv の read 例外は追加しない。Codex が deny 対象に空の placeholder を作る場合はあるが、ホストの内容は入らず、その placeholder を作業結果として返さない。
+
+終了時は commit SHA・index・未 commit の通常ファイルを元の worktree に返し、次回の入力登録を更新する。実行中は同じ host worktree を並行編集しない。host 側の HEAD・index・入力が変わった場合や、未登録ファイルと結果が衝突した場合は返却を止め、隔離結果を保持する。host で flake や公開ファイルを変更した場合は内容を再確認して `admit` し直し、再起動する。隔離内で変更して返却できたファイルは再登録済みとなる。
+
+初回も再起動も専用 store を新規作成する。状態は `${XDG_STATE_HOME:-$HOME/.local/state}/devshell-env/` の `inputs/` と `sessions/<id>/` に保存し、開始時に session path を表示する。1 session あたり選択ツールだけでも約 700 MB、devShell の取得分は別途必要になる。復旧用に終了後も保持するため、受入済み結果を確認してから人間が不要な session directory を整理する。
+
+未登録・信頼解除・flake 不在・不正 metadata／引数は初期化前に拒否する。入力の変更、隔離設定、Nix、shellHook、管理設定の失敗は非0終了し、無保護な調査用起動へ fallback しない。部分的な初期化結果を host へ返さず、表示された session の `store-copy.log`・公開 snapshot を確認し、原因を直して再登録・再起動する。返却途中の I/O 障害では全ファイルの原子的 rollback は保証しない。session の bundle と snapshot を保持して差分を確認し、失敗した返却を盲目的に繰り返さない。
+
+必要条件は rootless user/network namespace を許可した Linux／WSL2、Nix store から選んだ Nix・bash・coreutils・Python 3.13 以上・Git・Codex 0.153.4 以上・gh・bubblewrap、managed `dotfiles-secure`、公開 CA bundle。汎用 devShell は `CODEX_ISOLATION_CA_BUNDLE` を設定する。モデル接続は host の既存 ChatGPT login を専用 gateway が使い、token は隔離内へ置かない。期限切れは host で login を更新して再起動する。現時点で API key provider、GitHub・管理 MCP の本番接続はこの入口に統合していない。
+
+Nix の取得と command network proxy は managed allowlist の HTTPS と公開 IP だけへ接続する。専用 resolver も同じ条件を使う。network namespace 内だけで低位 port を使用可能にし、DNS listener・初期化・Codex は capability を持たない。ホストの DNS・loopback・制御 socket は公開しない。
+
+既存セッション、直接の `codex`、Codex Desktop、Orca／Herdr native 起動はこの保証の対象外。macOS の raw 隔離起動も未対応で拒否する。受入・merge 後の live source から配備して新しい入口で起動する。未 merge の task source から `chezmoi apply` しない。検証範囲は [#271 の記録](../docs/research/raw-codex-isolation-271.md) を参照。
 
 ### 指定コマンドへの dotenv 注入
 
@@ -82,17 +101,15 @@ dotfiles の `nix run .#with-env -- <command> [args...]` は、現在地の Git 
 
 公開入口は通常の `.git` ディレクトリと linked worktree に加え、submodule や `git init --separate-git-dir` の有効な gitfile を受理する。gitfile の symlink・不正な参照・準備中の metadata 差替えは拒否する。起動元の `GIT_*` は対象コマンドへ継承するが、root 探索と Nix／shellHook の準備には渡さない。たとえば `GIT_AUTHOR_NAME`・`GIT_CONFIG_COUNT`・`GIT_SSH_COMMAND` は子の Git 操作で利用できる。gitfile の追加受理は公開入口に限り、trust 登録と自動起動の metadata 所属条件は従来どおりとする。
 
-dotenv は任意で、不在なら準備済み環境だけで実行する。存在するファイルの読取り・解析失敗、worktree 外への symlink、通常ファイル以外は非0終了し、対象コマンドを起動しない。人間の明示実行では worktree 内のファイルへの symlink を受理する。raw Codex の読取り許可は起動時に存在する通常の `.env` に限定し、symlink には追加しない。解析は `python-dotenv` を使い、空値・引用符・複数行・`${NAME}` と `${NAME:-default}` を扱う。`$NAME` と `$(command)` は文字列のままになり、シェルとして実行しない。値のない `NAME` は無視し、同名の値は起動元、devShell、dotenv の順で優先する。
+dotenv は任意で、不在なら準備済み環境だけで実行する。存在するファイルの読取り・解析失敗、worktree 外への symlink、通常ファイル以外は非0終了し、対象コマンドを起動しない。人間の明示実行では worktree 内のファイルへの symlink を受理する。raw Codex の隔離内にはホスト dotenv を渡さず、自動 read 許可も追加しない。解析は `python-dotenv` を使い、空値・引用符・複数行・`${NAME}` と `${NAME:-default}` を扱う。`$NAME` と `$(command)` は文字列のままになり、シェルとして実行しない。値のない `NAME` は無視し、同名の値は起動元、devShell、dotenv の順で優先する。
 
 Nix／shellHook の準備失敗も正式入口の失敗として止める。**AI は失敗した正式入口を任意コマンドの直接実行へ置き換えて迂回しない。** 必要変数の有無・内容の検証は各コマンドが担当する。dotenv を Git に追加したり、flake の `builtins.readFile` や shellHook から取り込んだりしない。Nix の Git source には追跡ファイルが入るため、`.env` は追跡対象外のままにする。
 
-raw Codex では選択する devShell の `packages` に `dotfiles.packages.${system}.with-env` を含め、sandbox 内では `with-env --prepared -- <command> [args...]` を使う。これは公開 app と同じ実行ファイルの明示的な再利用モードで、起動前に準備した環境を使う。通常の入口は照合情報を継承していても必ず Nix を準備する。`--prepared` は準備成功の照合情報がないと失敗する。dotfiles 自体の default / wsl devShell には含まれている。別 repo では dotfiles を flake input に追加して参照する。Nix daemon を必要とする `nix run` を sandbox 内で再実行しない。
+raw Codex では `with-env --prepared -- <command> [args...]` が秘密なしの準備済み環境を再利用する。launcher の保護された helper も同じコマンド名で用意する。devShell の公開 `with-env` package を使う場合もホスト dotenv には到達できない。通常の入口は必ず Nix を準備し直すため、sandbox 内では `--prepared` を使う。準備成功の照合情報がない場合は失敗する。
 
 準備完了の情報は `DEVSHELL_ENV_CONTEXT` に root・repo identity・output・root の `flake.nix` / `flake.lock` の hash だけを保持する。値を持つ環境キャッシュではない。別 root・output・この2ファイルの変更を検出したら正式入口を失敗させ、再起動を要求する。import した Nix file なども含め、devShell を変更したら常に再起動する。この情報は再利用対象の照合用であり、agent による環境変数改変を防ぐ認証情報ではない。
 
-信頼済みの準備が成功し、root に通常の `.env` が存在するときだけ、そのファイルを read に変更する。Codex の `app-server config/read` で実効 profile を読み、継承元も含む追加 workspace root をこの起動では無効にして、許可先を current root に限定する。設定を解決できなければ Codex を起動しない。未登録・信頼解除・準備失敗時には読取りを許可せず、起動後に `.env` を作った場合も再起動する。値は `with-env` の子だけへ注入するが、agent 自身も対象 `.env` を読める設計であり、agent から秘密を隠す境界ではない。
-
-標準 `dotfiles-secure` は worktree 外の読取りを既定で拒否し、Codex の最小ランタイム、`/nix`、Git 設定、`~/.local/bin` と `~/.config/git` / `~/.config/gh` を読取り可能にする。最後の3ディレクトリにも workspace と同じ秘密ファイル拒否規則を適用する。home の SSH・AWS・gcloud、別 repo、別名・下位の dotenv は拒否する。raw adapter は mode 0700 の専用 `/tmp/codex-worktree-*` を `TMPDIR` に割り当てる。環境を書き出す場所ではなく子コマンド用の一時領域で、終了後は OS の一時ファイル整理対象となる。絶対 `/tmp` への依存は避け `TMPDIR` を使う。Codex 0.153.4 / Linux では拒否した `/tmp` 下の read-only 例外が見えないため、home のツール・認証ディレクトリは `/tmp` の外に置く。
+標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。実際の秘密が必要な検証は人間の明示した `with-env` で行う。
 
 名前付き dev / test app へ組み込む例（対象 flake で dotfiles を input に持ち、system ごとの output を定義する箇所）:
 
@@ -142,10 +159,10 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 1. `.envrc` にだけ置かれた通常変数・ツール・非秘密の初期化を `flake.nix` の devShell（またはそこから import するファイル）へ移す。dotenv や秘密取得は shellHook に置かない。既存 `.envrc` は明示利用のために残せる。dotfiles と6テンプレートの既存 `.envrc` は flake と dotenv を呼ぶだけで、通常設定の追加移植は不要。
 2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保ち、必要な値は作業する root に人間が用意する。`with-env` は main・親・別 worktree を探索・コピーしない。
 3. 人間は上記の `nix develop` でツールと通常変数を確認する。AI 自動読込みを使う repo は `devshell-env trust` で一度登録し、`devshell-env status` で root・output・信頼を確認する。解除は `devshell-env untrust`。別 clone は別登録になる。
-4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は `with-env --prepared -- command` を使う。Claude は非秘密の devShell だけを使い、dotenv が必要な処理は人間側の入口で実行する。
+4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は秘密なしの `with-env --prepared -- command` を使い、初回に上記の公開入力登録も行う。Claude は非秘密の devShell だけを使い、dotenv が必要な処理は人間側の入口で実行する。
 5. 旧 hook が動く端末は終了し、受入・merge 後に live source で `chezmoi apply` してから新しい端末を開く。未 merge の task source は配備しない。通常変数とツール、明示更新、正式入口の失敗を確認する。
 
-従来の `.envrc` の `dotenv_if_exists .env` はシェル全体へ値を export していた。新しい注入は対象コマンドとその子に限定し、同名変数は起動元 → devShell → root `.env` の順で優先する。raw Codex 自身も許可された root `.env` を読めるため、AI から秘密を隠す保証ではない。起動元に既に含まれた秘密の除去も保証しない。Claude の `.env` 注入・OS sandbox と Orca native Codex の自動読込みは対象外で、既存 permission は維持する。
+従来の `.envrc` の `dotenv_if_exists .env` はシェル全体へ値を export していた。新しい注入は対象コマンドとその子に限定し、同名変数は起動元 → devShell → root `.env` の順で優先する。隔離された raw Codex はこの注入を行わず、起動元の秘密も継承しない。既存シェル・直接起動にはこの保証を適用しない。Claude の `.env` 注入・OS sandbox と Orca native Codex の自動読込みは対象外で、既存 permission は維持する。
 
 既存 `.envrc` を明示的に使う場合は内容を確認して `direnv allow .`、続けて `direnv exec . command` を使う。この子には従来の dotenv 読込みも適用される（[direnv の公式コマンド仕様](https://direnv.net/man/direnv.1.html)）。セットアップや Codex 管理同期は自動承認しない。
 

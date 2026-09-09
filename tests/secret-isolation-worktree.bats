@@ -281,3 +281,33 @@ SH
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
+
+@test "project initialization cannot replace the selected runtime tools or their store parent" {
+  [ "${SECRET_ISOLATION_REAL_RUNTIME:-0}" = 1 ] || skip "opt in with SECRET_ISOLATION_REAL_RUNTIME=1; requires Nix store tools and bubblewrap"
+  cat >"$FIXTURE/work/check-runtime.py" <<'PY'
+import os, shutil
+from pathlib import Path
+tool = Path(shutil.which('gh')).resolve()
+try:
+    tool.chmod(0o755)
+    with tool.open('ab') as file:
+        file.write(b'public-fixture-tamper')
+except OSError:
+    pass
+else:
+    raise AssertionError('project code can replace the chosen runtime tool')
+try:
+    os.rename('/nix/store', '/nix/moved-store')
+except OSError:
+    pass
+else:
+    os.rename('/nix/moved-store', '/nix/store')
+    raise AssertionError('project code can replace the store parent')
+PY
+  python3 "$CLI" approve --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
+    --git-head "$HEAD_SHA" -- source.txt check-runtime.py
+  run python3 "$CLI" run --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
+    --output "$FIXTURE/session" -- python3 check-runtime.py
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
