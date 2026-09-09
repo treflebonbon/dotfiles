@@ -54,6 +54,54 @@ def local_tools(tools):
     return True
 
 
+def local_content(content):
+    if not isinstance(content, list):
+        return False
+    for item in content:
+        if not isinstance(item, dict):
+            return False
+        kind = item.get("type")
+        if kind in ("input_text", "output_text", "summary_text", "reasoning_text", "encrypted_content"):
+            continue
+        if kind == "input_image" and str(item.get("image_url", "")).startswith("data:image/"):
+            continue
+        if kind == "input_audio" and str(item.get("audio_url", "")).startswith("data:audio/"):
+            continue
+        return False
+    return True
+
+
+def local_request(payload):
+    # Match the text/function Responses request emitted by the pinned Codex.
+    # In particular, IDs must never grant access to an existing account item,
+    # conversation, uploaded file, or server-executed tool.
+    fields = {
+        "model", "instructions", "input", "tools", "tool_choice", "parallel_tool_calls",
+        "reasoning", "store", "stream", "stream_options", "include", "service_tier",
+        "prompt_cache_key", "text", "client_metadata",
+    }
+    if not isinstance(payload, dict) or not payload.keys() <= fields or not local_tools(payload.get("tools", [])):
+        return False
+    items = payload.get("input", [])
+    if not isinstance(items, list):
+        return False
+    for item in items:
+        if not isinstance(item, dict):
+            return False
+        kind = item.get("type")
+        if kind == "additional_tools":
+            if not local_tools(item.get("tools", [])):
+                return False
+        elif kind in ("message", "agent_message"):
+            if not local_content(item.get("content")):
+                return False
+        elif kind in ("function_call", "function_call_output", "custom_tool_call", "custom_tool_call_output", "reasoning", "compaction"):
+            pass
+        else:
+            return False
+    return True
+
+
 class UnixServer(socketserver.ThreadingUnixStreamServer):
     daemon_threads = True
 
@@ -140,9 +188,7 @@ class Gateway(BaseHTTPRequestHandler):
         try:
             payload = json.loads(self.rfile.read(int(length)))
             # Permit client-executed functions, never authenticated remote tools.
-            if not isinstance(payload, dict) or not local_tools(payload.get("tools", [])):
-                return self.reject()
-            if any(key in payload for key in ("previous_response_id", "conversation", "background")):
+            if not local_request(payload):
                 return self.reject()
             payload["store"] = False
             headers = {

@@ -135,7 +135,7 @@ SH
 }
 
 @test "real Nix, hosted Codex, children, GitHub and MCP run through the worktree boundary" {
-  [ "${SECRET_ISOLATION_REAL_MODEL:-0}" = 1 ] || skip "opt in with SECRET_ISOLATION_REAL_MODEL=1; uses one real model response through the host ChatGPT login"
+  [ "${SECRET_ISOLATION_REAL_MODEL:-0}/${SECRET_ISOLATION_REAL_SERVICES:-0}" = 1/1 ] || skip "requires SECRET_ISOLATION_REAL_MODEL=1 and SECRET_ISOLATION_REAL_SERVICES=1; uses hosted model and authenticated public GitHub GET"
   mkdir -p "$FIXTURE/work/nested"
   printf 'dummy nested secret\n' >"$FIXTURE/work/nested/renamed"
   printf 'dummy dotenv\n' >"$FIXTURE/work/nested/.env"
@@ -250,16 +250,21 @@ SH
 
 @test "stage and unstaged edits survive result transfer and the next isolated start" {
   [ "${SECRET_ISOLATION_REAL_RUNTIME:-0}" = 1 ] || skip "opt in with SECRET_ISOLATION_REAL_RUNTIME=1; requires Nix store tools and bubblewrap"
+  mkdir "$FIXTURE/work/src"
+  git -C "$FIXTURE/work" mv source.txt src/source.txt
+  git -C "$FIXTURE/work" -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm 'test: nested public baseline'
+  HEAD_SHA="$(git -C "$FIXTURE/work" rev-parse HEAD)"
   cat >"$FIXTURE/work/task.sh" <<'SH'
 set -eu
-printf 'staged source\n' > source.txt
-git add source.txt
-printf 'unstaged source\n' > source.txt
-printf 'new public file\n' > new.txt
+printf 'staged source\n' > src/source.txt
+git add src/source.txt
+printf 'unstaged source\n' > src/source.txt
+mkdir docs
+printf 'new public file\n' > docs/new.txt
 exit 7
 SH
   python3 "$CLI" approve --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
-    --git-head "$HEAD_SHA" -- source.txt task.sh
+    --git-head "$HEAD_SHA" -- src/source.txt task.sh
   run python3 "$CLI" run --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
     --output "$FIXTURE/session" -- bash task.sh
   [ "$status" -eq 7 ] || printf '%s\n' "$output" >&3
@@ -267,12 +272,12 @@ SH
   run python3 "$CLI" return --root "$FIXTURE/work" --session "$FIXTURE/session"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
-  [ "$(git -C "$FIXTURE/work" show :source.txt)" = 'staged source' ]
-  [ "$(cat "$FIXTURE/work/source.txt")" = 'unstaged source' ]
-  [ "$(cat "$FIXTURE/work/new.txt")" = 'new public file' ]
+  [ "$(git -C "$FIXTURE/work" show :src/source.txt)" = 'staged source' ]
+  [ "$(cat "$FIXTURE/work/src/source.txt")" = 'unstaged source' ]
+  [ "$(cat "$FIXTURE/work/docs/new.txt")" = 'new public file' ]
   [ "$(git -C "$FIXTURE/work" rev-parse HEAD)" = "$HEAD_SHA" ]
   run python3 "$CLI" run --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
-    --output "$FIXTURE/restart" -- bash -c 'test "$(git show :source.txt)" = "staged source" && test "$(cat source.txt)" = "unstaged source" && test -f new.txt && test ! -e .env'
+    --output "$FIXTURE/restart" -- bash -c 'test "$(git show :src/source.txt)" = "staged source" && test "$(cat src/source.txt)" = "unstaged source" && test -f docs/new.txt && test ! -e .env'
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }

@@ -17,7 +17,7 @@ timestamp: 2026-09-10
 ```bash
 python3 scripts/secret-isolation-worktree.py approve \
   --root /absolute/linked-worktree --policy /private/state/public-input.json \
-  --git-head FULL_HEAD_SHA -- flake.nix flake.lock src/main.py
+  --git-head FULL_HEAD_SHA -- flake.nix flake.lock src/main.py public-task.sh
 
 python3 scripts/secret-isolation-worktree.py run \
   --root /absolute/linked-worktree --policy /private/state/public-input.json \
