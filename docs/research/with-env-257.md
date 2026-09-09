@@ -57,7 +57,7 @@ with-env の8件は実 Nix test を含めて成功。実 Nix test は公開 `nix
 | 8: ダミー秘密の非永続化                           | 実 Nix の生成結果・隔離 cache を検索し確認          |
 | 9: 通常／WSL 選択、direnv 継承                    | Bats で選択と PATH、3 system で app 出力評価を確認  |
 | 10: dev/test 組込み例、必要変数と失敗時停止の規約 | shell-environment に記載                            |
-| 11: Claude 非変更、品質、OS と配備の記録          | 最終結果は下記に追記                                |
+| 11: Claude 非変更、品質、OS と配備の記録          | 全 Bats と関連検証成功。raw 完成後の受入は保留      |
 
 3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備していない。Session Scratchpad の提示がなかったため、一時検証ファイルとログには `/tmp` を使った。
 
@@ -66,3 +66,5 @@ with-env の8件は実 Nix test を含めて成功。実 Nix test は公開 `nix
 `code-review` の固定点は依存実装の `e025054`。Standards と Spec を独立した2 agent で実施した。Standards は Python 依存定義の重複を非ブロッキングな heuristic として指摘したため共有化した。Spec は実装済み範囲に新たな不適合・scope creep を指摘せず、raw Codex の既知の未完了条件を確認した。root 選択のテストは dotenv を先に継承させずサブディレクトリから直接実行する形へ強化した。
 
 実 Nix を含む with-env は8/8、既存 Runtime Adapter の `DEVSHELL_ENV_REAL_NIX=1 bats tests/devshell-env.bats` は18/18成功。`bunx tsc --noEmit`、ruff check/format、nixfmt、diff whitespace 検査も成功した。pre-commit の gitleaks がテストのダミー文字列を検出したため、低エントロピーのダミーへ変更して該当テストを再実行し、hook を通過した。検査除外や `--no-verify` は使用していない。
+
+最終 `TMPDIR=/tmp bun run test` は終了コード0、570件中568件成功・2件skip・失敗0件。skip は上記2ファイルの実 Nix opt-in で、どちらも別途成功した。全体ログは `/tmp/with-env-257-full-bats.log`、with-env の最終実 Nix ログは `/tmp/with-env-257-tests-final.log`、adapter の実 Nix ログは `/tmp/with-env-257-adapter-tests.log`。Standards の重複指摘は `f66ebf1` を独立 reviewer が再確認して解消済み。Spec には上記の raw Codex 未完了条件が残り、Issue 全体の完了や `Fixes #257` は宣言していない。
