@@ -39,11 +39,14 @@ ChatGPT gateway は host の既存 login を固定 endpoint にだけ使い、to
 
 WSL2 kernel `6.18.33.2-microsoft-standard-WSL2`、Nix 2.34.6、Codex 0.153.4、bubblewrap 0.11.2、Git 2.54.0、Python 3.13.14 を使用。
 
-- `/tmp/raw-271-integration-2.log`: network・hosted model を opt-in した公開入口の 4 ケースすべて成功。
+- `/tmp/raw-271-suite-verified/manifest.json`: 実装 commit `1c01de3d00509663fb6de9b91b9730b2078043cb` の全 629 ケースを実行し、621 成功・既存の opt-in 8 ケース・失敗 0。`SECRET_ISOLATION_REAL_RUNTIME=1` と公開 CA を指定し、全 Bats ファイルを重複なく 4 群へ分けて並列実行、ファイル内は逐次実行した。各群の exit code は 0。外部サービスや追加の実 Nix build を必要とする opt-in は、下記の個別実測と区別する。
+- `/tmp/raw-271-integrations-verified.log`: 最終コードで network・hosted model を opt-in した公開入口の 7 ケースすべて成功。初回 trust 保存の実 app-server RPC、入力差替え、起動後の host 変更、startup code 非読込みも含む。
 - `/tmp/raw-271-regressions.log`: 修正した秘密非継承、project PATH、別 Git directory、prepared context、metadata 拒否の 5 ケース成功。
 - `/tmp/raw-271-final-focus.log`: 起動後の host 差替え・追加、shell／Python startup code の非読込み、DNS の公開 IP 制限、人間向け dotenv の 4 ケース成功。
+- `/tmp/raw-271-index-race-red.log` と `/tmp/raw-271-index-race-green.log`: 返却中の host stage 喪失を再現し、修正後に並行 stage の保持と既存 stage／unstaged／再起動の 2 ケース成功。
+- `/tmp/raw-271-trust-red.log` と `/tmp/raw-271-trust-final.log`: 初回 trust 保存の失敗を再現し、保存成功と required profile の保持を確認。`/tmp/raw-271-tui-repeat.log` は修正後の実 TUI が trust 画面を通過し、モデルと入力欄を描画した記録。
 - `/tmp/with-env-271-preflight-lz4pglb5/preflight.log`: この revision の公開 `with-env` Nix package を専用 store 内で build し、引数・終了コード・秘密非継承・Git commit・信頼解除を確認。
-- `/tmp/secret-isolation-linux-vm-271-dns/`: KVM 上の NixOS、通常ユーザー uid 1000、kernel `6.18.33`。#270 の既存 runtime probe と worktree テストに続き、raw 21 ケース成功。外部 network／model 2 ケースは VM に認証を置かないため opt-in 対象外で、WSL2 の実測と区別する。
+- `/tmp/secret-isolation-linux-vm-271-verified/`: 最終コードを KVM 上の NixOS、通常ユーザー uid 1000、kernel `6.18.33` で検証。#270 の既存 runtime probe、worktree 6 ケース、raw 24 ケースが成功。worktree の外部サービス 3 ケースと raw の network／model 2 ケースは opt-in 対象外で、WSL2 の実測と区別する。
 
 Linux VM は host HOME や host store を共有せず、列挙した公開 fixture と CLI closure を image に入れる。再現コマンド:
 
@@ -55,6 +58,8 @@ CODEX_ISOLATION_CA_BUNDLE=/nix/store/.../etc/ssl/certs/ca-bundle.crt \
 CODEX_ISOLATION_CA_BUNDLE=/nix/store/.../etc/ssl/certs/ca-bundle.crt \
   SECRET_ISOLATION_REAL_RUNTIME=1 bun run test
 ```
+
+固定 review base は `d5860f06f74f804f6394a1f8e6117b27807c736d`。`1c01de3` までの最終実装について Standards／Spec の独立レビューはどちらも指摘なし。Codex の実行先は shellHook 前に解決して保持するため、初回の PATH 差替えに関する指摘は追加実測後に取り下げられた。TypeScript typecheck、変更 Python の Ruff 検査、`git diff --check`、通常の commit hook も成功している。
 
 ## 導入・復旧と限界
 
