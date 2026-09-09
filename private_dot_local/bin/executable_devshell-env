@@ -70,7 +70,7 @@ class Repository:
     common_dir: Path
 
     @classmethod
-    def discover(cls, directory, linked_only=False):
+    def discover(cls, directory, linked_only=False, *, allow_gitfile=False):
         try:
             root = git_path(directory, "--show-toplevel")
             git_dir = git_path(root, "--git-dir")
@@ -79,7 +79,16 @@ class Repository:
             if pointer.is_symlink():
                 raise InvalidContext("symlinked worktree metadata")
             if git_dir == common:
-                if linked_only or not pointer.is_dir() or pointer.resolve() != common:
+                # Unlinked gitfiles have no ownership backlink; only explicit
+                # commands may accept them, never automatic trust or raw launch.
+                if linked_only or not (
+                    (pointer.is_dir() and pointer.resolve() == common)
+                    or (
+                        allow_gitfile
+                        and pointer.is_file()
+                        and metadata_target(pointer, "gitdir:") == git_dir
+                    )
+                ):
                     raise InvalidContext(
                         "current directory is not a linked Git worktree"
                     )
@@ -365,8 +374,8 @@ def launch_with_env(arguments):
         raise PreparationError(
             "usage: devshell-env with-env [--prepared] -- command [args...]"
         )
-    inherited = git_environment()
-    repo = Repository.discover(Path.cwd())
+    inherited = os.environ.copy()
+    repo = Repository.discover(Path.cwd(), allow_gitfile=True)
     identity = repo.identity()
     if reuse_prepared:
         context = inherited.get("DEVSHELL_ENV_CONTEXT")
@@ -384,7 +393,10 @@ def launch_with_env(arguments):
         inherited.pop("DEVSHELL_ENV_CONTEXT", None)
         prepared = prepare_environment(repo, inherited, require_trust=False)
         prepared.pop("DEVSHELL_ENV_CONTEXT", None)
-    if Repository.discover(repo.root) != repo or repo.identity() != identity:
+    if (
+        Repository.discover(repo.root, allow_gitfile=True) != repo
+        or repo.identity() != identity
+    ):
         raise InvalidContext("worktree metadata changed during preparation")
     environment = dotenv_environment(repo, prepared, inherited)
     os.execvpe(arguments[0], arguments, environment)

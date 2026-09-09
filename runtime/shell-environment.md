@@ -66,6 +66,8 @@ Nix は raw Codex の sandbox 起動前に準備する。標準 permission と A
 
 dotfiles の `nix run .#with-env -- <command> [args...]` は、現在地の Git root にある devShell を準備し、その root の `.env` を対象コマンドと子プロセスにだけ渡す。人間による明示実行では trust 登録は不要。`DEVSHELL_ENV_OUTPUT` と WSL の `.wsl-browser-free` 判定は raw adapter と共通で、`.envrc` は読まない。サブディレクトリからも同じ root の `.env` を使い、コマンドの作業ディレクトリは現在地を保つ。
 
+公開入口は通常の `.git` ディレクトリと linked worktree に加え、submodule や `git init --separate-git-dir` の有効な gitfile を受理する。gitfile の symlink・不正な参照・準備中の metadata 差替えは拒否する。起動元の `GIT_*` は対象コマンドへ継承するが、root 探索と Nix／shellHook の準備には渡さない。たとえば `GIT_AUTHOR_NAME`・`GIT_CONFIG_COUNT`・`GIT_SSH_COMMAND` は子の Git 操作で利用できる。gitfile の追加受理は公開入口に限り、trust 登録と自動起動の metadata 所属条件は従来どおりとする。
+
 dotenv は任意で、不在なら準備済み環境だけで実行する。存在するファイルの読取り・解析失敗、worktree 外への symlink、通常ファイル以外は非0終了し、対象コマンドを起動しない。人間の明示実行では worktree 内のファイルへの symlink を受理する。raw Codex の読取り許可は起動時に存在する通常の `.env` に限定し、symlink には追加しない。解析は `python-dotenv` を使い、空値・引用符・複数行・`${NAME}` と `${NAME:-default}` を扱う。`$NAME` と `$(command)` は文字列のままになり、シェルとして実行しない。値のない `NAME` は無視し、同名の値は起動元、devShell、dotenv の順で優先する。
 
 Nix／shellHook の準備失敗も正式入口の失敗として止める。**AI は失敗した正式入口を任意コマンドの直接実行へ置き換えて迂回しない。** 必要変数の有無・内容の検証は各コマンドが担当する。dotenv を Git に追加したり、flake の `builtins.readFile` や shellHook から取り込んだりしない。Nix の Git source には追跡ファイルが入るため、`.env` は追跡対象外のままにする。

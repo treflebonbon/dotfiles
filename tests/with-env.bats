@@ -36,6 +36,99 @@ with_env() {
   [ -z "${DUMMY_257+x}" ]
 }
 
+@test "with-env preserves caller Git settings without exposing them to preparation" {
+  cat >"$FIXTURE/bin/nix" <<'EOF'
+#!/bin/sh
+test -z "${GIT_AUTHOR_NAME+x}${GIT_SSH_COMMAND+x}${GIT_CONFIG_COUNT+x}" || exit 40
+printf 'test -z "${GIT_AUTHOR_NAME+x}${GIT_SSH_COMMAND+x}${GIT_CONFIG_COUNT+x}"\n'
+printf 'export GIT_AUTHOR_NAME=from-hook\n'
+EOF
+  printf 'GIT_AUTHOR_NAME=from-dotenv\n' >"$FIXTURE/worktree/.env"
+  export GIT_AUTHOR_NAME='Caller Author' GIT_AUTHOR_EMAIL=caller@example.com
+  export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=review.fixture GIT_CONFIG_VALUE_0=caller-config
+  export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
+  run with_env python3 -c '
+import os, subprocess
+assert os.environ["GIT_SSH_COMMAND"] == "ssh -o BatchMode=yes"
+assert subprocess.check_output(["git", "config", "review.fixture"], text=True).strip() == "caller-config"
+assert subprocess.check_output(["git", "var", "GIT_AUTHOR_IDENT"], text=True).startswith("Caller Author <caller@example.com>")
+'
+  [ "$status" -eq 0 ]
+}
+
+@test "with-env discovers the current root independently of inherited Git selectors" {
+  printf 'DUMMY_257=current-root\n' >"$FIXTURE/worktree/.env"
+  printf 'DUMMY_257=other-root\n' >"$FIXTURE/repo/.env"
+  export GIT_DIR="$FIXTURE/repo/.git" GIT_COMMON_DIR="$FIXTURE/repo/.git" GIT_WORK_TREE="$FIXTURE/repo"
+  run with_env python3 -c '
+import os
+assert os.environ["DUMMY_257"] == "current-root"
+assert os.environ["GIT_DIR"] == os.environ["GIT_COMMON_DIR"] == os.environ["GIT_WORK_TREE"] + "/.git"
+'
+  [ "$status" -eq 0 ]
+}
+
+@test "with-env accepts separate Git directories with absolute or relative gitfiles" {
+  git init -q --separate-git-dir "$FIXTURE/metadata" "$FIXTURE/separate"
+  touch "$FIXTURE/separate/flake.nix"
+  printf 'DUMMY_257=separate\n' >"$FIXTURE/separate/.env"
+  local target
+  for target in "$FIXTURE/metadata" ../metadata; do
+    printf 'gitdir: %s\n' "$target" >"$FIXTURE/separate/.git"
+    run env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" \
+      bash -c 'cd "$1"; shift; exec "$@"' _ "$FIXTURE/separate" "$CLI" with-env -- \
+      sh -c 'test "$PROJECT_257/$DUMMY_257" = prepared/separate'
+    [ "$status" -eq 0 ]
+  done
+  run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/separate"
+  [ "$status" -ne 0 ]
+  run env PATH="$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/separate" "$CLI"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'not a linked Git worktree'* ]]
+}
+
+@test "with-env accepts a submodule and reads only its own root dotenv" {
+  git init -q "$FIXTURE/parent"
+  git -C "$FIXTURE/parent" -c protocol.file.allow=always submodule add -q "$FIXTURE/repo" child
+  touch "$FIXTURE/parent/child/flake.nix"
+  printf 'DUMMY_257=parent\n' >"$FIXTURE/parent/.env"
+  printf 'DUMMY_257=child\n' >"$FIXTURE/parent/child/.env"
+  run env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" \
+    bash -c 'cd "$1"; shift; exec "$@"' _ "$FIXTURE/parent/child" "$CLI" with-env -- \
+    sh -c 'test "$PROJECT_257/$DUMMY_257" = prepared/child'
+  [ "$status" -eq 0 ]
+}
+
+@test "with-env rejects invalid gitfiles and metadata retargeted during preparation" {
+  git init -q --separate-git-dir "$FIXTURE/metadata" "$FIXTURE/separate"
+  touch "$FIXTURE/separate/flake.nix"
+  mv "$FIXTURE/separate/.git" "$FIXTURE/gitfile"
+  ln -s "$FIXTURE/gitfile" "$FIXTURE/separate/.git"
+  run env PATH="$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2" with-env -- touch launched' \
+    _ "$FIXTURE/separate" "$CLI"
+  [ "$status" -ne 0 ]
+  [ ! -e "$FIXTURE/separate/launched" ]
+  mv "$FIXTURE/separate/.git" "$FIXTURE/rejected-gitfile-link"
+  local pointer
+  for pointer in 'gitdir: /missing' 'invalid pointer'; do
+    printf '%s\n' "$pointer" >"$FIXTURE/separate/.git"
+    run env PATH="$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2" with-env -- touch launched' \
+      _ "$FIXTURE/separate" "$CLI"
+    [ "$status" -ne 0 ]
+    [ ! -e "$FIXTURE/separate/launched" ]
+  done
+  cp "$FIXTURE/gitfile" "$FIXTURE/separate/.git"
+  cat >"$FIXTURE/bin/nix" <<EOF
+#!/bin/sh
+printf 'printf "gitdir: %s\\\\n" > .git\\n' '$FIXTURE/repo/.git'
+EOF
+  run env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" \
+    bash -c 'cd "$1"; exec "$2" with-env -- touch launched' _ "$FIXTURE/separate" "$CLI"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'changed during preparation'* ]]
+  [ ! -e "$FIXTURE/separate/launched" ]
+}
+
 @test "raw Codex reuses its prepared devShell through with-env without another Nix invocation" {
   cat >"$FIXTURE/bin/nix" <<EOF
 #!/bin/sh
@@ -44,7 +137,8 @@ printf 'export PROJECT_257=prepared\\n'
 EOF
   cat >"$FIXTURE/bin/codex" <<EOF
 #!/bin/sh
-exec '$CLI' with-env --prepared -- sh -c 'test "\$PROJECT_257" = prepared'
+export GIT_AUTHOR_NAME='Prepared Caller'
+exec '$CLI' with-env --prepared -- sh -c 'test "\$PROJECT_257/\$GIT_AUTHOR_NAME" = "prepared/Prepared Caller"'
 EOF
   chmod +x "$FIXTURE/bin/codex"
   env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
@@ -240,6 +334,7 @@ EOF
       shellHook = ''
         test -z "''\${DOTENV_257+x}"
         test -z "''\${INHERITED_257+x}"
+        test -z "''\${GIT_AUTHOR_NAME+x}"
         export HOOK_257=real-hook
       '';
     };
@@ -262,11 +357,12 @@ assert os.environ["PROJECT_257"] == "real-nix"
 assert os.environ["HOOK_257"] == "real-hook"
 assert os.environ["DOTENV_257"] == sys.argv[1]
 assert os.environ["INHERITED_257"] == sys.argv[2]
+assert os.environ["GIT_AUTHOR_NAME"] == sys.argv[2]
 assert not Path("envrc-was-read").exists()
 subprocess.run(["sh", "-c", 'test "$DOTENV_257" = "$1"', "_", sys.argv[1]], check=True)
 sys.exit(23)
 EOF
-  export INHERITED_257="$inherited_dummy" XDG_CACHE_HOME="$FIXTURE/cache"
+  export INHERITED_257="$inherited_dummy" GIT_AUTHOR_NAME="$inherited_dummy" XDG_CACHE_HOME="$FIXTURE/cache"
   run env HOME="$FIXTURE/home" bash -c 'cd "$1"; shift; exec nix run --no-write-lock-file "$1#with-env" -- python3 "$2" "$3" "$4"' \
     _ "$FIXTURE/worktree" "$PROJECT_ROOT" "$FIXTURE/observer.py" "$dotenv_dummy" "$inherited_dummy"
   [ "$status" -eq 23 ] || printf '%s\n' "$output" >&3
@@ -279,6 +375,21 @@ EOF
   [ ! -e "$input_source/.env" ]
   ! rg -a -q -F -e "$dotenv_dummy" -e "$inherited_dummy" \
     "$FIXTURE/nix-output" "$FIXTURE/derivation.json" "$FIXTURE/cache" "$FIXTURE/home" "${app%/bin/with-env}" "$input_source"
+
+  git init -q --separate-git-dir "$FIXTURE/metadata" "$FIXTURE/separate"
+  git init -q "$FIXTURE/parent"
+  git -C "$FIXTURE/parent" -c protocol.file.allow=always submodule add -q "$FIXTURE/repo" child
+  local directory
+  for directory in "$FIXTURE/separate" "$FIXTURE/parent/child"; do
+    cp "$FIXTURE/worktree/flake.nix" "$directory/flake.nix"
+    cp "$FIXTURE/worktree/.env" "$directory/.env"
+    git -C "$directory" add flake.nix
+    run env HOME="$FIXTURE/home" bash -c 'cd "$1"; shift; exec nix run --no-write-lock-file "$1#with-env" -- python3 "$2" "$3" "$4"' \
+      _ "$directory" "$PROJECT_ROOT" "$FIXTURE/observer.py" "$dotenv_dummy" "$inherited_dummy"
+    [ "$status" -eq 23 ] || printf '%s\n' "$output" >&3
+    [ "$status" -eq 23 ]
+    [[ "$output" == *'Hello, world!'* ]]
+  done
 }
 
 @test "real raw Codex confines dotenv, Git metadata and network while running the public app package" {

@@ -98,3 +98,22 @@ TMPDIR=/tmp bun run test
 - zsh: `/tmp/pr264-merge-claude-zsh.log`、fixture `/tmp/claude-env-preflight-f93nkj0s/`
 
 全 Bats は終了コード0、587件中584件成功・3件skip・失敗0件だった（`/tmp/pr264-merge-full.log`）。skip は実 Nix／sandbox の opt-in で、上記91件の実行ですべて成功した。型チェック、ruff、ShellCheck、shfmt も成功した。今回の競合解消は差分を両方の親と照合し、独立した2 agent による再レビューは行っていない。
+
+## PR review 5149945112 への対応
+
+[レビューの2件](https://github.com/treflebonbon/dotfiles/pull/264#pullrequestreview-5149945112)を確認し、公開 with-env の子環境を起動元の `os.environ` から継承するよう修正した。`GIT_AUTHOR_NAME`・`GIT_CONFIG_COUNT`・`GIT_SSH_COMMAND` を子へ渡し、dotenv や shellHook の同名値で上書きしない。Git root 探索は従来の環境除去を維持し、Nix／shellHook に起動元の Git 設定を渡さない。prepared mode でもコマンド時の Git 設定を継承する。
+
+公開入口の準備前後の discovery だけに gitfile の受理を追加した。submodule と `git init --separate-git-dir` の絶対・相対参照を検証し、root の dotenv を使う。gitfile の symlink・不正な参照・準備中の metadata 差替えは拒否する。所有権の back-pointer がない構成を自動信頼へ広げないため、trust 登録と raw／Claude 起動にはこの追加受理を使わない。
+
+回帰6件は修正前に失敗し、修正後に成功した（`/tmp/pr264-review-red.log`、`/tmp/pr264-review-green.log`）。実 Nix opt-in を有効にした関連 Bats は96/96成功・skipなし・失敗0件だった（`/tmp/pr264-review-targeted.log`）。公開 Nix app でも separate-git-dir と submodule からツール・dotenv・Git author の継承を確認し、実 Codex sandbox、既存 Runtime Adapter、Claude lifecycle と管理設定の回帰検証も成功した。
+
+```bash
+TMPDIR=/tmp WITH_ENV_REAL_NIX=1 DEVSHELL_ENV_REAL_NIX=1 bats --print-output-on-failure tests/with-env.bats tests/devshell-env.bats tests/claude-devshell-env.bats tests/codex-config.bats
+ruff check private_dot_local/bin/executable_devshell-env
+ruff format --check private_dot_local/bin/executable_devshell-env
+shfmt -d tests/with-env.bats
+bunx tsc --noEmit
+git diff --check
+```
+
+上記の品質チェックも成功した。今回の変更に対して全 Bats は再実行せず、上段の587件は競合解消時の記録として保持する。
