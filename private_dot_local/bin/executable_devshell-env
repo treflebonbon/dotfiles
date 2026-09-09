@@ -2,14 +2,18 @@
 """Repository trust and project devShell preparation for runtime adapters."""
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
+import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from dataclasses import dataclass
 from urllib.parse import quote
 
@@ -167,7 +171,7 @@ def selected_output(repo):
     return "wsl" if wsl and (repo.root / ".wsl-browser-free").is_file() else "default"
 
 
-def prepare_environment(repo, inherited):
+def prepare_environment(repo, inherited, timeout=None):
     if not trusted(repo):
         raise PreparationError("untrusted repository; run devshell-env trust")
     if not (repo.root / "flake.nix").is_file():
@@ -206,6 +210,7 @@ def prepare_environment(repo, inherited):
         env=bootstrap,
         capture_output=True,
         text=True,
+        timeout=timeout,
     )
     if result.returncode:
         raise PreparationError(
@@ -224,6 +229,7 @@ exec "$1" -I -c 'import json,os; print(json.dumps(dict(os.environ)))'
         env=bootstrap,
         capture_output=True,
         text=True,
+        timeout=timeout,
     )
     if result.returncode:
         raise PreparationError(
@@ -318,6 +324,159 @@ def validate_codex_arguments(arguments):
         raise InvalidContext("missing permission profile value")
 
 
+def claude_session(session_id):
+    if not isinstance(session_id, str) or not session_id:
+        raise InvalidContext("missing Claude session_id")
+    digest = hashlib.sha256(session_id.encode()).hexdigest()
+    return validate_claude_session(claude_state_root() / digest)
+
+
+def claude_state_root():
+    config = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude")))
+    return config / "projects/.devshell-env"
+
+
+def validate_claude_session(directory):
+    if directory.parent != claude_state_root() or not re.fullmatch(
+        r"[0-9a-f]{64}", directory.name
+    ):
+        raise InvalidContext("invalid Claude session state path")
+    if directory.is_symlink() or directory.parent.is_symlink():
+        raise InvalidContext("symlinked Claude session state")
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if directory.stat().st_uid != os.getuid() or directory.stat().st_mode & 0o077:
+        raise InvalidContext("Claude session state must be private to the current user")
+    return directory
+
+
+def write_session_file(path, content):
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as output:
+        output.write(content)
+    os.replace(output.name, path)
+
+
+def claude_environment(repo):
+    # Only a small bootstrap reaches Nix. In particular, an inherited value that
+    # shellHook copies under another name must never reach a session file.
+    paths = list(
+        dict.fromkeys(
+            str(Path(path).parent)
+            for name in ("nix", "bash", "git", "cat")
+            if (path := executable(name))
+        )
+    )
+    bootstrap = {"HOME": str(Path.home()), "PATH": os.pathsep.join(paths)}
+    prepared = prepare_environment(repo, bootstrap, timeout=50)
+    changes = {
+        key: value
+        for key, value in prepared.items()
+        if bootstrap.get(key) != value
+        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key)
+        and not key.startswith(
+            ("CLAUDE_", "ANTHROPIC_", "DEVSHELL_ENV_", "BASH", "__devshell_")
+        )
+    }
+    changes["PATH"] = os.pathsep.join(
+        path
+        for path in prepared["PATH"].split(os.pathsep)
+        if path and path not in paths
+    )
+    return changes
+
+
+def write_claude_environment(directory, changes):
+    helper = Path(__file__).resolve().parent.parent / "share/devshell-env/claude-env.sh"
+    lines = [
+        f"source {shlex.quote(str(helper))}",
+        f"__devshell_begin {shlex.quote(str(uuid.uuid4()))} || return 0",
+        f"export DEVSHELL_ENV_SESSION={shlex.quote(str(directory))}",
+    ]
+    for key, value in changes.items():
+        command = "__devshell_path" if key == "PATH" else f"__devshell_set {key}"
+        lines.append(f"{command} {shlex.quote(value)}")
+    write_session_file(directory / "env.sh", "\n".join(lines) + "\n")
+
+
+def update_claude_environment(directory, cwd, force=False):
+    repo = None
+    reason = None
+    try:
+        repo = Repository.discover(cwd)
+        target = {
+            "root": str(repo.root),
+            "identity": repo.identity(),
+            "output": selected_output(repo),
+            "trusted": trusted(repo),
+            "flake": (repo.root / "flake.nix").is_file(),
+        }
+    except (InvalidContext, PreparationError, OSError, ValueError) as error:
+        target = {"cwd": str(cwd)}
+        reason = str(error)
+    state = directory / "state.json"
+    if not force and state.exists() and json.loads(state.read_text()) == target:
+        return None
+    # Clear before evaluation, including timeout/interruption. A partial or failed
+    # preparation must never leave the previous project's overlay active.
+    write_claude_environment(directory, {})
+    write_session_file(state, json.dumps(target))
+    if reason:
+        raise PreparationError(reason)
+    changes = claude_environment(repo)
+    if Repository.discover(repo.root) != repo or repo.identity() != target["identity"]:
+        raise InvalidContext("worktree metadata changed during preparation")
+    write_claude_environment(directory, changes)
+    return f"devshell-env: ready; {repo.root}#{target['output']}"
+
+
+def claude_hook():
+    payload = json.load(sys.stdin)
+    event = payload.get("hook_event_name")
+    if event not in ("SessionStart", "CwdChanged", "PreToolUse"):
+        raise InvalidContext("unsupported Claude hook event")
+    directory = claude_session(payload.get("session_id"))
+    env_file = os.environ.get("CLAUDE_ENV_FILE")
+    if not env_file and event != "PreToolUse":
+        raise InvalidContext("Claude hook did not supply CLAUDE_ENV_FILE")
+    with (directory / "lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        script = directory / "env.sh"
+        if event == "PreToolUse" and not script.is_file():
+            raise InvalidContext(
+                "SessionStart has not connected the Claude environment"
+            )
+        if not script.exists():
+            write_claude_environment(directory, {})
+        source = f"\nsource {shlex.quote(str(script))}\n"
+        if env_file:
+            with open(env_file, "a+") as output:
+                output.seek(0)
+                if source not in output.read():
+                    output.write(source)
+        # CwdChanged is asynchronous and is absent on EnterWorktree in Claude
+        # 2.1.263. Only synchronous events activate an overlay, using their actual
+        # cwd, so a delayed CwdChanged can never overwrite a newer environment.
+        if event == "CwdChanged":
+            return 0
+        message = update_claude_environment(
+            directory, payload.get("cwd"), force=event == "SessionStart"
+        )
+    if message:
+        print(json.dumps({"systemMessage": message}))
+    return 0
+
+
+def claude_reload():
+    session = os.environ.get("DEVSHELL_ENV_SESSION")
+    if not session or not (Path(session) / "state.json").is_file():
+        raise InvalidContext("reload requires a managed Claude Bash session")
+    directory = validate_claude_session(Path(session))
+    with (directory / "lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        message = update_claude_environment(directory, Path.cwd(), force=True)
+    print(f"{message}; applies to subsequent Bash commands")
+    return 0
+
+
 def launch_codex(arguments):
     validate_codex_arguments(arguments)
     inherited = git_environment()
@@ -364,13 +523,44 @@ def launch_codex(arguments):
 
 
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "reload":
+        try:
+            return claude_reload()
+        except (
+            PreparationError,
+            InvalidContext,
+            OSError,
+            ValueError,
+            subprocess.TimeoutExpired,
+        ) as error:
+            print(f"devshell-env: {error}; no project environment", file=sys.stderr)
+            return 1
+    if len(sys.argv) == 2 and sys.argv[1] == "claude-hook":
+        try:
+            return claude_hook()
+        except (
+            PreparationError,
+            InvalidContext,
+            OSError,
+            ValueError,
+            subprocess.TimeoutExpired,
+        ) as error:
+            print(
+                json.dumps(
+                    {"systemMessage": f"devshell-env: {error}; no project environment"}
+                )
+            )
+            return 0
     if len(sys.argv) > 1 and sys.argv[1] == "codex":
         try:
             launch_codex(sys.argv[2:])
         except (InvalidContext, OSError) as error:
             print(f"codex-worktree: {error}", file=sys.stderr)
             return 1
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="In a managed Claude Bash session, 'devshell-env reload' refreshes the next Bash command's environment.",
+    )
     parser.add_argument("command", choices=["trust", "untrust", "status"])
     parser.add_argument("directory", nargs="?", default=".")
     args = parser.parse_args()

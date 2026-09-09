@@ -1,35 +1,166 @@
-"""Opt-in real Claude hook/Bash fixture; a loopback model stub supplies commands.
+"""Opt-in real Claude lifecycle; a loopback model stub supplies tool calls.
 
-Run: python3 tests/helpers/claude-env-preflight.py
+Run: python3 tests/helpers/claude-env-preflight.py [--real-nix]
 No real credentials, API calls or user configuration are used. Evidence is left in /tmp.
 """
 
+import argparse
 import http.server
 import json
 import os
+import shlex
+import shutil
 import subprocess
 import threading
 import tempfile
 from pathlib import Path
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--real-nix", action="store_true")
+parser.add_argument("--shell", choices=("bash", "zsh"), default="bash")
+args = parser.parse_args()
+source = Path(__file__).resolve().parents[2]
 p = Path(tempfile.mkdtemp(prefix="claude-env-preflight-", dir="/tmp"))
 project = p / "project"
-project.mkdir()
-(p / "home").mkdir()
+home = p / "home"
+bin_dir = home / ".local/bin"
+bin_dir.mkdir(parents=True)
+(bin_dir / "devshell-env").symlink_to(
+    source / "private_dot_local/bin/executable_devshell-env"
+)
 state = p / "claude-state"
 state.mkdir()
-print(f"Evidence: {p}")
-(state / "env.sh").write_text("export HOOK_255=initial\n")
-(project / "reload-fixture").write_text(
-    '#!/bin/bash\nprintf "export HOOK_255=reloaded\\n" > '
-    + str(state / "env.sh")
-    + "\n"
+print(f"Evidence: {p}", flush=True)
+env = {k: v for k, v in os.environ.items() if k in ("PATH", "SSL_CERT_FILE", "LANG")}
+env.update(
+    HOME=str(home),
+    PATH=str(bin_dir) + os.pathsep + env["PATH"],
+    CLAUDE_CONFIG_DIR=str(state / "config"),
+    XDG_STATE_HOME=str(home / "state"),
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1",
+    TMPDIR="/tmp",
+    DUMMY_SECRET_256="sentinel-inherited-256",
+    PROJECT_NAME="baseline",
+    CLAUDE_CODE_SHELL=shutil.which(args.shell),
 )
-(project / "reload-fixture").chmod(0o755)
-commands = [
-    'printf "observed=%s envfile=%s\\n" "$HOOK_255" "${CLAUDE_ENV_FILE-unset}"',
-    "./reload-fixture",
-    'printf "observed=%s\\n" "$HOOK_255"',
+
+
+def run(command, cwd=None):
+    return subprocess.run(
+        command, cwd=cwd, env=env, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+if args.real_nix:
+    nixpkgs = run(
+        [
+            "nix",
+            "eval",
+            "--offline",
+            "--impure",
+            "--raw",
+            "--expr",
+            f"(builtins.getFlake (toString {source})).inputs.nixpkgs.outPath",
+        ]
+    )
+    system = run(
+        ["nix", "eval", "--impure", "--raw", "--expr", "builtins.currentSystem"]
+    )
+else:
+    (bin_dir / "nix").write_text('#!/bin/bash\ncat "$PWD/environment.sh"\n')
+    (bin_dir / "nix").chmod(0o755)
+
+for name in ("project", "second", "untrusted", "no-flake", "failure"):
+    repo = p / name
+    run(["git", "init", "-q", str(repo)])
+    script = (
+        f"export PROJECT_NAME={name}\n"
+        'export DERIVED_SECRET="prefix-${DUMMY_SECRET_256-unset}"\n'
+        f"printf 'init\\n' >> {shlex.quote(str(p / 'initializations'))}\n"
+    )
+    if name == "project":
+        script += "export FIRST_ONLY=yes\n"
+    if name == "failure":
+        script += "exit 17\n"
+    if args.real_nix:
+        flake = f'''{{
+  inputs.nixpkgs.url = "path:{nixpkgs}";
+  outputs = {{ nixpkgs, ... }}: {{
+    devShells.{system}.default = let pkgs = import nixpkgs {{ system = "{system}"; }}; in pkgs.mkShell {{
+      packages = [ pkgs.hello ];
+      shellHook = builtins.readFile ./environment.sh;
+    }};
+  }};
+}}\n'''
+    else:
+        flake = "fixture\n"
+    if name != "no-flake":
+        (repo / "flake.nix").write_text(flake)
+    (repo / "environment.sh").write_text(script)
+    (repo / "observe.py").write_text(
+        "import os,sys,subprocess\nfrom pathlib import Path\n"
+        "label, expected, first, count = sys.argv[1:]\n"
+        "assert os.environ.get('PROJECT_NAME') == expected, dict((k, os.environ.get(k)) for k in ('PROJECT_NAME','FIRST_ONLY','OTHER_HOOK'))\n"
+        "assert os.environ.get('FIRST_ONLY', 'unset') == first\n"
+        "assert os.environ.get('OTHER_HOOK') == 'kept'\n"
+        "assert 'CLAUDE_ENV_FILE' not in os.environ\n"
+        "assert os.environ['DUMMY_SECRET_256'] == 'sentinel-inherited-256'\n"
+        f"assert len(Path({str(p / 'initializations')!r}).read_text().splitlines()) == int(count)\n"
+        + (
+            "if expected != 'baseline': subprocess.run(['hello'], stdout=subprocess.DEVNULL, check=True)\n"
+            if args.real_nix
+            else ""
+        )
+        + "print('PASS ' + label)\n"
+    )
+    run(["git", "add", "."], repo)
+    run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-qm",
+            "test: fixture",
+        ],
+        repo,
+    )
+    (repo / ".env").write_text("DUMMY_DOTENV=sentinel-dotenv-256\n")
+    (repo / ".envrc").write_text("touch envrc-was-read\n")
+    if name != "untrusted":
+        run(["devshell-env", "trust", str(repo)])
+(project / "subdirectory").mkdir()
+
+
+def observe(label, expected, first, count):
+    path = "../observe.py" if label == "same-root" else "./observe.py"
+    return f"python3 {path} {label} {expected} {first} {count}"
+
+
+calls = [
+    ("Bash", {"command": observe("startup", "project", "yes", 1)}),
+    ("Bash", {"command": "cd subdirectory"}),
+    ("Bash", {"command": observe("same-root", "project", "yes", 1)}),
+    ("EnterWorktree", {"name": "fixture"}),
+    ("Bash", {"command": observe("enter-worktree", "project", "yes", 2)}),
+    ("ExitWorktree", {"action": "keep"}),
+    ("Bash", {"command": f"cd {shlex.quote(str(p / 'second'))}"}),
+    ("Bash", {"command": observe("second-repo", "second", "unset", 4)}),
+    (
+        "Bash",
+        {
+            "command": "printf 'export PROJECT_NAME=reloaded\\n' >> environment.sh; devshell-env reload"
+        },
+    ),
+    ("Bash", {"command": observe("reload", "reloaded", "unset", 5)}),
+    ("Bash", {"command": f"cd {shlex.quote(str(p / 'untrusted'))}"}),
+    ("Bash", {"command": observe("untrusted", "baseline", "unset", 5)}),
+    ("Bash", {"command": f"cd {shlex.quote(str(p / 'no-flake'))}"}),
+    ("Bash", {"command": observe("no-flake", "baseline", "unset", 5)}),
+    ("Bash", {"command": f"cd {shlex.quote(str(p / 'failure'))}"}),
+    ("Bash", {"command": observe("failure", "baseline", "unset", 6)}),
 ]
 
 
@@ -57,10 +188,10 @@ class Server(http.server.BaseHTTPRequestHandler):
             {
                 "type": "tool_use",
                 "id": f"toolu_{count}",
-                "name": "Bash",
-                "input": {"command": commands[count]},
+                "name": calls[count][0],
+                "input": calls[count][1],
             }
-            if count < len(commands)
+            if count < len(calls)
             else {"type": "text", "text": "fixture complete"}
         )
         msg = {
@@ -69,7 +200,7 @@ class Server(http.server.BaseHTTPRequestHandler):
             "role": "assistant",
             "model": "claude-sonnet-4-6",
             "content": [block],
-            "stop_reason": "tool_use" if count < len(commands) else "end_turn",
+            "stop_reason": "tool_use" if count < len(calls) else "end_turn",
             "stop_sequence": None,
             "usage": {"input_tokens": 100, "output_tokens": 20},
         }
@@ -124,44 +255,56 @@ class Server(http.server.BaseHTTPRequestHandler):
 
 server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Server)
 threading.Thread(target=server.serve_forever, daemon=True).start()
-hook = state / "hook.sh"
-hook.write_text(
-    "#!/bin/bash\nprintf 'source \"%s\"\\n' "
-    + str(state / "env.sh")
-    + ' >> "$CLAUDE_ENV_FILE"\nprintf "%s\\n" "$CLAUDE_ENV_FILE" > '
-    + str(state / "env-path")
-    + "\n"
+managed = json.loads((source / "private_dot_claude/settings.json.tmpl").read_text())
+audit = state / "audit.py"
+audit.write_text(
+    "import json,subprocess,sys\n"
+    "from pathlib import Path\n"
+    "payload = sys.stdin.read()\n"
+    f"with Path({str(state / 'events.jsonl')!r}).open('a') as output: output.write(payload + '\\n')\n"
+    f"sys.exit(subprocess.run({[str(bin_dir / 'devshell-env'), 'claude-hook']!r}, input=payload, text=True).returncode)\n"
 )
-hook.chmod(0o755)
 settings = {
-    "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": str(hook)}]}]}
+    "hooks": {
+        event: managed["hooks"][event][:1]
+        for event in ("SessionStart", "CwdChanged", "PreToolUse")
+    }
 }
+for groups in settings["hooks"].values():
+    groups[0]["hooks"][0]["command"] = f"python3 {shlex.quote(str(audit))}"
+settings["hooks"]["SessionStart"].append(
+    {
+        "hooks": [
+            {
+                "type": "command",
+                "command": "printf 'export OTHER_HOOK=kept\\n' >> \"$CLAUDE_ENV_FILE\"",
+            }
+        ]
+    }
+)
 (state / "settings.json").write_text(json.dumps(settings))
-env = {k: v for k, v in os.environ.items() if k in ("PATH", "SSL_CERT_FILE", "LANG")}
 env.update(
-    HOME=str(p / "home"),
-    CLAUDE_CONFIG_DIR=str(state / "config"),
     ANTHROPIC_BASE_URL=f"http://127.0.0.1:{server.server_port}",
     ANTHROPIC_API_KEY="fixture-dummy-key",
-    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1",
-    TMPDIR="/tmp",
 )
 try:
     r = subprocess.run(
         [
             "claude",
             "-p",
-            "Run fixture commands.",
+            "Run the fixture, including EnterWorktree and the directory switches.",
             "--model",
             "claude-sonnet-4-6",
             "--setting-sources",
             "",
+            "--add-dir",
+            str(p),
             "--settings",
             str(state / "settings.json"),
             "--tools",
-            "Bash",
+            "Bash,EnterWorktree,ExitWorktree",
             "--allowedTools",
-            "Bash",
+            "Bash,EnterWorktree,ExitWorktree",
             "--output-format",
             "stream-json",
             "--verbose",
@@ -171,7 +314,7 @@ try:
         env=env,
         capture_output=True,
         text=True,
-        timeout=50,
+        timeout=180,
     )
     (state / "output.jsonl").write_text(r.stdout)
     (state / "stderr").write_text(r.stderr)
@@ -181,16 +324,39 @@ try:
         try:
             item = json.loads(line)
             if item.get("type") == "user" and "tool_use_result" in item:
-                observed.append(item["tool_use_result"]["stdout"])
+                observed.append(item["tool_use_result"])
         except ValueError:
             pass
-    print(observed)
-    assert r.returncode == 0 and observed == [
-        "observed=initial envfile=unset",
-        "",
-        "observed=reloaded",
-    ], r.stderr[-1200:]
-    print("PASS: SessionStart -> Bash -> explicit reload -> subsequent Bash")
+    print(json.dumps(observed, indent=2))
+    assert r.returncode == 0, r.stderr[-1200:]
+    for label in (
+        "startup",
+        "same-root",
+        "enter-worktree",
+        "second-repo",
+        "reload",
+        "untrusted",
+        "no-flake",
+        "failure",
+    ):
+        assert any(
+            isinstance(item, dict) and item.get("stdout", "") == f"PASS {label}"
+            for item in observed
+        ), label
+    for directory in (
+        state / "config/session-env",
+        state / "config/projects/.devshell-env",
+        home / ".cache",
+    ):
+        for path in directory.rglob("*"):
+            if path.is_file():
+                assert b"sentinel-inherited-256" not in path.read_bytes(), path
+                assert b"sentinel-dotenv-256" not in path.read_bytes(), path
+    assert not list(p.rglob("envrc-was-read"))
+    print(
+        "PASS: real Claude lifecycle and environment files; Nix="
+        + ("real" if args.real_nix else "fixture")
+    )
 except subprocess.TimeoutExpired as error:
     raise RuntimeError("Claude lifecycle timed out") from error
 finally:
