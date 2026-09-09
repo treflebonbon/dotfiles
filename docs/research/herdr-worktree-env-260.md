@@ -87,3 +87,9 @@ herdr plugin log list --plugin dotfiles.copy-env --limit 10
 管理対象の検証結果は `/tmp/herdr-260-local-w8zr_yq8/result.json`。同じディレクトリに `first-worktree-plugin.json`、`missing-source-plugin.json`、`delayed-copy-plugin.json`、各 create の応答と `stop.log` を保存した。再現 script は task worktree の `tmp/issue-260/local-probe.py`。元の無効な setup 設定の検証は `/tmp/herdr-260-lljk55sx/result.json`、参考 `tdi` plugin の検証は `/tmp/herdr-260-plugin-hkq5dm9q/result.json` に分けて残す。これらはローカルの一時証跡であり、恒久的な成果物ではない。
 
 macOS の native 実行、TUI の実操作、実 agent の起動待機は未検証。TUI も同じ `Method::WorktreeCreate` を送るため同じイベントになるという判断は [TUI source](https://github.com/herdrdev/herdr/blob/b99002ac99b09e00b4ca692436cb15a6b0d676f1/src/client/shell/worktrees.rs#L263-L305) からの推論に限る。Windows はこの plugin の対象外。live source の更新、通常 Herdr への登録、task worktree からの `chezmoi apply` は行っていない。
+
+### 必須チェックとレビュー
+
+追加 Bats は15/15成功。`bunx tsc --noEmit`、実 command を抽出した ShellCheck / shfmt、`git diff --check` と commit hook の oxfmt / gitleaks / cog が成功した。`code-review` は fixed point `f0257af752718826b81f15736862b9ead9a452a0` から実装 commit `5486199` までを独立した2軸で確認し、Standards / Spec ともに指摘0件だった。
+
+`env -u FORCE_COLOR bun run test` は全544件を実行し、535件成功・9件失敗・skip 0、exit 1。失敗は既存の `tests/design-hook.bats` の9件で、即時・Stop finding が出力されないもの。変更前の `f0257af` から同テスト・Claude 設定・Codex hook 設定を隔離ディレクトリへ取り出し、現在の3ファイルと内容が同一であることを確認したうえで、同じ9件の失敗を再現した。この実装による回帰ではないが、全体テストの成功とは扱わない。Herdr パッケージの全対応 system / shell 評価を含む残りは成功した。ログは task worktree の `tmp/issue-260/full-suite.log` と `tmp/issue-260/baseline-design-hook.log` に保存し、既存失敗を隠すための skip やテスト変更はしていない。
