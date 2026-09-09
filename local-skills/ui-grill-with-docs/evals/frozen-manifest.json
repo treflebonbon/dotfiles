@@ -1,5 +1,6 @@
 {
   "date": "2026-09-10",
+  "timezone": "Asia/Tokyo",
   "target_versions": {
     "baseline": {
       "iterations": [1, 2],

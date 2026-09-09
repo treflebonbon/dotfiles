@@ -1,5 +1,8 @@
 {
   "date": "2026-09-10",
+  "timezone": "Asia/Tokyo",
+  "supplemental_audit": "carry-forward-audit.json",
+  "scoring_note": "Original scores use the frozen scenarios.json checklist. The supplemental audit separately checks question identity and does not change scores or execution_count.",
   "execution_count": 9,
   "records": [
     {
