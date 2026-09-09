@@ -244,9 +244,14 @@ exec "$1" -I -c 'import json,os; print(json.dumps(dict(os.environ)))'
             "SHELL",
             "BASH_ENV",
             "ENV",
+            "XDG_CONFIG_HOME",
+            "XDG_CACHE_HOME",
+            "XDG_DATA_HOME",
+            "XDG_STATE_HOME",
+            "XDG_RUNTIME_DIR",
         }:
             continue
-        if key.startswith(("GIT_", "CODEX_", "XDG_")):
+        if key.startswith(("GIT_", "CODEX_")):
             continue
         if bootstrap.get(key) != value:
             environment[key] = value

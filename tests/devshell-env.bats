@@ -287,6 +287,22 @@ EOF
   [ ! -e "$FIXTURE/nix-calls" ]
 }
 
+@test "devShell data search paths reach the child while runtime state directories stay inherited" {
+  install_runtime_fixture
+  cli trust "$FIXTURE/repo"
+  cat >>"$FIXTURE/nix-env" <<EOF
+export XDG_DATA_DIRS='$FIXTURE/tools/share'
+export XDG_STATE_HOME=/wrong
+EOF
+  cat >"$FIXTURE/bin/codex" <<'EOF'
+#!/bin/bash
+printf 'data=%s state=%s\n' "$XDG_DATA_DIRS" "$XDG_STATE_HOME"
+EOF
+  run adapter
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"data=$FIXTURE/tools/share state=$FIXTURE/state"* ]]
+}
+
 @test "real Nix prepares the worktree tool and runs shellHook once without saving inherited secrets" {
   [ "${DEVSHELL_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with DEVSHELL_ENV_REAL_NIX=1; requires real Nix and cached nixpkgs"
   local nixpkgs system

@@ -41,6 +41,16 @@ managed `dotfiles-secure` profile は workspace write、protected-path deny、ne
 - primary checkout、non-Git directory、unresolved metadata は Codex を起動せず fail closed にする。full sandbox bypass、parent/common directory の包括許可、routine manual-shell Git へ fallback しない。
 - Worktree Activation 後の `git add`、`git commit`、`git-push-topic`、`to-pr` は同じ narrow sandbox 内で実行する。common dir は repository 内の objects / refs / config を共有する Git の構造上必要だが、別 repository の Git metadata は許可しない。
 
+## 2026-09-09 amendment: 信頼済み devShell の準備
+
+[Issue #255](https://github.com/treflebonbon/dotfiles/issues/255) の決定に従い、raw Codex の Runtime Adapter は上記の read-only discovery と process launch に加えて、検証済み root の信頼済み devShell を起動前に準備する。これは「metadata の read-only discovery と Codex process launch だけを所有する」という境界の限定的な拡張である。Orca native Codex の所有権は [ADR-0046](0046-separate-orca-native-worktree-entry.md) のまま維持する。
+
+repo の信頼登録・解除による永続書込みは、利用者が明示実行する `devshell-env trust/untrust` が所有する。adapter の自動経路は登録を読み、同じ Git common directory に所属することを確認した worktree の flake だけを評価する。信頼にはその repo の worktree と将来の flake／shellHook 変更が含まれるが、agent の filesystem・network permission を広げるものではない。
+
+未登録、flake 不在、Nix／shellHook の準備失敗は理由を通知し、プロジェクト環境を加えず調査用に起動する。不正な起動要求、metadata 不一致、準備後の所属・identity 変更は引き続き Codex 未起動で fail closed にする。起動元から選んだ Codex の実行ファイル、検証済み root と Active Git Metadata Boundary、標準 profile を準備後にも固定する。
+
+新経路は `.envrc`、dotenv、秘密取得と独自の永続プロジェクト環境キャッシュを追加しない。環境準備は Codex sandbox 起動前に行い、flake 更新はセッション再起動で反映する。Git 操作・worktree 作成・workflow policy は引き続き adapter の責務に含めない。実装と検証の正本は [検証記録](../research/devshell-env-255.md) と [利用方法](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) を参照。
+
 ## Verification Matrix
 
 | Contract                                                        | Public seam                                                                                                      |
