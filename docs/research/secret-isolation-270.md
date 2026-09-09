@@ -10,6 +10,8 @@ timestamp: 2026-09-09
 
 対象は [#270](https://github.com/treflebonbon/dotfiles/issues/270)、親仕様は [#268](https://github.com/treflebonbon/dotfiles/issues/268)。検証コードは [起動 script](../../scripts/secret-isolation-probe.py) と [合成連携](../../tests/fixtures/secret-isolation/runtime.py)、自動検証の入口は [Bats](../../tests/secret-isolation.bats)。本番の `codex-worktree`、Herdr、配備済み設定は変更しない。
 
+以下は初回と PR #276 の記録である。通常 Linux・実サービス・実 worktree に残っていた不足の追加検証は文末を参照する。
+
 ## 検証する境界
 
 host 上では固定された公開 CLI の closure を `nix copy --to <専用ディレクトリ> --no-check-sigs` で準備する。この時点ではプロジェクトの flake や shellHook を評価しない。環境は専用 HOME と固定 PATH から構築し、呼出し元の認証・設定を継承しない。コピー元は明示したツールの Nix store path とその依存だけで、host の store 全体を bind しない。署名検査の省略は既にローカルで信頼する入力を検証専用 store へコピーする操作に限る。
@@ -78,7 +80,7 @@ bats tests/secret-isolation.bats
 
 `isolation-timeout`／`isolation-timeout-leak` は外側プロセスを2秒で停止し、途中の stdout／stderr を `runtime.log` に保存する。`codex-timeout` は合成 API の応答を遅延させ、実 Codex を5秒で停止する。Codex の stdout／stderr と provider の要求記録を保存してから失敗を返す。いずれも `report.json` に `timeout_stage` と `timeout_seconds` を残し、ログの秘密値検査を終えてから簡潔なエラーで終了する。通常実行の期限は外側180秒、Codex90秒のまま。タイムアウトも受入成功にはしない。
 
-**#270 は未完了として扱う。** 通常 Linux での同一コマンドの実測と、実サービスの最小認証・通信経路、実 worktree から秘密のない入力を選び成果を返す契約が残る。host network・HOME・control socket・worktree 全体を共有することで、この未確認を埋めない。#271 以降の本番移行を開始する根拠にはしない。
+**初回記録時点では #270 は未完了として扱う。** 通常 Linux での同一コマンドの実測と、実サービスの最小認証・通信経路、実 worktree から秘密のない入力を選び成果を返す契約が残る。host network・HOME・control socket・worktree 全体を共有することで、この未確認を埋めない。#271 以降の本番移行を開始する根拠にはしない。
 
 関連 Bats 4 件は成功し、Python 構文検査・`bunx tsc --noEmit` も成功した。`bun run test` の最終実行は **602 件中 594 成功・4 skip・4 失敗**だった（`/tmp/secret-isolation-270-full-tests-final.log`）。本 fixture の 4 件は全体実行でも成功。skip は既存の実 Nix テンプレート・with-env 等の opt-in 検証であり、本 fixture の実 Nix／Codex 検証を skip したものではない。
 
@@ -95,3 +97,31 @@ bats --print-output-on-failure --filter 'dogfood without|annotated dogfood|empty
 実ランタイムテストの依存不足と、タイムアウト時に診断を失う2件を修正した。Nix／Codex 等を含まない PATH の通常実行は1成功・4 skipとなり、`codex`・`gh`・`bwrap` を個別に除いた明示実行は、それぞれ不足ツール名を示して失敗する。タイムアウトの3ケースは実 bubblewrap／Codex を使い、途中ログ・期限・発生段階・秘密値の伏せ字と traceback 非出力を確認した。
 
 `SECRET_ISOLATION_REAL_RUNTIME=1 bun run test` は **610件中606成功・4 skip・失敗0件**（`/tmp/review-276.6KQhnA/full-tests.log`）。本 fixture の5件は全て実行・成功し、skip は既存の実 Nix opt-in 検証4件。以前失敗した dogfood の4件も今回は全体実行で成功した。これは今回の実測結果であり、以前の不安定さの原因を解消したという主張ではない。Python構文検査も成功した。通常 Linux・実認証接続・実 worktree の入力と成果返却は引き続き未確認で、#270 の未完了扱いを維持する。
+
+## #271 着手時の追加検証（2026-09-10）
+
+#270 が merge 済みでも上記の未完了が明記されていたため、ユーザーの指示でその解消を今回の作業に含めた。本番入口を先に置き換えず、次の実行可能な証跡を追加した。
+
+| 追加項目   | 結果と範囲                                                                                                                                                                                                                    |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 通常 Linux | QEMU/KVM の Linux 6.18.33、非 root uid 1000 で既存の統合 probe が成功。kernel 名を変えた代用ではない。                                                                                                                        |
+| 実サービス | WSL2 の同じ隔離起動から Nix・shellHook、hosted model を使う実 Codex、子プロセスの edit/build/test/commit、実 gh の認証付き公開 GET、stdio MCP tool call、host worktree への同一 commit 返却が成功。                           |
+| 入力と返却 | 明示した public HEAD/history とファイル hash のみを独立コピー。host 全体や Git metadata の共有を使わない。commit と stage/未 stage の区別、新規通常ファイル、次回起動の保持、host 競合の拒否を WSL2/通常 Linux の両方で確認。 |
+| 依存取得   | WSL2 の外側隔離内で実 Nix が公開 cache を取得。固定 host:443・public DNS IP の gateway 経由で、別 domain・localhost・別 port を拒否。                                                                                         |
+
+方式、入力契約、再現コマンド、結果と残る範囲は [worktree input/return](secret-isolation-worktree-270.md)、[Linux VM](secret-isolation-linux-vm-270.md)、[認証・通信](codex-isolation-connectivity-271.md) に記録した。使った runtime の版は上記の初回記録と同じである。
+
+主な追加コマンドは以下。公開 CA の絶対パスは、信頼済み Nix `cacert` package の証明書 bundle を明示する。
+
+```bash
+SECRET_ISOLATION_REAL_RUNTIME=1 \
+SECRET_ISOLATION_REAL_SERVICES=1 \
+SECRET_ISOLATION_REAL_MODEL=1 \
+SECRET_ISOLATION_REAL_DEPENDENCIES=1 \
+SECRET_ISOLATION_CA_BUNDLE=/nix/store/SELECTED-cacert/etc/ssl/certs/ca-bundle.crt \
+bats --print-output-on-failure tests/secret-isolation-worktree.bats
+
+python3 scripts/secret-isolation-linux-vm.py --output /tmp/secret-isolation-linux-vm-270-result
+```
+
+追加検証の成功を #271 の実装完成とは扱わない。公開 `codex-worktree` への接続、既存 trust/permission/network/output、Git hooks、通常起動と失敗時の回帰は #271 の対象として残る。通常 Linux の実サービス認証、managed proxy と dependency gateway の重ね合わせ、GitHub push/PR と管理 MCP の利用者設定統合は上表の成功に含めない。既存合成 probe の `production_ready=false` は維持する。

@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""Single-service, fixed-endpoint gateways for the #270 runtime experiment."""
+
+import argparse
+import http.client
+from http.server import BaseHTTPRequestHandler
+import ipaddress
+import json
+import os
+from pathlib import Path
+import select
+import shutil
+import socket
+import socketserver
+import ssl
+import subprocess
+import sys
+import threading
+
+
+# The probe needs only the public Nix binary cache. Production domain policy
+# remains a separate #271 integration decision.
+DEPENDENCY_HOSTS = frozenset({"cache.nixos.org"})
+
+
+def relay(left, right):
+    peers = [left, right]
+    while peers:
+        ready, _, _ = select.select(peers, [], [], 120)
+        if not ready:
+            return
+        for peer in ready:
+            data = peer.recv(65536)
+            target = right if peer is left else left
+            if data:
+                target.sendall(data)
+            else:
+                peers.remove(peer)
+                target.shutdown(socket.SHUT_WR)
+
+
+def local_tools(tools):
+    if not isinstance(tools, list):
+        return False
+    for tool in tools:
+        if not isinstance(tool, dict):
+            return False
+        kind = tool.get("type")
+        if kind == "namespace":
+            if not local_tools(tool.get("tools", [])):
+                return False
+        elif kind not in ("function", "custom"):
+            return False
+    return True
+
+
+class UnixServer(socketserver.ThreadingUnixStreamServer):
+    daemon_threads = True
+
+
+class Gateway(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+
+    def log_message(self, *args):
+        pass
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(120)
+
+    def reject(self):
+        self.send_response(403)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_HEAD = reject
+
+    def do_CONNECT(self):
+        if self.server.service != "dependencies" or self.path not in {host + ":443" for host in DEPENDENCY_HOSTS}:
+            return self.reject()
+        if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") != "0" or self.headers.get("Proxy-Authorization"):
+            return self.reject()
+        connected = False
+        try:
+            host = self.path[:-4]
+            addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+            if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
+                return self.reject()
+            family, kind, protocol, _, address = addresses[0]
+            with socket.socket(family, kind, protocol) as upstream:
+                upstream.settimeout(120)
+                # Connect to the validated address without a second DNS lookup.
+                upstream.connect(address)
+                self.send_response(200, "Connection established")
+                self.end_headers()
+                connected = True
+                self.server.requests += 1
+                relay(self.connection, upstream)
+        except (OSError, ValueError):
+            if not connected:
+                self.fail_upstream()
+
+    def do_GET(self):
+        if self.server.service != "github" or self.path != "/repos/octocat/Hello-World" or self.headers.get("Host") != "api.github.com":
+            return self.reject()
+        if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") != "0":
+            return self.reject()
+        try:
+            result = subprocess.run(
+                [self.server.gh, "api", "repos/octocat/Hello-World", "--method", "GET", "--jq", "{full_name:.full_name}"],
+                env={"HOME": self.server.host_home, "PATH": self.server.tool_path, "GH_HOST": "github.com", "GH_PROMPT_DISABLED": "1"},
+                capture_output=True, timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return self.fail_upstream()
+        if result.returncode:
+            return self.fail_upstream()
+        self.server.requests += 1
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(result.stdout)))
+        self.end_headers()
+        self.wfile.write(result.stdout)
+
+    def fail_upstream(self):
+        self.send_response(502)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_POST(self):
+        if self.server.service != "model" or self.path != "/v1/responses":
+            return self.reject()
+        if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Encoding"):
+            return self.reject()
+        length = self.headers.get("Content-Length", "")
+        if not length.isdigit() or not 0 < int(length) <= 16 * 1024 * 1024:
+            return self.reject()
+        connection = None
+        started = False
+        try:
+            payload = json.loads(self.rfile.read(int(length)))
+            # Permit client-executed functions, never authenticated remote tools.
+            if not isinstance(payload, dict) or not local_tools(payload.get("tools", [])):
+                return self.reject()
+            if any(key in payload for key in ("previous_response_id", "conversation", "background")):
+                return self.reject()
+            payload["store"] = False
+            headers = {
+                "Content-Type": "application/json", "Accept": "text/event-stream",
+                "Authorization": "Bearer " + self.server.access_token,
+                "ChatGPT-Account-Id": self.server.account_id,
+                "User-Agent": "codex-isolation-probe/270",
+            }
+            connection = http.client.HTTPSConnection("chatgpt.com", timeout=120, context=ssl.create_default_context())
+            connection.request("POST", "/backend-api/codex/responses", body=json.dumps(payload).encode(), headers=headers)
+            response = connection.getresponse()
+            self.server.last_status = response.status
+            if response.status != 200:
+                connection.close()
+                self.send_response(response.status)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.server.requests += 1
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            started = True
+            while chunk := response.read1(65536):
+                self.wfile.write(chunk)
+                self.wfile.flush()
+        except (ValueError, TypeError, OSError, http.client.HTTPException):
+            if not started:
+                self.fail_upstream()
+        finally:
+            if connection is not None:
+                connection.close()
+
+
+def start_gateway(directory, service):
+    directory.mkdir(mode=0o700)
+    server = UnixServer(str(directory / "service.sock"), Gateway)
+    server.service = service
+    server.requests = 0
+    server.last_status = None
+    server.host_home = str(Path.home())
+    if service == "github":
+        server.gh = str(Path(shutil.which("gh")).resolve())
+        server.tool_path = os.pathsep.join({str(Path(shutil.which(name)).resolve().parent) for name in ("gh", "git")})
+    if service == "model":
+        codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
+        with (codex_home / "auth.json").open() as source:
+            tokens = json.load(source)["tokens"]
+        server.access_token = tokens["access_token"]
+        server.account_id = tokens["account_id"]
+        if not server.access_token or not server.account_id:
+            raise ValueError("host ChatGPT login is unavailable")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def bridge(unix_socket, port):
+    class Forward(socketserver.BaseRequestHandler):
+        def handle(self):
+            with socket.socket(socket.AF_UNIX) as upstream:
+                upstream.connect(unix_socket)
+                try:
+                    relay(self.request, upstream)
+                except OSError:
+                    pass
+    with socketserver.ThreadingTCPServer(("127.0.0.1", port), Forward) as server:
+        server.serve_forever()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("socket")
+    parser.add_argument("port", type=int)
+    args = parser.parse_args()
+    bridge(args.socket, args.port)
