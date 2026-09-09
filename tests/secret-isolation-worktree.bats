@@ -328,9 +328,10 @@ from pathlib import Path
 import shlex, shutil, sys
 fixture = Path(sys.argv[1])
 real_git = shlex.quote(shutil.which('git'))
+bash = shutil.which('bash')
 work = shlex.quote(str(fixture / 'work'))
 wrapper = fixture / 'bin/git'
-wrapper.write_text(f'''#!/bin/bash
+wrapper.write_text(f'''#!{bash}
 {real_git} "$@"
 result=$?
 case " $* " in

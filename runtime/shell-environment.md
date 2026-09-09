@@ -81,6 +81,8 @@ codex-worktree
 
 既定 output は `default`、WSL かつ現在の root に `.wsl-browser-free` があれば `wsl`。`DEVSHELL_ENV_OUTPUT=custom codex-worktree` で明示できる。devShell が生成する通常変数・PATH・shellHook の結果は Codex に渡すが、起動元の任意変数は復元しない。選択済みの Codex・Python・Git などの closure、launcher、管理ポリシーは読み取り専用にする。
 
+Codex の対話画面で行うディレクトリの信頼や操作設定の保存は、session 専用の `config.toml` に限る。host の設定へは戻さない。AGENTS・rules と、標準 permission・当該 Git metadata の write を定義する requirements は読み取り専用のまま維持する。session config に同名 permission profile を追加しても、次の config 読込み時に競合として拒否する。
+
 標準 `dotfiles-secure` を隔離内の `/etc/codex/requirements.toml` に固定し、当該 Git metadata だけ write に加える。追加 workspace root は無効にする。同名 profile を project config で再定義すると起動を拒否する。root dotenv の read 例外は追加しない。Codex が deny 対象に空の placeholder を作る場合はあるが、ホストの内容は入らず、その placeholder を作業結果として返さない。
 
 終了時は commit SHA・index・未 commit の通常ファイルを元の worktree に返し、次回の入力登録を更新する。実行中は同じ host worktree を並行編集しない。host 側の HEAD・index・入力が変わった場合や、未登録ファイルと結果が衝突した場合は返却を止め、隔離結果を保持する。host で flake や公開ファイルを変更した場合は内容を再確認して `admit` し直し、再起動する。隔離内で変更して返却できたファイルは再登録済みとなる。

@@ -565,11 +565,16 @@ export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
         )
         with_env.chmod(0o755)
         mounts.extend(["--ro-bind", str(runtime_copy), "/nix/codex-isolation"])
+        (output / "config").mkdir()
+        # Codex atomically replaces its session config when saving TUI trust.
+        # Permissions remain in the separate, immutable requirements layer.
+        mounts.extend(["--bind", str(output / "config"), "/home/agent/.codex"])
         for name, content in runtime["config_files"].items():
             public = output / "config" / name
             public.parent.mkdir(parents=True, exist_ok=True)
             public.write_text(content)
-            mounts.extend(["--ro-bind", str(public), "/home/agent/.codex/" + name])
+            if name != "config.toml":
+                mounts.extend(["--ro-bind", str(public), "/home/agent/.codex/" + name])
         specification = runtime_copy / "launch.json"
         specification.write_text(
             json.dumps(

@@ -8,9 +8,11 @@
 
 Python の trusted bootstrap が user/network namespace を作り、その network namespace 内だけで DNS の低位 port を使用可能にする。続く bubblewrap はこの新しい network だけを共有し、filesystem・PID・IPC 等を分離して capability を全て落とす。host HOME・process・daemon・cache・継承変数を入れず、公開 snapshot と専用 Nix store で Nix／shellHook を実行する。
 
-選択した Nix CLI closure はコピーした後に読み取り専用 mount にする。新しい derivation の追加領域は専用 store に残す。launcher、runtime specification、managed config、`/etc/codex/requirements.toml` も読み取り専用。標準 `dotfiles-secure` と当該 Git metadata の write を requirements に固定し、project config の同名 profile は conflict として拒否する。
+選択した Nix CLI closure はコピーした後に読み取り専用 mount にする。新しい derivation の追加領域は専用 store に残す。launcher、runtime specification、AGENTS・rules、`/etc/codex/requirements.toml` も読み取り専用。標準 `dotfiles-secure` と当該 Git metadata の write を requirements に固定し、user／project config の同名 profile は読込み時に conflict として拒否する。
 
-通常ファイル・index・commit を終了後に host worktree に返す。host の並行変更、symlink 等の結果、未登録ファイルとの衝突は返却を拒否する。Codex が concrete deny に作る空の未追跡 placeholder は返却対象にしない。初期化失敗は返却せず session を保持する。複数ファイルの返却途中の I/O 障害に対する atomic rollback は保証しない。
+Codex の初回対話画面は `config/batchWrite` でディレクトリの信頼を保存するため、session 専用の `config.toml` は置換・更新可能にする。host の設定へは反映しない。読み取り専用 config で初回画面から進めなくなる問題を実 TUI と同じ実 app-server RPC で再現し、信頼保存の成功と、permission 差替え後の config 読込み拒否を検証した。
+
+通常ファイル・index・commit を終了後に host worktree に返す。host の並行変更、symlink 等の結果、未登録ファイルとの衝突は返却を拒否する。初回検査と index lock 取得の間に完了した host の `git add` も、lock 取得後の再照合で保持する。Codex が concrete deny に作る空の未追跡 placeholder は返却対象にしない。初期化失敗は返却せず session を保持する。複数ファイルの返却途中の I/O 障害に対する atomic rollback は保証しない。
 
 ## 通信
 

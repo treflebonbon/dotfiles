@@ -27,6 +27,62 @@ TOML
   [ ! -e "$RAW_BASE/work/launched" ]
 }
 
+@test "Codex can save first-start trust inside the session while the required policy remains fixed" {
+  raw_fixture
+  # No model request is made: exercise the same real config RPC as TUI onboarding.
+  printf '{"tokens":{"access_token":"dummy-unused","account_id":"dummy-unused"}}\n' > "$RAW_BASE/home/.codex/auth.json"
+  raw_admit flake.nix task.sh
+  run python3 - "$RAW_BASE" <<'PY'
+import json, os, select, subprocess, sys, time
+from pathlib import Path
+base = Path(sys.argv[1])
+host_config = (base / 'home/.codex/config.toml').read_bytes()
+environment = os.environ | {'HOME': str(base / 'home'), 'CODEX_HOME': str(base / 'home/.codex'), 'XDG_STATE_HOME': str(base / 'state')}
+with (base / 'config-rpc.log').open('w') as log:
+    process = subprocess.Popen([str(base / 'bin/codex-worktree'), 'app-server'], cwd=base / 'work', env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log)
+    pending = bytearray()
+    def rpc(identifier, method, params):
+        process.stdin.write((json.dumps({'id': identifier, 'method': method, 'params': params}) + '\n').encode())
+        process.stdin.flush()
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline:
+            if b'\n' not in pending:
+                if not select.select([process.stdout], [], [], 1)[0]:
+                    continue
+                chunk = os.read(process.stdout.fileno(), 65536)
+                assert chunk, 'raw app-server exited before its response'
+                pending.extend(chunk)
+            while b'\n' in pending:
+                line, _, remaining = pending.partition(b'\n')
+                pending[:] = remaining
+                if not line.startswith(b'{'):
+                    continue
+                response = json.loads(line)
+                if response.get('id') == identifier:
+                    return response
+        raise AssertionError('raw app-server response timed out')
+    try:
+        assert 'result' in rpc(1, 'initialize', {'clientInfo': {'name': 'raw-trust-test', 'version': '1'}, 'capabilities': {'experimentalApi': True}})
+        key = 'projects.' + json.dumps(str(base / 'repo')) + '.trust_level'
+        response = rpc(2, 'config/batchWrite', {'edits': [{'keyPath': key, 'value': 'trusted', 'mergeStrategy': 'replace'}], 'reloadUserConfig': True})
+        assert 'result' in response, response
+        response = rpc(3, 'config/read', {'includeLayers': False})
+        config = response['result']['config']
+        assert config['projects'][str(base / 'repo')]['trust_level'] == 'trusted'
+        response = rpc(4, 'config/batchWrite', {'edits': [{'keyPath': 'permissions.dotfiles-secure', 'value': {'extends': ':workspace', 'filesystem': {':root': 'write'}}, 'mergeStrategy': 'replace'}], 'reloadUserConfig': True})
+        assert 'result' in response, response
+        checked = rpc(5, 'config/read', {'includeLayers': False})
+        assert 'conflicts with a config-defined profile' in checked.get('error', {}).get('message', ''), 'onboarding config write replaced the required profile'
+        assert (base / 'home/.codex/config.toml').read_bytes() == host_config
+        print('SESSION_TRUST_SAVED_POLICY_FIXED')
+    finally:
+        process.stdin.close()
+        process.wait(timeout=30)
+PY
+  raw_assert_status 0
+  [[ "$output" == *SESSION_TRUST_SAVED_POLICY_FIXED* ]]
+}
+
 @test "raw input admission and startup reject changed, linked and newly added secret inputs" {
   raw_fixture
   raw_admit flake.nix task.sh
