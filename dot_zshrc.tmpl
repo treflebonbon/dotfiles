@@ -2,7 +2,7 @@
 # zsh configuration managed by chezmoi (macOS only — see ADR-0020)
 
 # nix-devshell グローバル環境を有効化（bash 版 dot_bashrc.tmpl と同じ
-# stale-while-revalidate キャッシュを流用）。direnv 管轄外のディレクトリ
+# stale-while-revalidate キャッシュを流用）。プロジェクト開発シェルの外
 # （$HOME 直下等、通常の macOS ログインシェル）でも、以降の command -v
 # チェックより前に starship/atuin/fzf/zoxide/ghq 等の devshell ツールを
 # PATH に乗せる。キャッシュ実体は `nix print-dev-env` の bash 専用フォー
@@ -25,9 +25,6 @@ if [ -d "$HOME/.config/nix-devshell" ] && command -v nix >/dev/null 2>&1 && comm
   fi
   unset _nd_cache _nd_env
 fi
-
-# direnv: ディレクトリごとの環境変数管理
-command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
 
 # starship プロンプト
 command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"

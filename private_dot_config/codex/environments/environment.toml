@@ -3,9 +3,5 @@ version = 1
 name = "default"
 
 [setup]
-script = '''
-bash -ilc '
-set -e
-direnv allow .
-'
-'''
+# Project environments are explicit in Desktop; raw CLI preparation belongs to codex-worktree.
+script = ""

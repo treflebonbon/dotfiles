@@ -177,7 +177,23 @@ Windows Codex Desktop の WSL mode では `CODEX_INTERNAL_ORIGINATOR_OVERRIDE=Co
 
 ## プロジェクト固有設定
 
-プロジェクトごとの追加シェル設定は以下のいずれかに記述:
+開発ツール・通常変数・非秘密の初期化はプロジェクトの `flake.nix` と `flake.lock` に集約します。bash／zsh の標準起動は direnv 自動 hook を登録しません。共通ツールは既存のユーザー環境キャッシュから利用できます。
+
+```bash
+nix develop .#default           # プロジェクト開発シェルへ入る
+exit                            # 起動元の bash／zsh へ戻る
+devshell-env trust               # repo と所属 worktree の AI 自動読込みを信頼登録
+devshell-env status              # root・output・登録状態を確認
+devshell-env untrust             # 次回の自動読込みから解除
+```
+
+dotfiles の WSL2 開発では `nix develop .#wsl` を使います。Claude は後続 Bash に非秘密環境を反映し、flake 編集後は `devshell-env reload`。raw Codex は linked worktree の `codex-worktree` から準備し、編集後は再起動します。Codex Desktop／Orca native Codex に自動環境読込みは追加しません。
+
+dotenv が必要なコマンドは、人間は `nix run .#with-env -- command`、準備済み raw Codex は `with-env --prepared -- command` を使います。現在の root `.env` を対象コマンドと子だけに渡し、同名変数は起動元 → devShell → `.env` の順に優先します。Claude の dotenv 注入は対象外です。raw Codex 自身も root `.env` を読めるため、AI から秘密を隠す保証はありません。正式入口の準備失敗を直接実行で迂回しません。
+
+direnv 本体と既存 `.envrc` は残り、内容を確認したうえで `direnv allow .` / `direnv exec . command` を明示利用できます。[移行・更新・復旧の手順](runtime/shell-environment.md#既存-repo-の移行)と各言語テンプレートの `DEVELOPMENT.md` に、dev／test app への組込み例をまとめています。未 merge の source は実配備せず、受入後に live source で `chezmoi apply` して新しい端末を開きます。
+
+シェル固有の表示や対話設定は以下のいずれかに記述:
 
 1. `${WORKSPACE_FOLDER}/.devcontainer/dotfiles/bash/.bashrc.local`
 2. `${WORKSPACE_FOLDER}/.bashrc.local`

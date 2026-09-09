@@ -1,6 +1,7 @@
 """Opt-in real Claude lifecycle; a loopback model stub supplies tool calls.
 
 Run: python3 tests/helpers/claude-env-preflight.py [--real-nix]
+With --real-nix --standard-shell, also verify rendered shell startup and human/raw entries.
 No real credentials, API calls or user configuration are used. Evidence is left in /tmp.
 """
 
@@ -8,17 +9,23 @@ import argparse
 import http.server
 import json
 import os
+import pty
+import select
 import shlex
 import shutil
 import subprocess
 import threading
 import tempfile
+import time
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--real-nix", action="store_true")
 parser.add_argument("--shell", choices=("bash", "zsh"), default="bash")
+parser.add_argument("--standard-shell", action="store_true")
 args = parser.parse_args()
+if args.standard_shell and not args.real_nix:
+    parser.error("--standard-shell requires --real-nix")
 source = Path(__file__).resolve().parents[2]
 p = Path(tempfile.mkdtemp(prefix="claude-env-preflight-", dir="/tmp"))
 project = p / "project"
@@ -46,9 +53,55 @@ env.update(
 
 
 def run(command, cwd=None):
-    return subprocess.run(
-        command, cwd=cwd, env=env, capture_output=True, text=True, check=True
-    ).stdout.strip()
+    result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True)
+    with (p / "commands.log").open("a") as log:
+        log.write(f"{command!r}\n{result.stdout}{result.stderr}\n")
+    if result.returncode:
+        print(result.stdout + result.stderr, flush=True)
+    result.check_returncode()
+    return result.stdout.strip()
+
+
+def from_standard_shell(command):
+    return [env["CLAUDE_CODE_SHELL"], "-ic", 'exec "$@"', "_", *command]
+
+
+if args.standard_shell:
+    env.update(ZDOTDIR=str(home), NIX_PROFILES="fixture", TERM="dumb")
+    for filename in ("bashrc", "zshrc"):
+        rendered = run(
+            [
+                "chezmoi",
+                "execute-template",
+                "--config",
+                "/dev/null",
+                "--config-format",
+                "toml",
+                "--source",
+                str(source),
+                "--destination",
+                str(home),
+                "--persistent-state",
+                str(p / "chezmoi.db"),
+                "--override-data",
+                '{"workspace_folder":"/nonexistent-workspace"}',
+                "--file",
+                str(source / f"dot_{filename}.tmpl"),
+            ]
+        )
+        (home / f".{filename}").write_text(rendered + "\n")
+    lib = home / ".config/nix-devshell/lib"
+    lib.mkdir(parents=True)
+    shutil.copy(source / "private_dot_config/nix-devshell/lib/ensure-env.sh", lib)
+    (home / ".cache").mkdir()
+    common = home / "common-tools"
+    common.mkdir()
+    (common / "common-tool-259").write_text("#!/bin/sh\necho common-tool-ok\n")
+    (common / "common-tool-259").chmod(0o755)
+    (home / ".cache/nix-devshell-global-env.bash").write_text(
+        f'export PATH="{common}:$PATH"\n'
+    )
+    assert run(from_standard_shell(["common-tool-259"])) == "common-tool-ok"
 
 
 if args.real_nix:
@@ -288,28 +341,29 @@ env.update(
     ANTHROPIC_API_KEY="fixture-dummy-key",
 )
 try:
+    command = [
+        "claude",
+        "-p",
+        "Run the fixture, including EnterWorktree and the directory switches.",
+        "--model",
+        "claude-sonnet-4-6",
+        "--setting-sources",
+        "",
+        "--add-dir",
+        str(p),
+        "--settings",
+        str(state / "settings.json"),
+        "--tools",
+        "Bash,EnterWorktree,ExitWorktree",
+        "--allowedTools",
+        "Bash,EnterWorktree,ExitWorktree",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--no-session-persistence",
+    ]
     r = subprocess.run(
-        [
-            "claude",
-            "-p",
-            "Run the fixture, including EnterWorktree and the directory switches.",
-            "--model",
-            "claude-sonnet-4-6",
-            "--setting-sources",
-            "",
-            "--add-dir",
-            str(p),
-            "--settings",
-            str(state / "settings.json"),
-            "--tools",
-            "Bash,EnterWorktree,ExitWorktree",
-            "--allowedTools",
-            "Bash,EnterWorktree,ExitWorktree",
-            "--output-format",
-            "stream-json",
-            "--verbose",
-            "--no-session-persistence",
-        ],
+        from_standard_shell(command) if args.standard_shell else command,
         cwd=project,
         env=env,
         capture_output=True,
@@ -357,6 +411,144 @@ try:
         "PASS: real Claude lifecycle and environment files; Nix="
         + ("real" if args.real_nix else "fixture")
     )
+    if args.standard_shell:
+        # Claude's EnterWorktree left this same target for human/raw entry checks.
+        worktrees = run(["git", "worktree", "list", "--porcelain"], project)
+        target = next(
+            Path(line.removeprefix("worktree "))
+            for line in worktrees.splitlines()
+            if line.startswith("worktree ") and line != f"worktree {project}"
+        )
+        (target / ".envrc").write_text("touch envrc-was-read\nexit 89\n")
+        observer = p / "observe-259.sh"
+        observer.write_text(
+            "#!/bin/bash\nset -eu\n"
+            'test "$PROJECT_NAME" = "$1"\n'
+            'test "${DUMMY_DOTENV-unset}" = "${2-unset}"\n'
+            'test "$(common-tool-259)" = common-tool-ok\n'
+            'hello\nprintf "PASS environment=%s\\n" "$PROJECT_NAME"\n'
+        )
+        observer.chmod(0o755)
+
+        def human(expected):
+            # A real interactive nix develop child exits back into the starting shell.
+            command = (
+                "nix develop .#default; "
+                'test "$PROJECT_NAME" = baseline && common-tool-259 && echo PASS-return'
+            )
+            # Without a tty, bash skips Nix's --rcfile and never loads the devShell.
+            master, slave = pty.openpty()
+            child = subprocess.Popen(
+                [env["CLAUDE_CODE_SHELL"], "-ic", command],
+                cwd=target,
+                env=env,
+                stdin=slave,
+                stdout=slave,
+                stderr=slave,
+            )
+            os.close(slave)
+            output = bytearray()
+            try:
+                os.write(
+                    master, f"{shlex.quote(str(observer))} {expected}\nexit\n".encode()
+                )
+                deadline = time.monotonic() + 120
+                while time.monotonic() < deadline:
+                    if not select.select([master], [], [], 1)[0]:
+                        continue
+                    try:
+                        chunk = os.read(master, 65536)
+                    except OSError:
+                        break
+                    if not chunk:
+                        break
+                    output.extend(chunk)
+                child.wait(timeout=5)
+            finally:
+                os.close(master)
+                if child.poll() is None:
+                    child.kill()
+                    child.wait()
+            transcript = output.decode(errors="replace")
+            (p / f"human-{expected}.log").write_text(transcript)
+            assert child.returncode == 0, transcript
+            assert f"PASS environment={expected}" in transcript, transcript
+            assert "PASS-return" in transcript, transcript
+
+        # Only Codex's model process is replaced; the actual adapter prepares Nix.
+        # Sandbox permission behavior has its own real-Codex preflight in #257.
+        (bin_dir / "codex").write_text(
+            "#!/bin/bash\n"
+            'if [ "${1-}" = app-server ]; then '
+            f"exec python3 {shlex.quote(str(source / 'tests/helpers/codex-config-reader.py'))}; fi\n"
+            f'exec {shlex.quote(str(observer))} "$EXPECTED_259"\n'
+        )
+        (bin_dir / "codex").chmod(0o755)
+        adapter = str(bin_dir / "codex-worktree")
+        shutil.copy(source / "private_dot_local/bin/executable_codex-worktree", adapter)
+        for version in ("project", "updated"):
+            if version == "updated":
+                with (target / "environment.sh").open("a") as script:
+                    script.write("export PROJECT_NAME=updated\n")
+            env["EXPECTED_259"] = version
+            human(version)
+            assert f"PASS environment={version}" in run(
+                from_standard_shell([adapter]), target
+            )
+
+        # The explicit direnv path is still available and its inherited environment
+        # must not select a different flake for the new entries.
+        legacy = p / "legacy"
+        legacy.mkdir()
+        (legacy / ".envrc").write_text(
+            "export LEGACY_259=kept\nexport PROJECT_NAME=legacy\n"
+        )
+        run(["direnv", "allow", str(legacy)])
+        assert "PASS environment=updated" in run(
+            ["direnv", "exec", str(legacy), *from_standard_shell([adapter])], target
+        )
+        (target / ".env").write_text(
+            "DUMMY_DOTENV=sentinel-dotenv-259\nPROJECT_NAME=dotenv\n"
+        )
+        app = ["nix", "run", "--no-write-lock-file", f"{source}#with-env", "--"]
+        assert "PASS environment=baseline" in run(
+            from_standard_shell(
+                [*app, str(observer), "baseline", "sentinel-dotenv-259"]
+            ),
+            target,
+        )
+        package_entry = run(
+            ["nix", "eval", "--raw", f"{source}#apps.{system}.with-env.program"]
+        )
+        (bin_dir / "codex").write_text(
+            "#!/bin/bash\nset -eu\n"
+            'if [ "${1-}" = app-server ]; then '
+            f"exec python3 {shlex.quote(str(source / 'tests/helpers/codex-config-reader.py'))}; fi\n"
+            f"{shlex.quote(str(observer))} updated\n"
+            f"exec {shlex.quote(package_entry)} --prepared -- {shlex.quote(str(observer))} updated sentinel-dotenv-259\n"
+        )
+        assert "PASS environment=updated" in run(from_standard_shell([adapter]), target)
+        with (target / "environment.sh").open("a") as script:
+            script.write("exit 17\n")
+        failed = subprocess.run(
+            from_standard_shell([*app, "touch", str(p / "must-not-start")]),
+            cwd=target,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert failed.returncode != 0 and not (p / "must-not-start").exists()
+        env["EXPECTED_259"] = "baseline"
+        # A failed AI preparation still starts the investigation process.
+        (bin_dir / "codex").write_text(
+            '#!/bin/bash\ntest "$PROJECT_NAME" = baseline && echo PASS-investigation\n'
+        )
+        assert "PASS-investigation" in run(from_standard_shell([adapter]), target)
+        assert not list(p.rglob("envrc-was-read"))
+        print(
+            "PASS: standard shell, human return/re-entry, raw restart, explicit direnv, app and failure boundary"
+        )
 except subprocess.TimeoutExpired as error:
     raise RuntimeError("Claude lifecycle timed out") from error
 finally:

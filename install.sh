@@ -143,7 +143,7 @@ if [ ! -S /nix/var/nix/daemon-socket/socket ]; then
 fi
 
 # direnv をインストール（オプション）
-# プロジェクト単位の .envrc 自動読み込みに使用
+# 既存 .envrc を direnv exec 等で明示利用する場合に使用
 # スキップ: DOTFILES_SKIP_DIRENV=1
 if [[ "${DOTFILES_SKIP_DIRENV:-}" != "1" ]]; then
   if ! command -v direnv &>/dev/null; then
@@ -189,32 +189,27 @@ if [ ! -f "$HOME/.config/nix-devshell/flake.nix" ]; then
   echo "Error: required user devShell flake is missing."
   exit 1
 fi
-# 初回評価で nix-store を warm up（次回 direnv 起動時のブロックを避ける）
-echo "Building user devShell (this may take a while on first run)..."
-(cd "$HOME/.config/nix-devshell" && nix develop --command true) ||
-  echo "Warning: user devShell build failed, run 'cd ~/.config/nix-devshell && nix develop' manually"
-
-# devShell 由来ツール（gh, python3 等）を chezmoi テンプレートに反映
-# run_onchange スクリプト（codex-managed-sync 等）が python3 に依存するため、
-# devShell の PATH を継承したサブプロセスとして chezmoi apply を実行する
-# （`nix develop --command true` はサブシェル限りで親プロセスの PATH は変わらない）
-echo "Re-applying chezmoi templates..."
-(cd "$HOME/.config/nix-devshell" && nix develop --command chezmoi apply --source="$DOTFILES_DIR" --force)
-
-# 新規ターミナルでも AI CLI 等を即利用できるよう、bash 起動用キャッシュを self-heal + 再生成
 if [ ! -f "$HOME/.config/nix-devshell/lib/refresh-cache.sh" ]; then
   echo "Error: required user devShell cache refresh library is missing."
   exit 1
 fi
 # shellcheck source=/dev/null
 . "$HOME/.config/nix-devshell/lib/refresh-cache.sh"
-NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache
+USER_DEVSHELL_OUTPUT="$(_nix_devshell_selected_output)"
+# 初回評価で nix-store を warm up
+echo "Building user devShell (this may take a while on first run)..."
+(cd "$HOME/.config/nix-devshell" && nix develop ".#$USER_DEVSHELL_OUTPUT" --command true) ||
+  echo "Warning: user devShell build failed, run 'nix develop ~/.config/nix-devshell#$USER_DEVSHELL_OUTPUT' manually"
 
-# direnv を許可
-if command -v direnv &>/dev/null; then
-  echo "Allowing direnv for ~/.config/nix-devshell..."
-  direnv allow "$HOME/.config/nix-devshell" 2>/dev/null || true
-fi
+# devShell 由来ツール（gh, python3 等）を chezmoi テンプレートに反映
+# run_onchange スクリプト（codex-managed-sync 等）が python3 に依存するため、
+# devShell の PATH を継承したサブプロセスとして chezmoi apply を実行する
+# （`nix develop --command true` はサブシェル限りで親プロセスの PATH は変わらない）
+echo "Re-applying chezmoi templates..."
+(cd "$HOME/.config/nix-devshell" && nix develop ".#$USER_DEVSHELL_OUTPUT" --command chezmoi apply --source="$DOTFILES_DIR" --force)
+
+# 新規ターミナルでも AI CLI 等を即利用できるよう、bash 起動用キャッシュを self-heal + 再生成
+NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache
 
 echo "Dotfiles installed successfully!"
 echo "Run 'exec bash -l' to apply changes."

@@ -28,11 +28,11 @@ run_zshrc() {
     "$ZSH_BIN" -c "source '$SRC'; true"
 }
 
-@test "direnv が有効なら direnv hook zsh が呼ばれる" {
+@test "direnv があっても自動 hook は呼ばれない" {
   stub_cmd direnv
   run_zshrc
   assert_success
-  assert_log_contains "direnv hook zsh"
+  refute_log_contains "direnv hook zsh"
 }
 
 @test "starship が有効なら starship init zsh が呼ばれる" {

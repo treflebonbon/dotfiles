@@ -1237,8 +1237,14 @@ EOF
 
   [ -f "$environment" ]
   grep -q '^name = "default"$' "$environment"
-  grep -q "bash -ilc" "$environment"
-  grep -q "direnv allow ." "$environment"
+  python3 - "$environment" <<'PY'
+import pathlib
+import sys
+import tomllib
+
+config = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
+assert config["setup"]["script"] == ""
+PY
   ! grep -q "/home/ubuntu/ghq/" "$environment"
   ! grep -q "devpod status dap" "$environment"
 }
