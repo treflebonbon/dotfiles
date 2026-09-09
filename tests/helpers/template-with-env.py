@@ -22,7 +22,7 @@ SYSTEMS = ["x86_64-linux", "aarch64-linux", "aarch64-darwin"]
 SOURCE = Path(__file__).resolve().parents[2]
 
 
-def run(arguments, cwd, *, environment=None, expected=0):
+def run(arguments, cwd, *, environment=None, expected=0, expected_stderr=None):
     result = subprocess.run(
         arguments,
         cwd=cwd,
@@ -37,6 +37,8 @@ def run(arguments, cwd, *, environment=None, expected=0):
         f"{arguments!r}: exit {result.returncode}, expected {expected}\n"
         f"{result.stdout}{result.stderr}"
     )
+    if expected_stderr is not None:
+        assert expected_stderr in result.stderr, result.stderr
     return result.stdout
 
 
@@ -133,12 +135,9 @@ sys.exit(23)
     dotenv.write_text('BROKEN="dummy\n')
     failure = [*entry, "touch", "launched"]
     run(failure, repo, expected=1)
-    dotenv.write_text("DOTENV_258=unreadable\n")
-    dotenv.chmod(0)
-    try:
-        run(failure, repo, expected=1)
-    finally:
-        dotenv.chmod(0o600)
+    # Invalid UTF-8 fails during reading even when UID 0 can bypass file permissions.
+    dotenv.write_bytes(b"DOTENV_258=\xff\n")
+    run(failure, repo, expected=1, expected_stderr="cannot read root .env")
     dotenv.rename(repo / "dotenv-original")
     dotenv.symlink_to(evidence / ".env")
     run(failure, repo, expected=1)

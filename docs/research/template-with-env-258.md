@@ -79,3 +79,18 @@ TMPDIR=/tmp bun run test
 - `/tmp/template-app-examples-258-xih73_39/`: app 例を組み込んだ構文検証用 Nix file。
 
 未 merge の task worktree から `chezmoi apply` は実行せず、live source へ実装を反映していない。
+
+## PR #265 Review Round: UID に依存しない読取り失敗
+
+[レビュー](https://github.com/treflebonbon/dotfiles/pull/265#pullrequestreview-5150356276) の指摘に対応し、読取り失敗の fixture を `chmod(0)` から不正 UTF-8 の `.env` へ変更した。root がファイル権限を迂回できても UTF-8 のデコードは失敗するため、UID によるテスト結果の差をなくす。終了コード1に加え `cannot read root .env` を検査し、対象コマンドの未起動も維持する。
+
+UID 1000 の診断ハーネスで `.env` の `chmod(0)` だけを無効化し、ファイルが読める条件を再現した。修正前は正式な `nix run .#with-env` が対象コマンドを起動して `exit 0, expected 1` で失敗し、修正後は同じハーネスから成功した。これは読取り可能性を模擬した結果で、root 実機の検証ではない。
+
+修正後の `python3 tests/helpers/template-with-env.py --language bun` も成功し、3 system の評価・WSL2 の実 devShell / app・dotenv と失敗時停止・worktree 分離・output 選択を通過した。共通のテスト fixture の変更は Bun を代表として検証した。`TMPDIR=/tmp bats tests/with-env.bats` は16件成功・2件skip、ruff check/format と diff whitespace も成功。既存の全6言語・全スイートの結果は上記の初回実装時のもの。
+
+自動承認レビューが `sudo -n id` を含む確認コマンドを「権限昇格は Codex 自動化の外での確認が必要」として拒否したため、root 実行は未検証。
+
+- `/tmp/pr-265-readable-fixture-red.log` / `/tmp/pr-265-readable-fixture-green.log`: 読取り可能性を保つ条件での修正前後。
+- `/tmp/pr-265-bun-native.log`: 修正後の通常実行。
+- `/tmp/pr-265-with-env-contract.log`: 既存 dotenv 契約の回帰検証。
+- `/tmp/pr-265-debug/readable-fixture.py`: UID を変更しない診断専用ハーネス。
