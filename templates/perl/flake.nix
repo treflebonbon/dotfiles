@@ -3,10 +3,14 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+    dotfiles = {
+      url = "github:treflebonbon/dotfiles/002085017c4260e3044156ab474823dad3bd1378";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, dotfiles, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -17,6 +21,10 @@
       pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in
     {
+      apps = forAllSystems (system: {
+        with-env = dotfiles.apps.${system}.with-env;
+      });
+
       devShells = forAllSystems (
         system:
         let
@@ -25,6 +33,7 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
+              dotfiles.packages.${system}.with-env
               perl
               perlnavigator
             ];

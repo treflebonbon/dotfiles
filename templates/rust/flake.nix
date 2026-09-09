@@ -3,6 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+    dotfiles = {
+      url = "github:treflebonbon/dotfiles/002085017c4260e3044156ab474823dad3bd1378";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -13,6 +17,7 @@
   outputs =
     {
       nixpkgs,
+      dotfiles,
       rust-overlay,
       ...
     }:
@@ -25,6 +30,10 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
     in
     {
+      apps = forAllSystems (system: {
+        with-env = dotfiles.apps.${system}.with-env;
+      });
+
       devShells = forAllSystems (
         system:
         let
@@ -37,6 +46,7 @@
         {
           default = pkgs.mkShell {
             packages = [
+              dotfiles.packages.${system}.with-env
               rustStable
             ]
             ++ (with pkgs; [
