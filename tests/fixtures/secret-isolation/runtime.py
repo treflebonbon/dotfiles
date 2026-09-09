@@ -11,7 +11,7 @@ import threading
 import time
 
 
-def boundary():
+def assert_host_isolation():
     host = Path(os.environ["HOST_FIXTURE"])
     for path in (host / ".env", host / "other-secret", host / "alias", host / "hardlink", host / "late-secret", Path("/work/.env")):
         try:
@@ -38,9 +38,9 @@ def boundary():
 
 
 def shell_task():
-    boundary()
+    assert_host_isolation()
     assert os.environ["PROBE_HOOK"] == "ready"
-    subprocess.run([sys.executable, "/fixture/runtime.py", "boundary"], check=True)
+    subprocess.run([sys.executable, "/fixture/runtime.py", "assert-boundary"], check=True)
     escape = Path("/work/link-to-host")
     escape.symlink_to(Path(os.environ["HOST_FIXTURE"]) / ".env")
     try:
@@ -81,7 +81,7 @@ def mcp():
         elif method == "tools/list":
             result = {"tools": [{"name": "probe", "description": "Assert the synthetic secret boundary", "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}}]}
         elif method == "tools/call":
-            boundary()
+            assert_host_isolation()
             Path("/evidence/mcp-ok").write_text("MCP_OK\n")
             result = {"content": [{"type": "text", "text": "MCP_OK"}]}
         else:
@@ -157,13 +157,13 @@ class Provider(BaseHTTPRequestHandler):
 
 
 def main():
-    boundary()
+    assert_host_isolation()
     Path("/evidence/mutate.ready").touch()
     deadline = time.monotonic() + 10
     while not Path("/evidence/mutate.done").exists():
         assert time.monotonic() < deadline, "host mutation handshake timed out"
         time.sleep(0.01)
-    boundary()
+    assert_host_isolation()
     server = ThreadingHTTPServer(("127.0.0.1", 0), Provider)
     assert server.server_port != int(os.environ["HOST_TCP_PORT"]), "fixture port collision; rerun"
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -225,4 +225,4 @@ approval_mode = "approve"
 
 
 if __name__ == "__main__":
-    {"run": main, "shell": shell_task, "mcp": mcp, "boundary": boundary}[sys.argv[1]]()
+    {"run": main, "shell": shell_task, "mcp": mcp, "assert-boundary": assert_host_isolation}[sys.argv[1]]()

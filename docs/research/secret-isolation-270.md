@@ -66,14 +66,14 @@ bats tests/secret-isolation.bats
 保存した実測のコマンドは次のとおり。
 
 ```bash
-python3 scripts/secret-isolation-probe.py --output /tmp/secret-isolation-270-verified-20260909
+python3 scripts/secret-isolation-probe.py --output /tmp/secret-isolation-270-reviewed-20260909
 bats tests/secret-isolation.bats
 ```
 
-実測ディレクトリには `report.json`、`launch.json`（実際の bubblewrap argv）、`closure.txt`、`store-copy.log`、`runtime.log` と `evidence/` の Codex JSONL／合成 provider request を残した。親で作成したダミー秘密の sentinel が tool/provider 証跡へ出ていないことも照合する。`fixture_result = "passed"` はこの合成 fixture の成功のみを表し、`production_ready` は常に `false` とする。
+実測ディレクトリには `report.json`、`launch.json`（実際の bubblewrap argv）、`closure.txt`、`store-copy.log`、`runtime.log` と `evidence/` の Codex JSONL／合成 provider request を残す。全てのログ・証跡を、親で作成したダミー秘密と合成 GitHub 認証値の sentinel に照合する。成功・失敗のどちらでも検査し、検出した値を保存ログで伏せ、端末への出力を停止して失敗する。意図的な生入力（fixture の `.env`、攻撃用 flake）と専用 store は証跡ログの走査対象に含めない。親側の証跡読取りも symlink／hardlink を受理しない。`fixture_result = "passed"` はこの合成 fixture の成功のみを表し、`production_ready` は常に `false` とする。
 
-失敗経路は `--scenario isolation-failure`、`nix-failure`、`hook-failure`、`symlink-input`、`hardlink-input` で再現する（各回で別の新規 `--output` を指定）。初期化失敗時の診断は境界の再検査だけで、通常作業を未初期化環境に迂回させない。独立コピー後の追加・差替えを検証しており、コピー作業そのものに並行する書換えを安全に取り込めるとは保証しない。
+失敗経路は `--scenario isolation-failure`、`nix-failure`、`hook-failure`、`symlink-input`、`hardlink-input` で再現する（各回で別の新規 `--output` を指定）。`log-leak` と `log-leak-success` は、秘密の取得を伴わずダミー値を意図的に出力し、失敗時・成功時のログ検出器の感度を確認するケースである。初期化失敗時の診断は境界の再検査だけで、通常作業を未初期化環境に迂回させない。独立コピー後の追加・差替えを検証しており、コピー作業そのものに並行する書換えを安全に取り込めるとは保証しない。
 
 **#270 は未完了として扱う。** 通常 Linux での同一コマンドの実測と、実サービスの最小認証・通信経路、実 worktree から秘密のない入力を選び成果を返す契約が残る。host network・HOME・control socket・worktree 全体を共有することで、この未確認を埋めない。#271 以降の本番移行を開始する根拠にはしない。
 
-関連 Bats 3 件は成功し、Python 構文検査・TypeScript typecheck も成功。全体テストと commit 差分レビューは実施後に追記する。
+関連 Bats 4 件は成功し、Python 構文検査・TypeScript typecheck も成功。全体テストの最終結果は終了後に追記する。差分レビューでは Standards の命名改善 1 件と Spec のログ検査不足 2 件を指摘され、検査関数の改名、全ログの検査、合成認証値と漏洩注入テストの追加で対応した。

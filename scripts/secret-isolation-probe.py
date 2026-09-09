@@ -15,6 +15,37 @@ import threading
 import time
 
 
+SENTINELS = (b"host-fixture-only", b"synthetic-host-only", b"synthetic-parent-only", b"synthetic-provider-only", b"synthetic-late-only", b"synthetic-replacement-only", b"synthetic-tool-auth")
+
+
+def read_regular_file(path):
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as source:
+        metadata = os.fstat(source.fileno())
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise RuntimeError("artifact must be a regular file with one link")
+        return source.read()
+
+
+def audit_artifacts(output):
+    paths = [output / name for name in ("store-copy.log", "closure.txt", "runtime.log", "report.json", "launch.json") if (output / name).exists()]
+    if (output / "evidence").exists():
+        paths.extend((output / "evidence").iterdir())
+    leaked = False
+    for path in paths:
+        data = read_regular_file(path)
+        redacted = data
+        for sentinel in SENTINELS:
+            redacted = redacted.replace(sentinel, b"[redacted synthetic value]")
+        if redacted != data:
+            leaked = True
+            descriptor = os.open(path, os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW)
+            with os.fdopen(descriptor, "wb") as destination:
+                destination.write(redacted)
+    if leaked:
+        raise RuntimeError("synthetic secret detected in artifacts; output withheld")
+
+
 def run(command, *, environment, **kwargs):
     return subprocess.run(command, env=environment, check=True, text=True, **kwargs)
 
@@ -46,14 +77,8 @@ def prepare_input(output, scenario):
     return fixture
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--scenario", choices=("success", "symlink-input", "hardlink-input", "isolation-failure", "nix-failure", "hook-failure"), default="success", help="Synthetic failure injection; never accepts a real project path")
-    args = parser.parse_args()
-    output = args.output.absolute()
-    output.mkdir(mode=0o700, parents=True, exist_ok=False)
-    fixture = prepare_input(output, args.scenario)
+def run_probe(output, scenario):
+    fixture = prepare_input(output, scenario)
     tools = {}
     for name in ("nix", "bash", "coreutils", "python3", "git", "codex", "gh", "bwrap"):
         executable = shutil.which("cat" if name == "coreutils" else name)
@@ -75,7 +100,7 @@ def main():
         "NIX_CONFIG": "experimental-features = nix-command flakes\n",
     }
     report = {
-        "scenario": args.scenario,
+        "scenario": scenario,
         "fixture_result": "preparing",
         "production_ready": False,
         "platform": "WSL2" if "microsoft" in os.uname().release.lower() else "Linux",
@@ -135,17 +160,20 @@ def main():
         builder = "${bash}/bin/bash";
         args = [ "-c" "exit 0" ];
         PATH = "${bash}/bin:${utils}/bin";
-        shellHook = "@PYTHON@/bin/python3 /fixture/runtime.py boundary; export PROBE_HOOK=ready";
+        shellHook = "@PYTHON@/bin/python3 /fixture/runtime.py assert-boundary; export PROBE_HOOK=ready";
       }; };
     }
     '''
     system = {"x86_64": "x86_64-linux", "aarch64": "aarch64-linux"}[os.uname().machine]
     flake = flake.replace("@BASH@", str(tools["bash"])).replace("@UTILS@", str(tools["coreutils"])).replace("@SYSTEM@", system)
     flake = flake.replace("@HOST_ENV@", json.dumps(str(fixture / ".env"))).replace("@PYTHON@", str(tools["python3"]))
-    if args.scenario == "nix-failure":
+    if scenario == "nix-failure":
         flake = '{ outputs = { self }: throw "synthetic Nix evaluation failure"; }'
-    elif args.scenario == "hook-failure":
+    elif scenario == "hook-failure":
         flake = flake.replace("export PROBE_HOOK=ready", "exit 37")
+    elif scenario in ("log-leak", "log-leak-success"):
+        continuation = "exit 37" if scenario == "log-leak" else "export PROBE_HOOK=ready"
+        flake = flake.replace("export PROBE_HOOK=ready", "echo synthetic-tool-auth >&2; " + continuation)
     (output / "flake.nix").write_text(flake)
     script = output / "inside.sh"
     script.write_text('''set -euo pipefail
@@ -166,7 +194,7 @@ if [ "$result" -eq 0 ]; then
   result=$?
 fi
 if [ "$result" -ne 0 ] && [ ! -e /evidence/codex-started ]; then
-  python3 /fixture/runtime.py boundary || exit 1
+  python3 /fixture/runtime.py assert-boundary || exit 1
   printf 'PASS isolated-diagnostics\\n'
 fi
 exit "$result"
@@ -197,7 +225,7 @@ exec python3 /fixture/runtime.py run
         "--setenv", "NIX_CONFIG", "experimental-features = nix-command flakes\nbuild-users-group =\nsandbox = false\nsubstituters =\n",
         "--chdir", "/work", str(tools["bash"] / "bin/bash"), "/inside.sh",
     ]
-    if args.scenario == "isolation-failure":
+    if scenario == "isolation-failure":
         command[1:1] = ["--ro-bind", str(output / "missing-mount-input"), "/unavailable"]
     (output / "launch.json").write_text(json.dumps(command, indent=2) + "\n")
     stop = threading.Event()
@@ -209,7 +237,8 @@ exec python3 /fixture/runtime.py run
                 (fixture / "replacement").write_text("synthetic-replacement-only\n")
                 os.replace(fixture / "replacement", fixture / ".env")
                 (fixture / "admitted.txt").write_text("synthetic-late-only\n")
-                (evidence / "mutate.done").touch()
+                with (evidence / "mutate.done").open("x"):
+                    pass
                 return
 
     mutator = threading.Thread(target=mutate_host, daemon=True)
@@ -223,27 +252,46 @@ exec python3 /fixture/runtime.py run
         host_service.server_close()
         host_unix.close()
     (output / "runtime.log").write_text(result.stdout + result.stderr)
-    print(result.stdout, end="")
     report.update(fixture_result="validating" if result.returncode == 0 else "failed", exit_code=result.returncode)
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     result.check_returncode()
     assert SecretProvider.calls == 1, "isolated process contacted host secret service"
     assert (evidence / "mutate.done").exists()
     assert (workspace / "admitted.txt").stat().st_ino != (fixture / "admitted.txt").stat().st_ino
-    assert (workspace / "admitted.txt").read_text() == "public-fixture-input\n"
-    sentinels = (b"host-fixture-only", b"synthetic-host-only", b"synthetic-parent-only", b"synthetic-provider-only", b"synthetic-late-only", b"synthetic-replacement-only")
-    for path in evidence.iterdir():
-        if path.is_file():
-            assert not any(value in path.read_bytes() for value in sentinels), f"synthetic secret reached evidence: {path.name}"
+    assert read_regular_file(workspace / "admitted.txt") == b"public-fixture-input\n"
     report.update(fixture_result="passed", checks=["nix-evaluation", "shellHook", "codex-process", "shell-and-child", "git-edit-build-test-commit", "github-fixture", "stdio-mcp", "host-files-and-variables", "host-services", "late-replacement", "separate-input-inode", "no-secret-in-provider-or-tool-logs"])
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
-    print("PASS dynamic-host-boundary")
+    return result.stdout + "PASS dynamic-host-boundary\n"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--scenario", choices=("success", "symlink-input", "hardlink-input", "isolation-failure", "nix-failure", "hook-failure", "log-leak", "log-leak-success"), default="success", help="Synthetic failure injection; never accepts a real project path")
+    args = parser.parse_args()
+    output = args.output.absolute()
+    output.mkdir(mode=0o700, parents=True, exist_ok=False)
+    try:
+        try:
+            summary = run_probe(output, args.scenario)
+        finally:
+            audit_artifacts(output)
+    except Exception:
+        report_path = output / "report.json"
+        if report_path.exists():
+            report = json.loads(read_regular_file(report_path))
+            report["fixture_result"] = "failed"
+            report_path.write_text(json.dumps(report, indent=2) + "\n")
+        raise
+    print(summary, end="")
 
 
 if __name__ == "__main__":
     try:
         main()
     except subprocess.CalledProcessError as error:
+        if error.stdout:
+            print(error.stdout, end="")
         print(error.stderr or str(error), file=sys.stderr)
         sys.exit(1)
     except (OSError, RuntimeError) as error:

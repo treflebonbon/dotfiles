@@ -41,6 +41,18 @@ PY
   done
 }
 
+@test "synthetic log leaks fail both successful and failed preparation without disclosing the value" {
+  [ "$(uname -s)" = Linux ] || skip "outer isolation probe currently targets Linux/WSL2"
+  local scenario
+  for scenario in log-leak log-leak-success; do
+    run python3 "$BATS_TEST_DIRNAME/../scripts/secret-isolation-probe.py" --output "$BATS_TEST_TMPDIR/probe/$scenario" --scenario "$scenario"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"synthetic secret detected in artifacts"* ]]
+    [[ "$output" != *"synthetic-tool-auth"* ]]
+    ! rg -q 'synthetic-tool-auth' "$BATS_TEST_TMPDIR/probe/$scenario/runtime.log"
+  done
+}
+
 @test "real Nix and Codex execute Git, GitHub and MCP tasks without host fixture secrets" {
   [ "$(uname -s)" = Linux ] || skip "outer isolation probe currently targets Linux/WSL2"
   local project_root
