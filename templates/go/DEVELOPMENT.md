@@ -58,7 +58,7 @@ apps = forAllSystems (system:
 
 dotfiles の管理 CLI / hook を導入済みの環境では `devshell-env trust .` で repo を登録し、`devshell-env status .` で確認、`devshell-env untrust .` で解除する。同じ repo の正当な linked worktree は信頼を引き継ぐ。別 clone は再登録する。
 
-Claude は起動後の Bash に秘密を含まない devShell を読み込み、flake 変更後は `devshell-env reload` を実行して次の Bash に反映する。raw Codex は linked worktree から `codex-worktree` で起動し、flake / lock / import した Nix file の変更後はセッションを再起動する。
+Claude は起動後の Bash に秘密を含まない devShell を読み込み、flake 変更後は `devshell-env reload` を実行して次の Bash に反映する。Linux／WSL2 の raw Codex は、linked worktree で公開ファイルと到達可能 Git 履歴を `devshell-env admit --git-head FULL_SHA -- FILES` に明示登録してから `codex-worktree` で起動する。host で flake / lock / import を変えた場合は確認・再登録後に再起動する。ホスト dotenv と任意の継承変数は隔離内へ渡さない。
 
 各 devShell に `with-env` を含めてあるため、準備済み raw Codex の正式入口は `with-env --prepared -- go test ./...` などとする。準備情報がない・異なる場合は失敗し、再起動が必要。sandbox 内で `nix run` を再実行しない。Claude への dotenv 注入、Orca native Codex の自動準備はこの仕組みの対象外。
 

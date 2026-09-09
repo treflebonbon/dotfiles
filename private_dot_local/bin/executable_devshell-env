@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import select
+import runpy
 import re
 import shlex
 import shutil
@@ -15,7 +15,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import time
 import uuid
 from dataclasses import dataclass
 from urllib.parse import quote
@@ -201,7 +200,9 @@ def prepared_context(repo):
     )
 
 
-def prepare_environment(repo, inherited, require_trust=True, timeout=None):
+def prepare_environment(
+    repo, inherited, require_trust=True, timeout=None, *, isolated=False
+):
     if require_trust and not trusted(repo):
         raise PreparationError("untrusted repository; run devshell-env trust")
     if not (repo.root / "flake.nix").is_file():
@@ -228,6 +229,20 @@ def prepare_environment(repo, inherited, require_trust=True, timeout=None):
         if key in inherited
     }
     bootstrap["TMPDIR"] = "/tmp"
+    if isolated:
+        # These values were created by the outer launcher after isolation.
+        # Human/Claude preparation keeps its existing bootstrap contract.
+        for key in (
+            "NIX_CONFIG",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "NO_PROXY",
+            "no_proxy",
+        ):
+            if key in inherited:
+                bootstrap[key] = inherited[key]
     result = subprocess.run(
         [
             nix,
@@ -309,14 +324,14 @@ exec "$1" -I -c 'import json,os; print(json.dumps(dict(os.environ)))'
 
 
 def dotenv_environment(repo, prepared, inherited):
-    from dotenv.parser import parse_stream
-    from dotenv.variables import parse_variables
-
     path = repo.root / ".env"
     try:
         path.lstat()
     except FileNotFoundError:
         return prepared
+    from dotenv.parser import parse_stream
+    from dotenv.variables import parse_variables
+
     try:
         target = path.resolve(strict=True)
         if not target.is_relative_to(repo.root):
@@ -398,7 +413,12 @@ def launch_with_env(arguments):
         or repo.identity() != identity
     ):
         raise InvalidContext("worktree metadata changed during preparation")
-    environment = dotenv_environment(repo, prepared, inherited)
+    # This read-only copy is installed only inside the raw outer namespace.
+    # Codex may materialize unreadable placeholders for denied paths such as .env.
+    isolated = Path(__file__).resolve() == Path("/nix/codex-isolation/bin/devshell-env")
+    environment = (
+        prepared if isolated else dotenv_environment(repo, prepared, inherited)
+    )
     os.execvpe(arguments[0], arguments, environment)
 
 
@@ -450,73 +470,6 @@ def validate_codex_arguments(arguments):
             )
     if expect_profile:
         raise InvalidContext("missing permission profile value")
-
-
-def codex_workspace_roots(codex, repo, environment):
-    """Read Codex's effective config, including its own config-layer resolution."""
-    with subprocess.Popen(
-        [codex, "app-server"],
-        cwd=repo.root,
-        env=environment,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        bufsize=0,
-    ) as process:
-        pending = b""
-
-        def request(identifier, method, params):
-            nonlocal pending
-            message = {"id": identifier, "method": method, "params": params}
-            process.stdin.write((json.dumps(message) + "\n").encode())
-            deadline = time.monotonic() + 20
-            while True:
-                if b"\n" not in pending:
-                    remaining = max(0, deadline - time.monotonic())
-                    if not select.select([process.stdout], [], [], remaining)[0]:
-                        raise InvalidContext("Codex config/read timed out")
-                    chunk = os.read(process.stdout.fileno(), 65536)
-                    if not chunk:
-                        raise InvalidContext("Codex config/read closed unexpectedly")
-                    pending += chunk
-                    continue
-                line, pending = pending.split(b"\n", 1)
-                response = json.loads(line)
-                if response.get("id") == identifier:
-                    if "error" in response:
-                        raise InvalidContext("Codex config/read failed")
-                    return response["result"]
-
-        try:
-            request(
-                1,
-                "initialize",
-                {"clientInfo": {"name": "devshell-env", "version": "1"}},
-            )
-            config = request(
-                2, "config/read", {"includeLayers": False, "cwd": str(repo.root)}
-            )["config"]
-        except (KeyError, ValueError, TypeError) as error:
-            raise InvalidContext("invalid Codex config/read response") from error
-        finally:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-
-    profiles = config.get("permissions") or {}
-    name = "dotfiles-secure"
-    roots = set()
-    visited = set()
-    while not name.startswith(":"):
-        if name in visited or name not in profiles:
-            raise InvalidContext("cannot resolve dotfiles-secure inheritance")
-        visited.add(name)
-        profile = profiles[name]
-        roots.update((profile.get("workspace_roots") or {}).keys())
-        name = profile.get("extends") or ":workspace"
-    return roots
 
 
 def claude_session(session_id):
@@ -672,69 +625,23 @@ def claude_reload():
     return 0
 
 
+def isolation_module():
+    path = (
+        Path(__file__).resolve().parent.parent
+        / "share/codex-isolation/secret-isolation-worktree.py"
+    )
+    return runpy.run_path(str(path))
+
+
 def launch_codex(arguments):
-    validate_codex_arguments(arguments)
-    inherited = git_environment()
-    inherited.pop("CODEX_PERMISSION_PROFILE", None)
-    inherited.pop("DEVSHELL_ENV_CONTEXT", None)
-    inherited["TMPDIR"] = "/tmp"
-    repo = Repository.discover(Path.cwd(), linked_only=True)
-    identity = repo.identity()
-    codex = executable("codex")
-    if not codex:
-        raise InvalidContext("codex is not available on the launcher's PATH")
+    module = isolation_module()
     try:
-        environment = prepare_environment(repo, inherited)
-    except (PreparationError, InvalidContext, OSError, ValueError) as error:
-        print(
-            f"devshell-env: {error}; starting Codex without project environment",
-            file=sys.stderr,
-        )
-        environment = inherited
-    permission_arguments = []
-    dotenv_rule = ""
-    dotenv = repo.root / ".env"
-    try:
-        regular_dotenv = stat.S_ISREG(dotenv.lstat().st_mode)
-    except FileNotFoundError:
-        regular_dotenv = False
-    if "DEVSHELL_ENV_CONTEXT" in environment and regular_dotenv:
-        roots = codex_workspace_roots(codex, repo, inherited)
-        # Profile-defined roots must not receive this session's root dotenv grant.
-        disabled = ",".join(f"{json.dumps(root)}=false" for root in sorted(roots))
-        permission_arguments = [
-            "-c",
-            "permissions.dotfiles-secure.workspace_roots={" + disabled + "}",
-        ]
-        dotenv_rule = ',":workspace_roots"={".env"="read"}'
-    # A shellHook can change cwd/environment or metadata; enforce the original boundary afterwards.
-    if (
-        Repository.discover(repo.root, linked_only=True) != repo
-        or repo.identity() != identity
-    ):
-        raise InvalidContext("worktree metadata changed during preparation")
-    boundary = ",".join(
-        f'{json.dumps(str(path), ensure_ascii=False)}="write"'
-        for path in (repo.git_dir, repo.common_dir)
-    )
-    # Only this private temporary directory is writable; /tmp itself stays denied.
-    environment["TMPDIR"] = tempfile.mkdtemp(prefix="codex-worktree-", dir="/tmp")
-    os.chdir(repo.root)
-    os.execve(
-        codex,
-        [
-            codex,
-            "-C",
-            str(repo.root),
-            "-c",
-            'default_permissions="dotfiles-secure"',
-            "-c",
-            "permissions.dotfiles-secure.filesystem={" + boundary + dotenv_rule + "}",
-            *permission_arguments,
-            *arguments,
-        ],
-        environment,
-    )
+        return module["launch"](arguments)
+    except (
+        module["DEVENV"]["InvalidContext"],
+        module["DEVENV"]["PreparationError"],
+    ) as error:
+        raise InvalidContext(str(error)) from None
 
 
 def main():
@@ -774,9 +681,40 @@ def main():
             return 0
     if len(sys.argv) > 1 and sys.argv[1] == "codex":
         try:
-            launch_codex(sys.argv[2:])
-        except (InvalidContext, OSError) as error:
+            return launch_codex(sys.argv[2:])
+        except (
+            InvalidContext,
+            PreparationError,
+            OSError,
+            ValueError,
+            KeyError,
+            subprocess.SubprocessError,
+        ) as error:
             print(f"codex-worktree: {error}", file=sys.stderr)
+            return 1
+    if len(sys.argv) > 1 and sys.argv[1] == "admit":
+        parser = argparse.ArgumentParser(
+            description="Declare these files and reachable Git history public inputs for raw Codex."
+        )
+        parser.add_argument("--git-head", required=True)
+        parser.add_argument("files", nargs="+")
+        args = parser.parse_args(sys.argv[2:])
+        try:
+            module = isolation_module()
+            try:
+                repo = module["Repository"].discover(Path.cwd(), linked_only=True)
+                module["admit"](repo, args.git_head, args.files)
+            except module["DEVENV"]["InvalidContext"] as error:
+                raise InvalidContext(str(error)) from None
+            return 0
+        except (
+            OSError,
+            ValueError,
+            KeyError,
+            InvalidContext,
+            subprocess.SubprocessError,
+        ) as error:
+            print(f"devshell-env: {error}", file=sys.stderr)
             return 1
     parser = argparse.ArgumentParser(
         description=__doc__,

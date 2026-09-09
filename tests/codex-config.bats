@@ -1,6 +1,9 @@
 #!/usr/bin/env bats
 
 bats_require_minimum_version 1.5.0
+load helpers/raw-codex
+
+teardown() { raw_cleanup; }
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -76,66 +79,43 @@ assert_codex_worktree_rejects_boundary_argument() {
   [ ! -e "$launched" ]
 }
 
-@test "codex-worktree launches Codex at a linked worktree with only its active Git metadata boundary" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local git_dir
-  local git_common_dir
-  mkdir -p "$bin"
-  create_linked_worktree "$repo" "$worktree"
-  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
-  git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)"
-
-  cat >"$bin/codex" <<'EOF'
-#!/usr/bin/env bash
-printf 'TMPDIR=<%s>\n' "$TMPDIR"
-printf 'GIT_DIR=<%s>\n' "${GIT_DIR-unset}"
-printf 'GIT_COMMON_DIR=<%s>\n' "${GIT_COMMON_DIR-unset}"
-printf 'GIT_WORK_TREE=<%s>\n' "${GIT_WORK_TREE-unset}"
-printf 'CODEX_PERMISSION_PROFILE=<%s>\n' "${CODEX_PERMISSION_PROFILE-unset}"
-printf 'arg=<%s>\n' "$@"
-EOF
-  chmod +x "$bin/codex"
-
-  run --separate-stderr env PATH="$bin:$PATH" TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
-    GIT_DIR="$repo/.git" GIT_COMMON_DIR="$repo/.git" GIT_WORK_TREE="$repo" \
-    CODEX_PERMISSION_PROFILE=unrestricted \
-    bash -c 'cd "$1" && exec "$2" --model "model with space" "prompt with space"' \
-    _ "$worktree" "$CODEX_WORKTREE"
-
-  [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == 'TMPDIR=</tmp/codex-worktree-'*'>' ]]
-  [ "${lines[1]}" = "GIT_DIR=<unset>" ]
-  [ "${lines[2]}" = "GIT_COMMON_DIR=<unset>" ]
-  [ "${lines[3]}" = "GIT_WORK_TREE=<unset>" ]
-  [ "${lines[4]}" = "CODEX_PERMISSION_PROFILE=<unset>" ]
-  [ "${lines[5]}" = "arg=<-C>" ]
-  [ "${lines[6]}" = "arg=<$worktree>" ]
-  [ "${lines[7]}" = "arg=<-c>" ]
-  [ "${lines[8]}" = 'arg=<default_permissions="dotfiles-secure">' ]
-  [ "${lines[9]}" = "arg=<-c>" ]
-  [ "${lines[10]}" = \
-    "arg=<permissions.dotfiles-secure.filesystem={\"$git_dir\"=\"write\",\"$git_common_dir\"=\"write\"}>" ]
-  [ "${lines[11]}" = "arg=<--model>" ]
-  [ "${lines[12]}" = "arg=<model with space>" ]
-  [ "${lines[13]}" = "arg=<prompt with space>" ]
+@test "codex-worktree launches actual Codex at the fixed root with only active Git metadata writable" {
+  raw_fixture
+  cat > "$RAW_BASE/work/task.sh" <<'SH'
+set -eu
+test -z "${GIT_DIR+x}${GIT_COMMON_DIR+x}${GIT_WORK_TREE+x}${CODEX_PERMISSION_PROFILE+x}"
+test -f flake.nix
+printf edited > ordinary.txt
+git add ordinary.txt
+if cat ../repo/.env >/dev/null 2>&1; then exit 1; fi
+if printf bad > .env 2>/dev/null; then exit 1; fi
+printf BOUNDARY_OK
+SH
+  raw_admit flake.nix task.sh
+  export GIT_DIR="$RAW_BASE/repo/.git" GIT_COMMON_DIR="$RAW_BASE/repo/.git" GIT_WORK_TREE="$RAW_BASE/repo"
+  export CODEX_PERMISSION_PROFILE=unrestricted
+  run raw_run sandbox -- bash task.sh
+  unset GIT_DIR GIT_COMMON_DIR GIT_WORK_TREE
+  raw_assert_status 0
+  [[ "$output" == *BOUNDARY_OK* ]]
+  [ "$(git -C "$RAW_BASE/work" diff --cached --name-only)" = ordinary.txt ]
 }
 
-@test "codex-worktree launches Codex when linked-worktree metadata uses relative paths" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  create_linked_worktree "$repo" "$worktree" relative
-  install_codex_launch_sentinel "$bin"
-  grep -q '^gitdir: \.\.' "$worktree/.git"
-
-  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
-    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
-
-  [ "$status" -eq 0 ]
-  [ -e "$launched" ]
+@test "codex-worktree accepts metadata pointers relative to each owning metadata file" {
+  raw_fixture
+  python3 - "$RAW_BASE/work" <<'PYTHON'
+from pathlib import Path
+import os,subprocess,sys
+root=Path(sys.argv[1])
+gitdir=Path(subprocess.check_output(['git','-C',str(root),'rev-parse','--path-format=absolute','--git-dir'],text=True).strip())
+common=gitdir.parent.parent
+(root/'.git').write_text('gitdir: '+os.path.relpath(gitdir,root)+'\n')
+(gitdir/'commondir').write_text('../..\n')
+(gitdir/'gitdir').write_text(os.path.relpath(root/'.git',gitdir)+'\n')
+PYTHON
+  raw_admit flake.nix task.sh
+  run raw_run sandbox -- true
+  raw_assert_status 0
 }
 
 @test "codex-worktree rejects a primary checkout without launching Codex" {
@@ -642,40 +622,16 @@ EOF
   [ "${#lines[@]}" -eq 2 ]
 }
 
-@test "bun codex routes a valid linked worktree through the canonical adapter without losing arguments" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local git_dir
-  local git_common_dir
-  create_linked_worktree "$repo" "$worktree"
-  stage_codex_package_launcher "$worktree" "$bin"
-  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
-  git_common_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)"
-
-  cat >"$bin/codex" <<'EOF'
-#!/usr/bin/env bash
-printf 'arg=<%s>\n' "$@"
-EOF
-  chmod +x "$bin/codex"
-
-  run --separate-stderr env PATH="$bin:$PATH" bash -c \
-    'cd "$1" && exec bun --silent codex --model "model with space" "" "prompt with space"' \
-    _ "$worktree"
-
-  [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "arg=<-C>" ]
-  [ "${lines[1]}" = "arg=<$worktree>" ]
-  [ "${lines[2]}" = "arg=<-c>" ]
-  [ "${lines[3]}" = 'arg=<default_permissions="dotfiles-secure">' ]
-  [ "${lines[4]}" = "arg=<-c>" ]
-  [ "${lines[5]}" = \
-    "arg=<permissions.dotfiles-secure.filesystem={\"$git_dir\"=\"write\",\"$git_common_dir\"=\"write\"}>" ]
-  [ "${lines[6]}" = "arg=<--model>" ]
-  [ "${lines[7]}" = "arg=<model with space>" ]
-  [ "${lines[8]}" = "arg=<>" ]
-  [ "${lines[9]}" = "arg=<prompt with space>" ]
-  [ "${#lines[@]}" -eq 10 ]
+@test "bun codex routes a linked worktree through the isolated adapter without losing arguments" {
+  raw_fixture
+  cp "$PROJECT_ROOT/codex" "$RAW_BASE/work/codex"
+  cp "$PROJECT_ROOT/package.json" "$RAW_BASE/work/package.json"
+  ln -s "$CODEX_CONTEXT" "$RAW_BASE/bin/codex-context"
+  raw_admit flake.nix task.sh codex package.json
+  run env HOME="$RAW_BASE/home" CODEX_HOME="$RAW_BASE/home/.codex" XDG_STATE_HOME="$RAW_BASE/state" \
+    PATH="$RAW_BASE/bin:$PATH" bash -c 'cd "$1"; exec bun --silent codex sandbox -- printf "arg=<%s>\n" "model with space" "" "prompt with space"' _ "$RAW_BASE/work"
+  raw_assert_status 0
+  [[ "$output" == *'arg=<model with space>'* && "$output" == *'arg=<>'* && "$output" == *'arg=<prompt with space>'* ]]
 }
 
 @test "bun codex fails closed outside Git without launching Codex" {
@@ -714,69 +670,18 @@ EOF
   [ ! -e "$launched" ]
 }
 
-@test "codex-worktree permits linked-worktree Git writes while protected paths stay denied" {
-  local home="$BATS_TEST_TMPDIR/home"
-  local repo_a="$BATS_TEST_TMPDIR/repo-a"
-  local repo_b="$BATS_TEST_TMPDIR/repo-b"
-  local worktree_b="$BATS_TEST_TMPDIR/worktree-b"
-  local remote="$worktree_b/remote"
-  local bin="$worktree_b/bin"
-  local codex_home="$home/.codex"
-  local base_head
-  local topic_head
-  mkdir -p "$repo_a" "$codex_home"
-
-  git -C "$repo_a" init -q
-  create_linked_worktree "$repo_b" "$worktree_b"
-  mkdir -p "$bin"
-  git init -q --bare "$remote"
-  git --git-dir "$remote" symbolic-ref HEAD refs/heads/main
-  git -C "$repo_b" remote add origin "$remote"
-  git -C "$repo_b" push -q origin HEAD:main
-  cp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$bin/git-push-topic"
-  chmod +x "$bin/git-push-topic"
-  render_codex_managed_config "$repo_a" "$codex_home/config.toml"
-  base_head="$(git -C "$worktree_b" rev-parse HEAD)"
-
-  printf 'linked\n' >"$worktree_b/linked.txt"
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp codex sandbox -P dotfiles-secure \
-    -C "$worktree_b" -- git add linked.txt
-
+@test "codex-worktree preserves separate stage and commit operations while protected paths stay denied" {
+  raw_fixture
+  raw_admit flake.nix task.sh
+  run raw_run sandbox -- bash -c 'printf linked > linked.txt; git add linked.txt'
+  raw_assert_status 0
+  [ "$(git -C "$RAW_BASE/work" diff --cached --name-only)" = linked.txt ]
+  run raw_run sandbox -- git commit -qm 'test: linked worktree write'
+  raw_assert_status 0
+  [ "$(git -C "$RAW_BASE/work" log -1 --format=%s)" = 'test: linked worktree write' ]
+  run raw_run sandbox -- bash -c 'printf overwritten > .env'
   [ "$status" -ne 0 ]
-  [ -z "$(git -C "$worktree_b" diff --cached --name-only)" ]
-
-  run env HOME="$home" CODEX_HOME="$codex_home" \
-    TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
-    GIT_DIR="$repo_a/.git" GIT_COMMON_DIR="$repo_a/.git" bash -c \
-    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git add linked.txt' \
-    _ "$worktree_b" "$CODEX_WORKTREE"
-
-  [ "$status" -eq 0 ]
-  [ "$(git -C "$worktree_b" diff --cached --name-only)" = "linked.txt" ]
-
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp bash -c \
-    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git commit -qm "test: linked worktree write"' \
-    _ "$worktree_b" "$CODEX_WORKTREE"
-
-  [ "$status" -eq 0 ]
-  topic_head="$(git -C "$worktree_b" rev-parse HEAD)"
-  [ "$topic_head" != "$base_head" ]
-
-  run env HOME="$home" CODEX_HOME="$codex_home" PATH="$bin:$PATH" TMPDIR=/tmp bash -c \
-    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- git-push-topic' \
-    _ "$worktree_b" "$CODEX_WORKTREE"
-
-  [ "$status" -eq 0 ]
-  [ "$(git --git-dir "$remote" rev-parse refs/heads/linked)" = "$topic_head" ]
-  [ "$(git -C "$worktree_b" config branch.linked.remote)" = "origin" ]
-
-  printf 'protected\n' >"$worktree_b/.env"
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp bash -c \
-    'cd "$1" && exec "$2" sandbox -P dotfiles-secure -- sh -c "printf '\''overwritten\\n'\'' >.env"' \
-    _ "$worktree_b" "$CODEX_WORKTREE"
-
-  [ "$status" -ne 0 ]
-  [ "$(cat "$worktree_b/.env")" = "protected" ]
+  [ "$(cat "$RAW_BASE/work/.env")" = RAW_DUMMY_SECRET=dummy-root-secret ]
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {

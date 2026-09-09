@@ -41,6 +41,16 @@ managed `dotfiles-secure` profile は workspace write、protected-path deny、ne
 - primary checkout、non-Git directory、unresolved metadata は Codex を起動せず fail closed にする。full sandbox bypass、parent/common directory の包括許可、routine manual-shell Git へ fallback しない。
 - Worktree Activation 後の `git add`、`git commit`、`git-push-topic`、`to-pr` は同じ narrow sandbox 内で実行する。common dir は repository 内の objects / refs / config を共有する Git の構造上必要だが、別 repository の Git metadata は許可しない。
 
+## 2026-09-10 amendment: raw 初期化より前の秘密分離
+
+[#271](https://github.com/treflebonbon/dotfiles/issues/271) は [#270 の公開入力と Git 返却の成立結果](../research/secret-isolation-worktree-270.md) を共通入口へ組み込む。Linux／WSL2 の raw adapter は host で Nix／shellHook を評価する経路、任意の継承変数の復元、root dotenv read grant、無保護な調査用 fallback を終了する。
+
+明示的に公開と宣言したファイルと到達可能 Git 履歴をコピーし、専用 HOME・store・process・network の中で初期化する。元の physical root と Git ownership を再構成し、管理 requirements の `dotfiles-secure` に当該 metadata の write だけを加える。実行後は検証した commit・index・通常ファイルを元の worktree に返す。初期化の失敗や host 並行変更は復旧用 session を保持して停止する。
+
+この選択は live filesystem の即時共有・store cache の再利用より、秘密を初期入力に含めず host の後発変更にも追従しない境界を優先する。人間の公開入力宣言が必要で、履歴の機密分類を自動化しない。返却は全ファイルの原子的 transaction ではない。実行条件と復旧は [利用方法](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境)、実測は [検証記録](../research/raw-codex-isolation-271.md) を正本とする。
+
+以下の 2026-09-09 amendment は変更前の決定履歴として残す。raw の初期化順序・fallback・dotenv grant にはこの amendment を適用する。人間向け `with-env`、Claude、native runtime の契約は変更しない。
+
 ## 2026-09-09 amendment: 信頼済み devShell の準備
 
 [Issue #255](https://github.com/treflebonbon/dotfiles/issues/255) の決定に従い、raw Codex の Runtime Adapter は上記の read-only discovery と process launch に加えて、検証済み root の信頼済み devShell を起動前に準備する。これは「metadata の read-only discovery と Codex process launch だけを所有する」という境界の限定的な拡張である。Orca native Codex の所有権は [ADR-0046](0046-separate-orca-native-worktree-entry.md) のまま維持する。

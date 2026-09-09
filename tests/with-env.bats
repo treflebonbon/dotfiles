@@ -1,6 +1,9 @@
 #!/usr/bin/env bats
 
 bats_require_minimum_version 1.5.0
+load helpers/raw-codex
+
+teardown() { raw_cleanup; }
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -129,39 +132,26 @@ EOF
   [ ! -e "$FIXTURE/separate/launched" ]
 }
 
-@test "raw Codex reuses its prepared devShell through with-env without another Nix invocation" {
-  cat >"$FIXTURE/bin/nix" <<EOF
-#!/bin/sh
-printf 'run\\n' >>'$FIXTURE/nix-calls'
-printf 'export PROJECT_257=prepared\\n'
-EOF
-  cat >"$FIXTURE/bin/codex" <<EOF
-#!/bin/sh
-export GIT_AUTHOR_NAME='Prepared Caller'
-exec '$CLI' with-env --prepared -- sh -c 'test "\$PROJECT_257/\$GIT_AUTHOR_NAME" = "prepared/Prepared Caller"'
-EOF
-  chmod +x "$FIXTURE/bin/codex"
-  env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
-  run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" PATH="$FIXTURE/bin:$PATH" \
-    bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
-  [ "$status" -eq 0 ]
-  [ "$(wc -l <"$FIXTURE/nix-calls")" -eq 1 ]
+@test "raw Codex reuses the isolated prepared devShell without injecting host dotenv" {
+  raw_fixture
+  raw_admit flake.nix task.sh
+  run raw_run sandbox -- with-env --prepared -- bash -c 'test "$PUBLIC_VAR/$HOOK_VAR" = normal/ready; test -z "${RAW_DUMMY_SECRET+x}"'
+  raw_assert_status 0
+  [ "$(wc -l < "$RAW_BASE/work/hook-calls")" -eq 1 ]
 }
 
-@test "the normal entry prepares again even when it inherits a matching prepared context" {
-  cat >"$FIXTURE/bin/codex" <<'EOF'
-#!/bin/sh
-printf '#!/bin/sh\nexit 91\n' >"$TEST_NIX"
-exec "$TEST_CLI" with-env -- touch "$TEST_LAUNCHED"
-EOF
-  chmod +x "$FIXTURE/bin/codex"
-  env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
-  run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" PATH="$FIXTURE/bin:$PATH" \
-    TEST_NIX="$FIXTURE/bin/nix" TEST_CLI="$CLI" TEST_LAUNCHED="$FIXTURE/launched" \
-    bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *'Nix preparation failed (91)'* ]]
-  [ ! -e "$FIXTURE/launched" ]
+@test "the normal entry prepares again even when it inherits a prepared context" {
+  raw_fixture
+  cat > "$RAW_BASE/work/task.sh" <<'SH'
+set -eu
+printf '{ outputs = _: throw "reprepare required"; }' > flake.nix
+with-env -- bash -c 'touch launched'
+SH
+  raw_admit flake.nix task.sh
+  run raw_run sandbox -- bash task.sh
+  raw_assert_status 1
+  [[ "$output" == *'Nix preparation failed'* ]]
+  [ ! -e "$RAW_BASE/work/launched" ]
 }
 
 @test "prepared entry refuses to execute without successful adapter preparation" {
@@ -171,28 +161,28 @@ EOF
   [ ! -e "$FIXTURE/launched" ]
 }
 
-@test "with-env rejects a prepared context after root, output or flake changes" {
-  cat >"$FIXTURE/bin/codex" <<'EOF'
-#!/bin/sh
-case "$TEST_CHANGE" in
-  root) cd "$TEST_REPO";;
-  output) export DEVSHELL_ENV_OUTPUT=custom;;
-  flake) printf changed >> flake.nix;;
-  lock) printf changed > flake.lock;;
-esac
-exec "$TEST_CLI" with-env --prepared -- touch "$TEST_LAUNCHED"
-EOF
-  chmod +x "$FIXTURE/bin/codex"
-  env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/repo"
-  local change
-  for change in root output flake lock; do
-    run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" PATH="$FIXTURE/bin:$PATH" \
-      TEST_CHANGE="$change" TEST_REPO="$FIXTURE/repo" TEST_CLI="$CLI" TEST_LAUNCHED="$FIXTURE/launched" \
-      bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/worktree" "$CLI"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *'restart the session'* ]]
-    [ ! -e "$FIXTURE/launched" ]
-  done
+@test "with-env rejects a prepared context after root, output, flake or lock changes" {
+  raw_fixture
+  cat > "$RAW_BASE/work/task.sh" <<'SH'
+set -eu
+original=$DEVSHELL_ENV_CONTEXT
+for change in output flake lock; do
+  case "$change" in
+    output) export DEVSHELL_ENV_OUTPUT=custom;;
+    flake) unset DEVSHELL_ENV_OUTPUT; printf changed >> flake.nix;;
+    lock) printf changed > flake.lock;;
+  esac
+  if with-env --prepared -- touch launched; then exit 1; fi
+done
+git init -q "$TMPDIR/other"
+(cd "$TMPDIR/other"; if with-env --prepared -- true; then exit 1; fi)
+printf CONTEXT_REFUSED
+SH
+  raw_admit flake.nix task.sh
+  run raw_run sandbox -- bash task.sh
+  raw_assert_status 0
+  [[ "$output" == *CONTEXT_REFUSED* && "$output" == *'restart the session'* ]]
+  [ ! -e "$RAW_BASE/work/launched" ]
 }
 
 @test "dotenv parsing preserves values, expands variables with caller precedence, and never executes shell text" {
@@ -392,10 +382,26 @@ EOF
   done
 }
 
-@test "real raw Codex confines dotenv, Git metadata and network while running the public app package" {
-  [ "${WITH_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with WITH_ENV_REAL_NIX=1; requires real Nix and Codex sandbox"
+@test "real raw Codex confines dotenv and Git metadata while executing the public with-env entry" {
+  raw_fixture
+  cat > "$RAW_BASE/work/task.sh" <<'SH'
+set -eu
+with-env --prepared -- bash -c 'test -z "${RAW_DUMMY_SECRET+x}"; test -z "$(cat .env 2>/dev/null || true)"; printf public > result.txt; git add result.txt'
+if cat ../repo/.env >/dev/null 2>&1; then exit 1; fi
+printf RAW_WITH_ENV_OK
+SH
+  raw_admit flake.nix task.sh
+  export RAW_DUMMY_SECRET=dummy-inherited-secret
+  run raw_run sandbox -- bash task.sh
+  raw_assert_status 0
+  [[ "$output" == *RAW_WITH_ENV_OK* ]]
+  [ "$(git -C "$RAW_BASE/work" diff --cached --name-only)" = result.txt ]
+}
+
+
+@test "the actual public Nix app package remains secret-free inside the raw runtime" {
+  [ "${WITH_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with WITH_ENV_REAL_NIX=1; builds the public app inside the dedicated store"
   run python3 "$PROJECT_ROOT/tests/helpers/with-env-preflight.py"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'trusted: exit=0'* && "$output" == *'Evidence:'* ]]
+  raw_assert_status 0
+  [[ "$output" == *'Evidence:'* ]]
 }

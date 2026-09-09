@@ -26,7 +26,7 @@ CLAUDE.md / AGENTS.md / `runtime/` バンドルは chezmoi が `~/` へ配備す
 
 プロジェクト言語は per-repo `flake.nix` で供給する。新規 repo は `nix flake init -t 'github:treflebonbon/dotfiles#<lang>'`（go/rust/elixir/perl/gleam/bun）で展開する。テンプレ実体は `templates/<lang>/`、ルート `./flake.nix` の `templates` output で公開（`.chezmoiignore` で home には非配備）。
 
-6テンプレートは共通 `with-env` の検証済み dotfiles revision を flake input に固定し、言語用 nixpkgs を `follows` で共有する。生成先の `nix flake lock` で依存を確定し、`nix develop .#default` と `nix run .#with-env -- command` を `.envrc` なしで使える。各 devShell に同じ package を含め、準備済み raw Codex の `with-env --prepared` にも対応する。独立 repo 向けの手順・言語別 app 組込み例は各テンプレートの `DEVELOPMENT.md`、生成先の dotenv 除外は `.gitignore` に同梱する。共通処理をテンプレートへコピーせず、更新時は6 input の revision と独立展開テストを揃える。
+6テンプレートは共通 `with-env` の検証済み dotfiles revision を flake input に固定し、言語用 nixpkgs を `follows` で共有する。生成先の `nix flake lock` で依存を確定し、`nix develop .#default` と `nix run .#with-env -- command` を `.envrc` なしで使える。各 devShell に同じ package を含め、準備済み raw Codex の `with-env --prepared` にも対応する。 raw Codex は公開入力だけを専用 store・HOME へ渡すため、この入口ではホスト dotenv を注入しない。共通の隔離実装は `private_dot_local/share/codex-isolation/` に置き、手動 probe と配備する launcher が共有する。独立 repo 向けの手順・言語別 app 組込み例は各テンプレートの `DEVELOPMENT.md`、生成先の dotenv 除外は `.gitignore` に同梱する。共通処理をテンプレートへコピーせず、更新時は6 input の revision と独立展開テストを揃える。
 
 ## ツール追加先の使い分け
 
