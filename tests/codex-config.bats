@@ -1,13 +1,20 @@
 #!/usr/bin/env bats
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CODEX_ORCA="$PROJECT_ROOT/private_dot_local/bin/executable_codex-orca"
   export CODEX_CONTEXT="$PROJECT_ROOT/private_dot_local/bin/executable_codex-context"
-  export CODEX_WORKTREE="$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree"
+  export CODEX_WORKTREE="$BATS_TEST_TMPDIR/runtime-bin/codex-worktree"
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
+  mkdir -p "$BATS_TEST_TMPDIR/runtime-bin"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree" "$CODEX_WORKTREE"
+  ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$BATS_TEST_TMPDIR/runtime-bin/devshell-env"
+  export PATH="$BATS_TEST_TMPDIR/runtime-bin:$PATH"
+  export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
 }
 
 install_codex_package_test_commands() {
@@ -15,7 +22,8 @@ install_codex_package_test_commands() {
   mkdir -p "$bin"
   ln -s "$CODEX_CONTEXT" "$bin/codex-context"
   ln -s "$CODEX_ORCA" "$bin/codex-orca"
-  ln -s "$CODEX_WORKTREE" "$bin/codex-worktree"
+  cp "$CODEX_WORKTREE" "$bin/codex-worktree"
+  ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$bin/devshell-env"
 }
 
 stage_codex_package_launcher() {
@@ -90,7 +98,7 @@ printf 'arg=<%s>\n' "$@"
 EOF
   chmod +x "$bin/codex"
 
-  run env PATH="$bin:$PATH" TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
+  run --separate-stderr env PATH="$bin:$PATH" TMPDIR="$BATS_TEST_TMPDIR/nested-tmp" \
     GIT_DIR="$repo/.git" GIT_COMMON_DIR="$repo/.git" GIT_WORK_TREE="$repo" \
     CODEX_PERMISSION_PROFILE=unrestricted \
     bash -c 'cd "$1" && exec "$2" --model "model with space" "prompt with space"' \
@@ -630,7 +638,7 @@ printf 'arg=<%s>\n' "$@"
 EOF
   chmod +x "$bin/codex"
 
-  run env PATH="$bin:$PATH" bash -c \
+  run --separate-stderr env PATH="$bin:$PATH" bash -c \
     'cd "$1" && exec bun --silent codex --model "model with space" "" "prompt with space"' \
     _ "$worktree"
 
@@ -681,7 +689,7 @@ EOF
     'cd "$1" && exec bun --silent codex prompt' _ "$worktree"
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"codex-worktree: linked worktree metadata ownership does not match"* ]]
+  [[ "$output" == *"codex-worktree: cannot resolve Git worktree metadata"* ]]
   [ ! -e "$launched" ]
 }
 
