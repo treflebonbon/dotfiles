@@ -6,11 +6,12 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CODEX_ORCA="$PROJECT_ROOT/private_dot_local/bin/executable_codex-orca"
   export CODEX_CONTEXT="$PROJECT_ROOT/private_dot_local/bin/executable_codex-context"
-  export CODEX_WORKTREE="$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree"
+  export CODEX_WORKTREE="$BATS_TEST_TMPDIR/runtime-bin/codex-worktree"
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
   mkdir -p "$BATS_TEST_TMPDIR/runtime-bin"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree" "$CODEX_WORKTREE"
   ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$BATS_TEST_TMPDIR/runtime-bin/devshell-env"
   export PATH="$BATS_TEST_TMPDIR/runtime-bin:$PATH"
   export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
@@ -21,7 +22,8 @@ install_codex_package_test_commands() {
   mkdir -p "$bin"
   ln -s "$CODEX_CONTEXT" "$bin/codex-context"
   ln -s "$CODEX_ORCA" "$bin/codex-orca"
-  ln -s "$CODEX_WORKTREE" "$bin/codex-worktree"
+  cp "$CODEX_WORKTREE" "$bin/codex-worktree"
+  ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$bin/devshell-env"
 }
 
 stage_codex_package_launcher() {

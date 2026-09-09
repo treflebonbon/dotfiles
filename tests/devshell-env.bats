@@ -1,11 +1,14 @@
 #!/usr/bin/env bats
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CLI="$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env"
-  ADAPTER="$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree"
   FIXTURE="$BATS_TEST_TMPDIR/fixture"
   mkdir -p "$FIXTURE/bin" "$FIXTURE/home"
+  ADAPTER="$FIXTURE/bin/codex-worktree"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree" "$ADAPTER"
   git init -q "$FIXTURE/repo"
   git -C "$FIXTURE/repo" -c user.name=Test -c user.email=test@example.com \
     commit --allow-empty -qm 'test: initialize repository'
@@ -106,6 +109,49 @@ EOF
   run adapter
   [ "$status" -eq 0 ]
   [[ "$output" == *"no flake.nix"* && "$output" == *"launched PROJECT_255=unset"* ]]
+  [ ! -e "$FIXTURE/nix-calls" ]
+}
+
+@test "untrusted worktrees cannot shadow the installed devshell-env helper through inherited PATH" {
+  install_runtime_fixture
+  cat >"$FIXTURE/bin/codex" <<'EOF'
+#!/bin/bash
+printf 'investigation launch\n'
+EOF
+  cat >"$FIXTURE/worktree/devshell-env" <<EOF
+#!/bin/bash
+touch '$FIXTURE/shadow-helper-launched'
+exit 99
+EOF
+  chmod +x "$FIXTURE/worktree/devshell-env"
+
+  local project_path
+  for project_path in "$FIXTURE/worktree" .; do
+    run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" \
+      PATH="$project_path:$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2"' \
+      _ "$FIXTURE/worktree" "$ADAPTER"
+
+    [ ! -e "$FIXTURE/shadow-helper-launched" ]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"untrusted"* && "$output" == *"investigation launch"* ]]
+    [ ! -e "$FIXTURE/nix-calls" ]
+  done
+}
+
+@test "a missing sibling helper fails closed instead of falling back to PATH" {
+  install_runtime_fixture
+  mkdir "$FIXTURE/incomplete install"
+  cp "$ADAPTER" "$FIXTURE/incomplete install/codex-worktree"
+  cat >"$FIXTURE/bin/codex" <<EOF
+#!/bin/bash
+touch '$FIXTURE/launched'
+EOF
+  ADAPTER="$FIXTURE/incomplete install/codex-worktree"
+
+  run -127 adapter
+
+  [[ "$output" == *"$FIXTURE/incomplete install/devshell-env"* ]]
+  [ ! -e "$FIXTURE/launched" ]
   [ ! -e "$FIXTURE/nix-calls" ]
 }
 

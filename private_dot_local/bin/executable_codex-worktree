@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec devshell-env codex "$@"
+adapter_path=${BASH_SOURCE[0]}
+adapter_dir=.
+if [[ "$adapter_path" == */* ]]; then
+  adapter_dir=${adapter_path%/*}
+fi
+adapter_dir="$(CDPATH='' cd -- "$adapter_dir" && pwd -P)"
+
+exec "$adapter_dir/devshell-env" codex "$@"
