@@ -117,6 +117,15 @@
         ],
         "createdAt": "2026-09-09T09:55:50.436Z",
         "reason": "Agent: the 16, 15, and 13 reported double dashes exactly match the Mermaid edge counts. These are E0@--> connectors in the disclosed source, not prose punctuation. Preserve valid Mermaid source; scope to these three previews."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "tmp/empirical-ui-grill/iter-2/a/workspace/tmp/ui-grill-equipment-request.html"
+        ],
+        "createdAt": "2026-09-09T16:39:29.927Z",
+        "reason": "Agent: frozen empirical-evaluation fixture; the bordered table wrapper intentionally meets the table edge, while th/td already provide 8px padding. Preserve the recorded artifact."
       }
     ]
   }
