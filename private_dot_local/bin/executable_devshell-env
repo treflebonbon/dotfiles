@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -167,8 +168,8 @@ def selected_output(repo):
     return "wsl" if wsl and (repo.root / ".wsl-browser-free").is_file() else "default"
 
 
-def prepare_environment(repo, inherited):
-    if not trusted(repo):
+def prepare_environment(repo, inherited, require_trust=True):
+    if require_trust and not trusted(repo):
         raise PreparationError("untrusted repository; run devshell-env trust")
     if not (repo.root / "flake.nix").is_file():
         raise PreparationError("no flake.nix at the worktree root")
@@ -268,6 +269,78 @@ exec "$1" -I -c 'import json,os; print(json.dumps(dict(os.environ)))'
     return environment
 
 
+def dotenv_environment(repo, prepared, inherited):
+    from dotenv.parser import parse_stream
+    from dotenv.variables import parse_variables
+
+    path = repo.root / ".env"
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return prepared
+    try:
+        target = path.resolve(strict=True)
+        if not target.is_relative_to(repo.root):
+            raise PreparationError("root .env must stay inside the current worktree")
+        if target == repo.root:
+            raise PreparationError("root .env must be a regular file")
+        # Open each resolved component without following a replacement symlink.
+        directory = os.open(repo.root, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            parts = target.relative_to(repo.root).parts
+            for part in parts[:-1]:
+                child = os.open(
+                    part,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=directory,
+                )
+                os.close(directory)
+                directory = child
+            descriptor = os.open(
+                parts[-1],
+                os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                dir_fd=directory,
+            )
+        finally:
+            os.close(directory)
+        with os.fdopen(descriptor, encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise PreparationError("root .env must be a regular file")
+            bindings = list(parse_stream(stream))
+    except (OSError, UnicodeError, RuntimeError) as error:
+        raise PreparationError("cannot read root .env") from error
+    environment = prepared.copy()
+    expansion = prepared | inherited
+    for binding in bindings:
+        if binding.error:
+            raise PreparationError(f"invalid root .env at line {binding.original.line}")
+        key, value = binding.key, binding.value
+        if key is None or value is None:
+            continue
+        if not key or "=" in key or "\0" in key or "\0" in value:
+            raise PreparationError(f"invalid root .env at line {binding.original.line}")
+        value = "".join(atom.resolve(expansion) for atom in parse_variables(value))
+        environment[key] = inherited.get(key, prepared.get(key, value))
+        expansion[key] = environment[key]
+    return environment
+
+
+def launch_with_env(arguments):
+    if arguments[:1] == ["--"]:
+        arguments = arguments[1:]
+    if not arguments:
+        raise PreparationError("usage: devshell-env with-env -- command [args...]")
+    inherited = git_environment()
+    repo = Repository.discover(Path.cwd())
+    identity = repo.identity()
+    # An explicit app invocation authorizes this preparation without automatic trust.
+    prepared = prepare_environment(repo, inherited, require_trust=False)
+    if Repository.discover(repo.root) != repo or repo.identity() != identity:
+        raise InvalidContext("worktree metadata changed during preparation")
+    environment = dotenv_environment(repo, prepared, inherited)
+    os.execvpe(arguments[0], arguments, environment)
+
+
 def validate_codex_arguments(arguments):
     expect_profile = False
     prohibited_long = {
@@ -364,6 +437,12 @@ def launch_codex(arguments):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "with-env":
+        try:
+            launch_with_env(sys.argv[2:])
+        except (PreparationError, InvalidContext, OSError, ValueError) as error:
+            print(f"with-env: {error}", file=sys.stderr)
+            return 1
     if len(sys.argv) > 1 and sys.argv[1] == "codex":
         try:
             launch_codex(sys.argv[2:])

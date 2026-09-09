@@ -6,7 +6,7 @@
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { self, nixpkgs, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -17,6 +17,34 @@
       pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in
     {
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor.${system};
+          python = pkgs.python3.withPackages (p: [ p.python-dotenv ]);
+        in
+        {
+          with-env = pkgs.writeShellApplication {
+            name = "with-env";
+            runtimeInputs = [
+              pkgs.git
+              pkgs.nix
+              pkgs.bash
+            ];
+            text = ''
+              exec ${python}/bin/python3 ${./private_dot_local/bin/executable_devshell-env} with-env -- "$@"
+            '';
+          };
+        }
+      );
+
+      apps = forAllSystems (system: {
+        with-env = {
+          type = "app";
+          program = "${self.packages.${system}.with-env}/bin/with-env";
+        };
+      });
+
       devShells = forAllSystems (
         system:
         let
@@ -39,7 +67,7 @@
             ]))
             nodejs_24
             bun
-            python3
+            (python3.withPackages (p: [ p.python-dotenv ]))
             git
           ];
         in

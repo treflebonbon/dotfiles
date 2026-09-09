@@ -62,6 +62,36 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 
 Nix は raw Codex の sandbox 起動前に準備する。標準 permission と Active Git Metadata Boundary は維持し、Nix／shellHook 後も検証済み root・Git metadata・起動元の Codex 実行ファイルを固定する。flake の編集はセッション再起動で反映する。Orca native Codex の built-in launch、Claude の hook、direnv の対話 shell hook、ユーザー環境キャッシュはこの slice の変更対象に含まれない。実行確認の環境と後続 slice の制約は [Issue #255 の検証記録](../docs/research/devshell-env-255.md) を参照。
 
+### 指定コマンドへの dotenv 注入
+
+dotfiles の `nix run .#with-env -- <command> [args...]` は、現在地の Git root にある devShell を準備し、その root の `.env` を対象コマンドと子プロセスにだけ渡す。人間による明示実行では trust 登録は不要。`DEVSHELL_ENV_OUTPUT` と WSL の `.wsl-browser-free` 判定は raw adapter と共通で、`.envrc` は読まない。サブディレクトリからも同じ root の `.env` を使い、コマンドの作業ディレクトリは現在地を保つ。
+
+dotenv は任意で、不在なら準備済み環境だけで実行する。存在するファイルの読取り・解析失敗、worktree 外への symlink、通常ファイル以外は非0終了し、対象コマンドを起動しない。worktree 内のファイルへの symlink は受理する。解析は `python-dotenv` を使い、空値・引用符・複数行・`${NAME}` と `${NAME:-default}` を扱う。`$NAME` と `$(command)` は文字列のままになり、シェルとして実行しない。値のない `NAME` は無視し、同名の値は起動元、devShell、dotenv の順で優先する。
+
+Nix／shellHook の準備失敗も正式入口の失敗として止める。**AI は失敗した正式入口を任意コマンドの直接実行へ置き換えて迂回しない。** 必要変数の有無・内容の検証は各コマンドが担当する。dotenv を Git に追加したり、flake の `builtins.readFile` や shellHook から取り込んだりしない。Nix の Git source には追跡ファイルが入るため、`.env` は追跡対象外のままにする。
+
+名前付き app へ組み込む例（既存 flake の system ごとの `apps` 定義内）:
+
+```nix
+let
+  withEnv = self.packages.${system}.with-env;
+  mkCommand = name: command: {
+    type = "app";
+    program = "${pkgs.writeShellScriptBin name ''
+      exec ${withEnv}/bin/with-env ${command} "$@"
+    ''}/bin/${name}";
+  };
+in
+{
+  dev = mkCommand "dev" "bun run dev";
+  test = mkCommand "test" "bun run test";
+}
+```
+
+たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。6言語テンプレートへの展開は #258 が担当する。
+
+raw Codex の標準 sandbox 内での with-env 利用は未完成。Nix daemon 接続と worktree 外の `.env` 保護に成立条件が残るため、現時点では dotenv の読取り権限を追加していない。Claude への dotenv 注入も対象外。詳細は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+
 ## ghq + fzf リポジトリ管理
 
 `.bashrc` の関数で提供:
