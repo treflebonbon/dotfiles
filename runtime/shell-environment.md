@@ -62,6 +62,22 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 
 Nix は raw Codex の sandbox 起動前に準備する。標準 permission と Active Git Metadata Boundary は維持し、Nix／shellHook 後も検証済み root・Git metadata・起動元の Codex 実行ファイルを固定する。flake の編集はセッション再起動で反映する。Orca native Codex の built-in launch、Claude の hook、direnv の対話 shell hook、ユーザー環境キャッシュはこの slice の変更対象に含まれない。実行確認の環境と後続 slice の制約は [Issue #255 の検証記録](../docs/research/devshell-env-255.md) を参照。
 
+## Claude のプロジェクト開発環境
+
+同じ `devshell-env trust [directory]` の登録と output 選択を使う。登録済み repo で通常どおり `claude`、または Orca の built-in Claude を起動すると、その root の devShell のツール・通常変数を後続の Bash ツールで利用できる。primary checkout と正当な linked worktree が対象になる。Orca の worktree 作成・Agent Picker・permission mode は引き続き Orca が所有する。
+
+`SessionStart` は初期環境を準備する。`SessionStart` と `CwdChanged` は Claude の `CLAUDE_ENV_FILE` へ session 用 script の source を追記し、他 hook の内容を保持する。Claude 2.1.263 の `CwdChanged` は非同期で、`EnterWorktree` では発火しないため、`PreToolUse(Bash)` が実際の cwd と信頼状態を同期確認して切替を確定する。同じ Git root・output・信頼状態・flake 有無なら Nix と shellHook を繰り返さない。遅れて到着した `CwdChanged` は環境を上書きしない。Bash ツールの backend が bash・zsh のどちらでも同じ差分を反映する。
+
+flake を編集したら、Claude の Bash で `devshell-env reload` を実行する。その次の Bash から反映され、reload を呼んだ Bash 自身や、既に実行中のコマンドは変わらない。通常 Bash には `CLAUDE_ENV_FILE` が渡らないため、hook が設定する `DEVSHELL_ENV_SESSION` で接続する。この変数は手動設定せず、管理 hook のないセッションでは Claude を起動し直す。自動ファイル監視は行わない。
+
+別 repo・worktree、未登録、flake 不在へ移動した場合は次の Bash の前に旧環境を解除する。Nix／shellHook の失敗も旧環境を解除して理由を表示し、調査を継続できる。`devshell-env status` で root と登録を確認し、必要な登録・flake 修正後に `devshell-env reload` で再試行する。失敗した reload は非0終了する。同じ対象の自動再試行は繰り返さず、明示 reload またはセッション再起動を使う。Nix と shellHook はそれぞれ50秒、managed hook は120秒が上限になる。
+
+復元するのは環境変数と追加した PATH 要素であり、shellHook が作ったファイルなど外部副作用の巻戻しは保証しない。復元前に他 hook が同じ変数を別値へ変えていれば、その値を保持する。保存済みの他 hook の内容と、追加された PATH 要素も維持する。継承環境に元から含まれていた direnv の値は、この hook が追加した環境とは区別する。
+
+session 状態は `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/.devshell-env/<session-id の hash>/` に置く。初期化結果だけを session 内で再利用し、`SessionStart` で再評価するため、session をまたいだプロジェクト環境キャッシュにはしない。Nix／shellHook へ渡すのは HOME と解決済み bootstrap ツールの PATH だけで、任意の継承値やその加工結果を新しい保存先へ残さない。元の変数値を復元するための情報は非exportの shell 変数に保持し、ファイルへ保存しない。dotenv と秘密取得は追加せず、shellHook 自身にも秘密取得を書かない。これは信頼した flake の外部副作用を封じる sandbox ではない。
+
+Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS sandbox 変更は対象外。既存 permission と RTK／Design Hook を維持する。未 merge の task source は実配備しない。[#256 の実 lifecycle・品質検証記録](../docs/research/devshell-env-256.md)を参照。
+
 ## ghq + fzf リポジトリ管理
 
 `.bashrc` の関数で提供:
