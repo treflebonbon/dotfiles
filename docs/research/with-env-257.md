@@ -74,3 +74,27 @@ Git source 内の `.env` 不在も確認する。dotenv を Git や flake に含
 - `/tmp/with-env-257-config-verified.log`: 管理設定と移行・sandbox の49件
 
 3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備せず、live source と runtime 設定は変更していない。レビュー固定点は依存実装 `e025054` とする。
+
+## #256 との競合解消後の統合検証
+
+PR #264 の head `3ee811a` に main の `c41b541`（#263、Claude devShell lifecycle）を merge した。競合した共通 CLI では、`prepare_environment` の `require_trust` と `timeout` を両方保持し、with-env の準備済み環境の照合と Claude の hook・reload を共存させた。利用手順も両方の節を保持した。Claude lifecycle の関数群は main と一致し、Nix／shellHook のタイムアウトも維持している。
+
+統合した source で以下を再実行した。
+
+```bash
+TMPDIR=/tmp WITH_ENV_REAL_NIX=1 DEVSHELL_ENV_REAL_NIX=1 bats --print-output-on-failure tests/claude-devshell-env.bats tests/devshell-env.bats tests/with-env.bats tests/codex-config.bats
+python3 tests/helpers/claude-env-preflight.py --real-nix --shell bash
+python3 tests/helpers/claude-env-preflight.py --real-nix --shell zsh
+bunx tsc --noEmit
+ruff check private_dot_local/bin/executable_devshell-env tests/helpers/claude-env-preflight.py tests/helpers/with-env-preflight.py
+shellcheck private_dot_local/share/devshell-env/claude-env.sh
+shfmt -d private_dot_local/share/devshell-env/claude-env.sh
+TMPDIR=/tmp bun run test
+```
+
+関連 Bats は実 Nix／Codex sandbox の opt-in を含め91/91成功した（`/tmp/pr264-merge-targeted.log`）。実 Claude と実 Nix の lifecycle 検証は bash・zsh とも成功し、起動・同一 root・EnterWorktree・別 repo・reload・未登録・flake 不在・準備失敗と、環境保存先へのダミー秘密の非残留を確認した。モデル応答には loopback fixture を使い、Orca の Auto mode は今回再実行していない。
+
+- bash: `/tmp/pr264-merge-claude-bash.log`、fixture `/tmp/claude-env-preflight-h_9kxj_9/`
+- zsh: `/tmp/pr264-merge-claude-zsh.log`、fixture `/tmp/claude-env-preflight-f93nkj0s/`
+
+全 Bats は終了コード0、587件中584件成功・3件skip・失敗0件だった（`/tmp/pr264-merge-full.log`）。skip は実 Nix／sandbox の opt-in で、上記91件の実行ですべて成功した。型チェック、ruff、ShellCheck、shfmt も成功した。今回の競合解消は差分を両方の親と照合し、独立した2 agent による再レビューは行っていない。
