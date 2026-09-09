@@ -60,6 +60,17 @@ Git source 内の `.env` 不在も確認する。dotenv を Git や flake に含
 
 ## 結果とレビュー
 
-Standards のレビューは指摘なし。Spec は通常の入口でも照合情報の継承により準備を省略する問題を指摘したため、通常入口は必ず準備し、raw のみ明示的な `--prepared` を使う方式へ修正した。対応する2件のテストで修正前の失敗を確認した。最終全体テストと再レビュー結果をこの節へ追記する。実 Nix / sandbox の詳細ログは `/tmp/with-env-257-real-final.log` と `/tmp/with-env-257-acceptance-final.log`、全 Bats は `/tmp/with-env-257-full-final.log` に記録する。実受入スクリプトはログ末尾に隔離 fixture と HOME の場所を表示する。
+固定点 `e025054` から `c35733d` を Standards / Spec の独立した2 agent でレビューした。Standards は0件。Spec は通常の入口でも照合情報の継承により準備を省略する問題を1件指摘した。`843709c` で通常入口は必ず準備し、raw のみ明示的な `--prepared` を使う方式へ修正した。2件の回帰テストで修正前の失敗を確認し、修正後は実 Nix / 実 sandbox を含む with-env 13/13 が成功した。両 reviewer の再確認で未解消の指摘は0件。
+
+実 Nix の既存 Runtime Adapter 19/19、Codex 設定・移行・実 sandbox 49/49、typecheck・ruff check/format・nixfmt・shellcheck・diff whitespace・commit hook は成功した。実受入スクリプトは `/tmp/with-env-257-preflight-a4iafybz/` と隔離 HOME `/home/ubuntu/with-env-257-home-g62ahjlx/` で成功。trusted / absent は exit=0、untrusted / revoked / external-symlink / malformed / preparation-failed / unprepared-entry は exit=1。未準備の `--prepared` は PATH lookup の失敗に頼らず、公開 app の絶対 store 実行ファイルまで到達して未起動で失敗する。
+
+最終 `TMPDIR=/tmp bun run test` は終了コード0、577件中574件成功・3件skip・失敗0件。skip は実 Nix / sandbox の opt-in で、with-env 13/13 と既存 Runtime Adapter 19/19 の実行で全て別途成功した。最終コミット前の gitleaks と Conventional Commits 検証も通過し、検査除外や `--no-verify` は使っていない。再現ログは以下を参照する。
+
+- `/tmp/with-env-257-full-verified.log`: 最終全 Bats
+- `/tmp/with-env-257-mode-red.log`: 通常入口の準備省略を検出した回帰テスト
+- `/tmp/with-env-257-mode-green.log`: 修正後の with-env 13/13（実 Nix / 実 sandbox を含む）
+- `/tmp/with-env-257-real-final.log`: 既存 Runtime Adapter の実 Nix を含む19件
+- `/tmp/with-env-257-prepared-acceptance.log`: 最終の実 adapter / 実 sandbox と非残留検証
+- `/tmp/with-env-257-config-verified.log`: 管理設定と移行・sandbox の49件
 
 3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備せず、live source と runtime 設定は変更していない。レビュー固定点は依存実装 `e025054` とする。
