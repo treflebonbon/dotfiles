@@ -124,6 +124,8 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 **その他 apm skill（保持）**: find-skills, skill-creator, pdf, supabase-postgres-best-practices, empirical-prompt-tuning, effect-ts。
 
+**Herdr**: [公式スキル](https://herdr.dev/ja/docs/agent-skill/)を `herdrdev/herdr/skills/herdr` から APM で配布する。導入時の CLI 0.9.0 と同じ commit `b99002ac99b09e00b4ca692436cb15a6b0d676f1` に固定し、`~/.agents/skills/herdr/` と `~/.claude/skills/herdr/` へ展開する。Herdr の操作を明示的に依頼された場合に使い、制御コマンドの前に `HERDR_ENV=1` を確認する。CLI バイナリは nix devshell が供給する。
+
 ## chezmoi 配布のローカル skill
 
 apm 外の user-scoped private skill は chezmoi で配布する。`local-skills/<name>/SKILL.md` の配置自体を配備対象の宣言とし、別の配備・保持一覧への登録は不要とする。ソースは `.chezmoiignore` で `~/` へ直接 deploy せず、`run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイムの skill dir へ `rsync` で materialize する:
