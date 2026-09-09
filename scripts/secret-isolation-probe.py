@@ -199,6 +199,10 @@ if [ "$result" -ne 0 ] && [ ! -e /evidence/codex-started ]; then
 fi
 exit "$result"
 ''')
+    if scenario in ("isolation-timeout", "isolation-timeout-leak"):
+        script.write_text("printf 'timeout fixture stdout\\n'\nprintf 'timeout fixture stderr\\n' >&2\n" +
+                          ("printf 'synthetic-tool-auth\\n' >&2\n" if scenario.endswith("-leak") else "") +
+                          "exec sleep 30\n")
     activate = output / "activate.sh"
     activate.write_text('''source /tmp/development.bash
 test "$PROBE_HOOK" = ready
@@ -219,6 +223,7 @@ exec python3 /fixture/runtime.py run
         "--setenv", "HOME", "/home/agent", "--setenv", "PATH", environment["PATH"],
         "--setenv", "SHELL", str(tools["bash"] / "bin/bash"),
         "--setenv", "CODEX_HOME", "/home/agent/.codex",
+        "--setenv", "PROBE_SCENARIO", scenario,
         "--setenv", "HOST_FIXTURE", str(fixture), "--setenv", "NIX_REMOTE", "local",
         "--setenv", "HOST_TCP_PORT", str(host_service.server_address[1]),
         "--setenv", "HOST_NAMESPACES", json.dumps(host_namespaces),
@@ -244,7 +249,15 @@ exec python3 /fixture/runtime.py run
     mutator = threading.Thread(target=mutate_host, daemon=True)
     mutator.start()
     try:
-        result = subprocess.run(command, env={**environment, "PROBE_PARENT_SECRET": "synthetic-parent-only"}, capture_output=True, text=True, timeout=180)
+        timeout = 2 if scenario in ("isolation-timeout", "isolation-timeout-leak") else 180
+        result = subprocess.run(command, env={**environment, "PROBE_PARENT_SECRET": "synthetic-parent-only"}, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        # TimeoutExpired may retain bytes even when the subprocess uses text mode.
+        captured = b"".join(part.encode() if isinstance(part, str) else part or b"" for part in (error.stdout, error.stderr))
+        (output / "runtime.log").write_bytes(captured)
+        report.update(fixture_result="failed", exit_code=None, timeout_stage="isolation", timeout_seconds=error.timeout)
+        (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+        raise RuntimeError(f"isolated run timed out after {error.timeout}s; see runtime.log") from error
     finally:
         stop.set()
         mutator.join(timeout=2)
@@ -253,6 +266,9 @@ exec python3 /fixture/runtime.py run
         host_unix.close()
     (output / "runtime.log").write_text(result.stdout + result.stderr)
     report.update(fixture_result="validating" if result.returncode == 0 else "failed", exit_code=result.returncode)
+    if (evidence / "timeout.json").exists():
+        detail = json.loads(read_regular_file(evidence / "timeout.json"))
+        report.update(timeout_stage="codex", timeout_seconds=detail["timeout_seconds"])
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     result.check_returncode()
     assert SecretProvider.calls == 1, "isolated process contacted host secret service"
@@ -267,7 +283,7 @@ exec python3 /fixture/runtime.py run
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--scenario", choices=("success", "symlink-input", "hardlink-input", "isolation-failure", "nix-failure", "hook-failure", "log-leak", "log-leak-success"), default="success", help="Synthetic failure injection; never accepts a real project path")
+    parser.add_argument("--scenario", choices=("success", "symlink-input", "hardlink-input", "isolation-failure", "nix-failure", "hook-failure", "log-leak", "log-leak-success", "isolation-timeout", "isolation-timeout-leak", "codex-timeout"), default="success", help="Synthetic failure injection; never accepts a real project path")
     args = parser.parse_args()
     output = args.output.absolute()
     output.mkdir(mode=0o700, parents=True, exist_ok=False)

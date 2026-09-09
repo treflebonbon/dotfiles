@@ -125,6 +125,9 @@ class Provider(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             index = len(self.requests)
             self.requests.append(payload)
+            if os.environ.get("PROBE_SCENARIO") == "codex-timeout":
+                time.sleep(30)
+                return
             if index == 0:
                 tool = tool_name(payload["tools"], "exec_command")
                 assert tool, "real Codex did not advertise exec_command"
@@ -202,27 +205,36 @@ enabled_tools = ["probe"]
 approval_mode = "approve"
 ''')
     Path("/evidence/codex-started").touch()
+    timeout = 5 if os.environ.get("PROBE_SCENARIO") == "codex-timeout" else 90
+    timed_out = False
     with subprocess.Popen(["codex", "exec", "--strict-config", "--ephemeral", "--json", "Run the synthetic fixture command and MCP probe."], text=True, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
         for name in ("mnt", "pid", "net", "user"):
             assert os.readlink(f"/proc/{process.pid}/ns/{name}") == os.readlink(f"/proc/self/ns/{name}")
         assert b"PROBE_PARENT_SECRET=" not in Path(f"/proc/{process.pid}/environ").read_bytes()
         try:
-            stdout, stderr = process.communicate(timeout=90)
+            stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
+            timed_out = True
             process.kill()
-            process.communicate()
-            raise
+            stdout, stderr = process.communicate()
     Path("/evidence/codex.jsonl").write_text(stdout)
     Path("/evidence/codex.stderr").write_text(stderr)
     Path("/evidence/provider.json").write_text(json.dumps(Provider.requests, indent=2))
+    server.shutdown()
+    if timed_out:
+        Path("/evidence/timeout.json").write_text(json.dumps({"timeout_seconds": timeout}) + "\n")
+        raise RuntimeError(f"Codex timed out after {timeout}s; see codex.jsonl and codex.stderr")
     assert not Provider.errors, Provider.errors
     assert process.returncode == 0, stderr
     assert "FIXTURE_COMPLETE" in stdout, stdout
     assert Path("/evidence/mcp-ok").read_text() == "MCP_OK\n"
     assert Provider.github_calls == 1
     print("PASS codex-shell-git\nPASS codex-mcp\nPASS codex-github-fixture", flush=True)
-    server.shutdown()
 
 
 if __name__ == "__main__":
-    {"run": main, "shell": shell_task, "mcp": mcp, "assert-boundary": assert_host_isolation}[sys.argv[1]]()
+    try:
+        {"run": main, "shell": shell_task, "mcp": mcp, "assert-boundary": assert_host_isolation}[sys.argv[1]]()
+    except RuntimeError as error:
+        print(f"secret-isolation-runtime: {error}", file=sys.stderr)
+        sys.exit(1)

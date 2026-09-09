@@ -1,5 +1,21 @@
 #!/usr/bin/env bats
 
+require_isolation_runtime() {
+  [ "${SECRET_ISOLATION_REAL_RUNTIME:-0}" = 1 ] ||
+    skip "opt in with SECRET_ISOLATION_REAL_RUNTIME=1; requires real Nix/Codex and bubblewrap"
+  [ "$(uname -s)" = Linux ] || {
+    printf '%s\n' 'real isolation requires Linux/WSL2' >&3
+    return 1
+  }
+  local tool
+  for tool in nix bash cat python3 git codex gh bwrap; do
+    command -v "$tool" >/dev/null || {
+      printf 'missing required isolation tool: %s\n' "$tool" >&3
+      return 1
+    }
+  done
+}
+
 teardown() {
   # Copied Nix store directories are read-only; allow Bats to remove its own fixture.
   python3 - "$BATS_TEST_TMPDIR/probe" <<'PY'
@@ -26,7 +42,7 @@ PY
 }
 
 @test "failed isolation never launches Codex and failed preparation permits only isolated diagnostics" {
-  [ "$(uname -s)" = Linux ] || skip "outer isolation probe currently targets Linux/WSL2"
+  require_isolation_runtime
   local scenario
   for scenario in isolation-failure nix-failure hook-failure; do
     run python3 "$BATS_TEST_DIRNAME/../scripts/secret-isolation-probe.py" --output "$BATS_TEST_TMPDIR/probe/$scenario" --scenario "$scenario"
@@ -42,7 +58,7 @@ PY
 }
 
 @test "synthetic log leaks fail both successful and failed preparation without disclosing the value" {
-  [ "$(uname -s)" = Linux ] || skip "outer isolation probe currently targets Linux/WSL2"
+  require_isolation_runtime
   local scenario
   for scenario in log-leak log-leak-success; do
     run python3 "$BATS_TEST_DIRNAME/../scripts/secret-isolation-probe.py" --output "$BATS_TEST_TMPDIR/probe/$scenario" --scenario "$scenario"
@@ -53,8 +69,49 @@ PY
   done
 }
 
+@test "timeouts retain diagnostics and failure details without exposing captured synthetic secrets" {
+  require_isolation_runtime
+  local scenario probe
+  for scenario in isolation-timeout isolation-timeout-leak codex-timeout; do
+    probe="$BATS_TEST_TMPDIR/probe/$scenario"
+    run python3 "$BATS_TEST_DIRNAME/../scripts/secret-isolation-probe.py" --output "$probe" --scenario "$scenario"
+    [ "$status" -ne 0 ]
+    [[ "$output" != *"Traceback"* ]]
+    [[ "$output" != *"synthetic-tool-auth"* ]]
+    [ -s "$probe/runtime.log" ]
+    python3 - "$probe" "$scenario" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+scenario = sys.argv[2]
+report = json.loads((root / "report.json").read_text())
+assert report["fixture_result"] == "failed"
+assert report["production_ready"] is False
+assert report["timeout_seconds"] > 0
+assert report["timeout_stage"] == ("codex" if scenario == "codex-timeout" else "isolation")
+assert "checks" not in report
+if scenario == "codex-timeout":
+    assert (root / "evidence/codex-started").exists()
+    assert (root / "evidence/codex.jsonl").stat().st_size > 0
+    assert (root / "evidence/codex.stderr").exists()
+    assert json.loads((root / "evidence/provider.json").read_text())
+else:
+    assert not (root / "evidence/codex-started").exists()
+    log = (root / "runtime.log").read_text()
+    assert "timeout fixture stdout" in log
+    assert "timeout fixture stderr" in log
+for path in [root / "runtime.log", root / "report.json", *(root / "evidence").iterdir()]:
+    assert b"synthetic-tool-auth" not in path.read_bytes(), path.name
+if scenario.endswith("-leak"):
+    assert "[redacted synthetic value]" in (root / "runtime.log").read_text()
+PY
+  done
+}
+
 @test "real Nix and Codex execute Git, GitHub and MCP tasks without host fixture secrets" {
-  [ "$(uname -s)" = Linux ] || skip "outer isolation probe currently targets Linux/WSL2"
+  require_isolation_runtime
   local project_root
   project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 

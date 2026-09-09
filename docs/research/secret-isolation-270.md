@@ -43,8 +43,10 @@ Linux または WSL2 で user namespace と bubblewrap が利用でき、Nix sto
 
 ```bash
 python3 scripts/secret-isolation-probe.py --output /tmp/secret-isolation-270-result
-bats tests/secret-isolation.bats
+SECRET_ISOLATION_REAL_RUNTIME=1 bats tests/secret-isolation.bats
 ```
+
+repo の devShell 単体は `codex`・`gh`・`bwrap` を提供しないため、通常の `bun run test` では実ランタイムを要するケースを理由付きで skip する。リンク入力の拒否は通常実行でも検証する。実ランタイム検証は上記の明示指定で実行し、指定後の OS・ツール不足や隔離構成失敗を skip／成功へ変えない。必要な CLI はユーザー環境などで事前に用意する。skip した実行は #270 の受入証跡にならない。
 
 `--output` は新規ディレクトリを指定する。専用 store は closure 分のディスクを使用する。生成するログは合成データだけであり、repo へ自動追加しない。Bats は自身の一時 fixture を後始末する。
 
@@ -74,6 +76,8 @@ bats tests/secret-isolation.bats
 
 失敗経路は `--scenario isolation-failure`、`nix-failure`、`hook-failure`、`symlink-input`、`hardlink-input` で再現する（各回で別の新規 `--output` を指定）。`log-leak` と `log-leak-success` は、秘密の取得を伴わずダミー値を意図的に出力し、失敗時・成功時のログ検出器の感度を確認するケースである。初期化失敗時の診断は境界の再検査だけで、通常作業を未初期化環境に迂回させない。独立コピー後の追加・差替えを検証しており、コピー作業そのものに並行する書換えを安全に取り込めるとは保証しない。
 
+`isolation-timeout`／`isolation-timeout-leak` は外側プロセスを2秒で停止し、途中の stdout／stderr を `runtime.log` に保存する。`codex-timeout` は合成 API の応答を遅延させ、実 Codex を5秒で停止する。Codex の stdout／stderr と provider の要求記録を保存してから失敗を返す。いずれも `report.json` に `timeout_stage` と `timeout_seconds` を残し、ログの秘密値検査を終えてから簡潔なエラーで終了する。通常実行の期限は外側180秒、Codex90秒のまま。タイムアウトも受入成功にはしない。
+
 **#270 は未完了として扱う。** 通常 Linux での同一コマンドの実測と、実サービスの最小認証・通信経路、実 worktree から秘密のない入力を選び成果を返す契約が残る。host network・HOME・control socket・worktree 全体を共有することで、この未確認を埋めない。#271 以降の本番移行を開始する根拠にはしない。
 
 関連 Bats 4 件は成功し、Python 構文検査・`bunx tsc --noEmit` も成功した。`bun run test` の最終実行は **602 件中 594 成功・4 skip・4 失敗**だった（`/tmp/secret-isolation-270-full-tests-final.log`）。本 fixture の 4 件は全体実行でも成功。skip は既存の実 Nix テンプレート・with-env 等の opt-in 検証であり、本 fixture の実 Nix／Codex 検証を skip したものではない。
@@ -85,3 +89,9 @@ bats --print-output-on-failure --filter 'dogfood without|annotated dogfood|empty
 ```
 
 差分レビューでは Standards の命名改善 1 件と Spec のログ検査不足 2 件を指摘され、検査関数の改名、全ログの検査、合成認証値と漏洩注入テストの追加で対応した。再レビューのコード指摘は両軸とも 0 件。別エージェントによる `log-leak` の実行でも、標準出力・標準エラー・保存ログへの値の残存がないことを確認した。上記の要件未確認事項はこのレビュー結果とは別に残る。pre-commit の gitleaks／oxfmt、commit-msg の `cog verify` も成功した。
+
+## PR #276 のレビュー対応（2026-09-10）
+
+実ランタイムテストの依存不足と、タイムアウト時に診断を失う2件を修正した。Nix／Codex 等を含まない PATH の通常実行は1成功・4 skipとなり、`codex`・`gh`・`bwrap` を個別に除いた明示実行は、それぞれ不足ツール名を示して失敗する。タイムアウトの3ケースは実 bubblewrap／Codex を使い、途中ログ・期限・発生段階・秘密値の伏せ字と traceback 非出力を確認した。
+
+`SECRET_ISOLATION_REAL_RUNTIME=1 bun run test` は **610件中606成功・4 skip・失敗0件**（`/tmp/review-276.6KQhnA/full-tests.log`）。本 fixture の5件は全て実行・成功し、skip は既存の実 Nix opt-in 検証4件。以前失敗した dogfood の4件も今回は全体実行で成功した。これは今回の実測結果であり、以前の不安定さの原因を解消したという主張ではない。Python構文検査も成功した。通常 Linux・実認証接続・実 worktree の入力と成果返却は引き続き未確認で、#270 の未完了扱いを維持する。
