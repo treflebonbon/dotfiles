@@ -377,17 +377,18 @@ PS
   grep -q 'markitdown/default\.nix' "$module"
 }
 
-@test "ui grill skill contract keeps visual aids disposable" {
+@test "ui grill skill keeps round sheets disposable and human answers authoritative" {
   local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
 
   grep -qx 'name: ui-grill-with-docs' "$skill"
   grep -qx 'disable-model-invocation: true' "$skill"
-  grep -Fq 'tmp/wireframe-<screen>.html' "$skill"
-  grep -Fq 'The question, recommendation, and' "$skill"
-  grep -Fq 'mockups are never the source' "$skill"
+  [ -f "$PROJECT_ROOT/local-skills/ui-grill-with-docs/assets/round.html" ]
+  grep -Fq '[assets/round.html](assets/round.html)' "$skill"
+  grep -Fq 'Do not read browser drafts as submitted answers.' "$skill"
+  grep -Fq 'are never the source of truth.' "$skill"
   grep -Fq 'ask the user to confirm cleanup' "$skill"
-  grep -Fq 'delete only the `tmp/wireframe-*.html` files' "$skill"
+  grep -Fq 'delete only the `tmp/ui-grill-<topic>.html` file owned by this session.' "$skill"
   grep -Fq '`ui-grill-with-docs`' "$runtime"
 }
 
