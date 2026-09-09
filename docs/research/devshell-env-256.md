@@ -29,7 +29,7 @@ CLI は `Repository.discover`・`trusted`・`selected_output`・`prepare_environ
 | #256 の条件（親 AC）                    | 検証入口                                                     | 結果・制約                                                                                                                                              |
 | --------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 信頼と output、後続 Bash（AC04・AC05）  | managed hook の Bats、実 Claude＋実 Nix                      | 登録済み repo/worktree のツール・通常変数を反映。未登録・flake 不在・Git 外では Nix を起動しない。共通の WSL／明示 output 選択を利用                    |
-| 起動・EnterWorktree・別 repo（AC06）    | 実 Claude lifecycle、公開イベント記録                        | 通常 CLI は成功。Orca は built-in 起動と hook 発火まで確認し、後続 Bash は下記の理由で未確認                                                            |
+| 起動・EnterWorktree・別 repo（AC06）    | 実 Claude lifecycle、公開イベント記録                        | 通常 CLI の移動・切替は成功。Orca も通常接続で再確認し、built-in 起動、後続 Bash の環境観測、reload が成功                                              |
 | 同一 root・各 Bash の初期化省略（AC06） | shellHook の外部カウンタ、Bats、実 Claude                    | 起動後の同一 root 移動と Bash では増えず、別 root・reload のときだけ増える                                                                              |
 | 旧環境の解除・初期化失敗（AC07・AC10）  | Bash の環境とツール観測、Nix／shellHook の失敗 fixture       | 旧通常変数・追加 PATH を解除し、部分初期化を捨てる。理由を表示して調査を継続、reload で復旧                                                             |
 | 他 hook と共存（AC07）                  | 他 hook の export、同一 shell で再sourceする Bats、実 Claude | 他 hook の内容・別値への上書き・PATH 追加を保持。外部副作用の巻戻しは対象外                                                                             |
@@ -60,24 +60,41 @@ Session Scratchpad の指定がないため、一時証跡は `/tmp` を使用�
 
 各 fixture の `claude-state/events.jsonl` は公開 hook 入力、`output.jsonl` は実 Bash／worktree tool 結果、`requests.jsonl` は loopback model への fixture リクエストを記録する。
 
-## Orca の検証限界
+## Orca の初回制約と再確認
 
 Orca 1.4.198 の `worktree create --agent claude --setup skip --no-parent` で専用 dummy repo の native worktree を作り、built-in `claude --permission-mode auto` の起動を確認した。project-local fixture 設定を使い、live user settings と built-in command を変更していない。実在秘密のコピー・利用や外部 model API 呼出しはしていない。
 
-Orca のテスト専用 terminal では、作成した dummy repo の trust とダミー API key を選び、無関係な MCP の有効化は拒否した。その後 SessionStart と PreToolUse(Bash) の公開イベントを取得できた。しかし Auto mode の classifier は loopback fixture の応答を評価できず、環境観測・reload の Bash を拒否した。拒否理由は安全性を評価できなかったことであり、コマンドを危険と判定した結果ではない。permission mode の変更や classifier の承認応答の偽装で通さず、Bash への環境反映は未確認として残す。通常 CLI fixture の成功で代替しない。
+Orca のテスト専用 terminal では、作成した dummy repo の trust とダミー API key を選び、無関係な MCP の有効化は拒否した。その後 SessionStart と PreToolUse(Bash) の公開イベントを取得できた。しかし Auto mode の classifier は loopback fixture の応答を評価できず、環境観測・reload の Bash を拒否した。拒否理由は安全性を評価できなかったことであり、コマンドを危険と判定した結果ではない。初回は permission mode の変更や classifier の承認応答の偽装で通さず、Bash への環境反映を未確認として記録した。
 
 証跡は `/tmp/claude-env-preflight-le2xmoem/claude-state/`、試行用 script は `/tmp/devshell-256-orca-attempt.py`。Orca repo id は `186032c0-eacb-4e22-8eec-b5efc7821bfc`、worktree は `/home/ubuntu/orca/workspaces/project/claude-env-preflight-le2xmoem`。テスト terminal と loopback server は停止済み。テスト用 repo・branch は削除せず残している。最初の repo selector 変換が失敗した登録だけの fixture は `/tmp/claude-env-preflight-lmynf764/project`（Orca repo id `d7a05519-4949-419d-a464-482b553446f9`）。
 
+### 2026-09-09: 通常接続で2操作を再確認
+
+利用者の再確認依頼を受け、固定応答の model stub を外し、ログイン済みの通常 Claude 接続を使った。[Auto mode は classifier が操作を評価する仕様](https://code.claude.com/docs/en/permissions#permission-system)のため、その評価も通常接続で実行した。Orca の `worktree create --agent claude --setup skip --no-parent` による built-in `claude --permission-mode auto` を維持し、ダミー専用 repo の native worktree で実 Nix と実 Bash を動かした。モデル接続には既存ログインを利用したが、認証情報の読出し・コピー・fixture への注入は行っていない。観測値はダミー変数と専用ツールだけである。
+
+project-local 設定には source から render した3イベントの hook と観測 hook だけを置き、permission・モデル・接続先・HOME を上書きしなかった。テスト用 `devshell-env` wrapper は信頼登録の保存先 `XDG_STATE_HOME` だけを隔離して実装 CLI を呼ぶ。これにより live trust 登録は変更せず、通常の Claude session 状態と `CLAUDE_ENV_FILE` の接続を検証した。別 hook が専用 CLI の PATH と `DEVSHELL_256_OTHER=kept` を追加する。
+
+| 実 Bash 操作                                                                | 観測結果                                                                  | 初期化回数 |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------- |
+| `python3 <worktree>/observe.py startup before-reload 1`                     | PASS。変数は `before-reload`、専用ツールは `project-tool-256`             | 1          |
+| `environment.sh` を Edit し、別 Bash で `<fixture>/bin/devshell-env reload` | 成功。flake が読む shellHook 定義を再評価し、次の Bash へ適用する旨を表示 | 2          |
+| `python3 <worktree>/observe.py reload after-reload 2`                       | PASS。変数は `after-reload`、専用ツールを引き続き利用できる               | 2          |
+| `python3 <worktree>/observe.py same-root after-reload 2`                    | PASS。追加の Bash で再初期化しない                                        | 2          |
+
+3回の観測すべてで他 hook の値は `kept`、`DEVSHELL_ENV_SESSION` は存在し、通常 Bash の `CLAUDE_ENV_FILE` は存在しなかった。公開 PreToolUse／PostToolUse イベントの `permission_mode` はすべて `auto`。手動 source、手動 Nix 起動、allow rule の追加、permission mode の変更は行っていない。既存の RTK hook も共存した。変更前後の `~/.claude/settings.json` と `~/.claude/settings.local.json` の SHA-256 は一致した。テスト worktree の差分は `environment.sh` のダミー値1行のみである。
+
+Session Scratchpad が未指定のため、今回の証跡は `${TMPDIR:-/tmp}` の `/home/ubuntu/.cache/nix-devshell-tmp/devshell-256-orca-recheck.Feylgg/` に残した。`prepare.py` は fixture 準備、`orca-launch.json` は built-in 起動 metadata、`events.jsonl` は公開 hook と Bash の結果、`hook-results.jsonl` は実装 CLI の応答、`initializations` は shellHook の外部カウンタである。Orca repo id は `3f5d2d55-a896-4d9d-bbb4-54ff62793a72`、worktree は `/home/ubuntu/orca/workspaces/devshell-256-fixture/devshell-256-recheck`。テスト terminal は停止済みで、dummy repo・branch と証跡は残している。
+
 ## 対応環境
 
-| 環境                                | 実行結果                                                                                      |
-| ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| WSL2 x86_64-linux、kernel 6.18.33.2 | Nix 2.34.6、Claude 2.1.263、bash 5.3.9／zsh 5.9.1 で成功。Orca の後続 Bash は上記理由で未確認 |
-| native x86_64-linux／aarch64-linux  | 今回は独立 host がなく未実行。Nix 定義は変更していない                                        |
-| Apple Silicon macOS                 | host がなく未実行。WSL 上の zsh 成功を macOS の実行証拠とはしない                             |
+| 環境                                | 実行結果                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------- |
+| WSL2 x86_64-linux、kernel 6.18.33.2 | Nix 2.34.6、Claude 2.1.263、bash 5.3.9／zsh 5.9.1 で成功。Orca の後続 Bash・reload も再確認で成功 |
+| native x86_64-linux／aarch64-linux  | 今回は独立 host がなく未実行。Nix 定義は変更していない                                            |
+| Apple Silicon macOS                 | host がなく未実行。WSL 上の zsh 成功を macOS の実行証拠とはしない                                 |
 
 ## 最終品質確認
 
 全 Bats は572件中571件成功・1件スキップ・失敗0件だった。スキップは opt-in の実 Nix テストで、`DEVSHELL_ENV_REAL_NIX=1` を指定した個別実行も1件成功した。新規 Bats 10件、既存 Claude settings の回帰検証、型チェック、ruff check/format、ShellCheck、shfmt が成功した。chezmoi の read-only render で CLI・共通 shell script・設定の配備内容を確認し、コミット時の lefthook（整形・ShellCheck・gitleaks）と Conventional Commits 検証も成功した。
 
-実装コミット `bf0dd6a` を対象に、固定基点 `e025054ee38e80d7e08e7080f6c74faf73bd0823` からの差分を独立した2エージェントでレビューした。Standards は指摘0件、Spec は実装修正を要する指摘0件だった。Orca の後続 Bash・reload は上記の承認判定によって実行できず、AC06 の検証は一部未完了として残る。これは通常 CLI の成功やコードレビューで検証済みと扱わない。
+実装コミット `bf0dd6a` を対象に、固定基点 `e025054ee38e80d7e08e7080f6c74faf73bd0823` からの差分を独立した2エージェントでレビューした。Standards は指摘0件、Spec は実装修正を要する指摘0件だった。レビュー時に残っていた Orca の後続 Bash・reload は、上記の通常接続での再確認で成功した。再確認に伴う変更は本記録のみで、実装コードの修正や全テストの再実行は行っていない。
