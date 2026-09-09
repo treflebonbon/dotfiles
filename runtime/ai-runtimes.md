@@ -27,7 +27,7 @@ Herdr は `llm-agents.nix` の immutable snapshot と lock で固定し、ユー
 herdr
 ```
 
-既定の background session を起動または再接続し、pane 内でシェルを利用できる。初回の案内から任意の agent integration 設定が開いた場合は、追加せず `Esc` で閉じて使い始める。設定ファイル、復元用 hook、追加 skill、ログイン時の自動起動は dotfiles から追加しない。
+既定の background session を起動または再接続し、pane 内でシェルを利用できる。初回の案内から任意の agent integration 設定が開いた場合は、追加せず `Esc` で閉じて使い始める。global 設定、復元用 hook、追加 skill、ログイン時の自動起動は dotfiles から追加しない。
 
 `Ctrl-b` を押してから `q` を押すと detach する。pane 内の処理は継続し、もう一度 `herdr` を実行すると同じセッションへ戻る。
 
@@ -49,6 +49,26 @@ herdr
 ```
 
 関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [llm-agents の Herdr package](https://github.com/numtide/llm-agents.nix/tree/main/packages/herdr)
+
+### 新規 worktree への `.env` コピー
+
+dotfiles repo の `.herdr/herdr-plugin.toml` は、`worktree.created` に Bash のコピー処理を直接定義するローカル plugin。外部 plugin の install は不要で、実行には既存ユーザー devShell の Bash・jq・Git・cp を使う。`.herdr` は chezmoi のホーム配備対象から除外する。
+
+受入・merge 後、primary checkout の source にある manifest を一度登録する。
+
+```bash
+herdr plugin link "$(chezmoi source-path)/.herdr"
+```
+
+登録した `.herdr` の親 repo だけが対象になる。Herdr の primary workspace から新しい worktree を作ると、その primary checkout 直下の `.env` 一件を独立した通常ファイルとしてコピーする。既存 worktree の open / focus では実行しない。コピー元不在、symlink、既存のコピー先、Git で ignore されないコピー先は失敗し、別名 dotenv へ fallback しない。
+
+Herdr 0.9.0 のイベントは非同期なので、agent を起動する前に対象 worktree のログが `succeeded` / `exit_code = 0` となり、`copy-env: copied .env to <作成先>` が記録されたことを確認する。他 repo のイベントは何もせず成功するため、成功状態だけでは判別しない。
+
+```bash
+herdr plugin log list --plugin dotfiles.copy-env --limit 10
+```
+
+コピー失敗でも worktree 自体は作成される。失敗した worktree で agent を起動せず、原因を修正して新しい worktree を作る。イベントは再実行せず、作成後の `.env` も同期・上書きしない。コピー処理の `cd` は plugin の subprocess にだけ作用し、pane の cwd は Herdr が新 worktree に設定する。with-env は配置後の dotenv 読込みを担当する。[仕様の差分・検証記録](../docs/research/herdr-worktree-env-260.md)を参照。
 
 ## Claude Code / Codex マルチランタイム
 

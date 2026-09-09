@@ -39,6 +39,7 @@
             ]))
             nodejs_24
             bun
+            python3
             git
           ];
         in

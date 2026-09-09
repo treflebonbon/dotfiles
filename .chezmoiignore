@@ -7,6 +7,10 @@
 # Codex CLI plugin のランタイムファイル（chezmoi 管理外）
 .codex
 
+# Repo-local Herdr plugin. Register it from the accepted primary checkout.
+.herdr
+.herdr/**
+
 # APM cache / deploy targets（apm install が生成する runtime state）
 apm_modules/**
 .agents/**
