@@ -84,3 +84,13 @@ raw adapter の統合部分は Codex のモデル process と設定照会応答�
 | Codex Desktop／Orca native Codex | 管理 setup は空、既存同期 Bats                  | 新しい自動起動は追加せず、GUI の再確認は行っていない                                 |
 
 Session Scratchpad の指定がなかったため、証跡は明示 fallback の `/tmp` に置く。標準シェルのログは `/tmp/devshell-259-bash.log` と `/tmp/devshell-259-zsh.log`、各ログ先頭の `Evidence:` が隔離 HOME・fixture・コマンドログの保存先である。Bats は `/tmp/devshell-259-{shell,config,full}.log`、Nix 評価は `/tmp/devshell-259-flake.log` に記録する。
+
+## 最終結果
+
+実装コミット `606e7de`。`TMPDIR=/tmp bun run test` は終了コード0、596件中592件成功・4件skip・失敗0件だった。skip は実 Nix の devshell-env、6言語独立展開、with-env の実 Nix、実 Codex sandbox で、いずれも既存の opt-in。未変更の詳細ケースは #255・#257・#258 の上記記録を採用し、今回の標準入口の実 Nix は別途実行した。新しい shell startup の2件を含め、最終 source の Bats が通っている。
+
+`--real-nix --standard-shell` は bash／zsh の両方で終了コード0。両ログ末尾に実 Claude lifecycle と標準入口の2つの PASS を記録した。成功時の fixture は bash が `/tmp/claude-env-preflight-oyz3zoq_/`、zsh が `/tmp/claude-env-preflight-7s_2_hxj/`。`commands.log`、`human-project.log`、`human-updated.log`、`claude-state/` に詳細を残している。
+
+3 system の `nix flake check --no-build --all-systems`、型チェック、ruff check／format、ShellCheck、shfmt、差分の空白検査が成功した。コミット時の lefthook（shfmt・oxfmt・ShellCheck・gitleaks）と Conventional Commits 検証も成功。Serena CLI はこの PATH にないため、メモの既存 `mem:` 参照先6件をファイル一覧で照合した。参照の追加・削除はない。
+
+`606e7de` を固定基点から独立した2エージェントでレビューした。Standards は規約違反0件・判断上の smell 0件、Spec は未充足・範囲逸脱・実装誤りの指摘0件。レビュー後の変更は本記録への最終結果追記だけで、実装とテストコードの追加変更はない。全テストの不要な再実行はせず、記録の整形・差分検査とコミット hook を通した。
