@@ -49,12 +49,13 @@ ruff check private_dot_local/bin/executable_devshell-env tests/helpers/claude-en
 ruff format --check private_dot_local/bin/executable_devshell-env tests/helpers/claude-env-preflight.py
 shellcheck private_dot_local/share/devshell-env/claude-env.sh
 TMPDIR=/tmp bun run test
+TMPDIR=/tmp DEVSHELL_ENV_REAL_NIX=1 bats tests/devshell-env.bats --filter 'real Nix'
 ```
 
 Session Scratchpad の指定がないため、一時証跡は `/tmp` を使用した。fixture は終了後もダミー repo と証跡を残す。
 
 - 実 Nix＋bash: `/tmp/claude-env-preflight-mcx91egq/`、要約ログ `/tmp/devshell-256-claude-bash.log`
-- 実 Nix＋zsh: `/tmp/claude-env-preflight-7gl83d0h/`
+- 実 Nix＋zsh: `/tmp/claude-env-preflight-hq3dvd6k/`、要約ログ `/tmp/devshell-256-claude-zsh.log`
 - 全 Bats: `/tmp/devshell-256-full-bats.log`
 
 各 fixture の `claude-state/events.jsonl` は公開 hook 入力、`output.jsonl` は実 Bash／worktree tool 結果、`requests.jsonl` は loopback model への fixture リクエストを記録する。
@@ -77,4 +78,6 @@ Orca のテスト専用 terminal では、作成した dummy repo の trust と�
 
 ## 最終品質確認
 
-新規 Bats 10件、既存 Claude settings の回帰検証、型チェック、ruff check/format、ShellCheck が成功した。全 Bats とコミット後の2軸レビューの結果は確定後に追記する。
+全 Bats は572件中571件成功・1件スキップ・失敗0件だった。スキップは opt-in の実 Nix テストで、`DEVSHELL_ENV_REAL_NIX=1` を指定した個別実行も1件成功した。新規 Bats 10件、既存 Claude settings の回帰検証、型チェック、ruff check/format、ShellCheck、shfmt が成功した。chezmoi の read-only render で CLI・共通 shell script・設定の配備内容を確認し、コミット時の lefthook（整形・ShellCheck・gitleaks）と Conventional Commits 検証も成功した。
+
+実装コミット `bf0dd6a` を対象に、固定基点 `e025054ee38e80d7e08e7080f6c74faf73bd0823` からの差分を独立した2エージェントでレビューした。Standards は指摘0件、Spec は実装修正を要する指摘0件だった。Orca の後続 Bash・reload は上記の承認判定によって実行できず、AC06 の検証は一部未完了として残る。これは通常 CLI の成功やコードレビューで検証済みと扱わない。
