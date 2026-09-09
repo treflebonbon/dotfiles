@@ -43,7 +43,7 @@ nixfmt --check flake.nix
 TMPDIR=/tmp bun run test
 ```
 
-with-env の8件は実 Nix test を含めて成功。実 Nix test は公開 `nix run ...#with-env` から hello・通常変数・shellHook・dotenv・子プロセス・終了コード23を確認した。ダミー値は実行時に UUID として生成し、Nix の `print-dev-env` 出力、derivation JSON、app 出力、隔離 HOME・cache に値がないことを検索した。通常の全 Bats ではこの実 Nix test を opt-in として skip し、上記で別途実行する。
+with-env の8件は実 Nix test を含めて成功。実 Nix test は公開 `nix run ...#with-env` から hello・通常変数・shellHook・dotenv・子プロセス・終了コード23を確認した。ダミー値は実行時に UUID として生成し、Nix の `print-dev-env` 出力、derivation JSON、app 出力、store 内の Git source、隔離 HOME・cache に値がないことを検索した。Git source 内に `.env` がないことも確認した。通常の全 Bats ではこの実 Nix test を opt-in として skip し、上記で別途実行する。
 
 | #257 本文順の条件                                 | 状態                                                |
 | ------------------------------------------------- | --------------------------------------------------- |
@@ -60,3 +60,9 @@ with-env の8件は実 Nix test を含めて成功。実 Nix test は公開 `nix
 | 11: Claude 非変更、品質、OS と配備の記録          | 最終結果は下記に追記                                |
 
 3対応 system（x86_64-linux・aarch64-linux・aarch64-darwin）の app 出力評価は成功した。実行確認は x86_64 Linux のみ。WSL host・ARM Linux・Apple Silicon macOS は未確認。未 merge の source は配備していない。Session Scratchpad の提示がなかったため、一時検証ファイルとログには `/tmp` を使った。
+
+## レビューと品質確認
+
+`code-review` の固定点は依存実装の `e025054`。Standards と Spec を独立した2 agent で実施した。Standards は Python 依存定義の重複を非ブロッキングな heuristic として指摘したため共有化した。Spec は実装済み範囲に新たな不適合・scope creep を指摘せず、raw Codex の既知の未完了条件を確認した。root 選択のテストは dotenv を先に継承させずサブディレクトリから直接実行する形へ強化した。
+
+実 Nix を含む with-env は8/8、既存 Runtime Adapter の `DEVSHELL_ENV_REAL_NIX=1 bats tests/devshell-env.bats` は18/18成功。`bunx tsc --noEmit`、ruff check/format、nixfmt、diff whitespace 検査も成功した。pre-commit の gitleaks がテストのダミー文字列を検出したため、低エントロピーのダミーへ変更して該当テストを再実行し、hook を通過した。検査除外や `--no-verify` は使用していない。

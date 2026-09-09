@@ -73,8 +73,12 @@ subprocess.run(["sh", "-c", "test \"$EMPTY/$SINGLE\" = \"/two words\""], check=T
   run with_env sh -c 'test "${DUMMY_257-unset}" = unset'
   [ "$status" -eq 0 ]
   printf 'DUMMY_257=root\n' >"$FIXTURE/worktree/.env"
-  run with_env bash -c 'cd sub; exec "$1" with-env -- sh -c '\''test "$DUMMY_257" = root'\''' _ "$CLI"
+  run --separate-stderr env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" \
+    bash -c 'cd "$1/sub"; exec "$2" with-env -- printenv DUMMY_257 PWD' \
+    _ "$FIXTURE/worktree" "$CLI"
   [ "$status" -eq 0 ]
+  [ "${lines[0]}" = root ]
+  [ "${lines[1]}" = "$FIXTURE/worktree/sub" ]
 }
 
 @test "invalid dotenv and unreadable existing files stop before the command without printing secret text" {
@@ -158,7 +162,7 @@ EOF
 
 @test "public Nix app injects only at runtime and keeps dummy values out of Nix outputs and caches" {
   [ "${WITH_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with WITH_ENV_REAL_NIX=1; requires real Nix and nixpkgs"
-  local nixpkgs system app dotenv_dummy inherited_dummy
+  local nixpkgs system app input_source dotenv_dummy inherited_dummy
   nixpkgs="$(nix eval --offline --impure --raw --expr "(builtins.getFlake (toString $PROJECT_ROOT)).inputs.nixpkgs.outPath")"
   system="$(nix eval --impure --raw --expr builtins.currentSystem)"
   cat >"$FIXTURE/worktree/flake.nix" <<EOF
@@ -206,6 +210,8 @@ EOF
   nix print-dev-env --no-write-lock-file "$FIXTURE/worktree" >"$FIXTURE/nix-output"
   nix derivation show "$FIXTURE/worktree#devShells.$system.default" >"$FIXTURE/derivation.json"
   app="$(nix eval --raw "$PROJECT_ROOT#apps.$system.with-env.program")"
+  input_source="$(nix flake metadata --no-write-lock-file --json "$FIXTURE/worktree" | python3 -c 'import json,sys; print(json.load(sys.stdin)["path"])')"
+  [ ! -e "$input_source/.env" ]
   ! rg -a -q -F -e "$dotenv_dummy" -e "$inherited_dummy" \
-    "$FIXTURE/nix-output" "$FIXTURE/derivation.json" "$FIXTURE/cache" "$FIXTURE/home" "${app%/bin/with-env}"
+    "$FIXTURE/nix-output" "$FIXTURE/derivation.json" "$FIXTURE/cache" "$FIXTURE/home" "${app%/bin/with-env}" "$input_source"
 }

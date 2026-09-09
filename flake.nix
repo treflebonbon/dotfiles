@@ -15,13 +15,14 @@
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
       pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+      pythonFor = forAllSystems (system: pkgsFor.${system}.python3.withPackages (p: [ p.python-dotenv ]));
     in
     {
       packages = forAllSystems (
         system:
         let
           pkgs = pkgsFor.${system};
-          python = pkgs.python3.withPackages (p: [ p.python-dotenv ]);
+          python = pythonFor.${system};
         in
         {
           with-env = pkgs.writeShellApplication {
@@ -67,7 +68,7 @@
             ]))
             nodejs_24
             bun
-            (python3.withPackages (p: [ p.python-dotenv ]))
+            pythonFor.${system}
             git
           ];
         in
