@@ -22,6 +22,11 @@ class PreparationError(Exception):
     pass
 
 
+def executable(name):
+    path = shutil.which(name)
+    return str(Path(path).resolve(strict=True)) if path else None
+
+
 def git_environment():
     return {
         key: value for key, value in os.environ.items() if not key.startswith("GIT_")
@@ -168,8 +173,8 @@ def prepare_environment(repo, inherited):
     if not (repo.root / "flake.nix").is_file():
         raise PreparationError("no flake.nix at the worktree root")
     output = selected_output(repo)
-    nix = shutil.which("nix")
-    bash = shutil.which("bash")
+    nix = executable("nix")
+    bash = executable("bash")
     if not nix or not bash:
         raise PreparationError("nix and bash are required")
     # Do not feed inherited secrets or direnv's Nix selection into persisted Nix output.
@@ -320,7 +325,7 @@ def launch_codex(arguments):
     inherited["TMPDIR"] = "/tmp"
     repo = Repository.discover(Path.cwd(), linked_only=True)
     identity = repo.identity()
-    codex = shutil.which("codex")
+    codex = executable("codex")
     if not codex:
         raise InvalidContext("codex is not available on the launcher's PATH")
     try:

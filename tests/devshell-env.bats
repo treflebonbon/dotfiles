@@ -303,6 +303,27 @@ EOF
   [[ "$output" == *"data=$FIXTURE/tools/share state=$FIXTURE/state"* ]]
 }
 
+@test "a relative launcher PATH cannot change the selected Codex when normalizing a subdirectory to its root" {
+  install_runtime_fixture
+  cli trust "$FIXTURE/repo"
+  mkdir "$FIXTURE/worktree/sub"
+  cat >"$FIXTURE/worktree/sub/codex" <<'EOF'
+#!/bin/bash
+printf 'selected caller executable\n'
+EOF
+  cat >"$FIXTURE/worktree/codex" <<'EOF'
+#!/bin/bash
+printf 'wrong root executable\n'
+EOF
+  chmod +x "$FIXTURE/worktree/sub/codex" "$FIXTURE/worktree/codex"
+  run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" \
+    PATH=".:$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2"' \
+    _ "$FIXTURE/worktree/sub" "$ADAPTER"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"selected caller executable"* ]]
+  [[ "$output" != *"wrong root executable"* ]]
+}
+
 @test "real Nix prepares the worktree tool and runs shellHook once without saving inherited secrets" {
   [ "${DEVSHELL_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with DEVSHELL_ENV_REAL_NIX=1; requires real Nix and cached nixpkgs"
   local nixpkgs system
