@@ -76,4 +76,12 @@ bats tests/secret-isolation.bats
 
 **#270 は未完了として扱う。** 通常 Linux での同一コマンドの実測と、実サービスの最小認証・通信経路、実 worktree から秘密のない入力を選び成果を返す契約が残る。host network・HOME・control socket・worktree 全体を共有することで、この未確認を埋めない。#271 以降の本番移行を開始する根拠にはしない。
 
-関連 Bats 4 件は成功し、Python 構文検査・TypeScript typecheck も成功。全体テストの最終結果は終了後に追記する。差分レビューでは Standards の命名改善 1 件と Spec のログ検査不足 2 件を指摘され、検査関数の改名、全ログの検査、合成認証値と漏洩注入テストの追加で対応した。
+関連 Bats 4 件は成功し、Python 構文検査・`bunx tsc --noEmit` も成功した。`bun run test` の最終実行は **602 件中 594 成功・4 skip・4 失敗**だった（`/tmp/secret-isolation-270-full-tests-final.log`）。本 fixture の 4 件は全体実行でも成功。skip は既存の実 Nix テンプレート・with-env 等の opt-in 検証であり、本 fixture の実 Nix／Codex 検証を skip したものではない。
+
+失敗は `tests/dogfood-to-issues.bats` の `dogfood without annotation`、`annotated dogfood`、`empty annotation`、`annotation attaches` の 4 件。次の単独再実行では現行コードの全 4 件が成功した。変更前 `0ebc984` の archive でもこれらを含む 5 件が成功している。一括実行での不安定さは未解消で、全体 suite が green とは報告しない。ブラウザーの原因修正は本タスクに含めていない。
+
+```bash
+bats --print-output-on-failure --filter 'dogfood without|annotated dogfood|empty annotation|annotation attaches' tests/dogfood-to-issues.bats
+```
+
+差分レビューでは Standards の命名改善 1 件と Spec のログ検査不足 2 件を指摘され、検査関数の改名、全ログの検査、合成認証値と漏洩注入テストの追加で対応した。再レビューのコード指摘は両軸とも 0 件。別エージェントによる `log-leak` の実行でも、標準出力・標準エラー・保存ログへの値の残存がないことを確認した。上記の要件未確認事項はこのレビュー結果とは別に残る。pre-commit の gitleaks／oxfmt、commit-msg の `cog verify` も成功した。

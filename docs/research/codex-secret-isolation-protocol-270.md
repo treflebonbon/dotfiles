@@ -1,6 +1,6 @@
 ---
 type: research
-title: #270 の合成 Responses API と stdio MCP 検証プロトコル
+title: "#270 の合成 Responses API と stdio MCP 検証プロトコル"
 description: 実インストールされた Codex CLI を、認証情報を使わない合成 Responses API と最小 stdio MCP に接続して、外側の隔離境界を検証するための一次資料に基づく手順。
 tags: [research, codex, sandbox, responses-api, mcp, secret]
 timestamp: 2026-09-09
