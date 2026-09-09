@@ -136,7 +136,7 @@ def admit(repo, head, names):
                 continue
             hooks[hook.name] = read_input(hook.parent, hook.name)[0].decode()
     identity = {}
-    for key in ("user.name", "user.email", "commit.gpgsign"):
+    for key in ("user.name", "user.email"):
         result = subprocess.run(
             ["git", "-C", str(repo.root), "config", "--get", key],
             env=DEVENV["git_environment"](),
@@ -597,6 +597,8 @@ export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
             hook.chmod(0o755)
         for name, value in runtime["git_identity"].items():
             git(common, "config", name, value)
+        # Signing credentials are absent, including for previously admitted inputs.
+        git(common, "config", "commit.gpgsign", "false")
         startup += (
             "export CODEX_HOME=/home/agent/.codex\nexport PATH=/nix/codex-isolation/bin:$PATH\nexport DEVSHELL_ENV_OUTPUT="
             + shlex.quote(runtime["output"])
@@ -725,9 +727,7 @@ def tree_files(directory, revision):
             continue
         metadata, name = entry.split(b"\t", 1)
         mode, kind, oid = metadata.split()
-        if mode not in (b"100644", b"100755") or kind != b"blob":
-            raise ValueError("result tree contains a linked or unsupported file")
-        result[os.fsdecode(name)] = (mode, oid)
+        result[os.fsdecode(name)] = (mode, kind, oid)
     return result
 
 
@@ -815,6 +815,15 @@ def return_result(repo, session):
     old_tree = tree_files(quarantine, before)
     new_tree = tree_files(quarantine, head)
     staged_tree = tree_files(quarantine, index_tree)
+    for tree in (new_tree, staged_tree):
+        for name, entry in tree.items():
+            mode, kind, _ = entry
+            if (
+                mode not in (b"100644", b"100755") or kind != b"blob"
+            ) and entry != old_tree.get(name):
+                raise ValueError(
+                    "result tree contains a new or changed linked or unsupported file"
+                )
     names = {
         os.fsdecode(name)
         for name in read_input(session / "result", "files")[0].split(b"\0")

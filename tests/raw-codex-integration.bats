@@ -6,6 +6,114 @@ load helpers/raw-codex
 setup() { PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"; }
 teardown() { raw_cleanup; }
 
+@test "raw return preserves unchanged tracked symlinks and gitlinks without exposing their host contents" {
+  raw_fixture
+  ln -s .env "$RAW_BASE/work/public-link"
+  git -C "$RAW_BASE/work" add public-link
+  git -C "$RAW_BASE/work" update-index --add --cacheinfo "160000,$(git -C "$RAW_BASE/work" rev-parse HEAD),vendor"
+  mkdir "$RAW_BASE/work/vendor"
+  printf 'private-submodule-content\n' > "$RAW_BASE/work/vendor/private.txt"
+  printf 'original\n' > "$RAW_BASE/work/source.txt"
+  cat > "$RAW_BASE/work/task.sh" <<'TASK'
+set -eu
+test ! -L public-link
+test ! -e public-link
+test ! -e vendor
+printf 'changed\n' >> source.txt
+git add source.txt
+git commit -qm 'test: ordinary edit beside unchanged links'
+TASK
+  raw_admit flake.nix task.sh source.txt
+  local linked_entries
+  linked_entries="$(git -C "$RAW_BASE/work" ls-files --stage -- public-link vendor)"
+  run raw_run sandbox -- bash task.sh
+  raw_assert_status 0
+  [ "$(cat "$RAW_BASE/work/source.txt")" = $'original\nchanged' ]
+  [ "$(readlink "$RAW_BASE/work/public-link")" = .env ]
+  [ "$(cat "$RAW_BASE/work/vendor/private.txt")" = private-submodule-content ]
+  [ "$(git -C "$RAW_BASE/work" ls-files --stage -- public-link vendor)" = "$linked_entries" ]
+  git -C "$RAW_BASE/work" diff --exit-code HEAD -- source.txt
+  run raw_run sandbox -- true
+  raw_assert_status 0
+  [ "$(git -C "$RAW_BASE/work" ls-files --stage -- public-link vendor)" = "$linked_entries" ]
+  git -C "$RAW_BASE/work" diff --cached --exit-code -- public-link vendor
+}
+
+raw_reject_linked_result() {
+  local mode="$1" existing="$2" phase="$3" head index_tree
+  raw_fixture
+  printf 'original\n' > "$RAW_BASE/work/source.txt"
+  if [ "$existing" = yes ]; then
+    if [ "$mode" = 120000 ]; then
+      ln -s .env "$RAW_BASE/work/linked"
+      git -C "$RAW_BASE/work" add linked
+    else
+      git -C "$RAW_BASE/work" update-index --add --cacheinfo "160000,$(git -C "$RAW_BASE/work" rev-parse HEAD),linked"
+    fi
+  fi
+  raw_admit flake.nix task.sh source.txt
+  head="$(git -C "$RAW_BASE/work" rev-parse HEAD)"
+  index_tree="$(git -C "$RAW_BASE/work" write-tree)"
+  run raw_run sandbox -- bash -c '
+    set -eu
+    printf "changed\n" > source.txt
+    git add source.txt
+    if [ "$1" = 120000 ]; then
+      ln -s different-target linked
+      git add linked
+    else
+      git update-index --add --cacheinfo "160000,$(git rev-parse HEAD),linked"
+    fi
+    if [ "$2" = committed ]; then git commit -qm "test: linked output"; fi
+  ' _ "$mode" "$phase"
+  raw_assert_status 1
+  [[ "$output" == *'result tree contains a new or changed linked or unsupported file'* ]]
+  [ "$(git -C "$RAW_BASE/work" rev-parse HEAD)" = "$head" ]
+  [ "$(git -C "$RAW_BASE/work" write-tree)" = "$index_tree" ]
+  [ "$(cat "$RAW_BASE/work/source.txt")" = original ]
+  if [ "$existing" = yes ] && [ "$mode" = 120000 ]; then
+    [ "$(readlink "$RAW_BASE/work/linked")" = .env ]
+  else
+    [ ! -e "$RAW_BASE/work/linked" ]
+    [ ! -L "$RAW_BASE/work/linked" ]
+  fi
+}
+
+@test "raw return rejects a newly staged symlink before publishing any result" {
+  raw_reject_linked_result 120000 no staged
+}
+
+@test "raw return rejects a changed committed symlink before publishing any result" {
+  raw_reject_linked_result 120000 yes committed
+}
+
+@test "raw return rejects a newly committed gitlink before publishing any result" {
+  raw_reject_linked_result 160000 no committed
+}
+
+@test "raw return rejects a changed staged gitlink before publishing any result" {
+  raw_reject_linked_result 160000 yes staged
+}
+
+@test "raw commits succeed when host signing is enabled without changing host signing configuration" {
+  raw_fixture
+  cat > "$RAW_BASE/work/task.sh" <<'TASK'
+set -eu
+printf 'committed without host signing credentials\n' > result.txt
+git add result.txt
+git commit -qm 'test: commit with host signing enabled'
+TASK
+  raw_admit flake.nix task.sh
+  git -C "$RAW_BASE/work" config commit.gpgsign true
+  raw_cli admit --git-head "$(git -C "$RAW_BASE/work" rev-parse HEAD)" -- flake.nix task.sh
+  run raw_run sandbox -- bash task.sh
+  raw_assert_status 0
+  [ "$(git -C "$RAW_BASE/work" config --get commit.gpgsign)" = true ]
+  [ "$(git -C "$RAW_BASE/work" show HEAD:result.txt)" = 'committed without host signing credentials' ]
+  [ "$(git -C "$RAW_BASE/work" log -1 --format='%an <%ae>')" = 'Fixture <fixture@example.invalid>' ]
+  [ "$(git -C "$RAW_BASE/work" log -1 --format=%G?)" = N ]
+}
+
 @test "raw Codex refuses project configuration that conflicts with the immutable standard profile" {
   raw_fixture
   mkdir "$RAW_BASE/work/.codex"

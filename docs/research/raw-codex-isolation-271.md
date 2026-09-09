@@ -12,7 +12,7 @@ Python の trusted bootstrap が user/network namespace を作り、その netwo
 
 Codex の初回対話画面は `config/batchWrite` でディレクトリの信頼を保存するため、session 専用の `config.toml` は置換・更新可能にする。host の設定へは反映しない。読み取り専用 config で初回画面から進めなくなる問題を実 TUI と同じ実 app-server RPC で再現し、信頼保存の成功と、permission 差替え後の config 読込み拒否を検証した。
 
-通常ファイル・index・commit を終了後に host worktree に返す。host の並行変更、symlink 等の結果、未登録ファイルとの衝突は返却を拒否する。初回検査と index lock 取得の間に完了した host の `git add` も、lock 取得後の再照合で保持する。Codex が concrete deny に作る空の未追跡 placeholder は返却対象にしない。初期化失敗は返却せず session を保持する。複数ファイルの返却途中の I/O 障害に対する atomic rollback は保証しない。
+通常ファイル・index・commit を終了後に host worktree に返す。HEAD に元からある変更のない symlink・gitlink は Git エントリとして保持し、ホストのリンク先や submodule の内容はコピーしない。host の並行変更、新規・変更された symlink・gitlink 等の結果、未登録ファイルとの衝突は返却を拒否する。初回検査と index lock 取得の間に完了した host の `git add` も、lock 取得後の再照合で保持する。Codex が concrete deny に作る空の未追跡 placeholder は返却対象にしない。初期化失敗は返却せず session を保持する。複数ファイルの返却途中の I/O 障害に対する atomic rollback は保証しない。
 
 ## 通信
 
@@ -60,6 +60,14 @@ CODEX_ISOLATION_CA_BUNDLE=/nix/store/.../etc/ssl/certs/ca-bundle.crt \
 ```
 
 固定 review base は `d5860f06f74f804f6394a1f8e6117b27807c736d`。`1c01de3` までの最終実装について Standards／Spec の独立レビューはどちらも指摘なし。Codex の実行先は shellHook 前に解決して保持するため、初回の PATH 差替えに関する指摘は追加実測後に取り下げられた。TypeScript typecheck、変更 Python の Ruff 検査、`git diff --check`、通常の commit hook も成功している。
+
+## PR #278 Review Round
+
+変更のない tracked symlink・gitlink を含む HEAD で通常ファイルをコミットすると、返却時に `result tree contains a linked or unsupported file` で失敗することを実公開入口から再現した。tree の列挙と結果の型検査を分け、元のエントリを比較用に保持し、新規・変更された非通常ファイルを返却前に拒否する。追加した 5 ケースで、通常ファイルのコミット返却・再起動・既存リンク先の非公開と保持、新規／変更 symlink・gitlink の stage／commit 拒否、拒否時の host HEAD・index・ファイルの保持を確認した。
+
+host の `commit.gpgsign=true` をコピーすると `cannot run gpg` で通常のコミットが失敗することも再現した。新規登録は user.name/email だけを記録し、以前登録した署名設定があっても隔離 repository の `commit.gpgsign` を false にする。追加した 1 ケースで、署名鍵を渡さず通常コミットを作成・返却でき、author と host の署名設定を保持することを確認した。
+
+この修正の関連検証は `tests/raw-codex-integration.bats`、`tests/devshell-env.bats`、`tests/secret-isolation-worktree.bats`、`tests/codex-config.bats`、`tests/with-env.bats` の 111 ケースで、104 成功・既存 opt-in 7 skip・失敗 0。公開 CA と `SECRET_ISOLATION_REAL_RUNTIME=1` を指定し、独立した 3 群で実行した。記録は `/tmp/nix-shell.2VWWVm/nix-shell.AKEqMs/pr-278-review-c0lj0ccl/manifest.json` と各群の log。Session Scratchpad が未提示のため `${TMPDIR:-/tmp}` を fallback に使用した。全 629 ケース・外部サービス・Linux VM の検証は上記の実装時の結果と区別し、この Review Round では再実行していない。
 
 ## 導入・復旧と限界
 
