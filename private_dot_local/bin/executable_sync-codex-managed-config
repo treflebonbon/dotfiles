@@ -88,6 +88,9 @@ except tomllib.TOMLDecodeError as e:
 
 RETIRED_MANAGED_FILESYSTEM_PATHS: dict[str, tuple[str, ...]] = {
     "dotfiles-secure": (
+        "~/.ssh",
+        "~/.aws",
+        "~/.config/gcloud",
         "~/.ssh/**",
         "~/.aws/**",
         "~/.config/gcloud/**",
@@ -129,6 +132,13 @@ def strip_stale_managed_filesystem_rules(
             else None
         )
         workspace_roots = filesystem.get(":workspace_roots")
+        if (
+            isinstance(workspace_roots, dict)
+            and isinstance(managed_workspace_roots, dict)
+            and ".env" in managed_workspace_roots
+            and "**/.env" not in managed_workspace_roots
+        ):
+            workspace_roots.pop("**/.env", None)
         if isinstance(workspace_roots, dict) and workspace_roots.get(".git") == "write":
             del workspace_roots[".git"]
         for key, value in list(filesystem.items()):
