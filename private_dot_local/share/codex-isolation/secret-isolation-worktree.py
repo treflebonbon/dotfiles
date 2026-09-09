@@ -893,6 +893,17 @@ def return_result(repo, session):
             or repo.identity() != record["repository"]
         ):
             raise ValueError("host Git ownership changed")
+        # A host git add may have completed after the early check. Inspect its
+        # index while our exclusive lock prevents another cooperative writer.
+        (quarantine / "index").write_bytes(read_input(repo.git_dir, "index")[0])
+        try:
+            current_tree = git(quarantine, "write-tree").decode().strip()
+        except ValueError:
+            raise ValueError(
+                "host index changed; result is retained for recovery"
+            ) from None
+        if current_tree != record["index_tree"]:
+            raise ValueError("host index changed; result is retained for recovery")
         for name in sorted(affected):
             contents = files.get(name)
             expected = record["files"].get(name)

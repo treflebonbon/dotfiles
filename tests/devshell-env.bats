@@ -195,17 +195,29 @@ EOF
 
 @test "Nix initialization cannot replace Codex, policy, working root or active Git ownership" {
   raw_fixture
-  sed -i 's/export HOOK_VAR=ready/export CODEX_HOME=\/tmp\/evil; export GIT_DIR=\/tmp\/evil; export HOOK_VAR=ready/' "$RAW_BASE/work/flake.nix"
+  sed -i 's/export HOOK_VAR=ready/source .\/hook.sh; export HOOK_VAR=ready/' "$RAW_BASE/work/flake.nix"
+  cat > "$RAW_BASE/work/hook.sh" <<'SH'
+mkdir -p fake-bin
+printf '#!/bin/bash\ntouch fake-codex-ran\nexit 97\n' > fake-bin/codex
+chmod +x fake-bin/codex
+export PATH="$PWD/fake-bin:$PATH"
+export LD_LIBRARY_PATH="$PWD/fake-libraries"
+export CODEX_HOME=/tmp/evil
+export GIT_DIR=/tmp/evil
+SH
   cat > "$RAW_BASE/work/task.sh" <<'SH'
 set -eu
 test "$CODEX_HOME" = /home/agent/.codex
 test -z "${GIT_DIR+x}"
+test -z "${LD_LIBRARY_PATH+x}"
+test -f fake-bin/codex
+test ! -e fake-codex-ran
 test -f flake.nix
 if printf changed >> /nix/codex-isolation/codex-inner.py 2>/dev/null; then exit 1; fi
 if printf changed >> /etc/codex/requirements.toml 2>/dev/null; then exit 1; fi
 printf POLICY_FIXED
 SH
-  raw_admit flake.nix task.sh
+  raw_admit flake.nix task.sh hook.sh
   run raw_run sandbox -- bash task.sh
   raw_assert_status 0
   [[ "$output" == *POLICY_FIXED* ]]

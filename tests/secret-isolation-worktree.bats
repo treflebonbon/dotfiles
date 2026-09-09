@@ -311,3 +311,44 @@ PY
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
+
+@test "result transfer preserves a host stage completed before acquiring the index lock" {
+  [ "${SECRET_ISOLATION_REAL_RUNTIME:-0}" = 1 ] || skip "opt in with SECRET_ISOLATION_REAL_RUNTIME=1; requires Nix store tools and bubblewrap"
+  python3 "$CLI" approve --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
+    --git-head "$HEAD_SHA" -- source.txt
+  run python3 "$CLI" run --root "$FIXTURE/work" --policy "$FIXTURE/policy.json" \
+    --output "$FIXTURE/session" -- bash -c 'printf "agent edit\n" > source.txt; git add source.txt'
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  printf 'concurrent host stage\n' > "$FIXTURE/work/host-stage.txt"
+  mkdir "$FIXTURE/bin"
+  # Complete a real host git add after the early check, at the bundle boundary.
+  python3 - "$FIXTURE" <<'PY'
+from pathlib import Path
+import shlex, shutil, sys
+fixture = Path(sys.argv[1])
+real_git = shlex.quote(shutil.which('git'))
+work = shlex.quote(str(fixture / 'work'))
+wrapper = fixture / 'bin/git'
+wrapper.write_text(f'''#!/bin/bash
+{real_git} "$@"
+result=$?
+case " $* " in
+  *" -C "{work}" bundle unbundle "*)
+    [ "$result" -eq 0 ] || exit "$result"
+    {real_git} -C {work} add host-stage.txt
+    exit "$?"
+    ;;
+esac
+exit "$result"
+''')
+wrapper.chmod(0o755)
+PY
+  run env PATH="$FIXTURE/bin:$PATH" python3 "$CLI" return \
+    --root "$FIXTURE/work" --session "$FIXTURE/session"
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$FIXTURE/work" show :host-stage.txt)" = 'concurrent host stage' ]
+  [ "$(git -C "$FIXTURE/work" show :source.txt)" = 'public source' ]
+  [ "$(cat "$FIXTURE/work/source.txt")" = 'public source' ]
+  [ "$(git -C "$FIXTURE/work" rev-parse HEAD)" = "$HEAD_SHA" ]
+}
