@@ -62,7 +62,7 @@ DEVSHELL_ENV_REAL_NIX=1 bats tests/devshell-env.bats tests/codex-config.bats
 bunx tsc --noEmit
 ruff check private_dot_local/bin/executable_devshell-env tests/helpers/claude-env-preflight.py
 shellcheck private_dot_local/bin/executable_codex-worktree
-bun run test
+TMPDIR=/tmp bun run test
 ```
 
 実 Nix test は host の Nix と repo の cached nixpkgs が必要。通常の全 Bats では opt-in test を skip し、上記コマンドで別途実行する。既存 Codex Bats は管理設定・network allowlist・Git 書込みと秘密ファイルの拒否を実 sandbox で検証する。
@@ -80,4 +80,10 @@ bun run test
 
 ## 最終品質確認
 
-関連 Bats・実 Nix opt-in・Claude fixture と型チェックを実施。全 Bats と pre-commit の結果は実装最終段階で追記する。
+新規 Bats は実 Nix opt-in を含む16件が成功した。既存 Codex Bats 48件、workflow contract Bats 18件、Claude lifecycle fixture、`bunx tsc --noEmit`、ruff check/format、adapter の ShellCheck も成功した。commit 時の oxfmt・gitleaks・Conventional Commit 検証を通過した。
+
+初回の全 Bats は inherited `TMPDIR=/home/ubuntu/.cache/nix-devshell-tmp` で実行し、543件中、Design Hook 9件と dogfood browser 4件が失敗した。同じ未変更テストを `TMPDIR=/tmp` で単独比較すると、Design Hook の immediate finding と browser 4件はすべて成功した。一時領域の変更で解消する環境差として記録し、テストや実装の条件を弱めず、最終の全 Bats は `/tmp` を明示して再実行した。
+
+`code-review` の Standards 軸は ADR-0044 の旧責務境界との文書不整合を指摘したため、#255 が承認する拡張を既存 ADR の amendment と skill-harness へ記録した。trust record の書込みは明示 CLI が所有し、自動 adapter は登録を読む。Spec 軸の指摘はなかった。追加確認で通常の XDG 検索パスを保持し、相対 PATH からの実行ファイル選択も固定した。両軸の再レビューは `b27d1d4` までを対象に未解決 finding 0件となった。
+
+最終 `TMPDIR=/tmp bun run test` は終了コード0。545件中544件成功・1件skip・失敗0件だった。skip は opt-in の実 Nix test で、`TMPDIR=/tmp DEVSHELL_ENV_REAL_NIX=1 bats tests/devshell-env.bats` による16/16成功で別途確認した。全実行ログは `/tmp/devshell-255-full-bats-final.log`、初回の環境差を含むログは `/tmp/devshell-255-full-bats.log` に保存した。
