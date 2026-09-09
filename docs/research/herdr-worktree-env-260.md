@@ -12,7 +12,7 @@ Issue [#260](https://github.com/treflebonbon/dotfiles/issues/260) は Herdr で�
 
 ## 採用した設定
 
-[`.herdr/herdr-plugin.toml`](../../.herdr/herdr-plugin.toml) の `[[events]]` で `worktree.created` を購読し、`command` に Bash の処理を定義する。Herdr 公式の plugin 機構は使うが、外部 plugin の install、npm 依存、別ファイルの実行 script は追加しない。実行依存は既存ユーザー devShell が供給する Bash・jq・Git・cp。Python は TOML を読み取るテストにだけ使う。[公式 manifest 定義](https://github.com/herdrdev/herdr/blob/b99002ac99b09e00b4ca692436cb15a6b0d676f1/src/app/api/plugins/manifest.rs)
+[`.herdr/herdr-plugin.toml`](../../.herdr/herdr-plugin.toml) の `[[events]]` で `worktree.created` を購読し、`command` に Bash の処理を定義する。Herdr 公式の plugin 機構は使うが、外部 plugin の install、npm 依存、別ファイルの実行 script は追加しない。実行依存は既存ユーザー devShell が供給する Bash・jq・Git・cp。Python は TOML を読み取るテストにだけ使い、`tomllib` に必要な3.11以上を repo 用 `flake.nix` の `basePackages` から供給する。[公式 manifest 定義](https://github.com/herdrdev/herdr/blob/b99002ac99b09e00b4ca692436cb15a6b0d676f1/src/app/api/plugins/manifest.rs)
 
 コピー元・先は `HERDR_PLUGIN_EVENT_JSON` から取得する。
 
@@ -93,3 +93,9 @@ macOS の native 実行、TUI の実操作、実 agent の起動待機は未検�
 追加 Bats は15/15成功。`bunx tsc --noEmit`、実 command を抽出した ShellCheck / shfmt、`git diff --check` と commit hook の oxfmt / gitleaks / cog が成功した。`code-review` は fixed point `f0257af752718826b81f15736862b9ead9a452a0` から実装 commit `5486199` までを独立した2軸で確認し、Standards / Spec ともに指摘0件だった。
 
 `env -u FORCE_COLOR bun run test` は全544件を実行し、535件成功・9件失敗・skip 0、exit 1。失敗は既存の `tests/design-hook.bats` の9件で、即時・Stop finding が出力されないもの。変更前の `f0257af` から同テスト・Claude 設定・Codex hook 設定を隔離ディレクトリへ取り出し、現在の3ファイルと内容が同一であることを確認したうえで、同じ9件の失敗を再現した。この実装による回帰ではないが、全体テストの成功とは扱わない。Herdr パッケージの全対応 system / shell 評価を含む残りは成功した。ログは task worktree の `tmp/issue-260/full-suite.log` と `tmp/issue-260/baseline-design-hook.log` に保存し、既存失敗を隠すための skip やテスト変更はしていない。
+
+### PR #261 のレビュー対応
+
+repo 用 `flake.nix` の共通 `basePackages` に `python3` を追加した。既存の lock のまま、3 system × `default` / `wsl` の全6出力が Python 3.13.13 を供給することを評価した。x86_64-linux では `nix develop .#wsl --ignore-environment --command python3 ...` による `tomllib` の import と TOML 解析が成功し、ユーザー環境からの Python 継承に依存しないことを確認した。同 devShell の Python 3.13.13 で Herdr の Bats 15件も成功した。`nix flake check --no-build --all-systems` と `nixfmt --check flake.nix` が成功。ARM の native 実行は未確認で、全体テストの再実行はしていない。
+
+証跡は task worktree の `tmp/issue-260/review-python-eval.json`、`review-python-isolated.log`、`review-python-bats.log`、`review-flake-check.log`。既存 Design Hook の9件の失敗は、前回の全体検証記録を維持する。
