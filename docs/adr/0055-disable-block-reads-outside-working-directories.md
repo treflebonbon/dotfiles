@@ -33,12 +33,17 @@ status: accepted
 - **`additionalDirectories` のさらなる拡張のみで対処する**: [ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) 時点で既に実施済みだが、issue #248 の実測どおり trigger はパスの内外に依存しないため、追加拡張では unanalyzable なシェル構文由来のプロンプトを減らせない。見送った。
 - **fence を維持し、静的解析可能なシェル構文だけを使う運用ルールを徹底する**: 変数展開・パイプ・command substitution は日常的なシェル操作の基本要素であり、これを避ける運用は非現実的と判断し見送った。
 - **試験的に一定期間だけ無効化し、様子を見てから恒久化するか判断する**: 恒久的な決定ではなく段階導入も検討したが、`deny` リストの拡充で credential 系のリスクは独立して塞げているため、試験導入を挟む必要はないと判断した。
+- **`sandbox.filesystem` で Bash レベルの OS 境界を追加する**: PR レビュー（後述）で候補に挙がった。根本解決だが、この dotfiles では未使用の新機構で設計・検証コストが大きく、本 ADR のスコープ外として見送った。導入する場合は別 ADR・別 PR とする。
 
 ## Consequences
 
-**ADR-0045 が意図した「credential 以外も含む偶発的な外部ファイル読み取り防止」という広いスコープの保護を失う。** `~/.ssh`・`~/.aws` 等の credential 系ファイルは本 ADR で拡充した `deny` パターンにより `blockReadsOutsideWorkingDirectories` と独立して引き続きブロックされるが、それ以外の任意の外部ファイル（他リポジトリの非公開コード、個人的なメモ、業務文書など、`deny` パターンに載っていないもの）への accidental read を防ぐ仕組みは無くなる。この dotfiles は個人開発機での利用を前提とし、全リポジトリで同様の摩擦が発生していたことから、開発効率の回復をこのリスクより優先した。
+**ADR-0045 が意図した「credential 以外も含む偶発的な外部ファイル読み取り防止」という広いスコープの保護を失う。** これは、`blockReadsOutsideWorkingDirectories` を導入する前（ADR-0045 以前）に Auto mode がそもそも許容していた挙動へ戻ることを意味する。この dotfiles は個人開発機での利用を前提とし、全リポジトリで同様の摩擦が発生していたことから、開発効率の回復をこのリスクより優先した。
 
-`~/.npmrc` は意図的に deny 対象から外したため、`_authToken` を含む場合はその行が読み取り可能になる。
+**(2026-09-09 追記、PR #269 レビュー対応)** PR レビューで CodeRabbit と Codex の GitHub 連携がいずれも「`permissions.deny` の `Read(...)` パターンは `Read` ツールにしか効かず、`Bash` には一切効かない。したがって `cat ~/.ssh/id_rsa` のような単純な Bash コマンドが無防備になる」と指摘した。working directory 内にダミー credential ファイル（`*.pem`）を置き、`blockReadsOutsideWorkingDirectories: false` の状態で実機検証した結果、この指摘は不正確だった: `Read` ツールと `cat` はいずれも `Read(**/*.pem)` の `deny` パターンによりブロックされた（`blockReadsOutsideWorkingDirectories` の値とは無関係）。一方、`python3 -c "open('...').read()"` のような静的解析できないプログラム経由の読み取りは、同じ `deny` パターンをすり抜けて成功した。
+
+したがって、正確なリスクは「Bash 全般が無防備」ではなく、**`cat`/`head`/`tail`/`grep` 等の認識済み read-only コマンドは `~/.ssh`・`~/.aws`・`~/.config/gcloud` 等の既存パターンと本 ADR で追加した5パターンの両方について引き続き `deny` で保護されるが、`python3 -c`・`node -e`・heredoc 経由の interpreter 等プログラム経由の読み取りは元々ガードされていなかった（`blockReadsOutsideWorkingDirectories` が `true` だった期間だけ、この経路も静的解析不能として一律ブロックされていた）** という、限定的な残存リスクである。この残存リスクは意図的に受容する。
+
+`~/.npmrc` は意図的に deny 対象から外したため、`_authToken` を含む場合は `cat ~/.npmrc` を含む認識済みコマンドでも読み取り可能になる（この判断は変更しない）。
 
 Working-Directory Read Fence（[CONTEXT.md](../../CONTEXT.md)）は本 ADR により無効化され、現在この dotfiles では機能しない。[ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) と [ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) の記述は、fence が有効だった期間の設計判断・実測記録として残す。
 

@@ -162,15 +162,11 @@ APM の変更検知には展開後の cleanup script の hash を含めるため
 
 したがって、skill は agent が自分のセッション context を都度確認し、scratchpad path を認識できたらローカル変数（例: `TO_PR_SCRATCH_BASE`）へ明示代入してから使う。agent の Bash tool 呼出しは呼出しごとに独立した shell であり、ある呼出しで export した値は次の呼出しへ引き継がれない。同じ scratchpad path を複数の独立した temp artifact 生成箇所で使う skill は、各箇所（各コマンド／各 fenced block）でこの変数を都度再代入する手順を明記する。この判断は [ADR-0017](../docs/adr/0017-element-pointing-feedback-in-tdd.md) が採用した原則（ランタイム検出ロジックは導入しない — 実行中のエージェントは自身のランタイムの機能を把握している）と同じ考え方であり、session 種別ごとの injection 有無を前提にしない。scratchpad path を認識できない場合は空のままにし、`"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` のように `${TMPDIR:-/tmp}` を明示的な fallback として使う。fallback が発動した（scratchpad を認識できなかった）ことは完了報告や PR body などの出力に明記し、無言で `/tmp` へ落とさない（[ADR-0052](../docs/adr/0052-resolve-to-pr-temp-artifacts-via-session-scratchpad.md)）。
 
-### 解析不能 Bash コマンドの確認を減らす
+### 解析不能 Bash コマンドの確認（現在は不要）
 
-`permissions.blockReadsOutsideWorkingDirectories` は、working directory の内外を問わず、静的解析できない Bash コマンド（heredoc 経由の interpreter、`$(...)` / command substitution、裸の `$VAR`、`sed`/`awk`/`python3 -c` 等の programmable reader、safe list 外の環境変数プレフィックス）に一律で human confirmation を要求する（[2026-09-05 調査ノートの 2026-09-08 追記](../docs/research/claude-code-block-reads-2026-09-05.md#2026-09-08-追記issue-248)、issue #248）。`permissions.allow` の Bash ルールはこの確認を回避しない。agent は次の実践で確認回数を減らす:
+[ADR-0055](../docs/adr/0055-disable-block-reads-outside-working-directories.md)（2026-09-09）により `permissions.blockReadsOutsideWorkingDirectories` は無効化された。静的解析できない Bash コマンド（heredoc 経由の interpreter、`$(...)` / command substitution、裸の `$VAR`、`sed`/`awk`/`python3 -c` 等）を理由に一律で human confirmation を要求していた仕組み（[2026-09-05 調査ノートの 2026-09-08 追記](../docs/research/claude-code-block-reads-2026-09-05.md#2026-09-08-追記issue-248)、issue #248）はもう働かない。heredoc・command substitution・裸の `$VAR` 展開を確認回避のために避ける必要はない。
 
-- 複数行 script を heredoc で直接渡さず、上記 Session Scratchpad へ `Write` してから `python3 <絶対パス>` のように絶対パスで実行する
-- `$(...)` / backtick によるコマンド出力の埋め込みや、裸の `$VAR` 展開を含むワンライナー合成をやめ、単一コマンドで完結させる
-- ファイル読み取りは Bash より `Read` / `Grep` / `Glob` tool を優先する
-
-これは既存 gate の回避策ではなく、確認が要る場面自体を減らすための実践であり、gate の意図（不透明な script 経由の任意ファイル読み書きに対する防御）を損なわない。
+ただし `permissions.deny` の `Read(...)` パターン（`~/.ssh/**`・`~/.aws/**` 等の credential 系を含む）は、`Read` tool と `cat`/`head`/`tail`/`grep` 等の認識済み read-only Bash コマンドには `blockReadsOutsideWorkingDirectories` と無関係に引き続き適用される（ADR-0055 で実機検証済み）。`python3 -c`・`node -e`・heredoc 経由の interpreter のようなプログラム経由の読み取りはこの `deny` をすり抜けるため、agent はこれを deny 回避の手段として使わない。`Read`/`Grep`/`Glob` tool が拒否したファイルは、拒否理由を尊重し別の経路で読み直さない。
 
 **Orca native agent launch**: Orca は native worktree を agent の `cwd` にして Agent Picker から built-in agent を起動し、Settings の Agent Permissions で permission mode を所有する。自律 workflow は shipped Yolo、権限確認を残す場合は Manual と Orca Source Control による stage / commit / push を使う。Yolo の worktree isolation は disposable diff の review / recovery 境界であり、filesystem / network を強制する Technical Sandbox Boundary ではない。Orca native Codex の entry / activation に repository wrapper や Active Git Metadata Boundary を挟まない（[ADR-0046](../docs/adr/0046-separate-orca-native-worktree-entry.md)）。
 
