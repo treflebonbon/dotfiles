@@ -3,10 +3,14 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+    dotfiles = {
+      url = "github:treflebonbon/dotfiles/002085017c4260e3044156ab474823dad3bd1378";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, dotfiles, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -16,6 +20,10 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
     in
     {
+      apps = forAllSystems (system: {
+        with-env = dotfiles.apps.${system}.with-env;
+      });
+
       devShells = forAllSystems (
         system:
         let
@@ -24,6 +32,7 @@
         {
           default = pkgs.mkShell {
             packages = [
+              dotfiles.packages.${system}.with-env
               pkgs.beam29Packages.elixir_1_20
               pkgs.beam29Packages.erlang
               pkgs.beam29Packages.expert

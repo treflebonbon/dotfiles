@@ -103,7 +103,7 @@ in
 }
 ```
 
-たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。6言語テンプレートへの展開は #258 が担当する。
+たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。Go・Rust・Elixir・Perl・Gleam・Bun のテンプレートにも共通の `with-env` app と devShell 内の同名コマンドを含めている。生成先で `nix flake lock` を実行して lock を Git に追加し、`nix develop .#default` / `nix run .#with-env -- command` を使う。言語別の dev / test 組込み例・信頼登録・明示再読込み・dotenv 移行は、生成物の `DEVELOPMENT.md` を参照する。テンプレートは browser を含まない `default` のみを持ち、WSL でも `.wsl-browser-free` なしで利用できる。別 output や marker を追加する場合は対応する devShell も定義する。
 
 人間は `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
 
