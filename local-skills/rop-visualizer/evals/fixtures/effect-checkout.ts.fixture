@@ -1,0 +1,58 @@
+import { Context, Data, Effect, pipe } from "effect"
+
+class ValidationError extends Data.TaggedError("ValidationError")<{ readonly message: string }> {}
+class OutOfStock extends Data.TaggedError("OutOfStock")<{ readonly sku: string }> {}
+class CatalogUnavailable extends Data.TaggedError("CatalogUnavailable")<{ readonly sku: string }> {}
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{ readonly orderId: string }> {}
+class AuditUnavailable extends Data.TaggedError("AuditUnavailable")<{ readonly receiptId: string }> {}
+class CheckoutFailed extends Data.TaggedError("CheckoutFailed")<{ readonly cause: string }> {}
+
+type Order = { readonly id: string; readonly sku: string; readonly card: string }
+type Reservation = { readonly sku: string; readonly fulfillment: "reserved" | "backorder" }
+type Receipt = { readonly id: string; readonly fulfillment: Reservation["fulfillment"] }
+
+class Inventory extends Context.Tag("Inventory")<
+  Inventory,
+  { readonly reserve: (sku: string) => Effect.Effect<Reservation, OutOfStock | CatalogUnavailable> }
+>() {}
+
+const validate = (input: { readonly sku: string; readonly card: string }): Effect.Effect<Order, ValidationError> =>
+  input.sku === ""
+    ? Effect.fail(new ValidationError({ message: "SKU is required" }))
+    : Effect.succeed({ id: `order-${input.sku}`, ...input })
+
+const reserve = (sku: string) =>
+  Effect.gen(function* () {
+    const inventory = yield* Inventory
+    return yield* inventory.reserve(sku)
+  })
+
+const charge = (order: Order, reservation: Reservation): Effect.Effect<Receipt, PaymentDeclined> =>
+  order.card === "declined"
+    ? Effect.fail(new PaymentDeclined({ orderId: order.id }))
+    : Effect.succeed({ id: `receipt-${order.id}`, fulfillment: reservation.fulfillment })
+
+const auditReceipt = (receipt: Receipt) =>
+  receipt.id.endsWith("offline")
+    ? Effect.fail(new AuditUnavailable({ receiptId: receipt.id }))
+    : Effect.void
+
+const renderConfirmation = (receipt: Receipt) =>
+  `confirmed:${receipt.id}:${receipt.fulfillment}`
+
+export const checkout = (input: { readonly sku: string; readonly card: string }) =>
+  pipe(
+    validate(input),
+    Effect.flatMap((order) =>
+      pipe(
+        reserve(order.sku),
+        Effect.catchTag("OutOfStock", () =>
+          Effect.succeed({ sku: order.sku, fulfillment: "backorder" as const })
+        ),
+        Effect.flatMap((reservation) => charge(order, reservation)),
+        Effect.tap(auditReceipt),
+        Effect.map(renderConfirmation)
+      )
+    ),
+    Effect.mapError((error) => new CheckoutFailed({ cause: error._tag }))
+  )

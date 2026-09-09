@@ -4,6 +4,10 @@
 
 ## Language
 
+**ROP フロー図**:
+指定した実装をもとに、処理の順序と、成功・失敗の分岐・回復を可視化した成果物。実装理解とレビューを目的に、処理の流れを追う認知負荷を下げる。
+_Avoid_: 実行ログ, ROP 教材, レビュー指摘一覧
+
 **ユーザー環境キャッシュ**:
 direnv 管轄外でユーザー環境のツールを利用するために再利用する評価結果。生成元のソースと選択環境との対応を持ち、プロジェクト固有の環境や Nix のビルド成果物キャッシュとは区別する。
 _Avoid_: Nix cache, direnv cache, ビルドキャッシュ
@@ -113,7 +117,7 @@ Git の checkout 隔離とは独立して、agent の filesystem・network acces
 _Avoid_: worktree sandbox, repository isolation, permission mode
 
 **Working-Directory Read Fence**:
-primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否する permission 層の境界で、Bash コマンド経由のアクセスは対象外（Technical Sandbox Boundary が別途扱う、OS レベル・Bash 専用）。`additionalDirectories` 内の Edit/Write はこの fence では拒否されず、現在の permission mode に従い、明示的な `Edit(...)` deny があるパスだけが read-only になる。
+primary working directory と `additionalDirectories` の外側への direct file tool（Read/Grep/Glob）を拒否していた permission 層の境界。静的解析できない Bash コマンド（simple expansion、command substitution 等）にも working directory の内外を問わず同じ理由で human confirmation を要求していた。[ADR-0055](docs/adr/0055-disable-block-reads-outside-working-directories.md) により無効化され、現在この dotfiles では機能していない。`additionalDirectories` 内の Edit/Write の扱い（明示的な `Edit(...)` deny があるパスだけ read-only）は fence とは独立の仕組みで、無効化後も変わらない。
 _Avoid_: block reads, sandbox, permission mode
 
 **Session Scratchpad**:

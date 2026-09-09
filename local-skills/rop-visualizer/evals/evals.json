@@ -1,0 +1,47 @@
+{
+  "skill_name": "rop-visualizer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "`inputs/effect-checkout.ts` の `checkout` を入口に、呼ばれる実装を読んで、レビュー用の単一 `railway.html` を作ってください。Effect v3 の成功・失敗チャネルを Mermaid の railway として説明し、ステップ選択、詳細の折りたたみ、実行トレースを装わない実現可能な 1 経路の強調を操作できるようにしてください。",
+      "expected_output": "Source-backed interactive offline Mermaid railway HTML and actual source/model artifacts.",
+      "files": ["evals/fixtures/effect-checkout.ts.fixture"],
+      "assertions": [
+        "[critical] [意味] `checkout` から `validate → reserve → catchTag(OutOfStock) → charge → tap(auditReceipt) → map(renderConfirmation) → mapError` の順序を、コードに対応するノードと有向エッジで表す。catchTag の回復ハンドラは `OutOfStock` 失敗に一致した場合だけ実行し、`Inventory` は reserve の Requirement R を示す依存関係として詳細に示すが、失敗エッジとして描かない。",
+        "[意味] `ValidationError` は reserve 以後を通らず、`CatalogUnavailable` は `catchTag` に一致せず charge・audit・render を迂回し、`PaymentDeclined` と `AuditUnavailable` はそれぞれ後続を迂回する失敗経路を表す。",
+        "[意味] `OutOfStock` だけが backorder の成功値へ回復して charge に進み、`mapError` は残った失敗を `CheckoutFailed` に変換するだけで成功へ回復しないことを表す。",
+        "[共通HTML] クリックまたはキーボード操作で各ステップを選択でき、選択中ステップに対応するコード上の意味・成功出力・失敗出力を表示する。",
+        "[共通HTML] 各ステップの補足を個別に開閉でき、最初は概要だけでグラフの全体経路を読める。",
+        "[共通HTML] 利用者が選ぶ 1 つの実現可能な経路だけを強調し、その表示を「実行結果・実行トレース」と称さない。各グラフのノード意味とエッジには対応するソース抜粋を添え、説明文だけで済ませない。"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "`inputs/rust-checkout.rs` の `checkout` を入口に、必要なヘルパーを追って、レビュー用の単一 `railway.html` を作ってください。Rust `Result` の `?`、`From`、`or_else`、`map_err` を Mermaid railway で正確に説明し、ステップ選択、詳細の折りたたみ、実行トレースを装わない実現可能な 1 経路の強調を操作できるようにしてください。",
+      "expected_output": "Source-backed interactive offline Mermaid railway HTML and actual source/model artifacts.",
+      "files": ["evals/fixtures/rust-checkout.rs.fixture"],
+      "assertions": [
+        "[critical] [意味] `checkout → load_price → parse_sku → catalog_price` の入れ子と、`catalog_price` の `CatalogError` が `From<CatalogError> for CheckoutError` により `load_price` の `?` で変換され、外側の `map_err(ApiError::from)` に至る関係を、実コードに対応するノードと有向エッジで表す。",
+        "[意味] `parse_sku` の `?` は `load_price` から早期 return し、`load_price(...).map_err(...)?` の失敗は reserve 以後を実行しないことを表す。",
+        "[意味] `or_else` は `InventoryUnavailable` のときだけ `reserve_backorder` を呼び、他の reserve 失敗は `Err(other)` のまま通過し、`reserve_backorder` 自身の `BackorderRejected` も失敗として残ることを表す。",
+        "[意味] 最後の `map_err(ApiError::from)` は `Err(CheckoutError)` を `Err(ApiError)` に写すだけで、成功値へ回復しないことを表す。",
+        "[共通HTML] クリックまたはキーボード操作で各ステップを選択でき、選択中ステップに対応するコード上の意味・成功出力・失敗出力を表示する。",
+        "[共通HTML] 各ステップの補足を個別に開閉でき、利用者が選ぶ 1 つの実現可能な経路だけを強調し、それを実行結果・実行トレースと称さない。各グラフのノード意味とエッジには対応するソース抜粋を添え、説明文だけで済ませない。"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "`inputs/holdout-local-scope.rs` の `charge_invoice` を入口に、読める範囲だけを使ってレビュー用の単一 `railway.html` を作ってください。Mermaid railway で局所的な `?` と `or_else` のスコープを示し、ステップ選択、詳細の折りたたみ、実行トレースを装わない実現可能な 1 経路の強調を操作できるようにしてください。`crate::gateway::quote_tax` の実装は与えられていません。",
+      "expected_output": "Source-backed interactive offline Mermaid railway HTML and actual source/model artifacts.",
+      "files": ["evals/fixtures/holdout-local-scope.rs.fixture"],
+      "assertions": [
+        "[critical] [意味] `normalize_country(country)?` の失敗は `tax_rate` から早期 return し、`quote_tax(...).or_else(...)` の回復は `tax_rate` の内部だけで、外側の `charge_invoice` の `ChargeDeclined` を捕捉しないことを、コードに対応するノードと有向エッジで表す。",
+        "[意味] `TaxServiceDown` だけが局所的に `Ok(0)` へ回復し、他の `quote_tax` エラーは `Err(other)` のまま `charge_invoice` の `?` を通じて返ることを表す。",
+        "[意味] 利用不能な `crate::gateway::quote_tax` は「未知の外部呼出し」と明記し、未提示の内部ノード・回復・失敗種類を捏造しない。",
+        "[共通HTML] クリックまたはキーボード操作で各ステップを選択でき、選択中ステップに対応するコード上の意味・成功出力・失敗出力を表示する。",
+        "[共通HTML] 各ステップの補足を個別に開閉でき、利用者が選ぶ 1 つの実現可能な経路だけを強調し、それを実行結果・実行トレースと称さない。",
+        "[共通HTML] 各グラフのノード意味とエッジには対応するソース抜粋を添え、説明文だけで済ませない。"
+      ]
+    }
+  ]
+}

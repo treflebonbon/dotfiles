@@ -8,7 +8,7 @@
   "editorMode": "normal",
   "permissions": {
     "defaultMode": "auto",
-    "blockReadsOutsideWorkingDirectories": true,
+    "blockReadsOutsideWorkingDirectories": false,
     "additionalDirectories": [
       "~/.claude/jobs",
       "~/runtime",
@@ -45,6 +45,11 @@
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(~/.config/gcloud/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.git-credentials)",
+      "Read(~/.config/gh/hosts.yml)",
+      "Read(~/.gnupg/**)",
       "Edit(**/.env*)",
       "Edit(~/.ssh/**)",
       "Edit(~/runtime/**)",
