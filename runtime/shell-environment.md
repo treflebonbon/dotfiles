@@ -29,18 +29,32 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 - **fzf** — キーバインド + 補完。通常の `fzf --bash` を使う。Dracula カラー
 - **zoxide** — スマート cd（`--cmd cd`）
 - **eza** — `ls`/`ll`/`la`/`lt` エイリアス
-- **direnv** — ディレクトリ単位の環境変数
+- **direnv** — 既存 `.envrc` の明示利用用。標準の自動 hook は登録しない
 - **bash-completion** — 補完。OS パッケージ優先、無ければ nix-devshell 供給の本体を `XDG_DATA_DIRS` から探索
 
 ## zsh ツール（macOS）
 
 - **atuin** — zsh の履歴検索の所有者（`Ctrl-R`）。fzf より後に init し、zsh の後勝ち keybind で履歴検索を取る
 - **zsh-autosuggestions / zsh-syntax-highlighting** — nixpkgs パッケージ由来の plugin file を直接 source する
-- **starship / fzf / zoxide / direnv** — zsh native hook で初期化する
+- **starship / fzf / zoxide** — zsh native hook で初期化する
+
+## プロジェクト開発シェルへの明示入場
+
+bash／zsh は `cd` 時に direnv を自動実行しない。通常設定とツールは対象 repo の `flake.nix` と `flake.lock` に置き、人間は Git root で次のように入る。`nix develop` が起動する子シェルは bash で、`exit` すると起動元の bash／zsh に戻る（[Nix の公式仕様](https://nix.dev/manual/nix/2.34/command-ref/new-cli/nix3-develop)）。
+
+```bash
+nix develop .#default
+# プロジェクトのツールで作業
+exit
+```
+
+dotfiles の WSL2 開発では `nix develop .#wsl` を使う。Nix 自体は `.wsl-browser-free` や `DEVSHELL_ENV_OUTPUT` を解釈しないので、人間は output を明示する。`with-env`、Claude hook、raw Codex adapter は現在の root・marker・WSL を共通規則で選択し、`DEVSHELL_ENV_OUTPUT=default` などの明示値を優先する。6言語テンプレートは browser を含まない `default` を使う。flake や import した設定を編集したら、人間は `exit` して入り直し、Claude は `devshell-env reload`、raw Codex は再起動する。
+
+新経路は `.envrc` を読み込まず、dotenv も開発シェル全体へ自動 export しない。既存の direnv 環境から起動した場合は継承値が残るため、移行確認は新しいシェルから行う。既に走っているシェルの hook や継承した秘密を新しい設定が識別・除去する保証はない。
 
 ## nix-devshell グローバル env キャッシュ
 
-`~/.config/nix-devshell` の devShell を home など direnv 管轄外でも有効化するため、`nix print-dev-env` の出力を `~/.cache/nix-devshell-global-env.bash` にキャッシュし stale-while-revalidate で更新する。実体は `~/.config/nix-devshell/lib/{ensure-env,refresh-cache}.sh`（bash 関数）。`.bashrc` は起動時に現行キャッシュを source し、背景で次回向けに再生成、`PROMPT_COMMAND` で mtime 変化時にリロード（`chezmoi apply` 連携）。出力は bash として直接 source 可能なため zcompile は不要。
+`~/.config/nix-devshell` の共通ツールをプロジェクト開発シェルの外でも有効化するため、`nix print-dev-env` の出力を `~/.cache/nix-devshell-global-env.bash` にキャッシュし stale-while-revalidate で更新する。実体は `~/.config/nix-devshell/lib/{ensure-env,refresh-cache}.sh`（bash 関数）。`.bashrc` は起動時に現行キャッシュを source し、背景で次回向けに再生成、`PROMPT_COMMAND` で mtime 変化時にリロード（`chezmoi apply` 連携）。出力は bash として直接 source 可能なため zcompile は不要。
 
 通常の `chezmoi apply`、APM 配備、初回導入は `NIX_DEVSHELL_CACHE_REQUIRED=1` で更新し、必要な更新や前提の確認に失敗したら停止する。途中まで出力した Nix の非0終了、空・bash 構文不正の出力、キャッシュ置換の失敗は旧キャッシュを保持する。対話シェルの背景更新は引き続き起動を止めない。鮮度は devShell 配下のソースの内容・追加・削除と WSL／通常環境の選択で判定し、入力が同じなら再評価しない。ルートの `.git`／`.direnv` と Nix の `result`／`result-*` symlink は実行時状態として除外する。対応する入力情報をキャッシュ本体に含め、検査後に一緒に置換する。旧形式はそのまま読め、次の更新で再生成へ移行する。初回を含む毎回の更新で、排他には PATH 上の system `perl`、鮮度判定には `sha256sum` または `shasum` を使う（[ADR-0050](../docs/adr/0050-user-environment-cache-freshness.md)）。
 
@@ -60,7 +74,7 @@ sheldon などのプラグインマネージャは使わず、`.bashrc` で各�
 
 `untrusted`、`no flake.nix`、Nix／shellHook の失敗は stderr に理由を表示し、プロジェクト環境を追加せず調査用の Codex を起動する。`devshell-env status` で登録と root を確認し、表示された output の flake を修正してセッションを再起動する。新規 `flake.nix` は Git に追加してから使う。Nix の Git source と既存 lock を使い、lock は自動書換えしない。不正な metadata や working root・permission を置換する引数は起動そのものを拒否する。
 
-Nix は raw Codex の sandbox 起動前に準備する。標準 permission と Active Git Metadata Boundary は維持し、Nix／shellHook 後も検証済み root・Git metadata・起動元の Codex 実行ファイルを固定する。flake の編集はセッション再起動で反映する。Orca native Codex の built-in launch、Claude の hook、direnv の対話 shell hook、ユーザー環境キャッシュはこの slice の変更対象に含まれない。実行確認の環境と後続 slice の制約は [Issue #255 の検証記録](../docs/research/devshell-env-255.md) を参照。
+Nix は raw Codex の sandbox 起動前に準備する。標準 permission と Active Git Metadata Boundary は維持し、Nix／shellHook 後も検証済み root・Git metadata・起動元の Codex 実行ファイルを固定する。flake の編集はセッション再起動で反映する。Codex Desktop と Orca native Codex には自動 devShell 読込みを追加しない。Desktop の管理 setup script は空で、Orca は native worktree と built-in launch を維持する。実行確認の環境は [Issue #255 の検証記録](../docs/research/devshell-env-255.md) を参照。
 
 ### 指定コマンドへの dotenv 注入
 
@@ -122,6 +136,20 @@ flake を編集したら、Claude の Bash で `devshell-env reload` を実行�
 session 状態は `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/.devshell-env/<session-id の hash>/` に置く。初期化結果だけを session 内で再利用し、`SessionStart` で再評価するため、session をまたいだプロジェクト環境キャッシュにはしない。Nix／shellHook へ渡すのは HOME と解決済み bootstrap ツールの PATH だけで、任意の継承値やその加工結果を新しい保存先へ残さない。元の変数値を復元するための情報は非exportの shell 変数に保持し、ファイルへ保存しない。dotenv と秘密取得は追加せず、shellHook 自身にも秘密取得を書かない。これは信頼した flake の外部副作用を封じる sandbox ではない。
 
 Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS sandbox 変更は対象外。既存 permission と RTK／Design Hook を維持する。未 merge の task source は実配備しない。[#256 の実 lifecycle・品質検証記録](../docs/research/devshell-env-256.md)を参照。
+
+## 既存 repo の移行
+
+1. `.envrc` にだけ置かれた通常変数・ツール・非秘密の初期化を `flake.nix` の devShell（またはそこから import するファイル）へ移す。dotenv や秘密取得は shellHook に置かない。既存 `.envrc` は明示利用のために残せる。dotfiles と6テンプレートの既存 `.envrc` は flake と dotenv を呼ぶだけで、通常設定の追加移植は不要。
+2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保ち、必要な値は作業する root に人間が用意する。`with-env` は main・親・別 worktree を探索・コピーしない。
+3. 人間は上記の `nix develop` でツールと通常変数を確認する。AI 自動読込みを使う repo は `devshell-env trust` で一度登録し、`devshell-env status` で root・output・信頼を確認する。解除は `devshell-env untrust`。別 clone は別登録になる。
+4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は `with-env --prepared -- command` を使う。Claude は非秘密の devShell だけを使い、dotenv が必要な処理は人間側の入口で実行する。
+5. 旧 hook が動く端末は終了し、受入・merge 後に live source で `chezmoi apply` してから新しい端末を開く。未 merge の task source は配備しない。通常変数とツール、明示更新、正式入口の失敗を確認する。
+
+従来の `.envrc` の `dotenv_if_exists .env` はシェル全体へ値を export していた。新しい注入は対象コマンドとその子に限定し、同名変数は起動元 → devShell → root `.env` の順で優先する。raw Codex 自身も許可された root `.env` を読めるため、AI から秘密を隠す保証ではない。起動元に既に含まれた秘密の除去も保証しない。Claude の `.env` 注入・OS sandbox と Orca native Codex の自動読込みは対象外で、既存 permission は維持する。
+
+既存 `.envrc` を明示的に使う場合は内容を確認して `direnv allow .`、続けて `direnv exec . command` を使う。この子には従来の dotenv 読込みも適用される（[direnv の公式コマンド仕様](https://direnv.net/man/direnv.1.html)）。セットアップや Codex 管理同期は自動承認しない。
+
+共通ツールや APM の復旧は `nix develop ~/.config/nix-devshell#default --command chezmoi apply`（WSL2 は `#wsl`）を使う。ユーザー環境キャッシュの必須更新は通常配備と同じ入口で行い、`direnv reload` を前提にしない。ここでも配備は受入済み live source から行う。
 
 ## ghq + fzf リポジトリ管理
 

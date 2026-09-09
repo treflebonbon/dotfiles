@@ -2,13 +2,14 @@
 
 ## Source and deployment
 
-- Enter the source of truth: `cd "$(chezmoi source-path)"`.
-- Preview/apply managed-home changes: `chezmoi diff`; `chezmoi apply`.
+- Edit in the validated task worktree; `chezmoi source-path` identifies the live deployment source.
+- Preview managed-home changes with `chezmoi diff`; apply accepted changes from the live source with `chezmoi apply`.
 - Import an intentional direct `$HOME` edit: `chezmoi re-add <deployed-file>`.
 
 ## Development and checks
 
-- Enter the repository devShell: `nix develop` (normally loaded by direnv in the source directory).
+- Enter the repository devShell: `nix develop .#default` (`.#wsl` on WSL2); `exit` returns to the starting shell. Standard shell startup does not run direnv hooks.
+- For AI trust, reload, dotenv and existing-repo migration, follow `runtime/shell-environment.md`.
 - Run the full Bats suite: `bun run test`.
 - Run focused tests: `bats tests/<area>.bats`; combine related files in one invocation when useful.
 - Validate repository flake outputs without building: `nix flake check --all-systems --no-build`.

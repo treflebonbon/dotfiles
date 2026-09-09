@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # nix-devshell の global env cache を best-effort で source する。
-# direnv 未起動 or 親シェルが nix-devshell 環境を継承していない場合 (例: chezmoi apply
+# 親シェルが nix-devshell 環境を継承していない場合 (例: chezmoi apply
 # が devpod 起動直後に走るケース) で、apm / claude などの devShell 由来 CLI を
 # PATH に乗せるために使う。
 #

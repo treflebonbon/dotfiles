@@ -325,7 +325,21 @@ STUB
   run_install
 
   assert_success
-  assert_log_contains "nix develop --command true"
+  assert_log_contains "nix develop .#.* --command true"
+}
+
+@test "WSL の初回導入は warmup と再配備とキャッシュで wsl output を使う" {
+  # run_install uses an empty environment; the kernel probe is its WSL boundary.
+  cat >"$TEST_BIN_DIR/grep" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = -Eqi ] && [ "${3:-}" = /proc/sys/kernel/osrelease ]; then exit 0; fi
+exec /bin/grep "$@"
+STUB
+  run_install
+  assert_success
+  assert_log_contains 'nix develop .#wsl --command true'
+  assert_log_contains 'nix develop .#wsl --command chezmoi apply'
+  assert_log_contains 'nix print-dev-env .#wsl'
 }
 
 @test "初回導入は実際の lib でキャッシュを生成して成功する" {
@@ -377,7 +391,7 @@ STUB
   refute_output --partial 'Dotfiles installed successfully!'
 }
 
-@test "direnv allow が ~/.config/nix-devshell で呼ばれる" {
+@test "初回導入は direnv の自動承認なしで共通ツールのキャッシュを生成する" {
   local test_home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$test_home/.config/nix-devshell"
   touch "$test_home/.config/nix-devshell/flake.nix"
@@ -385,8 +399,9 @@ STUB
   run_install
 
   assert_success
-  assert_log_contains "direnv allow"
-  assert_log_contains ".config/nix-devshell"
+  refute_log_contains "direnv allow"
+  assert_log_contains "nix print-dev-env"
+  [ -s "$test_home/.cache/nix-devshell-global-env.bash" ]
 }
 
 @test "初回導入の必須更新は非 Nix 入力変更を反映し同じ入力を再評価しない" {
@@ -402,7 +417,7 @@ STUB
   run_install
   assert_success
   assert_log_contains 'nix print-dev-env'
-  assert_log_contains 'direnv allow'
+  refute_log_contains 'direnv allow'
 }
 
 @test "macOS の初回導入は shasum だけの初期 PATH でも生成できる" {

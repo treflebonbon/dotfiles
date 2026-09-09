@@ -48,7 +48,7 @@ _nix_devshell_prune_zed_env() {
 }
 
 # nix-devshell グローバル環境を有効化（stale-while-revalidate キャッシュ）
-# ~/.config/nix-devshell のツールをホームなど direnv 管轄外でも利用可能にする。
+# ~/.config/nix-devshell の共通ツールをプロジェクト開発シェルの外でも利用可能にする。
 # キャッシュ実体は `nix print-dev-env` 出力で bash として source 可能。
 if [ -d "$HOME/.config/nix-devshell" ] && command -v nix >/dev/null 2>&1; then
   _nd_cache="$HOME/.cache/nix-devshell-global-env.bash"
@@ -145,9 +145,6 @@ if ! shopt -oq posix && shopt -q progcomp 2>/dev/null && _bash_has_builtin compl
 fi
 
 # --- ツール init（軽量: 直接初期化）---
-
-# direnv: ディレクトリごとの環境変数管理
-command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
 
 # flyline: bash の line editor と履歴検索の所有者（ADR-0021）。
 # nix-devshell が供給する glibc 版 loadable builtin を使う。ABI 不一致や
