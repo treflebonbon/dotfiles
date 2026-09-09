@@ -84,10 +84,13 @@ to different questions. Do not read browser drafts as submitted answers.
 ## Preserve decisions and clean up
 
 Record resolved terms immediately through `domain-modeling` in `CONTEXT.md`,
-and decisions in an ADR only when its criteria apply. The conversation and
-those records are the source for a later `to-spec`; the HTML and browser drafts
-are never the source of truth. When the frontier is empty, confirm the shared
-understanding before acting on the design.
+and decisions in an ADR only when its criteria apply. A resolved term is new
+domain vocabulary or an entity attribute; a settled UI or layout choice is not
+a term and stays in the conversation for a later `to-spec` to pick up, not in
+`CONTEXT.md`, unless it independently meets `domain-modeling`'s ADR criteria. The
+conversation and those records are the source for a later `to-spec`; the HTML
+and browser drafts are never the source of truth. When the frontier is empty,
+confirm the shared understanding before acting on the design.
 
 Before ending the session, ask the user to confirm cleanup. After confirmation,
 delete only the `tmp/ui-grill-<topic>.html` file owned by this session. Leave
