@@ -51,4 +51,20 @@ Session Scratchpad は提示されていないため、ローカル一時証跡�
 
 WSL2 の証跡は `/tmp/herdr-273-wsl-verified/`。kernel `6.18.33.2-microsoft-standard-WSL2`、Herdr 0.9.0、Nix 2.34.6、Codex 0.153.4、Python 3.13.13、Git 2.54.0、bubblewrap 0.11.2 で、`report.json` の6項目が成功した。Bats 経由の統合試験も成功し、ログは task worktree の `tmp/issue-273/herdr-bats-final.log` に残した。
 
-通常 Linux の初回試行は `/tmp/herdr-273-linux-final/` で成功した。最終版の追加拒否検査を含む VM と全 Bats は、実装レビューと並行して検証中。結果はこの記録に追記する。既存コピー15件、TypeScript typecheck、Python の構文・Ruff、差分検査は成功している。
+通常 Linux の最終証跡は `/tmp/herdr-273-linux-63046be/`。実装 commit `63046be` を KVM 上の NixOS、通常ユーザー uid 1000、kernel `6.18.33` で実行し、6項目が成功、VM driver は exit 0。ツール版と管理対象 manifest の SHA-256 は上記 WSL2 と同一だった。
+
+全 Bats は次のコマンドで675件を実行し、661成功・既存 opt-in 10 skip・4失敗、exit 1 だった。今回の実 Herdr 統合とコピー15件はすべて成功。ログは `tmp/issue-273/full-suite.log`、集計は `full-suite-summary.json` に保存した。
+
+```bash
+nix develop .#wsl --command env -u FORCE_COLOR SECRET_ISOLATION_REAL_RUNTIME=1 HERDR_ISOLATION_REAL=1 bun run test
+```
+
+4失敗は既存 `tests/secret-isolation.bats` のケースで、継承した長い `TMPDIR` 配下の fixture に `provider.sock` を bind すると `AF_UNIX path too long` になるもの。テスト・`scripts/secret-isolation-probe.py`・`tests/fixtures/secret-isolation/runtime.py` は固定点から変更されていない。コードは変更せず、`TMPDIR=/tmp BATS_TMPDIR=/tmp` だけを指定して同じファイルを再実行し、5件すべて成功、exit 0 を確認した。再実行ログは `tmp/issue-273/secret-isolation-short-tmp.log`。初回全体実行の exit 1 はそのまま記録し、全675件を再実行した成功結果とは扱わない。失敗を隠すテスト変更や skip は追加していない。
+
+```bash
+nix develop .#wsl --command env -u FORCE_COLOR TMPDIR=/tmp BATS_TMPDIR=/tmp SECRET_ISOLATION_REAL_RUNTIME=1 bats tests/secret-isolation.bats
+```
+
+既存コピー15件、TypeScript typecheck、Python の構文・Ruff、`nixfmt --check`、`nix flake check --no-build --all-systems`、差分検査は成功した。VM の既定経路も driver build が成功し、既存 Python testScript の構文・型検査を通過した。commit hook の oxfmt／gitleaks／cog も成功した。
+
+`code-review` の固定点は `6412429243a4326fa2fc748eae445f35f10fcdc9`。実装 commit `63046be` に対する独立した Standards／Spec レビューでは、規約違反は0件、未依頼の拡張・実装内容の誤りも0件。Standards のテスト手順分割という非ブロッキング提案1件は、状態を引き継ぐ一連の統合試験を見渡せる現在の順序を維持して見送った。Spec の指摘1件は最終 Linux／全 Bats の検証記録が未確定というもので、上記の実行結果と再検証条件を確定して追記した。
