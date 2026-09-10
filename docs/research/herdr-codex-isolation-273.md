@@ -68,3 +68,13 @@ nix develop .#wsl --command env -u FORCE_COLOR TMPDIR=/tmp BATS_TMPDIR=/tmp SECR
 既存コピー15件、TypeScript typecheck、Python の構文・Ruff、`nixfmt --check`、`nix flake check --no-build --all-systems`、差分検査は成功した。VM の既定経路も driver build が成功し、既存 Python testScript の構文・型検査を通過した。commit hook の oxfmt／gitleaks／cog も成功した。
 
 `code-review` の固定点は `6412429243a4326fa2fc748eae445f35f10fcdc9`。実装 commit `63046be` に対する独立した Standards／Spec レビューでは、規約違反は0件、未依頼の拡張・実装内容の誤りも0件。Standards のテスト手順分割という非ブロッキング提案1件は、状態を引き継ぐ一連の統合試験を見渡せる現在の順序を維持して見送った。Spec の指摘1件は最終 Linux／全 Bats の検証記録が未確定というもので、上記の実行結果と再検証条件を確定して追記した。
+
+## PR #282 のレビュー対応
+
+検証用 flake の system は、既存 probe と同様にホストのアーキテクチャから `x86_64-linux`／`aarch64-linux` を選ぶ。専用 Herdr server の停止は終了コードを確認し、停止コマンドやログ保存が例外になってもプロセスを回収する。通常の停止待機がタイムアウトしたら TERM、さらに待機しても終了しなければ KILL と wait を行い、失敗は成功へ変換せず報告する。
+
+`tests/helpers/herdr-codex-isolation.py` の7件は、両アーキテクチャを模した入力から生成した flake の Nix 評価と、実プロセスによる正常停止・停止コマンド非0・停止待機タイムアウト・TERM 無視・停止コマンド例外・ログ保存例外の終了／回収を確認する。ARM 実機での Herdr／Codex 統合は未実行。
+
+修正後の WSL2 で `HERDR_ISOLATION_REAL=1` を指定し、`tests/herdr-codex-isolation.bats` と `tests/herdr-copy-env.bats` を実行して17件すべて成功、exit 0。新しい回帰7件、実 Herdr／Codex 統合、既存コピー15件を含む。証跡は `tmp/issue-273/review-round-bats.log`。上記の初回全675件の結果は変更せず、今回の追加検証として記録する。
+
+同じ修正を `scripts/secret-isolation-linux-vm.py --herdr --output /tmp/herdr-273-linux-review-282` でも確認し、Linux kernel `6.18.33` の実 Herdr／Codex 統合6項目が成功、VM driver は exit 0。証跡は `/tmp/herdr-273-linux-review-282/evidence/report.json`。Ruff の lint／format、Nix と文書の format、差分検査も成功した。

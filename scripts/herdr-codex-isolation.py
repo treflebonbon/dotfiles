@@ -229,17 +229,22 @@ print("BOUNDARY_OK " + sys.argv[1], flush=True)
         bash = Path(self.env["SHELL"]).parent.parent
         utils = Path(shutil.which("cat")).resolve().parent.parent
         python = Path(shutil.which("python3")).resolve().parent.parent
+        system = {"x86_64": "x86_64-linux", "aarch64": "aarch64-linux"}[
+            os.uname().machine
+        ]
         hook = 'python3 boundary.py initialization || return $?; printf "run\\n" >> hook-calls'
         (target / "flake.nix").write_text(
             """{ outputs = { self }:
 assert !(builtins.pathExists %s);
-{ devShells.x86_64-linux.default = builtins.derivation {
-name = "herdr-test"; system = "x86_64-linux"; builder = "%s/bin/bash";
+{ devShells.%s.default = builtins.derivation {
+name = "herdr-test"; system = "%s"; builder = "%s/bin/bash";
 args = [ "-c" "exit 0" ]; outputs = [ "out" ];
 PATH = "%s/bin:%s/bin:%s/bin"; shellHook = %s;
 }; }; }"""
             % (
                 json.dumps(str(target / ".env")),
+                system,
+                system,
                 bash,
                 bash,
                 utils,
@@ -424,6 +429,23 @@ done
         assert "not a linked Git worktree" in self.complete(log, status, expected=1)
         self.results["primary_checkout_refused"] = "passed"
 
+    def stop_server(self, server):
+        try:
+            stopped = self.run([*self.herdr, "server", "stop"], check=False)
+            (self.output / "stop.log").write_text(stopped.stdout + stopped.stderr)
+            stopped.check_returncode()
+        finally:
+            try:
+                server.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                server.terminate()
+                try:
+                    server.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    server.kill()
+                    server.wait()
+                raise
+
     def main(self):
         self.setup()
         with (self.output / "server.log").open("w") as log:
@@ -447,9 +469,7 @@ done
                 )
                 self.exercise()
             finally:
-                stopped = self.run([*self.herdr, "server", "stop"], check=False)
-                (self.output / "stop.log").write_text(stopped.stdout + stopped.stderr)
-                server.wait(timeout=30)
+                self.stop_server(server)
         report = {
             "kernel": os.uname().release,
             "tools": {

@@ -68,6 +68,7 @@ let
         "private_dot_local/bin/executable_git-push-topic"
         "private_dot_config/codex/config.toml.tmpl"
         "tests/helpers/raw-codex.bash"
+        "tests/helpers/herdr-codex-isolation.py"
         "tests/devshell-env.bats"
         "tests/raw-codex-integration.bats"
         "tests/raw-codex-services.bats"
