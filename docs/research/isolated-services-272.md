@@ -93,3 +93,14 @@ IPv4 VM は後続の回帰を含め exit 0（`linux-vm-ipv4-services/test.log`�
 Linux では既存 model gateway の拒否応答が本文送信より早く返る競合も再現した。テスト client が送信時の BrokenPipe 後も403応答・空本文・upstream 未接続を検査するように修正した。追加した接続先再試行を含む gateway/GitHub の6件は成功。Python lint・型検査と通常の commit hook も成功した。追加修正の Standards・Spec 再レビューに実装上の未解決指摘はない。
 
 実 GitHub topic push・PR の書込みは未確認。外部連携が実シークレットを使用するかはユーザー確認待ち。fixture・公開 GET だけで実 GitHub 書込みの受入条件を満たしたとは扱わない。
+
+## PR #280 の Review Round
+
+5スレッドの指摘とタイトル省略時の診断を修正した。GitHub 設定先はホスト側で選択し、MCP の実行パスは Nix store 内の起動名を保持する。不正な GitHub tree 応答は全要素を確認して502を返す。`gh api -F body=@-` は標準入力を読み、PR 作成の `--title` 省略は送信前に診断する。
+
+- `tests/isolated-github.bats` と `tests/secret-isolation-gateway.bats`: 8件成功。設定先の3段階の優先順位、publisher への設定先引継ぎ、dummy token の非転送、不正な tree 応答、stdin/file/raw field、タイトル必須を確認した。ログは `/tmp/codex-services-272/review-green-github.log`。
+- `CODEX_ISOLATION_REAL_GITHUB=1` の `tests/raw-codex-services.bats`: 2件成功・実 MCP 呼出し1件 skip。プロファイル経由で登録した `bunx`・`uvx` と Node が実 sandbox 内で起動した。実 gh の公開 repo/PR 参照は `GH_CONFIG_DIR` と `XDG_CONFIG_HOME` の両方で成功し、dummy token・設定先の非露出と制御 API 拒否も維持した。ログは `/tmp/codex-services-272/review-final-raw.log`。
+- HEAD 不一致の拒否は、automation 変更と最初の正常 push より前に、実在する reviewed HEAD を使って検証する。広告 HEAD 検査だけを取り除いた一時コピーでは、この assertion が失敗した。`/tmp/codex-services-272/review-head-mutation/result.log`。
+- Ruff lint/format は成功。追加で実行した `ty check` は13件の診断があり、変更前の `649cfab` でも同じ13件を確認した。既存の `Path(shutil.which(...))` や nullable subprocess stream 等の診断で、今回の変更による追加はない。型検査全体が成功したとは扱わない。
+
+この round では全 suite・Linux VM・hosted model を使う両 MCP の実呼出しを再実行していない。前節の実 GitHub 書込み・人間が確認する外部連携の条件も未確認のまま。

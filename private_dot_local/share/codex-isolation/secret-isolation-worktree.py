@@ -100,12 +100,14 @@ def managed_mcp(config, selected):
             )
         for tool in required_tools:
             path = shutil.which(tool)
-            if not path or not Path(path).resolve(strict=True).is_relative_to(
-                "/nix/store"
-            ):
+            resolved = Path(path).resolve(strict=True) if path else None
+            if resolved is None or not resolved.is_relative_to("/nix/store"):
                 raise ValueError(f"managed MCP requires a Nix store tool: {tool}")
-            # bunx/uvx select their mode by argv[0]; preserve the final symlink.
-            tools[tool] = str(Path(path).parent.resolve(strict=True) / Path(path).name)
+            # Preserve argv[0] inside the copied store, independent of host profiles.
+            alias = resolved.parent / tool
+            if alias.resolve(strict=True) != resolved:
+                raise ValueError(f"managed MCP requires the Nix store alias: {tool}")
+            tools[tool] = str(alias)
         servers[name] = {
             "command": tools[command],
             "args": arguments,
@@ -276,6 +278,8 @@ def launch(arguments):
         key: os.environ[key]
         for key in (
             "HOME",
+            "GH_CONFIG_DIR",
+            "XDG_CONFIG_HOME",
             "XDG_STATE_HOME",
             "CODEX_HOME",
             "CODEX_ISOLATION_CA_BUNDLE",

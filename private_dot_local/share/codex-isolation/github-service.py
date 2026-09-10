@@ -57,6 +57,15 @@ class GitHubService:
             ),
             "GH_HOST": "github.com",
             "GH_PROMPT_DISABLED": "1",
+            "GH_CONFIG_DIR": str(
+                Path(
+                    os.environ.get("GH_CONFIG_DIR")
+                    or Path(
+                        os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+                    )
+                    / "gh"
+                ).absolute()
+            ),
         }
         self.metadata()
         self.publication = None
@@ -222,7 +231,15 @@ class GitHubService:
 
     def automation_tree(self, revision):
         value = self.api("GET", self.prefix + "/git/trees/" + quote(revision, safe=""))
-        if value.get("truncated") or not isinstance(value.get("tree"), list):
+        if (
+            not isinstance(value, dict)
+            or value.get("truncated")
+            or not isinstance(value.get("tree"), list)
+            or any(
+                not isinstance(entry, dict) or not isinstance(entry.get("path"), str)
+                for entry in value["tree"]
+            )
+        ):
             raise ValueError("cannot verify the reviewed automation tree")
         return next(
             (entry for entry in value["tree"] if entry["path"] == ".github"), None

@@ -8,6 +8,11 @@ teardown() { raw_cleanup; }
 
 @test "raw admission selects managed local MCP without importing additional servers or their credentials" {
   raw_fixture
+  mkdir -p "$RAW_BASE/profile/bin"
+  local tool
+  for tool in bunx node uvx; do
+    ln -s "$(command -v "$tool")" "$RAW_BASE/profile/bin/$tool"
+  done
   cat >> "$RAW_BASE/home/.codex/config.toml" <<'TOML'
 
 [mcp_servers.unreviewed]
@@ -15,26 +20,51 @@ command = "secret-fetcher"
 env = { PROJECT_SECRET = "dummy-unreviewed-credential" }
 TOML
   raw_admit flake.nix task.sh
-  run raw_cli admit --git-head "$(git -C "$RAW_BASE/work" rev-parse HEAD)" --mcp context7 --mcp serena -- flake.nix task.sh
+  PATH="$RAW_BASE/profile/bin:$PATH" run raw_cli admit --git-head "$(git -C "$RAW_BASE/work" rev-parse HEAD)" --mcp context7 --mcp serena -- flake.nix task.sh
   raw_assert_status 0
-  run raw_run mcp list --json
+  run --separate-stderr raw_run mcp list --json
   raw_assert_status 0
   [[ "$output" == *'"name": "context7"'* ]]
   [[ "$output" == *'"name": "serena"'* ]]
   [[ "$output" == *'"command": "/nix/store/'* ]]
   [[ "$output" != *unreviewed* ]]
   [[ "$output" != *dummy-unreviewed-credential* ]]
+  local commands=()
+  mapfile -t commands < <(python3 -c '
+import json, sys
+text = sys.argv[1]
+servers = json.JSONDecoder().raw_decode(text[text.index("["):])[0]
+for server in sorted(servers, key=lambda entry: entry["name"]):
+    print(server["transport"]["command"])
+' "$output")
+  run raw_run sandbox -- python3 -c '
+import subprocess, sys
+assert len(sys.argv) == 3
+for command, (usage, status) in zip(sys.argv[1:], (("Usage: bunx", 1), ("Usage: uvx", 0))):
+    # bunx 1.3 returns 1 for help without a package, including on the host.
+    result = subprocess.run([command, "--help"], capture_output=True, text=True)
+    assert result.returncode == status, result
+    assert usage in result.stdout + result.stderr, result
+subprocess.run(["node", "--version"], check=True)
+print("MCP_PROFILE_TOOLS_CHECKED")
+' "${commands[@]}"
+  raw_assert_status 0
+  [[ "$output" == *MCP_PROFILE_TOOLS_CHECKED* ]]
 }
 
 @test "raw entry uses host gh through the scoped proxy and edited code cannot request secret or control APIs" {
   [ "${CODEX_ISOLATION_REAL_GITHUB:-0}" = 1 ] || skip "opt in with CODEX_ISOLATION_REAL_GITHUB=1; authenticated public GET only"
-  local host_gh_config="${GH_CONFIG_DIR:-$HOME/.config/gh}"
+  local host_gh_config="${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}"
   raw_fixture
-  mkdir -p "$RAW_BASE/home/.config"
-  ln -s "$host_gh_config" "$RAW_BASE/home/.config/gh"
+  mkdir -p "$RAW_BASE/host-config"
+  ln -s "$host_gh_config" "$RAW_BASE/host-config/gh"
   git -C "$RAW_BASE/work" remote add origin https://github.com/treflebonbon/dotfiles.git
   cat > "$RAW_BASE/work/task.sh" <<'TASK'
 set -eu
+test -z "${GH_CONFIG_DIR+x}"
+test -z "${GH_TOKEN+x}"
+test -z "${GITHUB_TOKEN+x}"
+case "${XDG_CONFIG_HOME:-}" in *host-config*) exit 23;; esac
 gh api repos/treflebonbon/dotfiles --jq .full_name
 test "$(gh pr list --json number,url --jq type)" = array
 if gh auth token; then exit 19; fi
@@ -55,10 +85,19 @@ Path(sys.argv[1]).write_text(json.dumps({'repository':'treflebonbon/dotfiles','b
     'reviewed_commit':sys.argv[2],'automation':'no-project-secrets','review':'public GET probe only; no publication'}))
 PY
   raw_cli admit --git-head "$(git -C "$RAW_BASE/work" rev-parse HEAD)" --github-policy "$RAW_BASE/github.json" -- flake.nix task.sh
-  run raw_run sandbox -- bash task.sh
-  raw_assert_status 0
-  [[ "$output" == *SCOPED_GITHUB_CHECKED* ]]
-  [[ "$output" != *dummy-root-secret* ]]
+  local mode
+  for mode in gh xdg; do
+    if [ "$mode" = gh ]; then
+      export GH_CONFIG_DIR="$RAW_BASE/host-config/gh" XDG_CONFIG_HOME="$RAW_BASE/unused-config"
+    else
+      unset GH_CONFIG_DIR
+      export XDG_CONFIG_HOME="$RAW_BASE/host-config"
+    fi
+    GH_TOKEN=dummy-host-token GITHUB_TOKEN=dummy-host-token run raw_run sandbox -- bash task.sh
+    raw_assert_status 0
+    [[ "$output" == *SCOPED_GITHUB_CHECKED* ]]
+    [[ "$output" != *dummy-root-secret* ]]
+  done
 }
 
 @test "raw Codex uses real managed Context7 and Serena inside the boundary" {

@@ -3,13 +3,29 @@
 import base64
 import http.client
 import json
+import os
 from pathlib import Path
 import runpy
 import socket
 import subprocess
 import sys
 
-root, temporary = map(Path, sys.argv[1:])
+root, temporary = map(Path, sys.argv[1:3])
+mode = sys.argv[3]
+os.environ.pop("GH_CONFIG_DIR", None)
+os.environ.pop("XDG_CONFIG_HOME", None)
+os.environ["HOME"] = str(temporary / "home")
+config = temporary / "home/.config/gh"
+if mode == "gh":
+    config = temporary / "selected-gh"
+    os.environ["GH_CONFIG_DIR"] = str(config)
+    os.environ["XDG_CONFIG_HOME"] = str(temporary / "unused-xdg")
+elif mode == "xdg":
+    config = temporary / "selected-xdg/gh"
+    os.environ["XDG_CONFIG_HOME"] = str(config.parent)
+config.mkdir(parents=True)
+(config / "marker").touch()
+os.environ["GH_TOKEN"] = os.environ["GITHUB_TOKEN"] = "dummy-not-forwarded"
 repo = temporary / "repo"
 repo.mkdir()
 
@@ -40,7 +56,7 @@ policy = {
     "review": "dummy CI review",
 }
 publisher = (
-    '#!/bin/sh\nset -eu\ntest "$(git branch --show-current)" = task\ntest -z "${DUMMY_HOST_SECRET+x}"\nprintf published >> '
+    '#!/bin/sh\nset -eu\ntest "$(git branch --show-current)" = task\ntest -z "${DUMMY_HOST_SECRET+x}"\ntest -z "${GH_TOKEN+x}${GITHUB_TOKEN+x}"\ntest -f "$GH_CONFIG_DIR/marker"\nprintf published >> '
     + str(temporary / "published")
     + "\n"
 )
@@ -78,6 +94,8 @@ def push(head=None):
 
 
 try:
+    assert push(baseline) == 403
+    assert not (temporary / "published").exists()
     assert push() == 200
     assert (temporary / "published").read_text() == "published"
     (repo / ".github/workflows").mkdir(parents=True)
@@ -85,7 +103,6 @@ try:
     git("add", ".github")
     git("commit", "-qm", "test: unreviewed automation")
     assert push() == 403
-    assert push("b" * 40) == 403
     assert (temporary / "published").read_text() == "published"
 finally:
     server.shutdown()

@@ -85,7 +85,9 @@ def github_cli():
                 raise ValueError("gh api fields require key=value")
             if option in ("-F", "--field"):
                 if item.startswith("@"):
-                    item = Path(item[1:]).read_text()
+                    item = (
+                        sys.stdin.read() if item == "@-" else Path(item[1:]).read_text()
+                    )
                 else:
                     try:
                         item = json.loads(item)
@@ -126,6 +128,8 @@ def pull_request_cli(arguments):
         raise ValueError("read-only PR commands do not accept edits")
     if options.action in ("create", "list") and options.number is not None:
         raise ValueError("this PR command does not accept a number")
+    if options.action == "create" and options.title is None:
+        raise ValueError("gh pr create requires --title")
     policy = json.loads(Path("/nix/codex-isolation/launch.json").read_text())["github"]
     if options.repo not in (None, policy["repository"]):
         raise ValueError("repository differs from the admitted GitHub scope")

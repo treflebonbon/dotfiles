@@ -128,6 +128,8 @@ codex-worktree
 
 GitHub 利用時は Nix の gawk・jq も必要。隔離内では `git-push-topic`、限定版 `gh api`、`gh pr create/list/view/edit/comment` を提供する。`gh pr create --title 'feat: example' --body-file pr.md --draft`、`gh pr edit NUMBER --body-file pr.md` のように使う。`gh api` は `--method/-X`・`--input`・`--jq/-q`・`--field/-F`・`--raw-field/-f` に対応する。対象 repo の metadata、topic の PR 一覧・参照・作成・title/body 更新・コメントだけを受理する。その他の gh コマンド・GraphQL・Secrets・Actions のログや artifact・workflow dispatch・merge・close は非対応として拒否する。ホストの gh alias、extension、credential helper、認証ファイルは渡さない。
 
+ホストの認証設定先は `GH_CONFIG_DIR`、`XDG_CONFIG_HOME/gh`、`HOME/.config/gh` の順に選ぶ。設定先はホストの gateway・publisher だけが保持し、`GH_TOKEN`・`GITHUB_TOKEN` は転送しない。PR 作成には `--title` が必要。`gh api -F body=@-` は標準入力を本文として読み、`-f body=@-` は文字列 `@-` をそのまま送る。
+
 `git-push-topic` は HEAD の bundle をホスト側の専用 Git repository へ渡し、履歴・fast-forward・全新規 commit の `.github` 不変を検査してから、登録時に固定した既存の `git-push-topic` helper で公開する。ホスト側でプロジェクトコード・hook・checkout を実行しない。認証は既存の host gh だけが利用する。remote の default branch と、PR 操作時の topic の `.github` が確認済み tree と異なる場合も停止する。CI 設定を変更したい場合は人間の確認・再登録を要する。
 
 公開要求は base64 を含む JSON 全体で64 MiBまで、Git の検査は各 subprocess 120秒までに制限する。展開後の object 総容量・個数や host 全体の資源消費は制限していない。この境界の保証は秘密・認証・公開権限の分離であり、圧縮 bundle による host の資源枯渇まで防ぐものではない。

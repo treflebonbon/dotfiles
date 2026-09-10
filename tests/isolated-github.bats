@@ -57,6 +57,8 @@ PY
   mkdir "$BATS_TEST_TMPDIR/bin"
   cat > "$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/bin/sh
+test -f "$GH_CONFIG_DIR/marker" || exit 71
+test -z "${GH_TOKEN+x}${GITHUB_TOKEN+x}" || exit 72
 case "$*" in
   'api repos/example/public --method GET') printf '{"full_name":"example/public","private":false,"default_branch":"main"}\n' ;;
   'api repos/example/public/git/trees/'*' --method GET') printf '{"tree":[]}\n' ;;
@@ -64,21 +66,26 @@ case "$*" in
 esac
 SH
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
-  run env DUMMY_HOST_SECRET=dummy-host-secret PATH="$BATS_TEST_TMPDIR/bin:$PATH" \
-    python3 "$root/tests/fixtures/secret-isolation/github-push.py" "$root" "$BATS_TEST_TMPDIR"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
-  [ "$status" -eq 0 ]
+  local mode
+  for mode in gh xdg home; do
+    mkdir "$BATS_TEST_TMPDIR/$mode"
+    run env DUMMY_HOST_SECRET=dummy-host-secret PATH="$BATS_TEST_TMPDIR/bin:$PATH" \
+      python3 "$root/tests/fixtures/secret-isolation/github-push.py" "$root" "$BATS_TEST_TMPDIR/$mode" "$mode"
+    [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+    [ "$status" -eq 0 ]
+  done
 }
 
 @test "GitHub PR writes are restricted to the selected topic and reject state changes and extra fields" {
   local root
   root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   mkdir "$BATS_TEST_TMPDIR/bin"
+  ln -s "$(command -v cat)" "$BATS_TEST_TMPDIR/bin/cat"
   cat > "$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/bin/sh
 case "$*" in
   'api repos/example/public --method GET') printf '{"full_name":"example/public","private":false,"default_branch":"main"}\n' ;;
-  'api repos/example/public/git/trees/'*' --method GET') printf '{"tree":[]}\n' ;;
+  'api repos/example/public/git/trees/'*' --method GET') cat "$HOME/tree.json" ;;
   'api repos/example/public/pulls --method POST --input -')
     cat >/dev/null
     printf '{"number":7,"html_url":"https://github.com/example/public/pull/7","head":{"ref":"task","repo":{"full_name":"example/public"}},"base":{"ref":"main"}}\n' ;;
@@ -86,7 +93,8 @@ case "$*" in
 esac
 SH
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
-  run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" python3 - "$root/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PY'
+  printf '{"tree":[]}\n' > "$BATS_TEST_TMPDIR/tree.json"
+  run env HOME="$BATS_TEST_TMPDIR" PATH="$BATS_TEST_TMPDIR/bin:$PATH" python3 - "$root/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PY'
 import http.client, json, runpy, socket, sys
 from pathlib import Path
 module = runpy.run_path(sys.argv[1])
@@ -107,10 +115,63 @@ try:
         assert response.status == expected, response.status
         response.read()
         client.close()
+    github = {'path':'.github','type':'tree','mode':'040000','sha':'c'*40}
+    for tree in ({'tree':[github]}, {'tree':[], 'truncated':True}, {}, [],
+                 *({'tree':[github, entry]} for entry in (None, [], {}, {'path':7}))):
+        (Path.home() / 'tree.json').write_text(json.dumps(tree))
+        client = Client('api.github.com')
+        client.request('POST','/repos/example/public/pulls',json.dumps(good))
+        response = client.getresponse()
+        assert response.status == (200 if tree == {'tree':[github]} else 502), (tree, response.status)
+        response.read()
+        client.close()
 finally:
     server.shutdown()
     server.server_close()
 PY
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
+}
+
+@test "isolated gh reads typed fields from stdin and files while raw fields stay literal" {
+  local root
+  root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  run python3 - "$root/private_dot_local/share/codex-isolation/github-client.py" "$BATS_TEST_TMPDIR" <<'PY'
+import http.server, json, os, subprocess, sys, threading
+from pathlib import Path
+requests = []
+class Upstream(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        requests.append((self.path, json.loads(self.rfile.read(int(self.headers['Content-Length'])))))
+        self.send_response(200)
+        self.send_header('Content-Length', '2')
+        self.end_headers()
+        self.wfile.write(b'{}')
+    def log_message(self, *args):
+        pass
+server = http.server.HTTPServer(('127.0.0.1', 0), Upstream)
+threading.Thread(target=server.serve_forever, daemon=True).start()
+try:
+    env = os.environ | {'HTTP_PROXY': f'http://127.0.0.1:{server.server_port}'}
+    text = 'first line\n日本語 and `literal` $value\n'
+    path = Path(sys.argv[2]) / 'body.txt'
+    path.write_text(text)
+    for flag, value, expected in (('-F', '@-', text), ('--field', '@'+str(path), text), ('-f', '@-', '@-')):
+        result = subprocess.run([sys.executable, sys.argv[1], 'gh', 'api', 'repos/example/public/pulls',
+                                 flag, 'body='+value], input=text, text=True, env=env, capture_output=True)
+        assert result.returncode == 0, result.stderr
+        assert requests[-1] == ('http://api.github.com/repos/example/public/pulls', {'body':expected}), requests
+    assert len(requests) == 3
+finally:
+    server.shutdown()
+    server.server_close()
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "isolated gh reports a missing PR title before reading policy or contacting the gateway" {
+  run python3 "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/github-client.py" gh pr create --body 'public body'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'gh pr create requires --title'* ]]
 }
