@@ -24,6 +24,14 @@ fs.writeFile = async (file, data, ...options) => {
 
 export const chromium = {
   async launchPersistentContext(profile, options) {
+    if (process.env.DOGFOOD_EXPECT_CHROMIUM) {
+      if (options.executablePath !== process.env.DOGFOOD_EXPECT_CHROMIUM) {
+        throw new Error(
+          "runner did not select the supplied Chromium executable"
+        );
+      }
+      await fs.access(options.executablePath, fs.constants.X_OK);
+    }
     if (faults.has("diagnostic-lines")) {
       throw new Error(
         "startup failed\n### ISSUE-999: diagnostic text is not an app finding\nSeverity: Critical"

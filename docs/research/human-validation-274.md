@@ -46,16 +46,16 @@ Session Scratchpad が提示されていないため、証跡は `/tmp` を明�
 
 ## Verification Matrix
 
-| Issue #274 の受入条件                        | 検証                                                                                                                                           | 結果                   |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| 1: 人間向け公開入口と dotenv 契約            | `tests/with-env.bats`、実 Nix package。解析・既存変数優先・引数・終了コード・失敗時未起動                                                      | 成功                   |
-| 2: Codex の秘密なし開発                      | `tests/devshell-env.bats`、`tests/raw-codex-integration.bats`、新規分離ケース。通常変数・JSON fixture・ダミー変数・編集・compile・test・commit | 成功                   |
-| 3: 固定コード・秘密・出力を別環境へ分離      | runtime と6言語ガイドに完全 SHA、非共有コード、制御経路を含む実行条件を記載。新規ケースで固定コードと並行編集を確認                            | 成功                   |
-| 4: 人間が必要な結果だけを共有                | 人間による確認と手動共有を明記。秘密注入サービス・未確認ログの自動送信を追加していない                                                         | 文書・差分確認         |
-| 5: ダミー値で分離を実測                      | 実共通入口から人間側の read／write 拒否、固定コード・秘密・完成後出力の保持を WSL2 と Linux VM で確認                                          | 成功                   |
-| 6: dotfiles と6言語の公開利用例              | 独立 repo の3 system 評価と WSL2 実行。`.envrc` 不在・副作用を持つ既存ファイルの両方を確認                                                     | 成功                   |
-| 7: 旧期待値・案内の移行、対象外 runtime 維持 | README／旧検証記録／runtime を更新。現行 raw、dotenv、Claude の既存テストを回帰実行                                                            | 成功                   |
-| 8: Linux／WSL2 の移行・境界                  | 新規実測と #271 の起動・復旧案内を接続。既存 repo、配備済み秘密、実値サービスを操作していない                                                  | 成功・未確認事項は下記 |
+| Issue #274 の受入条件 | 検証 | 結果 |
+| --- | --- | --- |
+| 1: 人間向け公開入口と dotenv 契約 | `tests/with-env.bats`、実 Nix package。解析・既存変数優先・引数・終了コード・失敗時未起動 | 成功 |
+| 2: Codex の秘密なし開発 | `tests/devshell-env.bats`、`tests/raw-codex-integration.bats`、新規分離ケース。通常変数・JSON fixture・ダミー変数・編集・compile・test・commit | 成功 |
+| 3: 固定コード・秘密・出力を別環境へ分離 | runtime と6言語ガイドに完全 SHA、非共有コード、制御経路を含む実行条件を記載。新規ケースで固定コードと並行編集を確認 | 成功 |
+| 4: 人間が必要な結果だけを共有 | 人間による確認と手動共有を明記。秘密注入サービス・未確認ログの自動送信を追加していない | 文書・差分確認 |
+| 5: ダミー値で分離を実測 | 実共通入口から人間側の read／write 拒否、固定コード・秘密・完成後出力の保持を WSL2 と Linux VM で確認 | 成功 |
+| 6: dotfiles と6言語の公開利用例 | 独立 repo の3 system 評価と WSL2 実行。`.envrc` 不在・副作用を持つ既存ファイルの両方を確認 | 成功 |
+| 7: 旧期待値・案内の移行、対象外 runtime 維持 | README／旧検証記録／runtime を更新。現行 raw、dotenv、Claude の既存テストを回帰実行 | 成功 |
+| 8: Linux／WSL2 の移行・境界 | 新規実測と #271 の起動・復旧案内を接続。既存 repo、配備済み秘密、実値サービスを操作していない | 成功・未確認事項は下記 |
 
 ## 適用と未確認事項
 
@@ -81,16 +81,16 @@ Session Scratchpad が提示されていないため、証跡は `/tmp` を明�
 
 ### Verification Matrix
 
-| #274 の AC                                                         | 検証・結果                                                                                                                                                              |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1: 公開 with-env の parser・優先順位・argv・終了コード・失敗時停止 | `WITH_ENV_REAL_NIX=1 bats tests/with-env.bats tests/claude-devshell-env.bats`: 29 成功。実 Nix app と raw 内 package を含む。                                           |
-| 2: #271 の入口で秘密なし・ダミー値・通常操作                       | `tests/human-validation.bats` の実 namespace、公開 fixture・ダミー値テスト、commit・返却。WSL2 成功。6テンプレートの実 raw 起動・public package・commit・再起動も成功。 |
-| 3: 固定版・コード／秘密／出力の分離条件                            | runtime の手順と6言語の独立利用案内。SHA・依存・コマンドの確認、共有 mount／制御／認証経路の禁止を明示。                                                                |
-| 4: 人間が確認した結果だけ共有                                      | 同手順に未確認ログ・成果物の自動送信禁止を記載。fixture は非公開結果を別保存し、公開要約だけを返す。                                                                    |
-| 5: ダミー別環境への継続編集・取得拒否                              | WSL2 の公開 CLI による並行実行・read／write 拒否と固定版・出力保持に成功。Linux VM でも成功。                                                                           |
-| 6: dotfiles と6テンプレート、envrc 不要／非自動実行                | 公開利用例を更新。6言語独立 repo の実 Nix と raw 起動がすべて成功。envrc 不在でも実行でき、存在時も自動実行しない。                                                     |
-| 7: 旧 secret 継承・read 期待の移行、Claude 回帰                    | 旧 dotenv grant を用いたテストを、grant なしの deny と公開 `.env.example` 読取りに変更し成功。Claude の10ケースも成功。                                                 |
-| 8: Linux／WSL2 の移行・対象・初期化・再起動・未確認事項            | 新手順と下記の OS ごとの記録。既存 repo を一括変更せず、live source への配備は実施しない。                                                                              |
+| #274 の AC | 検証・結果 |
+| --- | --- |
+| 1: 公開 with-env の parser・優先順位・argv・終了コード・失敗時停止 | `WITH_ENV_REAL_NIX=1 bats tests/with-env.bats tests/claude-devshell-env.bats`: 29 成功。実 Nix app と raw 内 package を含む。 |
+| 2: #271 の入口で秘密なし・ダミー値・通常操作 | `tests/human-validation.bats` の実 namespace、公開 fixture・ダミー値テスト、commit・返却。WSL2 成功。6テンプレートの実 raw 起動・public package・commit・再起動も成功。 |
+| 3: 固定版・コード／秘密／出力の分離条件 | runtime の手順と6言語の独立利用案内。SHA・依存・コマンドの確認、共有 mount／制御／認証経路の禁止を明示。 |
+| 4: 人間が確認した結果だけ共有 | 同手順に未確認ログ・成果物の自動送信禁止を記載。fixture は非公開結果を別保存し、公開要約だけを返す。 |
+| 5: ダミー別環境への継続編集・取得拒否 | WSL2 の公開 CLI による並行実行・read／write 拒否と固定版・出力保持に成功。Linux VM でも成功。 |
+| 6: dotfiles と6テンプレート、envrc 不要／非自動実行 | 公開利用例を更新。6言語独立 repo の実 Nix と raw 起動がすべて成功。envrc 不在でも実行でき、存在時も自動実行しない。 |
+| 7: 旧 secret 継承・read 期待の移行、Claude 回帰 | 旧 dotenv grant を用いたテストを、grant なしの deny と公開 `.env.example` 読取りに変更し成功。Claude の10ケースも成功。 |
+| 8: Linux／WSL2 の移行・対象・初期化・再起動・未確認事項 | 新手順と下記の OS ごとの記録。既存 repo を一括変更せず、live source への配備は実施しない。 |
 
 ### 実行環境と再現
 

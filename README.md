@@ -1,38 +1,36 @@
 # treflebonbon/dotfiles
 
-[chezmoi](https://www.chezmoi.io/) で管理された個人開発環境の dotfiles リポジトリ。
-DevPod および VS Code Dev Containers で自動的にインストールされます。
+[chezmoi](https://www.chezmoi.io/) で管理された個人開発環境の dotfiles リポジトリ。DevPod および VS Code Dev Containers で自動的にインストールされます。
 
-**テーマ: [Dracula](https://draculatheme.com/)** - 全ツールで統一されたダークテーマ
-**シェル: bash**
+**テーマ: [Dracula](https://draculatheme.com/)** - 全ツールで統一されたダークテーマ **シェル: bash**
 
 ## 管理ツール
 
-| ツール          | 説明                                  | テーマ                 |
-| --------------- | ------------------------------------- | ---------------------- |
-| **bash**        | シェル設定（履歴、補完、ツール init） | -                      |
-| **git**         | バージョン管理設定                    | -                      |
-| **gh**          | GitHub CLI 拡張・エイリアス           | -                      |
-| **tmux**        | ターミナルマルチプレクサ              | Dracula カスタム       |
-| **starship**    | クロスシェルプロンプト                | Dracula カラーパレット |
-| **atuin**       | zsh 側のシェル履歴管理（`Ctrl-R`）    | -                      |
-| **neovim**      | エディタ（lazy.nvim）                 | dracula.nvim           |
-| **wezterm**     | GPU ターミナル                        | Dracula (Official)     |
-| **Claude Code** | AI コーディングアシスタント設定       | -                      |
+| ツール | 説明 | テーマ |
+| --- | --- | --- |
+| **bash** | シェル設定（履歴、補完、ツール init） | - |
+| **git** | バージョン管理設定 | - |
+| **gh** | GitHub CLI 拡張・エイリアス | - |
+| **tmux** | ターミナルマルチプレクサ | Dracula カスタム |
+| **starship** | クロスシェルプロンプト | Dracula カラーパレット |
+| **atuin** | zsh 側のシェル履歴管理（`Ctrl-R`） | - |
+| **neovim** | エディタ（lazy.nvim） | dracula.nvim |
+| **wezterm** | GPU ターミナル | Dracula (Official) |
+| **Claude Code** | AI コーディングアシスタント設定 | - |
 
 ## ツール管理（Nix flake devShell）
 
 ユーザー環境（`~/.config/nix-devshell/`）が WSL2 や devcontainer 外でも横断的に使えるツールを供給します。プロジェクト言語の toolchain は per-repo `flake.nix` が供給します。
 
-| カテゴリ         | ツール                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| 汎用ランタイム   | node, python3, bun                                                                    |
-| シェル環境       | flyline, starship, zoxide, atuin, eza, bat, fzf, direnv, bash-completion, zsh plugins |
-| 検索             | ripgrep, fd, jq                                                                       |
-| Linter/Formatter | shellcheck, shfmt, oxfmt, oxlint                                                      |
-| エディタ         | neovim, tmux                                                                          |
-| Git              | gh, lazygit, delta                                                                    |
-| AI               | claude-code, codex, copilot-cli, antigravity, rtk, playwright-cli, apm                |
+| カテゴリ | ツール |
+| --- | --- |
+| 汎用ランタイム | node, python3, bun |
+| シェル環境 | flyline, starship, zoxide, atuin, eza, bat, fzf, direnv, bash-completion, zsh plugins |
+| 検索 | ripgrep, fd, jq |
+| Linter/Formatter | shellcheck, shfmt, oxfmt, oxlint |
+| エディタ | neovim, tmux |
+| Git | gh, lazygit, delta |
+| AI | claude-code, codex, copilot-cli, antigravity, rtk, playwright-cli, apm |
 
 ## セットアップ
 
@@ -167,13 +165,13 @@ Windows Codex Desktop の WSL mode では `CODEX_INTERNAL_ORIGINATOR_OVERRIDE=Co
 
 ## 環境変数
 
-| 変数                        | デフォルト   | 説明                                                 |
-| --------------------------- | ------------ | ---------------------------------------------------- |
-| `DOTFILES_WORKSPACE_FOLDER` | `/workspace` | ワークスペースのルートパス                           |
-| `WORKSPACE_FOLDER`          | `/workspace` | `DOTFILES_WORKSPACE_FOLDER` 未設定時のフォールバック |
-| `GIT_AUTHOR_EMAIL`          | (未設定)     | Git ユーザーメールアドレス                           |
-| `GIT_AUTHOR_NAME`           | (未設定)     | Git ユーザー名                                       |
-| `DOTFILES_SKIP_DIRENV`      | (未設定)     | `1` で direnv インストールをスキップ                 |
+| 変数 | デフォルト | 説明 |
+| --- | --- | --- |
+| `DOTFILES_WORKSPACE_FOLDER` | `/workspace` | ワークスペースのルートパス |
+| `WORKSPACE_FOLDER` | `/workspace` | `DOTFILES_WORKSPACE_FOLDER` 未設定時のフォールバック |
+| `GIT_AUTHOR_EMAIL` | (未設定) | Git ユーザーメールアドレス |
+| `GIT_AUTHOR_NAME` | (未設定) | Git ユーザー名 |
+| `DOTFILES_SKIP_DIRENV` | (未設定) | `1` で direnv インストールをスキップ |
 
 ## プロジェクト固有設定
 

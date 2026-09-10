@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#f64da20b07271b760e4e3133eef3b87942860f11
+    - pbakaus/impeccable/.agents/skills/impeccable#cd12f8660e2dde57b9615c8a6b8ea674101f9cfc
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -23,7 +23,7 @@ dependencies:
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#11986e44eeb672b083354e68967f2b194df73b7c
+    - remotion-dev/skills/skills/remotion-best-practices#9ae8048a84690098b1059f7f5d30e6d05833b824
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902
     # mizchi/skills

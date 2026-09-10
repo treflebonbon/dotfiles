@@ -20,16 +20,16 @@ timestamp: 2026-09-10
 
 ## 検証対象と観測点
 
-| #273 の AC                | 観測内容                                                                                                                                                                                                                                                       |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1: コピー契約の維持       | 既存15 Bats が root `.env` のみ、非上書き、所属、symlink 拒否、owner のみ、終了コード伝播を確認。実 Herdr でも独立コピー・別名非コピー・0600 を確認                                                                                                            |
-| 2: コピー後の非開示       | Nix 評価で host `.env` の不在を検査。shellHook と Codex 子コマンドからダミー dotenv・継承変数・コピー元・別 worktree を取得できないことを確認                                                                                                                  |
-| 3: 順序・競合・差替え     | コピー後に起動し、起動後に `.env` 差替え・通常名の秘密追加・コピー元への symlink 追加を行う。別試行では実 event command の `cp` 直前をテスト専用 gate で保留し、隔離内の開始を確認してからコピーを解放。公開コードの並行差替えは snapshot に現れず、返却を拒否 |
-| 4: 通常の開発と所有権     | Herdr が作った pane の cwd から Python ファイルを作成、bytecode build、計算テスト、stage／commit。終了後に同じ host worktree のファイルと HEAD を確認                                                                                                          |
-| 5: ホスト制御経路の非公開 | Herdr の環境変数・CLI が隔離内にないこと、実検証用 server の UNIX socket に接続できないことを shellHook／子コマンドで検査。ホスト側では同じ server の CLI が成功                                                                                               |
-| 6: 拒否と保証範囲         | 実 Herdr ターミナルで未信頼 worktree と primary checkout の起動拒否を確認。隔離前提・未登録・入力差替え等は共通入口の既存 Bats を併せて検証。通常の直接起動・既存セッションは保証対象外と案内                                                                  |
-| 7: Linux／WSL2 と運用     | WSL2 と KVM 上の別 Linux kernel で同じ script を実行。コピー結果の確認、共通入口、再登録・再起動・返却失敗の案内を更新                                                                                                                                         |
-| 8: 再現手順・ダミー証跡   | script、Bats、VM の `--herdr` 選択肢を保存。`report.json` に kernel、tool version、manifest SHA-256、検証結果を記録                                                                                                                                            |
+| #273 の AC | 観測内容 |
+| --- | --- |
+| 1: コピー契約の維持 | 既存15 Bats が root `.env` のみ、非上書き、所属、symlink 拒否、owner のみ、終了コード伝播を確認。実 Herdr でも独立コピー・別名非コピー・0600 を確認 |
+| 2: コピー後の非開示 | Nix 評価で host `.env` の不在を検査。shellHook と Codex 子コマンドからダミー dotenv・継承変数・コピー元・別 worktree を取得できないことを確認 |
+| 3: 順序・競合・差替え | コピー後に起動し、起動後に `.env` 差替え・通常名の秘密追加・コピー元への symlink 追加を行う。別試行では実 event command の `cp` 直前をテスト専用 gate で保留し、隔離内の開始を確認してからコピーを解放。公開コードの並行差替えは snapshot に現れず、返却を拒否 |
+| 4: 通常の開発と所有権 | Herdr が作った pane の cwd から Python ファイルを作成、bytecode build、計算テスト、stage／commit。終了後に同じ host worktree のファイルと HEAD を確認 |
+| 5: ホスト制御経路の非公開 | Herdr の環境変数・CLI が隔離内にないこと、実検証用 server の UNIX socket に接続できないことを shellHook／子コマンドで検査。ホスト側では同じ server の CLI が成功 |
+| 6: 拒否と保証範囲 | 実 Herdr ターミナルで未信頼 worktree と primary checkout の起動拒否を確認。隔離前提・未登録・入力差替え等は共通入口の既存 Bats を併せて検証。通常の直接起動・既存セッションは保証対象外と案内 |
+| 7: Linux／WSL2 と運用 | WSL2 と KVM 上の別 Linux kernel で同じ script を実行。コピー結果の確認、共通入口、再登録・再起動・返却失敗の案内を更新 |
+| 8: 再現手順・ダミー証跡 | script、Bats、VM の `--herdr` 選択肢を保存。`report.json` に kernel、tool version、manifest SHA-256、検証結果を記録 |
 
 shellHook は確認成功後に `hook-calls` へ記録し、初回と再起動で1行ずつ増えることを確認する。子コマンドは `BOUNDARY_OK`、編集・検証・コミット後は `ISOLATED_TASK_OK` を出力する。`.env` の内容はログへ出さない。Codex が deny 対象に空の placeholder を作る場合は、内容がないことを検査する。
 

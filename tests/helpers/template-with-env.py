@@ -4,7 +4,9 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -23,14 +25,16 @@ SYSTEMS = ["x86_64-linux", "aarch64-linux", "aarch64-darwin"]
 SOURCE = Path(__file__).resolve().parents[2]
 
 
-def run(arguments, cwd, *, environment=None, expected=0, expected_stderr=None):
+def run(
+    arguments, cwd, *, environment=None, expected=0, expected_stderr=None, timeout=1800
+):
     result = subprocess.run(
         arguments,
         cwd=cwd,
         env=environment,
         text=True,
         capture_output=True,
-        timeout=1800,
+        timeout=timeout,
     )
     with (cwd.parent / "commands.log").open("a") as log:
         log.write(f"{cwd}: {arguments!r}\n{result.stdout}{result.stderr}\n")
@@ -43,15 +47,136 @@ def run(arguments, cwd, *, environment=None, expected=0, expected_stderr=None):
     return result.stdout
 
 
+def language_tools(language, command, repo):
+    def execute(*arguments):
+        output = run([*command, *arguments], repo, timeout=180)
+        print(f"{language} {arguments!r}: {output.strip()}", flush=True)
+        return output
+
+    def write(name, contents):
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents)
+
+    if language == "go":
+        if not (repo / "go.mod").exists():
+            execute("go", "mod", "init", "example.com/template-smoke")
+        write("smoke.go", "package smoke\n\nfunc Answer() int { return 42 }\n")
+        write(
+            "smoke_test.go",
+            'package smoke\n\nimport "testing"\n\n'
+            "func TestAnswer(t *testing.T) {\n"
+            ' if Answer() != 42 { t.Fatal("incorrect answer") }\n}\n',
+        )
+        execute("gofumpt", "-w", "smoke.go", "smoke_test.go")
+        execute("go", "test", "./...")
+        execute("gopls", "check", "smoke.go")
+        execute("golangci-lint", "run", "--no-config", "./...")
+        for arguments in (
+            ("gopls", "version"),
+            ("air", "-v"),
+            ("gotests", "-h"),
+            ("gomodifytags", "-h"),
+            ("dlv", "version"),
+            ("golangci-lint", "version"),
+            ("ko", "version"),
+            ("wire", "help"),
+            ("goreleaser", "--version"),
+            ("oapi-codegen", "-version"),
+            ("sqlc", "version"),
+            ("gofumpt", "-version"),
+        ):
+            execute(*arguments)
+        # impl's public help writes usage to stderr and exits 2.
+        run(
+            [*command, "impl", "-h"],
+            repo,
+            expected=2,
+            expected_stderr="impl [-dir directory] <recv> <iface>",
+            timeout=180,
+        )
+        print("go impl -h: help displayed (exit 2)", flush=True)
+    elif language == "rust":
+        write(
+            "Cargo.toml",
+            '[package]\nname = "template-smoke"\nversion = "0.1.0"\nedition = "2024"\n',
+        )
+        write(
+            "src/lib.rs",
+            "pub fn answer() -> u32 { 42 }\n"
+            "#[test]\nfn answer_is_available() { assert_eq!(answer(), 42); }\n",
+        )
+        for arguments in (
+            ("cargo", "test", "--offline"),
+            ("cargo", "nextest", "run", "--offline"),
+            ("cargo", "clippy", "--offline", "--", "-D", "warnings"),
+            ("cargo", "fmt"),
+            ("rust-analyzer", "--version"),
+            ("bacon", "--version"),
+            ("cargo", "audit", "--version"),
+            ("sqlx", "--version"),
+        ):
+            execute(*arguments)
+    elif language == "elixir":
+        execute("mix", "--version")
+        execute(
+            "erl",
+            "-noshell",
+            "-eval",
+            'io:format("OTP ~s~n", [erlang:system_info(otp_release)]), halt().',
+        )
+        execute("expert", "--help")
+    elif language == "perl":
+        # Its stdio transport exits 1 on EOF without a shutdown request.
+        output = run(
+            [*command, "sh", "-eu", "-c", "perlnavigator --stdio </dev/null 2>&1"],
+            repo,
+            expected=1,
+            timeout=180,
+        )
+        assert not output.strip(), output
+        print("perl perlnavigator: EOF exit 1 without diagnostics", flush=True)
+    elif language == "bun":
+        execute("typescript-language-server", "--version")
+
+
 def verify(language, evidence):
     repo = evidence / language
     repo.mkdir()
     run(["git", "init", "-q"], repo)
     run(["nix", "flake", "init", "-t", f"git+file://{SOURCE}#{language}"], repo)
     run(["git", "add", "flake.nix", ".gitignore", "DEVELOPMENT.md"], repo)
-    run(["nix", "flake", "lock"], repo)
+    lock_command = ["nix", "flake", "lock"]
+    for input_name, owner in (("nixpkgs", "NixOS"), ("rust-overlay", "oxalica")):
+        if input_name == "rust-overlay" and language != "rust":
+            continue
+        variable = f"TEMPLATE_WITH_ENV_{input_name.upper().replace('-', '_')}_REV"
+        revision = os.environ.get(variable)
+        if revision:
+            assert re.fullmatch(r"[0-9a-f]{40}", revision), variable
+            lock_command.extend(
+                [
+                    "--override-input",
+                    input_name,
+                    f"github:{owner}/{input_name}/{revision}",
+                ]
+            )
+    run(lock_command, repo)
     run(["git", "add", "flake.lock"], repo)
     lock = (repo / "flake.lock").read_bytes()
+    locked = json.loads(lock)
+    print(
+        f"{language} locked inputs: "
+        + json.dumps(
+            {
+                name: node["locked"]
+                for name, node in locked["nodes"].items()
+                if "locked" in node
+            },
+            sort_keys=True,
+        ),
+        flush=True,
+    )
     for system in SYSTEMS:
         app = run(["nix", "eval", "--raw", f".#apps.{system}.with-env.program"], repo)
         assert app.endswith("/bin/with-env"), app
@@ -59,8 +184,41 @@ def verify(language, evidence):
     (repo / ".envrc").rename(repo / "envrc-original")
     entry = ["nix", "run", "--no-write-lock-file", ".#with-env", "--"]
     develop = ["nix", "develop", "--no-write-lock-file", ".#default", "-c"]
-    run([*develop, *LANGUAGES[language]], repo)
-    run([*entry, *LANGUAGES[language]], repo)
+    for name, command in (("devShell", develop), ("with-env", entry)):
+        version = run([*command, *LANGUAGES[language]], repo)
+        print(f"{language} {name}: {version.strip()}", flush=True)
+        if language == "rust":
+            shutil.copyfile(
+                SOURCE / "tests/helpers/template-rust-vtable.rs",
+                repo / "vtable.rs",
+            )
+            result = run(
+                [
+                    *command,
+                    "sh",
+                    "-eu",
+                    "-c",
+                    "rustc --edition=2024 vtable.rs -o vtable; ./vtable",
+                ],
+                repo,
+            )
+            assert result.strip() == "done", result
+        if language == "gleam":
+            (repo / "gleam.toml").write_text(
+                'name = "template_smoke"\nversion = "1.0.0"\ntarget = "erlang"\n'
+            )
+            (repo / "src").mkdir(exist_ok=True)
+            (repo / "src/template_smoke.gleam").write_text(
+                # rand:shuffle/1 is an OTP 29 API, exercised through compiled Gleam.
+                '@external(erlang, "rand", "shuffle")\n'
+                "fn shuffle(values: List(Int)) -> List(Int)\n\n"
+                "pub fn main() {\n"
+                "  let assert [42] = shuffle([42])\n"
+                '  echo "gleam-erlang-ok"\n'
+                "}\n"
+            )
+            run([*command, "gleam", "run"], repo)
+        language_tools(language, command, repo)
     run([*develop, "sh", "-c", "command -v with-env"], repo)
     print(
         f"{language}: three systems evaluated; devShell and with-env executed",
@@ -276,15 +434,33 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--language", choices=LANGUAGES, action="append")
     arguments = parser.parse_args()
-    evidence = Path(tempfile.mkdtemp(prefix="template-with-env-258-", dir="/tmp"))
+    evidence = Path(tempfile.mkdtemp(prefix="template-with-env-258-"))
     print(f"Evidence: {evidence}", flush=True)
     for key in list(os.environ):
         if key.startswith(("GIT_", "DEVSHELL_ENV_")):
             os.environ.pop(key)
-    for name in ("home", "cache"):
-        (evidence / name).mkdir()
+    for name in ("home", "cache", "config", "data", "state", "runtime"):
+        (evidence / name).mkdir(mode=0o700)
     os.environ.update(
-        HOME=str(evidence / "home"), XDG_CACHE_HOME=str(evidence / "cache")
+        HOME=str(evidence / "home"),
+        XDG_CACHE_HOME=str(evidence / "cache"),
+        XDG_CONFIG_HOME=str(evidence / "config"),
+        XDG_DATA_HOME=str(evidence / "data"),
+        XDG_STATE_HOME=str(evidence / "state"),
+        XDG_RUNTIME_DIR=str(evidence / "runtime"),
+        CARGO_HOME=str(evidence / "home/cargo"),
+        CARGO_TARGET_DIR=str(evidence / "cache/cargo-target"),
+        RUSTUP_HOME=str(evidence / "home/rustup"),
+        GOPATH=str(evidence / "home/go"),
+        GOCACHE=str(evidence / "cache/go-build"),
+        GOMODCACHE=str(evidence / "cache/go-mod"),
+        GOTOOLCHAIN="local",
+        GOWORK="off",
+        MIX_HOME=str(evidence / "home/mix"),
+        HEX_HOME=str(evidence / "home/hex"),
+        BUN_INSTALL=str(evidence / "home/bun"),
+        BUN_INSTALL_CACHE_DIR=str(evidence / "cache/bun"),
+        npm_config_cache=str(evidence / "cache/npm"),
     )
     (evidence / ".env").write_text("DOTENV_258=parent\n")
     for language in arguments.language or LANGUAGES:

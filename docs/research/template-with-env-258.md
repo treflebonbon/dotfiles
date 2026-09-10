@@ -40,15 +40,15 @@ TMPDIR=/tmp bun run test
 
 ## Verification Matrix
 
-| #258 本文順の条件                   | 検証内容                                                                                                                                                          | 結果 |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1: 6種類の flake / lock と with-env | 独立 repo へ公開 template を展開・lock 作成、3 system の app 評価と flake check、実 devShell / app から言語 version 実行                                          | 成功 |
-| 2: `.envrc` 任意・非読込み          | 不在と副作用・非0終了を含む `.envrc` の両方で devShell / app が成功し、副作用ファイルがない                                                                       | 成功 |
-| 3: #257 と同じ dotenv 契約          | root 値と既存値の競合、空・空白・シェル文字を含む argv、終了23、子への継承、解析・読取り・外部 symlink の拒否、linked worktree / サブディレクトリからの root 限定 | 成功 |
-| 4: 言語 / system 保持・Nix 非残留   | 3 system の全 output 評価、言語ツール起動、ダミー値が print-dev-env / derivation / Git source / HOME / cache にない                                               | 成功 |
-| 5: WSL / 明示 output                | marker 不在の WSL は default、marker のみで未定義 wsl は停止、明示 default が優先、未定義 output は停止。継承した direnv 選択を使用しない                         | 成功 |
-| 6: 言語別の組込みと移行手順         | 全6生成物に `DEVELOPMENT.md` を同梱                                                                                                                               | 完了 |
-| 7: 独立利用・環境と品質の記録       | この記録と独立展開 helper、関連 Bats・full suite・品質チェック                                                                                                    | 成功 |
+| #258 本文順の条件 | 検証内容 | 結果 |
+| --- | --- | --- |
+| 1: 6種類の flake / lock と with-env | 独立 repo へ公開 template を展開・lock 作成、3 system の app 評価と flake check、実 devShell / app から言語 version 実行 | 成功 |
+| 2: `.envrc` 任意・非読込み | 不在と副作用・非0終了を含む `.envrc` の両方で devShell / app が成功し、副作用ファイルがない | 成功 |
+| 3: #257 と同じ dotenv 契約 | root 値と既存値の競合、空・空白・シェル文字を含む argv、終了23、子への継承、解析・読取り・外部 symlink の拒否、linked worktree / サブディレクトリからの root 限定 | 成功 |
+| 4: 言語 / system 保持・Nix 非残留 | 3 system の全 output 評価、言語ツール起動、ダミー値が print-dev-env / derivation / Git source / HOME / cache にない | 成功 |
+| 5: WSL / 明示 output | marker 不在の WSL は default、marker のみで未定義 wsl は停止、明示 default が優先、未定義 output は停止。継承した direnv 選択を使用しない | 成功 |
+| 6: 言語別の組込みと移行手順 | 全6生成物に `DEVELOPMENT.md` を同梱 | 完了 |
+| 7: 独立利用・環境と品質の記録 | この記録と独立展開 helper、関連 Bats・full suite・品質チェック | 成功 |
 
 ## 実行環境と結果
 

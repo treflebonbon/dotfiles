@@ -6,11 +6,11 @@
     "test": "bun install --frozen-lockfile && bats tests/"
   },
   "devDependencies": {
-    "bun-types": "^1.1.30",
-    "oxfmt": "^0.48.0",
-    "oxlint": "^1.71.0",
-    "typescript": "^6.0.3",
-    "ultracite": "^7.8.3"
+    "bun-types": "1.3.13",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "typescript": "^7.0.2",
+    "ultracite": "^7.11.1"
   },
   "overrides": {
     "brace-expansion": "5.0.9"

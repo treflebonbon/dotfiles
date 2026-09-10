@@ -221,14 +221,14 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 
 `.bashrc` の関数で提供:
 
-| コマンド | 動作                                                                               |
-| -------- | ---------------------------------------------------------------------------------- |
+| コマンド | 動作 |
+| --- | --- |
 | `Ctrl-G` | flyline 有効時は入力を破棄して `gcd` を実行し fzf 選択 → cd、fallback 時は直接起動 |
-| `gcd`    | リポジトリを選んで cd                                                              |
-| `gclone` | 引数ありで `ghq get`、なしで `gh repo list`（ユーザー + 所属 Org）→ fzf → clone    |
-| `gedit`  | リポジトリを `$EDITOR` で開く                                                      |
-| `gweb`   | リポジトリを `gh browse` で表示                                                    |
-| `ginit`  | `owner/repo` 形式で ghq 管理下にローカルリポジトリを作成                           |
+| `gcd` | リポジトリを選んで cd |
+| `gclone` | 引数ありで `ghq get`、なしで `gh repo list`（ユーザー + 所属 Org）→ fzf → clone |
+| `gedit` | リポジトリを `$EDITOR` で開く |
+| `gweb` | リポジトリを `gh browse` で表示 |
+| `ginit` | `owner/repo` 形式で ghq 管理下にローカルリポジトリを作成 |
 
 ## その他
 

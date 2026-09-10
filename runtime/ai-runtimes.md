@@ -164,10 +164,10 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 ## AI ツール更新の 2 経路
 
-| 経路                | 対象                                       | 管理ファイル                                                            |
-| ------------------- | ------------------------------------------ | ----------------------------------------------------------------------- |
+| 経路 | 対象 | 管理ファイル |
+| --- | --- | --- |
 | nix devshell binary | claude-code / codex / copilot-cli / rtk 等 | `private_dot_config/nix-devshell/{flake.nix,modules/ai.nix,packages/*}` |
-| APM skill / plugin  | 外部 skill / Claude marketplace plugin     | `apm.yml` / `apm.lock.yaml`                                             |
+| APM skill / plugin | 外部 skill / Claude marketplace plugin | `apm.yml` / `apm.lock.yaml` |
 
 「AI ツールを更新したい」ときは両経路を確認する。
 
@@ -394,3 +394,5 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 関連: [architecture](../docs/architecture.md) / [skill-harness](skill-harness.md)
 
 2026-09-08 JST、Issue #243 第3単位は通常APM更新のmerge `b6d0030`から開始する。Impeccable skill 4.2.2 / launcherをAPM、engine 0.1.3をNixの固定release assetで供給し、`IMPECCABLE_BIN`経由で既存のClaude / Codex global PostToolUse・Stopを継続する。engine未配備時はlauncherに入らず、正常なfindingは透過、失敗出力は破棄する。理由付き抑制とproject設定・cacheの所有先を維持する。上流contextがglobal manifestを探索しない既存の制限と、live配備前に確認した実体・検査範囲は[ADR-0053](../docs/adr/0053-separate-impeccable-skill-and-engine.md) / [Verification Matrix](../docs/research/impeccable-engine-243.md)に記録する。
+
+2026-09-10 JST、Issue #288でAI snapshotを`e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9`へ更新し、Claude Code 2.1.267、Codex 0.154.0、Antigravity CLI 1.2.0を採用した。Copilot 1.0.83、Herdr 0.9.0、RTK 0.48.0、APM 0.30.0、CRG 2.3.8と品質floorは維持する。既存source-only inputからFastMCP 3.4.7、defuddle 0.19.3、markitdown 0.1.7を取得し、parser 0.13.0との組み合わせでCRG buildとread-only MCPを確認した。3system評価、host build・25CLI probe、隔離Herdr、関連36テスト、新Codexの管理config parserを検証した。モデル・権限設定やadvisorの利用方針は変更せず、非公開内部構造は引き続き未確認とする。source/live境界と版ごとの結果は[更新記録](../docs/research/update-288-ai-tools.md)を参照する。

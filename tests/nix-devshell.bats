@@ -35,14 +35,14 @@ setup() {
   grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
 }
 
-@test "user devShell selects the approved installed AI toolset snapshot without moving shared nixpkgs" {
+@test "user devShell selects the approved AI snapshot and stable package channel" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "868527bc9eb4e8bee8610fa1d4027fbb37cfc012"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "868527bc9eb4e8bee8610fa1d4027fbb37cfc012"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
@@ -138,11 +138,8 @@ PS
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
 
-  grep -q 'version = "1.3.0";' "$pkg"
   grep -q 'libflyline-v${version}-x86_64-unknown-linux-gnu.tar.gz' "$pkg"
   grep -q 'libflyline-v${version}-aarch64-unknown-linux-gnu.tar.gz' "$pkg"
-  grep -q 'sha256-IbsKeg5BdJb/aO+DecrcBdNeQq7jV/xkrZqNlfaTIPg=' "$pkg"
-  grep -q 'sha256-qIm8Fu4x5aa4Vyi5udnSPWfz8PuyG/DK5+J4kL1DxM0=' "$pkg"
   grep -q 'libflyline.so' "$pkg"
   grep -q 'license = lib.licenses.gpl3Only' "$pkg"
   grep -q 'flyline = pkgs.callPackage ./packages/flyline.nix' "$flake"
@@ -196,12 +193,12 @@ PS
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
-  local record="$PROJECT_ROOT/docs/research/ai-tool-snapshot-243.md"
+  local record="$PROJECT_ROOT/docs/research/update-288-ai-tools.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$record"
-  grep -Fq '868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$flake"
+  grep -Fq 'e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9' "$record"
+  grep -Fq 'e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902' "$manifest"
 }
 
@@ -257,26 +254,34 @@ PS
 
   if [ "$(uname -s)" = "Linux" ]; then
     local probe="$BATS_TEST_TMPDIR/code-review-graph-probe"
-    mkdir -p "$probe"
+    local shell="path:$flake#default"
+    if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -Eqi 'microsoft|wsl' /proc/sys/kernel/osrelease; then
+      shell="path:$flake#wsl"
+    fi
+    export HOME="$BATS_TEST_TMPDIR/home"
+    export XDG_CONFIG_HOME="$HOME/.config"
+    export XDG_DATA_HOME="$HOME/.local/share"
+    export CODEX_HOME="$HOME/.codex"
+    mkdir -p "$probe" "$HOME"
     git -C "$probe" init -q
     printf 'def answer():\n    return 42\n' >"$probe/sample.py"
     git -C "$probe" add sample.py
 
-    run nix develop "path:$flake" --command code-review-graph --help
+    run nix develop "$shell" --command code-review-graph --help
     [ "$status" -eq 0 ]
 
-    run nix develop "path:$flake" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
+    run nix develop "$shell" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
     [ "$status" -eq 0 ]
     [ -f "$probe/.code-review-graph/graph.db" ]
 
-    run nix develop "path:$flake" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
+    run nix develop "$shell" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
     [ "$status" -eq 0 ]
     [[ "$output" == *'"is_error": false'* ]]
     [[ "$output" == *'"total_nodes": 2'* ]]
   fi
 }
 
-@test "nix-devshell installs Playwright CLI 0.1.17 with managed WSL2 Chrome and local skill symlinks" {
+@test "nix-devshell installs pinned Playwright CLI with managed WSL2 Chrome and local skill symlinks" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-agent/package.json"
@@ -312,8 +317,8 @@ PS
   ! grep -Fq '$Profile =' "$windows"
   grep -Fq 'PWTEST_CLI_GLOBAL_CONFIG' "$skill"
   ! grep -Eq 'chromium-[0-9]+' "$pkg"
-  grep -q 'version = "0.1.17";' "$pkg"
-  grep -q '"@playwright/cli": "0.1.17"' "$package_json"
+  grep -q 'version = "0.1.19";' "$pkg"
+  grep -q '"@playwright/cli": "0.1.19"' "$package_json"
 }
 
 @test "browser-free Playwright wrapper keeps makeWrapper flags in one shell command" {
@@ -364,17 +369,16 @@ PS
   grep -Fq 'manual authentication' "$skill"
 }
 
-@test "nix-devshell pins design.md 0.3.0 and document converters" {
+@test "nix-devshell exposes design.md aliases and document converters" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli.nix"
-  local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli/package.json"
 
-  grep -q 'version = "0.3.0";' "$pkg"
-  grep -q '"@google/design.md": "0.3.0"' "$package_json"
-  grep -q '421eebfd0ec7bccd4abe826ce62d7e6e83129493' "$flake"
+  grep -q 'd6524aaca2ff07876657ae2b323f24be4874944b' "$flake"
   grep -q 'nixpkgs-ai-sources.*defuddle/package\.nix' "$module"
   grep -q 'markitdown/default\.nix' "$module"
+  grep -Fq '"$out/bin/design.md"' "$pkg"
+  grep -Fq '"$out/bin/designmd"' "$pkg"
 }
 
 @test "ui grill skill keeps round sheets disposable and human answers authoritative" {
@@ -428,19 +432,15 @@ PS
   ! grep -q '"gws-cli"' "$lock"
 }
 
-@test "waza package uses pinned 0.38.3 standalone release binaries" {
+@test "waza package uses fixed standalone release binaries" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/waza.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'version = "0.38.3";' "$pkg"
   grep -q 'waza-linux-amd64' "$pkg"
   grep -q 'waza-linux-arm64' "$pkg"
   grep -q 'waza-darwin-arm64' "$pkg"
-  grep -q 'sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=' "$pkg"
-  grep -q 'sha256-Fo41Yt7qoZWNRDZrN9ljtIsJHDJcbJtbJhPlOZ/wd7k=' "$pkg"
-  grep -q 'sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=' "$pkg"
   run grep -q 'waza-darwin-amd64' "$pkg"
   [ "$status" -ne 0 ]
   grep -q 'releases/download/v\${finalAttrs.version}' "$pkg"

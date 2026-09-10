@@ -44,19 +44,19 @@ TMPDIR=/tmp bun run test
 
 with-env と既存 Runtime Adapter の実 Nix opt-in は計32件。`with-env-preflight.py` は実 adapter と sandbox を通す受入スクリプトであり、以前の未成立条件を再現するだけのスクリプトから置き換えた。通常 Bats の実 Nix / sandbox 3件は opt-in とし、上記で別途実行する。
 
-| #257 本文順の条件                             | 確認内容                                                                                                                                                                                                     |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1: devShell 準備後の注入、`.envrc` 非依存     | 公開 app の hello・通常変数・shellHook。raw で shellHook 1回、同じ devShell の Git 選択を保持                                                                                                                |
-| 2: root 限定、探索なし、外部 symlink 拒否     | Bats の親/main/subdirectory、実 sandbox の別 repo・sibling・外部 symlink                                                                                                                                     |
-| 3: 不在許容、読取り・解析・準備失敗時の未起動 | Bats の unreadable / FIFO / Nix / hook failure、実 sandbox の absent / malformed / symlink と未起動確認                                                                                                      |
-| 4: 既存 parser、構文・変数優先・非実行        | 空値・quotes・multiline・展開・caller 優先・shell text 非実行                                                                                                                                                |
-| 5: 引数・終了コード・子プロセス限定           | 空引数・空白付き引数・終了コード23・孫プロセス、raw 親環境の dotenv 不在                                                                                                                                     |
-| 6: 信頼済み raw 起動の root read              | 未登録・解除・Nix 失敗では拒否、信頼済みは read のみ。実効 profile の直接・継承追加 root の無効化                                                                                                            |
-| 7: 実 sandbox で限定 read と他秘密の拒否      | root write、下位・別名 dotenv、pem/key/pfx/p12、credentials/secret/service-account JSON、SSH/AWS/gcloud、外側 repo を拒否。Git add/commit と既存 push fixture、許可 registry / 非許可 example.com の network |
-| 8: ダミー秘密の非永続化                       | 実行時 UUID を生成。人間の Nix 環境出力・derivation・app・Git source・cache を検索。raw は dotenv と継承値の両方について隔離 HOME・fixture・専用 TMPDIR を検索                                               |
-| 9: 通常／WSL 選択、direnv 継承                | Bats の選択・PATH、3 system の app 出力評価                                                                                                                                                                  |
-| 10: dev/test 組込み例、必要変数と失敗時停止   | [利用方法](../../runtime/shell-environment.md#指定コマンドへの-dotenv-注入) に人間と raw の正式入口・変数検証・再起動を記載                                                                                  |
-| 11: Claude 非変更、品質、OS と配備の記録      | Claude の dotenv / permission は未変更。検証結果と制限は以下                                                                                                                                                 |
+| #257 本文順の条件 | 確認内容 |
+| --- | --- |
+| 1: devShell 準備後の注入、`.envrc` 非依存 | 公開 app の hello・通常変数・shellHook。raw で shellHook 1回、同じ devShell の Git 選択を保持 |
+| 2: root 限定、探索なし、外部 symlink 拒否 | Bats の親/main/subdirectory、実 sandbox の別 repo・sibling・外部 symlink |
+| 3: 不在許容、読取り・解析・準備失敗時の未起動 | Bats の unreadable / FIFO / Nix / hook failure、実 sandbox の absent / malformed / symlink と未起動確認 |
+| 4: 既存 parser、構文・変数優先・非実行 | 空値・quotes・multiline・展開・caller 優先・shell text 非実行 |
+| 5: 引数・終了コード・子プロセス限定 | 空引数・空白付き引数・終了コード23・孫プロセス、raw 親環境の dotenv 不在 |
+| 6: 信頼済み raw 起動の root read | 未登録・解除・Nix 失敗では拒否、信頼済みは read のみ。実効 profile の直接・継承追加 root の無効化 |
+| 7: 実 sandbox で限定 read と他秘密の拒否 | root write、下位・別名 dotenv、pem/key/pfx/p12、credentials/secret/service-account JSON、SSH/AWS/gcloud、外側 repo を拒否。Git add/commit と既存 push fixture、許可 registry / 非許可 example.com の network |
+| 8: ダミー秘密の非永続化 | 実行時 UUID を生成。人間の Nix 環境出力・derivation・app・Git source・cache を検索。raw は dotenv と継承値の両方について隔離 HOME・fixture・専用 TMPDIR を検索 |
+| 9: 通常／WSL 選択、direnv 継承 | Bats の選択・PATH、3 system の app 出力評価 |
+| 10: dev/test 組込み例、必要変数と失敗時停止 | [利用方法](../../runtime/shell-environment.md#指定コマンドへの-dotenv-注入) に人間と raw の正式入口・変数検証・再起動を記載 |
+| 11: Claude 非変更、品質、OS と配備の記録 | Claude の dotenv / permission は未変更。検証結果と制限は以下 |
 
 Git source 内の `.env` 不在も確認する。dotenv を Git や flake に含めない運用が前提で、起動元の秘密を識別・除去する機能ではない。root `.env` の読取りは agent にも許可しており、agent 自身から秘密を隠す保証はしない。
 
