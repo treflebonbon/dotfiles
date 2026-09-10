@@ -2,16 +2,16 @@
 
 buildGoModule rec {
   pname = "gwq";
-  version = "0.0.5";
+  version = "0.1.1";
 
   src = fetchFromGitHub {
     owner = "d-kuro";
     repo = "gwq";
     rev = "v${version}";
-    hash = "sha256-oSgDH5E3ETSlpovhU+MNmDTpY2BRGsR9Bf57ot04Rng=";
+    hash = "sha256-MfCYFbODWnfPxx+6sLlcMT6tqghgILHB13+ccYqVjBA=";
   };
 
-  vendorHash = "sha256-jP4arRoTDcjRXZvLx7R/1pp5gRMpfZa7AAJDV+WLGhY=";
+  vendorHash = "sha256-4K01Xf1EXl/NVX1loQ76l1bW8QglBAQdvlZSo7J4NPI=";
   subPackages = [ "cmd/gwq" ];
 
   ldflags = [

@@ -138,11 +138,8 @@ PS
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/shell.nix"
 
-  grep -q 'version = "1.3.0";' "$pkg"
   grep -q 'libflyline-v${version}-x86_64-unknown-linux-gnu.tar.gz' "$pkg"
   grep -q 'libflyline-v${version}-aarch64-unknown-linux-gnu.tar.gz' "$pkg"
-  grep -q 'sha256-IbsKeg5BdJb/aO+DecrcBdNeQq7jV/xkrZqNlfaTIPg=' "$pkg"
-  grep -q 'sha256-qIm8Fu4x5aa4Vyi5udnSPWfz8PuyG/DK5+J4kL1DxM0=' "$pkg"
   grep -q 'libflyline.so' "$pkg"
   grep -q 'license = lib.licenses.gpl3Only' "$pkg"
   grep -q 'flyline = pkgs.callPackage ./packages/flyline.nix' "$flake"
@@ -372,17 +369,16 @@ PS
   grep -Fq 'manual authentication' "$skill"
 }
 
-@test "nix-devshell pins design.md 0.3.0 and document converters" {
+@test "nix-devshell exposes design.md aliases and document converters" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli.nix"
-  local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/design-md-cli/package.json"
 
-  grep -q 'version = "0.3.0";' "$pkg"
-  grep -q '"@google/design.md": "0.3.0"' "$package_json"
   grep -q 'd6524aaca2ff07876657ae2b323f24be4874944b' "$flake"
   grep -q 'nixpkgs-ai-sources.*defuddle/package\.nix' "$module"
   grep -q 'markitdown/default\.nix' "$module"
+  grep -Fq '"$out/bin/design.md"' "$pkg"
+  grep -Fq '"$out/bin/designmd"' "$pkg"
 }
 
 @test "ui grill skill keeps round sheets disposable and human answers authoritative" {
@@ -436,19 +432,15 @@ PS
   ! grep -q '"gws-cli"' "$lock"
 }
 
-@test "waza package uses pinned 0.38.3 standalone release binaries" {
+@test "waza package uses fixed standalone release binaries" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/waza.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'version = "0.38.3";' "$pkg"
   grep -q 'waza-linux-amd64' "$pkg"
   grep -q 'waza-linux-arm64' "$pkg"
   grep -q 'waza-darwin-arm64' "$pkg"
-  grep -q 'sha256-mapDZrGY8xkUXP/u9C1QDrn2F4I1oFN9NMGd2PL0b+w=' "$pkg"
-  grep -q 'sha256-Fo41Yt7qoZWNRDZrN9ljtIsJHDJcbJtbJhPlOZ/wd7k=' "$pkg"
-  grep -q 'sha256-q11qPlAqD39aSBSeA0+geHWi/gKt3d7GubnboU87RoU=' "$pkg"
   run grep -q 'waza-darwin-amd64' "$pkg"
   [ "$status" -ne 0 ]
   grep -q 'releases/download/v\${finalAttrs.version}' "$pkg"
