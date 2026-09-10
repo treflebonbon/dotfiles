@@ -96,3 +96,59 @@ PY
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
+
+@test "the dependency proxy tries another validated public address when the first cannot connect" {
+  local project_root
+  project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  run python3 - "$project_root/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/proxy" <<'PY'
+import http.client, runpy, socket, socketserver, sys, threading
+from pathlib import Path
+module = runpy.run_path(sys.argv[1])
+class Echo(socketserver.BaseRequestHandler):
+    def handle(self):
+        self.request.sendall(self.request.recv(4))
+upstream = socketserver.ThreadingTCPServer(('127.0.0.1', 0), Echo)
+threading.Thread(target=upstream.serve_forever, daemon=True).start()
+server = module['start_gateway'](Path(sys.argv[2]), 'dependencies', domains=['cache.nixos.org'])
+attempts = []
+original_socket = socket.socket
+class FixtureSocket(original_socket):
+    def connect(self, address):
+        if self.family == socket.AF_INET and address[1] == 443:
+            attempts.append(address[0])
+            if address[0] == '8.8.8.8':
+                raise TimeoutError('first public address is unreachable')
+            assert address[0] == '1.1.1.1'
+            address = upstream.server_address
+        return super().connect(address)
+socket.socket = FixtureSocket
+socket.getaddrinfo = lambda *a, **kw: [
+    (socket.AF_INET, socket.SOCK_STREAM, 6, '', (address, 443))
+    for address in ('8.8.8.8', '1.1.1.1')
+]
+class Client(http.client.HTTPConnection):
+    def connect(self):
+        self.sock = original_socket(socket.AF_UNIX)
+        self.sock.settimeout(3)
+        self.sock.connect(str(Path(sys.argv[2]) / 'service.sock'))
+try:
+    client = Client('proxy')
+    client.connect()
+    tunnel = client.sock
+    client.request('CONNECT', 'cache.nixos.org:443')
+    response = client.getresponse()
+    assert response.status == 200, response.status
+    tunnel.sendall(b'ping')
+    assert response.read(4) == b'ping'
+    response.close()
+    client.close()
+    assert attempts == ['8.8.8.8', '1.1.1.1'], attempts
+finally:
+    server.shutdown()
+    server.server_close()
+    upstream.shutdown()
+    upstream.server_close()
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}

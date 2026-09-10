@@ -124,11 +124,13 @@ pkgs.testers.runNixOSTest {
     ${pkgs.lib.optionalString realServices ''
       import os
       # Transfer only the two selected tool-login files after the Nix image is
-      # built. Never embed credentials in a derivation, command, log or evidence.
-      machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_CODEX_AUTH"], "/home/probe/.codex/auth.json")
-      machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_GH_HOSTS"], "/home/probe/.config/gh/hosts.yml")
-      machine.succeed("chown -R probe:users /home/probe/.codex /home/probe/.config; chmod 700 /home/probe/.codex /home/probe/.config /home/probe/.config/gh; chmod 600 /home/probe/.codex/auth.json /home/probe/.config/gh/hosts.yml")
+      # built. Keep guest copies in tmpfs, including when the VM is interrupted.
+      machine.succeed("test \"$(stat -f -c %T /run)\" = tmpfs; install -d -m 700 -o probe -g users /run/probe-tool-logins /home/probe/.codex /home/probe/.config /home/probe/.config/gh")
+      machine.succeed("ln -s /run/probe-tool-logins/auth.json /home/probe/.codex/auth.json; ln -s /run/probe-tool-logins/hosts.yml /home/probe/.config/gh/hosts.yml")
       try:
+        machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_CODEX_AUTH"], "/run/probe-tool-logins/auth.json")
+        machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_GH_HOSTS"], "/run/probe-tool-logins/hosts.yml")
+        machine.succeed("chown probe:users /run/probe-tool-logins/*; chmod 600 /run/probe-tool-logins/*")
         live_result = machine.execute(
           "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
           "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
@@ -139,7 +141,7 @@ pkgs.testers.runNixOSTest {
         )
         machine.copy_from_machine("/home/probe/live-services-tests.log")
       finally:
-        machine.succeed("truncate -s 0 /home/probe/.codex/auth.json /home/probe/.config/gh/hosts.yml")
+        machine.succeed("find /run/probe-tool-logins -maxdepth 1 -type f -exec truncate -s 0 {} +")
       assert live_result[0] == 0, live_result
     ''}
     result = machine.execute(

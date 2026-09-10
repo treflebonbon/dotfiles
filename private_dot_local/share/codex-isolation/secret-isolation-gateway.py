@@ -214,16 +214,22 @@ class Gateway(BaseHTTPRequestHandler):
                 not ipaddress.ip_address(item[4][0]).is_global for item in addresses
             ):
                 return self.reject()
-            family, kind, protocol, _, address = addresses[0]
-            with socket.socket(family, kind, protocol) as upstream:
-                upstream.settimeout(120)
-                # Connect to the validated address without a second DNS lookup.
-                upstream.connect(address)
-                self.send_response(200, "Connection established")
-                self.end_headers()
-                connected = True
-                self.server.requests += 1
-                relay(self.connection, upstream)
+            for family, kind, protocol, _, address in addresses:
+                with socket.socket(family, kind, protocol) as upstream:
+                    # Retry only addresses validated above; never resolve again.
+                    upstream.settimeout(10)
+                    try:
+                        upstream.connect(address)
+                    except OSError:
+                        continue
+                    upstream.settimeout(120)
+                    self.send_response(200, "Connection established")
+                    self.end_headers()
+                    connected = True
+                    self.server.requests += 1
+                    relay(self.connection, upstream)
+                    return
+            self.fail_upstream()
         except (OSError, ValueError):
             if not connected:
                 self.fail_upstream()
