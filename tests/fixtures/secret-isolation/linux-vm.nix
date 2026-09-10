@@ -91,6 +91,9 @@ pkgs.testers.runNixOSTest {
       };
       environment.systemPackages = cliRoots;
       nix.package = pkgs.nix;
+      # QEMU advertises IPv6 even when its WSL host has no IPv6 uplink.
+      # This fixture measures the supported IPv4 uplink; dual-stack is separate.
+      networking.enableIPv6 = false;
 
       # The QEMU guest reads only an image built from this finite closure.
       virtualisation = {

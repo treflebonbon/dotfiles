@@ -66,6 +66,13 @@ PY
   local host_codex_home="${CODEX_HOME:-$HOME/.codex}"
   raw_fixture
   ln -s "$host_codex_home/auth.json" "$RAW_BASE/home/.codex/auth.json"
+  # Keep package/startup failures observable without changing MCP permissions.
+  python3 - "$RAW_BASE/work/flake.nix" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace('PUBLIC_VAR = "normal";', 'PUBLIC_VAR = "normal"; RUST_LOG = "codex_rmcp_client=info";'))
+PY
   printf 'def greeting():\n    return "before"\n' > "$RAW_BASE/work/greeting.py"
   raw_admit flake.nix task.sh greeting.py
   raw_cli admit --git-head "$(git -C "$RAW_BASE/work" rev-parse HEAD)" --mcp context7 --mcp serena -- flake.nix task.sh greeting.py
