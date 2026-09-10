@@ -179,19 +179,11 @@ in
 
 たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。Go・Rust・Elixir・Perl・Gleam・Bun のテンプレートにも共通の `with-env` app と devShell 内の同名コマンドを含めている。生成先で `nix flake lock` を実行して lock を Git に追加し、`nix develop .#default` / `nix run .#with-env -- command` を使う。言語別の dev / test 組込み例・信頼登録・明示再読込み・dotenv 移行は、生成物の `DEVELOPMENT.md` を参照する。テンプレートは browser を含まない `default` のみを持ち、WSL でも `.wsl-browser-free` なしで利用できる。別 output や marker を追加する場合は対応する devShell も定義する。
 
-人間は `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+人間の実値検証は別環境の固定版で `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
 
 ### 人間による実値検証
 
-人間がコマンドを起動する場合も、そのコードには注入した値を読み取る権限がある。実値を使う前に、人間がコード・依存 lock・flake と import・shellHook・テスト・起動コマンドを確認し、対象を完全な commit SHA に固定する。AI が編集中の worktree を直接実行したり、可変 branch の最新コードを自動取得したりしない。
-
-1. 公開コードだけの commit を選び、完全な SHA と検証コマンドを記録する。依存・実行 script に秘密を送信する処理がないかも確認する。確認後の変更は、別の SHA として再確認する。
-2. 別マシンまたは独立 VM など、Codex が制御できない環境へ固定版を渡す。共有フォルダ、live mount、共有 Git object directory、同期・watcher を使わない。例えば人間側で `git archive --format=tar --output=reviewed.tar FULL_SHA` を作り、別環境で展開して `git init`、公開ファイルを `git add` する。`with-env` は Git root を必要とする。submodule・Git LFS の実体は archive だけでは揃わないため、必要ならその固定版も確認して別途渡す。
-3. Codex がその環境のファイル・process・環境変数・制御ソケット・SSH／VM 操作・secret manager・サービス endpoint へ到達できないことを確認する。ホストの別ディレクトリにコピーするだけでは、任意の agent runtime に対する分離は成立しない。実行中に Codex がコードを差し替えられず、秘密・ログ・成果物を取得・変更できないことが実行条件になる。
-4. 別環境で固定した flake／lock から `nix develop .#default`（dotfiles の WSL2 は `.#wsl`）を準備し、そこで初めて人間が秘密を用意する。root `.env` を使う場合は Git へ追加せず、所有者だけに許可する。`nix run .#with-env -- command` または確認済みの名前付き app で実行する。秘密取得を Nix 評価や shellHook に書かない。実行ログ・出力先もこの別環境内に置く。
-5. 人間がログ・成果物を確認し、SHA、コマンド、成功／失敗、必要なエラー要約だけを新しい共有文書に書く。秘密・個人情報・接続情報・不要なレスポンスを含まないことを確認してから手動共有する。元のログ・成果物を AI、Issue／PR、共有 cache、同期フォルダへ自動送信しない。
-
-CI を使う場合も同じ条件が必要で、AI が workflow や検証対象の ref を変更して、実シークレット付きの任意コードを無審査で起動できる構成は使わない。この手順は秘密注入サービスや自動承認を追加しない。既存 repo の一括変更・秘密のコピー・実値サービスの呼出しは行わず、各 repo の人間が移行する。
+[人間の実値検証手順](human-validation.md)に、完全な SHA の確認、独立 clone／archive の渡し方、コード・秘密・出力・制御経路の分離、確認済み結果だけの共有をまとめている。実値は人間が確認した固定版を Codex からアクセスできない別環境で実行するときにだけ用意する。別ターミナルや別 worktree へのコピーだけでは分離にならない。
 
 `tests/human-validation.bats` は人間環境を共通 raw 入口の外側に置いたダミー fixture で、固定コードの実行中に Codex が編集・テスト・commit を続け、コード・秘密・出力・process 経由の取得と書換えを拒否できることを検証する。実値や人間の本番環境の検証を代行するものではない。[Linux／WSL2 の検証記録](../docs/research/human-validation-274.md)を参照。
 

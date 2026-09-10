@@ -191,7 +191,7 @@ dotfiles の WSL2 開発では `nix develop .#wsl` を使います。Claude は�
 
 Linux／WSL2 の raw Codex は、確認した公開ファイルと到達可能な Git 履歴を `devshell-env admit` で登録し、`codex-worktree` から秘密なしで起動します。準備済み環境では `with-env --prepared -- command` を使い、通常変数や無害な fixture で検証します。ホストの dotenv と任意の継承変数は渡しません。既存セッション・直接 Codex・Desktop・Orca／Herdr native 起動には、この隔離を遡及適用しません。
 
-実値が必要な検証は、人間が確認した固定版のコードを Codex からアクセスできない別環境へ渡し、そこで `nix run .#with-env -- command` を実行します。人間向けの root `.env` 注入、起動元 → devShell → `.env` の優先順は維持します。コード・秘密・出力を分離し、人間が確認した必要な結果だけを共有します。[移行と人間の検証手順](runtime/shell-environment.md#人間による実値検証)を参照してください。Claude の dotenv 注入は対象外です。正式入口の準備失敗を直接実行で迂回しません。
+実値が必要な検証は、人間が確認した固定版のコードを Codex からアクセスできない別環境へ渡し、そこで `nix run .#with-env -- command` を実行します。人間向けの root `.env` 注入、起動元 → devShell → `.env` の優先順は維持します。コード・秘密・出力を分離し、人間が確認した必要な結果だけを共有します。[移行と人間の検証手順](runtime/human-validation.md)を参照してください。Claude の dotenv 注入は対象外です。正式入口の準備失敗を直接実行で迂回しません。
 
 direnv 本体と既存 `.envrc` は残り、内容を確認したうえで `direnv allow .` / `direnv exec . command` を明示利用できます。[移行・更新・復旧の手順](runtime/shell-environment.md#既存-repo-の移行)と各言語テンプレートの `DEVELOPMENT.md` に、dev／test app への組込み例をまとめています。未 merge の source は実配備せず、受入後に live source で `chezmoi apply` して新しい端末を開きます。
 

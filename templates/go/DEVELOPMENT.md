@@ -70,10 +70,12 @@ Codex では、公開してよい `tests/fixtures/config.json` などの fixture
 
 1. コード・依存 lock・flake／import・shellHook・テスト・実行コマンドを確認し、完全な commit SHA に固定する。AI が編集中の worktree や可変 branch を実行対象にしない。
 2. 固定版を Codex からアクセスできない別マシン／独立 VM へ渡す。共有フォルダ、Git object directory、同期・watcher、SSH／VM 制御、secret manager、サービス endpoint を通じて Codex がコード・秘密・出力を取得・変更できないことを確認する。単なる別ディレクトリへのコピーではこの条件を満たさない。`git archive FULL_SHA` を使う場合は別環境で展開して `git init`、公開ファイルを `git add` し、Git root を用意する。必要な submodule／Git LFS の固定版も別途確認する。
-3. 別環境で devShell を準備し、そこで初めて秘密を用意して `nix run .#with-env -- command` または確認済み app を実行する。root `.env` は Git に追加せず所有者だけに許可する。ログ・成果物も同じ別環境に置き、実行中のコードを AI 側から更新しない。
+3. 別環境で devShell を準備し、まずダミー値で手順を確認する。実値を用意するかは人間が決め、 `nix run .#with-env -- command` または確認済み app を実行する。root `.env` は Git に追加せず所有者だけに許可する。ログ・成果物も同じ別環境に置き、実行中のコードを AI 側から更新しない。
 4. 人間がログ・成果物を確認し、SHA・コマンド・成功／失敗・必要なエラー要約だけを手動共有する。未確認ログや成果物を AI／Issue／PR／共有 cache へ自動送信しない。CI でも AI が変更した任意コードを実シークレット付きで無審査実行できる構成は使わない。
 
 導入は受入済み dotfiles の live source で配備して新しい端末・`codex-worktree` セッションから行う。既存 repo の一括変更や秘密のコピーはしない。Linux／WSL2 の共通入口が対象で、既存セッション、直接 Codex、Desktop、Orca／Herdr native 起動、macOS raw には非開示保証を広げない。Claude の既存の非秘密 devShell 起動は維持するが、dotenv 注入・OS sandbox の追加は対象外。[導入・復旧と検証記録](https://github.com/treflebonbon/dotfiles/blob/63e47ffc471ff5e01f58a8a268ea553b0c9ab976/docs/research/raw-codex-isolation-271.md)には Linux と WSL2 の実測範囲を記録している。
+
+固定版を独立 clone へ渡す場合は `git checkout --detach FULL_SHA` と内容の照合を行う。公開コードだけの Git bundle を使い、共有 object store を作らない。詳しいアクセス条件と共有手順は [dotfiles の人間検証手順](https://github.com/treflebonbon/dotfiles/blob/main/runtime/human-validation.md)を参照する。
 
 ## output 選択
 
