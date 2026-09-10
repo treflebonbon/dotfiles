@@ -39,3 +39,5 @@ description: 緊急時に repo-local worktree (.claude/worktrees / .worktrees / 
 - `~/ghq/` は削除対象ではなく列挙起点。実際に削除され得るのは各リポジトリの repo-local roots・`~/.herdr/worktrees/<repo>`・`~/orca/workspaces/<repo>`・dangling worktree のみ。
 - `--max-report`（既定50）は表示行数の上限に過ぎない。プロセス検出ガードや実削除対象の判定には常に全候補を使うため、`--max-report` を絞っても見落としは起きない。標準エラーの `total_candidates=N shown=M` 行で、表示件数とは別に真の候補総数を確認できる。
 - 2つの異なる ghq リポジトリが同じ basename を共有する場合、事故防止のため両方とも herdr/orca 外部rootの付与を無効化し（repo-local roots のみで継続）、標準エラーに `basename collision, external roots disabled for '<name>'` と警告する。
+- ghq 配下では発見されない、別の生きたリポジトリが同じ basename の herdr/orca ディレクトリに worktree を持っている場合も同様に検出し（`git worktree list` との照合による所有権検証）、標準エラーに `foreign worktree found under a same-named external root, disabling it for '<name>' (...)` と警告して外部rootの付与を無効化する。
+- `--ghq-root`/`--herdr-root`/`--orca-root` は取得直後に正規化(`readlink -f`)する。symlink を含むパスを渡しても `git worktree list` の正規化済みパスと一致するため、登録済みworktreeを孤児と誤認識しない。

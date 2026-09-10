@@ -251,6 +251,58 @@ EOF
   [ "${dangling_row%%$'\t'*}" = "dangling" ]
 }
 
+@test "統合: --herdr-root がsymlink経由でも登録済みworktreeを孤児と誤認識しない(symlink正規化回帰テスト, PR#281レビュー)" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local herdr_real="$BATS_TEST_TMPDIR/herdr_real"
+  local herdr_link="$BATS_TEST_TMPDIR/herdr_link"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  local repo="$ghq_root/host/org/myrepo"
+  make_ghq_repo "$repo"
+  mkdir -p "$herdr_real"
+  ln -s "$herdr_real" "$herdr_link"
+  git -C "$repo" worktree add -q -b feature-x "$herdr_link/myrepo/feature-x"
+  age_dir "$herdr_real/myrepo/feature-x"
+  # dirty にしておく: 誤って「孤児」判定された場合、orphan削除はage判定のみで
+  # dirtyガードが効かないため実際に削除されてしまい、正規化の有無で結果が
+  # 分かれる。
+  echo dirty >"$herdr_real/myrepo/feature-x/untracked.txt"
+
+  run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply \
+    --ghq-root "$ghq_root" --herdr-root "$herdr_link" --orca-root "$orca" --age-days 7
+
+  assert_success
+  [ -d "$herdr_real/myrepo/feature-x" ]
+}
+
+@test "統合: ghq外の生きた親を持つ同名basenameのworktreeがあれば外部rootを無効化し誤削除しない(PR#281レビュー)" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local herdr="$BATS_TEST_TMPDIR/herdr"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  local repo="$ghq_root/host/org/samename"
+  local foreign_repo="$BATS_TEST_TMPDIR/foreign/samename"
+  make_ghq_repo "$repo"
+  make_ghq_repo "$foreign_repo"
+
+  git -C "$repo" worktree add -q -b own-feature "$herdr/samename/own-feature"
+  age_dir "$herdr/samename/own-feature"
+
+  # basenameは同じ "samename" だが ghq 配下ではない別の生きたリポジトリが、
+  # 同じ herdr ディレクトリ配下に自分の worktree を持っている(dirty)。
+  git -C "$foreign_repo" worktree add -q -b foreign-feature "$herdr/samename/foreign-feature"
+  age_dir "$herdr/samename/foreign-feature"
+  echo dirty >"$herdr/samename/foreign-feature/untracked.txt"
+
+  run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply \
+    --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
+
+  assert_success
+  assert_output --partial "foreign worktree found under a same-named external root"
+  # 外部root全体を無効化するため、ghq発見リポジトリ自身のstale worktreeも
+  # このラウンドでは削除されない(安全側の道連れ保護)。
+  [ -d "$herdr/samename/own-feature" ]
+  [ -d "$herdr/samename/foreign-feature" ]
+}
+
 @test "統合: 稼働中プロセスが無ければ --apply は stale worktree と dangling worktree を削除する" {
   local ghq_root="$BATS_TEST_TMPDIR/ghq"
   local herdr="$BATS_TEST_TMPDIR/herdr"

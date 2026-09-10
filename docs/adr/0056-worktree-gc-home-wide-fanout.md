@@ -35,7 +35,7 @@ status: accepted
 ## Consequences
 
 - `worktree-gc.sh` のテスト済みコアロジック（merge判定、SELF_SESSION、MAX_REMOVALS等）への差分がゼロのため、既存 bats テストへの影響がない。
-- 一方で `~/.herdr/worktrees/` と `~/orca/workspaces/` の basename が対応する ghq リポジトリ名と一致する、という命名規約に暗黙に依存する。異なる2つの ghq リポジトリが home 配下で同じ basename を共有した場合、`worktree-gc.sh` 本体（無改修）の孤児判定は「自リポジトリに未登録＝孤児」としか見ないため、素朴に実装すると他リポジトリの現存 worktree を dirty/unique-commit ガード無しで誤削除しかねない（code review で指摘）。そのためラッパー側で basename 衝突を検出し、衝突した basename については herdr/orca の外部ルート付与自体を無効化して repo-local roots のみにフォールバックし、警告を出す安全策を入れている。
+- 一方で `~/.herdr/worktrees/` と `~/orca/workspaces/` の basename が対応する ghq リポジトリ名と一致する、という命名規約に暗黙に依存する。異なる2つのリポジトリが home 配下で同じ basename を共有した場合（ghq 発見リポジトリ同士、または ghq 外の生きた親リポジトリと ghq 発見リポジトリの間でも起こり得る）、`worktree-gc.sh` 本体（無改修）の孤児判定は「自リポジトリに未登録＝孤児」としか見ないため、素朴に実装すると他リポジトリの現存 worktree を dirty/unique-commit ガード無しで誤削除しかねない（code review、および PR #281 の GitHub 連携ボットレビューで指摘）。そのためラッパー側で (a) ghq 発見リポジトリ間の basename 衝突検出、(b) `git worktree list` に基づく実所有権検証（herdr/orca ディレクトリ配下の各エントリが対象リポジトリに登録済みか dangling かを確認し、それ以外＝他の生きたリポジトリ所有と判定）の二段構えで検出し、該当 basename については herdr/orca の外部ルート付与自体を無効化して repo-local roots のみにフォールバックし、警告を出す安全策を入れている。あわせて `--ghq-root`/`--herdr-root`/`--orca-root` は取得直後に `readlink -f` で正規化し、symlink 経由の root 指定で `git worktree list` の正規化済みパスと文字列不一致になり孤児と誤認識する事故も防いでいる（同PRレビューで指摘）。
 - 既知の外部ルートを許可リスト化する設計のため、将来 Herdr/Orca 以外の新しいツールが別の home 配下ディレクトリに worktree を作るようになった場合、そのツール用のパスを都度この許可リストへ追加する必要がある（自動追従はしない）。
 - `worktree-gc-fanout.sh` を明示的に実行しない限り既存動作は変わらないため、本 ADR は単一repo緊急GCの既存利用フローには影響しない。
 

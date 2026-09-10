@@ -103,6 +103,24 @@ done
   exit 2
 }
 
+# Canonicalize the three scan roots up front (fall back to the literal value
+# if resolution fails, e.g. the dir doesn't exist yet). `git worktree list`
+# always reports canonical paths; comparing them against an unresolved root
+# would fail-open on any symlink component the same way the original
+# is_busy_dir bug did (PR #281 review: symlinked --herdr-root/--orca-root
+# would let a live, dirty worktree be misclassified as an orphan and removed
+# without the dirty/unique-commit/open-PR guards).
+canonicalize_root() {
+  local var_name="$1" current resolved
+  current="${!var_name}"
+  if resolved=$(readlink -f "$current" 2>/dev/null); then
+    printf -v "$var_name" '%s' "$resolved"
+  fi
+}
+canonicalize_root GHQ_ROOT
+canonicalize_root HERDR_ROOT
+canonicalize_root ORCA_ROOT
+
 ENGINE_EXTRA_ARGS=()
 if [ -n "$SELF_SESSION" ]; then
   ENGINE_EXTRA_ARGS+=(--self-session "$SELF_SESSION")
@@ -272,17 +290,54 @@ warn_basename_collisions() {
   done
 }
 
+# True iff $1 is missing, or every entry directly under it is either
+# registered to $2 (per `git worktree list`) or dangling (no live parent at
+# all -- handled separately by dangling_candidates, safe to leave alone
+# here). False means some OTHER, still-live repository owns an entry under
+# $1: worktree-gc.sh's own orphan sweep (unmodified) would otherwise treat
+# that foreign, live worktree as $2's orphan and remove it on age alone, no
+# dirty/unique-commit/open-PR guard (PR #281 review: a Herdr/Orca worktree
+# whose real parent repo lives outside --ghq-root, but happens to share a
+# basename with a discovered ghq repo, was invisible to the basename-count
+# check below since only *discovered* repos were ever counted).
+external_root_owned_by_repo() {
+  local dir="$1" repo="$2" registered entry
+  [ -d "$dir" ] || return 0
+  registered=$(git -C "$repo" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
+  while IFS= read -r entry; do
+    if printf '%s\n' "$registered" | grep -q -F -x "$entry"; then
+      continue
+    fi
+    if is_dangling_worktree "$entry"; then
+      continue
+    fi
+    return 1
+  done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+  return 0
+}
+
 # --roots for one ghq repo. Falls back to repo-local roots only (no
 # --herdr-root/--orca-root augmentation) when the repo's basename collides
-# with another discovered repo: worktree-gc.sh's own orphan sweep (unmodified)
+# with another discovered repo, or when a herdr/orca directory named after
+# this repo's basename actually contains a worktree owned by some OTHER,
+# still-live repository: worktree-gc.sh's own orphan sweep (unmodified)
 # treats anything under a root that isn't registered to the *current* --repo
 # as an orphan and removes it on age alone (no dirty/unique-commit/open-PR
-# guard). Two repos sharing a basename would otherwise let one repo's GC run
-# delete the other's live worktrees (found in code review).
+# guard). Two repos sharing a basename -- discovered under --ghq-root or
+# not -- would otherwise let one repo's GC run delete the other's live
+# worktrees (found in code review).
 safe_roots_for() {
-  local repo="$1" base
+  local repo="$1" base herdr_dir orca_dir
   base=$(basename "$repo")
   if [ "${BASENAME_COUNT[$base]:-0}" -gt 1 ]; then
+    printf '%s\n' "$REPO_ROOTS"
+    return 0
+  fi
+  herdr_dir="$HERDR_ROOT/$base"
+  orca_dir="$ORCA_ROOT/$base"
+  if ! external_root_owned_by_repo "$herdr_dir" "$repo" ||
+    ! external_root_owned_by_repo "$orca_dir" "$repo"; then
+    echo "foreign worktree found under a same-named external root, disabling it for '$base' ($repo)" >&2
     printf '%s\n' "$REPO_ROOTS"
     return 0
   fi
