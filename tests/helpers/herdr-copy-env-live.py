@@ -54,6 +54,22 @@ def wait(fn):
     raise AssertionError("timed out")
 
 
+def stop_server(server):
+    try:
+        run([*herdr, "server", "stop"], check=False)
+    finally:
+        try:
+            server.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            server.terminate()
+            try:
+                server.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                server.kill()
+                server.wait()
+            raise
+
+
 def repo(name):
     path = output / name
     run(["git", "init", "-qb", "main", str(path)])
@@ -100,7 +116,7 @@ with (output / "server.log").open("w") as log:
             target = output / f"worktree {index}"
             api("worktree", "create", "--cwd", primary, "--path", target,
                 "--branch", "test/copy", "--no-focus")
-            entry = wait(lambda: next((item for item in api("plugin", "log", "list")["logs"]
+            entry = wait(lambda previous=previous: next((item for item in api("plugin", "log", "list")["logs"]
                          if item["log_id"] not in previous and item["status"] in ("succeeded", "failed")), None))
             assert entry["status"] == "succeeded" and entry["exit_code"] == 0, entry
             if index < 2:
@@ -120,11 +136,5 @@ with (output / "server.log").open("w") as log:
         assert not api("plugin", "list", "--json")["plugins"][0]["enabled"]
         (output / "results.json").write_text(json.dumps(results, indent=2))
     finally:
-        run([*herdr, "server", "stop"], check=False)
-        try:
-            server.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            server.terminate()
-            server.wait(timeout=10)
-            raise
+        stop_server(server)
 print(f"PASS: offline registration, relocation, disable preservation, global events; evidence: {output}")

@@ -35,7 +35,7 @@ SH
 }
 
 run_setup() {
-  run bash "$PROJECT_ROOT/run_after_setup-herdr.sh"
+  run "${HERDR_SETUP_BASH:-bash}" "$PROJECT_ROOT/run_after_setup-herdr.sh"
 }
 
 set_existing() {
@@ -138,4 +138,25 @@ set_existing() {
   PATH="${PATH#*:}" run python3 "$PROJECT_ROOT/tests/helpers/herdr-copy-env-live.py"
   printf '%s\n' "$output"
   [ "$status" -eq 0 ]
+}
+
+@test "live helper reaps servers after stop and termination failures" {
+  run python3 -B "$PROJECT_ROOT/tests/helpers/herdr-copy-env-cleanup.py"
+  printf '%s\n' "$output"
+  [ "$status" -eq 0 ]
+}
+
+# Reproduce with HERDR_SETUP_BASH=/absolute/path/to/bash-3.2 bats tests/run_after_setup-herdr.bats.
+@test "Bash 3.2 registers empty arguments and preserves disabled relocation" {
+  [ -n "${HERDR_SETUP_BASH:-}" ] || skip "opt in with HERDR_SETUP_BASH pointing to Bash 3.2"
+  run "$HERDR_SETUP_BASH" -c 'test "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" = 3.2'
+  [ "$status" -eq 0 ]
+  run_setup
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <"$TEST_LINK_LOG")" -eq 3 ]
+  set_existing "$BATS_TEST_TMPDIR/old source/.herdr" false
+  run_setup
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.result.plugins[0].enabled' "$TEST_PLUGIN_STATE")" = false ]
+  [ "$(wc -l <"$TEST_LINK_LOG")" -eq 7 ]
 }

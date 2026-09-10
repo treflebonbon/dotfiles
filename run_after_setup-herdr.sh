@@ -44,4 +44,4 @@ if [ "$count" -eq 1 ]; then
     args+=(--disabled)
   fi
 fi
-herdr plugin link "$plugin_root" "${args[@]}"
+herdr plugin link "$plugin_root" ${args[@]+"${args[@]}"}
