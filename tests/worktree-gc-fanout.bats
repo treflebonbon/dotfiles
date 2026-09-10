@@ -261,11 +261,13 @@ EOF
   mkdir -p "$herdr_real"
   ln -s "$herdr_real" "$herdr_link"
   git -C "$repo" worktree add -q -b feature-x "$herdr_link/myrepo/feature-x"
-  age_dir "$herdr_real/myrepo/feature-x"
   # dirty にしておく: 誤って「孤児」判定された場合、orphan削除はage判定のみで
   # dirtyガードが効かないため実際に削除されてしまい、正規化の有無で結果が
-  # 分かれる。
+  # 分かれる。ディレクトリへのファイル追加はmtimeを更新するため、age_dir は
+  # dirty化の後に呼ぶ(順序を誤ると常に「新しい」と判定され、この回帰テストが
+  # 意図した分岐を検証できなくなる)。
   echo dirty >"$herdr_real/myrepo/feature-x/untracked.txt"
+  age_dir "$herdr_real/myrepo/feature-x"
 
   run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply \
     --ghq-root "$ghq_root" --herdr-root "$herdr_link" --orca-root "$orca" --age-days 7
@@ -288,9 +290,11 @@ EOF
 
   # basenameは同じ "samename" だが ghq 配下ではない別の生きたリポジトリが、
   # 同じ herdr ディレクトリ配下に自分の worktree を持っている(dirty)。
+  # age_dir はディレクトリへのファイル追加(dirty化)の後に呼ぶ(順序を誤ると
+  # mtimeが更新され「新しい」扱いになる)。
   git -C "$foreign_repo" worktree add -q -b foreign-feature "$herdr/samename/foreign-feature"
-  age_dir "$herdr/samename/foreign-feature"
   echo dirty >"$herdr/samename/foreign-feature/untracked.txt"
+  age_dir "$herdr/samename/foreign-feature"
 
   run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply \
     --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
