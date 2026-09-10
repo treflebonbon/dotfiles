@@ -295,6 +295,149 @@ EOF
   assert_output --partial "fanout done removed=0"
 }
 
+@test "is_older_than_days: GNU stat で古いパスを古いと判定する" {
+  stub_real_cmd stat
+  stub_real_cmd date
+  local old_path="$BATS_TEST_TMPDIR/old-dir"
+  mkdir -p "$old_path"
+  touch -d '2001-09-09' "$old_path"
+  run /usr/bin/env -i \
+    PATH="$TEST_BIN_DIR:/usr/bin:/bin" \
+    TEST_LOG="$TEST_LOG" \
+    /bin/bash -c "
+      $(extract_function "$SRC" is_older_than_days)
+      is_older_than_days '$old_path' 7
+    "
+  assert_success
+}
+
+@test "is_older_than_days: 作成直後のパスは古いと判定しない" {
+  local fresh_path="$BATS_TEST_TMPDIR/fresh-dir"
+  mkdir -p "$fresh_path"
+  run_pure_function is_older_than_days "$fresh_path" 7
+  assert_failure
+}
+
+@test "is_busy_dir: 候補パスがsymlink経由でも、実体のcwdを検出する(fail-open回帰テスト)" {
+  mkdir -p "$BATS_TEST_TMPDIR/real/wt"
+  ln -s "$BATS_TEST_TMPDIR/real" "$BATS_TEST_TMPDIR/link"
+  (
+    cd "$BATS_TEST_TMPDIR/real/wt" || exit 1
+    exec sleep 30
+  ) &
+  local pid=$!
+  for _ in $(seq 1 50); do
+    if [ "$(readlink -f "/proc/$pid/cwd" 2>/dev/null)" = "$(readlink -f "$BATS_TEST_TMPDIR/real/wt")" ]; then
+      break
+    fi
+    sleep 0.05
+  done
+  # symlink 経由の(未解決の)パスを渡しても検出できなければならない。
+  run_pure_function is_busy_dir "$BATS_TEST_TMPDIR/link/wt"
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  assert_success
+}
+
+@test "統合: basenameが衝突する2repoは herdr 外部rootの付与を無効化し警告する" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local herdr="$BATS_TEST_TMPDIR/herdr"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  local repo_a="$ghq_root/host/org-a/myrepo"
+  local repo_b="$ghq_root/host/org-b/myrepo"
+  make_ghq_repo "$repo_a"
+  make_ghq_repo "$repo_b"
+  git -C "$repo_a" worktree add -q -b feature-a "$herdr/myrepo/from-a"
+  age_dir "$herdr/myrepo/from-a"
+
+  run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --diagnose \
+    --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
+  assert_success
+  assert_output --partial "basename collision, external roots disabled for 'myrepo'"
+  refute_output --partial "$herdr/myrepo/from-a"
+}
+
+@test "統合: --max-report を絞ってもプロセス検出ガードは全候補を見て保護する" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local herdr="$BATS_TEST_TMPDIR/herdr"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  local repo="$ghq_root/host/org/myrepo"
+  make_ghq_repo "$repo"
+  git -C "$repo" worktree add -q -b feature-x "$herdr/myrepo/feature-x"
+  git -C "$repo" worktree add -q -b feature-y "$herdr/myrepo/feature-y"
+  age_dir "$herdr/myrepo/feature-x"
+  age_dir "$herdr/myrepo/feature-y"
+
+  # feature-y (2件目に作成) を稼働中にする。--max-report 1 で先頭1件しか
+  # 見えない実装であれば、feature-y のビジー状態を見逃して削除してしまう。
+  (
+    cd "$herdr/myrepo/feature-y" || exit 1
+    exec sleep 30
+  ) &
+  local pid=$!
+  for _ in $(seq 1 50); do
+    if [ "$(readlink -f "/proc/$pid/cwd" 2>/dev/null)" = "$(readlink -f "$herdr/myrepo/feature-y")" ]; then
+      break
+    fi
+    sleep 0.05
+  done
+
+  run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply --max-report 1 \
+    --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
+
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+
+  assert_success
+  [ -d "$herdr/myrepo/feature-x" ]
+  [ -d "$herdr/myrepo/feature-y" ]
+}
+
+@test "統合: --diagnose は --max-report で表示を絞っても total_candidates で真の件数を報告する" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local herdr="$BATS_TEST_TMPDIR/herdr"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  local repo="$ghq_root/host/org/myrepo"
+  make_ghq_repo "$repo"
+  git -C "$repo" worktree add -q -b feature-x "$herdr/myrepo/feature-x"
+  git -C "$repo" worktree add -q -b feature-y "$herdr/myrepo/feature-y"
+  age_dir "$herdr/myrepo/feature-x"
+  age_dir "$herdr/myrepo/feature-y"
+
+  run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --diagnose --max-report 1 \
+    --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
+  assert_success
+  assert_output --partial "total_candidates=2 shown=1"
+  # ヘッダ行 + 1データ行だけが標準出力に乗る。
+  local data_lines
+  data_lines=$(printf '%s\n' "$output" | grep -c '^repo	')
+  [ "$data_lines" -eq 1 ]
+}
+
+@test "統合: --max-removals は複数repoを跨いで累計され、上限で打ち切る" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local herdr="$BATS_TEST_TMPDIR/herdr"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  local repo1="$ghq_root/host/org/repo1"
+  local repo2="$ghq_root/host/org/repo2"
+  make_ghq_repo "$repo1"
+  make_ghq_repo "$repo2"
+  git -C "$repo1" worktree add -q -b feature-a "$herdr/repo1/feature-a"
+  git -C "$repo2" worktree add -q -b feature-b "$herdr/repo2/feature-b"
+  age_dir "$herdr/repo1/feature-a"
+  age_dir "$herdr/repo2/feature-b"
+
+  run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply --max-removals 1 \
+    --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
+
+  assert_success
+  assert_output --partial "fanout done removed=1"
+  local remaining=0
+  [ -d "$herdr/repo1/feature-a" ] && remaining=$((remaining + 1))
+  [ -d "$herdr/repo2/feature-b" ] && remaining=$((remaining + 1))
+  [ "$remaining" -eq 1 ]
+}
+
 @test "統合: 稼働中プロセスがある候補を含むrepoは丸ごと保護し削除しない" {
   local ghq_root="$BATS_TEST_TMPDIR/ghq"
   local herdr="$BATS_TEST_TMPDIR/herdr"

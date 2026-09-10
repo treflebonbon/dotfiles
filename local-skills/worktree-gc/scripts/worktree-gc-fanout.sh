@@ -108,6 +108,19 @@ if [ -n "$SELF_SESSION" ]; then
   ENGINE_EXTRA_ARGS+=(--self-session "$SELF_SESSION")
 fi
 
+# Effectively unlimited. Used for every internal --diagnose call this wrapper
+# makes for its own decisions (the busy-process guard, building the aggregate
+# report before applying our own --max-report display cap). worktree-gc.sh's
+# --max-report exists purely to bound what it *prints*; letting it also
+# silently truncate what THIS script sees would hide real remove-candidates
+# from the busy guard and from the aggregate report once a repo has more than
+# --max-report worktrees under scan — exactly the fd/inotify-exhaustion
+# scenario this tool exists for (found in code review).
+readonly ENGINE_REPORT_LIMIT=1000000
+
+GHQ_REPOS=()
+declare -A BASENAME_COUNT=()
+
 # ---------------------------------------------------------------------------
 # Pure helpers (unit-tested via extract_function in tests/worktree-gc-fanout.bats)
 # ---------------------------------------------------------------------------
@@ -185,7 +198,12 @@ skip_summary_and_header() {
 
 # Success iff a live process has $1 (or a path under it) as its cwd.
 is_busy_dir() {
-  local dir="$1" cwd_link resolved
+  local dir cwd_link resolved
+  # Canonicalize $1 too: /proc/<pid>/cwd always resolves to a canonical path,
+  # so comparing it against an unresolved $1 would fail-open (miss a busy
+  # process) whenever $1's path has a symlink component. Fall back to the
+  # literal argument if it can't be resolved (e.g. it no longer exists).
+  dir=$(readlink -f "$1" 2>/dev/null) || dir="$1"
   for cwd_link in /proc/[0-9]*/cwd; do
     [ -e "$cwd_link" ] || continue
     resolved=$(readlink -f "$cwd_link" 2>/dev/null) || continue
@@ -212,57 +230,137 @@ find_worktree_dirs() {
   find "$root" -mindepth 2 -maxdepth 2 -type d 2>/dev/null
 }
 
+# Prints dangling worktree dirs (age-gated) under $1. Shared by cmd_diagnose
+# and cmd_sweep so the two never drift apart on what counts as dangling.
+dangling_candidates() {
+  local root="$1" dir
+  while IFS= read -r dir; do
+    is_dangling_worktree "$dir" || continue
+    is_older_than_days "$dir" "$AGE_DAYS" || continue
+    printf '%s\n' "$dir"
+  done < <(find_worktree_dirs "$root")
+}
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
+# Populates GHQ_REPOS and BASENAME_COUNT once. Must run after arg parsing
+# (depends on $GHQ_ROOT) and before anything calls safe_roots_for.
+load_ghq_repos() {
+  local repo base
+  mapfile -t GHQ_REPOS < <(find_ghq_repos "$GHQ_ROOT")
+  BASENAME_COUNT=()
+  for repo in "${GHQ_REPOS[@]}"; do
+    base=$(basename "$repo")
+    BASENAME_COUNT["$base"]=$((${BASENAME_COUNT["$base"]:-0} + 1))
+  done
+  warn_basename_collisions
+}
+
+warn_basename_collisions() {
+  local base repo
+  for base in "${!BASENAME_COUNT[@]}"; do
+    if [ "${BASENAME_COUNT[$base]}" -gt 1 ]; then
+      echo "basename collision, external roots disabled for '$base':" >&2
+      for repo in "${GHQ_REPOS[@]}"; do
+        if [ "$(basename "$repo")" = "$base" ]; then
+          echo "  $repo" >&2
+        fi
+      done
+    fi
+  done
+}
+
+# --roots for one ghq repo. Falls back to repo-local roots only (no
+# --herdr-root/--orca-root augmentation) when the repo's basename collides
+# with another discovered repo: worktree-gc.sh's own orphan sweep (unmodified)
+# treats anything under a root that isn't registered to the *current* --repo
+# as an orphan and removes it on age alone (no dirty/unique-commit/open-PR
+# guard). Two repos sharing a basename would otherwise let one repo's GC run
+# delete the other's live worktrees (found in code review).
+safe_roots_for() {
+  local repo="$1" base
+  base=$(basename "$repo")
+  if [ "${BASENAME_COUNT[$base]:-0}" -gt 1 ]; then
+    printf '%s\n' "$REPO_ROOTS"
+    return 0
+  fi
+  repo_roots_for "$repo" "$HERDR_ROOT" "$ORCA_ROOT" "$REPO_ROOTS"
+}
+
 engine_diagnose() {
-  local repo="$1" roots="$2"
+  local repo="$1" roots="$2" report_limit="$3"
   bash "$ENGINE" --diagnose --repo "$repo" --roots "$roots" \
     --age-days "$AGE_DAYS" --locked-age-days "$LOCKED_AGE_DAYS" \
-    --max-report "$MAX_REPORT" "${ENGINE_EXTRA_ARGS[@]}" |
+    --max-report "$report_limit" "${ENGINE_EXTRA_ARGS[@]}" |
     skip_summary_and_header
 }
 
 # Success iff any remove-candidate for $1/$2 currently has a live process
-# sitting in it.
+# sitting in it, OR the diagnose call itself failed (fail-closed: an engine
+# we can't ask is treated as busy, matching worktree-gc.sh's own
+# "uncertainty protects" convention for its other guards).
 repo_has_busy_candidate() {
-  local repo="$1" roots="$2" decision reason scope branch wt
+  local repo="$1" roots="$2" decision reason scope branch wt rows
+  if ! rows=$(engine_diagnose "$repo" "$roots" "$ENGINE_REPORT_LIMIT"); then
+    return 0
+  fi
   while IFS=$'\t' read -r decision reason scope branch wt; do
     [ "$decision" = "remove-candidate" ] || continue
     if is_busy_dir "$wt"; then
       return 0
     fi
-  done < <(engine_diagnose "$repo" "$roots")
+  done <<<"$rows"
   return 1
 }
 
 diagnose_ghq_fanout() {
-  local repo roots decision reason scope branch wt
-  while IFS= read -r repo; do
-    roots=$(repo_roots_for "$repo" "$HERDR_ROOT" "$ORCA_ROOT" "$REPO_ROOTS")
+  local repo roots rows decision reason scope branch wt
+  for repo in "${GHQ_REPOS[@]}"; do
+    roots=$(safe_roots_for "$repo")
+    if ! rows=$(engine_diagnose "$repo" "$roots" "$ENGINE_REPORT_LIMIT"); then
+      echo "engine diagnose failed, skipping from aggregate report: $repo" >&2
+      continue
+    fi
     while IFS=$'\t' read -r decision reason scope branch wt; do
       [ "$decision" = "remove-candidate" ] || continue
       printf 'repo\t%s\t%s\t%s\t%s\t%s\n' "$reason" "$scope" "$branch" "$wt" "$repo"
-    done < <(engine_diagnose "$repo" "$roots")
-  done < <(find_ghq_repos "$GHQ_ROOT")
+    done <<<"$rows"
+  done
 }
 
 diagnose_dangling() {
   local root dir
   for root in "$HERDR_ROOT" "$ORCA_ROOT"; do
     while IFS= read -r dir; do
-      is_dangling_worktree "$dir" || continue
-      is_older_than_days "$dir" "$AGE_DAYS" || continue
       printf 'dangling\tdangling-parent\tin-root\t-\t%s\t-\n' "$dir"
-    done < <(find_worktree_dirs "$root")
+    done < <(dangling_candidates "$root")
   done
 }
 
+# Prints the full aggregate report (no truncation is possible upstream: every
+# engine_diagnose call above already uses ENGINE_REPORT_LIMIT, not
+# --max-report), then applies the user-facing --max-report cap to the
+# assembled list. Always reports the true total on stderr so a capped report
+# is never mistaken for the complete candidate set.
 cmd_diagnose() {
+  local rows=() row count=0
+  while IFS= read -r row; do
+    rows+=("$row")
+  done < <(
+    diagnose_ghq_fanout
+    diagnose_dangling
+  )
   printf 'source\treason\tscope\tbranch\tpath\trepo\n'
-  diagnose_ghq_fanout
-  diagnose_dangling
+  for row in "${rows[@]}"; do
+    if [ "$MAX_REPORT" -le 0 ] || [ "$count" -ge "$MAX_REPORT" ]; then
+      break
+    fi
+    printf '%s\n' "$row"
+    count=$((count + 1))
+  done
+  echo "total_candidates=${#rows[@]} shown=$count" >&2
 }
 
 # Shared by the default dry-run and --apply: only whether $APPLY is true (and
@@ -275,13 +373,13 @@ cmd_sweep() {
     engine_flags=(--apply)
   fi
 
-  while IFS= read -r repo; do
+  for repo in "${GHQ_REPOS[@]}"; do
     remaining=$(remaining_budget "$MAX_REMOVALS" "$global_used")
     if [ "$remaining" -le 0 ]; then
       echo "global max-removals reached ($MAX_REMOVALS), skipping: $repo" >&2
       continue
     fi
-    roots=$(repo_roots_for "$repo" "$HERDR_ROOT" "$ORCA_ROOT" "$REPO_ROOTS")
+    roots=$(safe_roots_for "$repo")
     if [ "$APPLY" = true ] && repo_has_busy_candidate "$repo" "$roots"; then
       echo "protected (busy process detected in a candidate): $repo" >&2
       continue
@@ -296,12 +394,10 @@ cmd_sweep() {
     printf '%s\n' "$out"
     removed=$(printf '%s\n' "$out" | sed -n 's/^done removed=\([0-9]*\)$/\1/p')
     global_used=$((global_used + ${removed:-0}))
-  done < <(find_ghq_repos "$GHQ_ROOT")
+  done
 
   for root in "$HERDR_ROOT" "$ORCA_ROOT"; do
     while IFS= read -r dir; do
-      is_dangling_worktree "$dir" || continue
-      is_older_than_days "$dir" "$AGE_DAYS" || continue
       remaining=$(remaining_budget "$MAX_REMOVALS" "$global_used")
       if [ "$remaining" -le 0 ]; then
         echo "global max-removals reached ($MAX_REMOVALS), skipping: $dir" >&2
@@ -318,11 +414,13 @@ cmd_sweep() {
       echo "removing dangling: $dir"
       rm -rf -- "$dir"
       global_used=$((global_used + 1))
-    done < <(find_worktree_dirs "$root")
+    done < <(dangling_candidates "$root")
   done
 
   echo "fanout done removed=$global_used"
 }
+
+load_ghq_repos
 
 if [ "$DIAGNOSE" = true ]; then
   cmd_diagnose

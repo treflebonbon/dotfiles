@@ -37,3 +37,5 @@ description: 緊急時に repo-local worktree (.claude/worktrees / .worktrees / 
 - 実削除前に稼働中プロセス（`/proc/*/cwd`）を検出し、該当する repo 呼び出し・dangling候補を丸ごと保護する（repo単位の粒度。同じ呼び出しに含まれる他の候補も道連れで保護される）。
 - `--max-removals`（既定50）は **実行全体** の上限。repo単位の上限ではない点が `worktree-gc.sh` 単体と異なる。
 - `~/ghq/` は削除対象ではなく列挙起点。実際に削除され得るのは各リポジトリの repo-local roots・`~/.herdr/worktrees/<repo>`・`~/orca/workspaces/<repo>`・dangling worktree のみ。
+- `--max-report`（既定50）は表示行数の上限に過ぎない。プロセス検出ガードや実削除対象の判定には常に全候補を使うため、`--max-report` を絞っても見落としは起きない。標準エラーの `total_candidates=N shown=M` 行で、表示件数とは別に真の候補総数を確認できる。
+- 2つの異なる ghq リポジトリが同じ basename を共有する場合、事故防止のため両方とも herdr/orca 外部rootの付与を無効化し（repo-local roots のみで継続）、標準エラーに `basename collision, external roots disabled for '<name>'` と警告する。

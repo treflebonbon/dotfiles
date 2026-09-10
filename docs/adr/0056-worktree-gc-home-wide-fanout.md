@@ -23,7 +23,7 @@ status: accepted
   - 実削除前に `/proc/*/cwd` 等で稼働中プロセスを検出し、該当ディレクトリを削除候補から除外する。既存の `SELF_SESSION` は自分自身のworktreeのみ保護し他の同時稼働セッション（別のHerdr/Orcaセッションが使用中のworktree）は守らないため、これを補う。
   - 複数repo + dangling分の診断結果を1つの一覧に集約し、1回の承認（AskUserQuestion）でまとめて apply する。
   - repo単位の既存 `--max-removals`（既定50、`worktree-gc.sh` 内蔵）とは別に、実行全体での上限キャップをラッパーに追加し、誤判定が複数repoへ同時波及した場合の暴走を防ぐ。
-- home幅広い fan-out はデフォルト動作にはせず、明示的に選ぶ別モード（`--scope=home` 相当のフラグ）とする。現行の単一repo緊急GCのデフォルト動作・トリガーフレーズ（「worktree cleanup」「fd 枯渇」「Too many open files」「worktree が溜まった」）は一切変更しない。
+- home幅広い fan-out はデフォルト動作にはせず、明示的に選ぶ別モードとする。実装上は `worktree-gc.sh` とは別の `worktree-gc-fanout.sh` を明示的に実行した場合にのみ発動し、フラグ1つで挙動が切り替わるわけではない。現行の単一repo緊急GCのデフォルト動作・トリガーフレーズ（「worktree cleanup」「fd 枯渇」「Too many open files」「worktree が溜まった」）は一切変更しない。
 
 ## Considered Options
 
@@ -35,8 +35,8 @@ status: accepted
 ## Consequences
 
 - `worktree-gc.sh` のテスト済みコアロジック（merge判定、SELF_SESSION、MAX_REMOVALS等）への差分がゼロのため、既存 bats テストへの影響がない。
-- 一方で `~/.herdr/worktrees/` と `~/orca/workspaces/` の basename が対応する ghq リポジトリ名と一致する、という命名規約に暗黙に依存する（現状の実データでは全て一致を確認済みだが、将来2つの異なるリポジトリが home 配下で同じ basename を共有するようになった場合は fan-out のマッピングが破綻する）。
+- 一方で `~/.herdr/worktrees/` と `~/orca/workspaces/` の basename が対応する ghq リポジトリ名と一致する、という命名規約に暗黙に依存する。異なる2つの ghq リポジトリが home 配下で同じ basename を共有した場合、`worktree-gc.sh` 本体（無改修）の孤児判定は「自リポジトリに未登録＝孤児」としか見ないため、素朴に実装すると他リポジトリの現存 worktree を dirty/unique-commit ガード無しで誤削除しかねない（code review で指摘）。そのためラッパー側で basename 衝突を検出し、衝突した basename については herdr/orca の外部ルート付与自体を無効化して repo-local roots のみにフォールバックし、警告を出す安全策を入れている。
 - 既知の外部ルートを許可リスト化する設計のため、将来 Herdr/Orca 以外の新しいツールが別の home 配下ディレクトリに worktree を作るようになった場合、そのツール用のパスを都度この許可リストへ追加する必要がある（自動追従はしない）。
-- `--scope=home` を明示しない限り既存動作は変わらないため、本 ADR は単一repo緊急GCの既存利用フローには影響しない。
+- `worktree-gc-fanout.sh` を明示的に実行しない限り既存動作は変わらないため、本 ADR は単一repo緊急GCの既存利用フローには影響しない。
 
 関連: [ADR-0004](0004-fill-mattpocock-gaps.md)（worktree-gc の local-skills 移植、緊急時手動GCのみの方針）/ `runtime/skill-harness.md`
