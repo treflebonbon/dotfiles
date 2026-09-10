@@ -10,7 +10,7 @@ timestamp: 2026-09-10
 
 ## Contract
 
-ユーザーの「パス長エラーの解消と再検証」「対応して」を受けた、PR #296 のフォローアップ。基点は merge commit `ce608b8b6b5127b238dbc267a60e1cc3cc06de8c`。
+ユーザーの「パス長エラーの解消と再検証」「対応して」を受けた、PR #296 のフォローアップ。基点は squash commit `ce608b8b6b5127b238dbc267a60e1cc3cc06de8c`。
 
 - AC1: Linux/WSL2 の隔離 gateway が、Unix socket 上限を超える一時ディレクトリでも起動し、既存の認可・拒否動作を維持する。
 - AC2: Playwright CLI の通常の一時パスが長くても、Dogfood の注釈接続・通信・終了が手動の TMPDIR 短縮なしで動作する。
@@ -40,6 +40,14 @@ Playwright CLI 0.1.19 の上流 `makeSocketPath` はファイル名をハッシ�
 | 実 bubblewrap namespace から gateway へ接続 | ホストのソケットパス231バイト、隔離内の短い mount から403応答を確認 |
 | Dogfood の注釈接続 | 修正前は186バイトの socket directory で失敗。修正パッケージで通常注釈・MV3注釈の2件PASS |
 | Playwright のソケット回帰テスト | 日本語を含む長いパス、セッション・親ディレクトリの分離、別プロセス IPC、0700、所有者、終了時の socket 削除、明示指定のエラーを確認 |
-| 全体回帰 | 実行中。完了後に件数と結果を追記する |
+| 全体回帰 | 682件完走、656実行PASS・19skip・WSL連携失敗7件、exit1（784.46秒）。`AF_UNIX path too long` / Playwrightのパス長エラーは0件。`full-result.json` / `full-regression.log` |
+
+全体回帰の7失敗は、`powershell.exe` の `UtilAcceptVsock:273: accept4 failed 110` が1件、その失敗でテスト用Chromeの終了・所有権解放ができず後続6件が所有権競合になったもの。失敗したrunのID・workspace・caller終了を確認し、そのrunの通常Cleanupとtokenを指定したreleaseで復旧した。
+
+同じ修正Nix package・同じtool versionsで、全体回帰のTMPDIRにさらに `dogfood-retry` を加え、影響7件だけを再実行した。**7/7 PASS・exit0（119.40秒）、終了後ownerはnull**。通常・MV3の注釈接続は両方とも長いTMPDIRで成功した。`dogfood-retry-result.json` / `dogfood-retry.log`。全体の初回exit1を成功扱いに書き換えず、再実行と分けて記録する。
+
+実行環境はNode24.19.0 / Python3.14.7 / Bats1.14.0、WSL2。Nix packageはx86_64-linux / aarch64-linux / aarch64-darwinで評価し、hostのWSL packageをbuildした。全体回帰で用いたTMPDIRは103バイトで、Batsが作る子ディレクトリを含めるとUnix socket上限を超える。tracked lockfilesは基点から変更なし。
+
+Standards / Specの2軸レビューを`ce608b8...3dba3a7`で実施。規約違反0、要件の重大指摘0。上流bundle更新時のpatch追随・directory FDの命名に軽微な注意があり、修正要求なし。Nixfmt、CJSのoxfmt/oxlint、pre-commitのgitleaks/oxfmt、commit-msgのcog verifyも通過した。
 
 macOS 実行は未確認。live source への `chezmoi apply` はこの修正ブランチから実行しない。
