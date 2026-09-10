@@ -65,6 +65,10 @@ let
         "tests/helpers/raw-codex.bash"
         "tests/devshell-env.bats"
         "tests/raw-codex-integration.bats"
+        "tests/human-validation.bats"
+        "tests/helpers/human-validation.py"
+        "tests/fixtures/secret-isolation/human-reviewed.py"
+        "tests/fixtures/secret-isolation/human-boundary.py"
         "tests/raw-codex-services.bats"
         "tests/isolated-github.bats"
         "tests/secret-isolation-gateway.bats"
@@ -175,7 +179,7 @@ pkgs.testers.runNixOSTest {
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
       "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
-      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/devshell-env.bats ${probeSource}/tests/raw-codex-integration.bats "
+      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/devshell-env.bats ${probeSource}/tests/raw-codex-integration.bats ${probeSource}/tests/human-validation.bats "
       "> /home/probe/raw-tests.log 2>&1'"
     )
     machine.copy_from_machine("/home/probe/raw-tests.log")

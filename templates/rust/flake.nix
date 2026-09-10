@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
     dotfiles = {
-      url = "github:treflebonbon/dotfiles/002085017c4260e3044156ab474823dad3bd1378";
+      url = "github:treflebonbon/dotfiles/b4931c5e0d2152e8fb89eba01b3ac130597e55b3";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

@@ -189,7 +189,9 @@ devshell-env untrust             # 次回の自動読込みから解除
 
 dotfiles の WSL2 開発では `nix develop .#wsl` を使います。Claude は後続 Bash に非秘密環境を反映し、flake 編集後は `devshell-env reload`。raw Codex は linked worktree の `codex-worktree` から準備し、編集後は再起動します。Codex Desktop／Orca native Codex に自動環境読込みは追加しません。
 
-dotenv が必要なコマンドは、人間は `nix run .#with-env -- command`、準備済み raw Codex は `with-env --prepared -- command` を使います。現在の root `.env` を対象コマンドと子だけに渡し、同名変数は起動元 → devShell → `.env` の順に優先します。Claude の dotenv 注入は対象外です。raw Codex 自身も root `.env` を読めるため、AI から秘密を隠す保証はありません。正式入口の準備失敗を直接実行で迂回しません。
+Linux／WSL2 の raw Codex は `devshell-env trust` と `devshell-env admit --git-head FULL_SHA -- FILES` で確認済みの公開入力を登録し、`codex-worktree` から秘密なしで起動します。ホスト dotenv と任意の継承変数は渡さず、通常変数・公開 fixture・ダミー値で `with-env --prepared -- command` を実行します。正式入口の準備失敗を直接実行で迂回しません。
+
+人間向け `nix run .#with-env -- command` は維持し、root `.env` を対象コマンドと子へ渡します。同名変数は起動元 → devShell → `.env` の順で優先します。実値が必要な検証では、[人間の実値検証手順](runtime/human-validation.md)に従い、確認済みの固定版を Codex がアクセスできない別環境で実行し、人間が確認した結果だけを共有します。既存セッション、直接起動、Desktop、Orca／Herdr native 起動、Claude に raw 入口の非開示保証を広げません。
 
 direnv 本体と既存 `.envrc` は残り、内容を確認したうえで `direnv allow .` / `direnv exec . command` を明示利用できます。[移行・更新・復旧の手順](runtime/shell-environment.md#既存-repo-の移行)と各言語テンプレートの `DEVELOPMENT.md` に、dev／test app への組込み例をまとめています。未 merge の source は実配備せず、受入後に live source で `chezmoi apply` して新しい端末を開きます。
 

@@ -152,7 +152,7 @@ raw Codex では `with-env --prepared -- <command> [args...]` が秘密なしの
 
 準備完了の情報は `DEVSHELL_ENV_CONTEXT` に root・repo identity・output・root の `flake.nix` / `flake.lock` の hash だけを保持する。値を持つ環境キャッシュではない。別 root・output・この2ファイルの変更を検出したら正式入口を失敗させ、再起動を要求する。import した Nix file なども含め、devShell を変更したら常に再起動する。この情報は再利用対象の照合用であり、agent による環境変数改変を防ぐ認証情報ではない。
 
-標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。実際の秘密が必要な検証は人間の明示した `with-env` で行う。
+標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。実際の秘密が必要な検証は、[人間の実値検証手順](human-validation.md)に従い、確認済みの固定版を Codex からアクセスできない別環境へ渡し、そこで人間が `with-env` を使う。コード・秘密・出力を分離し、人間が確認した結果だけを共有する。
 
 名前付き dev / test app へ組み込む例（対象 flake で dotfiles を input に持ち、system ごとの output を定義する箇所）:
 
@@ -179,7 +179,7 @@ in
 
 たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。Go・Rust・Elixir・Perl・Gleam・Bun のテンプレートにも共通の `with-env` app と devShell 内の同名コマンドを含めている。生成先で `nix flake lock` を実行して lock を Git に追加し、`nix develop .#default` / `nix run .#with-env -- command` を使う。言語別の dev / test 組込み例・信頼登録・明示再読込み・dotenv 移行は、生成物の `DEVELOPMENT.md` を参照する。テンプレートは browser を含まない `default` のみを持ち、WSL でも `.wsl-browser-free` なしで利用できる。別 output や marker を追加する場合は対応する devShell も定義する。
 
-人間は `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+人間の実値検証は別環境の固定版で `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
 
 ## Claude のプロジェクト開発環境
 
@@ -200,9 +200,9 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 ## 既存 repo の移行
 
 1. `.envrc` にだけ置かれた通常変数・ツール・非秘密の初期化を `flake.nix` の devShell（またはそこから import するファイル）へ移す。dotenv や秘密取得は shellHook に置かない。既存 `.envrc` は明示利用のために残せる。dotfiles と6テンプレートの既存 `.envrc` は flake と dotenv を呼ぶだけで、通常設定の追加移植は不要。
-2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保ち、必要な値は作業する root に人間が用意する。`with-env` は main・親・別 worktree を探索・コピーしない。
+2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保ち、ダミー値は公開 fixture にし、実値は人間の確認済み固定版を実行する別環境にだけ用意する。`with-env` は main・親・別 worktree を探索・コピーしない。
 3. 人間は上記の `nix develop` でツールと通常変数を確認する。AI 自動読込みを使う repo は `devshell-env trust` で一度登録し、`devshell-env status` で root・output・信頼を確認する。解除は `devshell-env untrust`。別 clone は別登録になる。
-4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は秘密なしの `with-env --prepared -- command` を使い、初回に上記の公開入力登録も行う。Claude は非秘密の devShell だけを使い、dotenv が必要な処理は人間側の入口で実行する。
+4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は秘密なしの `with-env --prepared -- command` を使い、初回に上記の公開入力登録も行う。Claude は非秘密の devShell だけを使い、実値が必要な処理は [人間の実値検証手順](human-validation.md)の別環境で実行する。
 5. 旧 hook が動く端末は終了し、受入・merge 後に live source で `chezmoi apply` してから新しい端末を開く。未 merge の task source は配備しない。通常変数とツール、明示更新、正式入口の失敗を確認する。
 
 従来の `.envrc` の `dotenv_if_exists .env` はシェル全体へ値を export していた。新しい注入は対象コマンドとその子に限定し、同名変数は起動元 → devShell → root `.env` の順で優先する。隔離された raw Codex はこの注入を行わず、起動元の秘密も継承しない。既存シェル・直接起動にはこの保証を適用しない。Claude の `.env` 注入・OS sandbox と Orca native Codex の自動読込みは対象外で、既存 permission は維持する。

@@ -1494,11 +1494,10 @@ EOF
   grep -Fq '"**/.env*" = "deny"' "$home/.codex/config.toml"
 }
 
-@test "Codex config migration restores root dotenv grants without weakening sandbox denies" {
+@test "Codex config migration keeps dotenv denied and public examples readable without a raw read grant" {
   local fixture_home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home path
-  local dotenv_grant='permissions.dotfiles-secure.filesystem={":workspace_roots"={".env"="read"}}'
   mkdir -p "$fixture_home/.codex" "$fixture_home/.codex-app" "$workspace/nested" "$fixture_home/other-repo"
   stage_codex_managed_config "$fixture_home"
   for path in .env .envrc .env.example .env.local nested/.env private.key credentials.json; do
@@ -1522,22 +1521,22 @@ EOF
       codex sandbox -P dotfiles-secure -C "$workspace" -- cat .env
     [ "$status" -ne 0 ]
 
-    for path in .env .envrc .env.example; do
+    for path in .envrc .env.example; do
       run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-        codex sandbox -P dotfiles-secure -C "$workspace" -c "$dotenv_grant" -- \
+        codex sandbox -P dotfiles-secure -C "$workspace" -- \
         sh -c 'test "$(cat "$1")" = fixture' _ "$path"
       [ "$status" -eq 0 ]
     done
 
     run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-      codex sandbox -P dotfiles-secure -C "$workspace" -c "$dotenv_grant" -- \
+      codex sandbox -P dotfiles-secure -C "$workspace" -- \
       sh -c 'printf overwritten >.env'
     [ "$status" -ne 0 ]
     [ "$(cat "$workspace/.env")" = fixture ]
 
-    for path in .env.local nested/.env private.key credentials.json "$fixture_home/other-repo/.env"; do
+    for path in .env .env.local nested/.env private.key credentials.json "$fixture_home/other-repo/.env"; do
       run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-        codex sandbox -P dotfiles-secure -C "$workspace" -c "$dotenv_grant" -- cat "$path"
+        codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$path"
       [ "$status" -ne 0 ]
     done
   done
