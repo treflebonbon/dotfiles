@@ -49,6 +49,7 @@ class Probe:
         self.results = {}
         self.sequence = 0
         self.copy_logs = {}
+        self.interactive_codex_home = None
 
     def run(self, arguments, cwd=None, check=True):
         result = subprocess.run(
@@ -430,6 +431,101 @@ done
         assert "not a linked Git worktree" in self.complete(log, status, expected=1)
         self.results["primary_checkout_refused"] = "passed"
 
+    def exercise_interactive(self):
+        self.api("plugin", "link", self.manifest.parent)
+        self.api("workspace", "create", "--cwd", self.repo, "--no-focus")
+        target, created = self.create("interactive")
+        self.copy_result(target)
+        self.public_inputs(target)
+        before = self.run(["git", "rev-parse", "HEAD"], target).stdout.strip()
+        pane = created["root_pane"]["pane_id"]
+        status = self.output / "interactive.status"
+        command = (
+            shlex.join([str(self.output / "bin/codex-worktree"), "--no-alt-screen"])
+            + f'; printf "%s\\n" "$?" > {shlex.quote(str(status))}'
+        )
+        self.api("pane", "run", pane, command)
+
+        def ready():
+            result = self.run([*self.herdr, "agent", "get", pane], check=False)
+            if result.returncode:
+                assert not status.exists(), "adapter exited before agent recognition"
+                return False
+            agent = json.loads(result.stdout)["result"]["agent"]
+            if agent["agent_status"] == "blocked":
+                raise AssertionError(
+                    "interactive agent blocked; inspect retained terminal evidence"
+                )
+            return agent if agent["agent_status"] in ("idle", "done") else False
+
+        try:
+            self.wait(ready, "interactive Codex recognition and readiness", 180)
+            prompt = (
+                "This is a dummy integration fixture, not a production repository. "
+                f"Verify cwd is {target}, branch is test/interactive, and HEAD is {before}. "
+                "Run git rev-parse --git-dir --git-common-dir and verify both directories are accessible. "
+                "Run python3 boundary.py interactive. Write handoff.json containing root, branch, "
+                "initial_head, git_dir, common_dir from the actual command results. "
+                "Run a Python assertion checking those values. Stage only handoff.json and commit "
+                "with message test: verify interactive worktree handoff. Do not modify other files. "
+                "Reply with the commit SHA and verification results, then wait."
+            )
+            self.run(
+                [
+                    *self.herdr,
+                    "agent",
+                    "prompt",
+                    pane,
+                    prompt,
+                    "--wait",
+                    "--timeout",
+                    "90000",
+                ]
+            )
+            assert ready(), "agent did not finish the handoff"
+            self.api("agent", "send-keys", pane, "ctrl+d")
+            self.wait(status.exists, "interactive Codex exit and result return", 60)
+            assert status.read_text().strip() == "0"
+            report = json.loads((target / "handoff.json").read_text())
+            assert report["root"] == str(target)
+            assert report["branch"] == "test/interactive"
+            assert report["initial_head"] == before
+            for field, option in (
+                ("git_dir", "--git-dir"),
+                ("common_dir", "--git-common-dir"),
+            ):
+                actual = self.run(
+                    ["git", "rev-parse", "--path-format=absolute", option], target
+                ).stdout.strip()
+                value = Path(report[field])
+                assert (
+                    value if value.is_absolute() else target / value
+                ).resolve() == Path(actual)
+            assert (
+                self.run(["git", "log", "-1", "--format=%s"], target).stdout.strip()
+                == "test: verify interactive worktree handoff"
+            )
+            assert (
+                self.run(["git", "show", "HEAD:handoff.json"], target).stdout.strip()
+                == (target / "handoff.json").read_text().strip()
+            )
+            self.results["interactive_handoff_and_git_commit"] = "passed"
+        finally:
+            result = self.run(
+                [
+                    *self.herdr,
+                    "pane",
+                    "read",
+                    pane,
+                    "--source",
+                    "recent-unwrapped",
+                    "--lines",
+                    "200",
+                ],
+                check=False,
+            )
+            (self.output / "interactive-terminal.txt").write_text(result.stdout)
+
     def stop_server(self, server):
         try:
             stopped = self.run([*self.herdr, "server", "stop"], check=False)
@@ -449,6 +545,15 @@ done
 
     def main(self):
         self.setup()
+        if self.interactive_codex_home is not None:
+            # Only the host gateway opens this link; auth.json is never admitted.
+            (self.home / ".codex/auth.json").symlink_to(
+                self.interactive_codex_home / "auth.json"
+            )
+            with (self.home / ".codex/config.toml").open("a") as config:
+                config.write(
+                    f'\n[projects.{json.dumps(str(self.repo))}]\ntrust_level = "trusted"\n'
+                )
         with (self.output / "server.log").open("w") as log:
             server = subprocess.Popen(
                 [*self.herdr, "server"],
@@ -468,7 +573,10 @@ done
                     "private Herdr server startup",
                     30,
                 )
-                self.exercise()
+                if self.interactive_codex_home is not None:
+                    self.exercise_interactive()
+                else:
+                    self.exercise()
             finally:
                 self.stop_server(server)
         report = {
@@ -479,7 +587,11 @@ done
             },
             "manifest_sha256": hashlib.sha256(self.manifest.read_bytes()).hexdigest(),
             "worktree_owner": "real Herdr worktree create",
-            "codex_execution": "real codex-worktree sandbox; no hosted model or external tool login",
+            "codex_execution": (
+                "interactive codex-worktree with host model gateway"
+                if self.interactive_codex_home is not None
+                else "real codex-worktree sandbox; no hosted model or external tool login"
+            ),
             "checks": self.results,
         }
         (self.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -489,7 +601,25 @@ done
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="opt in to a hosted model turn using the existing host ChatGPT login",
+    )
     arguments = parser.parse_args()
     # Herdr's UNIX socket must fit sockaddr_un even under a long Bats TMPDIR.
     with tempfile.TemporaryDirectory(prefix="h273-", dir="/tmp") as control:
-        Probe(arguments.output, Path(control)).main()
+        probe = Probe(arguments.output, Path(control))
+        if arguments.interactive:
+            probe.interactive_codex_home = Path(
+                os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+            ).resolve(strict=True)
+            if not (probe.interactive_codex_home / "auth.json").is_file():
+                parser.error(
+                    "interactive probe requires the existing host ChatGPT login"
+                )
+        try:
+            probe.main()
+        finally:
+            if arguments.interactive:
+                (probe.home / ".codex/auth.json").unlink(missing_ok=True)

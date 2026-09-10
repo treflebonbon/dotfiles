@@ -144,107 +144,20 @@ setup() {
   grep -Fq '要素指差しフィードバック機能' "$instructions"
 }
 
-@test "to-worktree is the non-Orca entry and fails closed inside an Orca primary checkout" {
-  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
-  local orca_gate_line unknown_runtime_gate_line git_inspection_line
-
-  grep -Fq 'Use this **Worktree Entry Point** outside Orca' "$skill"
-  orca_gate_line="$(grep -nF 'Before running any Git command, use runtime-provided session context' "$skill" | cut -d: -f1)"
-  unknown_runtime_gate_line="$(grep -nF 'If runtime self-identification is unavailable' "$skill" | cut -d: -f1)"
-  git_inspection_line="$(grep -nF "Inspect the target repository's physical top level" "$skill" | cut -d: -f1)"
-  [ -n "$orca_gate_line" ]
-  [ -n "$unknown_runtime_gate_line" ]
-  [ -n "$git_inspection_line" ]
-  [ "$orca_gate_line" -lt "$git_inspection_line" ]
-  [ "$unknown_runtime_gate_line" -lt "$git_inspection_line" ]
-  grep -Fq 'stop before repository inspection' "$skill"
-  grep -Fq '**Existing linked worktree**' "$skill"
-  grep -Fq '**Orca guard**' "$skill"
-  grep -Fq 'runtime self-identification' "$skill"
-  grep -Fq 'Orca native worktree' "$skill"
-  grep -Fq 'launching its built-in' "$skill"
-  grep -Fq 'agent from the Agent Picker' "$skill"
-  grep -Fq "Orca owns that agent's permission mode" "$skill"
-  grep -Fq 'new agent session' "$skill"
-  grep -Fq 'Do not invoke Orca CLI or raw Git' "$skill"
-  grep -Fq 'Do not probe `ORCA_*` environment variables' "$skill"
-  ! grep -Fq '`orca-cli` skill' "$skill"
-  ! grep -Fq 'creation and full handoff through Orca' "$skill"
-  grep -Fq '**Codex Desktop**' "$skill"
-  grep -Fq '**Claude Code**' "$skill"
-  grep -Fq '**raw Codex CLI**' "$skill"
-  grep -Fq '`EnterWorktree`' "$skill"
-  grep -Fq '`codex-worktree`' "$skill"
-  grep -Fq 'fresh session' "$skill"
-  grep -Fq 'do not relaunch the agent through `codex-orca` or `codex-worktree`' "$skill"
-}
-
-@test "to-worktree preserves the caller checkout and never reuses another worktree" {
-  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
-
-  grep -Fq 'caller `HEAD`' "$skill"
-  grep -Fq 'Do not fetch' "$skill"
-  grep -Fq 'Leave every parent change untouched' "$skill"
-  grep -Fq 'Reuse only the current linked worktree' "$skill"
-  grep -Fq 'same-topic worktree at any other path is a conflict' "$skill"
-}
-
-@test "to-worktree anchors raw Codex CLI creation to the repository physical top level" {
-  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
-
-  grep -Fq 'git -C <physical-top-level> worktree add <physical-top-level>/.worktrees/<topic> -b <type>/<topic> HEAD' "$skill"
-  grep -Fq 'same absolute physical top level for `-C` and the destination' "$skill"
-  grep -Fq '同じ absolute physical top level を `git -C` と destination の両方に使う1 commandの成功を完了条件' "$RUNTIME"
-}
-
-@test "to-worktree stops when the exact raw Codex creation command is rejected" {
-  local skill="$PROJECT_ROOT/local-skills/to-worktree/SKILL.md"
-
-  grep -Fq 'runtime rejects this exact command, treat the branch as terminally blocked' "$skill"
-  grep -Fq 'overrides any general suggestion to retry with alternate Git syntax' "$skill"
-  grep -Fq 'no further worktree command, file write, or workflow phase is authorized' "$skill"
-}
-
-@test "instruction layers align Worktree Entry Point ownership without merging runtime guidance" {
-  local agents="$PROJECT_ROOT/AGENTS.md"
-
-  grep -Fq 'Worktree Entry Point は validated task worktree' "$agents"
-  grep -Fq 'Orca native worktree' "$agents"
-  grep -Fq 'Agent Picker' "$agents"
-  grep -Fq 'current checkout が linked worktree か read-only に検証' "$agents"
-  grep -Fq 'primary checkout' "$agents"
-  grep -Fq '新しい agent session' "$agents"
-  grep -Fq '非 Orca runtime では `/to-worktree`' "$agents"
-  grep -Fq '同じ checkout' "$agents"
-
-  for instructions in "$PROJECT_ROOT/CLAUDE.md"; do
-    grep -Fq 'Worktree Entry Point は共通の入口契約' "$instructions"
-    grep -Fq 'Orca では agent session を始める前に Orca native worktree' "$instructions"
-    grep -Fq 'Agent Picker から built-in agent' "$instructions"
-    grep -Fq '自律 workflow は shipped Yolo' "$instructions"
-    grep -Fq 'Manual と Orca Source Control' "$instructions"
-    grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$instructions"
-    grep -Fq 'OS sandbox ではない' "$instructions"
-    grep -Fq '信頼できる repository / host' "$instructions"
-    grep -Fq '非 Orca runtime では `/to-worktree`' "$instructions"
-    grep -Fq 'local file の変更につながる engineering flow' "$instructions"
-    grep -Fq 'primary checkout' "$instructions"
-    grep -Fq 'read-only' "$instructions"
-    grep -Fq '新しい agent session' "$instructions"
-    grep -Fq '同じ checkout' "$instructions"
-    ! grep -Fq '`orca-cli` の version-matched native create / full handoff' "$instructions"
+@test "native worktree guidance replaces the retired entry skill" {
+  [ ! -e "$PROJECT_ROOT/local-skills/to-worktree" ]
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq 'runtime/skill-harness.md' "$instructions"
+    run grep -Fq '/to-worktree' "$instructions"
+    [ "$status" -eq 1 ]
   done
-
-  grep -Fq 'runtime 自己認識' "$RUNTIME"
-  grep -Fq '`ORCA_*` environment の汎用判定' "$RUNTIME"
-  grep -Fq 'Orca primary checkout' "$RUNTIME"
-  grep -Fq 'Orca CLI や raw Git を呼ばず' "$RUNTIME"
-  grep -Fq 'Worktree Entry Point（Orca native または `to-worktree`）→ `grill-with-docs`' "$RUNTIME"
-  grep -Fq '**Orca native agent launch**' "$RUNTIME"
-  grep -Fq '**Codex Runtime Adapter（raw CLI only）**' "$RUNTIME"
-  grep -Fq 'Orca native session の entry / activation には使わない' "$RUNTIME"
-  grep -Fq '`EnterWorktree`' "$PROJECT_ROOT/CLAUDE.md"
-  ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
+  run grep -Fq '/to-worktree' "$RUNTIME"
+  [ "$status" -eq 1 ]
+  grep -Fq '### Worktree の開始と復旧' "$RUNTIME"
+  grep -Fq '**owner 側でも検証不能**' "$RUNTIME"
+  grep -Fq '**owner 側では有効、子から参照不能**' "$RUNTIME"
+  grep -Fq '子が自分の環境で再検証に成功してから' "$RUNTIME"
+  grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$RUNTIME"
 }
 
 @test "ADR-0046 uses Orca built-in Codex launch and keeps the adapter outside Orca" {

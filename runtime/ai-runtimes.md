@@ -195,7 +195,7 @@ APM 経路の lockfile は `apm lock` ではなく **`apm install` の生成物*
 
 2026-07-08、v2.1.204 の release note（`SessionStart` hook がヘッドレスセッションでイベントをストリーミングせず、リモートワーカーが hook 実行中に idle-reap してしまう不具合の修正）をきっかけに `nix flake update llm-agents` を実施し、claude-code 2.1.201 → 2.1.204 が追従（他の消費パッケージは変化なし）。今回は 2.1.201 のときと異なり、2.1.202-2.1.204 の変更点を確認した結果、この repo の床根拠（多 agent ワークフロー・worktree 隔離の信頼性）に直撃する修正が複数見つかったため、フロアを `2.1.200` → `2.1.204` へ引き上げた:
 
-- worktree 隔離済み subagent が親 checkout でコマンドを実行してしまうバグ修正（2.1.203）— `to-worktree` が前提とする隔離保証そのものに関わる
+- worktree 隔離済み subagent が親 checkout でコマンドを実行してしまうバグ修正（2.1.203）— task worktree の隔離保証そのものに関わる
 - background daemon の auto-upgrade 失敗が実行中の全 background session を巻き添えに停止させるバグ修正（2.1.203）
 - `claude agents` 復帰時に実行中の subagent を無言で停止し最初からやり直すバグ修正（2.1.203）
 - 多数の git worktree を持つリポジトリでの `resuming a session` の遅延/メモリ肥大（2.1.202）、`Bash` の "argument list too long" 失敗（2.1.203）の修正 — `worktree-gc` が対象とする状況と重なる
@@ -343,7 +343,7 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 以下は release 更新時の認識記録であり、現在の managed settings は上記「Claude Code / Codex マルチランタイム」を正とする。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
 
 - **subagent が既定で background 実行**（2.1.198）— 委譲中も本流が進み完了通知が来る。`teammateMode: auto` と整合。
-- **worktree 完了時に自動 commit / push / draft PR**（2.1.198）— `claude agents` 起動の background agent は worktree でのコード作業を終えると停止して尋ねず自動で draft PR を開く。`to-worktree` → `to-pr` の想定と重なるので二重 PR に注意。
+- **worktree 完了時に自動 commit / push / draft PR**（2.1.198）— `claude agents` 起動の background agent は worktree でのコード作業を終えると停止して尋ねず自動で draft PR を開く。native worktree での作業と `to-pr` の想定が重なるので二重 PR に注意。
 - **stacked slash-skill が先頭 5 個までロード**（2.1.199）— `/skill-a /skill-b ...` で先頭 skill だけでなく先頭 5 個を全ロード。user-invoked チェーンの連結起動に効く。
 - **subagent の error 伝搬修正**（2.1.199）— rate-limit / API error を「成功」と誤報せず親へ正確に伝える。多 agent 実行の信頼性が上がる。
 - **Explore agent が main model を継承**（opus cap, 2.1.198）／**`/agents` wizard 削除**（`.claude/agents/` 直接編集 or Claude に依頼）。
@@ -351,7 +351,7 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 - **AskUserQuestion がアイドルでも既定で自動継続しなくなった**（2.1.200）— `CLAUDE_AFK_TIMEOUT_MS` でアイドル自動継続へオプトイン可能だが、選択は自分で行いたいため意図的に設定せず、既定（自動継続しない）のままにしている。
 - **background session の安定化**（2.1.200）— sleep/resume 後や stale セッション再開時の途中終了、stale daemon による乗っ取りを修正。
 - **`/review <pr>` が単一パスに戻り、複数エージェントレビューは `/code-review <level> <pr#>` に変更**（2.1.202）— `code-review` は Claude Code 本体の built-in skill 名でもあり、この repo は同名の `code-review` skill（mattpocock 経由 vendored、`~/.claude/skills/code-review`）を導入済み。2.1.204 バイナリの文字列解析で「同名の project skill は built-in skill を完全に shadow する（例外は project-specific な追記を許す `verify` のみ）」という設計文言を確認済み。`code-review` は例外に含まれないため、この repo の `/code-review` は常にこの repo 自身の Standards/Spec レビュー skill が実行され、ネイティブの multi-agent ultra-review には衝突しない。
-- **worktree 隔離済み subagent が親 checkout でコマンドを実行してしまう不具合を修正**（2.1.203）— `to-worktree` が前提とする隔離保証そのものに関わるバグ。
+- **worktree 隔離済み subagent が親 checkout でコマンドを実行してしまう不具合を修正**（2.1.203）— task worktree の隔離保証そのものに関わるバグ。
 - **background daemon の auto-upgrade 失敗が実行中の全 background session を巻き添えに停止させる不具合を修正**（2.1.203）。
 - **`claude agents` 復帰時に実行中の subagent を無言で停止し最初からやり直してしまう不具合を修正**（2.1.203）— 進行中の作業が黙って失われる問題。
 - **多数の git worktree を持つ repo でのセッション再開の遅延/メモリ肥大**（2.1.202）・**`Bash` の "argument list too long" 失敗**（2.1.203）を修正 — `worktree-gc` が対象とする「worktree が溜まった」状況と重なる。
@@ -360,7 +360,7 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 - **auto mode が session transcript file の改ざんをブロック**（2.1.205）— transcript 上の偽承認や履歴改ざんを前提にした権限逸脱を防ぐ方向の修正。
 - **background agent の状態表示・attach・PR linking を修正**（2.1.205）— resumed agent が failed/completed のまま残る表示、mid-upgrade restart 中の `claude attach` error、30K inline limit を超える Bash output 内で作られた PR の session linking 漏れに対応。
 - **Windows worktree removal / file watcher crash を修正**（2.1.205）— worktree 内の NTFS junction / directory symlink で worktree 外を削除する事故、directory scan 中に watcher が閉じた場合の crash を修正。
-- **`EnterWorktree` が `.claude/worktrees/` 外への進入時に確認を挟むよう変更**（2.1.206）— `to-worktree` / Orca worktree 以外の場所へ誤って worktree を作る事故を防ぐ方向の変更。
+- **`EnterWorktree` が `.claude/worktrees/` 外への進入時に確認を挟むよう変更**（2.1.206）— native 管理外の既存 worktree へ進入する際の確認に関わる変更。
 - **background agent が Claude Code 更新直後にバックグラウンドで即時アップグレードされるよう変更**（2.1.206）— attach 時の stale-session upgrade 待ちを解消。
 - **agent teams で不正な teammate mailbox メッセージによる crash loop を修正**（2.1.207）— 1 秒おきにエラーを繰り返しメールボックスファイルの手動削除が必要だった不具合。`teammateMode: auto` を使うこの repo に直撃する。
 - **background session が git worktree 内で resume した状態から cold reopen した際に空表示になる不具合を修正**（2.1.207）。

@@ -426,6 +426,7 @@ def validate_codex_arguments(arguments):
     expect_profile = False
     prohibited_long = {
         "--cd",
+        "--worktree",
         "--config",
         "--enable",
         "--disable",

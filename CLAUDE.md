@@ -18,7 +18,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 ## 設計→実装ワークフロー
 
-Worktree Entry Point は共通の入口契約とし、1つの作業では1つの隔離 worktree を使う。Orca では agent session を始める前に Orca native worktree を作成・選択し、Agent Picker から built-in agent を起動する。permission mode は Orca の設定に委ね、自律 workflow は shipped Yolo、権限確認を残す場合は Manual と Orca Source Control を使う。Orca native Codex は `codex-orca` / `codex-worktree` を使わない。worktree isolation は変更の review / recovery 境界であり OS sandbox ではないため、Yolo は信頼できる repository / host に限る。非 Orca runtime では `/to-worktree` を使う。Orca で local file の変更につながる engineering flow を始める際は current checkout が linked worktree か read-only に検証し、primary checkout なら編集や外部書込みを始めず、Orca native worktree から新しい agent session を開始するよう案内する。説明や state を変更しない read-only 調査は primary checkout でもよい。Claude Code の新規作成は `EnterWorktree` に委ねる。以降の skill は同じ checkout で連続実行する。
+実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
 
 - 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`
 - 要件確定済み: `implement` → `to-pr`

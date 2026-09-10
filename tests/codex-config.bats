@@ -81,7 +81,7 @@ assert_codex_worktree_rejects_boundary_argument() {
 
 @test "codex-worktree launches actual Codex at the fixed root with only active Git metadata writable" {
   raw_fixture
-  cat > "$RAW_BASE/work/task.sh" <<'SH'
+  cat >"$RAW_BASE/work/task.sh" <<'SH'
 set -eu
 test -z "${GIT_DIR+x}${GIT_COMMON_DIR+x}${GIT_WORK_TREE+x}${CODEX_PERMISSION_PROFILE+x}"
 test -f flake.nix
@@ -219,6 +219,10 @@ PYTHON
     features enable network_proxy
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     exec --sandbox danger-full-access prompt
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --worktree
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+    --worktree=other
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
     --dangerously-bypass-approvals-and-sandbox
   assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \

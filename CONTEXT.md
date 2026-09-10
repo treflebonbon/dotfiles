@@ -56,9 +56,9 @@
 
 **Environment Contract File**: Repository に追跡され、workspace が必要とする環境変数名と導出規則を秘密値なしで共有するファイル。実値を保持する credential や secret file とは区別する。 _Avoid_: env file, dotenv, secret file
 
-**Worktree Owner**: task の worktree を作成・選択し、workflow の全 phase を同じ checkout に留める責務を持つ実行環境。Orca session、Codex native worktree、Claude Code では各 runtime がこの責務を持ち、raw CLI では host 側の起動境界が担う。 _Avoid_: worktree launcher, worktree tool, checkout owner
+**Worktree Owner**: task の worktree を作成・選択し、workflow の全 phase を同じ checkout に留める責務を持つ実行環境。Herdr、Orca、Claude Code、Codex の native 機構がこの責務を持つ。 _Avoid_: worktree launcher, worktree tool, checkout owner
 
-**Worktree Entry Point**: workflow を validated task worktree から始めるための共通の入口契約。Orca では native worktree の作成・選択と built-in agent の起動がこの契約を満たし、非 Orca runtime では `/to-worktree` が Worktree Owner へ処理を振り分ける。 _Avoid_: Orca worktree command, worktree creator, runtime-specific entry
+**Worktree Entry Point**: workflow を validated task worktree から始めるための共通の入口契約。worktree の作成・選択と agent の実行環境の準備を区別し、実行環境から対象 checkout を検証して満たす。独立したスキルの名称ではない。 _Avoid_: Orca worktree command, worktree creator, runtime-specific entry
 
 **Worktree Activation**: 作成済みの task worktree を agent session の working root と runtime-owned permission mode に結びつける phase boundary。worktree の作成や shell 内だけの `cd` とは区別する。 _Avoid_: worktree creation, directory change, session resume
 
