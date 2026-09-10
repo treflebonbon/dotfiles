@@ -93,11 +93,46 @@ Codex の対話画面で行うディレクトリの信頼や操作設定の保�
 
 未登録・信頼解除・flake 不在・不正 metadata／引数は初期化前に拒否する。入力の変更、隔離設定、Nix、shellHook、管理設定の失敗は非0終了し、無保護な調査用起動へ fallback しない。部分的な初期化結果を host へ返さず、表示された session の `store-copy.log`・公開 snapshot を確認し、原因を直して再登録・再起動する。返却途中の I/O 障害では全ファイルの原子的 rollback は保証しない。session の bundle と snapshot を保持して差分を確認し、失敗した返却を盲目的に繰り返さない。
 
-必要条件は rootless user/network namespace を許可した Linux／WSL2、Nix store から選んだ Nix・bash・coreutils・Python 3.13 以上・Git・Codex 0.153.4 以上・gh・bubblewrap、managed `dotfiles-secure`、公開 CA bundle。汎用 devShell は `CODEX_ISOLATION_CA_BUNDLE` を設定する。モデル接続は host の既存 ChatGPT login を専用 gateway が使い、token は隔離内へ置かない。期限切れは host で login を更新して再起動する。現時点で API key provider、GitHub・管理 MCP の本番接続はこの入口に統合していない。
+必要条件は rootless user/network namespace を許可した Linux／WSL2、Nix store から選んだ Nix・bash・coreutils・Python 3.13 以上・Git・Codex 0.153.4 以上・gh・bubblewrap、managed `dotfiles-secure`、公開 CA bundle。汎用 devShell は `CODEX_ISOLATION_CA_BUNDLE` を設定する。モデル接続は host の既存 ChatGPT login を専用 gateway が使い、token は隔離内へ置かない。期限切れは host で login を更新して再起動する。API key provider は未統合。管理 MCP と GitHub は以下の明示登録で接続する。
 
 Nix の取得と command network proxy は managed allowlist の HTTPS と公開 IP だけへ接続する。専用 resolver も同じ条件を使う。network namespace 内だけで低位 port を使用可能にし、DNS listener・初期化・Codex は capability を持たない。ホストの DNS・loopback・制御 socket は公開しない。
 
 既存セッション、直接の `codex`、Codex Desktop、Orca／Herdr native 起動はこの保証の対象外。macOS の raw 隔離起動も未対応で拒否する。受入・merge 後の live source から配備して新しい入口で起動する。未 merge の task source から `chezmoi apply` しない。検証範囲は [#271 の記録](../docs/research/raw-codex-isolation-271.md) を参照。
+
+### 隔離内の管理 MCP と GitHub
+
+Context7・Serena は入力登録時に `--mcp context7 --mcp serena` を追加して選択する。現在の管理済み stdio command/args と一致する設定だけを受理し、Nix の bunx・Node・uvx を個別にコピーする。パッケージ取得と MCP の起動・文書参照・コード操作は外側の隔離内で行う。ホストの MCP、cache、追加サーバーの設定や認証値は共有しない。起動失敗は required MCP のエラーとして報告し、API key や host 権限を自動追加しない。
+
+GitHub は公開 repository の1 topic に限定する。人間がホスト上の worktree 外に次の JSON を置き、`--github-policy /absolute/path/policy.json` で登録する。`reviewed_commit` は現在の HEAD の祖先で、CI と外部連携を確認した完全な SHA。`review` に確認した対象と根拠を記録する。repo の trust 登録だけではこの確認を代替しない。
+
+```json
+{
+  "repository": "OWNER/REPOSITORY",
+  "branch": "feat/TOPIC",
+  "default_branch": "main",
+  "reviewed_commit": "REVIEWED_FULL_COMMIT_SHA",
+  "automation": "no-project-secrets",
+  "review": "push・PR・コメントで起動する CI と外部連携を確認した根拠"
+}
+```
+
+`automation` は `no-project-secrets`（AI の変更を実行する連携へプロジェクト秘密を渡さない）か `human-reviewed-external`（実値検証は人間が確認済みコードを別環境で実行し、確認済み結果だけ共有する）。外部連携・環境変数・取得サービスも含めて確認する。不明な場合は GitHub を登録せず秘密なしのローカル作業を続ける。この repo の追跡済み workflow に秘密の受渡しがないことは、他 repo や GitHub 外の設定に対する保証ではない。
+
+```bash
+devshell-env admit --git-head FULL_SHA \
+  --mcp context7 --mcp serena \
+  --github-policy /absolute/path/policy.json \
+  -- flake.nix flake.lock package.json src/index.ts
+codex-worktree
+```
+
+GitHub 利用時は Nix の gawk・jq も必要。隔離内では `git-push-topic`、限定版 `gh api`、`gh pr create/list/view/edit/comment` を提供する。`gh pr create --title 'feat: example' --body-file pr.md --draft`、`gh pr edit NUMBER --body-file pr.md` のように使う。`gh api` は `--method/-X`・`--input`・`--jq/-q`・`--field/-F`・`--raw-field/-f` に対応する。対象 repo の metadata、topic の PR 一覧・参照・作成・title/body 更新・コメントだけを受理する。その他の gh コマンド・GraphQL・Secrets・Actions のログや artifact・workflow dispatch・merge・close は非対応として拒否する。ホストの gh alias、extension、credential helper、認証ファイルは渡さない。
+
+`git-push-topic` は HEAD の bundle をホスト側の専用 Git repository へ渡し、履歴・fast-forward・全新規 commit の `.github` 不変を検査してから、登録時に固定した既存の `git-push-topic` helper で公開する。ホスト側でプロジェクトコード・hook・checkout を実行しない。認証は既存の host gh だけが利用する。remote の default branch と、PR 操作時の topic の `.github` が確認済み tree と異なる場合も停止する。CI 設定を変更したい場合は人間の確認・再登録を要する。
+
+GitHub の要求は Codex の既存 HTTP proxy と外側の限定 gateway を通る。内部の `http://api.github.com` はこの通信経路内の宛先で、ホスト gateway が実 GitHub へ HTTPS で接続する。ホストのネットワーク、制御 socket、認証値を公開しない。直接の Unix socket 接続は Codex 0.153.4 の Linux proxy 用 seccomp に拒否されるため使用しない。標準の domain allow/deny はこの経路でも維持する。
+
+認証不足・network 拒否・remote の変更は非0終了と原因カテゴリを返す。成功した外部 push/PR は後段のローカル返却失敗で取り消されない。公開 SHA・PR URL と保持された session を照合して復旧する。実接続の OS 別結果と制約は [#272 の検証記録](../docs/research/isolated-services-272.md) を参照。
 
 ### 指定コマンドへの dotenv 注入
 

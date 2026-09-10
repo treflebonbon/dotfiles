@@ -73,7 +73,51 @@ def input_policy(repo):
     return directory / (hashlib.sha256(os.fsencode(repo.root)).hexdigest() + ".json")
 
 
-def admit(repo, head, names):
+def managed_mcp(config, selected):
+    """Select the managed stdio contracts, never an arbitrary host env or URL."""
+    contracts = {
+        "context7": ("bunx", ["-y", "@upstash/context7-mcp"], ("bunx", "node")),
+        "serena": (
+            "uvx",
+            [
+                "--from",
+                "git+https://github.com/oraios/serena",
+                "serena",
+                "start-mcp-server",
+                "--enable-web-dashboard",
+                "false",
+            ],
+            ("uvx",),
+        ),
+    }
+    servers, tools = {}, {}
+    for name in selected:
+        command, arguments, required_tools = contracts[name]
+        entry = config.get("mcp_servers", {}).get(name, {})
+        if entry != {"command": command, "args": arguments}:
+            raise ValueError(
+                f"managed MCP configuration differs: {name}; review it on the host"
+            )
+        for tool in required_tools:
+            path = shutil.which(tool)
+            if not path or not Path(path).resolve(strict=True).is_relative_to(
+                "/nix/store"
+            ):
+                raise ValueError(f"managed MCP requires a Nix store tool: {tool}")
+            # bunx/uvx select their mode by argv[0]; preserve the final symlink.
+            tools[tool] = str(Path(path).parent.resolve(strict=True) / Path(path).name)
+        servers[name] = {
+            "command": tools[command],
+            "args": arguments,
+            "enabled": True,
+            "required": True,
+            "startup_timeout_sec": 180,
+            "env_vars": ["HTTPS_PROXY", "HTTP_PROXY", "SSL_CERT_FILE"],
+        }
+    return servers, tools
+
+
+def admit(repo, head, names, *, mcp=(), github_policy=None):
     """Human-only declaration of public project bytes and managed runtime policy."""
     policy = input_policy(repo)
     codex_home = Path(
@@ -103,10 +147,35 @@ def admit(repo, head, names):
         {str(path): "write" for path in (repo.git_dir, repo.common_dir)}
     )
     config["default_permissions"] = "dotfiles-secure"
-    # #272 owns managed GitHub/MCP authentication and configuration integration.
-    for section in ("mcp_servers", "plugins"):
-        for entry in config.get(section, {}).values():
-            entry["enabled"] = False
+    servers, mcp_tools = managed_mcp(config, mcp)
+    config["mcp_servers"] = servers
+    config["plugins"] = {name: {"enabled": False} for name in config.get("plugins", {})}
+    github, push_helper = None, None
+    if github_policy is not None:
+        if github_policy.resolve().is_relative_to(
+            repo.root
+        ) or github_policy.resolve().is_relative_to(repo.common_dir):
+            raise ValueError("GitHub policy must be owned outside the project")
+        module = runpy.run_path(str(Path(__file__).with_name("github-service.py")))
+        github = module["validate_policy"](
+            json.loads(read_input(github_policy.parent, github_policy.name)[0])
+        )
+        if (
+            git(repo.root, "branch", "--show-current").decode().strip()
+            != github["branch"]
+        ):
+            raise ValueError("GitHub policy belongs to another topic branch")
+        remote = git(repo.root, "remote", "get-url", "origin").decode().strip()
+        if remote not in (
+            "https://github.com/" + github["repository"],
+            "https://github.com/" + github["repository"] + ".git",
+        ):
+            raise ValueError("GitHub policy does not match the HTTPS origin")
+        git(repo.root, "merge-base", "--is-ancestor", github["reviewed_commit"], head)
+        helper = BIN / "git-push-topic"
+        if not helper.is_file():
+            helper = BIN / "executable_git-push-topic"
+        push_helper = read_input(helper.parent, helper.name)[0].decode()
     files = {"config.toml": toml_document(config)}
     for name in ("AGENTS.md", "rules/default.rules"):
         if (codex_home / name).exists():
@@ -162,9 +231,15 @@ def admit(repo, head, names):
         "config_files": files,
         "requirements": toml_document(requirements),
         "domains": domains,
+        "denied_domains": [
+            name for name, mode in domain_rules.items() if mode == "deny"
+        ],
         "hooks": hooks,
         "git_identity": identity,
         "ca_bundle": str(Path(ca).resolve(strict=True)),
+        "mcp_tools": mcp_tools,
+        "github": github,
+        "push_helper": push_helper,
     }
     temporary.write_text(json.dumps(record, indent=2) + "\n")
     temporary.replace(policy)
@@ -177,7 +252,18 @@ def launch(arguments):
         raise ValueError("raw isolated Codex requires Linux or WSL2")
     tool_paths = {
         name: shutil.which(name)
-        for name in ("nix", "bash", "cat", "python3", "git", "codex", "gh", "bwrap")
+        for name in (
+            "nix",
+            "bash",
+            "cat",
+            "python3",
+            "git",
+            "codex",
+            "gh",
+            "bwrap",
+            "awk",
+            "jq",
+        )
     }
 
     def selected_tool(name):
@@ -209,7 +295,9 @@ def launch(arguments):
     if not (repo.root / "flake.nix").is_file():
         raise ValueError("no flake.nix at the worktree root")
     os.environ["PATH"] = os.pathsep.join(
-        dict.fromkeys(selected_tool(name) for name in tool_paths)
+        dict.fromkeys(
+            selected_tool(name) for name in tool_paths if name not in ("awk", "jq")
+        )
     )
     policy = input_policy(repo)
     if not policy.is_file():
@@ -220,6 +308,10 @@ def launch(arguments):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         record = json.loads(read_input(policy.parent, policy.name)[0])
         runtime = record["runtime"] | {"output": DEVENV["selected_output"](repo)}
+        if runtime.get("github"):
+            os.environ["PATH"] += os.pathsep + os.pathsep.join(
+                selected_tool(name) for name in ("awk", "jq")
+            )
         if "flake.nix" not in record["files"]:
             raise ValueError("flake.nix must be an admitted public input")
         sessions = policy.parent.parent / "sessions"
@@ -227,7 +319,15 @@ def launch(arguments):
         session = sessions / uuid.uuid4().hex
         print(f"codex-worktree: isolated session {session}", file=sys.stderr)
         services = ["dependencies"]
-        if arguments[:1] not in (["sandbox"], ["--version"], ["--help"]):
+        if runtime.get("github"):
+            if (
+                git(repo.root, "branch", "--show-current").decode().strip()
+                != runtime["github"]["branch"]
+            ):
+                raise ValueError(
+                    "current branch differs from the admitted GitHub topic"
+                )
+        if arguments[:1] not in (["sandbox"], ["mcp"], ["--version"], ["--help"]):
             services.append("model")
         status = run_isolated(
             repo,
@@ -432,6 +532,16 @@ def run_isolated(repo, policy, output, command, services, ca_bundle=None, runtim
         if path.parts[:3] != ("/", "nix", "store"):
             raise ValueError(f"isolation tool must come from the Nix store: {name}")
         paths[name] = Path(*path.parts[:4])
+    for name, executable in (runtime or {}).get("mcp_tools", {}).items():
+        path = Path(executable).resolve(strict=True)
+        if not path.is_relative_to("/nix/store"):
+            raise ValueError("admitted MCP tool is no longer in the Nix store")
+        paths[name] = Path(*path.parts[:4])
+    if runtime and runtime.get("github"):
+        path = Path(shutil.which("jq")).resolve(strict=True)
+        if not path.is_relative_to("/nix/store"):
+            raise ValueError("the isolated GitHub CLI requires Nix jq")
+        paths["jq"] = Path(*path.parts[:4])
     store = output / "store"
     bootstrap = output / "bootstrap"
     bootstrap.mkdir()
@@ -488,13 +598,35 @@ def run_isolated(repo, policy, output, command, services, ca_bundle=None, runtim
             if runtime:
                 options = {
                     "domains": runtime["domains"],
+                    "denied_domains": runtime.get("denied_domains", []),
                     "codex_home": Path(runtime["codex_home"]),
                 }
+                if service == "dependencies" and runtime.get("github"):
+                    common = output / "root" / str(repo.common_dir).lstrip("/")
+                    head = json.loads((output / "session.json").read_text())["git_head"]
+                    options.update(
+                        github_policy=runtime["github"],
+                        github_seed={
+                            "pack": git(
+                                common,
+                                "pack-objects",
+                                "--stdout",
+                                "--revs",
+                                git_dir=common,
+                                input=(head + "\n").encode(),
+                            ),
+                            "push_helper": runtime["push_helper"],
+                        },
+                    )
             gateways.append(
                 gateway_module["start_gateway"](directory, service, **options)
             )
             mounts.extend(["--ro-bind", str(directory), f"/gateway/{service}"])
-    except (KeyError, OSError, ValueError):
+    except ValueError as error:
+        raise ValueError(
+            f"service setup failed: {error}; no isolated command was started"
+        ) from None
+    except (KeyError, OSError):
         raise ValueError(
             "host tool login is unavailable; no isolated command was started"
         ) from None
@@ -559,6 +691,20 @@ export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
         shutil.copyfile(
             runtime_source / "codex-inner.py", runtime_copy / "codex-inner.py"
         )
+        if runtime.get("github"):
+            shutil.copyfile(
+                runtime_source / "github-client.py", runtime_copy / "github-client.py"
+            )
+            publisher = runtime_copy / "bin/git-push-topic"
+            publisher.write_text(
+                f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/github-client.py "$@"\n'
+            )
+            publisher.chmod(0o755)
+            github_cli = runtime_copy / "bin/gh"
+            github_cli.write_text(
+                f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/github-client.py gh "$@"\n'
+            )
+            github_cli.chmod(0o755)
         with_env = runtime_copy / "bin/with-env"
         with_env.write_text(
             f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/bin/devshell-env with-env "$@"\n'
@@ -583,6 +729,7 @@ export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
                     "output": runtime["output"],
                     "git_dir": str(repo.git_dir),
                     "common_dir": str(repo.common_dir),
+                    "github": runtime.get("github"),
                 }
             )
         )

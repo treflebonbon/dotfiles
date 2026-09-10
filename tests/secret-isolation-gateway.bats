@@ -65,14 +65,14 @@ def lookup(host,port,**kwargs):
     address='127.0.0.1' if host == 'private.github.com' else '8.8.8.8'
     return [(socket.AF_INET,socket.SOCK_STREAM,6,'',(address,port))]
 socket.getaddrinfo=lookup
-server=module['start_gateway'](Path(sys.argv[2]),'dependencies',domains=['cache.nixos.org','**.github.com'])
+server=module['start_gateway'](Path(sys.argv[2]),'dependencies',domains=['cache.nixos.org','**.github.com'],denied_domains=['blocked.github.com'])
 class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock=socket.socket(socket.AF_UNIX)
         self.sock.connect(str(Path(sys.argv[2])/'service.sock'))
 try:
     for payload,status in [({'host':'cache.nixos.org','type':1},200),({'host':'cache.nixos.org','type':28},200),
-                           ({'host':'private.github.com','type':1},403),({'host':'127.0.0.1','type':1},403),
+                           ({'host':'private.github.com','type':1},403),({'host':'blocked.github.com','type':1},403),({'host':'127.0.0.1','type':1},403),
                            ({'host':'example.com','type':1},403),({'host':'cache.nixos.org','type':12},403)]:
         client=Client('resolver')
         client.request('POST','/resolve',json.dumps(payload))

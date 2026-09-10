@@ -31,6 +31,11 @@ let
     pkgs.gnused
     pkgs.ripgrep
     pkgs.findutils
+    pkgs.gawk
+    pkgs.jq
+    pkgs.bun
+    pkgs.nodejs_24
+    pkgs.uv
   ];
   probeSource = pkgs.runCommand "secret-isolation-probe-source" { } ''
     install -D -m 0444 \
@@ -50,14 +55,21 @@ let
         "private_dot_local/share/codex-isolation/secret-isolation-gateway.py"
         "private_dot_local/share/codex-isolation/codex-inner.py"
         "private_dot_local/share/codex-isolation/codex-namespace.py"
+        "private_dot_local/share/codex-isolation/github-service.py"
+        "private_dot_local/share/codex-isolation/github-client.py"
         "private_dot_local/bin/executable_devshell-env"
         "private_dot_local/bin/executable_codex-worktree"
+        "private_dot_local/bin/executable_git-push-topic"
         "private_dot_config/codex/config.toml.tmpl"
         "tests/helpers/raw-codex.bash"
         "tests/devshell-env.bats"
         "tests/raw-codex-integration.bats"
+        "tests/raw-codex-services.bats"
+        "tests/isolated-github.bats"
+        "tests/secret-isolation-gateway.bats"
         "tests/secret-isolation-worktree.bats"
         "tests/fixtures/secret-isolation/worktree-task.py"
+        "tests/fixtures/secret-isolation/github-push.py"
       ]
     }
     chmod +x "$out/private_dot_local/bin/"*
@@ -141,5 +153,14 @@ pkgs.testers.runNixOSTest {
     )
     machine.copy_from_machine("/home/probe/raw-tests.log")
     assert raw_result[0] == 0, raw_result
+    services_result = machine.execute(
+      "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
+      "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
+      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/raw-codex-services.bats ${probeSource}/tests/isolated-github.bats ${probeSource}/tests/secret-isolation-gateway.bats "
+      "> /home/probe/services-tests.log 2>&1'"
+    )
+    machine.copy_from_machine("/home/probe/services-tests.log")
+    assert services_result[0] == 0, services_result
   '';
 }
