@@ -35,14 +35,14 @@ setup() {
   grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
 }
 
-@test "user devShell selects the approved installed AI toolset snapshot without moving shared nixpkgs" {
+@test "user devShell selects the approved AI snapshot and stable package channel" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
   grep -q 'github:numtide/llm-agents\.nix/868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$flake"
   jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "868527bc9eb4e8bee8610fa1d4027fbb37cfc012"' "$lock"
   jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "868527bc9eb4e8bee8610fa1d4027fbb37cfc012"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs.nixpkgs].locked.rev == "fca2dbd4c00c3063235e56bb91758e24fc67b7b8"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
 @test "shell.nix includes zsh-autosuggestions and zsh-syntax-highlighting packages (issue #46)" {
@@ -257,19 +257,27 @@ PS
 
   if [ "$(uname -s)" = "Linux" ]; then
     local probe="$BATS_TEST_TMPDIR/code-review-graph-probe"
-    mkdir -p "$probe"
+    local shell="path:$flake#default"
+    if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -Eqi 'microsoft|wsl' /proc/sys/kernel/osrelease; then
+      shell="path:$flake#wsl"
+    fi
+    export HOME="$BATS_TEST_TMPDIR/home"
+    export XDG_CONFIG_HOME="$HOME/.config"
+    export XDG_DATA_HOME="$HOME/.local/share"
+    export CODEX_HOME="$HOME/.codex"
+    mkdir -p "$probe" "$HOME"
     git -C "$probe" init -q
     printf 'def answer():\n    return 42\n' >"$probe/sample.py"
     git -C "$probe" add sample.py
 
-    run nix develop "path:$flake" --command code-review-graph --help
+    run nix develop "$shell" --command code-review-graph --help
     [ "$status" -eq 0 ]
 
-    run nix develop "path:$flake" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
+    run nix develop "$shell" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
     [ "$status" -eq 0 ]
     [ -f "$probe/.code-review-graph/graph.db" ]
 
-    run nix develop "path:$flake" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
+    run nix develop "$shell" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
     [ "$status" -eq 0 ]
     [[ "$output" == *'"is_error": false'* ]]
     [[ "$output" == *'"total_nodes": 2'* ]]
