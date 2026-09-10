@@ -2,6 +2,8 @@
 
 このテンプレートは言語ツール、devShell、`with-env` app を提供する。アプリやテスト自体は生成しない。Nix（flakes 有効）と Git があれば、dotfiles のローカル checkout や direnv なしで使える。
 
+Gleam の Erlang target 用に Erlang/OTP 29 を同梱する。`gleam run` はこの実行環境でコンパイルしたプログラムを起動する。
+
 ## 初回の準備と明示起動
 
 空のディレクトリで展開する（既に展開済みなら `git add` から）:

@@ -37,7 +37,7 @@
               gleam
               # Standalone repo: gleam の erlang target 実行に erlang が要る
               # (旧グローバル env では elixir module の beam が供給していた)。
-              erlang
+              beam29Packages.erlang
             ];
           };
         }

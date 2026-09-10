@@ -2,6 +2,8 @@
 
 このテンプレートは言語ツール、devShell、`with-env` app を提供する。アプリやテスト自体は生成しない。Nix（flakes 有効）と Git があれば、dotfiles のローカル checkout や direnv なしで使える。
 
+Rust は stable 1.98.1 を選択する。生成先の lock には Rust overlay と言語用 nixpkgs の依存も記録される。
+
 ## 初回の準備と明示起動
 
 空のディレクトリで展開する（既に展開済みなら `git add` から）:
