@@ -101,7 +101,7 @@ Npm dependency hash は既存 prefetch-npm-deps 0.1.0 で算出。現行 0.3.0 �
 | all3 system package / all6 shell evaluation | PASS | `helper-source-all-systems.json` / `helper-source-flake-check.log` |
 | host Nix build + isolated WSL shell start | PASS | `helper-source-wsl-build.json` / `helper-source-start-retry.log` |
 | ARM Linux / Apple Silicon 実機起動 | 未実施 | 実行hostは x86_64 WSL。asset 確認と実機確認を区別 |
-| combined full Bats / final two-axis review | coordinator 待ち | [#295](update-295-integrated-acceptance.md) で最終sourceの結果を確定する |
+| combined full Bats / final two-axis review | 確認済み | [#295](update-295-integrated-acceptance.md)。full657実行PASS・19skip、Standards規約違反0/smell0、Spec0 |
 | source適用 | PASS | package6ファイル・既存配布契約テスト・本記録 |
 | live配備 | 未実施 | 受入・merge後の別工程 |
 
@@ -111,7 +111,7 @@ package 差分は private_dot_config/nix-devshell/packages/ 配下の flyline.ni
 
 coordinator-commands.md に、gwq source prefetch、native npm hash、隔離候補の3 system評価・5 package host build、source 適用後の all-system flake check / WSL build と公開CLIゲートを記載した。candidate-packages.nix は隔離 preparation 用の検証式で、repo に採用する追加 override/installer ではない。
 
-実Nix gateとsource反映後の公開CLI検証により、4件の更新とgwsの現行最新維持を確定した。関連Batsも成功した。最終full Bats・二軸reviewは #295 の統合sourceで確定する。
+実Nix gateとsource反映後の公開CLI検証により、4件の更新とgwsの現行最新維持を確定した。関連Batsも成功した。最終full Bats・二軸reviewの成功は [#295](update-295-integrated-acceptance.md) に記録した。
 
 Scratch: /tmp/nix-shell.2VWWVm/nix-shell.faRWAp/update-293-preparation.2v9xiozg
 
@@ -121,7 +121,7 @@ Scratch: /tmp/nix-shell.2VWWVm/nix-shell.faRWAp/update-293-preparation.2v9xiozg
 
 実Nix wrapperから19コマンドを実行し、gwqの3shell completion、design.md/designmd両aliasのversion/help・正常lint・異常lintのexit1・自己diff・DTCG export、gws起動、wazaのoffline check/token集計を確認した。共通stable集合のbashInteractive 5.3p9＋制御PTYで、flyline 1.8.0のload/version/help/mouse/既存Ctrl-G設定とdisableが成功した。証跡は `helper-candidates-cli-smoke.json` / log、`helper-candidate-flyline-pty.log`。
 
-この結果で4件の更新とgws維持をsourceへ反映した。source反映後の6shell評価・WSL build・関連Batsも以下のとおり成功した。最終統合reviewは #295 に残す。liveは未配備で、受入・merge後のlive sourceから反映する。
+この結果で4件の更新とgws維持をsourceへ反映した。source反映後の6shell評価・WSL build・関連Batsも以下のとおり成功した。最終統合reviewは [#295](update-295-integrated-acceptance.md) に記録した。liveは未配備で、受入・merge後のlive sourceから反映する。
 
 source反映後のall-system flake checkは全6shellでPASS、WSL shellの実buildもPASS（`lwn03qd4lpi98va9b7600jvz693x0i2d-nix-shell.drv` → `wqvqi8lyx46z8zm07w4zdywc4gcl1gqm-nix-shell`）。関連Batsは9/9 PASS。隔離HOMEでsourceのWSL shellに入り、すべての対象CLIとflyline環境変数が実検証対象のpackageを選ぶことを確認した。
 

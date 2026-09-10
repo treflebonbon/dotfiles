@@ -73,8 +73,8 @@ apm audit --ci
 | 実体変更時の候補 ordered gate | 適用外・未実施 | 新 Matt candidate を採用しないため。isolated materialization から native lock adoption までの ordered gate を実施 PASS とは記録しない |
 | 候補採用時の non-Matt drift 判定 / 作業用 lock の排除 | 候補採用条件は適用外 | 本単位は manifest / lock 無変更。採用済み #290 native lock と source の一致は別に確認 |
 | TDD の red / green と追加挙動テスト | 適用外 | 動作変更なし。版や pin の文字列を写すだけのテストは追加しない |
-| 最終 Standards / Spec review（AC16, AC19） | 未済 | coordinator の combined branch review に残す |
-| full Bats / 必要な隔離 dry-run / 最終横断検証（AC16, AC19） | 未済 | #295 の統合 gate に残す。他単位の scoped PASS を最終 PASS に置き換えない |
+| 最終 Standards / Spec review（AC16, AC19） | 確認済み | [#295](update-295-integrated-acceptance.md)。Standards規約違反0/smell0、Spec0 |
+| full Bats / 必要な隔離 dry-run / 最終横断検証（AC16, AC19） | 確認済み | [#295](update-295-integrated-acceptance.md)。最終full657実行PASS・19skip、6lock不変、dry-run HOME不変 |
 | live 配備と通常環境での確認（AC18） | 未実施 | 受入・merge後の live source から行う。本単位では live skills に触れない |
 
 この keep 判断による `runtime/skill-harness.md` や共有テストの必須修正はない。#290 の同文書編集は担当 worker が所有し、本単位では編集しない。将来 selected payload や membership を更新する場合は、[ADR-0042](../adr/0042-mattpocock-managed-set-update-gate.md) の full-set ordered gate が改めて必要になる。

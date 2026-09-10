@@ -131,7 +131,7 @@ host は WSL2 x86_64、kernel `6.18.33.2-microsoft-standard-WSL2`、Nix 2.34.6�
 | 全6言語の独立生成lock・3 system flake評価・devShell / with-env実行 | PASS | `tmp/update-283/templates-all-green-retry.log`、exit0、skip0 |
 | ARM Linux / Apple Siliconの実機起動 | 未実施 | WSL hostからの評価とは区別 |
 
-調査用scratchpadはセッション専用の指定を認識できなかったため、許可された `TMPDIR` の `/tmp/nix-shell.2VWWVm/nix-shell.kcIRxj/update-294-language-templates/` を使った。固定取得source、`inventory.nix`、`inventory.json` を保存した。このパスの寿命はworkerセッションに依存する。coordinatorの実Nix証跡パスと最終採否は結果受領後に追記する。
+調査用scratchpadはセッション専用の指定を認識できなかったため、許可された `TMPDIR` の `/tmp/nix-shell.2VWWVm/nix-shell.kcIRxj/update-294-language-templates/` を使った。固定取得source、`inventory.nix`、`inventory.json` を保存した。このパスの寿命はworkerセッションに依存する。coordinatorの実Nix証跡パスと最終採否は次節に記録した。
 
 ## 最終のsource検証
 
@@ -139,4 +139,4 @@ coordinatorが2026-09-10に必須ゲートを実行し、6言語すべての独�
 
 Go1.26.7のproject test / gopls / golangci-lint、Rust1.98.1のvtable回帰とCargo / nextest / clippy / fmt、Gleam1.18.1＋OTP29.0.6の生成project、その他の周辺CLI起動が成功した。Elixir1.20.4＋OTP29.0.6、Perl5.42.0、Bun1.3.13を維持する。ARM Linux / Apple Siliconは評価のみで実機実行とは扱わない。
 
-同じsource状態でrepoのfull Batsはexit0（674件中643実行PASS、31件skip）だった。opt-inのこのテンプレート検証は上記の別実行でPASSしており、full suiteのskipを成功の代用にしない。最終二軸reviewと他更新単位を合わせた統合確認は後段に残す。
+同じsource状態でrepoのfull Batsはexit0（674件中643実行PASS、31件skip）だった。opt-inのこのテンプレート検証は上記の別実行でPASSしており、full suiteのskipを成功の代用にしない。最終二軸reviewと他更新単位を合わせた統合確認は [#295](update-295-integrated-acceptance.md) に記録した。

@@ -6,7 +6,7 @@
 
 既存の `nixpkgs-26.05-darwin` channelを維持し、2026-09-10の実装入口で [104a7c61006cd22d11c0379663afee90c62273ab](https://github.com/NixOS/nixpkgs/commit/104a7c61006cd22d11c0379663afee90c62273ab) を候補として固定した。旧revisionは `fca2dbd4c00c3063235e56bb91758e24fc67b7b8`。この更新で変更したlock nodeはrootの `nixpkgs` inputが参照する `nixpkgs_2` だけで、AI snapshot・そのtransitive inputs・source-only inputは維持した。
 
-候補の3 system × default/WSLの評価と、起動・キャッシュ・品質floor関連35テストは成功した。ホストWSLの実build、隔離HOMEでの起動、75 CLIの起動、28件のNix devShellテスト、現行APM payloadのfrozen no-rewrite・audit、実Design Hook 14件も成功した。復旧後の全体回帰はexit0（674件中643実行PASS、31件skip）だった。実Design Hook14件と6言語テンプレートの必須ゲートは別途成功している。他更新単位を合わせた最終reviewは後段とする。
+候補の3 system × default/WSLの評価と、起動・キャッシュ・品質floor関連35テストは成功した。ホストWSLの実build、隔離HOMEでの起動、75 CLIの起動、28件のNix devShellテスト、現行APM payloadのfrozen no-rewrite・audit、実Design Hook 14件も成功した。復旧後の全体回帰はexit0（674件中643実行PASS、31件skip）だった。実Design Hook14件と6言語テンプレートの必須ゲートは別途成功している。他更新単位を合わせた最終検証・reviewは [#295](update-295-integrated-acceptance.md) に記録した。
 
 ## 実package出力による棚卸し
 
