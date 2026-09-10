@@ -74,7 +74,7 @@ server = gateway["start_gateway"](
 class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX)
-        self.sock.connect(str(temporary / "socket/service.sock"))
+        self.sock.connect(server.server_address)
 
 
 def push(head=None):

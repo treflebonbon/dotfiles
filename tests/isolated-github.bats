@@ -22,7 +22,7 @@ server = module['start_gateway'](Path(sys.argv[2]), 'github', github_policy=poli
 class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX)
-        self.sock.connect(str(Path(sys.argv[2]) / 'service.sock'))
+        self.sock.connect(server.server_address)
 try:
     for method, path, expected in [
         ('GET', '/repos/example/public', 200),
@@ -104,7 +104,7 @@ server = module['start_gateway'](Path(sys.argv[2]), 'github', github_policy=poli
 class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX)
-        self.sock.connect(str(Path(sys.argv[2]) / 'service.sock'))
+        self.sock.connect(server.server_address)
 try:
     good = {'title':'feat: isolated change','body':'Dummy public body','head':'task','base':'main','draft':True}
     for payload, expected in [(good,200),(good|{'head':'other'},403),(good|{'base':'release'},403),

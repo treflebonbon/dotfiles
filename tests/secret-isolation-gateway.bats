@@ -1,5 +1,70 @@
 #!/usr/bin/env bats
 
+@test "gateways serve independent long paths and release their socket resources" {
+  [ "$(uname -s)" = Linux ] || skip "long-path raw isolation requires Linux/WSL2"
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR" <<'PY'
+import http.client, os, runpy, socket, stat, subprocess, sys
+from pathlib import Path
+module = runpy.run_path(sys.argv[1])
+parent = Path(sys.argv[2]) / ('long-gateway-parent-' * 8)
+parent.mkdir()
+before = set(os.listdir('/proc/self/fd'))
+servers = []
+try:
+    for name in ('first', 'second'):
+        directory = parent / name
+        assert len(os.fsencode(directory / 'service.sock')) > 107
+        server = module['start_gateway'](directory, 'dependencies', domains=[])
+        servers.append(server)
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+        assert (directory / 'service.sock').is_socket()
+        # A separate client process must be able to use the published address.
+        subprocess.run([sys.executable, '-c', '''
+import http.client, socket, sys
+client = http.client.HTTPConnection('gateway', timeout=3)
+client.sock = socket.socket(socket.AF_UNIX)
+client.sock.settimeout(3)
+client.sock.connect(sys.argv[1])
+client.request('GET', '/forbidden')
+response = client.getresponse()
+assert response.status == 403
+assert response.read() == b''
+client.close()
+''', server.server_address], check=True)
+    assert servers[0].server_address != servers[1].server_address
+finally:
+    for server in servers:
+        server.shutdown()
+        server.server_close()
+        server.server_close()
+assert set(os.listdir('/proc/self/fd')) == before
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "gateway setup failure releases socket resources" {
+  [ "$(uname -s)" = Linux ] || skip "descriptor accounting requires Linux procfs"
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR" <<'PY'
+import os, runpy, sys
+from pathlib import Path
+module = runpy.run_path(sys.argv[1])
+parent = Path(sys.argv[2]) / ('long-setup-parent-' * 8)
+parent.mkdir()
+before = set(os.listdir('/proc/self/fd'))
+try:
+    module['start_gateway'](parent / 'socket', 'model',
+                            codex_home=Path(sys.argv[2]) / 'missing-login')
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError('missing login must reject gateway setup')
+assert set(os.listdir('/proc/self/fd')) == before
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "the model socket rejects remote state, remote tools, malformed requests and other routes without upstream access" {
   local project_root
   project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -20,7 +85,7 @@ class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX)
         self.sock.settimeout(3)
-        self.sock.connect(str(Path(sys.argv[2]) / 'service.sock'))
+        self.sock.connect(server.server_address)
 cases = [
     ('POST', '/v1/responses', {'previous_response_id': 'old-private-response'}),
     ('POST', '/v1/responses', {'conversation': 'old-private-conversation'}),
@@ -73,7 +138,7 @@ server=module['start_gateway'](Path(sys.argv[2]),'dependencies',domains=['cache.
 class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock=socket.socket(socket.AF_UNIX)
-        self.sock.connect(str(Path(sys.argv[2])/'service.sock'))
+        self.sock.connect(server.server_address)
 try:
     for payload,status in [({'host':'cache.nixos.org','type':1},200),({'host':'cache.nixos.org','type':28},200),
                            ({'host':'private.github.com','type':1},403),({'host':'blocked.github.com','type':1},403),({'host':'127.0.0.1','type':1},403),
@@ -130,7 +195,7 @@ class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock = original_socket(socket.AF_UNIX)
         self.sock.settimeout(3)
-        self.sock.connect(str(Path(sys.argv[2]) / 'service.sock'))
+        self.sock.connect(server.server_address)
 try:
     client = Client('proxy')
     client.connect()

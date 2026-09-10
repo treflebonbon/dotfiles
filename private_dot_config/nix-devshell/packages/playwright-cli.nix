@@ -24,6 +24,9 @@ buildNpmPackage {
     pkg="$out/lib/node_modules/playwright-cli-agent/node_modules/@playwright/cli"
     program="$pkg/../../playwright-core/lib/tools/cli-client/program.js"
 
+    patch --directory="$pkg/../../playwright-core" -p1 < ${./playwright-cli-sockets.patch}
+    cp ${./playwright-cli-sockets.cjs} "$pkg/../../playwright-core/lib/playwright-cli-sockets.cjs"
+
     substituteInPlace "$program" \
       --replace-fail \
         'const toolText = await runInSessionOrStop(newEntry, clientInfo, { _: ["goto", ...params.length ? params : ["about:blank"]] }, output);' \

@@ -197,6 +197,8 @@ EOF
 @test "annotation attaches to the runner-owned Chromium and leaves it alive" {
   local out="$BATS_TEST_TMPDIR/output"
   export FAKE_CLI_MODE=cdp-probe
+  export TMPDIR="$BATS_TEST_TMPDIR/long-socket-parent-for-nested-nix-shells-and-bats/another-long-component-to-exceed-the-unix-socket-limit"
+  mkdir -p "$TMPDIR"
 
   run node "$RUNNER" --target about:blank --output "$out" --annotate
 
