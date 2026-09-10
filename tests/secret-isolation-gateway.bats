@@ -38,7 +38,11 @@ cases = [
 try:
     for method, path, payload in cases:
         client = Client('model', timeout=3)
-        client.request(method, path, json.dumps(payload), {'Content-Type': 'application/json'})
+        try:
+            client.request(method, path, json.dumps(payload), {'Content-Type': 'application/json'})
+        except BrokenPipeError:
+            # A forbidden route may receive its 403 before the body is sent.
+            pass
         response = client.getresponse()
         assert response.status == 403, (method, path, payload, response.status)
         assert response.read() == b''

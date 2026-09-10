@@ -11,6 +11,7 @@
   bwrapRoot,
   batsRoot,
   chezmoiRoot,
+  realServices ? false,
 }:
 let
   nixpkgs = builtins.toPath nixpkgsPath;
@@ -77,7 +78,7 @@ let
 in
 pkgs.testers.runNixOSTest {
   name = "secret-isolation-linux-vm-270";
-  globalTimeout = 15 * 60;
+  globalTimeout = (if realServices then 30 else 15) * 60;
   qemu.forceAccel = true;
 
   nodes.machine =
@@ -99,7 +100,7 @@ pkgs.testers.runNixOSTest {
         mountHostNixStore = false;
         writableStore = true;
         writableStoreUseTmpfs = false;
-        restrictNetwork = true;
+        restrictNetwork = !realServices;
         additionalPaths =
           cliRoots
           ++ testTools
@@ -120,6 +121,27 @@ pkgs.testers.runNixOSTest {
     machine.wait_for_unit("multi-user.target")
     machine.succeed("test \"$(uname -s)\" = Linux")
     machine.succeed("test ! -e /home/ubuntu/.codex")
+    ${pkgs.lib.optionalString realServices ''
+      import os
+      # Transfer only the two selected tool-login files after the Nix image is
+      # built. Never embed credentials in a derivation, command, log or evidence.
+      machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_CODEX_AUTH"], "/home/probe/.codex/auth.json")
+      machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_GH_HOSTS"], "/home/probe/.config/gh/hosts.yml")
+      machine.succeed("chown -R probe:users /home/probe/.codex /home/probe/.config; chmod 700 /home/probe/.codex /home/probe/.config /home/probe/.config/gh; chmod 600 /home/probe/.codex/auth.json /home/probe/.config/gh/hosts.yml")
+      try:
+        live_result = machine.execute(
+          "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
+          "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+          "TMPDIR=/home/probe CODEX_ISOLATION_REAL_MCP=1 CODEX_ISOLATION_REAL_GITHUB=1 "
+          "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
+          "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/raw-codex-services.bats "
+          "> /home/probe/live-services-tests.log 2>&1'"
+        )
+        machine.copy_from_machine("/home/probe/live-services-tests.log")
+      finally:
+        machine.succeed("truncate -s 0 /home/probe/.codex/auth.json /home/probe/.config/gh/hosts.yml")
+      assert live_result[0] == 0, live_result
+    ''}
     result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath cliRoots} "

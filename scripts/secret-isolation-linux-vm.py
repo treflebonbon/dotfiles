@@ -13,6 +13,11 @@ import sys
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--real-services",
+        action="store_true",
+        help="run managed MCP and read-only GitHub probes using selected tool login files",
+    )
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(mode=0o700)
@@ -45,6 +50,8 @@ def main():
         "nixpkgsPath",
         nixpkgs,
     ]
+    if args.real_services:
+        command.extend(["--arg", "realServices", "true"])
     for name, argument in (
         ("nix", "nixRoot"),
         ("bash", "bashRoot"),
@@ -69,6 +76,22 @@ def main():
     runtime = output / "runtime"
     runtime.mkdir(mode=0o700)
     (output / "evidence").mkdir()
+    environment = os.environ | {"XDG_RUNTIME_DIR": str(runtime)}
+    if args.real_services:
+        selected = {
+            "CODEX_ISOLATION_VM_CODEX_AUTH": Path(
+                os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+            )
+            / "auth.json",
+            "CODEX_ISOLATION_VM_GH_HOSTS": Path(
+                os.environ.get("GH_CONFIG_DIR", str(Path.home() / ".config/gh"))
+            )
+            / "hosts.yml",
+        }
+        for name, path in selected.items():
+            if not path.is_file():
+                raise ValueError(f"the selected tool login file is unavailable: {name}")
+            environment[name] = str(path.resolve(strict=True))
     # The regular user owns KVM access and disk-backed VM state; no daemon,
     # group or shared /run/user settings are changed to run this test.
     with (output / "test.log").open("w") as log:
@@ -79,7 +102,7 @@ def main():
                 "-o",
                 str(output / "evidence"),
             ],
-            env=os.environ | {"XDG_RUNTIME_DIR": str(runtime)},
+            env=environment,
             stdout=log,
             stderr=subprocess.STDOUT,
         )
