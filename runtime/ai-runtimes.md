@@ -80,7 +80,7 @@ codex-worktree
 
 Herdr が worktree とターミナルを所有し、`codex-worktree` が Nix 初期化前に公開入力だけを隔離する。コピー済み `.env`、コピー元、別 worktree、Herdr の環境変数・制御 socket を Codex へ渡さない。`.env` やその別名を `admit` の一覧へ加えない。コピーと起動が競合しても未登録ファイルは隔離内へ入らないが、この性質をコピー成功の確認の代わりにはしない。
 
-Codex 内では `with-env --prepared -- <command>` で秘密なしの環境を使う。Herdr の操作・コピー確認、人間の実値を使う `with-env` はホスト側の別ターミナルで行う。隔離内へ Herdr CLI・socket やホストの包括的な権限を追加しない。同じ worktree のコードをホストと Codex で並行編集すると返却が失敗するため、終了・返却を確認してから切り替える。
+Codex 内では `with-env --prepared -- <command>` で秘密なしの環境を使う。Herdr の操作・コピー確認はホスト側の別ターミナルで行う。実値検証は[人間による実値検証](shell-environment.md#人間による実値検証)に従い、確認済みの固定コード・秘密・出力を Codex がアクセスできない別環境へ分離して `with-env` を使う。別ターミナルから同じ作業コードを実行するだけでは条件を満たさない。隔離内へ Herdr CLI・socket やホストの包括的な権限を追加しない。同じ worktree のコードをホストと Codex で並行編集すると返却が失敗するため、終了・返却を確認してから切り替える。
 
 公開コードや flake をホストで変更したときは確認・再登録して `codex-worktree` を再起動する。隔離前提不足、未登録、不正 worktree、初期化失敗は共通入口が拒否する。表示された session の証跡を確認して原因を直し、再登録・再起動する。[共通入口の復旧手順](shell-environment.md#raw-codex-のプロジェクト開発環境)に従い、返却失敗時は保持された結果を確認する。
 
