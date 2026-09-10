@@ -11,6 +11,7 @@
   bwrapRoot,
   batsRoot,
   chezmoiRoot,
+  realServices ? false,
 }:
 let
   nixpkgs = builtins.toPath nixpkgsPath;
@@ -31,6 +32,11 @@ let
     pkgs.gnused
     pkgs.ripgrep
     pkgs.findutils
+    pkgs.gawk
+    pkgs.jq
+    pkgs.bun
+    pkgs.nodejs_24
+    pkgs.uv
   ];
   probeSource = pkgs.runCommand "secret-isolation-probe-source" { } ''
     install -D -m 0444 \
@@ -50,14 +56,21 @@ let
         "private_dot_local/share/codex-isolation/secret-isolation-gateway.py"
         "private_dot_local/share/codex-isolation/codex-inner.py"
         "private_dot_local/share/codex-isolation/codex-namespace.py"
+        "private_dot_local/share/codex-isolation/github-service.py"
+        "private_dot_local/share/codex-isolation/github-client.py"
         "private_dot_local/bin/executable_devshell-env"
         "private_dot_local/bin/executable_codex-worktree"
+        "private_dot_local/bin/executable_git-push-topic"
         "private_dot_config/codex/config.toml.tmpl"
         "tests/helpers/raw-codex.bash"
         "tests/devshell-env.bats"
         "tests/raw-codex-integration.bats"
+        "tests/raw-codex-services.bats"
+        "tests/isolated-github.bats"
+        "tests/secret-isolation-gateway.bats"
         "tests/secret-isolation-worktree.bats"
         "tests/fixtures/secret-isolation/worktree-task.py"
+        "tests/fixtures/secret-isolation/github-push.py"
       ]
     }
     chmod +x "$out/private_dot_local/bin/"*
@@ -65,7 +78,7 @@ let
 in
 pkgs.testers.runNixOSTest {
   name = "secret-isolation-linux-vm-270";
-  globalTimeout = 15 * 60;
+  globalTimeout = (if realServices then 30 else 15) * 60;
   qemu.forceAccel = true;
 
   nodes.machine =
@@ -78,6 +91,9 @@ pkgs.testers.runNixOSTest {
       };
       environment.systemPackages = cliRoots;
       nix.package = pkgs.nix;
+      # QEMU advertises IPv6 even when its WSL host has no IPv6 uplink.
+      # This fixture measures the supported IPv4 uplink; dual-stack is separate.
+      networking.enableIPv6 = false;
 
       # The QEMU guest reads only an image built from this finite closure.
       virtualisation = {
@@ -87,7 +103,7 @@ pkgs.testers.runNixOSTest {
         mountHostNixStore = false;
         writableStore = true;
         writableStoreUseTmpfs = false;
-        restrictNetwork = true;
+        restrictNetwork = !realServices;
         additionalPaths =
           cliRoots
           ++ testTools
@@ -108,6 +124,29 @@ pkgs.testers.runNixOSTest {
     machine.wait_for_unit("multi-user.target")
     machine.succeed("test \"$(uname -s)\" = Linux")
     machine.succeed("test ! -e /home/ubuntu/.codex")
+    ${pkgs.lib.optionalString realServices ''
+      import os
+      # Transfer only the two selected tool-login files after the Nix image is
+      # built. Keep guest copies in tmpfs, including when the VM is interrupted.
+      machine.succeed("test \"$(stat -f -c %T /run)\" = tmpfs; install -d -m 700 -o probe -g users /run/probe-tool-logins /home/probe/.codex /home/probe/.config /home/probe/.config/gh")
+      machine.succeed("ln -s /run/probe-tool-logins/auth.json /home/probe/.codex/auth.json; ln -s /run/probe-tool-logins/hosts.yml /home/probe/.config/gh/hosts.yml")
+      try:
+        machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_CODEX_AUTH"], "/run/probe-tool-logins/auth.json")
+        machine.copy_from_host(os.environ["CODEX_ISOLATION_VM_GH_HOSTS"], "/run/probe-tool-logins/hosts.yml")
+        machine.succeed("chown probe:users /run/probe-tool-logins/*; chmod 600 /run/probe-tool-logins/*")
+        live_result = machine.execute(
+          "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
+          "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+          "TMPDIR=/home/probe CODEX_ISOLATION_REAL_MCP=1 CODEX_ISOLATION_REAL_GITHUB=1 "
+          "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
+          "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/raw-codex-services.bats "
+          "> /home/probe/live-services-tests.log 2>&1'"
+        )
+        machine.copy_from_machine("/home/probe/live-services-tests.log")
+      finally:
+        machine.succeed("find /run/probe-tool-logins -maxdepth 1 -type f -exec truncate -s 0 {} +")
+      assert live_result[0] == 0, live_result
+    ''}
     result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath cliRoots} "
@@ -141,5 +180,14 @@ pkgs.testers.runNixOSTest {
     )
     machine.copy_from_machine("/home/probe/raw-tests.log")
     assert raw_result[0] == 0, raw_result
+    services_result = machine.execute(
+      "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
+      "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
+      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/raw-codex-services.bats ${probeSource}/tests/isolated-github.bats ${probeSource}/tests/secret-isolation-gateway.bats "
+      "> /home/probe/services-tests.log 2>&1'"
+    )
+    machine.copy_from_machine("/home/probe/services-tests.log")
+    assert services_result[0] == 0, services_result
   '';
 }

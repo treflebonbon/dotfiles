@@ -38,7 +38,11 @@ cases = [
 try:
     for method, path, payload in cases:
         client = Client('model', timeout=3)
-        client.request(method, path, json.dumps(payload), {'Content-Type': 'application/json'})
+        try:
+            client.request(method, path, json.dumps(payload), {'Content-Type': 'application/json'})
+        except BrokenPipeError:
+            # A forbidden route may receive its 403 before the body is sent.
+            pass
         response = client.getresponse()
         assert response.status == 403, (method, path, payload, response.status)
         assert response.read() == b''
@@ -65,14 +69,14 @@ def lookup(host,port,**kwargs):
     address='127.0.0.1' if host == 'private.github.com' else '8.8.8.8'
     return [(socket.AF_INET,socket.SOCK_STREAM,6,'',(address,port))]
 socket.getaddrinfo=lookup
-server=module['start_gateway'](Path(sys.argv[2]),'dependencies',domains=['cache.nixos.org','**.github.com'])
+server=module['start_gateway'](Path(sys.argv[2]),'dependencies',domains=['cache.nixos.org','**.github.com'],denied_domains=['blocked.github.com'])
 class Client(http.client.HTTPConnection):
     def connect(self):
         self.sock=socket.socket(socket.AF_UNIX)
         self.sock.connect(str(Path(sys.argv[2])/'service.sock'))
 try:
     for payload,status in [({'host':'cache.nixos.org','type':1},200),({'host':'cache.nixos.org','type':28},200),
-                           ({'host':'private.github.com','type':1},403),({'host':'127.0.0.1','type':1},403),
+                           ({'host':'private.github.com','type':1},403),({'host':'blocked.github.com','type':1},403),({'host':'127.0.0.1','type':1},403),
                            ({'host':'example.com','type':1},403),({'host':'cache.nixos.org','type':12},403)]:
         client=Client('resolver')
         client.request('POST','/resolve',json.dumps(payload))
@@ -88,6 +92,62 @@ try:
 finally:
     server.shutdown()
     server.server_close()
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "the dependency proxy tries another validated public address when the first cannot connect" {
+  local project_root
+  project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  run python3 - "$project_root/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/proxy" <<'PY'
+import http.client, runpy, socket, socketserver, sys, threading
+from pathlib import Path
+module = runpy.run_path(sys.argv[1])
+class Echo(socketserver.BaseRequestHandler):
+    def handle(self):
+        self.request.sendall(self.request.recv(4))
+upstream = socketserver.ThreadingTCPServer(('127.0.0.1', 0), Echo)
+threading.Thread(target=upstream.serve_forever, daemon=True).start()
+server = module['start_gateway'](Path(sys.argv[2]), 'dependencies', domains=['cache.nixos.org'])
+attempts = []
+original_socket = socket.socket
+class FixtureSocket(original_socket):
+    def connect(self, address):
+        if self.family == socket.AF_INET and address[1] == 443:
+            attempts.append(address[0])
+            if address[0] == '8.8.8.8':
+                raise TimeoutError('first public address is unreachable')
+            assert address[0] == '1.1.1.1'
+            address = upstream.server_address
+        return super().connect(address)
+socket.socket = FixtureSocket
+socket.getaddrinfo = lambda *a, **kw: [
+    (socket.AF_INET, socket.SOCK_STREAM, 6, '', (address, 443))
+    for address in ('8.8.8.8', '1.1.1.1')
+]
+class Client(http.client.HTTPConnection):
+    def connect(self):
+        self.sock = original_socket(socket.AF_UNIX)
+        self.sock.settimeout(3)
+        self.sock.connect(str(Path(sys.argv[2]) / 'service.sock'))
+try:
+    client = Client('proxy')
+    client.connect()
+    tunnel = client.sock
+    client.request('CONNECT', 'cache.nixos.org:443')
+    response = client.getresponse()
+    assert response.status == 200, response.status
+    tunnel.sendall(b'ping')
+    assert response.read(4) == b'ping'
+    response.close()
+    client.close()
+    assert attempts == ['8.8.8.8', '1.1.1.1'], attempts
+finally:
+    server.shutdown()
+    server.server_close()
+    upstream.shutdown()
+    upstream.server_close()
 PY
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]

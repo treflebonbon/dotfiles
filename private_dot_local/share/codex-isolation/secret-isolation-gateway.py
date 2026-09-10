@@ -8,6 +8,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import runpy
 import select
 import shutil
 import socket
@@ -16,6 +17,7 @@ import ssl
 import struct
 import subprocess
 import threading
+from urllib.parse import urlsplit
 
 
 # The probe needs only the public Nix binary cache. Production domain policy
@@ -169,13 +171,33 @@ class Gateway(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_HEAD = reject
+    do_PUT = do_DELETE = do_OPTIONS = do_HEAD = reject
+
+    def do_PATCH(self):
+        if getattr(self.server, "github", None) is not None:
+            return self.github_request()
+        return self.reject()
+
+    def github_request(self):
+        if self.server.service == "dependencies":
+            address = urlsplit(self.path)
+            if (
+                address.scheme != "http"
+                or address.netloc != "api.github.com"
+                or address.fragment
+                or not allowed_destination("api.github.com", self.server.domains)
+                or allowed_destination("api.github.com", self.server.denied_domains)
+            ):
+                return self.reject()
+            self.path = address.path + (("?" + address.query) if address.query else "")
+        return self.server.github.handle(self)
 
     def do_CONNECT(self):
         if (
             self.server.service != "dependencies"
             or not self.path.endswith(":443")
             or not allowed_destination(self.path[:-4], self.server.domains)
+            or allowed_destination(self.path[:-4], self.server.denied_domains)
         ):
             return self.reject()
         if (
@@ -192,21 +214,29 @@ class Gateway(BaseHTTPRequestHandler):
                 not ipaddress.ip_address(item[4][0]).is_global for item in addresses
             ):
                 return self.reject()
-            family, kind, protocol, _, address = addresses[0]
-            with socket.socket(family, kind, protocol) as upstream:
-                upstream.settimeout(120)
-                # Connect to the validated address without a second DNS lookup.
-                upstream.connect(address)
-                self.send_response(200, "Connection established")
-                self.end_headers()
-                connected = True
-                self.server.requests += 1
-                relay(self.connection, upstream)
+            for family, kind, protocol, _, address in addresses:
+                with socket.socket(family, kind, protocol) as upstream:
+                    # Retry only addresses validated above; never resolve again.
+                    upstream.settimeout(10)
+                    try:
+                        upstream.connect(address)
+                    except OSError:
+                        continue
+                    upstream.settimeout(120)
+                    self.send_response(200, "Connection established")
+                    self.end_headers()
+                    connected = True
+                    self.server.requests += 1
+                    relay(self.connection, upstream)
+                    return
+            self.fail_upstream()
         except (OSError, ValueError):
             if not connected:
                 self.fail_upstream()
 
     def do_GET(self):
+        if getattr(self.server, "github", None) is not None:
+            return self.github_request()
         if (
             self.server.service != "github"
             or self.path != "/repos/octocat/Hello-World"
@@ -257,6 +287,8 @@ class Gateway(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.server.service == "dependencies" and self.path == "/resolve":
             return self.resolve_public_host()
+        if getattr(self.server, "github", None) is not None:
+            return self.github_request()
         if self.server.service != "model" or self.path != "/v1/responses":
             return self.reject()
         if self.headers.get("Transfer-Encoding") or self.headers.get(
@@ -325,8 +357,10 @@ class Gateway(BaseHTTPRequestHandler):
             request = json.loads(self.rfile.read(int(length)))
             if set(request) != {"host", "type"} or request["type"] not in (1, 28):
                 return self.reject()
-            if not isinstance(request["host"], str) or not allowed_destination(
-                request["host"], self.server.domains
+            if (
+                not isinstance(request["host"], str)
+                or not allowed_destination(request["host"], self.server.domains)
+                or allowed_destination(request["host"], self.server.denied_domains)
             ):
                 return self.reject()
             addresses = socket.getaddrinfo(
@@ -349,14 +383,36 @@ class Gateway(BaseHTTPRequestHandler):
             self.fail_upstream()
 
 
-def start_gateway(directory, service, *, domains=DEPENDENCY_HOSTS, codex_home=None):
+def start_gateway(
+    directory,
+    service,
+    *,
+    domains=DEPENDENCY_HOSTS,
+    denied_domains=(),
+    codex_home=None,
+    github_policy=None,
+    github_seed=None,
+):
     directory.mkdir(mode=0o700)
     server = UnixServer(str(directory / "service.sock"), Gateway)
     server.service = service
     server.requests = 0
     server.last_status = None
     server.domains = domains
+    server.denied_domains = denied_domains
     server.host_home = str(Path.home())
+    if github_policy is not None:
+        if service == "dependencies" and (
+            not allowed_destination("api.github.com", domains)
+            or allowed_destination("api.github.com", denied_domains)
+        ):
+            raise ValueError("GitHub is denied by the managed network policy")
+        module = runpy.run_path(str(Path(__file__).with_name("github-service.py")))
+        server.github = module["GitHubService"](github_policy)
+        if github_seed is not None:
+            server.github.enable_push(
+                directory.with_name(directory.name + "-publish"), **github_seed
+            )
     if service == "github":
         server.gh = str(Path(shutil.which("gh")).resolve())
         server.tool_path = os.pathsep.join(
