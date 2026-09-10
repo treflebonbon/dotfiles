@@ -288,3 +288,20 @@ EOF
   [ ! -e "$SKILL_HOME/.codex/skills/autofix" ]
   [ ! -e "$SKILL_HOME/.copilot/skills/autofix" ]
 }
+
+@test "normal apply retires to-worktree across managed skill homes without redeployment" {
+  setup_skill_apply
+  local dir
+  for dir in "$SKILL_HOME/.agents/skills" "$SKILL_HOME/.claude/skills" "$SKILL_HOME/.codex/skills" "$SKILL_HOME/.codex-app/skills"; do
+    mkdir -p "$dir/to-worktree"
+    printf 'old managed skill\n' >"$dir/to-worktree/SKILL.md"
+  done
+  for _ in 1 2; do
+    run skill_chezmoi apply
+    [ "$status" -eq 0 ]
+    for dir in "$SKILL_HOME/.agents/skills" "$SKILL_HOME/.claude/skills" "$SKILL_HOME/.codex/skills" "$SKILL_HOME/.codex-app/skills"; do
+      [ ! -e "$dir/to-worktree" ]
+    done
+    [ -f "$SKILL_HOME/.claude/skills/pdf/SKILL.md" ]
+  done
+}
