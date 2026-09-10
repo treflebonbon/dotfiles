@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "868527bc9eb4e8bee8610fa1d4027fbb37cfc012"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "868527bc9eb4e8bee8610fa1d4027fbb37cfc012"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
@@ -196,12 +196,12 @@ PS
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
-  local record="$PROJECT_ROOT/docs/research/ai-tool-snapshot-243.md"
+  local record="$PROJECT_ROOT/docs/research/update-288-ai-tools.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$record"
-  grep -Fq '868527bc9eb4e8bee8610fa1d4027fbb37cfc012' "$flake"
+  grep -Fq 'e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9' "$record"
+  grep -Fq 'e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9' "$flake"
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902' "$manifest"
 }
 
@@ -380,7 +380,7 @@ PS
 
   grep -q 'version = "0.3.0";' "$pkg"
   grep -q '"@google/design.md": "0.3.0"' "$package_json"
-  grep -q '421eebfd0ec7bccd4abe826ce62d7e6e83129493' "$flake"
+  grep -q 'd6524aaca2ff07876657ae2b323f24be4874944b' "$flake"
   grep -q 'nixpkgs-ai-sources.*defuddle/package\.nix' "$module"
   grep -q 'markitdown/default\.nix' "$module"
 }

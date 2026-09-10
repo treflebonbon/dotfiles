@@ -8,13 +8,13 @@
     # Source only: backport selected package definitions onto 26.05 without
     # moving the shared package set (document converters and FastMCP for CRG).
     nixpkgs-ai-sources = {
-      url = "github:NixOS/nixpkgs/421eebfd0ec7bccd4abe826ce62d7e6e83129493";
+      url = "github:NixOS/nixpkgs/d6524aaca2ff07876657ae2b323f24be4874944b";
       flake = false;
     };
 
     llm-agents = {
       # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
-      url = "github:numtide/llm-agents.nix/868527bc9eb4e8bee8610fa1d4027fbb37cfc012";
+      url = "github:numtide/llm-agents.nix/e320800dd9dc2b156bfa77fbeeb00e9e7295f3a9";
     };
   };
 
