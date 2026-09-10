@@ -57,7 +57,7 @@ def stop(process):
             process.wait(timeout=10)
 
 
-bash, utils, python = (
+bash_root, coreutils_root, python_root = (
     Path(shutil.which(name)).resolve().parents[1] for name in ("bash", "cat", "python3")
 )
 system = {"x86_64": "x86_64-linux", "aarch64": "aarch64-linux"}[os.uname().machine]
@@ -70,7 +70,7 @@ args = [ "-c" "exit 0" ]; outputs = [ "out" ];
 PATH = "${tool "%s"}/bin:${tool "%s"}/bin:${tool "%s"}/bin"; PUBLIC_MODE = "fixture";
 shellHook = "test -z \\"$HUMAN_TOKEN$RAW_DUMMY_SECRET\\" || return 71";
 }; }; }"""
-    % (system, system, bash, bash, utils, python)
+    % (system, system, bash_root, bash_root, coreutils_root, python_root)
 )
 (work / "calculator.py").write_text("def add(a, b): return a + b\n")
 (work / "fixture.json").write_text('{"expected": 5}\n')
