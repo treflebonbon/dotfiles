@@ -50,7 +50,7 @@ CRGのFastMCP floor `>=3.2.4`、parserの `>=0.9.0,<1` を維持した。[PyPI�
 | 既存APM payload frozen・audit | PASS | #287の同一APM出力による `apm-baseline-frozen-result.json`、`apm-baseline-audit-result.json` |
 | 品質floor・source契約・関連Bats | 36/36 PASS | `ai-source-related-0.log`。採用前のpin契約REDも `ai-source-red.log` に保存 |
 | 新Codexの管理config strict parser | 1/1 PASS | `ai-source-related-1.log`。候補0.154.0でrendered/merged設定を検証 |
-| full Bats | PASS | [#295](update-295-integrated-acceptance.md)。657実行PASS・19skip、exit0 |
+| full Bats | 実行済み・環境失敗1件 | [#295](update-295-integrated-acceptance.md)。658実行PASS・20skip・1環境失敗（exit1） |
 
 WSL buildは `/nix/store/q8zmpinc8misl7jn62rfqahaya5xr8cb-nix-shell.drv` → `/nix/store/91qwmjgha9j6aldj7bzk8491968cgb2f-nix-shell`。aarch64-linux / aarch64-darwinのcacheと評価の成功を、それらの実機起動成功とは扱わない。Claude/Codex/Antigravityのauthenticated conversation、全新機能の実動作、Herdrの全端末での描画はこの起動probeの対象ではない。
 
@@ -58,4 +58,4 @@ Herdrは稼働中の通常serverから独立したHOME・XDG・named sessionを�
 
 APMは旧・候補とも `/nix/store/r08b589k4w0zap14lf556mq52fmmpwbd-apm-0.30.0`。同一実体で現行manifest/lockをfrozen配備し、lock SHA-256 `ef6e2065b6cec632780b4ceac55bd12472dbd4d8bbf69b6b15ab0b65da3a5f8b` 不変とaudit 10/10を確認済み。共有hub／Claude targetは43スキル、配備ledgerの1,204ファイルのhashが一致した。organization policyの取得・enforcementはskipであり、適合を確認したとはしない。新しいskill payloadとnative lockの採否は #289 以降で行う。
 
-source URLとnative lockを候補に揃え、lockの変更がsnapshot・そのtransitive nixpkgs・既存source-only inputだけであることを照合した。関連36件と新Codexでの設定parserが成功したため、この組み合わせをsourceへ採用する。統合full Batsと最終二軸reviewの成功は [#295](update-295-integrated-acceptance.md) に記録した。live反映は受入・merge後のlive sourceから行う。
+source URLとnative lockを候補に揃え、lockの変更がsnapshot・そのtransitive nixpkgs・既存source-only inputだけであることを照合した。関連36件と新Codexでの設定parserが成功したため、この組み合わせをsourceへ採用する。統合full Batsと最終二軸reviewの結果は [#295](update-295-integrated-acceptance.md) に記録した。live反映は受入・merge後のlive sourceから行う。

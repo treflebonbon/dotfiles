@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 既存 stable channel `nixpkgs-26.05-darwin` | `104a7c61006cd22d11c0379663afee90c62273ab` | [候補](https://github.com/NixOS/nixpkgs/tree/104a7c61006cd22d11c0379663afee90c62273ab)。2026-09-09T15:04:08Z |
 | 既存 `oxalica/rust-overlay` | `5280ed136f4359ce3f977b0c4c4dab6a34254201` | [候補](https://github.com/oxalica/rust-overlay/tree/5280ed136f4359ce3f977b0c4c4dab6a34254201)。2026-09-09T07:15:53Z |
-| 全6テンプレートの共通 with-env | `002085017c4260e3044156ab474823dad3bd1378` | 既存 exact input を維持。言語更新に必要な変更は確認されていない |
+| 全6テンプレートの共通 with-env | `63e47ffc471ff5e01f58a8a268ea553b0c9ab976` | 初回単位では0020850…を維持。main #284/#285取込み後は受入済み63e47ffを保持し、下記の全6言語gateを再実行 |
 | #258 の生成 lock の nixpkgs | `555cb0f648dd138a7a3c250f4f4928767707c988` | [過去の実行記録](template-with-env-258.md)からの比較値。この実行で生成した lock ではない |
 | #258 の生成 lock の rust-overlay | `6ae57a71bcb0bebc7a66cc2bd76942c4cf649167` | 同上 |
 
@@ -140,3 +140,11 @@ coordinatorが2026-09-10に必須ゲートを実行し、6言語すべての独�
 Go1.26.7のproject test / gopls / golangci-lint、Rust1.98.1のvtable回帰とCargo / nextest / clippy / fmt、Gleam1.18.1＋OTP29.0.6の生成project、その他の周辺CLI起動が成功した。Elixir1.20.4＋OTP29.0.6、Perl5.42.0、Bun1.3.13を維持する。ARM Linux / Apple Siliconは評価のみで実機実行とは扱わない。
 
 同じsource状態でrepoのfull Batsはexit0（674件中643実行PASS、31件skip）だった。opt-inのこのテンプレート検証は上記の別実行でPASSしており、full suiteのskipを成功の代用にしない。最終二軸reviewと他更新単位を合わせた統合確認は [#295](update-295-integrated-acceptance.md) に記録した。
+
+## main取込み後の再検証
+
+PR #296 の統合時にmain `9e1ab06` をmergeし、6テンプレートの共通inputはmainで受入済みの `63e47ffc471ff5e01f58a8a268ea553b0c9ab976` となった。stable nixpkgs `104a7c6…` とrust-overlay `5280ed1…` の候補固定、Rust1.98.1、Gleam OTP29、Go1.26.7の採否は維持した。
+
+`tmp/update-283/run-merge-templates.py` は短い隔離TMPDIRで `TEMPLATE_WITH_ENV_REAL_NIX=1 bats tests/template-with-env.bats` を実行し、全6言語が成功した（Bats 1/1、6/6言語、skip0、exit0）。各言語は独立repoで新規lockを生成し、3system評価・devShell/公開with-env・周辺CLI・既存の失敗条件に加え、mainの実codex-worktree入口からダミー値検証・commit・再起動まで通過した。証跡は `merge-templates.log` / `merge-templates-result.json`、独立repoは `/tmp/u283-template-2ujmqv0j/template-with-env-258-bwo00we_/`。
+
+初回の0020850…を使った成功記録は上に保持する。main取込み後の全体回帰・2軸reviewは [#295](update-295-integrated-acceptance.md) を参照する。hostはx86_64 Linux/WSL2で、ARM実機・live配備は引き続き未実施。

@@ -78,7 +78,7 @@ audit は10/10、drift なし。organization enforcement は隔離 cwd に Git r
 | `bats <candidate-source>/tests/design-hook.bats <candidate-source>/tests/impeccable-engine.bats` | PASS、14/14、skip 0 | `engine-hook-gate.log` |
 | `bats --filter 'managed Design Hook commands discard failed runtime output and fail open' tests/codex-config.bats` | PASS、1/1、skip 0 | `managed-failure-gate.log` |
 | `bats tests/apm-runtime.bats tests/apm-cache-refresh.bats tests/workflow-contract.bats` | exit0、40実行 PASS / 1 skip | `source-related.log` / `source-related-result.json` |
-| 親の full Bats / 必要な隔離 source dry-run | PASS | [#295](update-295-integrated-acceptance.md)。実engine/launcher付きfull657実行PASS・19skip、dry-run HOME不変 |
+| 親の full Bats / 必要な隔離 source dry-run | 結果記録 | [#295](update-295-integrated-acceptance.md)。実engine/launcher付きfull658実行PASS・20skip・1環境失敗（exit1）、dry-run HOME不変 |
 | live 配備 / ARM 実機起動 | 未実施 | live は受入・merge後。ARM 実機なし |
 
 実 hook では per-edit / Stop、両 provider の正常出力、quiet、dedupe・編集閾値・再入、both-tier の無言への収束、symlink を含む monorepo、project 設定/cache の所有権、理由付き抑制と policy footer を確認した。管理側では4 command の失敗 stdout 破棄、非0を fail-open、engine 不在時の launcher 非到達、正常出力の透過を既存の障害注入テストで確認した。timeout は既存の5秒 / 30秒を使い、hook を無効化したり期待動作を緩めたりしていない。

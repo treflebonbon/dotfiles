@@ -109,7 +109,7 @@ rootは既存の所有権・WSL adapter・runner contractを合わせた107件�
 | WSL CLI headed / Dashboard | show、新規openの既存tab保持、annotation送信、CLI終了後のDashboard保持と最後のconsumer終了PASS、`playwright-cli-wsl-headed/` |
 | 実Dogfood統合 | 14/14 PASS、新CLI・Node24.19、`playwright-real-dogfood.log`。web/MV3・annotation attachment・失敗時の証拠確定を確認 |
 | 所有権・adapter・runner contract | 107/107 PASS、`playwright-related-contracts.log` |
-| full Bats / final review | [#295](update-295-integrated-acceptance.md)。最終full657実行PASS・19skip、Standards規約違反0/smell0、Spec0 |
+| full Bats / final review | [#295](update-295-integrated-acceptance.md)。最終full658実行PASS・20skip・1環境失敗（exit1）、Standards規約違反0/smell0、Spec0 |
 | ARM実機 / live配備 | 未実施。ARMホストなし、liveは受入・merge後 |
 
 実headed検証ではDashboardの通常UIから検証用feedbackを送信し、CLIが同文言とannotation画像を返した。描画modal内の「Done annotating」を経由してから「Submit」を操作する。最初の確認操作はmodal背後をクリックしtimeoutしたが、この正規操作で成功したため製品コードの変更は不要だった。managed ownershipは検証の前後にnullを確認し、通常Chrome profileや別consumerには触れていない。

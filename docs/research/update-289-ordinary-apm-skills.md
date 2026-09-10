@@ -69,7 +69,7 @@ apm audit --ci
 | worker準備中のsource manifest / lock、#294 helper | 変更なし | baselineコピーとのbyte照合、helper SHA-256 |
 | 既存APM runtime・cache refresh・workflow契約テスト | 40実行PASS・1mount skip、exit0 | `tmp/update-283/apm-source-related.log`。root runtimeにも存在する `.agents` mount条件 |
 | 隔離chezmoi dry-run | PASS、HOME不変 | `tmp/update-283/source-dry-run-result.json` |
-| sourceの統合full Bats | #295で657実行PASS・19skip、exit0 | 必須実hook・テンプレートは別途実行してskipと区別する |
+| sourceの統合full Bats | #295で658実行PASS・20skip・1環境失敗（exit1） | 必須実hook・テンプレートは別途実行してskipと区別する |
 
 auditのorganization enforcementは、隔離cwdでGit remoteからorgを判定できずskip。baselineでもorganization policyの適用はskipだった。ローカルincludeがないためincludes-consentの実処理も対象外。inactive experimental targetのskipと13件のunpinned warningは既存target / manifest方針に由来し、Claude/Codexの必須配備をskipしたものではない。
 
@@ -89,4 +89,4 @@ Git cacheに候補treeはあったがRemotionの一部blobが未取得で、lazy
 
 rootが全17依存の比較結果・Remotionの本文変更とnative生成結果を確認し、上記manifest / lockをbyteコピーした。pinとcontent hashの既存契約テストは旧sourceでREDを確認し、新しい検証済み値へ追従した。lockは手編集・再整形していない。source反映後のAPM/cache/workflow契約テストと隔離dry-runの確認後、#290へこの採用pairを引き継いだ。
 
-source採用後の関連テストは40実行PASS・1mount skip、exit0。以前の41/41報告を現存ログに合わせて訂正した。`tmp/update-283/apm-source-related.log` と #290 の別実行ログは同じ結果であり、上書きの証拠はない。skip対象は `repo-local Agent skill deploy target is absent` で、現在のroot runtimeもsource `.agents` をmountするため適用される条件である。`chezmoi --source <task worktree> init --no-tty --guess-repo-url=false` と隔離HOMEへの `apply --dry-run --no-tty` は `source-dry-run-result.json` で成功し、dry-run前後でHOMEの全パス・内容が不変だった。#289時点のsource lockも上記 `c15f6e15...` と一致していた。最終統合full Bats・二軸reviewの成功は [#295](update-295-integrated-acceptance.md) に記録した。
+source採用後の関連テストは40実行PASS・1mount skip、exit0。以前の41/41報告を現存ログに合わせて訂正した。`tmp/update-283/apm-source-related.log` と #290 の別実行ログは同じ結果であり、上書きの証拠はない。skip対象は `repo-local Agent skill deploy target is absent` で、現在のroot runtimeもsource `.agents` をmountするため適用される条件である。`chezmoi --source <task worktree> init --no-tty --guess-repo-url=false` と隔離HOMEへの `apply --dry-run --no-tty` は `source-dry-run-result.json` で成功し、dry-run前後でHOMEの全パス・内容が不変だった。#289時点のsource lockも上記 `c15f6e15...` と一致していた。最終統合full Bats・二軸reviewの結果は [#295](update-295-integrated-acceptance.md) に記録した。
