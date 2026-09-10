@@ -39,3 +39,5 @@ dependencies:
     - stablyai/orca/skills/orca-cli#de0a91b99fc845c9510340786f807ea1c988859b
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use
+    # Herdr 0.9.0 同梱スキルと同じ revision を APM で配布する。
+    - herdrdev/herdr/skills/herdr#b99002ac99b09e00b4ca692436cb15a6b0d676f1
