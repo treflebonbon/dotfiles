@@ -116,6 +116,14 @@ _Avoid_: worktree creation, directory change, session resume
 現在の task worktree から解決した worktree 固有 Git dir と Git common dir だけを、その session の書込み対象へ加える権限範囲。別 repository の Git metadata や静的な repository 例外は含めない。
 _Avoid_: `.git` write access, repository-wide permission, global Git exception
 
+**Dangling Worktree**:
+`.git` の `gitdir:` 参照先（親リポジトリ側の `.git/worktrees/`）が存在しない worktree ディレクトリ。親リポジトリ自体の消失に起因する点で、`worktree-gc` の repo-local な孤児判定（`git worktree list` に未登録だが親リポジトリは現存するディレクトリ）とは区別する（[ADR-0056](docs/adr/0056-worktree-gc-home-wide-fanout.md)）。
+_Avoid_: 孤児worktree, orphan, 壊れたworktree
+
+**信頼できる外部ルート**:
+`$REPO` 外にありながら `worktree-gc` の実削除対象として明示的に許可リスト化された絶対パス（`~/.herdr/worktrees/<repo>`、`~/orca/workspaces/<repo>`）。この2種以外の out-of-root パスは引き続き診断表示のみに留まる（[ADR-0056](docs/adr/0056-worktree-gc-home-wide-fanout.md)）。
+_Avoid_: out-of-root, 外部worktree, ホワイトリストパス
+
 **Technical Sandbox Boundary**:
 Git の checkout 隔離とは独立して、agent の filesystem・network access を runtime が強制する権限境界。full-autonomy permission mode では存在せず、worktree isolation 自体もこの境界には含めない。
 _Avoid_: worktree sandbox, repository isolation, permission mode

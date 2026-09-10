@@ -1,0 +1,332 @@
+#!/usr/bin/env bash
+# ---
+# topics: [worktree, gc, engine, cli, fan-out]
+# source: human
+# ---
+# worktree-gc-fanout.sh
+# Home-wide fan-out wrapper around worktree-gc.sh (ADR-0056). Explicit
+# opt-in only: worktree-gc.sh's own single-repo default behavior and
+# triggers are unchanged.
+#
+# Enumerates repos under --ghq-root and re-invokes the unmodified
+# worktree-gc.sh engine once per repo, with two "trusted external roots"
+# appended to --roots: --herdr-root/<repo-basename> and
+# --orca-root/<repo-basename>. These are genuine git worktrees registered
+# against the ghq repo, so the engine's own out-of-root/in-root
+# classification already treats them as real removal candidates once they
+# are named in --roots — no engine change needed.
+#
+# Also sweeps --herdr-root/** and --orca-root/** directly for *dangling*
+# worktrees: a worktree whose parent repo (and thus its git worktree admin
+# dir) has vanished entirely. worktree-gc.sh cannot see these on its own —
+# it requires a live --repo to run against.
+#
+# Adds two safety features worktree-gc.sh itself intentionally does not
+# have, both implemented here only (the engine stays untouched):
+#   - a live-process guard: skip a candidate (or, for a repo call, the whole
+#     repo) if some process still has it as cwd.
+#   - a GLOBAL --max-removals cap across the whole run. worktree-gc.sh's own
+#     --max-removals is per invocation (i.e. per repo); a single approval
+#     covering many repos plus the dangling scan needs a run-wide cap too.
+#
+# Dry-run by default (mirrors worktree-gc.sh). --diagnose prints an
+# aggregate, structured candidate report across every repo + the dangling
+# scan. --apply performs real removal.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENGINE="${WORKTREE_GC_ENGINE:-$SCRIPT_DIR/worktree-gc.sh}"
+
+APPLY=false
+DIAGNOSE=false
+GHQ_ROOT="$HOME/ghq"
+HERDR_ROOT="$HOME/.herdr/worktrees"
+ORCA_ROOT="$HOME/orca/workspaces"
+REPO_ROOTS=".claude/worktrees,.worktrees,tmp/implement-issue/worktrees"
+AGE_DAYS=7
+LOCKED_AGE_DAYS=""
+MAX_REMOVALS=50 # global cap across the whole run, not per repo
+MAX_REPORT=50
+SELF_SESSION=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --apply) APPLY=true ;;
+  --dry-run) APPLY=false ;;
+  --diagnose) DIAGNOSE=true ;;
+  --ghq-root)
+    GHQ_ROOT="$2"
+    shift
+    ;;
+  --herdr-root)
+    HERDR_ROOT="$2"
+    shift
+    ;;
+  --orca-root)
+    ORCA_ROOT="$2"
+    shift
+    ;;
+  --repo-roots)
+    REPO_ROOTS="$2"
+    shift
+    ;;
+  --age-days)
+    AGE_DAYS="$2"
+    shift
+    ;;
+  --locked-age-days)
+    LOCKED_AGE_DAYS="$2"
+    shift
+    ;;
+  --max-removals)
+    MAX_REMOVALS="$2"
+    shift
+    ;;
+  --max-report)
+    MAX_REPORT="$2"
+    shift
+    ;;
+  --self-session)
+    SELF_SESSION="$2"
+    shift
+    ;;
+  *)
+    echo "unknown arg: $1" >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+[ -n "$LOCKED_AGE_DAYS" ] || LOCKED_AGE_DAYS="$AGE_DAYS"
+[ -f "$ENGINE" ] || {
+  echo "engine not found: $ENGINE" >&2
+  exit 2
+}
+
+ENGINE_EXTRA_ARGS=()
+if [ -n "$SELF_SESSION" ]; then
+  ENGINE_EXTRA_ARGS+=(--self-session "$SELF_SESSION")
+fi
+
+# ---------------------------------------------------------------------------
+# Pure helpers (unit-tested via extract_function in tests/worktree-gc-fanout.bats)
+# ---------------------------------------------------------------------------
+
+# Duplicated from worktree-gc.sh on purpose (ADR-0056: that engine stays
+# unmodified, and sourcing the whole file would re-run its top-level CLI
+# parsing/dispatch against this script's own argv).
+is_older_than_days() {
+  local path="$1" days="$2" now mtime
+  now=$(date +%s)
+  mtime=$(stat -c %Y "$path" 2>/dev/null) || mtime=$(stat -f %m "$path" 2>/dev/null) || return 1
+  (((now - mtime) / 86400 >= days))
+}
+
+# Builds the --roots CSV for one ghq repo: its existing repo-local roots plus
+# the two trusted external roots named after the repo's basename.
+repo_roots_for() {
+  local repo="$1" herdr_root="$2" orca_root="$3" default_roots="$4" base
+  base=$(basename "$repo")
+  printf '%s,%s/%s,%s/%s\n' "$default_roots" "$herdr_root" "$base" "$orca_root" "$base"
+}
+
+# cap - used, floored at 0.
+remaining_budget() {
+  local cap="$1" used="$2" remaining
+  remaining=$((cap - used))
+  if [ "$remaining" -lt 0 ]; then
+    remaining=0
+  fi
+  printf '%s\n' "$remaining"
+}
+
+# Prints the gitdir target of $1/.git when it is a worktree pointer file.
+# Fails (no output) if $1/.git is missing or is a real directory (a normal
+# clone, not a worktree).
+gitdir_target() {
+  local dir="$1" line target
+  local gitfile="$dir/.git"
+  [ -f "$gitfile" ] || return 1
+  line=$(head -n1 "$gitfile") || return 1
+  case "$line" in
+  "gitdir: "*) target="${line#gitdir: }" ;;
+  *) return 1 ;;
+  esac
+  case "$target" in
+  /*) ;;
+  *) target="$dir/$target" ;;
+  esac
+  printf '%s\n' "$target"
+}
+
+# Success iff $1 is a git-worktree pointer whose gitdir target no longer
+# exists (its parent repo, or the repo's own worktree admin dir, is gone).
+is_dangling_worktree() {
+  local dir="$1" target
+  target=$(gitdir_target "$dir") || return 1
+  if [ -e "$target" ]; then
+    return 1
+  fi
+  return 0
+}
+
+# Strips the "summary ..." line and the TSV header line that worktree-gc.sh
+# --diagnose prints ahead of its data rows, leaving just the data rows.
+skip_summary_and_header() {
+  local line
+  while IFS= read -r line; do
+    case "$line" in
+    "summary "*) continue ;;
+    $'decision\treason\tscope\tbranch\tpath') continue ;;
+    esac
+    printf '%s\n' "$line"
+  done
+}
+
+# Success iff a live process has $1 (or a path under it) as its cwd.
+is_busy_dir() {
+  local dir="$1" cwd_link resolved
+  for cwd_link in /proc/[0-9]*/cwd; do
+    [ -e "$cwd_link" ] || continue
+    resolved=$(readlink -f "$cwd_link" 2>/dev/null) || continue
+    case "$resolved" in
+    "$dir" | "$dir"/*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# Prints one real (non-worktree) repo path per line under $1.
+find_ghq_repos() {
+  local root="$1" gitdir
+  [ -d "$root" ] || return 0
+  while IFS= read -r gitdir; do
+    dirname "$gitdir"
+  done < <(find "$root" -mindepth 1 -maxdepth 6 -type d -name .git 2>/dev/null)
+}
+
+# Prints leaf worktree dirs (two levels: <repo>/<name>) under $1.
+find_worktree_dirs() {
+  local root="$1"
+  [ -d "$root" ] || return 0
+  find "$root" -mindepth 2 -maxdepth 2 -type d 2>/dev/null
+}
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+engine_diagnose() {
+  local repo="$1" roots="$2"
+  bash "$ENGINE" --diagnose --repo "$repo" --roots "$roots" \
+    --age-days "$AGE_DAYS" --locked-age-days "$LOCKED_AGE_DAYS" \
+    --max-report "$MAX_REPORT" "${ENGINE_EXTRA_ARGS[@]}" |
+    skip_summary_and_header
+}
+
+# Success iff any remove-candidate for $1/$2 currently has a live process
+# sitting in it.
+repo_has_busy_candidate() {
+  local repo="$1" roots="$2" decision reason scope branch wt
+  while IFS=$'\t' read -r decision reason scope branch wt; do
+    [ "$decision" = "remove-candidate" ] || continue
+    if is_busy_dir "$wt"; then
+      return 0
+    fi
+  done < <(engine_diagnose "$repo" "$roots")
+  return 1
+}
+
+diagnose_ghq_fanout() {
+  local repo roots decision reason scope branch wt
+  while IFS= read -r repo; do
+    roots=$(repo_roots_for "$repo" "$HERDR_ROOT" "$ORCA_ROOT" "$REPO_ROOTS")
+    while IFS=$'\t' read -r decision reason scope branch wt; do
+      [ "$decision" = "remove-candidate" ] || continue
+      printf 'repo\t%s\t%s\t%s\t%s\t%s\n' "$reason" "$scope" "$branch" "$wt" "$repo"
+    done < <(engine_diagnose "$repo" "$roots")
+  done < <(find_ghq_repos "$GHQ_ROOT")
+}
+
+diagnose_dangling() {
+  local root dir
+  for root in "$HERDR_ROOT" "$ORCA_ROOT"; do
+    while IFS= read -r dir; do
+      is_dangling_worktree "$dir" || continue
+      is_older_than_days "$dir" "$AGE_DAYS" || continue
+      printf 'dangling\tdangling-parent\tin-root\t-\t%s\t-\n' "$dir"
+    done < <(find_worktree_dirs "$root")
+  done
+}
+
+cmd_diagnose() {
+  printf 'source\treason\tscope\tbranch\tpath\trepo\n'
+  diagnose_ghq_fanout
+  diagnose_dangling
+}
+
+# Shared by the default dry-run and --apply: only whether $APPLY is true (and
+# thus whether the engine is told --apply, dangling dirs are actually rm'd,
+# and the busy-process guard runs) differs between the two.
+cmd_sweep() {
+  local global_used=0 repo roots remaining out removed root dir
+  local engine_flags=()
+  if [ "$APPLY" = true ]; then
+    engine_flags=(--apply)
+  fi
+
+  while IFS= read -r repo; do
+    remaining=$(remaining_budget "$MAX_REMOVALS" "$global_used")
+    if [ "$remaining" -le 0 ]; then
+      echo "global max-removals reached ($MAX_REMOVALS), skipping: $repo" >&2
+      continue
+    fi
+    roots=$(repo_roots_for "$repo" "$HERDR_ROOT" "$ORCA_ROOT" "$REPO_ROOTS")
+    if [ "$APPLY" = true ] && repo_has_busy_candidate "$repo" "$roots"; then
+      echo "protected (busy process detected in a candidate): $repo" >&2
+      continue
+    fi
+    if ! out=$(bash "$ENGINE" "${engine_flags[@]}" --repo "$repo" --roots "$roots" \
+      --age-days "$AGE_DAYS" --locked-age-days "$LOCKED_AGE_DAYS" \
+      --max-removals "$remaining" "${ENGINE_EXTRA_ARGS[@]}" 2>&1); then
+      echo "engine failed for repo, skipping: $repo" >&2
+      printf '%s\n' "$out" >&2
+      continue
+    fi
+    printf '%s\n' "$out"
+    removed=$(printf '%s\n' "$out" | sed -n 's/^done removed=\([0-9]*\)$/\1/p')
+    global_used=$((global_used + ${removed:-0}))
+  done < <(find_ghq_repos "$GHQ_ROOT")
+
+  for root in "$HERDR_ROOT" "$ORCA_ROOT"; do
+    while IFS= read -r dir; do
+      is_dangling_worktree "$dir" || continue
+      is_older_than_days "$dir" "$AGE_DAYS" || continue
+      remaining=$(remaining_budget "$MAX_REMOVALS" "$global_used")
+      if [ "$remaining" -le 0 ]; then
+        echo "global max-removals reached ($MAX_REMOVALS), skipping: $dir" >&2
+        continue
+      fi
+      if [ "$APPLY" != true ]; then
+        echo "would remove dangling: $dir"
+        continue
+      fi
+      if is_busy_dir "$dir"; then
+        echo "protected (busy process detected): $dir" >&2
+        continue
+      fi
+      echo "removing dangling: $dir"
+      rm -rf -- "$dir"
+      global_used=$((global_used + 1))
+    done < <(find_worktree_dirs "$root")
+  done
+
+  echo "fanout done removed=$global_used"
+}
+
+if [ "$DIAGNOSE" = true ]; then
+  cmd_diagnose
+  exit 0
+fi
+
+cmd_sweep
