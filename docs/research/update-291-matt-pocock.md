@@ -2,7 +2,7 @@
 
 2026-09-10。[#291](https://github.com/treflebonbon/dotfiles/issues/291) と親 [#283](https://github.com/treflebonbon/dotfiles/issues/283) の AC10 / AC13 に従い、導入済み Matt Pocock 25スキルの exact pin `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76` を維持する。入口で固定された上流候補 `3cca18b368ae95cdbdebbff572ccafa662551015` は、選択 payload と plugin membership が現 pin と同一であり、revision の新しさだけを理由に更新しない。
 
-この単位の変更は本判断記録だけである。APM manifest / lock、skill membership、配布 ownership、workflow・cleanup・モデル・権限の契約は変更しない。最終の二軸 review と [#295](https://github.com/treflebonbon/dotfiles/issues/295) の統合検証は未済であり、維持判断の確定を combined branch 全体の検証完了とは扱わない。commit と最終採用の取りまとめは coordinator が行う。
+この単位の変更は本判断記録だけである。APM manifest / lock、skill membership、配布 ownership、workflow・cleanup・モデル・権限の契約は変更しない。最終の二軸 review と [#295](https://github.com/treflebonbon/dotfiles/issues/295) の統合検証は実施済みであり、結果と未確認範囲は [#295 の受入記録](update-295-integrated-acceptance.md) にまとめた。最終 full Bats は658実行PASS・20skip・1環境失敗（exit1）であり、全体成功とは扱わない。commit と最終採用の取りまとめは coordinator が行う。
 
 ## 現行・候補・採否
 
@@ -51,7 +51,7 @@ plugin に含まれない skill の追加や一部だけの採用はしない。
 
 APM 0.30.0 が記録する Matt の aggregate content hash は `sha256:22de78eb0eca8ad3f1830f955999ff588650e1f6bbb1f436236eff4fb0296eda` で不変。Git tree / blob ID、APM content hash、配備ファイルの SHA256 はそれぞれ別の照合として扱う。
 
-#290 で既に実施したコマンドは次のとおり。本単位で再実行したり、Matt 候補の ordered gate として数えたりしていない。
+Issue #290 で既に実施したコマンドは次のとおり。本単位で再実行したり、Matt 候補の ordered gate として数えたりしていない。
 
 ```sh
 apm install --target claude,codex --https
@@ -61,7 +61,7 @@ apm audit --ci
 
 実 binary は `/nix/store/r08b589k4w0zap14lf556mq52fmmpwbd-apm-0.30.0/bin/apm`、cwd / HOME は `tmp/update-290/runtime`。各 exit0、audit 10/10。native install / frozen / audit 後の lock SHA256 は `144bf375db3942b1185fc5d73ebcb4965121b27e52bed1ef40b717849fd93c53` で一致する。organization enforcement は Git remote のない隔離 cwd のため適用外、includes-consent は local include がなく対象外である。両 target の discovery は管理された layout / payload の確認であり、対話的な Claude / Codex loader や live 配備の確認ではない。
 
-#289 / #290 の関連Batsは各40実行PASS・1skipであり、41/41ではない。`repo-local Agent skill deploy target is absent` はsource `.agents` をmountする場合の既存skipで、現在のcoordinator runtimeにも適用される。Mattの両target・全payload照合や実hookの未実施をこのskipで代替しない。
+Issue #289 / #290 の関連Batsは各40実行PASS・1skipであり、41/41ではない。`repo-local Agent skill deploy target is absent` はsource `.agents` をmountする場合の既存skipで、現在のcoordinator runtimeにも適用される。Mattの両target・全payload照合や実hookの未実施をこのskipで代替しない。
 
 ## Verification Matrix と未済事項
 
@@ -85,4 +85,4 @@ apm audit --ci
 - #290 の native install / frozen / audit: `tmp/update-290/install-result.json`、`frozen-result.json`、`audit-result.json` と対応ログ。
 - #290 の全配布・ownership 照合: `tmp/update-290/payload-verification.json`。非 Impeccable 18 dependency block 不変、全体43/43 discovery の記録を含む。
 - 本単位の再確認: `python3` の read-only probe で上記 JSON、source / runtime / #290 baseline の YAML、materialized plugin と選択ファイルを読み、hash と membership を照合。結果は前掲表の25 / 74 / 148 / 43 / 198。runtime への書込み、APM の再実行、Git 操作はない。
-- 関連する採用記録: [#289 通常 APM](update-289-ordinary-apm-skills.md)、[#290 Impeccable](update-290-impeccable.md)。これらの検証結果と、未実施の Matt 候補 gate / 最終統合 gate を区別する。
+- 関連する採用記録: [#289 通常 APM](update-289-ordinary-apm-skills.md)、[#290 Impeccable](update-290-impeccable.md)。これらの検証結果、適用外・未実施の Matt 候補 gate、実施済みの [最終統合検証](update-295-integrated-acceptance.md) の結果を区別する。
