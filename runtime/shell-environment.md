@@ -97,7 +97,7 @@ Codex の対話画面で行うディレクトリの信頼や操作設定の保�
 
 Nix の取得と command network proxy は managed allowlist の HTTPS と公開 IP だけへ接続する。専用 resolver も同じ条件を使う。network namespace 内だけで低位 port を使用可能にし、DNS listener・初期化・Codex は capability を持たない。ホストの DNS・loopback・制御 socket は公開しない。
 
-既存セッション、直接の `codex`、Codex Desktop、Orca／Herdr native 起動はこの保証の対象外。macOS の raw 隔離起動も未対応で拒否する。受入・merge 後の live source から配備して新しい入口で起動する。未 merge の task source から `chezmoi apply` しない。検証範囲は [#271 の記録](../docs/research/raw-codex-isolation-271.md) を参照。
+既存セッション、直接の `codex`、Codex Desktop、Orca／Herdr native 起動はこの保証の対象外。Herdr が作成した worktree でも、[ホスト側コピーの成功確認後、そのターミナルから `codex-worktree` を使う手順](ai-runtimes.md#新規-worktree-への-env-コピー)で共通の隔離入口を利用できる。macOS の raw 隔離起動は未対応で拒否する。受入・merge 後の live source から配備して新しい入口で起動する。未 merge の task source から `chezmoi apply` しない。検証範囲は [#271 の記録](../docs/research/raw-codex-isolation-271.md) を参照。
 
 ### 隔離内の管理 MCP と GitHub
 
@@ -152,7 +152,7 @@ raw Codex では `with-env --prepared -- <command> [args...]` が秘密なしの
 
 準備完了の情報は `DEVSHELL_ENV_CONTEXT` に root・repo identity・output・root の `flake.nix` / `flake.lock` の hash だけを保持する。値を持つ環境キャッシュではない。別 root・output・この2ファイルの変更を検出したら正式入口を失敗させ、再起動を要求する。import した Nix file なども含め、devShell を変更したら常に再起動する。この情報は再利用対象の照合用であり、agent による環境変数改変を防ぐ認証情報ではない。
 
-標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。実際の秘密が必要な検証は人間の明示した `with-env` で行う。
+標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。Codex では公開 fixture（例: `tests/fixtures/config.json`）や `with-env --prepared -- env APP_MODE=test command` のようなダミー値を使う。ホストの既存環境変数を渡す設定や root dotenv の read 例外は追加しない。管理 helper は dotenv を読み込まず、devShell 内の公開 package も隠したホストの値には到達できない。実値が必要なら、次の手順で固定コード・秘密・出力を別環境へ分離する。
 
 名前付き dev / test app へ組み込む例（対象 flake で dotfiles を input に持ち、system ごとの output を定義する箇所）:
 
@@ -179,7 +179,13 @@ in
 
 たとえば `dev` が接続先を必須にするなら、そのコマンド内で `: "${DATABASE_URL:?DATABASE_URL is required}"` のように確認する。上記は組込み例で、dotfiles 自体に `dev` app や接続先を追加するものではない。Go・Rust・Elixir・Perl・Gleam・Bun のテンプレートにも共通の `with-env` app と devShell 内の同名コマンドを含めている。生成先で `nix flake lock` を実行して lock を Git に追加し、`nix develop .#default` / `nix run .#with-env -- command` を使う。言語別の dev / test 組込み例・信頼登録・明示再読込み・dotenv 移行は、生成物の `DEVELOPMENT.md` を参照する。テンプレートは browser を含まない `default` のみを持ち、WSL でも `.wsl-browser-free` なしで利用できる。別 output や marker を追加する場合は対応する devShell も定義する。
 
-人間は `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+人間の実値検証は別環境の固定版で `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
+
+### 人間による実値検証
+
+[人間の実値検証手順](human-validation.md)に、完全な SHA の確認、独立 clone／archive の渡し方、コード・秘密・出力・制御経路の分離、確認済み結果だけの共有をまとめている。実値は人間が確認した固定版を Codex からアクセスできない別環境で実行するときにだけ用意する。別ターミナルや別 worktree へのコピーだけでは分離にならない。
+
+`tests/human-validation.bats` は人間環境を共通 raw 入口の外側に置いたダミー fixture で、固定コードの実行中に Codex が編集・テスト・commit を続け、コード・秘密・出力・process 経由の取得と書換えを拒否できることを検証する。実値や人間の本番環境の検証を代行するものではない。[Linux／WSL2 の検証記録](../docs/research/human-validation-274.md)を参照。
 
 ## Claude のプロジェクト開発環境
 
@@ -200,7 +206,7 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 ## 既存 repo の移行
 
 1. `.envrc` にだけ置かれた通常変数・ツール・非秘密の初期化を `flake.nix` の devShell（またはそこから import するファイル）へ移す。dotenv や秘密取得は shellHook に置かない。既存 `.envrc` は明示利用のために残せる。dotfiles と6テンプレートの既存 `.envrc` は flake と dotenv を呼ぶだけで、通常設定の追加移植は不要。
-2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保ち、必要な値は作業する root に人間が用意する。`with-env` は main・親・別 worktree を探索・コピーしない。
+2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保つ。AI には公開 fixture とダミー値を用意し、実値は上記の固定コードを実行する別環境にだけ注入する。`with-env` は main・親・別 worktree を探索・コピーしない。
 3. 人間は上記の `nix develop` でツールと通常変数を確認する。AI 自動読込みを使う repo は `devshell-env trust` で一度登録し、`devshell-env status` で root・output・信頼を確認する。解除は `devshell-env untrust`。別 clone は別登録になる。
 4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は秘密なしの `with-env --prepared -- command` を使い、初回に上記の公開入力登録も行う。Claude は非秘密の devShell だけを使い、dotenv が必要な処理は人間側の入口で実行する。
 5. 旧 hook が動く端末は終了し、受入・merge 後に live source で `chezmoi apply` してから新しい端末を開く。未 merge の task source は配備しない。通常変数とツール、明示更新、正式入口の失敗を確認する。
@@ -215,14 +221,14 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 
 `.bashrc` の関数で提供:
 
-| コマンド | 動作                                                                               |
-| -------- | ---------------------------------------------------------------------------------- |
+| コマンド | 動作 |
+| --- | --- |
 | `Ctrl-G` | flyline 有効時は入力を破棄して `gcd` を実行し fzf 選択 → cd、fallback 時は直接起動 |
-| `gcd`    | リポジトリを選んで cd                                                              |
-| `gclone` | 引数ありで `ghq get`、なしで `gh repo list`（ユーザー + 所属 Org）→ fzf → clone    |
-| `gedit`  | リポジトリを `$EDITOR` で開く                                                      |
-| `gweb`   | リポジトリを `gh browse` で表示                                                    |
-| `ginit`  | `owner/repo` 形式で ghq 管理下にローカルリポジトリを作成                           |
+| `gcd` | リポジトリを選んで cd |
+| `gclone` | 引数ありで `ghq get`、なしで `gh repo list`（ユーザー + 所属 Org）→ fzf → clone |
+| `gedit` | リポジトリを `$EDITOR` で開く |
+| `gweb` | リポジトリを `gh browse` で表示 |
+| `ginit` | `owner/repo` 形式で ghq 管理下にローカルリポジトリを作成 |
 
 ## その他
 

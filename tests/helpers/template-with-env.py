@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -361,7 +362,70 @@ sys.exit(23)
     assert (repo / "flake.lock").read_bytes() == lock
     assert (worktree / "flake.lock").read_bytes() == lock
     print(
-        f"{language}: dotenv, isolation, failures, WSL and explicit output passed",
+        f"{language}: human dotenv, worktree selection, failures and output selection passed",
+        flush=True,
+    )
+    verify_raw(language, repo, evidence)
+
+
+def verify_raw(language, repo, evidence):
+    """Use the actual #271 entry and the template's actual with-env package."""
+    app = run(["nix", "eval", "--raw", ".#apps.x86_64-linux.with-env.program"], repo)
+    task = evidence / f"{language}-raw-task.sh"
+    task.write_text(
+        "set -eu\n"
+        + shlex.join(LANGUAGES[language])
+        + "\ntest ! -e envrc-executed\n"
+        + 'test -z "${RAW_DUMMY_SECRET+x}"\n'
+        + 'with-env --prepared -- env TEST_TOKEN=dummy-public sh -c \'test "$TEST_TOKEN" = dummy-public; test "$(cat fixture.txt)" = public\'\n'
+        + "set +e\n"
+        + shlex.quote(app)
+        + " --prepared -- sh -c 'test -z \"${RAW_DUMMY_SECRET+x}\" || exit 42; test \"$1/$2\" = \"two words/\" || exit 43; exit 23' _ 'two words' ''\n"
+        + 'status=$?\nset -e\ntest "$status" -eq 23\n'
+        # Codex may create an empty deny placeholder; it is not the host dotenv.
+        + "python3 - <<'PY'\n"
+        + "from pathlib import Path\n"
+        + "for name in ('.env', 'ordinary-looking-name', 'nested/renamed', '../repo/.env'):\n"
+        + "    path = Path(name)\n"
+        + "    try: content = path.read_bytes()\n"
+        + "    except (FileNotFoundError, PermissionError): continue\n"
+        + "    assert path.name == '.env' and content == b'', name\n"
+        + "PY\n"
+        + "printf tested > fixture.txt\ngit add fixture.txt\ngit commit -qm 'test: template in raw isolation'\nprintf 'TEMPLATE_RAW_OK\\n'\n"
+    )
+    temporary = evidence / f"{language}-raw"
+    temporary.mkdir()
+    script = r"""
+set -eu
+source "$PROJECT_ROOT/tests/helpers/raw-codex.bash"
+raw_fixture
+cp "$TEMPLATE_REPO/flake.nix" "$TEMPLATE_REPO/flake.lock" "$RAW_BASE/work/"
+cp "$TEMPLATE_RAW_TASK" "$RAW_BASE/work/task.sh"
+printf 'public\n' > "$RAW_BASE/work/fixture.txt"
+printf 'touch envrc-executed; exit 89\n' > "$RAW_BASE/work/.envrc"
+raw_admit flake.nix flake.lock task.sh fixture.txt .envrc
+export RAW_DUMMY_SECRET=dummy-template-host-only
+raw_run sandbox -- bash task.sh
+test "$(cat "$RAW_BASE/work/fixture.txt")" = tested
+test "$(git -C "$RAW_BASE/work" log -1 --format=%s)" = 'test: template in raw isolation'
+test "$(cat "$RAW_BASE/work/.env")" = RAW_DUMMY_SECRET=dummy-root-secret
+raw_run sandbox -- with-env --prepared -- sh -c 'test "$(cat fixture.txt)" = tested'
+"""
+    output = run(
+        ["bash", "-c", script],
+        repo,
+        environment=os.environ
+        | {
+            "PROJECT_ROOT": str(SOURCE),
+            "BATS_TEST_TMPDIR": str(temporary),
+            "TEMPLATE_REPO": str(repo),
+            "TEMPLATE_RAW_TASK": str(task),
+        },
+    )
+    assert "TEMPLATE_RAW_OK" in output
+    assert "dummy-template-host-only" not in output
+    print(
+        f"{language}: real raw entry, public app, dummy test, commit and restart passed",
         flush=True,
     )
 

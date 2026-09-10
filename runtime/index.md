@@ -14,6 +14,7 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 ## Concepts
 
 - [shell-environment](shell-environment.md) — bash + starship/atuin/fzf/zoxide/ghq のシェル環境
+- [human-validation](human-validation.md) — 秘密なしの AI 開発と、人間による固定版の別環境検証
 - [skill-harness](skill-harness.md) — apm 経由の skill 群、mattpocock ワークフロー、playwright-cli
 - [ai-runtimes](ai-runtimes.md) — nix-devshell の AI ツールと Claude/Codex マルチランタイム、更新経路
 

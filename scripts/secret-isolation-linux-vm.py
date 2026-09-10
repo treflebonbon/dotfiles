@@ -14,11 +14,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument(
+        "--human-validation",
+        action="store_true",
+        help="run fixed human code and concurrent raw Codex with dummy values only",
+    )
+    parser.add_argument(
+        "--herdr",
+        action="store_true",
+        help="run the real Herdr event/terminal integration without external tool logins",
+    )
+    parser.add_argument(
         "--real-services",
         action="store_true",
         help="run managed MCP and read-only GitHub probes using selected tool login files",
     )
     args = parser.parse_args()
+    if sum((args.herdr, args.real_services, args.human_validation)) > 1:
+        parser.error(
+            "--herdr, --real-services and --human-validation select separate verification runs"
+        )
     output = args.output.resolve()
     output.mkdir(mode=0o700)
     root = Path(__file__).resolve().parents[1]
@@ -52,7 +66,13 @@ def main():
     ]
     if args.real_services:
         command.extend(["--arg", "realServices", "true"])
-    for name, argument in (
+    if args.human_validation:
+        app = subprocess.check_output(
+            ["nix", "build", f"{root}#with-env", "--no-link", "--print-out-paths"],
+            text=True,
+        ).strip()
+        command.extend(["--argstr", "withEnvRoot", app])
+    selected_tools = [
         ("nix", "nixRoot"),
         ("bash", "bashRoot"),
         ("cat", "coreutilsRoot"),
@@ -63,7 +83,10 @@ def main():
         ("bwrap", "bwrapRoot"),
         ("bats", "batsRoot"),
         ("chezmoi", "chezmoiRoot"),
-    ):
+    ]
+    if args.herdr:
+        selected_tools.append(("herdr", "herdrRoot"))
+    for name, argument in selected_tools:
         executable = shutil.which(name)
         if executable is None:
             raise ValueError(f"missing required tool: {name}")
