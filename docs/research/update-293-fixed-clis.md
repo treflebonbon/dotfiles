@@ -1,11 +1,11 @@
 ---
 type: research
-title: "Update #293: standalone fixed CLI preparation"
-description: 固定CLIの候補、配布経路、ハッシュ、隔離検証と未実施ゲート
+title: "Update #293: standalone fixed CLI adoption"
+description: 固定CLIの採否、配布経路、ハッシュ、実Nix検証と残る統合ゲート
 tags: [update, nix, cli, evidence]
 ---
 
-# Update #293: standalone fixed CLI preparation
+# Update #293: standalone fixed CLI adoption
 
 2026-09-10、[子 issue #293](https://github.com/treflebonbon/dotfiles/issues/293) と [親 #283](https://github.com/treflebonbon/dotfiles/issues/283) の本文・全コメントを取得。両 issue の comments は空。AGENTS.md、docs/conventions.md、docs/architecture.md、runtime/skill-harness.md、ADR-0021 と承認済み Testing Decisions に従う。
 
@@ -62,7 +62,7 @@ gwq の release binary 3種も supplemental probe 用に照合したが、Nix pa
 | gwq vendorHash | sha256-4K01Xf1EXl/NVX1loQ76l1bW8QglBAQdvlZSo7J4NPI= |
 | design.md npmDepsHash | sha256-4cngU5xVlgwXRgdpaFPPXeR9VYVL+u69fXu+usUf1/k= |
 
-Npm dependency hash は既存 prefetch-npm-deps 0.1.0 で算出。現行 0.3.0 の WLi84BUR... も再現した。gwq はオフラインの [NAR 仕様](https://nix.dev/manual/nix/2.28/protocols/nix-archive) による算出で、現行 0.0.5 の source oSgDH5E3... / vendor jP4arRoT... と一致した。候補 vendor tree は採用基盤と同系列の Go 1.26.7 で go mod vendor した。いずれも coordinator による実 fixed-output Nix build の確認を最終ゲートとする。worker は Nix socket・store・permission の回避を試みていない。
+Npm dependency hash は既存 prefetch-npm-deps 0.1.0 で算出。現行 0.3.0 の WLi84BUR... も再現した。gwq はオフラインの [NAR 仕様](https://nix.dev/manual/nix/2.28/protocols/nix-archive) による算出で、現行 0.0.5 の source oSgDH5E3... / vendor jP4arRoT... と一致した。候補 vendor tree は採用基盤と同系列の Go 1.26.7 で go mod vendor した。いずれも後述の coordinator による実 fixed-output Nix build で一致を確認した。worker は Nix socket・store・permission の回避を試みていない。
 
 @google/design.md 0.4.0 tarball integrity は sha512-7aNIv6hslxIZ9igXq1abbVu+ue/ft/oFMUrAuhzpVFijGr9v+l0CkkCBQsHozucNiZHIBS43XC6l8gYDZRys9Q==。native lock の変更は root package と当該 dependency の0.3.0→0.4.0のみ。推移依存の版は変更していない。
 
@@ -81,7 +81,7 @@ Npm dependency hash は既存 prefetch-npm-deps 0.1.0 で算出。現行 0.3.0 �
 - flyline の最初の -c probe は非対話判定で拒否。-i のみで制御端末がない probe も /dev/tty を開けず失敗した。公開されている対話用途に合わせ、Python pty.fork で制御 PTY を用意すると同じ候補が成功。package の回帰、非対話 Nix bash の readline 欠落、任意の設定回避とは混同しない。
 - gwq の Go build は当初 VCS status の取得で exit128。worker の隔離 Git metadata が原因で、リリース archive のローカル検証だけに -buildvcs=false を指定し成功。Nix package に flag や override は加えていない。通常の list も同じ Git 境界で失敗し、global list は成功した。
 - design.md の malformed YAML / color-reference-only fixture は現行・候補とも exit0 だったため、失敗を期待する fixture としては不適切。正常な primary 色を持つ文書から未定義色を component が参照する、README の broken-ref 契約に沿う fixture では両版とも errors=1/exit1。上流既存挙動を更新回帰と扱わず、runtime/config を変更しない。
-- 既存 nix-devshell.bats の flyline/design.md/waza は旧版文字列で固定されており、候補コピーに対し3件失敗、gws は成功。coordinator 用の shared-tests-proposal.patch はこの不要な版/hash文字列 freeze を整理し、既存 asset/platform/distribution の検証と design alias の入口を残す提案。隔離コピーで4/4成功。**実 package gate と合わせて扱い、これだけで採用成功とはしない。** 共有ファイルには適用していない。
+- 既存 nix-devshell.bats の flyline/design.md/waza は旧版文字列で固定されており、候補コピーに対し3件失敗、gws は成功。coordinator 用の shared-tests-proposal.patch はこの不要な版/hash文字列 freeze を整理し、既存 asset/platform/distribution の検証と design alias の入口を残す提案。隔離コピーで4/4成功。**実 package gate と合わせて扱い、これだけで採用成功とはしない。** worker準備時点では共有ファイルを変更せず、coordinatorが実package検証後にsourceへ採用した。
 - 既存 dot_bashrc.bats の flyline load-failure、Ctrl-G、preloaded builtin、mouse/agent ownership の4件は無変更の隔離コピーで4/4成功。実アセットのロード結果とは別の証拠として記録。
 
 ## Verification matrix
@@ -90,28 +90,28 @@ Npm dependency hash は既存 prefetch-npm-deps 0.1.0 で算出。現行 0.3.0 �
 | --- | --- | --- |
 | stable primary metadata と frozen tag | PASS | upstream/_-release.json、_-tag.json、design-md-registry.json |
 | supported release assets/hash/layout | PASS | fetch-assets.py、assets-manifest.json、logs/asset-platform-layout.log |
-| gwq source/vendor hashes | ローカル算出 PASS / Nix 未確認 | logs/gwq-source-nar.log、gwq-vendor-nar.log、baseline 対照ログ |
-| design native dependency hash | PASS / Nix build 未確認 | logs/design-npm-deps-hash.log、design-baseline-npm-deps-hash.log |
+| gwq source/vendor hashes | PASS、実Nix buildで一致 | logs/gwq-source-nar.log、gwq-vendor-nar.log、`tmp/update-283/helper-candidates-host-build.json` |
+| design native dependency hash | PASS、実Nix buildで一致 | logs/design-npm-deps-hash.log、design-baseline-npm-deps-hash.log、`tmp/update-283/helper-candidates-host-build.json` |
 | Node24 frozen npm install / no rewrite | PASS | logs/design-frozen-node24.json |
-| gwq Go build/completion/startup | PASS / Nix wrapper 未確認 | logs/gwq-source-build-no-vcs.log、gwq-source-probes.json |
+| gwq Go build/completion/startup | PASS、実Nix wrapperも確認 | logs/gwq-source-build-no-vcs.log、gwq-source-probes.json、`tmp/update-283/helper-source-cli-smoke.json` |
 | flyline supported-shell load | PASS | logs/flyline-controlling-pty.log |
 | gws/waza startup | PASS | public-probes.json、logs/waza-offline-check.log、waza-offline-tokens.json |
-| design aliases/lint/diff/export | PASS / Nix wrapper 未確認 | interface-probes.json、logs/design-broken-component-baseline-candidate.json |
+| design aliases/lint/diff/export | PASS、実Nix wrapperも確認 | interface-probes.json、logs/design-broken-component-baseline-candidate.json、`tmp/update-283/helper-source-cli-smoke.json` |
 | related Bats, isolated selected tests | PASS 8/8 | logs/distribution-tests-proposed.log、bashrc-flyline-isolated.log。Bats1.12.0 |
 | all3 system package / all6 shell evaluation | PASS | `helper-source-all-systems.json` / `helper-source-flake-check.log` |
 | host Nix build + isolated WSL shell start | PASS | `helper-source-wsl-build.json` / `helper-source-start-retry.log` |
-| ARM Linux / Apple Silicon 実機起動 | SKIP | worker は x86_64 WSL host。asset 確認と実機確認を区別 |
-| combined full Bats / final two-axis review | coordinator 待ち | 稼働中 baseline suite には変更を加えていない |
+| ARM Linux / Apple Silicon 実機起動 | 未実施 | 実行hostは x86_64 WSL。asset 確認と実機確認を区別 |
+| combined full Bats / final two-axis review | coordinator 待ち | [#295](update-295-integrated-acceptance.md) で最終sourceの結果を確定する |
 | source適用 | PASS | package6ファイル・既存配布契約テスト・本記録 |
 | live配備 | 未実施 | 受入・merge後の別工程 |
 
-## 適用予定と残ゲート
+## 採用結果と残ゲート
 
 package 差分は private_dot_config/nix-devshell/packages/ 配下の flyline.nix、gwq.nix、waza.nix、design-md-cli.nix、design-md-cli/package.json、design-md-cli/package-lock.json の6ファイル。gws.nix は変更不要。記録の採用先は docs/research/update-293-fixed-clis.md。tests/nix-devshell.bats の変更提案は別 patch で coordinator に渡し、runtime docs、shell wrapper、flake と lock には今回の変更を要求しない。
 
 coordinator-commands.md に、gwq source prefetch、native npm hash、隔離候補の3 system評価・5 package host build、source 適用後の all-system flake check / WSL build と公開CLIゲートを記載した。candidate-packages.nix は隔離 preparation 用の検証式で、repo に採用する追加 override/installer ではない。
 
-実 Nix gate の結果で採否を確定し、共有 source 適用後の関連/full Bats とレビュー結果をこの記録へ追記する。現段階の結論は「4件の更新候補を準備、gws は現行最新維持」であり、#293 完了・source採用済みとはしない。
+実Nix gateとsource反映後の公開CLI検証により、4件の更新とgwsの現行最新維持を確定した。関連Batsも成功した。最終full Bats・二軸reviewは #295 の統合sourceで確定する。
 
 Scratch: /tmp/nix-shell.2VWWVm/nix-shell.faRWAp/update-293-preparation.2v9xiozg
 
@@ -121,7 +121,7 @@ Scratch: /tmp/nix-shell.2VWWVm/nix-shell.faRWAp/update-293-preparation.2v9xiozg
 
 実Nix wrapperから19コマンドを実行し、gwqの3shell completion、design.md/designmd両aliasのversion/help・正常lint・異常lintのexit1・自己diff・DTCG export、gws起動、wazaのoffline check/token集計を確認した。共通stable集合のbashInteractive 5.3p9＋制御PTYで、flyline 1.8.0のload/version/help/mouse/既存Ctrl-G設定とdisableが成功した。証跡は `helper-candidates-cli-smoke.json` / log、`helper-candidate-flyline-pty.log`。
 
-この結果で4件の更新とgws維持をsourceへ反映した。上の「未実施」「待ち」はworker準備時点の範囲を示す。source反映後の6shell評価・WSL build・関連Batsと最終統合reviewの結果はこの節へ追記する。liveは未配備で、受入・merge後のlive sourceから反映する。
+この結果で4件の更新とgws維持をsourceへ反映した。source反映後の6shell評価・WSL build・関連Batsも以下のとおり成功した。最終統合reviewは #295 に残す。liveは未配備で、受入・merge後のlive sourceから反映する。
 
 source反映後のall-system flake checkは全6shellでPASS、WSL shellの実buildもPASS（`lwn03qd4lpi98va9b7600jvz693x0i2d-nix-shell.drv` → `wqvqi8lyx46z8zm07w4zdywc4gcl1gqm-nix-shell`）。関連Batsは9/9 PASS。隔離HOMEでsourceのWSL shellに入り、すべての対象CLIとflyline環境変数が実検証対象のpackageを選ぶことを確認した。
 

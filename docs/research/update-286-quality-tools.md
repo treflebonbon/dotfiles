@@ -105,7 +105,7 @@ root clean install と隔離 install の前後で `bun.lock` SHA-256 はとも�
 | AC3・6 / 3 system × default/wsl | `nix flake check --no-build --all-systems`、`nativeBuildInputs ++ buildInputs` の package 出力。`tmp/update-283/root-candidate-flake-check.log` / `root-all-systems-candidate.json` | coordinator で全 6 shell PASS。Node 24.19.0、Bun 1.3.13 |
 | AC6 / host WSL build | `nix build .#devShells.x86_64-linux.wsl`、`tmp/update-283/root-wsl-build.json` | coordinator で PASS |
 | AC6・9・15 / host WSL 起動・統合品質ゲート | `.tmp/update-286/verify-root-nix.sh` の隔離 HOME、CLI 起動、frozen install、npm / Action lint | PASS。固定済みlockに対して `tmp/update-283/verify-root-nix-locked.sh` を実行し、CLI起動、隔離frozen install、型検査・lint・format、workflow検証を完了した |
-| AC16 / full Bats | coordinator の `tmp/update-283/t2-full-bats.log` | 初回は stale tsserver で失敗後、coordinator が停止（exit 130）。修復後、更新済みrepo devShellのBats 1.14.0で全674件を再実行中（`tmp/update-283/t2-full-bats-clean.log`） |
+| AC16 / full Bats | coordinator の `tmp/update-283/t2-full-bats.log` | 復旧後のfull suiteはexit0。674件中643実行PASS、31件skip（`tmp/update-283/t2-full-bats-recovered.log` / result JSON）。必須の実hookと6テンプレートは別実行でPASS |
 | AC18–19 / source・完了記録 | 本記録、担当ファイルの差分、coordinator の統合 review | source のみ。live 未配備、最終 review 待ち |
 
 worker は `nix eval --json --expr '1 + 1'` に成功したが、旧・候補の `nix flake metadata --json github:NixOS/nixpkgs/<rev>` は Unix socket 作成の `Operation not permitted` で失敗した。coordinator から、自身の runtime では Nix が使用可能であると確認された。これは候補の不具合や据置理由にはせず、worker からの Nix 実体検証だけを未確認とする。別 store や permission 変更による回避はしない。
@@ -120,6 +120,8 @@ coordinator 用 script は独立 HOME、固定 candidate override、6 評価の 
 
 ## 共有工程への引継ぎ
 
-root lock の更新、3 system の評価、host WSL build と Codex config の回帰確認は完了した。固定済みlockに対するend-to-end起動・品質検証も成功した（`tmp/update-283/root-quality-end-to-end.log`）。残る統合工程は修復後のfull Batsと最終reviewである。3 system の評価だけでは aarch64 Linux / Darwin の実機起動済みとはしない。
+root lock の更新、3 system の評価、host WSL build と Codex config の回帰確認は完了した。固定済みlockに対するend-to-end起動・品質検証も成功した（`tmp/update-283/root-quality-end-to-end.log`）。復旧後のfull Batsは基盤の回帰検証として成功した。他更新単位を合わせた最終full Bats・全source品質・dry-run・二軸reviewは [#295](update-295-integrated-acceptance.md) で確定する。3 system の評価だけでは aarch64 Linux / Darwin の実機起動済みとはしない。
 
 `tests/nix-devshell.bats` の更新、full Bats、統合 commit と二軸 review、最終 PR は coordinator が担当する。TS7 移行の生成状態修復以外に、本 slice による共有テスト・runtime 文書の変更要求は現時点でない。受入・merge 後の live source からの配備と通常環境での確認は別工程として残す。
+
+full suiteの2回目は、中断した自身のテスト用Chromeの残存所有権で9件、検証環境の`FORCE_COLOR=0`によるCRG JSONの装飾で1件が失敗した。呼出元PIDの消滅とこのworktree専用profileをWindowsのInspectで確認し、既存CDP helperで通常終了後、`managed-chrome-owner recover`で復旧した。色変数を未設定にした同じCRG MCPテストは成功した。配布コードやassertionの緩和は行わず、3回目のfull suiteはexit0、終了後のownerはnullだった。

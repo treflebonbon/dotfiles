@@ -6,7 +6,7 @@
 
 既存の `nixpkgs-26.05-darwin` channelを維持し、2026-09-10の実装入口で [104a7c61006cd22d11c0379663afee90c62273ab](https://github.com/NixOS/nixpkgs/commit/104a7c61006cd22d11c0379663afee90c62273ab) を候補として固定した。旧revisionは `fca2dbd4c00c3063235e56bb91758e24fc67b7b8`。この更新で変更したlock nodeはrootの `nixpkgs` inputが参照する `nixpkgs_2` だけで、AI snapshot・そのtransitive inputs・source-only inputは維持した。
 
-候補の3 system × default/WSLの評価と、起動・キャッシュ・品質floor関連35テストは成功した。ホストWSLの実build、隔離HOMEでの起動、75 CLIの起動、28件のNix devShellテスト、現行APM payloadのfrozen no-rewrite・audit、実Design Hook 14件も成功した。全体回帰検証は進行中であり、この段階では全体の採用完了と扱わない。
+候補の3 system × default/WSLの評価と、起動・キャッシュ・品質floor関連35テストは成功した。ホストWSLの実build、隔離HOMEでの起動、75 CLIの起動、28件のNix devShellテスト、現行APM payloadのfrozen no-rewrite・audit、実Design Hook 14件も成功した。復旧後の全体回帰はexit0（674件中643実行PASS、31件skip）だった。実Design Hook14件と6言語テンプレートの必須ゲートは別途成功している。他更新単位を合わせた最終reviewは後段とする。
 
 ## 実package出力による棚卸し
 
@@ -14,10 +14,10 @@
 
 | パッケージ | 旧版 | 候補版 | このチケットでの扱い |
 | --- | --- | --- | --- |
-| nodejs | 24.18.0 | 24.19.0 | 更新候補 |
+| nodejs | 24.18.0 | 24.19.0 | 採用 |
 | typescript-language-server | 5.3.0 | 5.3.0 | channel収録版を維持 |
 | typescript | 5.9.3 | 5.9.3 | channel収録版を維持 |
-| python3 | 3.13.14 | 3.13.15 | 更新候補 |
+| python3 | 3.13.14 | 3.13.15 | 採用 |
 | uv | 0.11.21 | 0.11.21 | channel収録版を維持 |
 | ty | 0.0.38 | 0.0.38 | channel収録版を維持 |
 | ruff | 0.15.14 | 0.15.14 | channel収録版を維持 |
@@ -50,10 +50,10 @@
 | neovim | 0.12.4 | 0.12.4 | channel収録版を維持 |
 | tmux | 3.6a | 3.6a | channel収録版を維持 |
 | lua-language-server | 3.18.1 | 3.18.1 | channel収録版を維持 |
-| gh | 2.96.0 | 2.100.0 | 更新候補 |
+| gh | 2.96.0 | 2.100.0 | 採用 |
 | lazygit | 0.61.1 | 0.61.1 | channel収録版を維持 |
 | gitleaks | 8.30.1 | 8.30.1 | channel収録版を維持 |
-| kubectl | 1.36.2 | 1.36.3 | 更新候補 |
+| kubectl | 1.36.2 | 1.36.3 | 採用 |
 | kubernetes-helm | 3.20.2 | 3.20.2 | channel収録版を維持 |
 | kustomize | 5.8.1 | 5.8.1 | channel収録版を維持 |
 | skaffold | 2.19.0 | 2.19.0 | channel収録版を維持 |
@@ -108,13 +108,15 @@
 - 既存テストが旧stable revisionの完全固定を要求して失敗することを確認した。今回の合意はstable channel内での更新なので、検証対象をそのchannelの維持へ修正した。同じテストは修正後に成功した。AI snapshotのexact pin照合は維持する。
 - CRGの既存実行テストはWSLでもdefault shellを選び、shellHookが通常HOMEを参照していた。検証実行が受入前のlive配備にならないよう、そのテストを隔離HOMEへ向け、WSLでは既存 `#wsl` 出力を選択する。
 
-## 残る確認
+## 確認結果と未確認範囲
 
 - host buildは `/nix/store/nbnkm02w4c7d8qpwf7ymg7zhzydx9iy7-nix-shell.drv` → `/nix/store/7w50f8kqzjrnyah8xbkbyrl6nhikn2dc-nix-shell` で成功。隔離したHOMEにだけPlaywright skillをmaterializeし、管理adapter・zsh関連ファイルを確認した。
 - flylineの実loadは同じstable集合のbashInteractiveで成功した。初回probeはreadlineを持たない非interactive Nix bashを誤って選び、symbol解決に失敗した。実際のbashrcはbind builtinの存在を確認してloadするため、probeを正しいinteractive Bashへ修正し、配布コードを変更せず成功した。
 - 75 CLIの起動probeは `user-generic-cli-smoke.json` に実行パスと出力を記録した。markdownlint-cli2のhelpは仕様上exit2だったため、別の正常なMarkdownを検査させ、exit0 / 0 errorsを確認した。
 - 現行APMの隔離frozen配備前後でlock SHA-256 `ef6e2065b6cec632780b4ceac55bd12472dbd4d8bbf69b6b15ab0b65da3a5f8b` は不変。auditは10/10、materializeした旧skill + 現行固定engineのDesign Hook/engine検証は14/14成功。engine releaseは0.1.3だが、binaryの `--version` 出力は4.0.0であり、release tagと内部表示を区別する。
-- `bats tests/nix-devshell.bats` は28/28成功。full Bats suiteと最終採否記録を継続する。
+- `bats tests/nix-devshell.bats` は28/28成功。full Bats suiteもexit0で成功（`t2-full-bats-recovered-result.json`）。31件の条件付きskipは成功と区別し、必須の実hook・テンプレートは別実行の結果で検証する。
 - aarch64-linux / aarch64-darwinは評価対象であり、このWSL hostから実機起動済みとは扱わない。
+
+上記のpackage一覧と共存検証は #287 採用時点の基盤を示す。後続 #288・#290・#292・#293 の担当packageの最終版は各採用記録と [#295 の統合索引](update-295-integrated-acceptance.md) を参照する。基盤full Batsの成功を、後続更新を合わせた最終full Bats・全source品質・dry-run・二軸reviewの完了とは扱わない。
 
 作業ログと実出力はworktreeの `tmp/update-283/` に保持する。通常環境への反映は受入・merge後のlive sourceから行う。

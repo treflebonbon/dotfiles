@@ -83,7 +83,7 @@ audit は10/10、drift なし。organization enforcement は隔離 cwd に Git r
 
 実 hook では per-edit / Stop、両 provider の正常出力、quiet、dedupe・編集閾値・再入、both-tier の無言への収束、symlink を含む monorepo、project 設定/cache の所有権、理由付き抑制と policy footer を確認した。管理側では4 command の失敗 stdout 破棄、非0を fail-open、engine 不在時の launcher 非到達、正常出力の透過を既存の障害注入テストで確認した。timeout は既存の5秒 / 30秒を使い、hook を無効化したり期待動作を緩めたりしていない。
 
-source 反映後の関連41テストは専用 HOME / XDG / CODEX_HOME で実行した。skip 1件は `repo-local Agent skill deploy target is absent` で、worker runtime が source の `.agents` を mount する場合の既存分岐である。候補の隔離 discovery / 配布照合や実 engine ゲートを skip したものではない。runtime mount のない環境での同チェックと full Bats は coordinator の最終検証に残す。
+source 反映後の関連41テストは専用 HOME / XDG / CODEX_HOME で実行し、40実行PASS・1skipとなった。skip対象は `repo-local Agent skill deploy target is absent` で、source の `.agents` を mount するruntimeの既存分岐である。現在のcoordinator runtimeと #295 のfull Batsにも同じ条件が適用され、worker限定の制約ではない。候補の隔離 discovery / 配布照合や実engineゲートをskipしたものではなく、mountのない環境での同チェックは未確認として区別する。最終full Batsの結果は [#295](update-295-integrated-acceptance.md) で確定する。
 
 coordinator の artifact hash と、採用する実体の bytes を worker が再照合した。engine SHA-256 は `cf5231a4b1ae66996c85b033800b1dad0797e590eae2f21ef2579430af187f19`、launcher は `39d9600489073e227e4f4d55c451ce4252a6632ed7ae37923efbbcbc91f16d07`、package 式は `fde039bf1569fdcf9a13990ceace4ad26c5cb507b34c977f51311213d6517c65`。検証時の user flake.lock は `0e1b06a2ecfebfa6e03c29ba91844c19a7265aad65e6053b49418b52ab3c2c72` だった。生ログと全コマンドは同 scratch に保持し、一時成果物がなくても採用値と確認範囲は本記録から判断できる。
 

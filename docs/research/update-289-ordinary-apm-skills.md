@@ -1,6 +1,6 @@
 # 通常APM 17依存の採用記録（Issue #289）
 
-2026-09-10。#288で確定した APM 0.30.0 (`/nix/store/r08b589k4w0zap14lf556mq52fmmpwbd-apm-0.30.0/bin/apm`) を使用。隔離した候補のmaterializationとpayloadを確認し、manifest/native lockをsourceへ採用する。ImpeccableとMattの組み合わせを維持し、live配備は行わない。親仕様は [#283](https://github.com/treflebonbon/dotfiles/issues/283)、担当は [#289](https://github.com/treflebonbon/dotfiles/issues/289)。
+2026-09-10。#288で確定した APM 0.30.0 (`/nix/store/r08b589k4w0zap14lf556mq52fmmpwbd-apm-0.30.0/bin/apm`) を使用。隔離した候補のmaterializationとpayloadを確認し、manifest/native lockをsourceへ採用した（coordinator commit `f423852`）。この単位ではImpeccableとMattの組み合わせを維持し、live配備は行っていない。親仕様は [#283](https://github.com/treflebonbon/dotfiles/issues/283)、担当は [#289](https://github.com/treflebonbon/dotfiles/issues/289)。
 
 ## 候補の固定と全件比較
 
@@ -8,7 +8,7 @@
 
 全selected subtreeを固定Git objectのtree SHAで比較した。結果はpayload変更1件、revision-only 5件（exactのOrca CLIを含む）、revisionもpayloadも不変11件。Orca CLIのexact pinは維持するため、準備したlockの変更はRemotionとfloating 4件である。
 
-| 依存 | 方針 | 現行revision | 凍結候補revision | native lockの準備値 | 判定 |
+| 依存 | 方針 | 現行revision | 凍結候補revision | native lockの採用値 | 判定 |
 | --- | --- | --- | --- | --- | --- |
 | pdf | floating | `41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f` | `41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f` | `41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f` | 不変、維持 |
 | skill-creator | floating | `41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f` | `41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f` | `41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f` | 不変、維持 |
@@ -16,7 +16,7 @@
 | modern-web-guidance | exact | `bfd8c8dded770f3ba07a518e28991a32df40f902` | `bfd8c8dded770f3ba07a518e28991a32df40f902` | `bfd8c8dded770f3ba07a518e28991a32df40f902` | payload不変、exact維持 |
 | herdr | exact | `b99002ac99b09e00b4ca692436cb15a6b0d676f1` | `b99002ac99b09e00b4ca692436cb15a6b0d676f1` | `b99002ac99b09e00b4ca692436cb15a6b0d676f1` | payload不変、exact維持 |
 | empirical-prompt-tuning | floating | `7a0d72866a0bb3e9ac3e2768c328b09ba2bc40c4` | `7a0d72866a0bb3e9ac3e2768c328b09ba2bc40c4` | `7a0d72866a0bb3e9ac3e2768c328b09ba2bc40c4` | 不変、維持 |
-| remotion-best-practices | exact | `11986e44eeb672b083354e68967f2b194df73b7c` | `9ae8048a84690098b1059f7f5d30e6d05833b824` | `9ae8048a84690098b1059f7f5d30e6d05833b824` | 本文変更を採用候補 |
+| remotion-best-practices | exact | `11986e44eeb672b083354e68967f2b194df73b7c` | `9ae8048a84690098b1059f7f5d30e6d05833b824` | `9ae8048a84690098b1059f7f5d30e6d05833b824` | 本文変更を採用 |
 | shadcn | floating | `5c7072da672b0048bc6771e3204063a2537df91a` | `3ba91b1cc83e1bbe4ab35a422ff2a694849c5048` | `3ba91b1cc83e1bbe4ab35a422ff2a694849c5048` | floating revision-only |
 | computer-use | floating | `1a8640adb6e86abb342a8025892300b2835f3e8e` | `a067cccd38e38487772741ebf9d0ea4a8fed8644` | `2bf298d1dc1a41c03a270e89eca08834c36f13e0` | floating revision-only |
 | orca-cli | exact | `de0a91b99fc845c9510340786f807ea1c988859b` | `a067cccd38e38487772741ebf9d0ea4a8fed8644` | `de0a91b99fc845c9510340786f807ea1c988859b` | payload不変、exact維持 |
@@ -67,26 +67,26 @@ apm audit --ci
 | dependency / deployment ledger hash | PASS、それぞれ1,204ファイル。ledger全1,290件の所有権も不変 | payload-verification.json |
 | Impeccable / Matt | PASS、dependency block全体と配備ownership・hash維持 | payload-verification.json |
 | worker準備中のsource manifest / lock、#294 helper | 変更なし | baselineコピーとのbyte照合、helper SHA-256 |
-| 既存APM runtime・cache refresh・workflow契約テスト | 41/41 PASS | `tmp/update-283/apm-source-related.log` |
+| 既存APM runtime・cache refresh・workflow契約テスト | 40実行PASS・1mount skip、exit0 | `tmp/update-283/apm-source-related.log`。root runtimeにも存在する `.agents` mount条件 |
 | 隔離chezmoi dry-run | PASS、HOME不変 | `tmp/update-283/source-dry-run-result.json` |
 | sourceの統合full Bats | #295で実行 | 必須実hook・テンプレートは別途実行してskipと区別する |
 
 auditのorganization enforcementは、隔離cwdでGit remoteからorgを判定できずskip。baselineでもorganization policyの適用はskipだった。ローカルincludeがないためincludes-consentの実処理も対象外。inactive experimental targetのskipと13件のunpinned warningは既存target / manifest方針に由来し、Claude/Codexの必須配備をskipしたものではない。
 
-## source反映前の受け渡し
+## 採用した成果物と後続baseline
 
-- 提案するmanifest: `tmp/update-289/runtime/apm.yml`。変更はRemotion exact pinだけ。
-- 提案するnative lock: `tmp/update-289/runtime/apm.lock.yaml`。sourceへ戻す際はbyteコピーし、再整形しない。
+- 採用したmanifest: `tmp/update-289/runtime/apm.yml`。変更はRemotion exact pinだけ。
+- 採用したnative lock: `tmp/update-289/runtime/apm.lock.yaml`。sourceへbyteコピーし、再整形していない。
 - Remotionの新content hash: `sha256:bc5aa6227bce213acbe534be0c35d7454e5c2b20cee5ae17005b2ae640cd423c`。
-- 採用済みsource lockのbaseline SHA-256: `ef6e2065b6cec632780b4ceac55bd12472dbd4d8bbf69b6b15ab0b65da3a5f8b`。source変更があれば先にcoordinatorとbaselineを照合する。
+- #289更新前のsource lock SHA-256: `ef6e2065b6cec632780b4ceac55bd12472dbd4d8bbf69b6b15ab0b65da3a5f8b`。#289採用値は上記 `c15f6e15...`。
 - #294 helperの固定SHA-256: `4bd2a84a55acec995fc9c4e39ebbe16db2fad1594f820542382172eed685e6f2`。
 
-rootのbaseline full suiteと#288 source確定後に、coordinatorの直列化へ合わせてmanifest/native lock、既存pin/hash契約の期待値、今回の採用記録を反映する。過去の履歴は今回値で上書きしない。既存 `tests/apm-runtime.bats` / `tests/apm-cache-refresh.bats` / `tests/workflow-contract.bats` とfull suiteを確認してから #290 / #291 のbaselineとして確定する。今のscratch成果物だけではこれら後続検証の成功を主張しない。
+rootのbaseline full suiteと#288 source確定後に、coordinatorがmanifest/native lock、既存pin/hash契約の期待値、今回の採用記録を反映した。関連契約と隔離dry-runを確認したpairを #290 のbaselineとした。後続 [#290](update-290-impeccable.md) はImpeccableだけを更新したnative pairを採用し、[#291](update-291-matt-pocock.md) はそれを維持する。最終統合full suiteは [#295](update-295-integrated-acceptance.md) に残す。
 
 Git cacheに候補treeはあったがRemotionの一部blobが未取得で、lazy fetch禁止のread-only diffは失敗した。baseline cacheを書き換えず、固定tree/blobのGitHub APIから取得して比較を完了した。APM自身は通常のHTTPS native installを使用した。scratchはこのworktreeの `tmp/update-289/` に保存しており、恒久保管先ではない。
 
 ## Source採用
 
-rootが全17依存の比較結果・Remotionの本文変更とnative生成結果を確認し、上記manifest / lockをbyteコピーした。pinとcontent hashの既存契約テストは旧sourceでREDを確認し、新しい検証済み値へ追従した。lockは手編集・再整形していない。source反映後のAPM/cache/workflow契約テスト、隔離dry-run、最終統合full Batsの結果を続けて記録する。後段の #290 / #291 はこの採用pairをbaselineとして扱う。
+rootが全17依存の比較結果・Remotionの本文変更とnative生成結果を確認し、上記manifest / lockをbyteコピーした。pinとcontent hashの既存契約テストは旧sourceでREDを確認し、新しい検証済み値へ追従した。lockは手編集・再整形していない。source反映後のAPM/cache/workflow契約テストと隔離dry-runの確認後、#290へこの採用pairを引き継いだ。
 
-source採用後の関連41件はすべてPASS。`chezmoi --source <task worktree> init --no-tty --guess-repo-url=false` と隔離HOMEへの `apply --dry-run --no-tty` が成功し、dry-run前後でHOMEの全パス・内容が不変だった。source lockも上記SHA-256と一致している。最終統合full Bats・二軸reviewは #295 の受入境界に残す。
+source採用後の関連テストは40実行PASS・1mount skip、exit0。以前の41/41報告を現存ログに合わせて訂正した。`tmp/update-283/apm-source-related.log` と #290 の別実行ログは同じ結果であり、上書きの証拠はない。skip対象は `repo-local Agent skill deploy target is absent` で、現在のroot runtimeもsource `.agents` をmountするため適用される条件である。`chezmoi --source <task worktree> init --no-tty --guess-repo-url=false` と隔離HOMEへの `apply --dry-run --no-tty` は `source-dry-run-result.json` で成功し、dry-run前後でHOMEの全パス・内容が不変だった。#289時点のsource lockも上記 `c15f6e15...` と一致していた。最終統合full Bats・二軸reviewは #295 の受入境界に残す。

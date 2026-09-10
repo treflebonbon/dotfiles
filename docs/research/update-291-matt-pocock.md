@@ -61,6 +61,8 @@ apm audit --ci
 
 実 binary は `/nix/store/r08b589k4w0zap14lf556mq52fmmpwbd-apm-0.30.0/bin/apm`、cwd / HOME は `tmp/update-290/runtime`。各 exit0、audit 10/10。native install / frozen / audit 後の lock SHA256 は `144bf375db3942b1185fc5d73ebcb4965121b27e52bed1ef40b717849fd93c53` で一致する。organization enforcement は Git remote のない隔離 cwd のため適用外、includes-consent は local include がなく対象外である。両 target の discovery は管理された layout / payload の確認であり、対話的な Claude / Codex loader や live 配備の確認ではない。
 
+#289 / #290 の関連Batsは各40実行PASS・1skipであり、41/41ではない。`repo-local Agent skill deploy target is absent` はsource `.agents` をmountする場合の既存skipで、現在のcoordinator runtimeにも適用される。Mattの両target・全payload照合や実hookの未実施をこのskipで代替しない。
+
 ## Verification Matrix と未済事項
 
 | #291 / 親 AC の確認対象 | 状態 | 根拠・限界 |
