@@ -30,7 +30,7 @@ setup() {
       .default == .wsl and
       all(.[];
         (.packages | length) == 1 and
-        .packages[0].version == "0.1.3" and
+        .packages[0].version == "0.1.5" and
         .engine == (.packages[0].path + "/bin/impeccable")
       )
     )
