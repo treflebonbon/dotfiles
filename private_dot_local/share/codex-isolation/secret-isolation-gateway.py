@@ -16,6 +16,7 @@ import socketserver
 import ssl
 import struct
 import subprocess
+import sys
 import threading
 from urllib.parse import urlsplit
 
@@ -154,6 +155,31 @@ def local_request(payload):
 
 class UnixServer(socketserver.ThreadingUnixStreamServer):
     daemon_threads = True
+
+    def __init__(self, directory, handler):
+        address = str(directory / "service.sock")
+        self.directory_fd = None
+        # Linux isolation mounts this directory at a short /gateway path. Only
+        # the host bind address needs a descriptor when TMPDIR is too long.
+        if sys.platform == "linux" and len(os.fsencode(address)) > 107:
+            self.directory_fd = os.open(
+                directory, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC
+            )
+            address = f"/proc/{os.getpid()}/fd/{self.directory_fd}/service.sock"
+        try:
+            super().__init__(address, handler)
+        except BaseException:
+            self.server_close()
+            raise
+
+    def server_close(self):
+        try:
+            if hasattr(self, "socket"):
+                super().server_close()
+        finally:
+            if self.directory_fd is not None:
+                os.close(self.directory_fd)
+                self.directory_fd = None
 
 
 class Gateway(BaseHTTPRequestHandler):
@@ -394,41 +420,45 @@ def start_gateway(
     github_seed=None,
 ):
     directory.mkdir(mode=0o700)
-    server = UnixServer(str(directory / "service.sock"), Gateway)
-    server.service = service
-    server.requests = 0
-    server.last_status = None
-    server.domains = domains
-    server.denied_domains = denied_domains
-    server.host_home = str(Path.home())
-    if github_policy is not None:
-        if service == "dependencies" and (
-            not allowed_destination("api.github.com", domains)
-            or allowed_destination("api.github.com", denied_domains)
-        ):
-            raise ValueError("GitHub is denied by the managed network policy")
-        module = runpy.run_path(str(Path(__file__).with_name("github-service.py")))
-        server.github = module["GitHubService"](github_policy)
-        if github_seed is not None:
-            server.github.enable_push(
-                directory.with_name(directory.name + "-publish"), **github_seed
+    server = UnixServer(directory, Gateway)
+    try:
+        server.service = service
+        server.requests = 0
+        server.last_status = None
+        server.domains = domains
+        server.denied_domains = denied_domains
+        server.host_home = str(Path.home())
+        if github_policy is not None:
+            if service == "dependencies" and (
+                not allowed_destination("api.github.com", domains)
+                or allowed_destination("api.github.com", denied_domains)
+            ):
+                raise ValueError("GitHub is denied by the managed network policy")
+            module = runpy.run_path(str(Path(__file__).with_name("github-service.py")))
+            server.github = module["GitHubService"](github_policy)
+            if github_seed is not None:
+                server.github.enable_push(
+                    directory.with_name(directory.name + "-publish"), **github_seed
+                )
+        if service == "github":
+            server.gh = str(Path(shutil.which("gh")).resolve())
+            server.tool_path = os.pathsep.join(
+                {str(Path(shutil.which(name)).resolve().parent) for name in ("gh", "git")}
             )
-    if service == "github":
-        server.gh = str(Path(shutil.which("gh")).resolve())
-        server.tool_path = os.pathsep.join(
-            {str(Path(shutil.which(name)).resolve().parent) for name in ("gh", "git")}
-        )
-    if service == "model":
-        codex_home = codex_home or Path(
-            os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
-        )
-        with (codex_home / "auth.json").open() as source:
-            tokens = json.load(source)["tokens"]
-        server.access_token = tokens["access_token"]
-        server.account_id = tokens["account_id"]
-        if not server.access_token or not server.account_id:
-            raise ValueError("host ChatGPT login is unavailable")
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+        if service == "model":
+            codex_home = codex_home or Path(
+                os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+            )
+            with (codex_home / "auth.json").open() as source:
+                tokens = json.load(source)["tokens"]
+            server.access_token = tokens["access_token"]
+            server.account_id = tokens["account_id"]
+            if not server.access_token or not server.account_id:
+                raise ValueError("host ChatGPT login is unavailable")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+    except BaseException:
+        server.server_close()
+        raise
     return server
 
 

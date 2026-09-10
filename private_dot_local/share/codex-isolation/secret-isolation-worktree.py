@@ -585,7 +585,6 @@ def run_isolated(repo, policy, output, command, services, ca_bundle=None, runtim
     result.mkdir()
     gateways = []
     mounts = []
-    # AF_UNIX paths are limited to 107 bytes; state directories may be much longer.
     gateway_root = Path(tempfile.mkdtemp(prefix="cxi-"))
     for name in closure:
         path = Path(name)
