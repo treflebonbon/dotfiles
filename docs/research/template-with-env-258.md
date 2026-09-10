@@ -7,6 +7,8 @@ tags: [nix, templates, dotenv, verification]
 
 # Issue #258 の検証記録
 
+ここに記録した初回導入後、[#274](human-validation-274.md) で6テンプレートの共通 input を隔離導入済みの版へ更新した。現在の利用手順は各テンプレートの `DEVELOPMENT.md` と[人間による実値検証](../../runtime/shell-environment.md#人間による実値検証)を参照する。人間向け dotenv の契約は維持し、raw Codex にはホストの実値を注入しない。
+
 対象は [#258](https://github.com/treflebonbon/dotfiles/issues/258)、親は [#254](https://github.com/treflebonbon/dotfiles/issues/254)。依存 [#257](https://github.com/treflebonbon/dotfiles/issues/257) の merge commit `002085017c4260e3044156ab474823dad3bd1378` を実装の基点・レビュー固定点とする。
 
 ## 実装

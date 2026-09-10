@@ -152,7 +152,7 @@ raw Codex では `with-env --prepared -- <command> [args...]` が秘密なしの
 
 準備完了の情報は `DEVSHELL_ENV_CONTEXT` に root・repo identity・output・root の `flake.nix` / `flake.lock` の hash だけを保持する。値を持つ環境キャッシュではない。別 root・output・この2ファイルの変更を検出したら正式入口を失敗させ、再起動を要求する。import した Nix file なども含め、devShell を変更したら常に再起動する。この情報は再利用対象の照合用であり、agent による環境変数改変を防ぐ認証情報ではない。
 
-標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。実際の秘密が必要な検証は人間の明示した `with-env` で行う。
+標準 profile の secret deny と network policy は維持する。raw の HOME と `TMPDIR` は専用 namespace 内にあり、ホストの認証ディレクトリはマウントしない。絶対 `/tmp` への依存は避け `TMPDIR` を使う。Codex では公開 fixture（例: `tests/fixtures/config.json`）や `with-env --prepared -- env APP_MODE=test command` のようなダミー値を使う。ホストの既存環境変数を渡す設定や root dotenv の read 例外は追加しない。管理 helper は dotenv を読み込まず、devShell 内の公開 package も隠したホストの値には到達できない。実値が必要なら、次の手順で固定コード・秘密・出力を別環境へ分離する。
 
 名前付き dev / test app へ組み込む例（対象 flake で dotfiles を input に持ち、system ごとの output を定義する箇所）:
 
@@ -181,6 +181,20 @@ in
 
 人間は `nix run .#dev` / `nix run .#test`、raw Codex は `with-env --prepared -- bun run dev` / `with-env --prepared -- bun run test` を正式入口にする。Claude への dotenv 注入と permission 変更は対象外。実行環境と証拠は [Issue #257 の検証記録](../docs/research/with-env-257.md) を参照。
 
+### 人間による実値検証
+
+人間がコマンドを起動する場合も、そのコードには注入した値を読み取る権限がある。実値を使う前に、人間がコード・依存 lock・flake と import・shellHook・テスト・起動コマンドを確認し、対象を完全な commit SHA に固定する。AI が編集中の worktree を直接実行したり、可変 branch の最新コードを自動取得したりしない。
+
+1. 公開コードだけの commit を選び、完全な SHA と検証コマンドを記録する。依存・実行 script に秘密を送信する処理がないかも確認する。確認後の変更は、別の SHA として再確認する。
+2. 別マシンまたは独立 VM など、Codex が制御できない環境へ固定版を渡す。共有フォルダ、live mount、共有 Git object directory、同期・watcher を使わない。例えば人間側で `git archive --format=tar --output=reviewed.tar FULL_SHA` を作り、別環境で展開して `git init`、公開ファイルを `git add` する。`with-env` は Git root を必要とする。submodule・Git LFS の実体は archive だけでは揃わないため、必要ならその固定版も確認して別途渡す。
+3. Codex がその環境のファイル・process・環境変数・制御ソケット・SSH／VM 操作・secret manager・サービス endpoint へ到達できないことを確認する。ホストの別ディレクトリにコピーするだけでは、任意の agent runtime に対する分離は成立しない。実行中に Codex がコードを差し替えられず、秘密・ログ・成果物を取得・変更できないことが実行条件になる。
+4. 別環境で固定した flake／lock から `nix develop .#default`（dotfiles の WSL2 は `.#wsl`）を準備し、そこで初めて人間が秘密を用意する。root `.env` を使う場合は Git へ追加せず、所有者だけに許可する。`nix run .#with-env -- command` または確認済みの名前付き app で実行する。秘密取得を Nix 評価や shellHook に書かない。実行ログ・出力先もこの別環境内に置く。
+5. 人間がログ・成果物を確認し、SHA、コマンド、成功／失敗、必要なエラー要約だけを新しい共有文書に書く。秘密・個人情報・接続情報・不要なレスポンスを含まないことを確認してから手動共有する。元のログ・成果物を AI、Issue／PR、共有 cache、同期フォルダへ自動送信しない。
+
+CI を使う場合も同じ条件が必要で、AI が workflow や検証対象の ref を変更して、実シークレット付きの任意コードを無審査で起動できる構成は使わない。この手順は秘密注入サービスや自動承認を追加しない。既存 repo の一括変更・秘密のコピー・実値サービスの呼出しは行わず、各 repo の人間が移行する。
+
+`tests/human-validation.bats` は人間環境を共通 raw 入口の外側に置いたダミー fixture で、固定コードの実行中に Codex が編集・テスト・commit を続け、コード・秘密・出力・process 経由の取得と書換えを拒否できることを検証する。実値や人間の本番環境の検証を代行するものではない。[Linux／WSL2 の検証記録](../docs/research/human-validation-274.md)を参照。
+
 ## Claude のプロジェクト開発環境
 
 同じ `devshell-env trust [directory]` の登録と output 選択を使う。登録済み repo で通常どおり `claude`、または Orca の built-in Claude を起動すると、その root の devShell のツール・通常変数を後続の Bash ツールで利用できる。primary checkout と正当な linked worktree が対象になる。Orca の worktree 作成・Agent Picker・permission mode は引き続き Orca が所有する。
@@ -200,7 +214,7 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 ## 既存 repo の移行
 
 1. `.envrc` にだけ置かれた通常変数・ツール・非秘密の初期化を `flake.nix` の devShell（またはそこから import するファイル）へ移す。dotenv や秘密取得は shellHook に置かない。既存 `.envrc` は明示利用のために残せる。dotfiles と6テンプレートの既存 `.envrc` は flake と dotenv を呼ぶだけで、通常設定の追加移植は不要。
-2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保ち、必要な値は作業する root に人間が用意する。`with-env` は main・親・別 worktree を探索・コピーしない。
+2. flake と lock、必要な import ファイルを Git に追加する。`.env` と `.env.*` は追跡対象外に保つ。AI には公開 fixture とダミー値を用意し、実値は上記の固定コードを実行する別環境にだけ注入する。`with-env` は main・親・別 worktree を探索・コピーしない。
 3. 人間は上記の `nix develop` でツールと通常変数を確認する。AI 自動読込みを使う repo は `devshell-env trust` で一度登録し、`devshell-env status` で root・output・信頼を確認する。解除は `devshell-env untrust`。別 clone は別登録になる。
 4. 指定コマンドに dotenv が必要なら、テンプレートの `DEVELOPMENT.md` または上記の組込み例に従い `with-env` を devShell と app に追加する。人間は `nix run .#with-env -- command`、準備済み raw Codex は秘密なしの `with-env --prepared -- command` を使い、初回に上記の公開入力登録も行う。Claude は非秘密の devShell だけを使い、dotenv が必要な処理は人間側の入口で実行する。
 5. 旧 hook が動く端末は終了し、受入・merge 後に live source で `chezmoi apply` してから新しい端末を開く。未 merge の task source は配備しない。通常変数とツール、明示更新、正式入口の失敗を確認する。

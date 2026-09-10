@@ -7,6 +7,8 @@ tags: [nix, dotenv, codex, verification]
 
 # Issue #257 の検証記録
 
+この文書は隔離導入前の履歴である。raw Codex への root dotenv read 追加と起動元環境の復元は [#271](raw-codex-isolation-271.md) で終了した。現在は [#274 の移行手順](../../runtime/shell-environment.md#人間による実値検証)に従い、Codex は秘密なし、人間の実値検証は固定コード・秘密・出力を別環境へ分離する。以下の旧 raw 向け手順を現行環境へ再適用しない。
+
 対象は [#257](https://github.com/treflebonbon/dotfiles/issues/257)、親は [#254](https://github.com/treflebonbon/dotfiles/issues/254)。依存 #255 の merge commit `e025054` を validated task worktree に fast-forward して実装した。公開 with-env app に加え、利用者が承認した worktree 外の読取り境界の見直しを実装し、raw Codex の実 sandbox でも検証した。
 
 ## 実装した境界
