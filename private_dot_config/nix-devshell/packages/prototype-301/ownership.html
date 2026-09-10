@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#301 ブラウザ所有権の試作</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#172536;background:#f3f6fa;line-height:1.6}body{max-width:1050px;margin:auto;padding:24px}h1{font-size:1.7rem}h2{font-size:1.15rem}section{background:white;padding:20px;margin:18px 0;border:1px solid #c6d1df;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}button,select{font:inherit;padding:8px 12px;margin:4px;border:1px solid #8195ac;border-radius:4px;background:white;color:inherit}button{cursor:pointer}button:hover,button[aria-selected=true]{background:#e2edfa}button:focus-visible,select:focus-visible{outline:3px solid #1966a5;outline-offset:2px}button:disabled{opacity:.55;cursor:default}dl{display:grid;grid-template-columns:7rem 1fr;gap:5px}dd{margin:0;overflow-wrap:anywhere}.note{border-left:4px solid #1966a5;padding-left:14px}li{margin:5px 0}#message{min-height:2.7em}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #d9e1eb;padding:8px}small{color:#455a70}[role=tablist]{display:flex;flex-wrap:wrap}#steps{display:flex;flex-direction:column;align-items:start}
+</style>
+<header><small>PROTOTYPE · #301 · 配布する実装ではありません</small><h1>他の作業を止めずに、ブラウザを使えるか</h1><p>worktree ごとの状態保持、共有添付、同じ PR の更新待ち、古い終了要求をモデル上で確認します。各ブラウザとタブを誰が所有するか、終了がどこまで影響するかを操作してください。</p><p class="note">この画面はメモリ内の状態モデルです。実際の Chrome・GitHub・OS は操作しません。独立 profile、カーソルやフォーカス保持、Dogfood / Dashboard の共存は実機で未確認です。</p></header>
+<main>
+<section aria-labelledby="state-title"><h2 id="state-title">現在の状態</h2><div class="grid" id="worktrees"></div><h3>共有添付ブラウザ</h3><p id="shared"></p><table><caption>要求ごとのタブと PR 本文更新</caption><thead><tr><th>要求</th><th>PR</th><th>状態</th></tr></thead><tbody id="jobs"></tbody></table><p id="focus"></p><p id="message" role="status"></p></section>
+<section><h2>自由に操作する</h2><label for="target">対象 worktree</label><select id="target"><option value="A">A</option><option value="B">B</option></select><div id="controls"></div><button id="reset">最初の状態へ戻す</button><p><small>「検証状態を保存」はダミー値のモデル操作です。実際の認証情報は扱いません。</small></p></section>
+<section><h2>順に試す</h2><div role="tablist" aria-label="検証シナリオ" id="tabs"></div><div role="tabpanel" id="walkthrough" tabindex="0"><h3 id="scenario-title"></h3><p id="scenario-description"></p><button id="begin">このシナリオを最初から</button><div id="steps"></div></div></section>
+<section><h2>判断の境界</h2><ul><li>同じ PR の本文更新だけを待たせます。異なる PR は同時に進めます。</li><li>終了要求は対象の所有者世代が一致する場合だけ有効です。古い要求は再起動後のブラウザを閉じません。</li><li>クライアントの切断を Chrome の終了と同一視しません。再接続で対象を照合します。</li><li>背景処理からの画面表示要求は拒否します。モデルの拒否は OS でのフォーカス保持の証明ではありません。</li><li>添付の認証が必要になっても、既存の別タブを閉じたり、手動認証の画面を自動起動したりしません。</li></ul></section>
+</main>
+<script>
+// Pure state model: no DOM, network, browser or filesystem access.
+const initial=()=>({worktrees:{A:{status:'停止',generation:0,profile:'未保存'},B:{status:'停止',generation:0,profile:'未保存'}},authenticated:false,jobs:[],nextJob:1,foreground:'人間の作業画面（モデル上）',message:'操作を選んでください。'});
+function transition(previous,action){
+ const s=structuredClone(previous),w=s.worktrees[action.worktree||'A'];
+ const reject=text=>{s.message='拒否: '+text;return s;};
+ switch(action.type){
+ case 'start': if(w.status!=='停止')return reject('対象は停止していません。切断後は再接続してください。');w.status='利用中';w.generation++;s.message=action.worktree+' を開始。他方の profile は変更しません。';break;
+ case 'save': if(w.status!=='利用中')return reject('対象のブラウザを開始してください。');w.profile=action.worktree+' のダミー検証状態';s.message='検証状態をこの worktree の profile に保存した想定です。';break;
+ case 'stop': if(w.status!=='利用中')return reject('接続して対象を照合してから終了を確認してください。');w.status='停止';s.message='対象の正常終了を確認。profile のダミー状態は保持します。';break;
+ case 'disconnect': if(w.status!=='利用中')return reject('接続中の対象を選んでください。');w.status='切断・実体保持';s.message='クライアントだけが切断。Chrome の停止とは判定しません。';break;
+ case 'reconnect': if(w.status!=='切断・実体保持')return reject('切断状態ではありません。');w.status='利用中';s.message='同じ対象を照合して再接続しました。';break;
+ case 'oldStop': return reject('世代 '+Math.max(0,w.generation-1)+' の古い終了要求は、現在の世代 '+w.generation+' に作用しません。');
+ case 'auth':s.authenticated=true;for(const j of s.jobs){if(j.status==='認証待ち')j.status=s.jobs.some(x=>x.pr===j.pr&&x.status==='処理中')?'同じ PR の更新待ち':'処理中';}s.message='人間が専用ブラウザで認証を完了した状態にしました。';break;
+ case 'expire':s.authenticated=false;s.message='新規添付は認証待ち。既存タブと profile は保持します。';break;
+ case 'attach': if(!s.authenticated)return reject('認証が必要です。自動でログイン画面を開きません。');s.jobs.push({id:s.nextJob++,pr:action.pr,status:s.jobs.some(j=>j.pr===action.pr&&['処理中','切断・保持'].includes(j.status))?'同じ PR の更新待ち':'処理中'});s.message='PR '+action.pr+' の要求を登録しました。';break;
+ case 'finish': {const j=s.jobs.find(j=>j.status==='処理中');if(!j)return reject('完了できる処理がありません。');j.status='完了・所有タブ終了';const next=s.jobs.find(x=>x.pr===j.pr&&x.status==='同じ PR の更新待ち');if(next){next.status=s.authenticated?'処理中':'認証待ち';}s.message='要求 '+j.id+' のタブだけを終了。他の PR は継続します。';break;}
+ case 'backgroundHeaded':return reject('背景処理からの headed 表示・前面化は許可しません。');
+ default:return reject('未知の操作です。');
+ }
+ return s;
+}
+const operations=[['start','ブラウザを開始'],['save','検証状態を保存'],['stop','対象の正常終了を確認'],['disconnect','クライアントが異常終了'],['reconnect','再接続'],['oldStop','古い終了要求が到着'],['auth','人間が認証を完了'],['expire','認証が必要になる'],['attach1','PR 302 に添付'],['attach2','PR 303 に添付'],['finish','先頭の処理を完了'],['backgroundHeaded','背景から画面表示を要求']];
+const act=(type,worktree='A')=>type.startsWith('attach')?{type:'attach',pr:type==='attach1'?302:303}:{type,worktree};
+const scenarios=[
+ {title:'状態を保持して再起動',description:'A を終了・再起動しても、A の状態と B の利用が保たれるか確認します。',steps:[['start','A'],['save','A'],['start','B'],['save','B'],['stop','A'],['start','A'],['oldStop','A']]},
+ {title:'添付の並列と更新待ち',description:'異なる PR は並列。同じ PR の2つ目の更新だけが待機します。',steps:[['auth'],['attach1'],['attach2'],['attach1'],['finish'],['finish'],['finish']]},
+ {title:'切断とフォーカス',description:'クライアントの切断で他の browser を閉じず、背景から画面を開く要求を拒否します。',steps:[['start','A'],['start','B'],['disconnect','A'],['start','A'],['backgroundHeaded'],['reconnect','A']]},
+ {title:'認証切れ',description:'認証が必要になったときも他の作業を残し、自動で認証画面を開かないことを確認します。',steps:[['auth'],['attach1'],['attach1'],['expire'],['finish'],['attach2'],['backgroundHeaded'],['auth'],['attach2'],['finish'],['finish']]}
+];
+let state=initial(),scenario=0,stepIndex=0;
+const el=id=>document.getElementById(id);
+function render(){
+ el('worktrees').replaceChildren(...Object.entries(state.worktrees).map(([id,w])=>{const div=document.createElement('div');const h=document.createElement('h3');h.textContent='Worktree '+id;div.append(h);const dl=document.createElement('dl');for(const [label,value] of [['ブラウザ',w.status],['所有者世代',w.generation],['保持する状態',w.profile]]){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;dl.append(dt,dd);}div.append(dl);return div;}));
+ el('shared').textContent='既存の専用認証: '+(state.authenticated?'利用可能':'認証が必要')+' ／ 次の要求番号: '+state.nextJob;
+ el('jobs').replaceChildren(...(state.jobs.length?state.jobs:[{id:'なし',pr:'—',status:'要求なし'}]).map(j=>{const tr=document.createElement('tr');for(const value of [j.id,j.pr,j.status]){const td=document.createElement('td');td.textContent=value;tr.append(td);}return tr;}));
+ el('focus').textContent='前面の画面: '+state.foreground;el('message').textContent=state.message;
+ el('scenario-title').textContent=scenarios[scenario].title;el('scenario-description').textContent=scenarios[scenario].description;
+ el('steps').replaceChildren(...scenarios[scenario].steps.map(([type,target],i)=>{const b=document.createElement('button');b.textContent=(i+1)+'. '+operations.find(x=>x[0]===type)[1]+(target?'（'+target+'）':'');b.disabled=i!==stepIndex;b.onclick=()=>{state=transition(state,act(type,target));stepIndex++;render();};return b;}));
+ [...el('tabs').children].forEach((b,i)=>{b.setAttribute('aria-selected',String(i===scenario));b.tabIndex=i===scenario?0:-1;});
+}
+for(const [type,label] of operations){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{state=transition(state,act(type,el('target').value));render();};el('controls').append(b);}
+function selectScenario(i){scenario=i;stepIndex=0;state=initial();render();}
+scenarios.forEach((s,i)=>{const b=document.createElement('button');b.textContent=s.title;b.id='scenario-'+i;b.setAttribute('role','tab');b.setAttribute('aria-controls','walkthrough');b.onclick=()=>{selectScenario(i);el('walkthrough').setAttribute('aria-labelledby',b.id);};b.onkeydown=e=>{let next;if(e.key==='ArrowRight')next=(i+1)%scenarios.length;if(e.key==='ArrowLeft')next=(i+scenarios.length-1)%scenarios.length;if(e.key==='Home')next=0;if(e.key==='End')next=scenarios.length-1;if(next!==undefined){e.preventDefault();el('tabs').children[next].click();el('tabs').children[next].focus();}};el('tabs').append(b);});
+el('walkthrough').setAttribute('aria-labelledby','scenario-0');el('begin').onclick=()=>selectScenario(scenario);el('reset').onclick=()=>{state=initial();stepIndex=0;render();};render();
+</script></html>
