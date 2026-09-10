@@ -418,6 +418,7 @@ done
         self.manifest.write_text(original)
         self.api("plugin", "link", self.manifest.parent)
         (self.repo / ".env").rename(self.repo / ".env-retained")
+        (self.repo / ".env").symlink_to(self.repo / ".env-retained")
         failed, _ = self.create("failed-copy")
         self.copy_result(failed, "failed")
         assert not (failed / ".env").exists()

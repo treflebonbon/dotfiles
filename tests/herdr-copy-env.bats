@@ -59,15 +59,14 @@ PY
   [ "$(cat "$SOURCE_TREE/.env")" = 'DUMMY_ENV=copy-only' ]
 }
 
-@test "Herdr event ignores repositories other than the one containing the linked manifest" {
+@test "Herdr event copies for repositories other than the one containing the linked manifest" {
   export HERDR_PLUGIN_ROOT="$BATS_TEST_TMPDIR/other repo/.herdr"
   mkdir -p "$HERDR_PLUGIN_ROOT"
 
   run_copy_env
 
   [ "$status" -eq 0 ]
-  [ ! -e "$WORKTREE/.env" ]
-  [ -z "$output" ]
+  cmp "$SOURCE_TREE/.env" "$WORKTREE/.env"
 }
 
 @test "Herdr event refuses a destination belonging to another repository" {
@@ -138,7 +137,7 @@ PY
   [ ! -e "$WORKTREE/.env" ]
 }
 
-@test "Herdr event requires event and plugin root environment variables" {
+@test "Herdr event requires event JSON but not plugin root" {
   local original="$HERDR_PLUGIN_EVENT_JSON"
   unset HERDR_PLUGIN_EVENT_JSON
   run_copy_env
@@ -146,18 +145,31 @@ PY
   export HERDR_PLUGIN_EVENT_JSON="$original"
   unset HERDR_PLUGIN_ROOT
   run_copy_env
-  [ "$status" -ne 0 ]
-  [ ! -e "$WORKTREE/.env" ]
+  [ "$status" -eq 0 ]
+  cmp "$SOURCE_TREE/.env" "$WORKTREE/.env"
 }
 
-@test "Herdr event fails on missing .env without falling back to .env.local" {
+@test "Herdr event skips missing .env without falling back to .env.local" {
   mv "$SOURCE_TREE/.env" "$BATS_TEST_TMPDIR/retained-env"
 
   run_copy_env
 
+  [ "$status" -eq 0 ]
+  [ ! -e "$WORKTREE/.env" ]
+  [[ "$output" == *'skipped (source .env absent)'* ]]
+  [[ "$output" != *do-not-copy* ]]
+}
+
+@test "Herdr event refuses dangling symlinks and directories as source .env" {
+  mv "$SOURCE_TREE/.env" "$BATS_TEST_TMPDIR/retained-env"
+  ln -s "$BATS_TEST_TMPDIR/missing" "$SOURCE_TREE/.env"
+  run_copy_env
+  [ "$status" -ne 0 ]
+  mv "$SOURCE_TREE/.env" "$BATS_TEST_TMPDIR/dangling-link"
+  mkdir "$SOURCE_TREE/.env"
+  run_copy_env
   [ "$status" -ne 0 ]
   [ ! -e "$WORKTREE/.env" ]
-  [[ "$output" != *do-not-copy* ]]
 }
 
 @test "Herdr event refuses a destination symlink and preserves its target" {

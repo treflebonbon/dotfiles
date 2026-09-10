@@ -54,15 +54,17 @@ herdr
 
 dotfiles repo の `.herdr/herdr-plugin.toml` は、`worktree.created` に Bash のコピー処理を直接定義するローカル plugin。外部 plugin の install は不要で、実行には既存ユーザー devShell の Bash・jq・Git・cp を使う。`.herdr` は chezmoi のホーム配備対象から除外する。
 
-受入・merge 後、primary checkout の source にある manifest を一度登録する。
+受入・merge 後の通常の `chezmoi apply` / `chezmoi update` で、`run_after_setup-herdr.sh` が primary checkout の source にある manifest を自動登録する。Nix 環境キャッシュ更新後に毎回登録状態を確認し、未登録なら有効で登録、同じパスなら変更せず、source の移動時は既存の有効・無効状態を引き継いで再登録する。Herdr サーバー停止中も登録できる。必要コマンドの不在や登録失敗は apply のエラーになり、次回 apply で再試行する。
+
+手動で止める場合は `herdr plugin disable dotfiles.copy-env` を使う。disable は維持するが、unlink は次回 apply で再登録される。`update --apply=false` や scripts を除外した apply では登録しない。task worktree からの登録は拒否する。復旧用の手動登録（有効で登録）は次のとおり。
 
 ```bash
 herdr plugin link "$(chezmoi source-path)/.herdr"
 ```
 
-登録した `.herdr` の親 repo だけが対象になる。Herdr の primary workspace から新しい worktree を作ると、その primary checkout 直下の `.env` 一件を独立した通常ファイルとしてコピーする。既存 worktree の open / focus では実行しない。コピー元不在、symlink、既存のコピー先、Git で ignore されないコピー先は失敗し、別名 dotenv へ fallback しない。
+登録はユーザー単位で、そのユーザーの Herdr が作成する全リポジトリの新規 worktree が対象になる。各 repo への plugin 配置や登録は不要。Herdr の primary workspace から新しい worktree を作ると、その primary checkout 直下の `.env` 一件を独立した通常ファイルとしてコピーする。既存 worktree の open / focus では実行しない。コピー元の `.env` がなければ正常にスキップする。symlink（リンク切れを含む）、通常ファイル以外、既存のコピー先、Git で ignore されないコピー先は失敗し、別名 dotenv へ fallback しない。
 
-Herdr 0.9.0 のイベントは非同期なので、agent を起動する前に対象 worktree のログが `succeeded` / `exit_code = 0` となり、`copy-env: copied .env to <作成先>` が記録されたことを確認する。他 repo のイベントは何もせず成功するため、成功状態だけでは判別しない。
+Herdr 0.9.0 のイベントは非同期なので、agent を起動する前に対象 worktree のログが `succeeded` / `exit_code = 0` となり、`copy-env: copied .env to <作成先>` が記録されたことを確認する。`.env` 不在時は `copy-env: skipped (source .env absent)` が記録されるので、成功状態だけでコピー完了と判断しない。
 
 ```bash
 herdr plugin log list --plugin dotfiles.copy-env --limit 10
@@ -70,7 +72,7 @@ herdr plugin log list --plugin dotfiles.copy-env --limit 10
 
 コピー失敗でも worktree 自体は作成される。作成成功や `.env` の存在だけをコピー完了と扱わず、失敗した worktree で agent を起動せずに原因を修正して新しい worktree を作る。イベントは再実行せず、作成後の `.env` も同期・上書きしない。コピー処理の `cd` は plugin の subprocess にだけ作用し、pane の cwd は Herdr が新 worktree に設定する。[コピー仕様の差分・検証記録](../docs/research/herdr-worktree-env-260.md)を参照。
 
-Linux／WSL2 では、コピー成功を確認した後、その worktree の Herdr ターミナルから次を実行する。`FULL_SHA` は確認済みの現在の完全な commit SHA、ファイル一覧はそのプロジェクトの公開入力へ置き換える。Git 履歴・設定・hook も含む登録条件は [raw Codex の共通入口](shell-environment.md#raw-codex-のプロジェクト開発環境)に従う。
+Linux／WSL2 では、コピー成功（`.env` 不在なら正常スキップ）を確認した後、その worktree の Herdr ターミナルから次を実行する。`FULL_SHA` は確認済みの現在の完全な commit SHA、ファイル一覧はそのプロジェクトの公開入力へ置き換える。Git 履歴・設定・hook も含む登録条件は [raw Codex の共通入口](shell-environment.md#raw-codex-のプロジェクト開発環境)に従う。
 
 ```bash
 devshell-env trust

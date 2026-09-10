@@ -1,6 +1,6 @@
 id = "dotfiles.copy-env"
 name = "Copy worktree .env"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.9.0"
 platforms = ["linux", "macos"]
 
@@ -16,13 +16,15 @@ fail() {
 }
 repo=$(jq -er '.data.workspace.worktree.repo_root | select(type == "string" and startswith("/"))' <<<"$HERDR_PLUGIN_EVENT_JSON") || fail 'event requires an absolute repo_root'
 worktree=$(jq -er '.data.worktree.path | select(type == "string" and startswith("/"))' <<<"$HERDR_PLUGIN_EVENT_JSON") || fail 'event requires an absolute worktree path'
-plugin_repo=$(cd "$HERDR_PLUGIN_ROOT/.." && pwd -P)
 repo=$(cd "$repo" && pwd -P)
-[ "$repo" = "$plugin_repo" ] || exit 0
 [ -f "$worktree/.git" ] || fail 'destination must be a linked worktree root'
 repo_git=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)
 worktree_git=$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir)
 [ "$repo_git" = "$worktree_git" ] || fail 'destination belongs to another repository'
+if [ ! -e "$repo/.env" ] && [ ! -L "$repo/.env" ]; then
+  printf 'copy-env: skipped (source .env absent)\n'
+  exit 0
+fi
 [ -f "$repo/.env" ] && [ ! -L "$repo/.env" ] || fail 'source .env must be a regular file'
 [ ! -e "$worktree/.env" ] && [ ! -L "$worktree/.env" ] || fail 'destination .env already exists'
 git -C "$worktree" check-ignore -q .env || fail 'destination .env must be ignored by Git'

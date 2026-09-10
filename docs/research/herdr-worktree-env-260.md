@@ -10,6 +10,14 @@ timestamp: 2026-09-09
 
 Issue [#260](https://github.com/treflebonbon/dotfiles/issues/260) は Herdr で新規 worktree を作るときの `.env` コピーを扱う。2026-09-09 時点の最新安定版・導入版は [Herdr 0.9.0](https://github.com/herdrdev/herdr/releases/tag/v0.9.0)。公式設定と実イベントを調べ、利用者が承認した **repo-local の `herdr-plugin.toml` 一つにコピー処理を直接書く方式**を実装した。
 
+## 2026-09-10 の仕様更新
+
+全リポジトリへの適用と chezmoi による自動登録へ変更した。manifest 0.2.0 は plugin 配置元 repo との一致条件を除き、各イベントの primary checkout から `.env` をコピーする。不在は正常スキップ、symlink・既存コピー先・Git 非除外は引き続き拒否する。`run_after_setup-herdr.sh` が毎回登録を確認し、手動 disable を維持する。現行の利用手順は [ai-runtimes](../../runtime/ai-runtimes.md#新規-worktree-への-env-コピー) を参照する。
+
+更新後は `tests/run_after_setup-herdr.bats` で登録の冪等性・無効化維持・source 移動・失敗伝播・実 chezmoi apply を検証する。`HERDR_COPY_ENV_REAL=1` で `tests/helpers/herdr-copy-env-live.py` による隔離 Herdr 0.9.0 の検証も実行できる。Linux ではサーバー停止中の登録、移動時の無効化維持、別々の2 repo のコピーと `.env` 不在の3つ目の repo の正常スキップが成功した。macOS native / TUI 操作は今回未検証。
+
+以下は #260 実装当時の仕様と検証記録であり、repo 限定・コピー元不在時の失敗・手動登録に関する記述は今回の更新で置き換わった。
+
 ## 採用した設定
 
 [`.herdr/herdr-plugin.toml`](../../.herdr/herdr-plugin.toml) の `[[events]]` で `worktree.created` を購読し、`command` に Bash の処理を定義する。Herdr 公式の plugin 機構は使うが、外部 plugin の install、npm 依存、別ファイルの実行 script は追加しない。実行依存は既存ユーザー devShell が供給する Bash・jq・Git・cp。Python は TOML を読み取るテストにだけ使い、`tomllib` に必要な3.11以上を repo 用 `flake.nix` の `basePackages` から供給する。[公式 manifest 定義](https://github.com/herdrdev/herdr/blob/b99002ac99b09e00b4ca692436cb15a6b0d676f1/src/app/api/plugins/manifest.rs)
@@ -55,13 +63,13 @@ herdr plugin log list --plugin dotfiles.copy-env --limit 10
 
 これらを説明したうえで、利用者は外部 plugin の信頼性を理由に自前化を求め、`worktree.created` の処理を TOML 一つに直接書く案へ「これでいい」と承認した。実装の契約を次に変更する。
 
-| 元の条件                                         | 承認後の扱い                                                     |
-| ------------------------------------------------ | ---------------------------------------------------------------- |
-| `.herdr/config.toml` の setup                    | repo-local `.herdr/herdr-plugin.toml` の event command           |
-| `HERDR_SOURCE_TREE_PATH` / `HERDR_WORKTREE_PATH` | 公式 event JSON の絶対パス。コピー元は primary checkout          |
-| agent 起動前に setup が必ず完了                  | 非同期コピー後、対象 worktree の成功ログを確認してから手動で起動 |
-| ホーム全体へ配備しない                           | 維持。受入後の primary source を `plugin link` で登録            |
-| `.env` 一件の独立コピー、失敗通知、秘密値非出力  | 維持。with-env や agent の権限・注入範囲は変更しない             |
+| 元の条件 | 承認後の扱い |
+| --- | --- |
+| `.herdr/config.toml` の setup | repo-local `.herdr/herdr-plugin.toml` の event command |
+| `HERDR_SOURCE_TREE_PATH` / `HERDR_WORKTREE_PATH` | 公式 event JSON の絶対パス。コピー元は primary checkout |
+| agent 起動前に setup が必ず完了 | 非同期コピー後、対象 worktree の成功ログを確認してから手動で起動 |
+| ホーム全体へ配備しない | 維持。受入後の primary source を `plugin link` で登録 |
+| `.env` 一件の独立コピー、失敗通知、秘密値非出力 | 維持。with-env や agent の権限・注入範囲は変更しない |
 
 ## 参考にした外部 plugin
 
@@ -73,16 +81,16 @@ herdr plugin log list --plugin dotfiles.copy-env --limit 10
 
 2026-09-09、x86_64-linux、Herdr 0.9.0。実在する秘密値は使わず、空白を含むパスのダミー repo と `.env` / `.env.local` を作成した。Herdr の HOME・XDG・設定・named session を隔離し、今回の管理対象 TOML をそのままダミー repo に登録して実 CLI の `worktree create` を呼び出した。検証用 server は最後に停止し、process 終了を確認した。
 
-| 条件                                | 方法・結果                                                                                                                                                                                  |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1 作成イベントでの実行・repo 限定 | 実 Herdr の `worktree.created` で `dotfiles.copy-env` が成功。Bats で別 repo はコピーしないことと chezmoi の Linux/macOS ホーム配備からの除外を確認                                         |
-| AC2 絶対パス・空白を含むパス        | 実イベントの primary / target パスでコピー成功。Bats で相対パス・欠落・不正 JSON を拒否                                                                                                     |
-| AC3 通常コピー・独立性・cwd         | 内容一致、非 symlink、コピー後の target 編集で source 不変。Bats で処理終了時 cwd、実 Herdr で pane cwd を確認                                                                              |
-| AC4 失敗通知                        | Bats で変数欠落、source 不在、copy exit 74、cd exit 75 を確認。実 Herdr でも source 不在は plugin `failed` / exit 1、別名への fallback なし                                                 |
-| AC5 Git 除外・秘密値非出力          | 実 Herdr で `git check-ignore` 成功、`.env.local` 非コピー、dummy 値が plugin log にないことを確認。Bats で source 0644 に対し target 0600、既存 target・symlink・別 repo・Git 非除外を拒否 |
-| AC6 非同期コピーの利用手順          | 検証用 manifest にだけ2秒待機を挿入し、create 応答時は `.env` 不在、後から成功することを実測。待機を除いて管理対象と同じ内容に復元。with-env・agent 権限・dotenv 注入設定の変更なし         |
-| AC7 実設定を使うテスト              | `tests/herdr-copy-env.bats` の15件と実 Herdr smoke が成功。manifest の実 command を TOML parser で読み取り、終了状態とファイル・cwd を観測                                                  |
-| AC8 作成時限定・文書                | 既存 worktree の open で再コピーしないことを実 Herdr で確認。[利用案内](../../runtime/ai-runtimes.md#新規-worktree-への-env-コピー)に登録、成功確認、責務、同期しない方針を記載             |
+| 条件 | 方法・結果 |
+| --- | --- |
+| AC1 作成イベントでの実行・repo 限定 | 実 Herdr の `worktree.created` で `dotfiles.copy-env` が成功。Bats で別 repo はコピーしないことと chezmoi の Linux/macOS ホーム配備からの除外を確認 |
+| AC2 絶対パス・空白を含むパス | 実イベントの primary / target パスでコピー成功。Bats で相対パス・欠落・不正 JSON を拒否 |
+| AC3 通常コピー・独立性・cwd | 内容一致、非 symlink、コピー後の target 編集で source 不変。Bats で処理終了時 cwd、実 Herdr で pane cwd を確認 |
+| AC4 失敗通知 | Bats で変数欠落、source 不在、copy exit 74、cd exit 75 を確認。実 Herdr でも source 不在は plugin `failed` / exit 1、別名への fallback なし |
+| AC5 Git 除外・秘密値非出力 | 実 Herdr で `git check-ignore` 成功、`.env.local` 非コピー、dummy 値が plugin log にないことを確認。Bats で source 0644 に対し target 0600、既存 target・symlink・別 repo・Git 非除外を拒否 |
+| AC6 非同期コピーの利用手順 | 検証用 manifest にだけ2秒待機を挿入し、create 応答時は `.env` 不在、後から成功することを実測。待機を除いて管理対象と同じ内容に復元。with-env・agent 権限・dotenv 注入設定の変更なし |
+| AC7 実設定を使うテスト | `tests/herdr-copy-env.bats` の15件と実 Herdr smoke が成功。manifest の実 command を TOML parser で読み取り、終了状態とファイル・cwd を観測 |
+| AC8 作成時限定・文書 | 既存 worktree の open で再コピーしないことを実 Herdr で確認。[利用案内](../../runtime/ai-runtimes.md#新規-worktree-への-env-コピー)に登録、成功確認、責務、同期しない方針を記載 |
 
 管理対象の検証結果は `/tmp/herdr-260-local-w8zr_yq8/result.json`。同じディレクトリに `first-worktree-plugin.json`、`missing-source-plugin.json`、`delayed-copy-plugin.json`、各 create の応答と `stop.log` を保存した。再現 script は task worktree の `tmp/issue-260/local-probe.py`。元の無効な setup 設定の検証は `/tmp/herdr-260-lljk55sx/result.json`、参考 `tdi` plugin の検証は `/tmp/herdr-260-plugin-hkq5dm9q/result.json` に分けて残す。これらはローカルの一時証跡であり、恒久的な成果物ではない。
 
