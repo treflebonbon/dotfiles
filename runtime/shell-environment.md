@@ -130,6 +130,8 @@ GitHub 利用時は Nix の gawk・jq も必要。隔離内では `git-push-topi
 
 `git-push-topic` は HEAD の bundle をホスト側の専用 Git repository へ渡し、履歴・fast-forward・全新規 commit の `.github` 不変を検査してから、登録時に固定した既存の `git-push-topic` helper で公開する。ホスト側でプロジェクトコード・hook・checkout を実行しない。認証は既存の host gh だけが利用する。remote の default branch と、PR 操作時の topic の `.github` が確認済み tree と異なる場合も停止する。CI 設定を変更したい場合は人間の確認・再登録を要する。
 
+公開要求は base64 を含む JSON 全体で64 MiBまで、Git の検査は各 subprocess 120秒までに制限する。展開後の object 総容量・個数や host 全体の資源消費は制限していない。この境界の保証は秘密・認証・公開権限の分離であり、圧縮 bundle による host の資源枯渇まで防ぐものではない。
+
 GitHub の要求は Codex の既存 HTTP proxy と外側の限定 gateway を通る。内部の `http://api.github.com` はこの通信経路内の宛先で、ホスト gateway が実 GitHub へ HTTPS で接続する。ホストのネットワーク、制御 socket、認証値を公開しない。直接の Unix socket 接続は Codex 0.153.4 の Linux proxy 用 seccomp に拒否されるため使用しない。標準の domain allow/deny はこの経路でも維持する。
 
 認証不足・network 拒否・remote の変更は非0終了と原因カテゴリを返す。成功した外部 push/PR は後段のローカル返却失敗で取り消されない。公開 SHA・PR URL と保持された session を照合して復旧する。実接続の OS 別結果と制約は [#272 の検証記録](../docs/research/isolated-services-272.md) を参照。
