@@ -27,11 +27,15 @@ with-env --prepared -- env TEST_TOKEN=dummy-local-only python3 scripts/check.py
 2. 人間が管理する別 VM または別マシンへ、その SHA の公開コードと固定した依存を渡す。Git bundle なら秘密のない履歴だけを含め、独立 clone で `git checkout --detach FULL_SHA` する。共有 object store、作業中の worktree の bind mount、同期フォルダ、動く branch の再取得を使わない。
 3. 受取先でも `git rev-parse HEAD` とコードの差分を照合する。固定版・lock・コマンドが変わったら検証を止め、人間の確認からやり直す。実行に必要な公開依存の準備は秘密投入前に済ませる。
 
+履歴を渡さない場合は、人間側で `git archive --format=tar --output=reviewed.tar FULL_SHA` を作り、別環境へ渡して展開する。`with-env` は Git root を必要とするため、展開先で `git init`、公開ファイルを `git add` する。この方法では元の SHA を検証記録に残し、展開内容を照合する。submodule・Git LFS の実体は archive だけでは揃わないため、必要な固定版も確認して別途渡す。
+
 別ターミナルや別 worktree だけではアクセス境界にならない。実行中の Codex とその子、MCP、接続済みツールから、検証環境のコード・秘密・出力を読取り／書込みできないことが条件になる。共有 HOME・ディスク・キャッシュ・ログ・プロセス環境、SSH／VM 制御ソケット、到達可能な管理 API、秘密取得サービスを渡さない。Codex のツール認証にも、この検証環境を操作したりログを取得したりできる権限を与えない。実値を使う CI も同じ条件を満たし、未確認の AI 変更を自動実行しない。
 
 ## 別環境で実行し、確認した結果だけを共有する
 
 人間はコードの固定とアクセス境界を確認した後、その別環境の root `.env` または既存の秘密管理手段で値を用意する。配備済みの秘密を AI に読ませて転送しない。秘密・ログ・成果物は人間だけが扱える保存先に置く。
+
+root `.env` は Git に追加せず、所有者だけにアクセスを許可する。秘密取得を Nix 評価や shellHook に書かない。
 
 人間向けの公開入口は従来どおり `nix run .#with-env -- <確認済みコマンド> [args...]`。root `.env` の解析、起動元 → devShell → dotenv の優先順位、引数・終了コードの保持、不正 dotenv や Nix／shellHook 失敗時の停止は維持する。詳細は [with-env の契約](shell-environment.md#指定コマンドへの-dotenv-注入)を参照する。実行コードとその子には実値が見えるため、固定・確認済みコードに限る。
 

@@ -18,6 +18,7 @@ def probe(paths):
                 os.close(descriptor)
                 raise AssertionError(f"human path was accessible: {name}")
     assert "HUMAN_TOKEN" not in os.environ
+    assert "RAW_DUMMY_SECRET" not in os.environ
     print("HUMAN_PATHS_DENIED", flush=True)
 
 
@@ -42,8 +43,23 @@ else:
         ],
         check=True,
     )
-    Path("reviewed.py").write_text("raise RuntimeError('continued AI edit')\n")
+    Path("reviewed.py").write_text(
+        Path("reviewed.py").read_text().replace("public fixture", "continued AI edit")
+    )
     Path("fixture.txt").write_text("continued AI edit\n")
+    subprocess.run(["python3", "-m", "py_compile", "reviewed.py"], check=True)
+    subprocess.run(
+        [
+            "with-env",
+            "--prepared",
+            "--",
+            "env",
+            "TEST_TOKEN=dummy-ai-274",
+            "python3",
+            "reviewed.py",
+        ],
+        check=True,
+    )
     subprocess.run(["git", "add", "reviewed.py", "fixture.txt"], check=True)
     subprocess.run(
         ["git", "commit", "-qm", "test: continue AI work during human validation"],
@@ -53,4 +69,8 @@ else:
     assert sys.stdin.readline().strip() == "continue"
     # Retry after the human has produced its private output and log.
     probe(paths)
+    subprocess.run(
+        ["with-env", "--prepared", "--", "python3", __file__, "probe", *paths],
+        check=True,
+    )
     print("AI_FINISHED", flush=True)

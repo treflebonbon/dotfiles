@@ -2,7 +2,8 @@
 
 import os
 from pathlib import Path
-import select
+import selectors
+import shutil
 import subprocess
 import sys
 import time
@@ -10,20 +11,22 @@ import uuid
 
 
 def wait_line(process, marker, captured):
-    deadline = time.monotonic() + 120
-    while time.monotonic() < deadline:
-        if not select.select([process.stdout], [], [], 1)[0]:
-            continue
-        line = process.stdout.readline().decode()
-        assert line, f"process exited before {marker}: {captured!r}"
-        captured.append(line)
-        if line.strip() == marker:
-            return
-    raise AssertionError(f"timeout waiting for {marker}: {captured!r}")
+    deadline = time.monotonic() + 180
+    received = b""
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        while marker.encode() not in received.split(b"\n")[:-1]:
+            assert selector.select(timeout=max(0, deadline - time.monotonic())), (
+                f"timeout waiting for {marker}: {captured!r}"
+            )
+            chunk = os.read(process.stdout.fileno(), 4096)
+            assert chunk, f"process exited before {marker}: {captured!r}"
+            received += chunk
+            captured.append(chunk.decode())
 
 
 def main():
-    base, source = map(Path, sys.argv[1:])
+    base = Path(sys.argv[1])
     human = base / "human"
     human.mkdir(mode=0o700)
     (human / "home").mkdir()
@@ -44,10 +47,11 @@ def main():
     )
     fixed = {
         name: (checkout / name).read_bytes()
-        for name in ("reviewed.py", "fixture.txt", "flake.nix")
+        for name in ("reviewed.py", "task.py", "fixture.txt", "flake.nix", ".envrc")
     }
     token = "dummy-human-only-274-" + str(uuid.uuid4())
     (checkout / ".env").write_text(f"HUMAN_TOKEN={token}\n")
+    (checkout / ".env").chmod(0o600)
     (human / "output/result.txt").write_text("pending")
     private_log = human / "output/private.log"
     private_log.touch()
@@ -58,15 +62,20 @@ def main():
         check=False,
     )
     assert control.returncode != 0 and "human path was accessible" in control.stderr
-    environment = os.environ | {
+    public_environment = {"PATH": os.environ["PATH"]}
+    for name in ("CODEX_ISOLATION_CA_BUNDLE", "NIX_SSL_CERT_FILE", "SSL_CERT_FILE"):
+        if name in os.environ:
+            public_environment[name] = os.environ[name]
+    environment = public_environment | {
         "HOME": str(human / "home"),
         "XDG_CACHE_HOME": str(human / "cache"),
     }
-    # Public with-env, real Nix and shellHook, no model or service credentials.
+    with_env = shutil.which("with-env")
+    assert with_env and Path(with_env).resolve().is_relative_to("/nix/store")
+    # Use the repository's exported Nix package, supplied by devShell or VM.
     human_process = subprocess.Popen(
         [
-            str(source / "private_dot_local/bin/executable_devshell-env"),
-            "with-env",
+            with_env,
             "--",
             "python3",
             "reviewed.py",
@@ -90,11 +99,12 @@ def main():
             f"/proc/{human_process.pid}/environ",
         ]
         paths += [f"/proc/{human_process.pid}/root{checkout}/.env"]
-        environment = os.environ | {
+        environment = public_environment | {
             "HOME": str(base / "home"),
             "CODEX_HOME": str(base / "home/.codex"),
             "XDG_STATE_HOME": str(base / "state"),
             "HUMAN_TOKEN": token,
+            "RAW_DUMMY_SECRET": "dummy-inherited",
         }
         raw_process = subprocess.Popen(
             [
@@ -129,9 +139,19 @@ def main():
         assert (checkout / ".env").read_text() == f"HUMAN_TOKEN={token}\n"
         assert (human / "output/result.txt").read_text() == token
         assert private_log.read_text() == "".join(human_lines)
+        assert not (work / "envrc-executed").exists()
+        assert not (checkout / "envrc-executed").exists()
+        assert not (work / "result.txt").exists()
+        updated = (
+            fixed["reviewed.py"].decode().replace("public fixture", "continued AI edit")
+        )
+        assert (work / "reviewed.py").read_text() == updated
         assert (
-            work / "reviewed.py"
-        ).read_text() == "raise RuntimeError('continued AI edit')\n"
+            subprocess.check_output(
+                ["git", "-C", str(work), "show", "HEAD:reviewed.py"], text=True
+            )
+            == updated
+        )
         assert (
             subprocess.check_output(
                 ["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True
