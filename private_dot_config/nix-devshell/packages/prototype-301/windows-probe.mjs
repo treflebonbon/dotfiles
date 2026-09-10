@@ -164,7 +164,7 @@ try {
     await page.evaluate((dummy) => {
       localStorage.setItem("prototype301", dummy);
       // eslint-disable-next-line unicorn/no-document-cookie -- Explicitly probe legacy cookie persistence with dummy data.
-      document.cookie = `prototype301=${value}; Max-Age=3600; SameSite=Lax`;
+      document.cookie = `prototype301=${dummy}; Max-Age=3600; SameSite=Lax`;
     }, value);
   }
   assert.deepEqual(await getState(pa), {

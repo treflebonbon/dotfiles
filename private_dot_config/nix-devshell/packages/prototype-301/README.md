@@ -10,7 +10,7 @@ Throwaway branch: `prototype/301-browser-ownership`。このディレクトリ�
 
 画面の確認は未完了。通常の managed Chrome は別 worktree の `rop-analysis` が所有しており、CLI が起動を拒否した。既存セッションには接続・終了・変更していない。
 
-## Windows 実機 probe（実行未承認・未実行）
+## Windows 実機 probe（承認後に実行済み）
 
 `windows-probe.mjs` は Windows 側の一時 profile 2つ、headless Chrome、CDP 19431 / 19432、WSL のダミー HTTP origin 19433 を使う。独立 profile にダミー cookie と localStorage を保存し、同一 origin で分離されること、A の正常終了・再起動後にも状態が残り B が使えることを確認する。
 
@@ -20,7 +20,7 @@ Throwaway branch: `prototype/301-browser-ownership`。このディレクトリ�
 
 この probe は独立 Chrome の分離と再起動を対象とし、Dogfood / Dashboard の共存と実 OAuth callback は検証しない。
 
-実行は上記2つの PowerShell スクリプトに限って `-ExecutionPolicy Bypass` をプロセス単位で指定することへの承認後に行う。永続的な ExecutionPolicy 設定は変更しない。根拠: `runtime/skill-harness.md` の Model-invoked safety にある「権限拡大や permission bypass は推測せず」。現環境の Restricted による拒否を受けているため、別の呼出し方で迂回せず保留している。
+実行は上記2つの PowerShell スクリプトに限って `-ExecutionPolicy Bypass` をプロセス単位で指定することへの承認後に行う。永続的な ExecutionPolicy 設定は変更しない。根拠: `runtime/skill-harness.md` の Model-invoked safety にある「権限拡大や permission bypass は推測せず」。当初 Restricted による拒否を受けて保留し、その後ユーザーが対象と範囲を承認した。実行後も実効ポリシーは Restricted。
 
 承認後、Playwright core の導入済み module path を指定する:
 
@@ -30,3 +30,17 @@ PROTOTYPE_PLAYWRIGHT_CORE=/absolute/path/to/playwright-core/index.mjs \
 ```
 
 操作中はフォーカス観測の解釈を助けるため、可能なら約90秒、普段の画面をそのままにする。これは安全条件ではなく観測条件であり、操作した場合は結果を未確定として扱う。
+
+## 2026-09-11 実機結果
+
+承認済みの2スクリプトへのプロセス限定指定で実行し、終了コード0。実行前のコード確認で、ブラウザへ渡す dummy 引数を cookie の値にも使用するよう修正した。lint だけでは page.evaluate 内の別実行環境への変数参照を検出できなかった。
+
+- 同一 origin で独立した2つの profile の dummy cookie / localStorage が混ざらないことを確認。
+- A の正常終了・再起動後に cookie / localStorage が残り、B が継続利用できることを確認。
+- 2つの Chrome の終了を profile ごとの Inspect で確認。profile は保持。
+- 約90秒、436 sample で前面 window handle は1種類。Chrome 操作区間約21.4秒の104 sample でも同一。今回の標本では前面の切替を観測しなかった。
+- カーソル読取り失敗0。位置は全体15種類、操作区間5種類。人間の操作の有無が未確認のため、カーソルへの無干渉は未確定。短い前面切替の見逃しも排除できない。
+
+集計は `windows-result-summary.json`。raw evidence は `/tmp/prototype-301-1789084461708/` の results.json / focus-samples.json。観測区間は Chrome 操作の開始前から終了後までを覆う。生の window handle / cursor 座標を GitHub へ公開せず、集計だけを保存する。
+
+独立 profile と状態保持はこの環境で成立したため採用候補を支持する。Dogfood / Dashboard 共存とカーソルへの影響が未確定のため、#301 の ready-for-agent 化と本実装への反映は引き続き保留。
