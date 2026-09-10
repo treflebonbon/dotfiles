@@ -14,11 +14,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument(
+        "--herdr",
+        action="store_true",
+        help="run the real Herdr event/terminal integration without external tool logins",
+    )
+    parser.add_argument(
         "--real-services",
         action="store_true",
         help="run managed MCP and read-only GitHub probes using selected tool login files",
     )
     args = parser.parse_args()
+    if args.herdr and args.real_services:
+        parser.error("--herdr and --real-services select separate verification runs")
     output = args.output.resolve()
     output.mkdir(mode=0o700)
     root = Path(__file__).resolve().parents[1]
@@ -52,7 +59,7 @@ def main():
     ]
     if args.real_services:
         command.extend(["--arg", "realServices", "true"])
-    for name, argument in (
+    selected_tools = [
         ("nix", "nixRoot"),
         ("bash", "bashRoot"),
         ("cat", "coreutilsRoot"),
@@ -63,7 +70,10 @@ def main():
         ("bwrap", "bwrapRoot"),
         ("bats", "batsRoot"),
         ("chezmoi", "chezmoiRoot"),
-    ):
+    ]
+    if args.herdr:
+        selected_tools.append(("herdr", "herdrRoot"))
+    for name, argument in selected_tools:
         executable = shutil.which(name)
         if executable is None:
             raise ValueError(f"missing required tool: {name}")

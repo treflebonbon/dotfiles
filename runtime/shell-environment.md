@@ -97,7 +97,7 @@ Codex の対話画面で行うディレクトリの信頼や操作設定の保�
 
 Nix の取得と command network proxy は managed allowlist の HTTPS と公開 IP だけへ接続する。専用 resolver も同じ条件を使う。network namespace 内だけで低位 port を使用可能にし、DNS listener・初期化・Codex は capability を持たない。ホストの DNS・loopback・制御 socket は公開しない。
 
-既存セッション、直接の `codex`、Codex Desktop、Orca／Herdr native 起動はこの保証の対象外。macOS の raw 隔離起動も未対応で拒否する。受入・merge 後の live source から配備して新しい入口で起動する。未 merge の task source から `chezmoi apply` しない。検証範囲は [#271 の記録](../docs/research/raw-codex-isolation-271.md) を参照。
+既存セッション、直接の `codex`、Codex Desktop、Orca／Herdr native 起動はこの保証の対象外。Herdr が作成した worktree でも、[ホスト側コピーの成功確認後、そのターミナルから `codex-worktree` を使う手順](ai-runtimes.md#新規-worktree-への-env-コピー)で共通の隔離入口を利用できる。macOS の raw 隔離起動は未対応で拒否する。受入・merge 後の live source から配備して新しい入口で起動する。未 merge の task source から `chezmoi apply` しない。検証範囲は [#271 の記録](../docs/research/raw-codex-isolation-271.md) を参照。
 
 ### 隔離内の管理 MCP と GitHub
 

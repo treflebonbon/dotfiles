@@ -11,6 +11,7 @@
   bwrapRoot,
   batsRoot,
   chezmoiRoot,
+  herdrRoot ? null,
   realServices ? false,
 }:
 let
@@ -37,7 +38,8 @@ let
     pkgs.bun
     pkgs.nodejs_24
     pkgs.uv
-  ];
+  ]
+  ++ pkgs.lib.optional (herdrRoot != null) (toStorePath herdrRoot);
   probeSource = pkgs.runCommand "secret-isolation-probe-source" { } ''
     install -D -m 0444 \
       ${pkgs.writeText "secret-isolation-probe.py" (builtins.readFile "${repoPath}/scripts/secret-isolation-probe.py")} \
@@ -51,6 +53,9 @@ let
       '')
       [
         "scripts/secret-isolation-worktree.py"
+        "scripts/herdr-codex-isolation.py"
+        ".herdr/herdr-plugin.toml"
+        "tests/herdr-codex-isolation.bats"
         "scripts/secret-isolation-gateway.py"
         "private_dot_local/share/codex-isolation/secret-isolation-worktree.py"
         "private_dot_local/share/codex-isolation/secret-isolation-gateway.py"
@@ -77,7 +82,7 @@ let
   '';
 in
 pkgs.testers.runNixOSTest {
-  name = "secret-isolation-linux-vm-270";
+  name = "secret-isolation-linux-vm-${if herdrRoot != null then "273" else "270"}";
   globalTimeout = (if realServices then 30 else 15) * 60;
   qemu.forceAccel = true;
 
@@ -124,6 +129,22 @@ pkgs.testers.runNixOSTest {
     machine.wait_for_unit("multi-user.target")
     machine.succeed("test \"$(uname -s)\" = Linux")
     machine.succeed("test ! -e /home/ubuntu/.codex")
+  ''
+  + pkgs.lib.optionalString (herdrRoot != null) ''
+    herdr_result = machine.execute(
+      "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
+      "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
+      "${toStorePath pythonRoot}/bin/python3 ${probeSource}/scripts/herdr-codex-isolation.py "
+      "--output /home/probe/herdr-273 > /home/probe/herdr-tests.log 2>&1'"
+    )
+    machine.copy_from_machine("/home/probe/herdr-tests.log")
+    machine.copy_from_machine("/home/probe/herdr-273/report.json")
+    for name in ("copied", "restart", "delayed", "untrusted-refused", "primary-refused"):
+      machine.copy_from_machine("/home/probe/herdr-273/" + name + ".log")
+    assert herdr_result[0] == 0, herdr_result
+  ''
+  + pkgs.lib.optionalString (herdrRoot == null) ''
     ${pkgs.lib.optionalString realServices ''
       import os
       # Transfer only the two selected tool-login files after the Nix image is
