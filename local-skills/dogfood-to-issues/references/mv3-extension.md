@@ -21,9 +21,9 @@ For MV3 extensions, the runner always verifies a `chrome-extension://` service w
 
 ## Playwright version and browser supply
 
-`references/package.json` pins `playwright@1.59.1` for the runner API. On WSL2 it is a CDP client only; it does not download or launch a local browser.
+`references/package.json` pins `playwright@1.63.0` for the runner API. On WSL2 it is a CDP client only; it does not download or launch a local browser.
 
-**Do not substitute `1.58.2`** (used by the uxaudit skill). That version expects `chromium-1208` and causes a browser-not-found mismatch (see #955 spike pin correction).
+Native runs use the single Chromium executable supplied through `PLAYWRIGHT_BROWSERS_PATH`, following the Nix bundle symlinks instead of assuming that its revision matches the npm client. A missing or ambiguous supplied bundle fails before launch. Without that variable, Playwright keeps its normal executable lookup. Keep the runner dependency and native lock together, and verify the selected client/browser combination before changing either pin.
 
 Install dependencies (the canonical invocation lives in `SKILL.md` Step 4; resolve `REF_DIR` to this skill's `references/` absolute path rather than `cd`-ing):
 
@@ -38,15 +38,15 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 
 The runner keeps each attempt under `<output>/attempts/<id>/`. Its report and collected evidence use the paths below, relative to that attempt. The output root also has `report.md`, presenting the latest attempt with evidence paths prefixed by `attempts/<id>/`; the root retains the local `.chromium-profile/` identity. Use `dogfood-output/<session>/` as the output root.
 
-| Path                          | Contents                                                                                                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `report.md`                   | Finding candidates as `### ISSUE-NNN:` blocks (see [report-parsing.md](report-parsing.md)); MV3 runs include an Extension ID header; clean runs emit no ISSUE block |
-| `screenshots/initial.png`     | Full-page screenshot after navigation                                                                                                                               |
-| `videos/`                     | Screen recording for locally launched contexts (finalized after `context.close()`); not produced by WSL2 CDP runs                                                   |
-| `traces/playwright-trace.zip` | Playwright trace archive for deterministic local replay                                                                                                             |
-| `console.json`                | Captured console/page errors                                                                                                                                        |
-| `network.json`                | Captured failed requests and 5xx responses                                                                                                                          |
-| `auth-state.json`             | Playwright storage state snapshot                                                                                                                                   |
+| Path | Contents |
+| --- | --- |
+| `report.md` | Finding candidates as `### ISSUE-NNN:` blocks (see [report-parsing.md](report-parsing.md)); MV3 runs include an Extension ID header; clean runs emit no ISSUE block |
+| `screenshots/initial.png` | Full-page screenshot after navigation |
+| `videos/` | Screen recording for locally launched contexts (finalized after `context.close()`); not produced by WSL2 CDP runs |
+| `traces/playwright-trace.zip` | Playwright trace archive for deterministic local replay |
+| `console.json` | Captured console/page errors |
+| `network.json` | Captured failed requests and 5xx responses |
+| `auth-state.json` | Playwright storage state snapshot |
 
 The runner emits findings in the `report-parsing.md` block contract so Step 5 parses them directly: console/page errors become a `Category: console` finding, failed requests and 5xx responses become a `Category: network` finding, a missing MV3 service worker becomes a `Critical` `functional` finding, and navigation failures become `High` `functional` findings. Video files are finalized only after `context.close()`; the runner enumerates them after closing and lists them under each finding's `Evidence`.
 
@@ -112,9 +112,4 @@ Expected outputs inside the latest attempt after the runner exits (the fixture's
 
 ## Limitations
 
-- **`--auth-from` is not yet supported on this runner.** The Playwright runner launches a fresh persistent
-  context and does not apply the `--auth-from` profile/notes, so an authenticated target would
-  be dogfooded unauthenticated (degrading the run into a login-page check or misleading findings).
-  `SKILL.md` Step 4 therefore stops with an error when `--auth-from` is supplied. Applying auth state
-  (e.g. `storageState` input or `context.addCookies()` from a stored profile) is a follow-up.
-  `auth-state.json` written by the runner is an output snapshot, not an input.
+- **`--auth-from` is not yet supported on this runner.** The Playwright runner launches a fresh persistent context and does not apply the `--auth-from` profile/notes, so an authenticated target would be dogfooded unauthenticated (degrading the run into a login-page check or misleading findings). `SKILL.md` Step 4 therefore stops with an error when `--auth-from` is supplied. Applying auth state (e.g. `storageState` input or `context.addCookies()` from a stored profile) is a follow-up. `auth-state.json` written by the runner is an output snapshot, not an input.

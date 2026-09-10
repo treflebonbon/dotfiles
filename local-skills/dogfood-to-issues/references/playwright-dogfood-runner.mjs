@@ -280,7 +280,48 @@ try {
       ? browser.contexts()[0] || (await browser.newContext(cdpContextOptions))
       : await browser.newContext(cdpContextOptions);
   } else {
+    let executablePath;
+    const browsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
+    if (browsersPath && browsersPath !== "0") {
+      const browserRoot = path.resolve(browsersPath);
+      const entries = await fs.readdir(browserRoot);
+      const bundles = entries.filter((entry) => /^chromium-\d+$/u.test(entry));
+      const layouts = [
+        "chrome-linux64/chrome",
+        "chrome-linux/chrome",
+        "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+      ];
+      const candidates = bundles.flatMap((bundle) =>
+        layouts.map((layout) => path.join(browserRoot, bundle, layout))
+      );
+      const resolved = await Promise.all(
+        candidates.map(async (candidate) => {
+          try {
+            // Follow Nix's browser-bundle symlinks and require an executable file.
+            const stat = await fs.stat(candidate);
+            if (!stat.isFile()) {
+              return null;
+            }
+            await fs.access(candidate, fs.constants.X_OK);
+            return candidate;
+          } catch (error) {
+            if (error.code !== "ENOENT" && error.code !== "ENOTDIR") {
+              throw error;
+            }
+            return null;
+          }
+        })
+      );
+      const executables = resolved.filter((candidate) => candidate !== null);
+      if (executables.length !== 1) {
+        throw new Error(
+          `Expected one Chromium executable in ${browserRoot}; found ${executables.length}`
+        );
+      }
+      [executablePath] = executables;
+    }
     context = await chromium.launchPersistentContext(userDataDir, {
+      executablePath,
       ...contextOptions,
       args: launchArgs,
       channel: "chromium",

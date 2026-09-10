@@ -281,7 +281,7 @@ PS
   fi
 }
 
-@test "nix-devshell installs Playwright CLI 0.1.17 with managed WSL2 Chrome and local skill symlinks" {
+@test "nix-devshell installs pinned Playwright CLI with managed WSL2 Chrome and local skill symlinks" {
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-agent/package.json"
@@ -317,8 +317,8 @@ PS
   ! grep -Fq '$Profile =' "$windows"
   grep -Fq 'PWTEST_CLI_GLOBAL_CONFIG' "$skill"
   ! grep -Eq 'chromium-[0-9]+' "$pkg"
-  grep -q 'version = "0.1.17";' "$pkg"
-  grep -q '"@playwright/cli": "0.1.17"' "$package_json"
+  grep -q 'version = "0.1.19";' "$pkg"
+  grep -q '"@playwright/cli": "0.1.19"' "$package_json"
 }
 
 @test "browser-free Playwright wrapper keeps makeWrapper flags in one shell command" {

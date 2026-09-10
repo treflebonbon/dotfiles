@@ -219,3 +219,38 @@ PY
   [ "$(wc -l <"$CLI_RUN_LOG")" -eq 2 ]
   [[ "$output" != *'review allowed'* ]]
 }
+
+@test "native dogfood uses the supplied Chromium bundle across npm revision updates" {
+  local layout index=0
+  for layout in \
+    'chrome-linux64/chrome' \
+    'chrome-linux/chrome' \
+    'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'; do
+    index=$((index + 1))
+    export PLAYWRIGHT_BROWSERS_PATH="$BATS_TEST_TMPDIR/nix-browsers-$index"
+    local bundle="$BATS_TEST_TMPDIR/chromium-output-$index"
+    mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" "$bundle/$(dirname "$layout")"
+    printf '%s\n' '#!/bin/sh' 'exit 0' >"$bundle/$layout"
+    chmod +x "$bundle/$layout"
+    ln -s "$bundle" "$PLAYWRIGHT_BROWSERS_PATH/chromium-1217"
+    export DOGFOOD_EXPECT_CHROMIUM="$PLAYWRIGHT_BROWSERS_PATH/chromium-1217/$layout"
+
+    run node "$RUNNER" --target about:blank --output "$OUT-$index" --extension fixture
+
+    [ "$status" -eq 0 ]
+    grep -Fq 'Run status: completed' "$OUT-$index/report.md"
+    grep -Fq 'screenshots/initial.png' "$OUT-$index/report.md"
+  done
+}
+
+@test "native dogfood reports an unusable supplied bundle instead of launching another browser" {
+  export PLAYWRIGHT_BROWSERS_PATH="$BATS_TEST_TMPDIR/nix-browsers"
+  mkdir -p "$PLAYWRIGHT_BROWSERS_PATH"
+
+  run node "$RUNNER" --target about:blank --output "$OUT"
+
+  [ "$status" -eq 1 ]
+  grep -Fq 'Run status: failed' "$OUT/report.md"
+  grep -Fq 'Expected one Chromium executable' "$OUT/report.md"
+  ! grep -Fq 'target loaded' "$OUT/report.md"
+}

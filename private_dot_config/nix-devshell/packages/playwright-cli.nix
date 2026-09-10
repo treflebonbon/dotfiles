@@ -10,11 +10,11 @@
 
 buildNpmPackage {
   pname = "playwright-cli";
-  version = "0.1.17";
+  version = "0.1.19";
 
   src = ./playwright-cli-agent;
 
-  npmDepsHash = "sha256-btb24zLalfK6HII90+mH8TfiIo0c+OJZTwHUMl03Dv4=";
+  npmDepsHash = "sha256-koaZHHqnURkdRPICXo8kyIbFFpsWnf7+R3nbgQJ3Bl0=";
   dontNpmBuild = true;
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
