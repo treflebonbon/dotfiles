@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { once } from "node:events";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, promisify } from "node:util";
+
+import { withBrowserLock } from "./browser-lock.mjs";
+import { withStoppedPlaywrightRuntime } from "./playwright-runtime.mjs";
 
 const exec = promisify(execFile);
 
@@ -109,7 +111,7 @@ const callerAlive = async (owner) => {
   );
 };
 
-const locked = async (action, runtimeDirectory) => {
+const locked = async (action) => {
   const dogfoodRoot = process.env.DOGFOOD_BROWSER_OWNERSHIP_DIR;
   const dogfoodTmp = process.env.DOGFOOD_TMPDIR;
   if (
@@ -134,40 +136,7 @@ const locked = async (action, runtimeDirectory) => {
       `Legacy acquisition lock at ${root}/acquire.lock. Finish the old managed consumers before cutover; the lock was preserved.`
     );
   }
-  if (runtimeDirectory) {
-    await fs.mkdir(runtimeDirectory, { mode: 0o700, recursive: true });
-  }
-  // A pipe keeps flock alive only while this process owns the operation.
-  // Unlike a PID-directory lock, it is also released after an abrupt exit.
-  const guard = spawn(
-    process.env.MANAGED_CHROME_FLOCK || "flock",
-    [
-      "--exclusive",
-      ...(runtimeDirectory ? ["--nonblock"] : ["--wait", "30"]),
-      runtimeDirectory
-        ? path.join(runtimeDirectory, "runtime.lock")
-        : path.join(root, "ownership.lock"),
-      process.execPath,
-      "-e",
-      "process.stdout.write('locked\\n'); process.stdin.resume()",
-    ],
-    { stdio: ["pipe", "pipe", "pipe"] }
-  );
-  let detail = "";
-  guard.stderr.on("data", (chunk) => {
-    detail += chunk;
-  });
-  const ended = once(guard, "close");
-  guard.stdin.on("error", (error) => {
-    detail ||= error.message;
-  });
-  try {
-    await Promise.race([
-      once(guard.stdout, "data"),
-      ended.then(() => {
-        throw new Error(`Ownership lock unavailable: ${detail}`);
-      }),
-    ]);
+  return withBrowserLock(path.join(root, "ownership.lock"), false, async () => {
     const legacy = path.join(root, "owner");
     if (
       identity &&
@@ -183,10 +152,7 @@ const locked = async (action, runtimeDirectory) => {
       );
     }
     return await action();
-  } finally {
-    guard.stdin.end();
-    await ended;
-  }
+  });
 };
 
 const conflict = (owner) =>
@@ -444,51 +410,10 @@ const ephemeralRange = async () => {
   return parts;
 };
 
-const worktreeRuntimeDirectory = () => {
-  if (!/^playwright-[a-f0-9]{64}$/u.test(identity || "")) {
-    throw new Error("relocate requires the exact existing worktree identity.");
-  }
-  const base = process.env.PWCLI_RUNTIME_DIR || process.env.XDG_RUNTIME_DIR;
-  return base
-    ? path.join(base, "playwright-cli", identity)
-    : path.join(
-        process.env.PWCLI_TMPDIR || "/tmp",
-        `playwright-cli-${process.getuid()}`,
-        identity
-      );
-};
-
-const requireDashboardStopped = async () => {
-  const directory = worktreeRuntimeDirectory();
-  const records = [
-    "dashboard.pid",
-    "dashboard.starttime",
-    "dashboard.launcher",
-    "dashboard.session",
-    "dashboard.stdin",
-  ];
-  const existing = await Promise.all(
-    records.map((record) =>
-      fs.lstat(path.join(directory, record)).catch((error) => {
-        if (error.code !== "ENOENT") {
-          throw error;
-        }
-        return null;
-      })
-    )
-  );
-  if (existing.some(Boolean)) {
-    throw new Error(
-      "Close the worktree Dashboard with its owning session before relocating; allocation and runtime state were preserved."
-    );
-  }
-};
-
 const checkRelocation = async (values, key, previous) => {
   if (values.role !== "playwright" || identity !== key || !previous) {
     throw new Error("relocate requires the exact existing worktree identity.");
   }
-  await requireDashboardStopped();
   if (await readOwner()) {
     throw new Error(
       "Release the worktree owner before relocating; state was preserved."
@@ -602,7 +527,7 @@ const main = () => {
   return locked(async () => {
     if (command === "relocate") {
       // Never wait for runtime while holding ownership: wrappers lock in the reverse order.
-      return locked(() => locate(values, true), worktreeRuntimeDirectory());
+      return withStoppedPlaywrightRuntime(identity, () => locate(values, true));
     }
     if (command === "locate") {
       return locate(values);

@@ -2,7 +2,7 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  OWNER_CLI="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs"
+  OWNER_CLI="${TEST_MANAGED_CHROME_OWNER:-$PROJECT_ROOT/private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs}"
   export BROWSER_OWNERSHIP_DIR="$BATS_TEST_TMPDIR/ownership"
   export PWCLI_RUNTIME_DIR="$BATS_TEST_TMPDIR/runtime"
   export OWNER_PROBE_STATE="$BATS_TEST_TMPDIR/browser-state"
@@ -35,7 +35,7 @@ MOCK
 }
 
 owner() {
-  node "$OWNER_CLI" "$@"
+  "$OWNER_CLI" "$@"
 }
 
 reserve() {
@@ -355,22 +355,13 @@ PY
   [ "$output" = "$updated" ]
 }
 
-@test "relocate preserves Dashboard records and refuses a busy wrapper runtime" {
-  local allocation identity profile endpoint dashboard original runtime record
+@test "direct relocate refuses a busy wrapper runtime without changing allocation" {
+  local allocation identity profile endpoint dashboard original runtime
   allocation="$(owner locate --role playwright --workspace "$BATS_TEST_TMPDIR")"
   IFS=$'\t' read -r identity profile endpoint dashboard <<<"$allocation"
   original="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
   runtime="$PWCLI_RUNTIME_DIR/playwright-cli/$identity"
   mkdir -p "$runtime"
-  for record in dashboard.pid dashboard.starttime dashboard.launcher dashboard.session dashboard.stdin; do
-    printf 'retained\n' >"$runtime/$record"
-    run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *'Close the worktree Dashboard'* ]]
-    [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
-    [ "$(cat "$runtime/$record")" = retained ]
-    rm "$runtime/$record"
-  done
   exec {runtime_fd}>"$runtime/runtime.lock"
   flock --exclusive "$runtime_fd"
   run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
@@ -379,4 +370,108 @@ PY
   exec {runtime_fd}>&-
   run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
   [ "$status" -eq 0 ]
+}
+
+@test "relocate retains every owner phase and fails closed on Windows query failure" {
+  local allocation identity profile endpoint dashboard original token phase
+  allocation="$(owner locate --role playwright --workspace "$BATS_TEST_TMPDIR")"
+  IFS=$'\t' read -r identity profile endpoint dashboard <<<"$allocation"
+  original="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+  token="$(owner reserve --identity "$identity" --role playwright --id retained --pid "$$" --mode headless --profile "$profile" --endpoint "$endpoint")"
+  local record="$BROWSER_OWNERSHIP_DIR/identity-$(printf '%s' "$identity" | sha256sum | cut -d ' ' -f 1).json"
+  for phase in reserved starting settled active; do
+    python3 - "$record" "$phase" <<'PY'
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1]); owner = json.loads(p.read_text())
+owner.update(phase=sys.argv[2], browserPid=4242 if sys.argv[2] == 'active' else None)
+p.write_text(json.dumps(owner))
+PY
+    local before
+    before="$(cat "$record")"
+    run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+    [ "$status" -ne 0 ]
+    [ "$(cat "$record")" = "$before" ]
+    [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+  done
+  owner release --identity "$identity" "$token"
+  printf 'unconfirmed\n' >"$OWNER_PROBE_STATE"
+  run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+  printf 'absent\n' >"$OWNER_PROBE_STATE"
+  owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  run owner release --identity "$identity" "$token"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'outdated request'* ]]
+}
+
+@test "relocate holds both locks through rename and releases on failure or process exit" {
+  local allocation identity profile endpoint dashboard original barrier updater fault
+  allocation="$(owner locate --role playwright --workspace "$BATS_TEST_TMPDIR")"
+  IFS=$'\t' read -r identity profile endpoint dashboard <<<"$allocation"
+  export TEST_OWNER_LOCK="$BROWSER_OWNERSHIP_DIR/ownership.lock"
+  export TEST_RUNTIME_LOCK="$PWCLI_RUNTIME_DIR/playwright-cli/$identity/runtime.lock"
+  for fault in before after killed; do
+    original="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+    barrier="$BATS_TEST_TMPDIR/barrier-$fault"
+    env NODE_OPTIONS="--import=$PROJECT_ROOT/tests/fixtures/playwright-relocation-hooks.mjs" \
+      TEST_RELOCATION_BARRIER="$barrier" TEST_RELOCATION_FAULT="$fault" \
+      "$OWNER_CLI" relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR" >"$barrier.log" 2>&1 &
+    updater=$!
+    for _ in {1..200}; do
+      [[ -f "$barrier.ready" ]] && break
+      sleep 0.01
+    done
+    if [[ ! -f "$barrier.ready" ]]; then
+      cat "$barrier.log"
+      kill "$updater" 2>/dev/null || true
+      wait "$updater" || true
+      return 1
+    fi
+    run flock --nonblock "$TEST_OWNER_LOCK" true
+    [ "$status" -eq 1 ]
+    run flock --nonblock "$TEST_RUNTIME_LOCK" true
+    [ "$status" -eq 1 ]
+    if [[ "$fault" == killed ]]; then
+      kill -KILL "$updater"
+    else
+      touch "$barrier.continue"
+    fi
+    if wait "$updater"; then
+      return 1
+    fi
+    flock --nonblock "$TEST_OWNER_LOCK" true
+    flock --nonblock "$TEST_RUNTIME_LOCK" true
+    if [[ "$fault" == after ]]; then
+      [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" != "$original" ]
+    else
+      [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+    fi
+    run owner locate --role playwright --workspace "$BATS_TEST_TMPDIR"
+    [ "$status" -eq 0 ]
+  done
+}
+
+@test "competing relocations and another identity reservation preserve each other's state" {
+  local allocation identity profile endpoint dashboard first second third
+  allocation="$(owner locate --role playwright --workspace "$BATS_TEST_TMPDIR")"
+  IFS=$'\t' read -r identity profile endpoint dashboard <<<"$allocation"
+  owner locate --role attachment >"$BATS_TEST_TMPDIR/attachment-before"
+  owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR" >"$BATS_TEST_TMPDIR/first" &
+  first=$!
+  owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR" >"$BATS_TEST_TMPDIR/second" &
+  second=$!
+  owner reserve --identity unrelated --role dogfood --id unrelated --pid "$$" --mode headless --profile unrelated --endpoint http://127.0.0.1:19330 >"$BATS_TEST_TMPDIR/third" &
+  third=$!
+  wait "$first"
+  wait "$second"
+  wait "$third"
+  [ "$(cat "$BATS_TEST_TMPDIR/first")" != "$(cat "$BATS_TEST_TMPDIR/second")" ]
+  run owner locate --role attachment
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cat "$BATS_TEST_TMPDIR/attachment-before")" ]
+  run owner --identity unrelated status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"$(cat "$BATS_TEST_TMPDIR/third")"* ]]
 }

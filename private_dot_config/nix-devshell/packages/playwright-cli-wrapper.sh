@@ -12,6 +12,7 @@ pwcli_windows_script="${PWCLI_WINDOWS_SCRIPT:-@windowsScript@}"
 pwcli_proc_root="${PWCLI_PROC_ROOT:-/proc}"
 pwcli_flock="${PWCLI_FLOCK:-@flock@}"
 pwcli_owner_command="${MANAGED_CHROME_OWNER:-@managedChromeOwner@}"
+pwcli_runtime_command="${PWCLI_RUNTIME_COMMAND:-@playwrightRuntime@}"
 
 fail() {
   printf 'playwright-cli: %s\n' "$*" >&2
@@ -202,29 +203,21 @@ elif [[ "$pwcli_command" != "close" && "$pwcli_command" != "delete-data" && "$pw
   exec "$pwcli_upstream" "$@"
 fi
 
-if [[ -n "${PWCLI_RUNTIME_DIR:-}" ]]; then
-  pwcli_state_dir="$PWCLI_RUNTIME_DIR/playwright-cli"
-elif [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-  pwcli_state_dir="$XDG_RUNTIME_DIR/playwright-cli"
-else
-  pwcli_state_dir="${PWCLI_TMPDIR:-/tmp}/playwright-cli-$UID"
-fi
-# Legacy runtime state must be drained with the old package before migration.
-if [[ -f "$pwcli_state_dir/lease" || -f "$pwcli_state_dir/dashboard.pid" || -f "$pwcli_state_dir/owner.token" ]]; then
-  fail "Legacy Playwright consumers exist. Close them with the old package before migration."
-fi
 pwcli_allocation="$("$pwcli_owner_command" locate --role playwright --workspace "$pwcli_workspace")"
 IFS=$'\t' read -r pwcli_identity pwcli_profile pwcli_cdp_endpoint pwcli_dashboard_port <<<"$pwcli_allocation"
 [[ -n "$pwcli_identity" && "$pwcli_dashboard_port" =~ ^[0-9]+$ ]] || fail "Invalid browser allocation"
 if [[ "$pwcli_command" == "reset-profile" && "$pwcli_confirm_identity" != "$pwcli_identity" ]]; then
   fail "reset-profile requires the exact identity: --confirm-identity $pwcli_identity (profile: $pwcli_profile)"
 fi
-pwcli_state_dir="$pwcli_state_dir/$pwcli_identity"
+pwcli_runtime_layout="$("$pwcli_runtime_command" "$pwcli_identity")"
+IFS=$'\t' read -r pwcli_state_dir pwcli_lock_file pwcli_dashboard_pid_file \
+  pwcli_dashboard_start_time_file pwcli_dashboard_launcher_file pwcli_dashboard_session_file \
+  pwcli_dashboard_fifo pwcli_lease pwcli_owner_token_file pwcli_dashboard_log <<<"$pwcli_runtime_layout"
+[[ -n "$pwcli_dashboard_log" ]] || fail "Invalid Playwright runtime layout"
 umask 077
 mkdir -p "$pwcli_state_dir"
 chmod 700 "$pwcli_state_dir"
 
-pwcli_lock_file="$pwcli_state_dir/runtime.lock"
 exec {pwcli_lock_fd}>"$pwcli_lock_file"
 if ! "$pwcli_flock" --exclusive --wait 5 "$pwcli_lock_fd"; then
   fail "timed out waiting for the Managed Playwright Chrome runtime lock at $pwcli_lock_file"
@@ -238,13 +231,6 @@ trap release_lock EXIT
 [[ "$("$pwcli_owner_command" locate --role playwright --workspace "$pwcli_workspace")" == "$pwcli_allocation" ]] ||
   fail "Browser allocation changed while waiting for the runtime lock. Retry the command."
 
-pwcli_lease="$pwcli_state_dir/lease"
-pwcli_dashboard_pid_file="$pwcli_state_dir/dashboard.pid"
-pwcli_dashboard_session_file="$pwcli_state_dir/dashboard.session"
-pwcli_dashboard_start_time_file="$pwcli_state_dir/dashboard.starttime"
-pwcli_dashboard_launcher_file="$pwcli_state_dir/dashboard.launcher"
-pwcli_dashboard_log="$pwcli_state_dir/dashboard.log"
-pwcli_dashboard_fifo="$pwcli_state_dir/dashboard.stdin"
 pwcli_powershell_ready=0
 pwcli_had_consumer=0
 pwcli_managed_owner=0
@@ -261,7 +247,6 @@ if [[ -f "$pwcli_lease" ]]; then
 fi
 
 pwcli_owner_command="${MANAGED_CHROME_OWNER:-@managedChromeOwner@}"
-pwcli_owner_token_file="$pwcli_state_dir/owner.token"
 pwcli_owner_token="$(cat "$pwcli_owner_token_file" 2>/dev/null || true)"
 
 browser_owner() {
