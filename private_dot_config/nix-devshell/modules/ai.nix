@@ -99,6 +99,7 @@ in
     # CLI only. Each repository decides whether to build a graph and add a
     # project-scoped MCP entry; never run the upstream global installer here.
     codeReviewGraph
+    pkgs.ast-grep
 
     # --- Specification & Design ---
     design-md-cli
