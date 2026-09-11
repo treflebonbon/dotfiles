@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "purpose": "Immutable public-source inputs and source-grounded gold assertions for the rop-visualizer analysis comparison. Assertions describe only the stated entry-point scopes; they are not generated diagrams.",
+  "retrieved_at": "2026-09-11T08:23:48+09:00",
+  "inputs": [
+    {
+      "id": "effect-http-client-retry-transient",
+      "repository": "https://github.com/Effect-TS/effect",
+      "requested_ref": "effect@3.9.2",
+      "tag_object_sha": "9c782256949a8dea3ccb5ffd4600a110c4e9b838",
+      "commit_sha": "2465abd571eafa548654f8865711b30798d0867f",
+      "immutable_web_base": "https://github.com/Effect-TS/effect/blob/2465abd571eafa548654f8865711b30798d0867f",
+      "archive_url": "https://codeload.github.com/Effect-TS/effect/tar.gz/2465abd571eafa548654f8865711b30798d0867f",
+      "snapshot": {
+        "archive": "tmp/rop-analysis-comparison/public/effect-3.9.2/source.tar.gz",
+        "archive_sha256": "3e663be1a80c6e19d22c3c099bbbbc3f032898089db6567e7c950b2e29c27e19",
+        "selected_files_root": "tmp/rop-analysis-comparison/public/effect-3.9.2/files"
+      },
+      "version": {
+        "tag": "effect@3.9.2",
+        "package": "@effect/platform",
+        "package_version": "0.68.3",
+        "package_manifest": "packages/platform/package.json",
+        "package_manifest_sha256": "a507cec6d8c4b4b286abffe6a25aa37c799d768c43d9ad9a0c2cfcfb1fce0484"
+      },
+      "license": {
+        "expression": "MIT",
+        "path": "LICENSE",
+        "sha256": "774c3bc5924ad8ae6c5a75f1c53db13feb238ade15989625c513d07b60dedf30"
+      },
+      "source_files": [
+        {
+          "path": "packages/platform/src/internal/httpClient.ts",
+          "sha256": "585a536b4667a978ea8a4325c516b2dd9ad63ac7ee555856522803b06ae078a1",
+          "scope": "retryTransient declaration and implementation, lines 565-599",
+          "url": "https://github.com/Effect-TS/effect/blob/2465abd571eafa548654f8865711b30798d0867f/packages/platform/src/internal/httpClient.ts#L565-L599"
+        },
+        {
+          "path": "packages/platform/src/internal/httpClient.ts",
+          "sha256": "585a536b4667a978ea8a4325c516b2dd9ad63ac7ee555856522803b06ae078a1",
+          "scope": "transformResponse implementation used by retryTransient, lines 263-278",
+          "url": "https://github.com/Effect-TS/effect/blob/2465abd571eafa548654f8865711b30798d0867f/packages/platform/src/internal/httpClient.ts#L263-L278"
+        },
+        {
+          "path": "packages/effect/src/Effect.ts",
+          "sha256": "559f8816cd980fa360fca9db03933de1e92582486b9344dbb1350ca9d904b7bb",
+          "scope": "Effect.Retry.Options and Effect.retry public signatures, lines 1979-2010",
+          "url": "https://github.com/Effect-TS/effect/blob/2465abd571eafa548654f8865711b30798d0867f/packages/effect/src/Effect.ts#L1979-L2010"
+        }
+      ],
+      "gold_semantic_assertions": [
+        {
+          "id": "effect.retryTransient.response-boundary",
+          "assertion": "retryTransient constructs a new HTTP client by passing the original client and an Effect.retry transformation to transformResponse. transformResponse applies that transformation to client.postprocess(request), so the retry boundary is the response postprocessing effect, not client.preprocess.",
+          "evidence": [
+            "packages/platform/src/internal/httpClient.ts#L263-L278",
+            "packages/platform/src/internal/httpClient.ts#L581-L598"
+          ]
+        },
+        {
+          "id": "effect.retryTransient.retry-predicate",
+          "assertion": "The configured retry while predicate returns true only when isHttpClientError(error) is true and either the error is RequestError with reason Transport, or it is ResponseError with response.status at least 429. The source does not make the remaining HTTP-client errors retryable through this predicate.",
+          "evidence": ["packages/platform/src/internal/httpClient.ts#L590-L597"]
+        },
+        {
+          "id": "effect.retryTransient.options-routing",
+          "assertion": "When options has ScheduleTypeId, retryTransient passes it as schedule and passes undefined as times; otherwise it passes options.schedule and options.times. Its public overloads also permit either such an options object or a Schedule.Schedule directly.",
+          "evidence": ["packages/platform/src/internal/httpClient.ts#L565-L597"]
+        },
+        {
+          "id": "effect.retry.options-contract",
+          "assertion": "Effect.Retry.Options declares while, until, times, and schedule. Effect.retry accepts either Retry.Options or a Schedule and returns an Effect with the original error type E in its declared result type; this scope does not establish its internal retry-loop implementation.",
+          "evidence": ["packages/effect/src/Effect.ts#L1979-L2010"]
+        }
+      ],
+      "limitations": [
+        "The exact retry count, delay, schedule execution, and post-exhaustion behavior belong to Effect.retry's internal implementation and Schedule; they are not established by the selected source ranges.",
+        "The value-level definitions of isHttpClientError, RequestError, ResponseError, and their fields are outside this fixture scope. A diagram may use the explicit predicate but must not infer additional error variants or constructors from it.",
+        "The type signatures show dual call forms, but this fixture does not separately establish the runtime behavior of effect/Function dual.",
+        "No assertion here proves the behavior of the original client's preprocess or postprocess implementations; those remain an external boundary except for transformResponse's wrapping location."
+      ]
+    },
+    {
+      "id": "ripgrep-main-run",
+      "repository": "https://github.com/BurntSushi/ripgrep",
+      "requested_ref": "master",
+      "commit_sha": "3fce3b5bb0236da2df6d99672afb8a719642eca7",
+      "immutable_web_base": "https://github.com/BurntSushi/ripgrep/blob/3fce3b5bb0236da2df6d99672afb8a719642eca7",
+      "archive_url": "https://codeload.github.com/BurntSushi/ripgrep/tar.gz/3fce3b5bb0236da2df6d99672afb8a719642eca7",
+      "snapshot": {
+        "archive": "tmp/rop-analysis-comparison/public/ripgrep-master/source.tar.gz",
+        "archive_sha256": "e2c23831f1057a7e15575a72a64a900b317a86661561a786a36795717d602561",
+        "selected_files_root": "tmp/rop-analysis-comparison/public/ripgrep-master/files"
+      },
+      "version": {
+        "ref_kind": "moving branch resolved to immutable commit at retrieval",
+        "root_package": "ripgrep",
+        "root_package_version": "15.2.0",
+        "package_manifest": "Cargo.toml",
+        "package_manifest_sha256": "2f95013e611a48735f349ff98fd1e9513676bc7145d0be9af29c585ffce5e4fe"
+      },
+      "license": {
+        "expression": "Unlicense OR MIT",
+        "files": [
+          {
+            "path": "UNLICENSE",
+            "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+          },
+          {
+            "path": "COPYING",
+            "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+          }
+        ]
+      },
+      "source_files": [
+        {
+          "path": "crates/core/main.rs",
+          "sha256": "21c10c3b35114543b90f38f27fd9102703a099bd504db950e1f10d2739b1444c",
+          "scope": "main and run, lines 44-107",
+          "url": "https://github.com/BurntSushi/ripgrep/blob/3fce3b5bb0236da2df6d99672afb8a719642eca7/crates/core/main.rs#L44-L107"
+        }
+      ],
+      "gold_semantic_assertions": [
+        {
+          "id": "ripgrep.main.result-boundary",
+          "assertion": "main calls run(flags::parse()). On Ok it returns run's ExitCode unchanged. On Err it walks err.chain(); if any cause downcasts to std::io::Error with BrokenPipe kind, it immediately returns exit code 0. Otherwise it prints the formatted error and returns exit code 2.",
+          "evidence": ["crates/core/main.rs#L44-L67"]
+        },
+        {
+          "id": "ripgrep.run.parse-early-exits",
+          "assertion": "run returns ParseResult::Err directly as Err, returns special(mode) directly for ParseResult::Special, and continues into mode dispatch only for ParseResult::Ok(args).",
+          "evidence": ["crates/core/main.rs#L78-L85"]
+        },
+        {
+          "id": "ripgrep.run.search-dispatch-and-propagation",
+          "assertion": "For search mode, matches_possible false produces matched=false without a search call. Otherwise index::read, search, or search_parallel is selected by index and thread count, and each selected call uses ?, so an Err is returned from run to main's result boundary.",
+          "evidence": [
+            "crates/core/main.rs#L86-L90",
+            "crates/core/main.rs#L44-L67"
+          ]
+        },
+        {
+          "id": "ripgrep.run.non-search-dispatch-and-propagation",
+          "assertion": "Index mode runs index::write with ? and then immediately returns exit code 0. Files mode runs files or files_parallel with ?, while Types and Generate return their callee results directly. Errors returned through ? reach main's result boundary.",
+          "evidence": [
+            "crates/core/main.rs#L91-L99",
+            "crates/core/main.rs#L44-L67"
+          ]
+        },
+        {
+          "id": "ripgrep.run-final-exit-selection",
+          "assertion": "After a matched-producing branch, run returns exit code 0 only when matched is true and either quiet is enabled or messages::errored is false. It returns 2 when messages::errored is true, otherwise 1.",
+          "evidence": ["crates/core/main.rs#L100-L106"]
+        }
+      ],
+      "limitations": [
+        "flags::parse, special, index::read, search, search_parallel, index::write, files, files_parallel, types, generate, messages::errored, and error construction are outside the selected entry-point scope. Their internal paths must be rendered as named external boundaries unless another fixture establishes them.",
+        "The ? operator proves propagation from these call sites to run's Result; it does not prove which concrete error variants the callees produce or whether they can produce BrokenPipe.",
+        "main's BrokenPipe handling inspects the full anyhow error chain. A diagram must not reduce that condition to only a top-level error-type check.",
+        "master is mutable; only commit 3fce3b5bb0236da2df6d99672afb8a719642eca7 and the recorded archive hash are the reproducible fixture."
+      ]
+    }
+  ]
+}

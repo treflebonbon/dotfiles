@@ -1,0 +1,578 @@
+{
+  "schema_version": 1,
+  "purpose": "Source-only binary semantic requirements for scoring rop-visualizer models. Requirements accept equivalent control-flow descriptions and do not prescribe node labels, layout, or grouping.",
+  "cases": [
+    {
+      "id": "effect-checkout",
+      "language": "typescript",
+      "entry": "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:checkout",
+      "requirements": [
+        {
+          "id": "validate-empty-fails",
+          "critical": true,
+          "description": "An empty input SKU fails validation with ValidationError and does not enter the reservation pipeline.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:19-22",
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:43-56"
+          ]
+        },
+        {
+          "id": "reserve-errors-are-typed",
+          "critical": false,
+          "description": "reserve delegates to Inventory.reserve and its declared error channel is OutOfStock or CatalogUnavailable.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:14-17",
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:24-28"
+          ]
+        },
+        {
+          "id": "out-of-stock-local-recovery",
+          "critical": true,
+          "description": "Only OutOfStock is locally recovered after reserve by producing a backorder reservation for the same order SKU.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:48-51"
+          ]
+        },
+        {
+          "id": "catalog-unavailable-bypasses-recovery",
+          "critical": true,
+          "description": "CatalogUnavailable is not handled by the OutOfStock catchTag and remains on the failure path to the outer error mapping.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:16",
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:48-57"
+          ]
+        },
+        {
+          "id": "charge-follows-reservation",
+          "critical": true,
+          "description": "charge runs only after either a successful reserve or the OutOfStock backorder recovery, and a declined card fails with PaymentDeclined.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:30-33",
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:49-53"
+          ]
+        },
+        {
+          "id": "audit-is-tap-after-charge",
+          "critical": true,
+          "description": "auditReceipt is tapped after a successful charge; its AuditUnavailable failure is part of the remaining failure channel before mapError.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:35-38",
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:52-54"
+          ]
+        },
+        {
+          "id": "confirmation-only-after-audit-success",
+          "critical": true,
+          "description": "renderConfirmation maps a receipt to confirmed text only after the tap stage succeeds.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:40-41",
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:53-54"
+          ]
+        },
+        {
+          "id": "outer-error-normalization",
+          "critical": true,
+          "description": "Every failure still present after the nested pipeline is mapped to CheckoutFailed with the original error tag as cause.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/effect-checkout/src/main.ts:43-57"
+          ]
+        }
+      ],
+      "limits": [
+        "Inventory.reserve has a declared type but no local implementation; its successful reservation choice and its failure production remain external boundaries.",
+        "The requirements concern the Effect combinators used at the entry point. They do not require a diagram to show Effect runtime internals, services, fibers, or implementation-level scheduling."
+      ]
+    },
+    {
+      "id": "rust-checkout",
+      "language": "rust",
+      "entry": "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:checkout",
+      "requirements": [
+        {
+          "id": "invalid-sku-stops-price-load",
+          "critical": true,
+          "description": "parse_sku returns InvalidSku unless the SKU starts with sku-, and the first ? in load_price propagates that error before catalog_price runs.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:43-45",
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:55-58"
+          ]
+        },
+        {
+          "id": "catalog-errors-convert-to-checkout",
+          "critical": true,
+          "description": "catalog_price can return MissingSku or DatabaseDown; its ? in load_price converts CatalogError to CheckoutError through the shown From implementation.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:24-28",
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:47-58"
+          ]
+        },
+        {
+          "id": "price-failure-precedes-reservation",
+          "critical": true,
+          "description": "checkout obtains load_price with map_err(ApiError::from) and ? before evaluating reserve, so a price error cannot enter reservation recovery.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:73-76"
+          ]
+        },
+        {
+          "id": "inventory-unavailable-only-recovers",
+          "critical": true,
+          "description": "reserve's InventoryUnavailable error is the only error branch redirected to reserve_backorder by Result::or_else.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:61-71",
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:75-79"
+          ]
+        },
+        {
+          "id": "other-reservation-errors-propagate",
+          "critical": true,
+          "description": "The or_else match returns Err(other) for every reserve error other than InventoryUnavailable; in particular PaymentDeclined does not use reserve_backorder.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:61-66",
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:76-79"
+          ]
+        },
+        {
+          "id": "backorder-can-fail",
+          "critical": true,
+          "description": "reserve_backorder succeeds only for sku-empty and otherwise produces BackorderRejected; that recovery failure proceeds to the final map_err.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:69-71",
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:75-81"
+          ]
+        },
+        {
+          "id": "success-uses-price-and-fulfillment",
+          "critical": false,
+          "description": "A successful reservation or backorder is mapped to a string containing both fulfillment and the already loaded price.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:74-81"
+          ]
+        },
+        {
+          "id": "api-error-mapping-is-specific",
+          "critical": false,
+          "description": "ApiError::from maps InvalidSku and MissingSku to BadRequest, DatabaseDown and InventoryUnavailable to Unavailable, PaymentDeclined to PaymentRequired, and BackorderRejected to Internal.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:30-40"
+          ]
+        },
+        {
+          "id": "final-map-err-covers-reservation-branch",
+          "critical": true,
+          "description": "The final map_err(ApiError::from) is applied after the reserve/or_else/map chain, so unrecovered reservation and backorder errors are converted to ApiError there.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-checkout/src/lib.rs:75-81"
+          ]
+        }
+      ],
+      "limits": [
+        "All callees are local and their bodies are in scope; no requirement asks for Rust standard-library implementation internals of ?, map, map_err, or or_else.",
+        "The entry is private. Visibility is irrelevant to the flow requirements."
+      ]
+    },
+    {
+      "id": "holdout-local-scope",
+      "language": "rust",
+      "entry": "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:charge_invoice",
+      "requirements": [
+        {
+          "id": "invalid-country-stops-before-gateway",
+          "critical": true,
+          "description": "normalize_country returns InvalidCountry unless the country length is two, and tax_rate's ? propagates that failure before quote_tax is called.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:10-16"
+          ]
+        },
+        {
+          "id": "gateway-is-unknown-result-boundary",
+          "critical": true,
+          "description": "quote_tax has the signature country -> Result<u8, InvoiceError>, but crosses an extern Rust symbol through a transparent wrapper; its business behavior must remain an unknown boundary.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/lib.rs:2-4",
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:1"
+          ]
+        },
+        {
+          "id": "tax-service-down-recovers-to-zero",
+          "critical": true,
+          "description": "tax_rate recovers only InvoiceError::TaxServiceDown from quote_tax by returning Ok(0).",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:14-19"
+          ]
+        },
+        {
+          "id": "other-gateway-errors-propagate",
+          "critical": true,
+          "description": "The tax_rate recovery match returns Err(other) for every quote_tax error other than TaxServiceDown.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:16-19"
+          ]
+        },
+        {
+          "id": "tax-rate-must-succeed-before-charge-branch",
+          "critical": true,
+          "description": "charge_invoice obtains tax_rate with ?, so InvalidCountry or an unrecovered gateway error prevents either terminal charge branch.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:22-24"
+          ]
+        },
+        {
+          "id": "xx-declines-after-tax-rate",
+          "critical": true,
+          "description": "After a successful tax_rate, country XX returns ChargeDeclined.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:22-27"
+          ]
+        },
+        {
+          "id": "other-countries-return-rate-text",
+          "critical": false,
+          "description": "After a successful tax_rate, a country other than XX returns charged-with-{rate}%.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:22-28"
+          ]
+        },
+        {
+          "id": "recovery-is-local-to-tax-rate",
+          "critical": true,
+          "description": "The TaxServiceDown to zero recovery belongs inside tax_rate; charge_invoice itself has no handler that recovers ChargeDeclined or upstream failures.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/holdout-local-scope/src/invoice.rs:14-29"
+          ]
+        }
+      ],
+      "limits": [
+        "The gateway's extern target has no inspectable body. Do not invent success values, error conditions, retries, or a downstream control-flow graph for it.",
+        "The bridge wrapper only establishes the Result<u8, InvoiceError> signature and that it invokes the extern symbol; it does not make the foreign business behavior local."
+      ]
+    },
+    {
+      "id": "ts-symbols",
+      "language": "typescript",
+      "entry": "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:checkout",
+      "requirements": [
+        {
+          "id": "label-catch-tag-is-not-effect-recovery",
+          "critical": true,
+          "description": "new Label(sku).catchTag is the local Label method, returns this.value, and does not invoke its callback; it must not be represented as Effect error recovery.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:4-11"
+          ]
+        },
+        {
+          "id": "array-map-is-ordinary-normalization",
+          "critical": true,
+          "description": "The array map trims the Label result to create normalized; it is an Array method call, not Fx.map and not an Effect stage.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:10-12"
+          ]
+        },
+        {
+          "id": "fx-resolves-to-effect",
+          "critical": true,
+          "description": "Fx is re-exported Effect, so Fx.catchTag, Fx.tap, Fx.map, and Fx.mapError in checkout are Effect combinators rather than methods on Label or Array.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/exports.ts:1",
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:1",
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:12-16"
+          ]
+        },
+        {
+          "id": "load-failure-conditions",
+          "critical": true,
+          "description": "load fails Missing when normalized starts with missing, fails CatalogDown when it equals down, and otherwise succeeds with the SKU.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/operations.ts:9-13"
+          ]
+        },
+        {
+          "id": "only-missing-uses-fallback",
+          "critical": true,
+          "description": "The Effect catchTag handles Missing by running fallback(normalized); CatalogDown is not the selected recovery tag.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:12-14",
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/operations.ts:3-5"
+          ]
+        },
+        {
+          "id": "fallback-can-fail",
+          "critical": true,
+          "description": "fallback fails with FallbackDown for missing-offline and otherwise succeeds, so recovery can itself remain a failure path.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/operations.ts:14-17"
+          ]
+        },
+        {
+          "id": "audit-after-load-or-fallback",
+          "critical": true,
+          "description": "Effect.tap(audit) is after catchTag; audit therefore observes the value from successful load or successful Missing recovery, and audit can fail with AuditDown for values ending audit-down.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:12-15",
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/operations.ts:18-20"
+          ]
+        },
+        {
+          "id": "success-format-and-error-normalization",
+          "critical": true,
+          "description": "After the tap succeeds, Fx.map formats ready:{value}; any failure remaining after the pipeline is mapped to Failed carrying its error tag.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/ts-symbols/src/main.ts:14-17"
+          ]
+        }
+      ],
+      "limits": [
+        "The string methods and Array.map are ordinary JavaScript operations. The fixture does not require a model to describe speculative JavaScript exceptions from them.",
+        "The required semantic distinction depends on resolving the local Label method and the Fx re-export; it does not require representation of Effect's internal runtime."
+      ]
+    },
+    {
+      "id": "rust-symbols",
+      "language": "rust",
+      "entry": "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:checkout",
+      "requirements": [
+        {
+          "id": "empty-input-becomes-missing",
+          "critical": true,
+          "description": "first returns None when input.first is None; checkout converts that Option to Failure::Missing with ok_or and the closure's ?.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:15-18",
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:25-30"
+          ]
+        },
+        {
+          "id": "label-or-else-is-not-result-recovery",
+          "critical": true,
+          "description": "Label::or_else is an inherent method that returns self and ignores its callback, so its call cannot recover an Attempt failure or create a fallback path.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:11-14",
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:27-30"
+          ]
+        },
+        {
+          "id": "decode-resolves-to-parser-parse",
+          "critical": true,
+          "description": "decode is an import alias for parser::parse, whose parse failure is ParseFault; the closure's ? converts it to Failure::Parse through From<ParseFault>.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:1-9",
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:26-30",
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/parser.rs:1-5"
+          ]
+        },
+        {
+          "id": "attempt-closure-is-the-recovery-input",
+          "critical": true,
+          "description": "The closure returns Attempt<u32> after the missing and decode stages, and attempt() is the Result value on which the subsequent Result::or_else operates.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:25-35"
+          ]
+        },
+        {
+          "id": "only-missing-runs-backup",
+          "critical": true,
+          "description": "Result::or_else invokes backup only for Failure::Missing; every other closure error is returned as Err(other).",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:32-35"
+          ]
+        },
+        {
+          "id": "backup-can-fail",
+          "critical": true,
+          "description": "backup returns Ok(7) only when available is true and otherwise returns Failure::Backup, so the recovery can fail.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:19-21"
+          ]
+        },
+        {
+          "id": "post-recovery-question-mark-skips-audit",
+          "critical": true,
+          "description": "The ? after Result::or_else propagates a Parse, Backup, or other unrecovered failure from checkout and prevents audit from running.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:32-36"
+          ]
+        },
+        {
+          "id": "audit-is-final-and-can-fail",
+          "critical": true,
+          "description": "audit runs only after a recovered or originally successful value is available, and it returns Failure::Audit when that value is 9.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:22-24",
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:32-36"
+          ]
+        },
+        {
+          "id": "first-trims-successful-input",
+          "critical": false,
+          "description": "A present first input is trimmed and converted to String before it is passed through Label to decode.",
+          "source": [
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:15-18",
+            "tmp/rop-analysis-comparison/inputs/rust-symbols/src/lib.rs:27-29"
+          ]
+        }
+      ],
+      "limits": [
+        "No requirement asks a model to infer implementation details of Option::ok_or, Result::or_else, or ?. Their language-level propagation behavior is the relevant observable contract.",
+        "The Label method deliberately shadows a familiar Result method name. A model must retain the type-resolved distinction but need not show Label as a separate diagram node."
+      ]
+    },
+    {
+      "id": "effect-public",
+      "language": "typescript",
+      "entry": "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:retryTransient",
+      "requirements": [
+        {
+          "id": "response-postprocess-is-retry-boundary",
+          "critical": true,
+          "description": "retryTransient passes an Effect.retry transformation through transformResponse, which applies it to client.postprocess(request); retry is not wrapped around client.preprocess.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:263-278",
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:581-598"
+          ]
+        },
+        {
+          "id": "requires-http-client-error",
+          "critical": true,
+          "description": "The retry while predicate first requires Error.isHttpClientError(error).",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:590-594"
+          ]
+        },
+        {
+          "id": "transport-request-is-retryable",
+          "critical": true,
+          "description": "A RequestError is eligible only when its reason is Transport.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:591-594"
+          ]
+        },
+        {
+          "id": "response-status-threshold-is-retryable",
+          "critical": true,
+          "description": "A ResponseError is eligible when response.status is at least 429.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:591-594"
+          ]
+        },
+        {
+          "id": "nonmatching-errors-are-not-selected",
+          "critical": true,
+          "description": "Errors that fail the explicit HTTP-client predicate or both listed variants are not selected by retryTransient's while predicate.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:590-597"
+          ]
+        },
+        {
+          "id": "direct-schedule-routing",
+          "critical": false,
+          "description": "When options has ScheduleTypeId, retryTransient supplies options as schedule and supplies undefined as times.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:595-596"
+          ]
+        },
+        {
+          "id": "options-object-routing",
+          "critical": false,
+          "description": "When options lacks ScheduleTypeId, retryTransient supplies options.schedule and options.times to Effect.retry.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:595-596"
+          ]
+        },
+        {
+          "id": "dual-call-forms",
+          "critical": false,
+          "description": "The public declaration supports both options-first and self-first forms, with either an options object or Schedule.Schedule input.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/effect-3.9.2/files/packages/platform/src/internal/httpClient.ts:565-579"
+          ]
+        }
+      ],
+      "limits": [
+        "The selected scope does not establish Effect.retry's loop, retry count, delay, schedule execution, or exhausted-retry behavior. Do not award or deduct for invented details of those internals.",
+        "The selected scope does not define isHttpClientError or the error constructors. Do not infer additional error variants or a concrete request implementation from this fixture."
+      ]
+    },
+    {
+      "id": "rust-public",
+      "language": "rust",
+      "entry": "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:main/run",
+      "requirements": [
+        {
+          "id": "main-passes-success-exit-code",
+          "critical": true,
+          "description": "main returns the ExitCode from a successful run unchanged.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:44-47"
+          ]
+        },
+        {
+          "id": "main-scans-full-error-chain-for-broken-pipe",
+          "critical": true,
+          "description": "For a run error, main iterates err.chain and returns exit code 0 if any cause is a std::io::Error with BrokenPipe kind.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:47-62"
+          ]
+        },
+        {
+          "id": "main-non-broken-pipe-error-exits-two",
+          "critical": true,
+          "description": "When no BrokenPipe cause is found, main prints the error and returns exit code 2.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:56-65"
+          ]
+        },
+        {
+          "id": "parse-error-returns-from-run",
+          "critical": true,
+          "description": "run immediately returns ParseResult::Err as Err without entering mode dispatch.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:78-85"
+          ]
+        },
+        {
+          "id": "special-mode-returns-directly",
+          "critical": true,
+          "description": "ParseResult::Special returns special(mode) directly from run.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:81-85"
+          ]
+        },
+        {
+          "id": "search-dispatch-and-propagation",
+          "critical": true,
+          "description": "Search mode chooses false without a search call when matches are impossible; otherwise it chooses index::read, search, or search_parallel by index and thread count, and each chosen call uses ? to return errors from run.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:86-90"
+          ]
+        },
+        {
+          "id": "index-mode-returns-success-early",
+          "critical": true,
+          "description": "Index mode executes index::write with ? and, on success, immediately returns exit code 0 rather than using final matched exit selection.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:91-94"
+          ]
+        },
+        {
+          "id": "other-mode-dispatch",
+          "critical": false,
+          "description": "Files chooses files or files_parallel by thread count with ?, while Types and Generate return their callee results directly.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:95-99"
+          ]
+        },
+        {
+          "id": "matched-exit-selection",
+          "critical": true,
+          "description": "After a matched-producing branch, run returns 0 only for matched with quiet or no recorded message error, returns 2 for recorded message errors, and otherwise returns 1.",
+          "source": [
+            "tmp/rop-analysis-comparison/public/ripgrep-master/files/crates/core/main.rs:100-106"
+          ]
+        }
+      ],
+      "limits": [
+        "The entry-point scope stops at flags::parse, special, index, search, files, types, generate, messages::errored, and error construction. Treat those callees as named boundaries unless another fixture supplies their bodies.",
+        "The ? call sites prove propagation to run's Result, not the concrete errors produced by any callee. A BrokenPipe edge is conditional on main finding that kind anywhere in the resulting error chain."
+      ]
+    }
+  ]
+}
