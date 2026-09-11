@@ -7,6 +7,7 @@ setup() {
   CDP_CLOSE_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-cdp-close.js"
   CDP_CLOSE_HARNESS="$PROJECT_ROOT/tests/fixtures/playwright-cli-cdp-close-harness.mjs"
   export MANAGED_CHROME_OWNER="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs"
+  export PWCLI_RUNTIME_COMMAND="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-runtime.mjs"
   FAKE_BIN="$BATS_TEST_TMPDIR/bin"
   UPSTREAM_LOG="$BATS_TEST_TMPDIR/upstream.log"
   POWERSHELL_LOG="$BATS_TEST_TMPDIR/powershell.log"
@@ -1320,4 +1321,37 @@ SH
   [ -s "$UPSTREAM_LOG.relocated" ]
   ! grep -Fq -- '-Action Start' "$POWERSHELL_LOG"
   [ ! -e "$UPSTREAM_LOG" ]
+}
+
+@test "wrapper startup waits while direct relocation holds both locks before rename" {
+  export PWCLI_TEST_WSL=1
+  local barrier="$BATS_TEST_TMPDIR/rename" updater wrapper_pid
+  export TEST_OWNER_LOCK="$BROWSER_OWNERSHIP_DIR/ownership.lock"
+  export TEST_RUNTIME_LOCK="$STATE_DIR/runtime.lock"
+  env NODE_OPTIONS="--import=$PROJECT_ROOT/tests/fixtures/playwright-relocation-hooks.mjs" \
+    TEST_RELOCATION_BARRIER="$barrier" \
+    "$MANAGED_CHROME_OWNER" relocate --identity "$IDENTITY" --role playwright --workspace "$PROJECT_ROOT" >"$barrier.log" 2>&1 &
+  updater=$!
+  for _ in {1..200}; do
+    [[ -f "$barrier.ready" ]] && break
+    sleep 0.01
+  done
+  if [[ ! -f "$barrier.ready" ]]; then
+    cat "$barrier.log"
+    kill "$updater" 2>/dev/null || true
+    wait "$updater" || true
+    return 1
+  fi
+  bash "$WRAPPER" -s=after-relocation open >"$barrier.wrapper" 2>&1 &
+  wrapper_pid=$!
+  sleep 0.2
+  local prematurely_started=0
+  [[ ! -e "$UPSTREAM_LOG" ]] || prematurely_started=1
+  touch "$barrier.continue"
+  wait "$updater"
+  wait "$wrapper_pid"
+  [ "$prematurely_started" -eq 0 ]
+  [ -s "$UPSTREAM_LOG" ]
+  run bash "$WRAPPER" -s=after-relocation close
+  [ "$status" -eq 0 ]
 }

@@ -23,3 +23,11 @@ status: accepted
 共有添付には独立した lifecycle と request receipt が必要になる。receipt は認証情報を含まないが、PR と asset の対応を含むためユーザー専用の runtime directory に保持する。通常の検証 profile と添付認証は独立してリセットする。
 
 新構成の Dogfood / Dashboard 共存、可視操作と背景作業の非干渉は本実装の必須実機受入試験。試験未実施を合格にしない。portless は標準配布・必須依存に採用せず、実アプリごとの任意導入条件を維持する。
+
+## Playwright runtime 境界
+
+共通 owner は直接 `relocate` CLI を維持し、owner lock O の内側で `withStoppedPlaywrightRuntime(identity, update)` を必ず通す。Playwright module は runtime directory、`runtime.lock`、Dashboard の5記録を所有し、wrapper には同梱の内部 CLI から固定順のパス一覧だけを渡す。owner へ内部パスや停止判定結果を返さず、保護された callback の中で owner 不在・Windows Chrome absent を照会し、割当を rename する。
+
+wrapper は R → O の順で取得するため、relocate の O → R は R を非待機取得する。Dashboard 確認前から allocation rename 完了まで O/R を保持する。wrapper は初回 locate 後に R を取得し、port を含む割当全体を再照合する。Dashboard の記録は壊れた symlink や FIFO も含めて残っていれば拒否し、ENOENT 以外の照会失敗も拒否する。副作用のある Dashboard 状態確認や自動削除は使わない。
+
+Node のロック取得は更新 process が開いた FD を flock 子と共有する。flock 子の正常終了後も更新 process 自身が FD を保持し、callback 完了・例外・process 終了時に解放する。同じ runtime 設定を共有する既存契約を前提とし、別設定の永続登録や reserve の契約拡張は行わない。

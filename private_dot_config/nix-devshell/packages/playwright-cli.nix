@@ -85,6 +85,10 @@ buildNpmPackage {
       --set-default MANAGED_CHROME_OWNER "$out/bin/managed-chrome-owner" \
       --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
       --add-flags "$out/share/playwright-cli/browser-attachments.mjs"
+    cp ${./browser-lock.mjs} "$out/share/playwright-cli/browser-lock.mjs"
+    cp ${./playwright-runtime.mjs} "$out/share/playwright-cli/playwright-runtime.mjs"
+    makeWrapper ${nodejs}/bin/node "$out/libexec/playwright-runtime" \
+      --add-flags "$out/share/playwright-cli/playwright-runtime.mjs"
     cp ${./managed-chrome-owner.mjs} "$out/share/playwright-cli/managed-chrome-owner.mjs"
     makeWrapper ${nodejs}/bin/node "$out/bin/managed-chrome-owner" \
       --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
@@ -96,6 +100,7 @@ buildNpmPackage {
       --replace-fail '@cdpClose@' "$out/libexec/playwright-cli-cdp-close" \
       --replace-fail '@windowsScript@' "$out/share/playwright-cli/windows.ps1" \
       --replace-fail '@managedChromeOwner@' "$out/bin/managed-chrome-owner" \
+      --replace-fail '@playwrightRuntime@' "$out/libexec/playwright-runtime" \
       --replace-fail '@flock@' '${util-linux}/bin/flock'
     chmod +x "$out/bin/playwright-cli"
     wrapProgram "$out/bin/playwright-cli" --prefix PATH : ${
