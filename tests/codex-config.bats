@@ -35,11 +35,12 @@ setup() {
 # separately by grepping the managed sync script's literal defaults.
 create_ponytail_marketplace_fixture() {
   local root="$1"
+  local version="${2:-0.0.0-fixture}"
   mkdir -p "$root/.codex-plugin" "$root/.claude-plugin" "$root/skills/ponytail"
-  cat >"$root/.codex-plugin/plugin.json" <<'EOF'
+  cat >"$root/.codex-plugin/plugin.json" <<EOF
 {
   "name": "ponytail",
-  "version": "0.0.0-fixture",
+  "version": "$version",
   "skills": "./skills/"
 }
 EOF
@@ -549,6 +550,33 @@ PY
   run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
   [ "$status" -eq 0 ]
   assert_ponytail_plugin_installed_and_enabled "$output"
+}
+
+@test "Codex managed sync re-registers the ponytail marketplace when its pinned source changes" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$home/.codex"
+  mkdir -p "$home/.config/codex" "$codex_home"
+  stage_codex_managed_config "$home"
+  create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-v1" "1.0.0-fixture"
+  create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-v2" "2.0.0-fixture"
+
+  PONYTAIL_MARKETPLACE_REF="" PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-v1" \
+    HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"version": "1.0.0-fixture"'* ]]
+
+  # codex refuses to re-add an already-registered marketplace name from a
+  # different source; the sync must recover from this by re-registering
+  # rather than silently keeping the stale pin (fail-open must not mean
+  # "never update").
+  PONYTAIL_MARKETPLACE_REF="" PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-v2" \
+    HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"version": "2.0.0-fixture"'* ]]
 }
 
 @test "Codex managed sync pins the ponytail marketplace to the production default" {

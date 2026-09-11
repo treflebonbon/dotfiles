@@ -330,7 +330,23 @@ sync_ponytail_plugin() {
   # `if ! sync_ponytail_plugin` below suspends errexit for this whole function
   # body, so each step must check its own status explicitly or a failed
   # marketplace add would silently fall through to the install call.
-  CODEX_HOME="$codex_home" codex plugin marketplace add "${marketplace_args[@]}" >/dev/null || return 1
+  local add_output
+  if ! add_output=$(CODEX_HOME="$codex_home" codex plugin marketplace add "${marketplace_args[@]}" 2>&1); then
+    # A changed pin (or a stale registration under a different source) makes
+    # codex refuse to re-add the same marketplace name; fail-open must not
+    # mean "silently keep serving the old pin forever", so recover by
+    # re-registering instead of just warning and leaving it as-is.
+    case "$add_output" in
+    *"already added from a different source"*)
+      CODEX_HOME="$codex_home" codex plugin marketplace remove ponytail >/dev/null || return 1
+      CODEX_HOME="$codex_home" codex plugin marketplace add "${marketplace_args[@]}" >/dev/null || return 1
+      ;;
+    *)
+      printf '%s\n' "$add_output" >&2
+      return 1
+      ;;
+    esac
+  fi
   CODEX_HOME="$codex_home" codex plugin add ponytail@ponytail >/dev/null || return 1
 }
 
