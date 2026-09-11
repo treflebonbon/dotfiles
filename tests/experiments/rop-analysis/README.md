@@ -4,7 +4,7 @@ Experimental adapters and a frozen, blinded comparison. These files are under `t
 
 ## Preparation
 
-Use `docs/research/rop-public-inputs.json` for archive URLs and SHA-256. Download those archives to their recorded paths, checking the hashes before extraction. Store paths to rustc, cargo, rust-analyzer and ast-grep, one absolute executable per line, in `tmp/rop-analysis-comparison/preflight/tool-paths.txt`. Node, npm and Codex must be on PATH. Dependencies and artifacts stay in the experiment workspace; no global install or chezmoi apply is needed.
+Use `docs/research/rop-public-inputs.json` for archive URLs and SHA-256. Download those archives to their recorded paths, checking the hashes before extraction. `prepare-public.py` also verifies the archive hash before extracting or reusing it, then checks every recorded source file, package manifest and license hash. An existing destination must contain exactly one project directory and pass the same checks; mismatches stop preparation without deleting or overwriting the destination. Store paths to rustc, cargo, rust-analyzer and ast-grep, one absolute executable per line, in `tmp/rop-analysis-comparison/preflight/tool-paths.txt`. Node, npm and Codex must be on PATH. Dependencies and artifacts stay in the experiment workspace; no global install or chezmoi apply is needed.
 
 ```bash
 npm ci --prefix tests/experiments/rop-analysis --ignore-scripts
@@ -44,3 +44,5 @@ python3 tests/experiments/rop-analysis/reaggregate.py
 This command verifies all 73 original files in `frozen-source/` against the original manifest, reads the recorded observations, and writes `summary-reviewed.json` and `sensitivity-reviewed.json`. It does not invoke a model or rewrite any original input, review, or score. The outputs record the original summary and manifest hashes. Verification here concerns the archived execution inputs, not the revised working tree. New experiments must prepare and freeze the current code in a fresh workspace.
 
 Every language/condition aggregate and its `by_case` entries now expose `n`, `false_mean`, `fulfilled_mean`, `missing_mean`, `unknowns_mean`, `critical_mean`, and `failure_mean`. Failed generations remain in each denominator. `critical_total` and `failures_total` are separate gate inputs. Both primary and sensitivity results use `aggregation.py` for all these calculations and candidate ordering.
+
+The unit suite creates its repository-local temporary parent itself and can run in a clean checkout before project preparation. PR review regression coverage includes wrong archives, wrong or missing selected files, modified existing snapshots, ambiguous extraction roots, and package/license hashes.

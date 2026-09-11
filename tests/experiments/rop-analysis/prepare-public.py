@@ -1,19 +1,14 @@
 """Materialize locked public projects from the archives recorded by the research step."""
 import json
 import subprocess
-import tarfile
-from pathlib import Path
 from prepare import REPO, WORK, write
+from public_snapshot import prepare_snapshot
 
 metadata = json.loads((REPO / 'docs/research/rop-public-inputs.json').read_text())
 cases = json.loads((WORK / 'cases-local.json').read_text())
 for item in metadata['inputs']:
     archive = REPO / item['snapshot']['archive']
-    dest = archive.parent / 'source'
-    if not dest.exists():
-        with tarfile.open(archive) as tar:
-            tar.extractall(dest, filter='data')
-    root = next(dest.iterdir()).resolve()
+    root = prepare_snapshot(item, REPO)
     if item['id'].startswith('effect'):
         runtime = archive.parent / 'runtime'
         write(runtime / 'package.json', json.dumps({'private': True, 'dependencies': {

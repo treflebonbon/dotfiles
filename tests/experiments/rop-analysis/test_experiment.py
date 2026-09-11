@@ -10,6 +10,10 @@ from reaggregate import verify_snapshot
 
 
 class ExperimentTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        (REPO / 'tmp').mkdir(parents=True, exist_ok=True)
+
     def test_matrix_is_balanced_and_reproducible(self):
         cases = [{'id': f't{i}', 'language': 'ts'} for i in range(3)] + [
                  {'id': f'r{i}', 'language': 'rust'} for i in range(4)]
