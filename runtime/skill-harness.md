@@ -229,8 +229,8 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 
 - `apm.yml` — 外部 plugin / skill の取得（hook を持たない外部 skill-only は apm 経由）
 - **chezmoi ローカル skill** — apm 外の user-scoped private skill（上記「chezmoi 配布のローカル skill」）。マルチランタイムへ materialize する自作 skill はこの経路
-- `settings.json` `enabledPlugins` — runtime 有効化フラグ。hook を含む plugin（`security-guidance` / LSP 群 / `codex`）はここで有効化する
-- `settings.json` `extraKnownMarketplaces` — 外部 marketplace 宣言（現状 `openai-codex` のみ）
+- `settings.json` `enabledPlugins` — runtime 有効化フラグ。hook を含む plugin（`security-guidance` / LSP 群 / `codex` / `ponytail`）はここで有効化する
+- `settings.json` `extraKnownMarketplaces` — 外部 marketplace 宣言（`openai-codex` / `ponytail`、[ADR-0058](../docs/adr/0058-adopt-ponytail-plugin.md)）
 
 `~/.claude/plugins/` 配下の `known_marketplaces.json` / `installed_plugins.json` / `cache/` は Claude Code の runtime state なので git/chezmoi では管理しない。
 
