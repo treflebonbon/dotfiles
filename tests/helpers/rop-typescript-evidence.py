@@ -111,6 +111,27 @@ export const run = () => { const 日本語 = new Label().catchTag(); return Fx.c
         self.assertEqual(result['nodes'], [])
 
     @unittest.skipUnless(shutil.which('ast-grep'), 'native ast-grep is not installed')
+    def test_native_missing_tokens_discard_partial_batch(self):
+        for extension in ['ts', 'tsx']:
+            for contents in ['const a = (1;', 'function f() { return 1;', 'foo(']:
+                with self.subTest(extension=extension, contents=contents):
+                    name = f'broken.{extension}'
+                    (self.root / name).write_text(contents)
+                    result = syntax.collect(self.root, ['main.ts', name])
+                    self.assertEqual(result['status'], 'failed', result)
+                    self.assertIn(name, result['reason'])
+                    self.assertEqual(result['nodes'], [])
+
+    @unittest.skipUnless(shutil.which('ast-grep'), 'native ast-grep is not installed')
+    def test_native_valid_empty_syntax_is_not_a_missing_token(self):
+        for contents in ['', '// comment\n', 'const a = ""; const b = ``; const c = [];',
+                         'function f() {}', 'const View = () => <><p />{null}</>;']:
+            with self.subTest(contents=contents):
+                (self.root / 'valid.tsx').write_text(contents)
+                result = syntax.collect(self.root, ['valid.tsx'])
+                self.assertEqual(result['status'], 'ok', result['reason'])
+
+    @unittest.skipUnless(shutil.which('ast-grep'), 'native ast-grep is not installed')
     def test_cli_writes_evidence_artifact(self):
         output = self.root / 'report/evidence.json'
         proc = subprocess.run([sys.executable, str(script), '--repo-root', str(self.root),

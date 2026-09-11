@@ -41,6 +41,12 @@ def collect(repo_root, files):
                 rules = '\n---\n'.join(json.dumps({'id': kind, 'language': language,
                                                   'rule': {'kind': kind}})
                                         for kind in (*KINDS, 'ERROR'))
+                # Recovered missing tokens have empty text but retain their token kind.
+                # Match via the program so unnamed tokens and uncollected syntax count too.
+                rules += '\n---\n' + json.dumps({
+                    'id': 'missing-token', 'language': language,
+                    'rule': {'kind': 'program', 'has': {'regex': '^$', 'stopBy': 'end'}},
+                })
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise TimeoutError('ast-grep extraction exceeded 30 seconds')
@@ -55,8 +61,8 @@ def collect(repo_root, files):
                     raise ValueError('ast-grep returned a non-array result')
                 for match in matches:
                     kind = match['ruleId']
-                    if kind == 'ERROR':
-                        raise ValueError(f'ast-grep reported a syntax error in {relative}')
+                    if kind in ('ERROR', 'missing-token'):
+                        raise ValueError(f'ast-grep reported a syntax error ({kind}) in {relative}')
                     if kind not in KINDS:
                         raise ValueError(f'Unexpected syntax kind: {kind}')
                     lo = match['range']['byteOffset']['start']

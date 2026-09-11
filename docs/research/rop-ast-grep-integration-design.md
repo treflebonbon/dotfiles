@@ -49,8 +49,9 @@ TypeScript EffectのROPフロー図を作る際に、ast-grepが返す構文と�
 
 ### 検証
 
-- 抽出器contract: 9テスト成功。固定済み0.42.1を使った.ts/.tsx・Unicode範囲・構文エラー・CLI出力を含み、nativeテストのskipなし。
+- 抽出器contract: 11テスト成功。固定済み0.42.1を使った.ts/.tsx・Unicode範囲・構文エラー・CLI出力を含み、nativeテストのskipなし。
 - 既存renderer contract: 8テスト成功。
 - Linuxのdefault/wsl devShellを評価し、ast-grep 0.42.1がnativeBuildInputsに含まれることを確認。バイナリも同じ固定済みNix入力から取得して検証した。
 - 配布検証: 隔離したHOMEでlocal skill配布hookを実行し、抽出ヘルパーとreferenceが `.agents` / `.claude` に同梱されることを確認。`tests/rop-visualizer.bats` 全3件成功。live環境は変更していない。
 - コードレビュー: 実装commit `54f9a4c` を規約・仕様の2軸で独立レビューし、修正を要する指摘なし。明示ファイル限定、失敗時の継続、構文情報の解釈、配布先が合意と一致することを確認した。
+- PR #309レビュー対応: `ERROR` がない欠落トークンでも部分的な構文証拠が成功扱いになる問題を再現し、program配下のゼロ幅ノードを検出してバッチ全体を失敗とするルールを追加した。TS/TSXの閉じ括弧・波括弧欠落を回帰テストで確認し、空ファイル・コメント・空文字列・空配列・空関数・JSXは成功することも確認した。
