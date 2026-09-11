@@ -4,6 +4,12 @@ setup() {
   unset CODEX_HOME
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   SYNC_COMMAND="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
+  # This file tests the generic file-merge mechanics with minimal, non-real
+  # config fixtures; the ponytail plugin-sync step is unrelated to that and,
+  # left enabled, would both dial out to the real network and persist
+  # marketplace state back into config.toml, breaking the exact `cmp` checks
+  # throughout this file. An explicitly empty source skips it entirely.
+  export PONYTAIL_MARKETPLACE_SOURCE=""
   TEST_HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$TEST_HOME/.config/codex/rules" "$TEST_HOME/.config/codex/environments"
   printf 'model = "managed"\n' >"$TEST_HOME/.config/codex/config.toml"

@@ -29,3 +29,15 @@ ambient persona（`full` mode、毎応答、全リポジトリ、全 subagent）
 有効化の正しさは [tests/claude-plugins.bats](../../tests/claude-plugins.bats) で検証する。実際のランタイム有効化（`node` hook の実行成否）は `$CLAUDE_CONFIG_DIR/.ponytail-active` フラグファイルの存在で手動確認する。plugin の hook コードは `node`/PATH の失敗を静かに握りつぶすため、これが唯一の観測手段である。あわせて、既存の `~/.claude/statusline.sh` が引き続き機能し、ponytail の statusline セットアップ誘導（`settings.statusLine` が未設定の場合だけ発火する）が発火しないことも手動確認する。
 
 関連: [skill-harness](../../runtime/skill-harness.md) / [Issue #304](https://github.com/treflebonbon/dotfiles/issues/304)
+
+## 2026-09-11 amendment: Codex への拡張
+
+[Issue #308](https://github.com/treflebonbon/dotfiles/issues/308) により、ponytail を Codex にも導入する。ponytail は Codex 向けにも `.codex-plugin/plugin.json` + 共有 `hooks/claude-codex-hooks.json` による正式な native plugin adapter を提供しており、apm.yml（hooks を持たない外部 skill-only の経路）ではなく Codex 自身の native plugin 機構（`codex plugin marketplace add` / `codex plugin add`）を使う。Claude Code 版で確立した「hooks を持つ plugin は apm を経由しない」という原則を Codex にも一貫して適用する判断である。
+
+- marketplace `dietrichgebert/ponytail` を `v4.9.0` に明示 pin して登録する（`--ref` は実際に該当タグへ確定 pin することを実機確認済み）。Claude Code 側の `enabledPlugins` にはこの pin 機構が無いため、Codex 側の方がより厳格な固定になる。
+- `private_dot_config/codex/config.toml.tmpl` の `[plugins]` に `"ponytail@ponytail" = { enabled = true }` を追加し、既存の `github@openai-curated` / `chrome@openai-bundled` と同じ宣言パターンで有効化する。
+- marketplace 登録・plugin install という命令的な新規ステップは、既存の `sync-codex-managed-config`（`codex_home` 列挙・`run_onchange` トリガーを既に持つ）を拡張して行う。新規スクリプトは作らない。
+- marketplace 登録・install は `codex` バイナリが `PATH` に無い場合、および対象 `codex_home` の既存設定が `codex` 自身のロードに失敗する場合（無関係な理由によるものを含む）に fail-open とする。ファイルの静的マージ（既存の責務）を、この新規の命令的ステップの失敗で巻き込まないためである。
+- mode（`full`、override なし）・subagent スコープ（`PONYTAIL_SUBAGENT_MATCHER` 未設定）・導入スキル（6つ全て）は Claude Code 版と同じ判断を踏襲する。
+
+検証は `tests/codex-config.bats` を拡張して行う（新規ファイルは作らない）。ローカル git fixture を marketplace source として使い、実ネットワークで `dietrichgebert/ponytail` を毎回取得しない。

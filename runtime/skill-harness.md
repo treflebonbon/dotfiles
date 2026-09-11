@@ -240,4 +240,8 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 
 `~/.claude/plugins/` 配下の `known_marketplaces.json` / `installed_plugins.json` / `cache/` は Claude Code の runtime state なので git/chezmoi では管理しない。
 
+## Codex plugin marketplace 管理
+
+Codex には Claude Code の `enabledPlugins`/`extraKnownMarketplaces` に相当する、未登録の marketplace を先に宣言するだけで済む仕組みが `config.toml` に無い。marketplace を新規に使えるようにするには `codex plugin marketplace add` を実行して実際に fetch させる必要があり、これは常に命令的な CLI 操作である（一度 fetch 済みの marketplace の情報は `codex` 自身が `[marketplaces.<name>]` として `config.toml` に書き戻すが、書き戻された内容をこちらが事前に書いても `codex` は再 fetch してくれない）。marketplace 登録（`codex plugin marketplace add`）・plugin install（`codex plugin add`）は `private_dot_local/bin/executable_sync-codex-managed-config`（既存の `codex_home` 列挙・`run_onchange` トリガーを持つ）が冪等に行う。`config.toml.tmpl` の `[plugins."<name>@<marketplace>"]` `enabled = true` は、既に登録・install 済みの plugin を有効化するだけの宣言である（[ADR-0058](../docs/adr/0058-adopt-ponytail-plugin.md) 2026-09-11 amendment）。この命令的ステップは `codex` バイナリ不在・対象 `codex_home` の設定不備に対して fail-open にし、`PONYTAIL_MARKETPLACE_SOURCE` を明示的に空にすることで丸ごと無効化できる（`config.toml` への書き戻しが既存の merge/cmp 前提を崩すテストのための逃げ道）。
+
 関連: [ai-runtimes](ai-runtimes.md) / [conventions](../docs/conventions.md)

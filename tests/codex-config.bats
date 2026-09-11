@@ -18,6 +18,52 @@ setup() {
   ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$BATS_TEST_TMPDIR/runtime-bin/devshell-env"
   export PATH="$BATS_TEST_TMPDIR/runtime-bin:$PATH"
   export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+  # Skip the ponytail plugin-sync step by default: an explicitly empty source
+  # short-circuits it before any `codex plugin ...` call. Without this, every
+  # one of this file's ~16 other call sites of $CODEX_MANAGED_CONFIG_SYNC
+  # would attempt a real network fetch now that the script performs this step
+  # unconditionally, and even a local fixture would still persist marketplace
+  # state back into config.toml as a side effect, which not every test wants.
+  # The dedicated ponytail tests below opt back in locally.
+  export PONYTAIL_MARKETPLACE_SOURCE=""
+}
+
+# A minimal local marketplace so sync-codex-managed-config's ponytail install
+# step never touches the real network in tests. --ref only works for actual
+# git remote sources, so this fixture is deliberately left unpinned; the
+# production default (dietrichgebert/ponytail pinned to v4.9.0) is asserted
+# separately by grepping the managed sync script's literal defaults.
+create_ponytail_marketplace_fixture() {
+  local root="$1"
+  local version="${2:-0.0.0-fixture}"
+  mkdir -p "$root/.codex-plugin" "$root/.claude-plugin" "$root/skills/ponytail"
+  cat >"$root/.codex-plugin/plugin.json" <<EOF
+{
+  "name": "ponytail",
+  "version": "$version",
+  "skills": "./skills/"
+}
+EOF
+  cat >"$root/.claude-plugin/marketplace.json" <<'EOF'
+{
+  "name": "ponytail",
+  "owner": { "name": "test" },
+  "plugins": [
+    { "name": "ponytail", "description": "fixture", "source": "./" }
+  ]
+}
+EOF
+  cat >"$root/skills/ponytail/SKILL.md" <<'EOF'
+---
+name: ponytail
+description: fixture skill
+---
+
+# Ponytail Fixture
+EOF
+  git -C "$root" init -q
+  git -C "$root" add -A
+  git -C "$root" -c user.email=test@example.com -c user.name=Test commit -qm init
 }
 
 install_codex_package_test_commands() {
@@ -295,6 +341,7 @@ for path in sys.argv[1:]:
     assert config["apps"]["github"]["destructive_enabled"] is False
     assert config["plugins"]["github@openai-curated"]["enabled"] is True
     assert config["plugins"]["chrome@openai-bundled"]["enabled"] is True
+    assert config["plugins"]["ponytail@ponytail"]["enabled"] is True
 PY
 }
 
@@ -465,6 +512,119 @@ assert_codex_strict_config() {
   assert_codex_strict_config "$home/.codex"
   assert_codex_strict_config "$home/.codex-app"
   assert_codex_strict_config "$codex_home"
+}
+
+assert_ponytail_plugin_installed_and_enabled() {
+  local plugin_list_json="$1"
+  python3 - "$plugin_list_json" <<'PY'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+matches = [p for p in data["installed"] if p["pluginId"] == "ponytail@ponytail"]
+assert len(matches) == 1, f"expected exactly one installed ponytail@ponytail entry, got {matches}"
+assert matches[0]["installed"] is True
+assert matches[0]["enabled"] is True
+PY
+}
+
+@test "Codex managed sync installs and enables the ponytail plugin" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$home/.codex"
+  mkdir -p "$home/.config/codex" "$codex_home"
+  stage_codex_managed_config "$home"
+  create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-marketplace-fixture"
+  export PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-marketplace-fixture"
+  export PONYTAIL_MARKETPLACE_REF=""
+
+  HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  [ "$status" -eq 0 ]
+  assert_ponytail_plugin_installed_and_enabled "$output"
+
+  # idempotent: a second sync must not error or change the outcome
+  run env HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  [ "$status" -eq 0 ]
+
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  [ "$status" -eq 0 ]
+  assert_ponytail_plugin_installed_and_enabled "$output"
+}
+
+@test "Codex managed sync re-registers the ponytail marketplace when its pinned source changes" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$home/.codex"
+  mkdir -p "$home/.config/codex" "$codex_home"
+  stage_codex_managed_config "$home"
+  create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-v1" "1.0.0-fixture"
+  create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-v2" "2.0.0-fixture"
+
+  PONYTAIL_MARKETPLACE_REF="" PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-v1" \
+    HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"version": "1.0.0-fixture"'* ]]
+
+  # codex refuses to re-add an already-registered marketplace name from a
+  # different source; the sync must recover from this by re-registering
+  # rather than silently keeping the stale pin (fail-open must not mean
+  # "never update").
+  PONYTAIL_MARKETPLACE_REF="" PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-v2" \
+    HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"version": "2.0.0-fixture"'* ]]
+}
+
+@test "Codex managed sync pins the ponytail marketplace to the production default" {
+  grep -q 'PONYTAIL_MARKETPLACE_SOURCE-dietrichgebert/ponytail' "$CODEX_MANAGED_CONFIG_SYNC"
+  grep -q 'PONYTAIL_MARKETPLACE_REF-v4.9.0' "$CODEX_MANAGED_CONFIG_SYNC"
+}
+
+@test "Codex managed sync skips the ponytail plugin step without failing when codex is absent" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local codex_home="$home/.codex"
+  local bin="$BATS_TEST_TMPDIR/no-codex-bin"
+  mkdir -p "$home/.config/codex" "$codex_home" "$bin"
+  stage_codex_managed_config "$home"
+  # Exercise the "codex absent" guard specifically, not the "source skipped"
+  # guard: no network call follows since command -v codex is checked first.
+  export PONYTAIL_MARKETPLACE_SOURCE="dietrichgebert/ponytail"
+
+  # A PATH with every other runtime tool but no codex executable.
+  local filtered_path
+  filtered_path=$(printf '%s' "$PATH" | tr ':' '\n' | while IFS= read -r dir; do
+    [ -x "$dir/codex" ] || printf '%s\n' "$dir"
+  done | paste -sd: -)
+
+  run env HOME="$home" CODEX_HOME="$codex_home" PATH="$bin:$filtered_path" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  [ "$status" -eq 0 ]
+  grep -q '^model = "gpt-6-astra"$' "$codex_home/config.toml"
+}
+
+@test "Codex managed sync fails open when an existing codex_home config cannot be loaded" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.codex"
+  stage_codex_managed_config "$home"
+  create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-marketplace-fixture"
+  export PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-marketplace-fixture"
+  export PONYTAIL_MARKETPLACE_REF=""
+  # Deliberately incomplete managed config (mirrors the migration fixture
+  # above): missing default_permissions makes the merged result something
+  # the codex binary itself rejects, independent of the ponytail logic.
+  cat >"$home/.config/codex/config.toml" <<'EOF'
+[permissions.dotfiles-secure.filesystem.":workspace_roots"]
+"**/.env*" = "deny"
+EOF
+  cp "$home/.config/codex/config.toml" "$home/.codex/config.toml"
+
+  run env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"WARNING: ponytail plugin sync failed for $home/.codex"* ]]
+  grep -Fq '"**/.env*" = "deny"' "$home/.codex/config.toml"
 }
 
 @test "dotfiles-secure sandbox starts without expanding protected home trees" {
@@ -1335,6 +1495,9 @@ destructive_enabled = false
 enabled = true
 
 [plugins."chrome@openai-bundled"]
+enabled = true
+
+[plugins."ponytail@ponytail"]
 enabled = true
 
 [plugins."example-curated@openai-curated"]
