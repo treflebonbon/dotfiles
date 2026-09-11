@@ -20,7 +20,7 @@ title: WSL の一時送信ポート範囲と Windows Chrome の CDP 復旧
 
 既存割当には `managed-chrome-owner relocate --role playwright --workspace <physical-root> --identity <exact-identity>` を追加した。登録 lock 内で、正確な既存 identity・所有権記録なし・旧 profile / port に Chrome なしを確認してから、その identity の port pair だけを更新する。profile と他 identity は保持する。残存予約、稼働 Chrome、照会失敗は拒否する。
 
-47858番の今回の Chrome は CDP による終了ができず、照合した対象 PID への `CloseMainWindow` も false。ブラウザ強制終了は #301 の承認対象外のため、自動終了や所有権の強制削除は実行していない。この専用プロセスの終了について個別承認後、正規 recover → relocate →実機再検証を行う必要がある。既存の Dogfood starting 記録は別件であり変更しない。
+47858番の今回の Chrome は CDP による終了ができず、照合した対象 PID への `CloseMainWindow` も false。ユーザーの個別承認後、PID 2100・起動時刻・専用 profile・47858番指定・browser 親プロセスであることを再照合し、そのプロセスだけを終了した。正規 recover で停止確認後に所有権を回収し、relocate で CDP48718 / Dashboard48719へ変更した。profile は保持した。既存の Dogfood starting 記録は別件として変更していない。
 
 ## 検証
 
@@ -29,4 +29,5 @@ title: WSL の一時送信ポート範囲と Windows Chrome の CDP 復旧
 - 隔離 Git fixture の旧候補48020は利用不能範囲内。修正版で CDP48716 / Dashboard48717へ割り当てられることを確認。
 - その fixture で headless open、証跡ディレクトリ A での title 設定、B での title 照合・撮影・close がすべて成功。終了後の当該 ownership は null。
 - Session Scratchpad が提示されていないため `${TMPDIR:-/tmp}` fallback を使用。実機ログ・画像は `/tmp/nix-shell.2VWWVm/nix-shell.5ocIC6/nix-shell.Cr560r/browser-port-recovery.ezribsdv/`。一時資料の永続保存は保証しない。
-- ここでの成功は隔離 fixture の結果。元の worktree の復旧完了や OS フォーカスの再測定を主張しない。未マージ source から chezmoi apply は実行していない。
+- 元の task worktree でも同じ package を用いて headless open、証跡ディレクトリ A での title 設定、B での照合・snapshot・撮影・close がすべて成功。終了後の当該 ownership は null。証跡は `/tmp/nix-shell.2VWWVm/nix-shell.5ocIC6/nix-shell.Cr560r/301-original-recovery.o9gh1axl/`。
+- 最終 ownership は既存の `dogfood-0c132f79083b5968` の starting 記録1件のみ。元の worktree の復旧は完了した。OS フォーカスは今回再測定していない。未マージ source から chezmoi apply は実行していない。
