@@ -313,3 +313,34 @@ for index in "${!targets[@]}"; do
   target="${targets[$index]}"
   mv -- "${staged_files[$index]}" "$target"
 done
+
+sync_ponytail_plugin() {
+  local codex_home="$1"
+  # An explicitly empty PONYTAIL_MARKETPLACE_SOURCE (as opposed to unset)
+  # skips this step entirely: some callers exercise sync-codex-managed-config
+  # purely for its file-merge behavior and must not have this step's `codex`
+  # calls (which persist marketplace state back into config.toml) disturb it.
+  local marketplace_source="${PONYTAIL_MARKETPLACE_SOURCE-dietrichgebert/ponytail}"
+  [ -n "$marketplace_source" ] || return 0
+  local marketplace_ref="${PONYTAIL_MARKETPLACE_REF-v4.9.0}"
+  local marketplace_args=("$marketplace_source")
+  if [ -n "$marketplace_ref" ]; then
+    marketplace_args+=(--ref "$marketplace_ref")
+  fi
+  # `if ! sync_ponytail_plugin` below suspends errexit for this whole function
+  # body, so each step must check its own status explicitly or a failed
+  # marketplace add would silently fall through to the install call.
+  CODEX_HOME="$codex_home" codex plugin marketplace add "${marketplace_args[@]}" >/dev/null || return 1
+  CODEX_HOME="$codex_home" codex plugin add ponytail@ponytail >/dev/null || return 1
+}
+
+# Best-effort: an unreachable marketplace or a codex_home whose config the
+# installed codex binary rejects for unrelated reasons (e.g. a deliberately
+# minimal migration fixture) must not fail the file sync above.
+if command -v codex >/dev/null 2>&1; then
+  for codex_home in "${codex_homes[@]}"; do
+    if ! sync_ponytail_plugin "$codex_home"; then
+      printf 'WARNING: ponytail plugin sync failed for %s\n' "$codex_home" >&2
+    fi
+  done
+fi
