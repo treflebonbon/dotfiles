@@ -152,7 +152,7 @@ export GIT_AUTHOR_NAME="Your Name"
 
 - **セキュリティ**: 機密ファイル読み取り禁止、破壊的コマンド禁止、クラウド操作禁止（deny ルール群）
 - **設計→実装ワークフロー**: mattpocock skills（`setup-matt-pocock-skills` → `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`、raw issue は `triage` on-ramp）。apm 経由で `~/.claude/skills/` へ展開
-- **enabledPlugins**: security-guidance, LSP 群, codex, claude-code-setup
+- **enabledPlugins**: security-guidance, LSP 群, codex, ponytail
 - **ブラウザ**: `playwright-cli`
 
 各 product repo で `setup-matt-pocock-skills` を最初に実行し、issue tracker（GitHub / GitLab / local markdown 等）と triage label 語彙を構成します。triage label（`needs-triage` 等）は各 repo で `gh label create` するか skill のランタイム挙動に任せます。
