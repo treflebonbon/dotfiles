@@ -7,9 +7,8 @@ claims, and recompute the unchanged adoption gate. This was NOT preregistered.
 import copy
 import hashlib
 import json
-from statistics import mean
 from experiment import WORK, save, verify
-from evaluate import qualifies
+from aggregation import reaggregate
 
 CHECKS = {
     "run-008": ("pub(crate) fn index(&self) -> usize", False),
@@ -53,21 +52,7 @@ def main():
             row["fulfilled"] += 1
             row["missing"] -= 1
     assert len(corrections) == len(CHECKS)
-    language = {c["id"]: c["language"] for c in manifest["cases"]}
-    for lang, conditions in result["aggregate"].items():
-        for condition, aggregate in conditions.items():
-            rows = [r for r in result["observations"]
-                    if language[r["case"]] == lang and r["condition"] == condition]
-            aggregate["fulfilled_mean"] = mean(r["fulfilled"] for r in rows)
-            aggregate["false_mean"] = mean(r["false"] for r in rows)
-            aggregate["critical"] = sum(r["critical"] for r in rows)
-            for case, metrics in aggregate["by_case"].items():
-                metrics["fulfilled_mean"] = mean(r["fulfilled"] for r in rows if r["case"] == case)
-                metrics["false_mean"] = mean(r["false"] for r in rows if r["case"] == case)
-        burden = {"ast-grep": 0, "ts-morph": 1, "syn": 1, "rust-analyzer": 2}
-        candidates = [c for c in conditions if c != "baseline" and qualifies(conditions[c], conditions["baseline"])]
-        candidates.sort(key=lambda c: (conditions[c]["false_mean"], -conditions[c]["fulfilled_mean"], burden[c]))
-        result["decisions"][lang] = {"qualifying": candidates, "recommendation": candidates[0] if candidates else "retain baseline"}
+    result = reaggregate(result, manifest['cases'])
     result["post_review_corrections"] = corrections
     result["interpretation"] = "Post-review sensitivity analysis, not preregistered; compare with unchanged summary.json."
     save(WORK / "sensitivity.json", result)

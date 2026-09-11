@@ -2,8 +2,7 @@
 import argparse
 import concurrent.futures
 import json
-from collections import defaultdict
-from statistics import mean
+from aggregation import reaggregate
 from experiment import WORK, HERE, verify, invoke, decode_model, save
 
 
@@ -48,13 +47,6 @@ def validate_review(data, packet):
             raise ValueError('Invalid unknowns')
 
 
-def qualifies(candidate, baseline):
-    return (candidate['critical'] == 0 and candidate['false_mean'] < baseline['false_mean']
-            and candidate['failures'] <= baseline['failures']
-            and all(candidate['by_case'][key]['fulfilled_mean'] >= value['fulfilled_mean']
-                    for key, value in baseline['by_case'].items()))
-
-
 def summarize(manifest):
     verify(manifest)
     scores = {}
@@ -63,8 +55,6 @@ def summarize(manifest):
         data = json.loads((WORK / 'reviews' / case['id'] / 'review.json').read_text())
         validate_review(data, packet)
         scores.update({s['id']: s for s in data['scores']})
-    groups = defaultdict(list)
-    case_languages = {c['id']: c['language'] for c in manifest['cases']}
     observations = []
     for run in manifest['runs']:
         s = scores[run['id']]
@@ -76,30 +66,11 @@ def summarize(manifest):
                'unknowns': len(s['unknowns']), 'duration_seconds': status['duration_seconds'],
                'usage': status['usage']}
         observations.append(row)
-        groups[(case_languages[run['case']], run['condition'])].append(row)
-    aggregate = {}
-    for (language, condition), rows in groups.items():
-        by_case = {}
-        for case in sorted({r['case'] for r in rows}):
-            subset = [r for r in rows if r['case'] == case]
-            by_case[case] = {'fulfilled_mean': mean(r['fulfilled'] for r in subset),
-                             'false_mean': mean(r['false'] for r in subset),
-                             'failures': sum(not r['valid'] for r in subset)}
-        aggregate.setdefault(language, {})[condition] = {
-            'n': len(rows), 'false_mean': mean(r['false'] for r in rows),
-            'fulfilled_mean': mean(r['fulfilled'] for r in rows),
-            'critical': sum(r['critical'] for r in rows), 'failures': sum(not r['valid'] for r in rows),
-            'by_case': by_case}
-    decisions = {}
-    burden = {'ast-grep': 0, 'ts-morph': 1, 'syn': 1, 'rust-analyzer': 2}
-    for language, conditions in aggregate.items():
-        candidates = [c for c in conditions if c != 'baseline' and qualifies(conditions[c], conditions['baseline'])]
-        candidates.sort(key=lambda c: (conditions[c]['false_mean'], -conditions[c]['fulfilled_mean'], burden[c]))
-        decisions[language] = {'qualifying': candidates, 'recommendation': candidates[0] if candidates else 'retain baseline'}
-    result = {'observations': observations, 'aggregate': aggregate, 'decisions': decisions,
-              'interpretation': 'Descriptive three-repeat comparison, not statistical superiority.'}
+    result = reaggregate({'observations': observations,
+                          'interpretation': 'Descriptive three-repeat comparison, not statistical superiority.'},
+                         manifest['cases'])
     save(WORK / 'summary.json', result)
-    print(json.dumps({'aggregate': aggregate, 'decisions': decisions}, ensure_ascii=False, indent=2))
+    print(json.dumps({'aggregate': result['aggregate'], 'decisions': result['decisions']}, ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':

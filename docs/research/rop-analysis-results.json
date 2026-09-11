@@ -23,7 +23,8 @@
     "renderer_contract_tests": 8,
     "browser_reports": 9,
     "candidate_browser_reports": ["run-011", "run-029", "run-019"],
-    "sensitivity_corrections": 6
+    "sensitivity_corrections": 6,
+    "post_review_experiment_tests": 11
   },
   "preregistered": {
     "observations": [
@@ -1534,28 +1535,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.666666666666666,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 2.5833333333333335,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.666666666666666,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 1.3333333333333333,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -1563,28 +1592,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.666666666666666,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 3,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.666666666666666,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -1592,28 +1649,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.583333333333334,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.16666666666666666,
+          "unknowns_mean": 2.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.333333333333334,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 1.6666666666666667,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -1621,28 +1706,56 @@
           "n": 12,
           "false_mean": 0.16666666666666666,
           "fulfilled_mean": 8.416666666666666,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.3333333333333333,
+          "unknowns_mean": 2.9166666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.333333333333334,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 8.333333333333334,
+              "n": 3,
               "false_mean": 0.6666666666666666,
-              "failures": 0
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         }
@@ -1652,23 +1765,45 @@
           "n": 9,
           "false_mean": 0.1111111111111111,
           "fulfilled_mean": 6.777777777777778,
-          "critical": 0,
-          "failures": 1,
+          "missing_mean": 1.2222222222222223,
+          "unknowns_mean": 3.111111111111111,
+          "critical_mean": 0,
+          "failure_mean": 0.1111111111111111,
+          "critical_total": 0,
+          "failures_total": 1,
           "by_case": {
             "effect-checkout": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0.3333333333333333,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "effect-public": {
-              "fulfilled_mean": 7,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 7,
+              "missing_mean": 1,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "ts-symbols": {
-              "fulfilled_mean": 5.333333333333333,
+              "n": 3,
               "false_mean": 0,
-              "failures": 1
+              "fulfilled_mean": 5.333333333333333,
+              "missing_mean": 2.6666666666666665,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0.3333333333333333,
+              "critical_total": 0,
+              "failures_total": 1
             }
           }
         },
@@ -1676,23 +1811,45 @@
           "n": 9,
           "false_mean": 0,
           "fulfilled_mean": 7.777777777777778,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "effect-checkout": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "effect-public": {
-              "fulfilled_mean": 7.333333333333333,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "ts-symbols": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -1700,23 +1857,45 @@
           "n": 9,
           "false_mean": 0.4444444444444444,
           "fulfilled_mean": 7.777777777777778,
-          "critical": 1,
-          "failures": 0,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.7777777777777777,
+          "critical_mean": 0.1111111111111111,
+          "failure_mean": 0,
+          "critical_total": 1,
+          "failures_total": 0,
           "by_case": {
             "effect-checkout": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "effect-public": {
-              "fulfilled_mean": 7.333333333333333,
+              "n": 3,
               "false_mean": 0.3333333333333333,
-              "failures": 0
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 4,
+              "critical_mean": 0.3333333333333333,
+              "failure_mean": 0,
+              "critical_total": 1,
+              "failures_total": 0
             },
             "ts-symbols": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 1,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         }
@@ -1732,7 +1911,14 @@
         "recommendation": "ast-grep"
       }
     },
-    "interpretation": "Descriptive three-repeat comparison, not statistical superiority."
+    "interpretation": "Descriptive three-repeat comparison, not statistical superiority.",
+    "aggregation_revision": {
+      "reason": "Code review: include all protocol means and share adoption selection.",
+      "source": "summary.json",
+      "source_sha256": "5f7cb956957df7fc63e8661ae12f19ccad8b7d4e9c19a24a3d115e2ca5dcade0",
+      "frozen_manifest_sha256": "544fcdd90e055e55913e1cc13e0c4c967a28fd457dd2f0e98120bed4249b57ef",
+      "verification": "All original frozen files verified in frozen-source; current analysis code is a post-review revision."
+    }
   },
   "post_review_sensitivity": {
     "observations": [
@@ -3243,28 +3429,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.666666666666666,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 2.5833333333333335,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.666666666666666,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 1.3333333333333333,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -3272,28 +3486,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.666666666666666,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 3,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.666666666666666,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -3301,28 +3543,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.583333333333334,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.16666666666666666,
+          "unknowns_mean": 2.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.333333333333334,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 1.6666666666666667,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -3330,28 +3600,56 @@
           "n": 12,
           "false_mean": 0,
           "fulfilled_mean": 8.583333333333334,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.16666666666666666,
+          "unknowns_mean": 2.9166666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "holdout-local-scope": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-checkout": {
-              "fulfilled_mean": 8.333333333333334,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-public": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "rust-symbols": {
-              "fulfilled_mean": 9,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         }
@@ -3361,23 +3659,45 @@
           "n": 9,
           "false_mean": 0.1111111111111111,
           "fulfilled_mean": 6.777777777777778,
-          "critical": 0,
-          "failures": 1,
+          "missing_mean": 1.2222222222222223,
+          "unknowns_mean": 3.111111111111111,
+          "critical_mean": 0,
+          "failure_mean": 0.1111111111111111,
+          "critical_total": 0,
+          "failures_total": 1,
           "by_case": {
             "effect-checkout": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0.3333333333333333,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "effect-public": {
-              "fulfilled_mean": 7,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 7,
+              "missing_mean": 1,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "ts-symbols": {
-              "fulfilled_mean": 5.333333333333333,
+              "n": 3,
               "false_mean": 0,
-              "failures": 1
+              "fulfilled_mean": 5.333333333333333,
+              "missing_mean": 2.6666666666666665,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0.3333333333333333,
+              "critical_total": 0,
+              "failures_total": 1
             }
           }
         },
@@ -3385,23 +3705,45 @@
           "n": 9,
           "false_mean": 0,
           "fulfilled_mean": 7.777777777777778,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "effect-checkout": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "effect-public": {
-              "fulfilled_mean": 7.333333333333333,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "ts-symbols": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         },
@@ -3409,23 +3751,45 @@
           "n": 9,
           "false_mean": 0,
           "fulfilled_mean": 7.777777777777778,
-          "critical": 0,
-          "failures": 0,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.7777777777777777,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
           "by_case": {
             "effect-checkout": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "effect-public": {
-              "fulfilled_mean": 7.333333333333333,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             },
             "ts-symbols": {
-              "fulfilled_mean": 8,
+              "n": 3,
               "false_mean": 0,
-              "failures": 0
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
             }
           }
         }
@@ -3543,6 +3907,13 @@
         "prompt_sha256": "7f439b87c9f9a8d9456748bf86363f09075184409f0fc6c662bb49f1ebecc58e",
         "reason": "The evidence was supplied to the producer, but hidden from the blind reviewer. No source semantics or gold requirement was changed."
       }
-    ]
+    ],
+    "aggregation_revision": {
+      "reason": "Code review: include all protocol means and share adoption selection.",
+      "source": "sensitivity.json",
+      "source_sha256": "42cd7d57c83f10e718005e68b9da12b6af74254c5bb66fb8d9b811b57cfff265",
+      "frozen_manifest_sha256": "544fcdd90e055e55913e1cc13e0c4c967a28fd457dd2f0e98120bed4249b57ef",
+      "verification": "All original frozen files verified in frozen-source; current analysis code is a post-review revision."
+    }
   }
 }

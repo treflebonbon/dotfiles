@@ -30,3 +30,17 @@ python3 tests/experiments/rop-analysis/evaluate.py summarize
 Review packets have opaque run ids and omit backend information. Review batches are one fresh context per case. They contain the same source and fixed requirements for all outputs. The deterministic aggregate accepts only complete review coverage. At otherwise equal semantic results, integration burden is ranked ast-grep, then language-specific library, then syn plus a stateful rust-analyzer LSP client.
 
 `summary.json` contains all observations and language-specific adoption gates. Keep raw transcripts and source/model artifacts adjacent. Do not claim that passing the renderer's graph checks establishes semantic correctness. Render representative models using the existing renderer and an authorized Playwright session after review.
+
+## Reaggregate the recorded experiment after code review
+
+The historical manifest and original `summary.json` / `sensitivity.json` remain unchanged. The revised analysis code adds the protocol's missing means and shares aggregation and adoption selection. Consequently the original manifest intentionally rejects generation/review using the revised checkout; do not replace its hashes to make it pass.
+
+With the original artifacts restored under `tmp/rop-analysis-comparison/`, run:
+
+```bash
+python3 tests/experiments/rop-analysis/reaggregate.py
+```
+
+This command verifies all 73 original files in `frozen-source/` against the original manifest, reads the recorded observations, and writes `summary-reviewed.json` and `sensitivity-reviewed.json`. It does not invoke a model or rewrite any original input, review, or score. The outputs record the original summary and manifest hashes. Verification here concerns the archived execution inputs, not the revised working tree. New experiments must prepare and freeze the current code in a fresh workspace.
+
+Every language/condition aggregate and its `by_case` entries now expose `n`, `false_mean`, `fulfilled_mean`, `missing_mean`, `unknowns_mean`, `critical_mean`, and `failure_mean`. Failed generations remain in each denominator. `critical_total` and `failures_total` are separate gate inputs. Both primary and sensitivity results use `aggregation.py` for all these calculations and candidate ordering.
