@@ -114,7 +114,7 @@ class ExperimentTests(unittest.TestCase):
                 verify_snapshot(manifest, root / 'missing')
 
     def test_blind_scores_must_cover_every_run_and_requirement(self):
-        packet = {'case': 'x', 'models': [{'id': 'opaque'}], 'gold': {'requirements': [{'id': 'early-return'}]}}
+        packet = {'case': 'x', 'models': [{'id': 'opaque', 'model': {}}], 'gold': {'requirements': [{'id': 'early-return'}]}}
         data = {'case': 'x', 'scores': [{'id': 'opaque', 'requirements': [
             {'id': 'early-return', 'fulfilled': True, 'reason': 'source supports edge', 'evidence': ['E1']}],
             'false_assertions': [], 'unknowns': []}]}

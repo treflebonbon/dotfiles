@@ -15,7 +15,7 @@ for item in metadata['inputs']:
             'effect': '3.9.2', '@effect/schema': '0.75.4', 'find-my-way-ts': '0.1.5', 'multipasta': '0.2.5'}}))
         subprocess.run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund'], cwd=runtime, check=True)
         modules = root / 'node_modules'
-        if not modules.exists():
+        if not modules.exists() and not modules.is_symlink():
             modules.symlink_to((runtime / 'node_modules').resolve(), target_is_directory=True)
         write(root / 'tsconfig.experiment.json', json.dumps({'compilerOptions': {
             'target': 'ES2022', 'module': 'ESNext', 'moduleResolution': 'Bundler',

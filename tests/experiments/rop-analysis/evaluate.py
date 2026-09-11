@@ -28,7 +28,8 @@ def review(case, manifest):
 def validate_review(data, packet):
     if data.get('case') != packet['case']:
         raise ValueError('Wrong case')
-    expected = {m['id'] for m in packet['models']}
+    models = {m['id']: m for m in packet['models']}
+    expected = set(models)
     actual = [s['id'] for s in data['scores']]
     if set(actual) != expected or len(actual) != len(expected):
         raise ValueError('Missing or duplicate run scores')
@@ -45,6 +46,10 @@ def validate_review(data, packet):
                 raise ValueError('Unsupported false assertion')
         if not isinstance(score['unknowns'], list):
             raise ValueError('Invalid unknowns')
+        if models[score['id']]['model'] is None and (
+                any(r['fulfilled'] for r in score['requirements'])
+                or score['false_assertions'] or score['unknowns']):
+            raise ValueError('Absent model has semantic review results')
 
 
 def summarize(manifest):

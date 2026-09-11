@@ -34,25 +34,31 @@ class Lsp:
         self.messages = queue.Queue()
         self.counter = 0
         self.diagnostics = []
-        self.stderr = (WORK / 'preflight' / f'ra-{root.name}.stderr').open('w')
-        self.proc = subprocess.Popen(['rust-analyzer'], cwd=root, env=environment(),
-                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr)
-        threading.Thread(target=self.read, daemon=True).start()
-        self.request('initialize', {'processId': os.getpid(), 'rootUri': root.as_uri(),
-            'capabilities': {'general': {'positionEncodings': ['utf-16']},
-                             'experimental': {'serverStatusNotification': True}},
-            'workspaceFolders': [{'uri': root.as_uri(), 'name': root.name}],
-            'initializationOptions': {'checkOnSave': False, 'cargo': {'buildScripts': {'enable': True}, 'features': features},
-                                      'hover': {'documentation': {'enable': False}},
-                                      'procMacro': {'enable': True}}})
-        self.send({'method': 'initialized', 'params': {}})
-        deadline = time.monotonic() + 180
-        while time.monotonic() < deadline:
-            msg = self.receive(deadline)
-            if msg.get('method') == 'experimental/serverStatus' and msg.get('params', {}).get('quiescent'):
-                self.diagnostics.append(msg)
-                return
-        raise TimeoutError('rust-analyzer did not finish loading')
+        self.stderr = None
+        self.proc = None
+        try:
+            self.stderr = (WORK / 'preflight' / f'ra-{root.name}.stderr').open('w')
+            self.proc = subprocess.Popen(['rust-analyzer'], cwd=root, env=environment(),
+                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr)
+            threading.Thread(target=self.read, daemon=True).start()
+            self.request('initialize', {'processId': os.getpid(), 'rootUri': root.as_uri(),
+                'capabilities': {'general': {'positionEncodings': ['utf-16']},
+                                 'experimental': {'serverStatusNotification': True}},
+                'workspaceFolders': [{'uri': root.as_uri(), 'name': root.name}],
+                'initializationOptions': {'checkOnSave': False, 'cargo': {'buildScripts': {'enable': True}, 'features': features},
+                                          'hover': {'documentation': {'enable': False}},
+                                          'procMacro': {'enable': True}}})
+            self.send({'method': 'initialized', 'params': {}})
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline:
+                msg = self.receive(deadline)
+                if msg.get('method') == 'experimental/serverStatus' and msg.get('params', {}).get('quiescent'):
+                    self.diagnostics.append(msg)
+                    return
+            raise TimeoutError('rust-analyzer did not finish loading')
+        except BaseException:
+            self.close()
+            raise
 
     def read(self):
         try:
@@ -76,7 +82,10 @@ class Lsp:
         self.proc.stdin.flush()
 
     def receive(self, deadline):
-        msg = self.messages.get(timeout=max(0.01, deadline - time.monotonic()))
+        try:
+            msg = self.messages.get(timeout=max(0.01, deadline - time.monotonic()))
+        except queue.Empty as error:
+            raise TimeoutError('rust-analyzer did not finish loading') from error
         if isinstance(msg, Exception):
             raise msg
         if 'method' in msg and 'id' in msg:
@@ -99,13 +108,21 @@ class Lsp:
                 return msg
 
     def close(self):
-        self.proc.terminate()
         try:
-            self.proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-            self.proc.wait()
-        self.stderr.close()
+            if self.proc is not None:
+                self.proc.terminate()
+                try:
+                    self.proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.proc.kill()
+                    self.proc.wait()
+        finally:
+            if self.proc is not None:
+                for stream in (self.proc.stdin, self.proc.stdout):
+                    if stream is not None:
+                        stream.close()
+            if self.stderr is not None:
+                self.stderr.close()
 
 
 def enrich(root, data, features):
