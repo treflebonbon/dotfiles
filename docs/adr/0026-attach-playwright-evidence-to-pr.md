@@ -9,6 +9,8 @@ status: accepted
 
 # to-pr の Playwright 証跡を GitHub の PR 添付として扱う
 
+> #301 の [ADR-0059](0059-scope-browser-ownership-and-share-attachments.md) が、単一所有者の全体排他と検証 profile による添付を置き換える。WSL browser-free と手動確立済み認証を使う境界は維持する。
+
 ## Amendment
 
 WSL2 に関する Decision 4 と「Windows と WSL2 の browser 境界を越えない」という consequence は、[ADR-0031](0031-managed-playwright-chrome-on-wsl2.md) が置き換えた。Managed Playwright Chrome が事前に GitHub 認証済みの場合だけ `to-pr` の自動添付へ利用できる。PR 添付方式、未認証時の手動添付、自動ログインと認証情報 import の禁止を含む残りの判断は引き続き accepted とする。

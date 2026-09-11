@@ -1,18 +1,21 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("Inspect", "Start")]
+    [ValidateSet("Inspect", "Start", "Reset")]
     [string]$Action,
 
     [ValidateSet("headless", "headed")]
-    [string]$Mode = "headless"
+    [string]$Mode = "headless",
+
+    [ValidateRange(1, 65535)][int]$DebugPort = 9222,
+    [string]$ProfileDir
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $DebugAddress = "127.0.0.1"
-$DebugPort = 9222
-$ProfileDir = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\chrome-profile"
+if (-not $ProfileDir) { $ProfileDir = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\chrome-profile" }
+$ProfileDir = [Environment]::ExpandEnvironmentVariables($ProfileDir)
 
 function Find-ChromeExecutable {
     $Candidates = @()
@@ -106,6 +109,23 @@ $State = Get-ChromeState -ChromeExecutable $Chrome
 
 if ($Action -eq "Inspect") {
     Write-Output $State
+    exit 0
+}
+
+if ($Action -eq "Reset") {
+    $WorktreeRoot = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\worktrees"
+    $AllowedPattern = "^" + [Regex]::Escape($WorktreeRoot) + "\\[a-f0-9]{64}$"
+    if ($ProfileDir -notmatch $AllowedPattern -or $State -ne "absent") {
+        throw "Reset requires an exact stopped worktree profile."
+    }
+    if (Test-Path -LiteralPath $ProfileDir) {
+        $WorktreeProfileItem = Get-Item -LiteralPath $ProfileDir
+        if ($WorktreeProfileItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "Reset refuses a redirected profile directory."
+        }
+        Remove-Item -LiteralPath $ProfileDir -Recurse -Force
+    }
+    Write-Output "reset"
     exit 0
 }
 

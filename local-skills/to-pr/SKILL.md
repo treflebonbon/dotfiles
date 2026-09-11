@@ -5,142 +5,58 @@ description: "Turn finished work into a pull request. Embeds the acceptance-crit
 
 # to-pr
 
-Publish completed work as a pull request for human review. This closes the
-gap left after implementation (`/implement` stops at commit-to-branch): it opens the
-PR with a **contract** (what this change was supposed to do) and a **verification
-matrix** (what was actually checked, for every acceptance criterion — not just
-browser-observable ones) folded into the PR body.
+Publish completed work as a pull request for human review. This closes the gap left after implementation (`/implement` stops at commit-to-branch): it opens the PR with a **contract** (what this change was supposed to do) and a **verification matrix** (what was actually checked, for every acceptance criterion — not just browser-observable ones) folded into the PR body.
 
-Keep the flow light: no evidence schemas, no verdict gates, no required traces/videos.
-Non-UI acceptance criteria are recorded, not newly executed — verifying them is assumed
-done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill.
+Keep the flow light: no evidence schemas, no verdict gates, no required traces/videos. Non-UI acceptance criteria are recorded, not newly executed — verifying them is assumed done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill.
 
 ## 1. Establish the context
 
-- Determine the base ref and the current branch. If the branch is not pushed, that is
-  handled in step 5.
-- Find the acceptance criteria: from the linked issue (`gh issue view`), the PRD, or the
-  conversation. If there are none, summarise what the change does instead.
-- Extract the **contract**: 目的 (purpose) / AC / 非目標 (non-goals) / 検証方法
-  (verification method) / 関連ファイル・入口 (related files/entry points) / 判断済み
-  tradeoff (decided tradeoffs). Source it from the linked issue body when there is one
-  (issues carrying the `ready-for-agent` label are expected to state these six fields —
-  see `runtime/skill-harness.md`); otherwise extract it from the conversation. Mark any
-  field that was never discussed as `未記載` rather than omitting it or inventing content.
-- Check whether your own session context presents a **Session Scratchpad** (see
-  `runtime/skill-harness.md`) and remember that absolute path (or that none was presented)
-  for the rest of this skill. This is a base directory for temporary artifacts (evidence
-  bundle, PR body draft, Hierarchy Repair result); every `mktemp` in this skill uses
-  `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` as its base directory. Each of the three sites
-  below is typically a separate shell invocation, so `TO_PR_SCRATCH_BASE` does not carry
-  over on its own — (re-)export it immediately before each command that uses it, from the
-  same path (or absence of one) you noted here. If no scratchpad was presented, disclose
-  the `${TMPDIR:-/tmp}` fallback in both the completion report and the PR body (step 6).
+- Determine the base ref and the current branch. If the branch is not pushed, that is handled in step 5.
+- Find the acceptance criteria: from the linked issue (`gh issue view`), the PRD, or the conversation. If there are none, summarise what the change does instead.
+- Extract the **contract**: 目的 (purpose) / AC / 非目標 (non-goals) / 検証方法 (verification method) / 関連ファイル・入口 (related files/entry points) / 判断済み tradeoff (decided tradeoffs). Source it from the linked issue body when there is one (issues carrying the `ready-for-agent` label are expected to state these six fields — see `runtime/skill-harness.md`); otherwise extract it from the conversation. Mark any field that was never discussed as `未記載` rather than omitting it or inventing content.
+- Check whether your own session context presents a **Session Scratchpad** (see `runtime/skill-harness.md`) and remember that absolute path (or that none was presented) for the rest of this skill. This is a base directory for temporary artifacts (evidence bundle, PR body draft, Hierarchy Repair result); every `mktemp` in this skill uses `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` as its base directory. Each of the three sites below is typically a separate shell invocation, so `TO_PR_SCRATCH_BASE` does not carry over on its own — (re-)export it immediately before each command that uses it, from the same path (or absence of one) you noted here. If no scratchpad was presented, disclose the `${TMPDIR:-/tmp}` fallback in both the completion report and the PR body (step 6).
 - Resolve the linked issue's **Ticket Hierarchy** before drafting the PR:
-  1. Read the linked issue with
-     `gh issue view <issue> --json number,state,body,parent`.
-  2. If it has no native parent, inspect the bounded `## Parent` section. With exactly one
-     valid parent issue, complete [Hierarchy Repair](references/hierarchy-repair.md)
-     before Parent Reconciliation; a successful repair produces the native hierarchy
-     used by the remaining steps. A missing section means there is no hierarchy. A
-     present but invalid, ambiguous, or inaccessible declaration is a repair failure.
-  3. If it has a native parent, read that issue with
-     `gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary`.
-     GitHub native sub-issues are the source of truth; cross-check it against the ticket
-     body's `## Parent`. If the hierarchy cannot be fetched or the two parent references
-     are missing or disagree, do not infer a parent.
+  1. Read the linked issue with `gh issue view <issue> --json number,state,body,parent`.
+  2. If it has no native parent, inspect the bounded `## Parent` section. With exactly one valid parent issue, complete [Hierarchy Repair](references/hierarchy-repair.md) before Parent Reconciliation; a successful repair produces the native hierarchy used by the remaining steps. A missing section means there is no hierarchy. A present but invalid, ambiguous, or inaccessible declaration is a repair failure.
+  3. If it has a native parent, read that issue with `gh issue view <parent> --json number,state,body,subIssues,subIssuesSummary`. GitHub native sub-issues are the source of truth; cross-check it against the ticket body's `## Parent`. If the hierarchy cannot be fetched or the two parent references are missing or disagree, do not infer a parent.
   4. Consider only the parent's direct children. Do not recurse to a grandparent.
-  5. Read every open direct child with
-     `gh issue view <child> --json number,state,body`. Include each child Acceptance
-     Criterion that this PR covers in the Contract and identify its ticket number.
-  6. Once the final PR is created, freeze this Ticket Hierarchy until merge. Put scope
-     found during review under a separate parent issue instead of adding or reparenting
-     children in this hierarchy.
+  5. Read every open direct child with `gh issue view <child> --json number,state,body`. Include each child Acceptance Criterion that this PR covers in the Contract and identify its ticket number.
+  6. Once the final PR is created, freeze this Ticket Hierarchy until merge. Put scope found during review under a separate parent issue instead of adding or reparenting children in this hierarchy.
 
 ## 2. Build the verification matrix
 
-Every acceptance criterion gets one row, regardless of type — there is no separate
-"non-UI, skip verification" path anymore. Columns: `AC` / `種別` (UI, CLI, API, infra)
-/ `実行コマンドまたは理由` / `結果` / `未確認理由`.
+Every acceptance criterion gets one row, regardless of type — there is no separate "non-UI, skip verification" path anymore. Columns: `AC` / `種別` (UI, CLI, API, infra) / `実行コマンドまたは理由` / `結果` / `未確認理由`.
 
-- **UI criteria** (something you can see or exercise in a browser — a page, a URL, a UI
-  behaviour, a rendered output): verify with `playwright-cli`, per the procedure below.
-- **CLI / API / infra criteria**: do not execute new verification commands. Cite
-  existing evidence in the `実行コマンドまたは理由` column instead — a test file added
-  during `/implement` / the `/tdd` cycle (with its commit hash), a `lefthook` pre-commit run
-  (typecheck/lint/etc.), or another already-produced artifact. If no such evidence
-  exists, mark `結果` as `未確認` and state why in `未確認理由`. This keeps the matrix
-  honest without turning `to-pr` into a second test runner.
-- Assign `結果` one of: `確認済み` (observed working, or evidence found) / `未確認`
-  (could not be exercised or no evidence exists) / `要人間確認` (ambiguous; needs a
-  human to judge).
+- **UI criteria** (something you can see or exercise in a browser — a page, a URL, a UI behaviour, a rendered output): verify with `playwright-cli`, per the procedure below.
+- **CLI / API / infra criteria**: do not execute new verification commands. Cite existing evidence in the `実行コマンドまたは理由` column instead — a test file added during `/implement` / the `/tdd` cycle (with its commit hash), a `lefthook` pre-commit run (typecheck/lint/etc.), or another already-produced artifact. If no such evidence exists, mark `結果` as `未確認` and state why in `未確認理由`. This keeps the matrix honest without turning `to-pr` into a second test runner.
+- Assign `結果` one of: `確認済み` (observed working, or evidence found) / `未確認` (could not be exercised or no evidence exists) / `要人間確認` (ambiguous; needs a human to judge).
 
-For a direct child, **Ticket Coverage** means that every Acceptance Criterion from that
-child appears in the Contract and has a row in the Verification Matrix. The row results
-(`確認済み`, `未確認`, or `要人間確認`) record verification status. These result values do
-not affect Ticket Coverage. An issue-number or commit reference alone is not coverage.
+For a direct child, **Ticket Coverage** means that every Acceptance Criterion from that child appears in the Contract and has a row in the Verification Matrix. The row results (`確認済み`, `未確認`, or `要人間確認`) record verification status. These result values do not affect Ticket Coverage. An issue-number or commit reference alone is not coverage.
 
 ### UI verification procedure
 
 Use the `playwright-cli` skill for all browser interaction, with two exceptions:
 
-- **Criteria needing the user's real logged-in session** (no seeded fixture — a real
-  account, real data, or a real payment/irreversible action): playwright-cli's context
-  has no login. If the runtime provides a way to drive the user's own logged-in browser
-  (e.g. Claude Code's `claude-in-chrome` skill), use that instead — and ask the user
-  first if its site permission hasn't been granted, rather than silently verifying
-  against playwright-cli's anonymous context. If no such path exists in this runtime, do
-  not attempt it — mark the criterion `要人間確認` and ask the user to check it
-  themselves. If driving the criterion would itself perform a real, costly, or
-  hard-to-reverse action (e.g. an actual payment), ask before that specific step. The
-  routine publication authorization in this skill does not cover it.
-- **This machine may run other Orca workspaces/agents concurrently.** Give playwright-cli
-  a workspace-scoped session name (`-s=<branch-or-workspace-name>`) — never the shared
-  `default` session, and never `close-all` / `kill-all`. Before starting a dev server, do
-  one check: is the port already bound, and if so does the owning process's `cwd` match
-  your own worktree? If it does not, stop there (do not investigate further or try to
-  resolve the conflict) — mark the criterion `未確認` noting the port conflict and move
-  on.
+- **Criteria needing the user's real logged-in session** (no seeded fixture — a real account, real data, or a real payment/irreversible action): playwright-cli's context has no login. If the runtime provides a way to drive the user's own logged-in browser (e.g. Claude Code's `claude-in-chrome` skill), use that instead — and ask the user first if its site permission hasn't been granted, rather than silently verifying against playwright-cli's anonymous context. If no such path exists in this runtime, do not attempt it — mark the criterion `要人間確認` and ask the user to check it themselves. If driving the criterion would itself perform a real, costly, or hard-to-reverse action (e.g. an actual payment), ask before that specific step. The routine publication authorization in this skill does not cover it.
+- **This machine may run other Orca workspaces/agents concurrently.** Give playwright-cli a workspace-scoped session name (`-s=<branch-or-workspace-name>`) — never the shared `default` session, and never `close-all` / `kill-all`. Before starting a dev server, do one check: is the port already bound, and if so does the owning process's `cwd` match your own worktree? If it does not, stop there (do not investigate further or try to resolve the conflict) — mark the criterion `未確認` noting the port conflict and move on.
 
-Before browser verification, re-export `TO_PR_SCRATCH_BASE` (the Session Scratchpad path
-you noted in step 1, or leave it unset) — this runs in its own shell — then create a fresh
-evidence bundle with
-`TO_PR_EVIDENCE_DIR="$(mktemp -d "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-evidence.XXXXXX")"`.
-Keep all Playwright evidence in this directory; do not put it in the repository. Run every
-Playwright CLI command from the bundle so its default `.playwright-cli/` snapshots and
-logs also stay there:
+Before browser verification, re-export `TO_PR_SCRATCH_BASE` (the Session Scratchpad path you noted in step 1, or leave it unset) — this runs in its own shell — then create a fresh evidence bundle with `TO_PR_EVIDENCE_DIR="$(mktemp -d "${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}/to-pr-evidence.XXXXXX")"`. Keep all Playwright evidence in this directory; do not put it in the repository. Before changing directory, capture the task worktree with `TO_PR_WORKTREE="$(git rev-parse --show-toplevel)"`. Pass this absolute path as `PWCLI_WORKSPACE` on every Playwright CLI invocation, including later shell calls, so browser identity stays tied to the task worktree while evidence stays in the bundle. Run every Playwright CLI command from the bundle so its default `.playwright-cli/` snapshots and logs also stay there:
 
 ```bash
-(cd "$TO_PR_EVIDENCE_DIR" && playwright-cli -s=<branch-or-workspace-name> ...)
+(cd "$TO_PR_EVIDENCE_DIR" && PWCLI_WORKSPACE="$TO_PR_WORKTREE" playwright-cli -s=<branch-or-workspace-name> ...)
 ```
 
-Do not run `playwright-cli` from the repository worktree. Resolve repository-relative
-input paths to absolute paths before entering the evidence-directory subshell. The
-bundle contains:
+Do not run `playwright-cli` from the repository worktree. Resolve repository-relative input paths to absolute paths before entering the evidence-directory subshell. The bundle contains:
 
-- Exactly one representative `screenshot` for every UI criterion that was exercised.
-  Use a criterion-oriented filename rather than a generic sequence number. If a
-  criterion cannot be exercised, record the reason instead of fabricating an image.
-- `playwright-report.md`, with one entry per UI criterion: the operation performed, the
-  observed result, the URL, and a summary of console/network errors. Record `none` when
-  no errors were observed.
+- Exactly one representative `screenshot` for every UI criterion that was exercised. Use a criterion-oriented filename rather than a generic sequence number. If a criterion cannot be exercised, record the reason instead of fabricating an image.
+- `playwright-report.md`, with one entry per UI criterion: the operation performed, the observed result, the URL, and a summary of console/network errors. Record `none` when no errors were observed.
 
-Initialize `playwright-report.md` as soon as the bundle is created so unexercised UI
-criteria and their reasons are preserved too.
+Initialize `playwright-report.md` as soon as the bundle is created so unexercised UI criteria and their reasons are preserved too.
 
-Do not include authentication details, cookies, tokens, headers, or raw requests in the
-report or screenshots. Redact sensitive user data that is not needed to establish the
-criterion.
+Do not include authentication details, cookies, tokens, headers, or raw requests in the report or screenshots. Redact sensitive user data that is not needed to establish the criterion.
 
-1. Start the dev server if the repo defines one: `package.json` `scripts.dev`
-   (`npm run dev` / `bun dev`), or a `dev` target in the `Makefile` (`make dev`). If no
-   dev command exists, do not verify — mark the UI criteria `未確認` and note why.
-2. For each UI criterion that can be exercised: open the relevant URL, drive the flow,
-   take a `snapshot`, and save one representative `screenshot` to the evidence bundle.
-   Check the console and network for errors, then append the criterion's result to
-   `playwright-report.md`. For timing- or count-sensitive criteria, measure inside a
-   single `run-code` script rather than chaining separate CLI calls (each call's own
-   round-trip can itself exceed the window you're measuring), e.g.:
+1. Start the dev server if the repo defines one: `package.json` `scripts.dev` (`npm run dev` / `bun dev`), or a `dev` target in the `Makefile` (`make dev`). If no dev command exists, do not verify — mark the UI criteria `未確認` and note why.
+2. For each UI criterion that can be exercised: open the relevant URL, drive the flow, take a `snapshot`, and save one representative `screenshot` to the evidence bundle. Check the console and network for errors, then append the criterion's result to `playwright-report.md`. For timing- or count-sensitive criteria, measure inside a single `run-code` script rather than chaining separate CLI calls (each call's own round-trip can itself exceed the window you're measuring), e.g.:
 
    <!-- prettier-ignore -->
    ```js
@@ -153,9 +69,7 @@ criterion.
    }
    ```
 
-   Count-sensitive criteria (e.g. "exactly N items appear") follow the same pattern —
-   read the count inside the same script, after the triggering action, rather than
-   `snapshot`-ing before and after in separate CLI calls:
+   Count-sensitive criteria (e.g. "exactly N items appear") follow the same pattern — read the count inside the same script, after the triggering action, rather than `snapshot`-ing before and after in separate CLI calls:
 
    <!-- prettier-ignore -->
    ```js
@@ -169,113 +83,46 @@ Do not fail-close or gate on screenshots. Record what you saw and move on.
 
 ## 3. Record code-review status
 
-Check the conversation/session for evidence that `code-review` ran: its summary output,
-a verdict, or a note that blocking findings were fixed. Record one line in the PR body —
-either the outcome (e.g. "実施済み、ブロッキング指摘なし") or `未実施` if no evidence is
-found. Either way, **do not block PR creation on this** — it is a record, not a gate
-(consistent with this skill never using verdict gates).
+Check the conversation/session for evidence that `code-review` ran: its summary output, a verdict, or a note that blocking findings were fixed. Record one line in the PR body — either the outcome (e.g. "実施済み、ブロッキング指摘なし") or `未実施` if no evidence is found. Either way, **do not block PR creation on this** — it is a record, not a gate (consistent with this skill never using verdict gates).
 
 ## 4. Reconcile the direct parent
 
-Use the Ticket Hierarchy snapshot and Ticket Coverage from steps 1–2 to prepare the PR
-body's `## Parent Reconciliation` section:
+Use the Ticket Hierarchy snapshot and Ticket Coverage from steps 1–2 to prepare the PR body's `## Parent Reconciliation` section:
 
 - If there is no linked issue, record `対象なし` and omit all `Fixes` lines.
-- If the linked issue has neither a native parent nor a body `## Parent` declaration,
-  record `対象なし`, state the reason, and
-  preserve the ordinary `Fixes #N` line for the linked issue.
-- If Hierarchy Repair fails, or if the native hierarchy fetch or `## Parent` cross-check
-  fails, record `未実施`, explain the failure, and
-  preserve the ordinary `Fixes #N` line for the linked issue. Omit the parent `Fixes`
-  line and continue creating the PR.
-- Otherwise, treat an already-closed direct child as complete and an open direct child
-  as complete only when it has Ticket Coverage. The **親完了条件** is satisfied only
-  when every direct child is complete.
-- When the 親完了条件 is satisfied, record `確認済み`. Add one `Fixes #N` line for
-  every open, covered direct child and one more for the direct parent. Omit already-closed
-  children from the closing keywords.
-- When any open direct child lacks Ticket Coverage, record `未実施`, identify the
-  uncovered child and its missing criteria, and omit the parent `Fixes` line and continue
-  creating the PR. Preserve the ordinary closing reference for the linked issue, but do
-  not add closing references for sibling tickets.
+- If the linked issue has neither a native parent nor a body `## Parent` declaration, record `対象なし`, state the reason, and preserve the ordinary `Fixes #N` line for the linked issue.
+- If Hierarchy Repair fails, or if the native hierarchy fetch or `## Parent` cross-check fails, record `未実施`, explain the failure, and preserve the ordinary `Fixes #N` line for the linked issue. Omit the parent `Fixes` line and continue creating the PR.
+- Otherwise, treat an already-closed direct child as complete and an open direct child as complete only when it has Ticket Coverage. The **親完了条件** is satisfied only when every direct child is complete.
+- When the 親完了条件 is satisfied, record `確認済み`. Add one `Fixes #N` line for every open, covered direct child and one more for the direct parent. Omit already-closed children from the closing keywords.
+- When any open direct child lacks Ticket Coverage, record `未実施`, identify the uncovered child and its missing criteria, and omit the parent `Fixes` line and continue creating the PR. Preserve the ordinary closing reference for the linked issue, but do not add closing references for sibling tickets.
 
-In all cases, the section records exactly one state — `確認済み`, `未実施`, or `対象なし`
-— plus the reason and the complete list of issues that the PR's closing keywords will
-close on merge. Parent Reconciliation is one level only and does not mutate labels or
-state through the API. Hierarchy Repair may add only the prevalidated missing edges
-declared in issue bodies; GitHub closes the listed issues only when the PR merges.
-Keep state labels unchanged when GitHub closes an issue.
-Repeat the Parent Reconciliation state, reason, and close targets in the completion report.
+In all cases, the section records exactly one state — `確認済み`, `未実施`, or `対象なし` — plus the reason and the complete list of issues that the PR's closing keywords will close on merge. Parent Reconciliation is one level only and does not mutate labels or state through the API. Hierarchy Repair may add only the prevalidated missing edges declared in issue bodies; GitHub closes the listed issues only when the PR merges. Keep state labels unchanged when GitHub closes an issue. Repeat the Parent Reconciliation state, reason, and close targets in the completion report.
 
-For every linked issue, make this decision with the deterministic helper. Write a fresh
-JSON input containing `linkedIssue`, `coveredIssues` (the issue numbers with Ticket
-Coverage), and `hierarchy`. Pass through a Hierarchy Repair result as `hierarchy`; for an
-already-native hierarchy, use `status: "ready"`, its fetch/cross-check reason, and a
-`snapshot` shaped as `{parent: {number, state}, children: [{number, state}]}`. Represent
-the no-Parent path as `status: "target-none"` and hierarchy failures as `status: "failed"`
-with `failedIssues` and `reason`.
+For every linked issue, make this decision with the deterministic helper. Write a fresh JSON input containing `linkedIssue`, `coveredIssues` (the issue numbers with Ticket Coverage), and `hierarchy`. Pass through a Hierarchy Repair result as `hierarchy`; for an already-native hierarchy, use `status: "ready"`, its fetch/cross-check reason, and a `snapshot` shaped as `{parent: {number, state}, children: [{number, state}]}`. Represent the no-Parent path as `status: "target-none"` and hierarchy failures as `status: "failed"` with `failedIssues` and `reason`.
 
 ```bash
 bash <skill-directory>/scripts/reconcile-ticket-hierarchy.sh <input-json-file>
 ```
 
-Use the returned `state`, `reason`, `closeTargets`, and `fixes` verbatim in the PR body
-and completion report. The helper's `fixes` array is the complete permitted set of
-closing-keyword lines. If the helper cannot run or rejects its input, fail safe as
-`未実施`, preserve only the linked issue's ordinary `Fixes`, omit the parent `Fixes`, and
-continue creating the PR. The no-linked-issue case remains `対象なし` without invoking
-the helper.
+Use the returned `state`, `reason`, `closeTargets`, and `fixes` verbatim in the PR body and completion report. The helper's `fixes` array is the complete permitted set of closing-keyword lines. If the helper cannot run or rejects its input, fail safe as `未実施`, preserve only the linked issue's ordinary `Fixes`, omit the parent `Fixes`, and continue creating the PR. The no-linked-issue case remains `対象なし` without invoking the helper.
 
 ## 5. Self-check before opening the PR
 
-Before creating the PR, do a quick pass over what steps 2–4 produced: is the code-review
-status accidentally left as `未実施` without actually having looked for evidence? Is
-there an acceptance criterion with no row in the verification matrix? Does Parent
-Reconciliation list every and only the issues named by `Fixes` lines? Fix what you find;
-otherwise proceed. This is a lightweight inline check, not an invocation of the
-`harness-feedback` skill — `harness-feedback`'s auto mode is designed to skip the
-currently active session, so chaining it from here would not analyse anything useful.
-`harness-feedback` remains a separate, manually-triggered practice for a later session.
+Before creating the PR, do a quick pass over what steps 2–4 produced: is the code-review status accidentally left as `未実施` without actually having looked for evidence? Is there an acceptance criterion with no row in the verification matrix? Does Parent Reconciliation list every and only the issues named by `Fixes` lines? Fix what you find; otherwise proceed. This is a lightweight inline check, not an invocation of the `harness-feedback` skill — `harness-feedback`'s auto mode is designed to skip the currently active session, so chaining it from here would not analyse anything useful. `harness-feedback` remains a separate, manually-triggered practice for a later session.
 
 ## 6. Open the PR
 
-Invocation of this skill is authorization for the routine publication actions it
-performs: pushing the current topic branch, creating or editing the PR, uploading
-evidence images, adding the already-reconciled `Fixes` references, and adding missing
-native sub-issue edges already declared in issue bodies. Explicit AFK/autonomous completion
-authorization has the same effect. Do not ask for a second confirmation solely because
-these actions are outward-facing. This authorization covers missing edges only; it does
-not authorize changes to issue bodies, state, labels, assignees, or existing parent
-relationships. It also does not cover force pushes, direct pushes to a default branch,
-merges, deletions, releases, workflow dispatches, repository settings or secrets, or any
-action outside the user's requested scope.
+Invocation of this skill is authorization for the routine publication actions it performs: pushing the current topic branch, creating or editing the PR, uploading evidence images, adding the already-reconciled `Fixes` references, and adding missing native sub-issue edges already declared in issue bodies. Explicit AFK/autonomous completion authorization has the same effect. Do not ask for a second confirmation solely because these actions are outward-facing. This authorization covers missing edges only; it does not authorize changes to issue bodies, state, labels, assignees, or existing parent relationships. It also does not cover force pushes, direct pushes to a default branch, merges, deletions, releases, workflow dispatches, repository settings or secrets, or any action outside the user's requested scope.
 
-1. Determine whether the branch needs to be pushed and whether the evidence bundle has
-   images to attach. Keep the exact list of child and parent issues that will close on
-   merge, grouped by role, in the PR body and completion report; if no parent will close,
-   say so.
-2. Re-export `TO_PR_SCRATCH_BASE` (this step runs in its own shell), then write the PR
-   body to a **fresh** temp file under `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` (use
-   `mktemp` or a branch-scoped name — a fixed name like `pr-body.md` collides with stale
-   content from previous runs). Write it in the language of the conversation / repo.
-   Canonical structure:
-   - A short change summary. If any temp artifact above fell back to `${TMPDIR:-/tmp}`
-     because no Session Scratchpad was found, say so here.
+1. Determine whether the branch needs to be pushed and whether the evidence bundle has images to attach. Keep the exact list of child and parent issues that will close on merge, grouped by role, in the PR body and completion report; if no parent will close, say so.
+2. Re-export `TO_PR_SCRATCH_BASE` (this step runs in its own shell), then write the PR body to a **fresh** temp file under `"${TO_PR_SCRATCH_BASE:-${TMPDIR:-/tmp}}"` (use `mktemp` or a branch-scoped name — a fixed name like `pr-body.md` collides with stale content from previous runs). Write it in the language of the conversation / repo. Canonical structure:
+   - A short change summary. If any temp artifact above fell back to `${TMPDIR:-/tmp}` because no Session Scratchpad was found, say so here.
    - `## Contract` — the six fields from step 1, verbatim (including any `未記載`).
    - `## Verification Matrix` — the table built in step 2.
-   - `## Playwright Evidence` — for each UI criterion, copy the operation, observed
-     result, URL, and console/network errors summary from `playwright-report.md`. Add an
-     image placeholder for every exercised UI criterion. For an unexercised criterion,
-     state the reason and `画像なし`; use `対象なし` only when there are no UI criteria.
-   - `## Parent Reconciliation` — the state, reason, and exact merge-time close targets
-     from step 4.
-   - `## Code Review` — the one line from step 3.
-     Add only the `Fixes #N` lines selected in step 4. When there is no issue, omit all
-     `Fixes` lines and mention where the contract came from (conversation, PRD) in the
-     summary instead.
-3. Push the current topic branch if needed with `git-push-topic`. The wrapper accepts no
-   arguments, rejects the default branch, and internally uses the fixed `origin HEAD`
-   form. Then create the PR:
+   - `## Playwright Evidence` — for each UI criterion, copy the operation, observed result, URL, and console/network errors summary from `playwright-report.md`. Add an image placeholder for every exercised UI criterion. For an unexercised criterion, state the reason and `画像なし`; use `対象なし` only when there are no UI criteria.
+   - `## Parent Reconciliation` — the state, reason, and exact merge-time close targets from step 4.
+   - `## Code Review` — the one line from step 3. Add only the `Fixes #N` lines selected in step 4. When there is no issue, omit all `Fixes` lines and mention where the contract came from (conversation, PRD) in the summary instead.
+3. Push the current topic branch if needed with `git-push-topic`. The wrapper accepts no arguments, rejects the default branch, and internally uses the fixed `origin HEAD` form. Then create the PR:
 
    ```bash
    git-push-topic
@@ -286,44 +133,12 @@ action outside the user's requested scope.
 
 If the bundle has representative images, try to attach them after the PR exists:
 
-1. Use a browser exposed by the current runtime only when it already has an authenticated
-   GitHub session. Do not ask the user to log in, import browser state, or let `to-pr`
-   create or save authentication. On WSL2, use Managed Playwright Chrome for automatic
-   attachment only when its dedicated profile already has an authenticated GitHub
-   session. Never substitute the user's normal Windows Chrome profile. Existing
-   authentication permits this PR-evidence upload only; it does not authorize payments,
-   production-data changes, or other irreversible actions.
-2. Open the PR body editor in that browser, attach each representative image, and read
-   the anonymized URL that GitHub inserts into the editor. Do not submit the browser's
-   stale copy of the PR body.
-3. Replace the corresponding placeholders in the fresh body file with Markdown image
-   links using those anonymized URLs, then update the PR with:
+1. On WSL2, use `browser-attachments upload --repo <owner/repo> --pr <number> --image <absolute-path> --placeholder <exact-placeholder> --request-id <stable-id>` for each image. Keep the same request ID for retries of the same image and placeholder. Different PRs may run concurrently; the command serializes only updates to the same PR and reads its latest body before replacing the placeholder. It preserves the returned asset before publishing so a retry does not upload twice.
+2. The attachment browser has its own dedicated GitHub profile, separate from worktree verification and Dogfood. Never use generic browser `eval`, context changes, or Browser.close against this identity. The CLI creates and closes only its request's editor Page and never submits the editor's stale PR body. Non-WSL runtimes may use their authenticated browser, with the same owned-Page and fresh-body rules.
+3. Use only authentication already established by a human. Do not run `browser-attachments auth` from `to-pr`, automate login, import credentials, or substitute a normal browsing profile. `authentication-required`, ownership conflict, CDP failure, upload failure and ambiguous interrupted upload are distinct outcomes. An ambiguous upload requires inspection before a new request ID is used. Existing authentication authorizes this requested evidence upload only.
 
-   ```bash
-   gh pr edit --body-file <tmp>
-   ```
-
-If no authenticated browser is available, browser control is unavailable, or any upload
-fails, do not retry by logging in and do not commit the images. If `TO_PR_EVIDENCE_DIR`
-lives under a Session Scratchpad, copy it to a fresh `mktemp -d` under `${TMPDIR:-/tmp}`
-first — the user acts on the handed-off path after this step, possibly after this
-session has ended, and a Session Scratchpad is not guaranteed to survive past session end
-the way `${TMPDIR:-/tmp}` does. Replace the affected image placeholders with
-`手動添付待ち`, update the PR body with `gh pr edit --body-file`, and hand the (possibly
-copied) evidence bundle to the user. The completion report must include the bundle's
-absolute path and a file list so the user can attach the images manually.
+If no authenticated browser is available, browser control is unavailable, or any upload fails, do not retry by logging in and do not commit the images. If `TO_PR_EVIDENCE_DIR` lives under a Session Scratchpad, copy it to a fresh `mktemp -d` under `${TMPDIR:-/tmp}` first — the user acts on the handed-off path after this step, possibly after this session has ended, and a Session Scratchpad is not guaranteed to survive past session end the way `${TMPDIR:-/tmp}` does. Replace the affected image placeholders with `手動添付待ち`, update the PR body with `gh pr edit --body-file`, and hand the (possibly copied) evidence bundle to the user. The completion report must include the bundle's absolute path and a file list so the user can attach the images manually.
 
 ## Out of scope
 
-Wiki / ADR generation, change-effect graphs, auto-merge, recursive or grandparent
-reconciliation, undeclared issue-hierarchy mutation, relationship removal or reparenting,
-state-label cleanup, verdict gates, evidence JSON schemas, and mandatory trace/video
-capture. Post-merge issue mutation or automation is also out of scope.
-Also out of scope: running tests or any non-browser AC verification — that is assumed
-done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill.
-Also out of scope: invoking `harness-feedback` from this skill. The PR body's Contract /
-Verification Matrix / Code Review sections are Markdown for a human reviewer and for
-this skill's own step-4 self-check — they are not consumed by `harness-feedback`'s
-artifact-driven enrichment (`contract.json` / `review.json` / `active-eval.json`), which
-remains transcript-only analysis run separately.
-This skill opens a PR with an honest, lightweight verification note — nothing more.
+Wiki / ADR generation, change-effect graphs, auto-merge, recursive or grandparent reconciliation, undeclared issue-hierarchy mutation, relationship removal or reparenting, state-label cleanup, verdict gates, evidence JSON schemas, and mandatory trace/video capture. Post-merge issue mutation or automation is also out of scope. Also out of scope: running tests or any non-browser AC verification — that is assumed done by the implementation work (e.g. `/implement` and its `/tdd` cycle) that precedes this skill. Also out of scope: invoking `harness-feedback` from this skill. The PR body's Contract / Verification Matrix / Code Review sections are Markdown for a human reviewer and for this skill's own step-4 self-check — they are not consumed by `harness-feedback`'s artifact-driven enrichment (`contract.json` / `review.json` / `active-eval.json`), which remains transcript-only analysis run separately. This skill opens a PR with an honest, lightweight verification note — nothing more.
