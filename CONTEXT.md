@@ -38,6 +38,10 @@
 
 **Managed Chrome モード**: Managed Playwright Chrome の同一 identity が、排他的に取る headless または headed の実行形態。別の browser identity や別 profile を意味しない。 _Avoid_: headless Chrome, headed Chrome, 別ブラウザー
 
+**Worktree 検証ブラウザ**: 通常の UI 検証で worktree ごとに所有し、検証対象アプリのログイン状態を次回の利用へ引き継ぐブラウザ。GitHub 添付用の共有認証と、Dogfood 試行の一時的な状態とは区別する。 _Avoid_: session 名, 共有添付ブラウザ, Dogfood profile
+
+**共有添付ブラウザ**: PR 画像添付のために、専用ブラウザで手動確立済みの GitHub 認証を複数の添付処理が利用するブラウザ。処理ごとのタブ所有権は誤操作を防ぐ境界であり、認証や storage のセキュリティ分離ではない。 _Avoid_: 通常閲覧用ブラウザ, Worktree 検証ブラウザ, 認証情報の複製
+
 **Managed Playwright Dashboard**: Managed Playwright Chrome の headed モードを表示面として使う、CLI session とは独立した Playwright の操作画面。annotation は排他 lease を所有する session にだけ結び付く。 _Avoid_: Dashboard tab, show 画面, headless Dashboard
 
 **Managed Dogfood Chrome**: WSL2 上の dogfood evidence 収集専用に管理され、隔離 profile と CDP endpoint、任意の unpacked extension を所有する Windows 側の browser identity。通常利用の既定ブラウザおよび Managed Playwright Chrome とは状態を共有しない。 _Avoid_: Dogfood browser, extension Chrome, Managed Playwright Chrome

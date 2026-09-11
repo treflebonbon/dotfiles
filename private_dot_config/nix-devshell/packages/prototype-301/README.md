@@ -52,3 +52,7 @@ Q7 の回答は「前回のマウス操作は覚えていない」。操作を�
 436 sample 全体で前面 window handle は同一。Chrome 操作区間（00:22:23.499Z–00:22:45.634Z、約22.1秒）の107 sample では cursor 座標も同一で、読取り失敗は0。全90秒では14種類の cursor 位置があり、変化は操作区間外だった。今回の操作区間で干渉は観測されなかったが、200ms未満の変化や未試験の Dashboard 操作を保証しない。
 
 集計は windows-result-repeat-summary.json、raw evidence は /tmp/prototype-301-1789086142063/。Q6 は「別 identity は並列、同一 identity のモード競合は既存 consumer を保持して拒否」で合意。新構成の共存試験を本実装の必須受入条件へ移すかは Q8 で確認中。
+
+## Triage 確定
+
+Q8 は推奨案で合意。新構成の Dogfood / Dashboard 共存を本実装の必須受入試験へ移し、#301 の Agent Brief を確定する。先行結果は実装の成立見込みを支えるが、本実装での AC 検証を代替しない。上の Q8 確認中・needs-triage は当時の記録。prototype 全体はこの branch に保持し、main へは検証済みの判断だけを取り込む。
