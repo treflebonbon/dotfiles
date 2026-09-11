@@ -1,0 +1,20 @@
+import { Data, Effect } from 'effect';
+
+class Missing extends Data.TaggedError('Missing')<{}> {}
+class CatalogDown extends Data.TaggedError('CatalogDown')<{}> {}
+class FallbackDown extends Data.TaggedError('FallbackDown')<{}> {}
+class AuditDown extends Data.TaggedError('AuditDown')<{}> {}
+export class Failed extends Data.TaggedError('Failed')<{ readonly cause: string }> {}
+
+export const load = (sku: string) => Effect.gen(function* () {
+  if (sku.startsWith('missing')) return yield* Effect.fail(new Missing());
+  if (sku === 'down') return yield* Effect.fail(new CatalogDown());
+  return sku;
+});
+export const fallback = (sku: string) => Effect.gen(function* () {
+  if (sku === 'missing-offline') return yield* Effect.fail(new FallbackDown());
+  return sku;
+});
+export const audit = (value: string) => Effect.gen(function* () {
+  if (value.endsWith('audit-down')) return yield* Effect.fail(new AuditDown());
+});
