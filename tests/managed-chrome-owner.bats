@@ -252,3 +252,38 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *"BROWSER_OWNERSHIP_DIR"* ]]
 }
+
+@test "different browser identities reserve concurrently but cannot share resources" {
+  run owner reserve --identity worktree-a --role playwright --id a --pid "$$" \
+    --mode headless --profile 'C:\\profiles\\a' --endpoint http://127.0.0.1:19431
+  [ "$status" -eq 0 ]
+  local first="$output"
+  run owner reserve --identity worktree-b --role playwright --id b --pid "$$" \
+    --mode headless --profile 'C:\\profiles\\b' --endpoint http://127.0.0.1:19432
+  [ "$status" -eq 0 ]
+  local second="$output"
+  run owner reserve --identity collision --role dogfood --id c --pid "$$" \
+    --mode headless --profile 'C:\\profiles\\c' --endpoint http://127.0.0.1:19431
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"resource"* ]]
+  run owner release --identity worktree-a "$first"
+  [ "$status" -eq 0 ]
+  run owner status --identity worktree-b
+  [[ "$output" == *"$second"* ]]
+}
+
+@test "worktree allocation is stable and reserves separate ports for its Dashboard" {
+  mkdir -p "$BATS_TEST_TMPDIR/a/sub" "$BATS_TEST_TMPDIR/b"
+  run owner locate --workspace "$BATS_TEST_TMPDIR/a" --role playwright
+  [ "$status" -eq 0 ]
+  local first="$output"
+  run owner locate --workspace "$BATS_TEST_TMPDIR/a" --role playwright
+  [ "$output" = "$first" ]
+  run owner locate --workspace "$BATS_TEST_TMPDIR/b" --role playwright
+  [ "$status" -eq 0 ]
+  [ "$output" != "$first" ]
+  run owner locate --role attachment
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'chrome-profile'* ]]
+  [[ "$output" == *'9222'* ]]
+}

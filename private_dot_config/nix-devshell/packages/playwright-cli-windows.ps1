@@ -4,15 +4,18 @@ param(
     [string]$Action,
 
     [ValidateSet("headless", "headed")]
-    [string]$Mode = "headless"
+    [string]$Mode = "headless",
+
+    [ValidateRange(1, 65535)][int]$DebugPort = 9222,
+    [string]$ProfileDir
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $DebugAddress = "127.0.0.1"
-$DebugPort = 9222
-$ProfileDir = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\chrome-profile"
+if (-not $ProfileDir) { $ProfileDir = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\chrome-profile" }
+$ProfileDir = [Environment]::ExpandEnvironmentVariables($ProfileDir)
 
 function Find-ChromeExecutable {
     $Candidates = @()
