@@ -12,7 +12,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 ## Conventions
 
-- コミットは Conventional Commits 形式にする。
+- コミットと PR タイトルは Conventional Commits 形式にする。
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
 - ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。`to-pr` 呼出しまたは AFK 完了許可は、本文で宣言済みの missing native edge の追加だけを承認対象に含む。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
 
@@ -27,7 +27,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 ## Matt Pocock workflow contract
 
-- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round は人間の回答を待ってから次に進み、事実は環境から確認する。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
+- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round は人間の回答を待ってから次に進み、事実は環境から確認する。未回答の decision は推測して先へ進めない。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
 - cross-skill 呼出しは Skill tool と skill 名を明示する。setup 情報が未配備なら `setup-matt-pocock-skills` を別の user-invoked skill から自動実行せず、ユーザーへ明示起動を案内する。
 - phase boundary の公式5択は `Continue → /clear → /handoff → Subagent → /compact`。次 phase が現 phase を primary source として必要、または smart zone（目安 ~150k tokens）に収まるなら `Continue`。context が無関係なら `/clear`。portability が必要な場合だけ `/handoff`。AFK の scoped task は `Subagent`。同じ harness / directory の relevant context は `/compact` で引き継ぐ。
 - Builder-Evaluator は同じ worktree/branch で ticket をまたいで継続できる。ticket 境界でも同じ harness / directory なら `/compact`、portability が必要な場合だけ `/handoff` とし、既存の tdd / code-review / Verification Matrix / `to-pr` 一回の境界を維持する（レビュー粒度を ticket 単位に保ち、品質ゲートの意味を薄めないため）。
