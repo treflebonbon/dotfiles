@@ -596,7 +596,8 @@ write_hierarchy_state() {
 
 @test "to-pr keeps Playwright CLI runtime artifacts out of the repository" {
   grep -Fq 'TO_PR_EVIDENCE_DIR="$(mktemp -d' "$SKILL"
-  grep -Fq '(cd "$TO_PR_EVIDENCE_DIR" && playwright-cli -s=<branch-or-workspace-name> ...)' "$SKILL"
+  grep -Fq 'TO_PR_WORKTREE="$(git rev-parse --show-toplevel)"' "$SKILL"
+  grep -Fq '(cd "$TO_PR_EVIDENCE_DIR" && PWCLI_WORKSPACE="$TO_PR_WORKTREE" playwright-cli -s=<branch-or-workspace-name> ...)' "$SKILL"
   grep -Fq 'Do not run `playwright-cli` from the repository worktree.' "$SKILL"
   grep -Fq 'Resolve repository-relative' "$SKILL"
   grep -Fq 'input paths to absolute paths' "$SKILL"

@@ -2,6 +2,8 @@
 
 On WSL2, a normal `playwright-cli open [URL]` uses **Managed Playwright Chrome** headless by default, using a persistent profile and allocated loopback CDP endpoint for the physical worktree root. Different worktrees have different browser identities. Subdirectories of the same worktree share its identity. CLI session lookup, Dashboard discovery and control sockets are also scoped to that worktree, so different worktrees may reuse the same session name.
 
+When running from an evidence directory outside the repository, pass `PWCLI_WORKSPACE=<absolute-task-worktree-path>` on every invocation (including close / show / annotation). The wrapper validates this Git directory and resolves its physical worktree root; subdirectories and symlinks share the same identity. An invalid explicit path is rejected before browser operations. The current directory remains the evidence output directory. Without this variable, identity follows the current Git worktree, or the current physical directory outside Git.
+
 - WSL mirrored networking is required; no WSL browser fallback is installed.
 - `PLAYWRIGHT_MCP_HEADLESS=true|1` explicitly selects headless mode.
 - `open --headed` and `PLAYWRIGHT_MCP_HEADLESS=false|0` select headed mode. Background tasks use headless, never OS input, foreground activation or automatic login / Dashboard display. A visible browser is a human-initiated operation.

@@ -1241,3 +1241,41 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(cat "$UPSTREAM_LOG.registry")" != "$first" ]
 }
+
+@test "evidence bundles preserve the explicit worktree browser and registry identity" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$BATS_TEST_TMPDIR/bundle-a" "$BATS_TEST_TMPDIR/bundle-b" "$BATS_TEST_TMPDIR/task/sub"
+  git -C "$BATS_TEST_TMPDIR/task" init -q
+  ln -s "$BATS_TEST_TMPDIR/task" "$BATS_TEST_TMPDIR/task-link"
+  export PWCLI_WORKSPACE="$BATS_TEST_TMPDIR/task"
+  cd "$BATS_TEST_TMPDIR/bundle-a"
+  run bash "$WRAPPER" -s=shared open
+  [ "$status" -eq 0 ]
+  local first allocations
+  first="$(cat "$UPSTREAM_LOG.registry")"
+  allocations="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+  cd "$BATS_TEST_TMPDIR/bundle-b"
+  export PWCLI_WORKSPACE="$BATS_TEST_TMPDIR/task-link/sub"
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" = "$first" ]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$allocations" ]
+  run bash "$WRAPPER" -s=other open
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"owned by session 'shared'"* ]]
+  run bash "$WRAPPER" -s=shared close
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" = "$first" ]
+}
+
+@test "invalid explicit worktree paths fail before browser or upstream operations" {
+  export PWCLI_TEST_WSL=1
+  local candidate
+  for candidate in '' relative "$BATS_TEST_TMPDIR/missing" "$BATS_TEST_TMPDIR"; do
+    run env PWCLI_WORKSPACE="$candidate" bash "$WRAPPER" -s=shared open
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'PWCLI_WORKSPACE must'* ]]
+    [ ! -e "$POWERSHELL_LOG" ]
+    [ ! -e "$UPSTREAM_LOG" ]
+  done
+}

@@ -43,7 +43,13 @@ if ! is_wsl; then
   exec "$pwcli_upstream" "$@"
 fi
 
-pwcli_workspace="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+if [[ -n "${PWCLI_WORKSPACE+x}" ]]; then
+  [[ "$PWCLI_WORKSPACE" == /* ]] || fail "PWCLI_WORKSPACE must be an absolute path inside the task worktree."
+  pwcli_workspace="$(git -C "$PWCLI_WORKSPACE" rev-parse --show-toplevel 2>/dev/null)" ||
+    fail "PWCLI_WORKSPACE must identify an existing Git worktree."
+else
+  pwcli_workspace="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+fi
 pwcli_workspace="$(cd "$pwcli_workspace" && pwd -P)"
 # Upstream uses one global session registry when no .playwright marker exists.
 # Scope both session lookup and Dashboard discovery, including passthrough commands.
