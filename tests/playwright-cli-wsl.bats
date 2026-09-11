@@ -730,7 +730,7 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"did not expose CDP at $ENDPOINT"* ]]
-  [[ "$output" == *"verify port 9222 is free"* ]]
+  [[ "$output" == *"verify port ${ENDPOINT##*:} is free"* ]]
 }
 
 @test "a failed upstream open releases the lease and closes unused Chrome" {
@@ -1075,7 +1075,8 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"will not delete Managed Playwright Chrome data"* ]]
-  [[ "$output" == *"%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile"* ]]
+  [[ "$output" == *"$PROFILE"* ]]
+  [[ "$output" != *"playwright-cli\\chrome-profile"* ]]
   [[ "$output" == *"close the session and Dashboard"* ]]
 }
 
@@ -1129,7 +1130,7 @@ EOF
   printf '%s\n' 'port-conflict:5150' >"$POWERSHELL_STATE"
   run bash "$WRAPPER" open https://example.com
   [ "$status" -ne 0 ]
-  [[ "$output" == *"127.0.0.1:9222 is owned by a process that is not"* ]]
+  [[ "$output" == *"$ENDPOINT is owned by a process that is not"* ]]
   [[ "$output" == *"will not be replaced automatically"* ]]
 }
 
@@ -1185,4 +1186,35 @@ EOF
   run bash "$WRAPPER" -s=alpha open http://localhost:3001
   [ "$status" -eq 0 ]
   [[ "$first_profile" == *'-ProfileDir'* ]]
+}
+
+@test "another session cannot stop the Dashboard owner" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha show
+  [ "$status" -eq 0 ]
+  local dashboard_pid
+  dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
+  run bash "$WRAPPER" -s=beta show --kill
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'Dashboard belongs to session'* ]]
+  kill -0 "$dashboard_pid"
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
+}
+
+@test "profile reset requires the exact stopped worktree identity" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" reset-profile --confirm-identity wrong-worktree
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'exact identity'* ]]
+  [ ! -e "$POWERSHELL_LOG" ]
+  run bash "$WRAPPER" -s=alpha open
+  [ "$status" -eq 0 ]
+  run bash "$WRAPPER" reset-profile --confirm-identity "$IDENTITY"
+  [ "$status" -ne 0 ]
+  ! grep -Fq -- '-Action Reset' "$POWERSHELL_LOG"
+  run bash "$WRAPPER" -s=alpha close
+  [ "$status" -eq 0 ]
+  run bash "$WRAPPER" reset-profile --confirm-identity "$IDENTITY"
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Reset -ProfileDir $PROFILE" "$POWERSHELL_LOG"
 }

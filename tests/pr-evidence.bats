@@ -33,3 +33,17 @@ assert.equal(closed,1);assert.equal(sibling.closed,false);
 JS
   [ "$status" -eq 0 ]
 }
+
+@test "reusing an existing asset still replaces a different requested placeholder" {
+  run node --input-type=module - "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/packages/pr-evidence.mjs" "$BATS_TEST_TMPDIR" <<'JS'
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const {publishEvidence}=await import(process.argv[2]);
+let body='![Earlier](https://github.com/user-attachments/assets/A)\nNEW_PLACE';
+const github=async args=>{if(args[1]==='view')return JSON.stringify({body});body=await readFile(args.at(-1),'utf8');return '';};
+await publishEvidence({repo:'owner/repo',pr:42,placeholder:'NEW_PLACE',asset:'https://github.com/user-attachments/assets/A',directory:process.argv[3],github});
+assert.ok(!body.includes('NEW_PLACE'));
+assert.equal(body.split('/assets/A').length,3);
+JS
+  [ "$status" -eq 0 ]
+}

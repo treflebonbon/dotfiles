@@ -50,7 +50,7 @@
 
 **Dogfood 試行**: 対象の検査を開始してから結果を確定するまでの1回の実行。再試行は同じ検査目的と browser identity を引き継いでも別の試行であり、観測と証跡を区別する。 _Avoid_: Dogfood サイクル, profile identity, 再開レビュー
 
-**Managed Chrome 所有権**: Managed Playwright Chrome と Managed Dogfood Chrome のうち、一方だけに利用を認める共通の排他的な権利。Managed Playwright Chrome 内での CLI session の利用権とは区別する。 _Avoid_: Chrome の PID, profile の所有者, CLI session lease
+**Managed Chrome 所有権**: 検証・共有添付・Dogfood の browser identity ごとに利用者・世代・起動状態を記録し、同一 identity または同一実資源の競合を拒否する権利。異なる identity は並行利用できる。Managed Playwright Chrome 内での CLI session の利用権とは区別する。 _Avoid_: Chrome の PID, profile の所有者, CLI session lease
 
 **WSL2 browser boundary**: WSL2 が browser identity を所有せず、人間向け URL 表示は Windows の通常の既定ブラウザ、自動操作は用途別の Managed Playwright Chrome または Managed Dogfood Chrome へ分離して委譲する環境境界。 _Avoid_: WSL Chrome, WSL browser, Windows Chrome only
 

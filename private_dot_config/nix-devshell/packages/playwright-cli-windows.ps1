@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("Inspect", "Start")]
+    [ValidateSet("Inspect", "Start", "Reset")]
     [string]$Action,
 
     [ValidateSet("headless", "headed")]
@@ -109,6 +109,23 @@ $State = Get-ChromeState -ChromeExecutable $Chrome
 
 if ($Action -eq "Inspect") {
     Write-Output $State
+    exit 0
+}
+
+if ($Action -eq "Reset") {
+    $WorktreeRoot = Join-Path $env:LOCALAPPDATA "aiakos\playwright-cli\worktrees"
+    $AllowedPattern = "^" + [Regex]::Escape($WorktreeRoot) + "\\[a-f0-9]{64}$"
+    if ($ProfileDir -notmatch $AllowedPattern -or $State -ne "absent") {
+        throw "Reset requires an exact stopped worktree profile."
+    }
+    if (Test-Path -LiteralPath $ProfileDir) {
+        $Profile = Get-Item -LiteralPath $ProfileDir
+        if ($Profile.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "Reset refuses a redirected profile directory."
+        }
+        Remove-Item -LiteralPath $ProfileDir -Recurse -Force
+    }
+    Write-Output "reset"
     exit 0
 }
 

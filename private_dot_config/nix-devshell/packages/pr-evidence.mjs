@@ -57,7 +57,10 @@ export const publishEvidence = ({
     const current = JSON.parse(
       await github(["pr", "view", String(pr), "--repo", repo, "--json", "body"])
     ).body;
-    if (current.includes(asset)) {
+    if (
+      !current.includes(placeholder) &&
+      current.includes(`![Evidence](${asset})`)
+    ) {
       return;
     }
     if (!placeholder || current.split(placeholder).length !== 2) {
