@@ -41,3 +41,13 @@ ambient persona（`full` mode、毎応答、全リポジトリ、全 subagent）
 - mode（`full`、override なし）・subagent スコープ（`PONYTAIL_SUBAGENT_MATCHER` 未設定）・導入スキル（6つ全て）は Claude Code 版と同じ判断を踏襲する。
 
 検証は `tests/codex-config.bats` を拡張して行う（新規ファイルは作らない）。ローカル git fixture を marketplace source として使い、実ネットワークで `dietrichgebert/ponytail` を毎回取得しない。
+
+## 2026-09-11 amendment: 「apm は hooks を持たない経路」という記述の訂正
+
+上記 Codex amendment にある「apm.yml（hooks を持たない外部 skill-only の経路）ではなく」という記述は、apm CLI (v0.30.0) のソースと Codex CLI (v0.154.0) の実バイナリ（`.codex-wrapped`、355MB — nix の 411 バイト PATH ラッパースクリプトではなく実体）を調査した結果、不正確だったため訂正する。Decision（apm ではなく `config.toml` の `[plugins]` を直接配線する）自体は変更しない。
+
+- apm は一般論としては hooks を含む executable primitives（hooks/MCP/LSP/bin/canvas）を `apm approve`/`apm deny` で明示的に承認管理できる汎用機構を持つ。`apm_cli/integration/hook_integrator.py` には Claude（`.claude/settings.json`）・Codex（`.codex/hooks.json`）・Cursor（`.cursor/hooks.json`）向けの汎用 hook マージ実装が実在し、「apm = hooks を持たない skill-only の経路」という一般化はそもそも誤りだった。
+- さらに、Codex 自身にも `.codex/hooks.json`（グローバル/リポジトリ直下の生 hooks 定義ファイル）を読む本物の hooks エンジン（`codex_hooks::engine::dispatcher`、`hooks/src/engine/dispatcher.rs`）が実在することも実機で確認した。本リポジトリの `private_dot_config/codex/hooks.json`（devshell-env / impeccable / rtk の hook を持つ、Claude の `settings.json.tmpl` の hooks 相当）はまさにこの経路で動いており、`~/.codex/config.toml` の `[hooks.state]` に `/home/ubuntu/.codex/hooks.json:<event>:...` の trusted_hash が記録されていることで実働を確認済み。apm の Codex 向け `.codex/hooks.json` マージ primitive も、この同じ経路を書く分には技術的には機能しうる。
+- 一方で ponytail の Codex 側 hooks は、この生 `.codex/hooks.json` 経路ではなく、plugin バンドル内の相対パス hooks（plugin manifest の `"hooks": "./hooks.json"` フィールドが指す `hooks/claude-codex-hooks.json`）であり、`codex plugin marketplace add` / `codex plugin add` で登録した plugin としてのみロードされる別経路である。実機 `codex plugin list --json` で `ponytail@ponytail` が marketplace `ponytail` から `installed, enabled` (v4.9.0) であること、`[hooks.state]` に `"ponytail@ponytail:hooks/claude-codex-hooks.json:<event>:..."` という trusted_hash が別途記録されていることを確認済みで、この plugin 経由の hooks は実際に機能している。
+- apm のソースコードには GitHub Copilot 向け native plugin marketplace registrar（`copilot_plugins/registrar.py`）に相当する Codex 版が存在せず、`codex plugin marketplace add` / `codex plugin add` を呼び出すコードが apm には一件もない。つまり apm は ponytail が実際に使っている「plugin バンドルとして登録し、バンドル内 hooks をロードさせる」経路を再現できない。
+- したがって根拠を「apm は hooks を扱えないから」ではなく「apm に Codex native plugin marketplace registrar が無く、ponytail 公式が提供する `.codex-plugin/plugin.json` 経由の配布・pin（v4.9.0）を再現できないから」に正確化する。apm 自身の汎用 `.codex/hooks.json` マージ primitive を使ってフックの中身だけを生ファイルとして流し込む代替経路は技術的にはあり得るが、vendor 提供の pin 済み plugin bundle を使わない独自再実装になる上、本 ADR 作成時点では未検証であり、採用しない。
