@@ -234,6 +234,10 @@ release_lock() {
 }
 trap release_lock EXIT
 
+# relocate may have completed while this command waited for the runtime lock.
+[[ "$("$pwcli_owner_command" locate --role playwright --workspace "$pwcli_workspace")" == "$pwcli_allocation" ]] ||
+  fail "Browser allocation changed while waiting for the runtime lock. Retry the command."
+
 pwcli_lease="$pwcli_state_dir/lease"
 pwcli_dashboard_pid_file="$pwcli_state_dir/dashboard.pid"
 pwcli_dashboard_session_file="$pwcli_state_dir/dashboard.session"
