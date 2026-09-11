@@ -298,3 +298,23 @@ PY
   [ "$status" -eq 0 ]
   [ "$output" = null ]
 }
+
+@test "automatic Dogfood ports avoid retained owners and concurrent reservations" {
+  owner --identity retained reserve --role dogfood --id retained --pid "$$" --mode headless --profile retained --endpoint http://127.0.0.1:19379
+  local first second
+  (owner --identity auto-a reserve --role dogfood --id auto-a --pid "$$" --mode headless --profile auto-a --endpoint auto) >"$BATS_TEST_TMPDIR/auto-a" &
+  first=$!
+  (owner --identity auto-b reserve --role dogfood --id auto-b --pid "$$" --mode headless --profile auto-b --endpoint auto) >"$BATS_TEST_TMPDIR/auto-b" &
+  second=$!
+  wait "$first"
+  wait "$second"
+  run owner status
+  [ "$status" -eq 0 ]
+  python3 - "$output" <<'PY'
+import json, sys
+owners = json.loads(sys.argv[1])
+assert len(owners) == 3
+assert len({owner['endpoint'] for owner in owners}) == 3
+assert all(19330 <= int(owner['endpoint'].rsplit(':', 1)[1]) <= 19393 for owner in owners)
+PY
+}

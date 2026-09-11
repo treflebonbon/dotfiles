@@ -100,10 +100,12 @@ const choosePort = () => {
   // Windows mirrored networking does not guarantee that a Linux-assigned
   // ephemeral port is bindable by a Windows process. Do not bind-and-release
   // a Linux socket here: the mirrored port proxy may still be draining when
-  // Chrome starts. Keep dogfood in a small dedicated loopback range instead.
-  const port = Number(
-    process.env.DOGFOOD_CDP_PORT || 19_330 + (process.pid % 64)
-  );
+  // Chrome starts. The owner atomically allocates an unreserved port from the
+  // dedicated Dogfood range unless the caller explicitly selects one.
+  if (!process.env.DOGFOOD_CDP_PORT) {
+    return null;
+  }
+  const port = Number(process.env.DOGFOOD_CDP_PORT);
   if (!Number.isInteger(port) || port < 1024 || port > 65_535) {
     throw new Error(`DOGFOOD_CDP_PORT must be a TCP port, got '${port}'.`);
   }
@@ -147,8 +149,9 @@ export const acquireManagedDogfoodChrome = async ({
       "DOGFOOD_CDP_ENDPOINT is restricted to tests; dogfood must use the managed Windows Chrome launcher."
     );
   }
-  const port = await choosePort();
-  const endpoint = endpointOverride || `http://127.0.0.1:${port}`;
+  let port = choosePort();
+  let endpoint =
+    endpointOverride || (port ? `http://127.0.0.1:${port}` : "auto");
   const profile = await powershellAction(["-Action", "Resolve", "-RunId", id]);
   const extensionPath = extension
     ? await run(wslpath(), ["-w", path.resolve(extension)])
@@ -171,6 +174,16 @@ export const acquireManagedDogfoodChrome = async ({
 
   let started = false;
   try {
+    if (endpoint === "auto") {
+      const reservation = JSON.parse(await owned("status"));
+      if (reservation?.token !== token) {
+        throw new Error(
+          "Dogfood reservation changed before startup; ownership was preserved."
+        );
+      }
+      ({ endpoint } = reservation);
+      ({ port } = new URL(endpoint));
+    }
     if (!endpointOverride) {
       const status = await powershellAction([
         "-Action",

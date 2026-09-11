@@ -10,7 +10,7 @@ status: accepted
 
 ## Decision
 
-- 所有権は同じ root と短時間の登録 lock を共有し、identity ごとの record に分ける。予約時に profile / CDP endpoint の重複を拒否する。世代 token、未確定起動の保持、停止確認後の解放を継続する。
+- 所有権は同じ root と短時間の登録 lock を共有し、identity ごとの record に分ける。予約時に profile / CDP endpoint の重複を拒否する。世代 token、未確定起動の保持、停止確認後の解放を継続する。Dogfood の自動 port は予約と同じ lock 内で19330–19393から未予約の値を選び、PID の剰余による衝突を避ける。明示 port や Windows の外部 listener との競合は拒否する。
 - 通常の検証は物理 worktree root から identity を作り、profile を永続保持する。profile、CDP、Dashboard port、lease と終了処理を同じ identity に結び付ける。別 worktree と Dogfood 試行は独立する。上流 CLI の session registry・browser discovery・Dashboard singleton socket も worktree ごとに分離し、同じ session 名を使っても他方を選択・停止しない。
 - 同じ identity の headless / headed 競合は既存 consumer を保持して拒否する。Dashboard はその検証ブラウザの headed 表示面であり、別 identity を追加しない。背景処理から可視画面を自動起動しない。
 - 旧専用 GitHub profile は添付専用 identity で利用する。要求ごとの Page と receipt を扱う CLI を公開し、汎用 browser 操作を要求へ公開しない。異なる PR の upload は並列、同じ repository / PR 本文更新は flock 内で fresh read →置換→write を行う。排他に参加しない外部編集者との分散原子性は保証しない。

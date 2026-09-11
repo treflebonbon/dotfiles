@@ -336,6 +336,21 @@ const release = async (owner, token, command) => {
   await fs.unlink(ownerFile);
 };
 
+const allocateDogfoodEndpoint = (others, id) => {
+  const occupied = new Set(others.map((other) => other.endpoint));
+  const offset = Number.parseInt(digest(id).slice(0, 8), 16) % 64;
+  const endpoint = Array.from(
+    { length: 64 },
+    (_, index) => `http://127.0.0.1:${19_330 + ((offset + index) % 64)}`
+  ).find((candidate) => !occupied.has(candidate));
+  if (!endpoint) {
+    throw new Error(
+      "No unreserved Dogfood CDP port remains; existing owners were preserved."
+    );
+  }
+  return endpoint;
+};
+
 const reserve = async (owner, values) => {
   if (owner) {
     if (
@@ -348,11 +363,13 @@ const reserve = async (owner, values) => {
     }
     throw conflict(owner);
   }
+  const automaticEndpoint =
+    identity && values.role === "dogfood" && values.endpoint === "auto";
   if (
     !["playwright", "dogfood", "attachment"].includes(values.role) ||
     !values.id ||
     !values.profile ||
-    !validEndpoint(values.endpoint) ||
+    (!validEndpoint(values.endpoint) && !automaticEndpoint) ||
     !["headless", "headed"].includes(values.mode)
   ) {
     throw new Error("reserve requires role, id, mode, profile and endpoint");
@@ -367,6 +384,9 @@ const reserve = async (owner, values) => {
       .filter((filename) => filename !== ownerFile)
       .map((filename) => readOwner(filename))
   );
+  if (automaticEndpoint) {
+    values.endpoint = allocateDogfoodEndpoint(others, values.id);
+  }
   for (const other of others) {
     if (
       !identity ||

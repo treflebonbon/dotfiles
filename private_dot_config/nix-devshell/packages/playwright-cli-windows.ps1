@@ -119,8 +119,8 @@ if ($Action -eq "Reset") {
         throw "Reset requires an exact stopped worktree profile."
     }
     if (Test-Path -LiteralPath $ProfileDir) {
-        $Profile = Get-Item -LiteralPath $ProfileDir
-        if ($Profile.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        $WorktreeProfileItem = Get-Item -LiteralPath $ProfileDir
+        if ($WorktreeProfileItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "Reset refuses a redirected profile directory."
         }
         Remove-Item -LiteralPath $ProfileDir -Recurse -Force
