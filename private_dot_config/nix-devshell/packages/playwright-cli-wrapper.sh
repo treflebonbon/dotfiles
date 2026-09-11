@@ -43,6 +43,18 @@ if ! is_wsl; then
   exec "$pwcli_upstream" "$@"
 fi
 
+pwcli_workspace="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+pwcli_workspace="$(cd "$pwcli_workspace" && pwd -P)"
+# Upstream uses one global session registry when no .playwright marker exists.
+# Scope both session lookup and Dashboard discovery, including passthrough commands.
+pwcli_workspace_hash="$(printf '%s' "$pwcli_workspace" | sha256sum)"
+pwcli_workspace_hash="${pwcli_workspace_hash%% *}"
+pwcli_registry_root="${XDG_CACHE_HOME:-$HOME/.cache}/ms-playwright/worktrees/$pwcli_workspace_hash"
+export PWTEST_DAEMON_SESSION_DIR="${PWTEST_DAEMON_SESSION_DIR:-$pwcli_registry_root/sessions}"
+export PWTEST_SERVER_REGISTRY="${PWTEST_SERVER_REGISTRY:-$pwcli_registry_root/browsers}"
+export PWTEST_SOCKETS_DIR="${PWTEST_SOCKETS_DIR:-/tmp/pwcli-$UID/worktree-${pwcli_workspace_hash:0:32}}"
+umask 077
+
 pwcli_command=
 pwcli_confirm_identity=
 pwcli_session=default
@@ -191,8 +203,6 @@ elif [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
 else
   pwcli_state_dir="${PWCLI_TMPDIR:-/tmp}/playwright-cli-$UID"
 fi
-pwcli_workspace="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
-pwcli_workspace="$(cd "$pwcli_workspace" && pwd -P)"
 # Legacy runtime state must be drained with the old package before migration.
 if [[ -f "$pwcli_state_dir/lease" || -f "$pwcli_state_dir/dashboard.pid" || -f "$pwcli_state_dir/owner.token" ]]; then
   fail "Legacy Playwright consumers exist. Close them with the old package before migration."

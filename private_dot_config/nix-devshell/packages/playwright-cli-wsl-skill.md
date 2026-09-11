@@ -1,6 +1,6 @@
 ## WSL2 Managed Playwright Chrome
 
-On WSL2, a normal `playwright-cli open [URL]` uses **Managed Playwright Chrome** headless by default, using a persistent profile and allocated loopback CDP endpoint for the physical worktree root. Different worktrees have different browser identities. Subdirectories of the same worktree share its identity.
+On WSL2, a normal `playwright-cli open [URL]` uses **Managed Playwright Chrome** headless by default, using a persistent profile and allocated loopback CDP endpoint for the physical worktree root. Different worktrees have different browser identities. Subdirectories of the same worktree share its identity. CLI session lookup, Dashboard discovery and control sockets are also scoped to that worktree, so different worktrees may reuse the same session name.
 
 - WSL mirrored networking is required; no WSL browser fallback is installed.
 - `PLAYWRIGHT_MCP_HEADLESS=true|1` explicitly selects headless mode.

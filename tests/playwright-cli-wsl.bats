@@ -81,6 +81,7 @@ fi
 if [[ "$*" == *"show"* && "$*" == *"--annotate"* && ! -f "$DASHBOARD_READY" ]]; then
   exit 42
 fi
+printf '%s\n' "$PWTEST_DAEMON_SESSION_DIR" "$PWTEST_SERVER_REGISTRY" "$PWTEST_SOCKETS_DIR" >"$UPSTREAM_LOG.registry"
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
 if [[ "${PWCLI_FAKE_ASSERT_LOCK_RELEASED:-0}" == "1" ]] &&
   ! "$PWCLI_FLOCK" --exclusive --nonblock \
@@ -1217,4 +1218,26 @@ EOF
   run bash "$WRAPPER" reset-profile --confirm-identity "$IDENTITY"
   [ "$status" -eq 0 ]
   grep -Fq -- "-Action Reset -ProfileDir $PROFILE" "$POWERSHELL_LOG"
+}
+
+@test "same session name uses independent registries across worktrees and stable registry in subdirectories" {
+  mkdir -p "$BATS_TEST_TMPDIR/first/sub" "$BATS_TEST_TMPDIR/second"
+  git -C "$BATS_TEST_TMPDIR/first" init -q
+  git -C "$BATS_TEST_TMPDIR/second" init -q
+  cd "$BATS_TEST_TMPDIR/first"
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  local first
+  first="$(cat "$UPSTREAM_LOG.registry")"
+  [ -n "$(sed -n '1p' "$UPSTREAM_LOG.registry")" ]
+  [ -n "$(sed -n '2p' "$UPSTREAM_LOG.registry")" ]
+  [ -n "$(sed -n '3p' "$UPSTREAM_LOG.registry")" ]
+  cd sub
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" = "$first" ]
+  cd "$BATS_TEST_TMPDIR/second"
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" != "$first" ]
 }

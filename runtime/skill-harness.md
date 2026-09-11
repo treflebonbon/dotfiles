@@ -217,6 +217,8 @@ profile を初期化する場合は、その worktree で `playwright-cli reset-
 
 PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `to-pr` 外で `browser-attachments auth` → 手動ログイン → `browser-attachments close`。自動添付は headless のみ。
 
+CLI session の保存先・Dashboard の session 一覧・制御 socket も物理 worktree root ごとに分離する。同じ session 名を別 worktree で使っても相互操作しない。切替前に旧 package で既存 CLI / Dashboard を終了する。Windows の状態確認が重なる場合、共有の登録 lock は最大30秒待機し、期限超過は状態を保持して失敗する。
+
 ### Managed Chrome 所有権の確認と復旧
 
 WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `managed-chrome-owner` を共有する。`MANAGED_CHROME_OWNER` は同梱 CLI の絶対パスを指す。所有権は共通の `BROWSER_OWNERSHIP_DIR`、未指定なら `$XDG_RUNTIME_DIR/browser-ownership`、さらに未設定なら `${TMPDIR:-/tmp}/browser-ownership` に置く。Dogfood 固有のディレクトリ指定がこの場所と異なる場合は拒否する。

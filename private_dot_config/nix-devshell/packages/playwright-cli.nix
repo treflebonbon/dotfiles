@@ -1,6 +1,7 @@
 {
   buildNpmPackage,
   curl,
+  coreutils,
   git,
   lib,
   makeWrapper,
@@ -97,7 +98,12 @@ buildNpmPackage {
       --replace-fail '@managedChromeOwner@' "$out/bin/managed-chrome-owner" \
       --replace-fail '@flock@' '${util-linux}/bin/flock'
     chmod +x "$out/bin/playwright-cli"
-    wrapProgram "$out/bin/playwright-cli" --prefix PATH : ${lib.makeBinPath [ git ]}
+    wrapProgram "$out/bin/playwright-cli" --prefix PATH : ${
+      lib.makeBinPath [
+        git
+        coreutils
+      ]
+    }
 
     mkdir -p "$out/share/playwright-cli/skills"
     cp -R "$pkg/skills/playwright-cli" "$out/share/playwright-cli/skills/playwright-cli"

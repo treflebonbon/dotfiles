@@ -287,3 +287,14 @@ PY
   [[ "$output" == *'chrome-profile'* ]]
   [[ "$output" == *'9222'* ]]
 }
+
+@test "ownership waits for a slow concurrent Windows lifecycle check" {
+  mkdir -p "$BROWSER_OWNERSHIP_DIR"
+  flock --exclusive "$BROWSER_OWNERSHIP_DIR/ownership.lock" sh -c 'touch "$1"; sleep 6' sh "$BATS_TEST_TMPDIR/locked" &
+  local holder=$!
+  while [ ! -f "$BATS_TEST_TMPDIR/locked" ]; do sleep 0.02; done
+  run owner status
+  wait "$holder"
+  [ "$status" -eq 0 ]
+  [ "$output" = null ]
+}

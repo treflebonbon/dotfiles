@@ -141,7 +141,7 @@ const locked = async (action) => {
     [
       "--exclusive",
       "--wait",
-      "5",
+      "30",
       path.join(root, "ownership.lock"),
       process.execPath,
       "-e",
