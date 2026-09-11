@@ -78,13 +78,19 @@ def collect(repo_root, files):
                                   'byte_start': lo, 'byte_end': hi,
                                   'text': text[:180], 'text_truncated': len(text) > 180})
         nodes.sort(key=lambda n: (n['path'], n['byte_start'], -n['byte_end'], n['kind']))
+        stack = []
         for i, node in enumerate(nodes):
             node['id'] = i
-            parents = [j for j, parent in enumerate(nodes)
-                       if parent['path'] == node['path'] and parent['byte_start'] <= node['byte_start']
-                       and node['byte_end'] <= parent['byte_end']
-                       and (parent['byte_start'], parent['byte_end']) != (node['byte_start'], node['byte_end'])]
-            node['parent'] = min(parents, key=lambda j: nodes[j]['byte_end'] - nodes[j]['byte_start']) if parents else None
+            while stack and (stack[-1]['path'] != node['path']
+                             or stack[-1]['byte_end'] < node['byte_end']
+                             or stack[-1]['byte_end'] <= node['byte_start']):
+                stack.pop()
+            if stack and (stack[-1]['byte_start'], stack[-1]['byte_end']) == (node['byte_start'], node['byte_end']):
+                # Equal spans share a parent; retain the first as descendants' parent.
+                node['parent'] = stack[-1]['parent']
+            else:
+                node['parent'] = stack[-1]['id'] if stack else None
+                stack.append(node)
         return {**result, 'status': 'ok', 'nodes': nodes}
     except (OSError, ValueError, TypeError, KeyError, subprocess.TimeoutExpired) as error:
         return {**result, 'reason': f'{type(error).__name__}: {error}'[:600]}

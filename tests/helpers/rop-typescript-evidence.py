@@ -43,6 +43,20 @@ class SyntaxEvidence(unittest.TestCase):
         self.assertIsNone(result['reason'])
         self.assertEqual(len(result['files'][0]['sha256']), 64)
 
+    def test_nearest_parent_handles_equal_spans_siblings_and_files(self):
+        source = 'x' * 100
+        spans = [(0, 100), (0, 80), (0, 80), (5, 20), (20, 40), (25, 40), (80, 100)]
+        matches = [{'ruleId': 'call_expression', 'text': source[lo:hi],
+                    'range': {'byteOffset': {'start': lo, 'end': hi}}} for lo, hi in spans]
+        for name in ['main.ts', 'second.ts']:
+            (self.root / name).write_text(source)
+        with patch.object(syntax.shutil, 'which', return_value='/tool/ast-grep'), \
+             patch.object(syntax.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, json.dumps(matches), '')):
+            result = syntax.collect(self.root, ['second.ts', 'main.ts'])
+        self.assertEqual(result['status'], 'ok', result['reason'])
+        self.assertEqual([n['parent'] for n in result['nodes']],
+                         [None, 0, 0, 1, 1, 4, 0, None, 7, 7, 8, 8, 11, 7])
+
     def test_command_and_json_failures_are_recorded(self):
         for response in [subprocess.CompletedProcess([], 2, '', 'bad rules'),
                          subprocess.CompletedProcess([], 0, 'invalid JSON', ''),
