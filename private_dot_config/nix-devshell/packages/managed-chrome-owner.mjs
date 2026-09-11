@@ -109,7 +109,7 @@ const callerAlive = async (owner) => {
   );
 };
 
-const locked = async (action) => {
+const locked = async (action, runtimeDirectory) => {
   const dogfoodRoot = process.env.DOGFOOD_BROWSER_OWNERSHIP_DIR;
   const dogfoodTmp = process.env.DOGFOOD_TMPDIR;
   if (
@@ -134,15 +134,19 @@ const locked = async (action) => {
       `Legacy acquisition lock at ${root}/acquire.lock. Finish the old managed consumers before cutover; the lock was preserved.`
     );
   }
+  if (runtimeDirectory) {
+    await fs.mkdir(runtimeDirectory, { mode: 0o700, recursive: true });
+  }
   // A pipe keeps flock alive only while this process owns the operation.
   // Unlike a PID-directory lock, it is also released after an abrupt exit.
   const guard = spawn(
     process.env.MANAGED_CHROME_FLOCK || "flock",
     [
       "--exclusive",
-      "--wait",
-      "30",
-      path.join(root, "ownership.lock"),
+      ...(runtimeDirectory ? ["--nonblock"] : ["--wait", "30"]),
+      runtimeDirectory
+        ? path.join(runtimeDirectory, "runtime.lock")
+        : path.join(root, "ownership.lock"),
       process.execPath,
       "-e",
       "process.stdout.write('locked\\n'); process.stdin.resume()",
@@ -420,7 +424,90 @@ const reserve = async (owner, values) => {
   return reservation.token;
 };
 
-const locate = async (values) => {
+const ephemeralRange = async () => {
+  const filename =
+    process.env.BROWSER_EPHEMERAL_RANGE_FILE ||
+    "/proc/sys/net/ipv4/ip_local_port_range";
+  const text = await fs.readFile(filename, "utf-8");
+  const parts = text.trim().split(/\s+/u).map(Number);
+  if (
+    parts.length !== 2 ||
+    parts.some(
+      (port) => !Number.isInteger(port) || port < 1 || port > 65_535
+    ) ||
+    parts[0] > parts[1]
+  ) {
+    throw new Error(
+      "Invalid Linux ephemeral port range; allocation was preserved."
+    );
+  }
+  return parts;
+};
+
+const worktreeRuntimeDirectory = () => {
+  if (!/^playwright-[a-f0-9]{64}$/u.test(identity || "")) {
+    throw new Error("relocate requires the exact existing worktree identity.");
+  }
+  const base = process.env.PWCLI_RUNTIME_DIR || process.env.XDG_RUNTIME_DIR;
+  return base
+    ? path.join(base, "playwright-cli", identity)
+    : path.join(
+        process.env.PWCLI_TMPDIR || "/tmp",
+        `playwright-cli-${process.getuid()}`,
+        identity
+      );
+};
+
+const requireDashboardStopped = async () => {
+  const directory = worktreeRuntimeDirectory();
+  const records = [
+    "dashboard.pid",
+    "dashboard.starttime",
+    "dashboard.launcher",
+    "dashboard.session",
+    "dashboard.stdin",
+  ];
+  const existing = await Promise.all(
+    records.map((record) =>
+      fs.lstat(path.join(directory, record)).catch((error) => {
+        if (error.code !== "ENOENT") {
+          throw error;
+        }
+        return null;
+      })
+    )
+  );
+  if (existing.some(Boolean)) {
+    throw new Error(
+      "Close the worktree Dashboard with its owning session before relocating; allocation and runtime state were preserved."
+    );
+  }
+};
+
+const checkRelocation = async (values, key, previous) => {
+  if (values.role !== "playwright" || identity !== key || !previous) {
+    throw new Error("relocate requires the exact existing worktree identity.");
+  }
+  await requireDashboardStopped();
+  if (await readOwner()) {
+    throw new Error(
+      "Release the worktree owner before relocating; state was preserved."
+    );
+  }
+  if (
+    (await probe({
+      endpoint: `http://127.0.0.1:${previous.port}`,
+      profile: previous.profile,
+      role: "playwright",
+    })) !== "absent"
+  ) {
+    throw new Error(
+      "Close the worktree Chrome before relocating; state was preserved."
+    );
+  }
+};
+
+const locate = async (values, relocate = false) => {
   if (!["playwright", "attachment"].includes(values.role)) {
     throw new Error("locate requires playwright or attachment role");
   }
@@ -439,7 +526,10 @@ const locate = async (values) => {
       }
       return {};
     });
-  if (!allocations[key]) {
+  if (relocate) {
+    await checkRelocation(values, key, allocations[key]);
+  }
+  if (!allocations[key] || relocate) {
     const used = new Set(
       Object.values(allocations).flatMap((item) => [item.port, item.dashboard])
     );
@@ -448,7 +538,12 @@ const locate = async (values) => {
         ? 9222
         : 20_000 +
           (Number.parseInt(digest(workspace).slice(0, 6), 16) % 18_000) * 2;
-    while (used.has(port) || used.has(port + 1)) {
+    const [firstEphemeral, lastEphemeral] = await ephemeralRange();
+    while (
+      used.has(port) ||
+      used.has(port + 1) ||
+      (port <= lastEphemeral && port + 1 >= firstEphemeral)
+    ) {
       port += 2;
     }
     if (port > 65_000) {
@@ -458,9 +553,10 @@ const locate = async (values) => {
       dashboard: port + 1,
       port,
       profile:
-        values.role === "attachment"
+        allocations[key]?.profile ??
+        (values.role === "attachment"
           ? "%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile"
-          : `%LOCALAPPDATA%\\aiakos\\playwright-cli\\worktrees\\${digest(workspace)}`,
+          : `%LOCALAPPDATA%\\aiakos\\playwright-cli\\worktrees\\${digest(workspace)}`),
     };
     const temporary = `${filename}.${randomUUID()}`;
     await fs.writeFile(temporary, JSON.stringify(allocations), {
@@ -504,6 +600,10 @@ const main = () => {
     return runStartup(token, startup);
   }
   return locked(async () => {
+    if (command === "relocate") {
+      // Never wait for runtime while holding ownership: wrappers lock in the reverse order.
+      return locked(() => locate(values, true), worktreeRuntimeDirectory());
+    }
     if (command === "locate") {
       return locate(values);
     }
@@ -541,7 +641,7 @@ const main = () => {
       return reserve(owner, values);
     }
     throw new Error(
-      "Use status, reserve, run, activate, release, check or recover."
+      "Use locate, relocate, status, reserve, run, activate, release, check or recover."
     );
   });
 };

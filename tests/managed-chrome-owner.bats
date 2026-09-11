@@ -4,6 +4,7 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   OWNER_CLI="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs"
   export BROWSER_OWNERSHIP_DIR="$BATS_TEST_TMPDIR/ownership"
+  export PWCLI_RUNTIME_DIR="$BATS_TEST_TMPDIR/runtime"
   export OWNER_PROBE_STATE="$BATS_TEST_TMPDIR/browser-state"
   export PWCLI_WINDOWS_SCRIPT='C:\\mock.ps1'
   export PWCLI_POWERSHELL="$BATS_TEST_TMPDIR/powershell.exe"
@@ -317,4 +318,65 @@ assert len(owners) == 3
 assert len({owner['endpoint'] for owner in owners}) == 3
 assert all(19330 <= int(owner['endpoint'].rsplit(':', 1)[1]) <= 19393 for owner in owners)
 PY
+}
+
+@test "worktree allocation avoids the Linux ephemeral range including Dashboard ports" {
+  export BROWSER_EPHEMERAL_RANGE_FILE="$BATS_TEST_TMPDIR/ephemeral-range"
+  printf '20000 55999\n' >"$BROWSER_EPHEMERAL_RANGE_FILE"
+  run owner locate --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'http://127.0.0.1:56000\t56001' ]]
+}
+
+@test "relocate preserves the profile and refuses live or reserved browsers" {
+  local allocation identity profile endpoint dashboard original
+  allocation="$(owner locate --role playwright --workspace "$BATS_TEST_TMPDIR")"
+  IFS=$'\t' read -r identity profile endpoint dashboard <<<"$allocation"
+  original="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+  printf 'managed:headless:4242\n' >"$OWNER_PROBE_STATE"
+  run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+  printf 'absent\n' >"$OWNER_PROBE_STATE"
+  local token
+  token="$(owner reserve --identity "$identity" --role playwright --id test --pid "$$" --mode headless --profile "$profile" --endpoint "$endpoint")"
+  run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+  owner release --identity "$identity" "$token"
+  run owner relocate --identity wrong --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "$identity"$'\t'"$profile"$'\t'* ]]
+  [ "$output" != "$allocation" ]
+  local updated="$output"
+  run owner locate --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$output" = "$updated" ]
+}
+
+@test "relocate preserves Dashboard records and refuses a busy wrapper runtime" {
+  local allocation identity profile endpoint dashboard original runtime record
+  allocation="$(owner locate --role playwright --workspace "$BATS_TEST_TMPDIR")"
+  IFS=$'\t' read -r identity profile endpoint dashboard <<<"$allocation"
+  original="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+  runtime="$PWCLI_RUNTIME_DIR/playwright-cli/$identity"
+  mkdir -p "$runtime"
+  for record in dashboard.pid dashboard.starttime dashboard.launcher dashboard.session dashboard.stdin; do
+    printf 'retained\n' >"$runtime/$record"
+    run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'Close the worktree Dashboard'* ]]
+    [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+    [ "$(cat "$runtime/$record")" = retained ]
+    rm "$runtime/$record"
+  done
+  exec {runtime_fd}>"$runtime/runtime.lock"
+  flock --exclusive "$runtime_fd"
+  run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+  exec {runtime_fd}>&-
+  run owner relocate --identity "$identity" --role playwright --workspace "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 0 ]
 }

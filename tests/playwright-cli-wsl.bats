@@ -1279,3 +1279,45 @@ EOF
     [ ! -e "$UPSTREAM_LOG" ]
   done
 }
+
+@test "relocation refuses a surviving Dashboard and preserves show kill cleanup" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=surviving-dashboard open --headed
+  [ "$status" -eq 0 ]
+  run bash "$WRAPPER" -s=surviving-dashboard show
+  [ "$status" -eq 0 ]
+  local original dashboard_pid
+  original="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+  dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
+  printf 'absent\n' >"$POWERSHELL_STATE"
+  run "$MANAGED_CHROME_OWNER" recover --identity "$IDENTITY"
+  [ "$status" -eq 0 ]
+  run "$MANAGED_CHROME_OWNER" relocate --identity "$IDENTITY" --role playwright --workspace "$PROJECT_ROOT"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'Close the worktree Dashboard'* ]]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$original" ]
+  kill -0 "$dashboard_pid"
+  run bash "$WRAPPER" -s=surviving-dashboard show --kill
+  [ "$status" -eq 0 ]
+  [ ! -f "$STATE_DIR/dashboard.pid" ]
+  run "$MANAGED_CHROME_OWNER" relocate --identity "$IDENTITY" --role playwright --workspace "$PROJECT_ROOT"
+  [ "$status" -eq 0 ]
+}
+
+@test "wrapper rejects an allocation relocated before runtime lock acquisition" {
+  export PWCLI_TEST_WSL=1 PROJECT_ROOT
+  cat >"$FAKE_BIN/relocate-before-flock" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+"$MANAGED_CHROME_OWNER" relocate --identity "$IDENTITY" --role playwright --workspace "$PROJECT_ROOT" >"$UPSTREAM_LOG.relocated"
+exec flock "$@"
+SH
+  chmod +x "$FAKE_BIN/relocate-before-flock"
+  export PWCLI_FLOCK="$FAKE_BIN/relocate-before-flock"
+  run bash "$WRAPPER" -s=stale-allocation open
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'Browser allocation changed'* ]]
+  [ -s "$UPSTREAM_LOG.relocated" ]
+  ! grep -Fq -- '-Action Start' "$POWERSHELL_LOG"
+  [ ! -e "$UPSTREAM_LOG" ]
+}
