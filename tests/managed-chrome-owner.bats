@@ -252,3 +252,69 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *"BROWSER_OWNERSHIP_DIR"* ]]
 }
+
+@test "different browser identities reserve concurrently but cannot share resources" {
+  run owner reserve --identity worktree-a --role playwright --id a --pid "$$" \
+    --mode headless --profile 'C:\\profiles\\a' --endpoint http://127.0.0.1:19431
+  [ "$status" -eq 0 ]
+  local first="$output"
+  run owner reserve --identity worktree-b --role playwright --id b --pid "$$" \
+    --mode headless --profile 'C:\\profiles\\b' --endpoint http://127.0.0.1:19432
+  [ "$status" -eq 0 ]
+  local second="$output"
+  run owner reserve --identity collision --role dogfood --id c --pid "$$" \
+    --mode headless --profile 'C:\\profiles\\c' --endpoint http://127.0.0.1:19431
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"resource"* ]]
+  run owner release --identity worktree-a "$first"
+  [ "$status" -eq 0 ]
+  run owner status --identity worktree-b
+  [[ "$output" == *"$second"* ]]
+}
+
+@test "worktree allocation is stable and reserves separate ports for its Dashboard" {
+  mkdir -p "$BATS_TEST_TMPDIR/a/sub" "$BATS_TEST_TMPDIR/b"
+  run owner locate --workspace "$BATS_TEST_TMPDIR/a" --role playwright
+  [ "$status" -eq 0 ]
+  local first="$output"
+  run owner locate --workspace "$BATS_TEST_TMPDIR/a" --role playwright
+  [ "$output" = "$first" ]
+  run owner locate --workspace "$BATS_TEST_TMPDIR/b" --role playwright
+  [ "$status" -eq 0 ]
+  [ "$output" != "$first" ]
+  run owner locate --role attachment
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'chrome-profile'* ]]
+  [[ "$output" == *'9222'* ]]
+}
+
+@test "ownership waits for a slow concurrent Windows lifecycle check" {
+  mkdir -p "$BROWSER_OWNERSHIP_DIR"
+  flock --exclusive "$BROWSER_OWNERSHIP_DIR/ownership.lock" sh -c 'touch "$1"; sleep 6' sh "$BATS_TEST_TMPDIR/locked" &
+  local holder=$!
+  while [ ! -f "$BATS_TEST_TMPDIR/locked" ]; do sleep 0.02; done
+  run owner status
+  wait "$holder"
+  [ "$status" -eq 0 ]
+  [ "$output" = null ]
+}
+
+@test "automatic Dogfood ports avoid retained owners and concurrent reservations" {
+  owner --identity retained reserve --role dogfood --id retained --pid "$$" --mode headless --profile retained --endpoint http://127.0.0.1:19379
+  local first second
+  (owner --identity auto-a reserve --role dogfood --id auto-a --pid "$$" --mode headless --profile auto-a --endpoint auto) >"$BATS_TEST_TMPDIR/auto-a" &
+  first=$!
+  (owner --identity auto-b reserve --role dogfood --id auto-b --pid "$$" --mode headless --profile auto-b --endpoint auto) >"$BATS_TEST_TMPDIR/auto-b" &
+  second=$!
+  wait "$first"
+  wait "$second"
+  run owner status
+  [ "$status" -eq 0 ]
+  python3 - "$output" <<'PY'
+import json, sys
+owners = json.loads(sys.argv[1])
+assert len(owners) == 3
+assert len({owner['endpoint'] for owner in owners}) == 3
+assert all(19330 <= int(owner['endpoint'].rsplit(':', 1)[1]) <= 19393 for owner in owners)
+PY
+}

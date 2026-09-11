@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile, spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -16,7 +16,9 @@ const root = path.resolve(
       "browser-ownership"
     )
 );
-const ownerFile = path.join(root, "owner");
+let ownerFile = path.join(root, "owner");
+let identity;
+const digest = (value) => createHash("sha256").update(value).digest("hex");
 
 const validEndpoint = (value) => {
   try {
@@ -43,7 +45,7 @@ const validUUID = (value) =>
 const validOwner = (owner) =>
   owner?.version === 1 &&
   validUUID(owner.token) &&
-  ["playwright", "dogfood"].includes(owner.role) &&
+  ["playwright", "dogfood", "attachment"].includes(owner.role) &&
   ["reserved", "starting", "settled", "active"].includes(owner.phase) &&
   ["headless", "headed"].includes(owner.mode) &&
   [owner.id, owner.profile, owner.workspace].every(
@@ -59,9 +61,9 @@ const validOwner = (owner) =>
     ? Number.isInteger(owner.browserPid) && owner.browserPid > 0
     : owner.browserPid === null);
 
-const readOwner = async () => {
+const readOwner = async (filename = ownerFile) => {
   try {
-    const owner = JSON.parse(await fs.readFile(ownerFile, "utf-8"));
+    const owner = JSON.parse(await fs.readFile(filename, "utf-8"));
     if (!validOwner(owner)) {
       throw new Error("invalid owner");
     }
@@ -139,7 +141,7 @@ const locked = async (action) => {
     [
       "--exclusive",
       "--wait",
-      "5",
+      "30",
       path.join(root, "ownership.lock"),
       process.execPath,
       "-e",
@@ -162,6 +164,20 @@ const locked = async (action) => {
         throw new Error(`Ownership lock unavailable: ${detail}`);
       }),
     ]);
+    const legacy = path.join(root, "owner");
+    if (
+      identity &&
+      (await fs.lstat(legacy).catch((error) => {
+        if (error.code !== "ENOENT") {
+          throw error;
+        }
+        return null;
+      }))
+    ) {
+      throw new Error(
+        "Legacy ownership exists. Close the old consumers and recover using the old package before migration; state was preserved."
+      );
+    }
     return await action();
   } finally {
     guard.stdin.end();
@@ -182,9 +198,9 @@ const matching = (owner, token) => {
 };
 
 const probe = async (owner) => {
-  const prefix = owner.role === "playwright" ? "PWCLI" : "DOGFOOD";
+  const prefix = owner.role === "dogfood" ? "DOGFOOD" : "PWCLI";
   const filename =
-    owner.role === "playwright" ? "windows.ps1" : "dogfood-chrome-windows.ps1";
+    owner.role === "dogfood" ? "dogfood-chrome-windows.ps1" : "windows.ps1";
   let script =
     process.env[`${prefix}_WINDOWS_SCRIPT`] ||
     fileURLToPath(new URL(filename, import.meta.url));
@@ -198,6 +214,8 @@ const probe = async (owner) => {
   const args = [
     "-NoProfile",
     "-NonInteractive",
+    "-WindowStyle",
+    "Hidden",
     "-ExecutionPolicy",
     "Bypass",
     "-File",
@@ -205,15 +223,16 @@ const probe = async (owner) => {
     "-Action",
     "Inspect",
   ];
-  if (owner.role === "dogfood") {
+  if (identity || owner.role === "dogfood") {
     args.push(
-      "-RunId",
-      owner.id,
       "-ProfileDir",
       owner.profile,
       "-DebugPort",
       new URL(owner.endpoint).port
     );
+  }
+  if (owner.role === "dogfood") {
+    args.push("-RunId", owner.id);
   }
   const result = await exec(
     process.env[`${prefix}_POWERSHELL`] || "powershell.exe",
@@ -317,6 +336,21 @@ const release = async (owner, token, command) => {
   await fs.unlink(ownerFile);
 };
 
+const allocateDogfoodEndpoint = (others, id) => {
+  const occupied = new Set(others.map((other) => other.endpoint));
+  const offset = Number.parseInt(digest(id).slice(0, 8), 16) % 64;
+  const endpoint = Array.from(
+    { length: 64 },
+    (_, index) => `http://127.0.0.1:${19_330 + ((offset + index) % 64)}`
+  ).find((candidate) => !occupied.has(candidate));
+  if (!endpoint) {
+    throw new Error(
+      "No unreserved Dogfood CDP port remains; existing owners were preserved."
+    );
+  }
+  return endpoint;
+};
+
 const reserve = async (owner, values) => {
   if (owner) {
     if (
@@ -329,14 +363,41 @@ const reserve = async (owner, values) => {
     }
     throw conflict(owner);
   }
+  const automaticEndpoint =
+    identity && values.role === "dogfood" && values.endpoint === "auto";
   if (
-    !["playwright", "dogfood"].includes(values.role) ||
+    !["playwright", "dogfood", "attachment"].includes(values.role) ||
     !values.id ||
     !values.profile ||
-    !validEndpoint(values.endpoint) ||
+    (!validEndpoint(values.endpoint) && !automaticEndpoint) ||
     !["headless", "headed"].includes(values.mode)
   ) {
     throw new Error("reserve requires role, id, mode, profile and endpoint");
+  }
+  const entries = await fs.readdir(root);
+  const files = entries.filter(
+    (name) => name.startsWith("identity-") && name.endsWith(".json")
+  );
+  const others = await Promise.all(
+    files
+      .map((name) => path.join(root, name))
+      .filter((filename) => filename !== ownerFile)
+      .map((filename) => readOwner(filename))
+  );
+  if (automaticEndpoint) {
+    values.endpoint = allocateDogfoodEndpoint(others, values.id);
+  }
+  for (const other of others) {
+    if (
+      !identity ||
+      other.endpoint === values.endpoint ||
+      other.profile.toLowerCase().replaceAll("/", "\\") ===
+        values.profile.toLowerCase().replaceAll("/", "\\")
+    ) {
+      throw new Error(
+        "Browser resource conflict with an existing identity; consumer was preserved."
+      );
+    }
   }
   const caller = await processIdentity(Number(values.pid));
   if (!caller) {
@@ -359,22 +420,106 @@ const reserve = async (owner, values) => {
   return reservation.token;
 };
 
+const locate = async (values) => {
+  if (!["playwright", "attachment"].includes(values.role)) {
+    throw new Error("locate requires playwright or attachment role");
+  }
+  const workspace =
+    values.role === "attachment"
+      ? "shared"
+      : await fs.realpath(values.workspace || process.cwd());
+  const key = `${values.role}-${digest(workspace)}`;
+  const filename = path.join(root, "allocations.json");
+  const allocations = await fs
+    .readFile(filename, "utf-8")
+    .then(JSON.parse)
+    .catch((error) => {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+      return {};
+    });
+  if (!allocations[key]) {
+    const used = new Set(
+      Object.values(allocations).flatMap((item) => [item.port, item.dashboard])
+    );
+    let port =
+      values.role === "attachment"
+        ? 9222
+        : 20_000 +
+          (Number.parseInt(digest(workspace).slice(0, 6), 16) % 18_000) * 2;
+    while (used.has(port) || used.has(port + 1)) {
+      port += 2;
+    }
+    if (port > 65_000) {
+      throw new Error("No browser ports available");
+    }
+    allocations[key] = {
+      dashboard: port + 1,
+      port,
+      profile:
+        values.role === "attachment"
+          ? "%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile"
+          : `%LOCALAPPDATA%\\aiakos\\playwright-cli\\worktrees\\${digest(workspace)}`,
+    };
+    const temporary = `${filename}.${randomUUID()}`;
+    await fs.writeFile(temporary, JSON.stringify(allocations), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    await fs.rename(temporary, filename);
+  }
+  const item = allocations[key];
+  return [
+    key,
+    item.profile,
+    `http://127.0.0.1:${item.port}`,
+    item.dashboard,
+  ].join("\t");
+};
+
 const main = () => {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
     options: Object.fromEntries(
-      ["role", "id", "pid", "mode", "profile", "endpoint", "token"].map(
-        (key) => [key, { type: "string" }]
-      )
+      [
+        "workspace",
+        "identity",
+        "role",
+        "id",
+        "pid",
+        "mode",
+        "profile",
+        "endpoint",
+        "token",
+      ].map((key) => [key, { type: "string" }])
     ),
   });
+  ({ identity } = values);
+  if (identity) {
+    ownerFile = path.join(root, `identity-${digest(identity)}.json`);
+  }
   const [command, token, ...startup] = positionals;
   if (command === "run") {
     return runStartup(token, startup);
   }
   return locked(async () => {
+    if (command === "locate") {
+      return locate(values);
+    }
     const owner = await readOwner();
     if (command === "status") {
+      if (!identity && !owner) {
+        const files = await fs.readdir(root);
+        const owners = await Promise.all(
+          files
+            .filter(
+              (name) => name.startsWith("identity-") && name.endsWith(".json")
+            )
+            .map((name) => readOwner(path.join(root, name)))
+        );
+        return JSON.stringify(owners.length ? owners : null);
+      }
       return JSON.stringify(owner);
     }
     if (command === "check") {

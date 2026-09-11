@@ -1,0 +1,5 @@
+#[derive(Debug)]
+pub struct ParseFault;
+pub fn parse(input: &str) -> Result<u32, ParseFault> {
+    input.parse::<u32>().map_err(|_| ParseFault)
+}

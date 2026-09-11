@@ -34,8 +34,8 @@ process | listener)
   if [[ "$action" == "listener" ]]; then
     inode="$5"
     ln -sfn "socket:[$inode]" "$PWCLI_PROC_ROOT/$pid/fd/3"
-    printf '0: 0100007F:246B 00000000:0000 0A 00000000:00000000 00:00000000 00000000 1000 0 %s\n' \
-      "$inode" >"$PWCLI_PROC_ROOT/net/tcp"
+    printf '0: 0100007F:%04X 00000000:0000 0A 00000000:00000000 00:00000000 00000000 1000 0 %s\n' \
+      "$DASHBOARD_PORT" "$inode" >"$PWCLI_PROC_ROOT/net/tcp"
   fi
   ;;
   remove)
@@ -56,7 +56,7 @@ EOF
 if [[ "${PWCLI_FAKE_OCCUPY_DASHBOARD_ON_CLOSE_ALL:-0}" == "1" && "$*" == *"close-all"* ]]; then
   touch "$DASHBOARD_READY"
 fi
-if [[ "$*" == *"show"* && "$*" == *"--port=9323"* ]]; then
+if [[ "$*" == *"show"* && "$*" == *"--host=127.0.0.1"* ]]; then
   printf '%s\n' "$@" >>"$DASHBOARD_CALL_LOG"
   if [[ "${PWCLI_FAKE_DASHBOARD_FAIL:-0}" == "1" ]]; then
     exit 44
@@ -73,7 +73,7 @@ if [[ "$*" == *"show"* && "$*" == *"--port=9323"* ]]; then
   done
 fi
 if [[ "$*" == *"show"* && "$*" == *"--kill"* ]]; then
-  dashboard_pid_file="$PWCLI_RUNTIME_DIR/playwright-cli/dashboard.pid"
+  dashboard_pid_file="$STATE_DIR/dashboard.pid"
   if [[ "${PWCLI_FAKE_DASHBOARD_STOP_STUCK:-0}" != "1" && -f "$dashboard_pid_file" ]]; then
     kill "$(cat "$dashboard_pid_file")" 2>/dev/null || true
   fi
@@ -81,10 +81,11 @@ fi
 if [[ "$*" == *"show"* && "$*" == *"--annotate"* && ! -f "$DASHBOARD_READY" ]]; then
   exit 42
 fi
+printf '%s\n' "$PWTEST_DAEMON_SESSION_DIR" "$PWTEST_SERVER_REGISTRY" "$PWTEST_SOCKETS_DIR" >"$UPSTREAM_LOG.registry"
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
 if [[ "${PWCLI_FAKE_ASSERT_LOCK_RELEASED:-0}" == "1" ]] &&
   ! "$PWCLI_FLOCK" --exclusive --nonblock \
-    "$PWCLI_RUNTIME_DIR/playwright-cli/runtime.lock" true; then
+    "$STATE_DIR/runtime.lock" true; then
   printf '%s\n' 'managed runtime lock is still held' >&2
   exit 46
 fi
@@ -148,7 +149,7 @@ case "$action" in
     ;;
   Start)
     if [[ "${PWCLI_FAKE_ASSERT_OWNER_ON_START:-0}" == "1" ]] &&
-      [[ ! -f "$BROWSER_OWNERSHIP_DIR/owner" ]]; then
+      [[ ! -f "$OWNER_RECORD" ]]; then
       printf '%s\n' 'browser ownership was not reserved before Start' >&2
       exit 47
     fi
@@ -166,17 +167,17 @@ EOF
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$CURL_LOG"
 case "$*" in
-  *127.0.0.1:9222/json/version*)
+  */json/version*)
     if [[ "${PWCLI_FAKE_CDP_DOWN:-0}" == "1" ]]; then
       exit 1
     fi
     grep -q '^managed:' "$POWERSHELL_STATE"
     printf '%s\n' '{"Browser":"Chrome/150.0.0.0"}'
     ;;
-  *127.0.0.1:9222/json/new*)
+  */json/new*)
     printf '%s\n' '{"id":"dashboard"}'
     ;;
-  *127.0.0.1:9323*)
+  *127.0.0.1:$DASHBOARD_PORT*)
     [[ -f "$DASHBOARD_READY" ]]
     ;;
   *)
@@ -218,23 +219,29 @@ EOF
   export PWCLI_RUNTIME_DIR="$RUNTIME_DIR"
   export BROWSER_OWNERSHIP_DIR
   export PWCLI_CDP_TIMEOUT=1
+  local allocation
+  allocation="$("$MANAGED_CHROME_OWNER" locate --role playwright --workspace "$(git rev-parse --show-toplevel)")"
+  IFS=$'\t' read -r IDENTITY PROFILE ENDPOINT DASHBOARD_PORT <<<"$allocation"
+  STATE_DIR="$RUNTIME_DIR/playwright-cli/$IDENTITY"
+  export STATE_DIR IDENTITY ENDPOINT DASHBOARD_PORT
+  export OWNER_RECORD="$BROWSER_OWNERSHIP_DIR/identity-$(printf '%s' "$IDENTITY" | sha256sum | cut -d ' ' -f 1).json"
 }
 
 @test "managed Playwright publishes its lifecycle through the common ownership CLI" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=shared-owner open
   [ "$status" -eq 0 ]
-  run "$MANAGED_CHROME_OWNER" status
+  run "$MANAGED_CHROME_OWNER" --identity "$IDENTITY" status
   [ "$status" -eq 0 ]
   [[ "$output" == *'"phase":"active"'* ]]
   [[ "$output" == *'"browserPid":4242'* ]]
   run bash "$WRAPPER" -s=shared-owner close
   [ "$status" -eq 0 ]
-  run "$MANAGED_CHROME_OWNER" status
+  run "$MANAGED_CHROME_OWNER" --identity "$IDENTITY" status
   [ "$output" = null ]
 }
 
-@test "Playwright and Dogfood callers racing share exactly one ownership reservation" {
+@test "Playwright and Dogfood callers racing use independent browser identities" {
   export PWCLI_TEST_WSL=1 DOGFOOD_TEST_WSL=1 DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1
   export DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:19330
   export DOGFOOD_POWERSHELL="$FAKE_BIN/powershell.exe" DOGFOOD_WINDOWS_SCRIPT='C:\fake\dogfood.ps1'
@@ -274,13 +281,13 @@ JS
   done
   touch "$CALLER_RACE_DIR/finish"
   wait "$playwright_pid" "$dogfood_pid"
-  [ "$(cat "$CALLER_RACE_DIR/"*.result | sort | tr '\n' ' ')" = 'blocked ok ' ]
-  run "$MANAGED_CHROME_OWNER" status
+  [ "$(cat "$CALLER_RACE_DIR/"*.result | sort | tr '\n' ' ')" = 'ok ok ' ]
+  run "$MANAGED_CHROME_OWNER" --identity "$IDENTITY" status
   [ "$output" = null ]
 }
 
 teardown() {
-  local dashboard_pid_file="$RUNTIME_DIR/playwright-cli/dashboard.pid"
+  local dashboard_pid_file="$STATE_DIR/dashboard.pid"
   if [[ -f "$dashboard_pid_file" ]]; then
     kill "$(cat "$dashboard_pid_file")" 2>/dev/null || true
   fi
@@ -354,10 +361,10 @@ EOF
   grep -Fq -- "--raw" "$UPSTREAM_LOG"
   grep -Fq -- "https://example.com/?a=1&b=2" "$UPSTREAM_LOG"
   grep -Eq -- "--config=.*/managed-cli-config.json" "$UPSTREAM_LOG"
-  grep -Fq '"cdpEndpoint": "http://127.0.0.1:9222"' \
-    "$RUNTIME_DIR/playwright-cli/managed-cli-config.json"
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
-  [ "$(sed -n '2p' "$RUNTIME_DIR/playwright-cli/lease")" = "$PWD" ]
+  grep -Fq "\"cdpEndpoint\": \"$ENDPOINT\"" \
+    "$STATE_DIR/managed-cli-config.json"
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
+  [ "$(sed -n '2p' "$STATE_DIR/lease")" = "$PWD" ]
 }
 
 @test "managed Playwright refuses a Managed Dogfood Chrome owner" {
@@ -367,7 +374,7 @@ EOF
   run bash "$WRAPPER" -s=alpha open https://example.com
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"Managed dogfood Chrome is already owned by 'dogfood-run-1'"* ]]
+  [[ "$output" == *"Legacy ownership exists"* ]]
   [ ! -f "$POWERSHELL_LOG" ]
 }
 
@@ -378,7 +385,7 @@ EOF
 
   [ "$status" -eq 0 ]
   grep -Fq -- "-Action Start -Mode headless" "$POWERSHELL_LOG"
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+  [ "$(cat "$STATE_DIR/chrome.pid")" = "4242" ]
 }
 
 @test "managed open reserves browser ownership before launching Chrome" {
@@ -388,7 +395,7 @@ EOF
   run bash "$WRAPPER" open https://example.com
 
   [ "$status" -eq 0 ]
-  run "$MANAGED_CHROME_OWNER" status
+  run "$MANAGED_CHROME_OWNER" --identity "$IDENTITY" status
   [[ "$output" == *'"role":"playwright"'* ]]
   [[ "$output" == *'"browserPid":4242'* ]]
 }
@@ -402,19 +409,19 @@ EOF
   run bash "$WRAPPER" -s=alpha open https://example.com
 
   [ "$status" -eq 0 ]
-  local fallback="$PWCLI_TMPDIR/playwright-cli-$UID"
+  local fallback="$PWCLI_TMPDIR/playwright-cli-$UID/$IDENTITY"
   [ -f "$fallback/lease" ]
   [ "$(stat -c '%a' "$fallback")" = "700" ]
 }
 
 @test "a stale legacy lock left by a terminated wrapper does not block managed commands" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$RUNTIME_DIR/playwright-cli/lock"
+  mkdir -p "$STATE_DIR/lock"
 
   run bash "$WRAPPER" -s=alpha open https://example.com
 
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
 }
 
 @test "the same managed session reuses Chrome while another session is refused" {
@@ -443,7 +450,7 @@ EOF
   [[ "$output" == *"current mode 'headless'"* ]]
   [[ "$output" == *"requested mode 'headed'"* ]]
   [[ "$output" == *"close"* ]]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
   grep -Fxq -- "https://example.com/headless" "$UPSTREAM_LOG"
@@ -475,7 +482,7 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"local browser overrides are unsupported"* ]]
   [ ! -e "$POWERSHELL_LOG" ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli" ]
+  [ ! -e "$STATE_DIR" ]
 }
 
 @test "an explicit local browser option cannot replace its own managed session" {
@@ -487,7 +494,7 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"local browser overrides are unsupported"* ]]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
   grep -Fxq -- "https://example.com/managed" "$UPSTREAM_LOG"
 }
@@ -504,8 +511,8 @@ EOF
   cp "$CDP_CLOSE_LOG" "$before/cdp-close.log"
   cp "$UPSTREAM_LOG" "$before/upstream.log"
   cp "$POWERSHELL_STATE" "$before/powershell.state"
-  cp "$RUNTIME_DIR/playwright-cli/chrome.pid" "$before/chrome.pid"
-  cp "$RUNTIME_DIR/playwright-cli/lease" "$before/lease"
+  cp "$STATE_DIR/chrome.pid" "$before/chrome.pid"
+  cp "$STATE_DIR/lease" "$before/lease"
 
   run bash "$WRAPPER" -s=alpha --config custom.json open
 
@@ -515,8 +522,8 @@ EOF
   cmp "$before/cdp-close.log" "$CDP_CLOSE_LOG"
   cmp "$before/upstream.log" "$UPSTREAM_LOG"
   cmp "$before/powershell.state" "$POWERSHELL_STATE"
-  cmp "$before/chrome.pid" "$RUNTIME_DIR/playwright-cli/chrome.pid"
-  cmp "$before/lease" "$RUNTIME_DIR/playwright-cli/lease"
+  cmp "$before/chrome.pid" "$STATE_DIR/chrome.pid"
+  cmp "$before/lease" "$STATE_DIR/lease"
 }
 
 @test "an explicit local browser option is rejected even for another session" {
@@ -528,7 +535,7 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"local browser overrides are unsupported"* ]]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
 
@@ -540,7 +547,7 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"local browser overrides are unsupported"* ]]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
 
@@ -702,7 +709,7 @@ EOF
   run bash "$WRAPPER" open https://example.com
 
   [ "$status" -eq 0 ]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+  [ "$(cat "$STATE_DIR/chrome.pid")" = "4242" ]
 }
 
 @test "managed open fails when Windows Chrome is missing" {
@@ -723,8 +730,8 @@ EOF
   run bash "$WRAPPER" open https://example.com
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"did not expose CDP at http://127.0.0.1:9222"* ]]
-  [[ "$output" == *"verify port 9222 is free"* ]]
+  [[ "$output" == *"did not expose CDP at $ENDPOINT"* ]]
+  [[ "$output" == *"verify port ${ENDPOINT##*:} is free"* ]]
 }
 
 @test "a failed upstream open releases the lease and closes unused Chrome" {
@@ -734,7 +741,7 @@ EOF
   run bash "$WRAPPER" -s=alpha open https://example.com
 
   [ "$status" -eq 23 ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
+  [ ! -e "$STATE_DIR/lease" ]
   [ -s "$CDP_CLOSE_LOG" ]
 }
 
@@ -747,7 +754,7 @@ EOF
   run bash "$WRAPPER" -s=alpha open https://example.com/bad
 
   [ "$status" -eq 23 ]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
@@ -756,22 +763,22 @@ EOF
 
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
-  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
-  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
-  [ -f "$RUNTIME_DIR/playwright-cli/dashboard.log" ]
+  [ -s "$STATE_DIR/dashboard.pid" ]
+  [ -s "$STATE_DIR/dashboard.starttime" ]
+  [ -f "$STATE_DIR/dashboard.log" ]
   grep -Fq -- "-Action Start -Mode headed" "$POWERSHELL_LOG"
   local first_pid
-  first_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+  first_pid="$(cat "$STATE_DIR/dashboard.pid")"
   kill -0 "$first_pid"
   grep -Fq -- "--host=127.0.0.1" "$DASHBOARD_CALL_LOG"
-  grep -Fq -- "--port=9323" "$DASHBOARD_CALL_LOG"
-  grep -Fq "127.0.0.1:9222/json/new?http%3A%2F%2Flocalhost%3A9323%2F" \
+  grep -Fq -- "--port=$DASHBOARD_PORT" "$DASHBOARD_CALL_LOG"
+  grep -Fq "${ENDPOINT#http://}/json/new?http%3A%2F%2Flocalhost%3A${DASHBOARD_PORT}%2F" \
     "$CURL_LOG"
 
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$first_pid" ]
-  [ "$(grep -Fc -- "--port=9323" "$DASHBOARD_CALL_LOG")" -eq 1 ]
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$first_pid" ]
+  [ "$(grep -Fc -- "--port=$DASHBOARD_PORT" "$DASHBOARD_CALL_LOG")" -eq 1 ]
 }
 
 @test "show annotate waits for the dashboard and only accepts the lease owner" {
@@ -799,14 +806,14 @@ EOF
   [[ "$output" == *"current mode 'headless'"* ]]
   [[ "$output" == *"requested mode 'headed'"* ]]
   [[ "$output" == *"open --headed"* ]]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
   [ ! -e "$DASHBOARD_READY" ]
 
   run bash "$WRAPPER" -s=alpha show --annotate
   [ "$status" -ne 0 ]
   [[ "$output" == *"current mode 'headless'"* ]]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
-  [ "$(sed -n '1p' "$RUNTIME_DIR/playwright-cli/lease")" = "alpha" ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ "$(sed -n '1p' "$STATE_DIR/lease")" = "alpha" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
@@ -815,7 +822,7 @@ EOF
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
   local dashboard_pid
-  dashboard_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+  dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
 
   run bash "$WRAPPER" open https://example.com
 
@@ -823,32 +830,32 @@ EOF
   [[ "$output" == *"current mode 'headed'"* ]]
   [[ "$output" == *"requested mode 'headless'"* ]]
   [[ "$output" == *"show --kill"* ]]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
   kill -0 "$dashboard_pid"
-  [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
+  [ ! -e "$STATE_DIR/lease" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
 @test "stale dashboard PID is replaced before show returns" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$RUNTIME_DIR/playwright-cli"
-  printf '%s\n' 999999 >"$RUNTIME_DIR/playwright-cli/dashboard.pid"
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' 999999 >"$STATE_DIR/dashboard.pid"
 
   run bash "$WRAPPER" show
 
   [ "$status" -eq 0 ]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" != "999999" ]
-  kill -0 "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+  [ "$(cat "$STATE_DIR/dashboard.pid")" != "999999" ]
+  kill -0 "$(cat "$STATE_DIR/dashboard.pid")"
 }
 
 @test "Dashboard state must couple the recorded PID to the loopback listener" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$RUNTIME_DIR/playwright-cli"
+  mkdir -p "$STATE_DIR"
 
   sleep 60 &
   local unrelated_pid=$!
-  printf '%s\n' "$unrelated_pid" >"$RUNTIME_DIR/playwright-cli/dashboard.pid"
-  printf '%s\n' 100 >"$RUNTIME_DIR/playwright-cli/dashboard.starttime"
+  printf '%s\n' "$unrelated_pid" >"$STATE_DIR/dashboard.pid"
+  printf '%s\n' 100 >"$STATE_DIR/dashboard.starttime"
   printf '%s\n' "$unrelated_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
   "$FAKE_PROC_HELPER" process "$unrelated_pid" "$unrelated_pid" 100
   "$FAKE_PROC_HELPER" listener 999999 999999 200 424242
@@ -862,12 +869,12 @@ EOF
 
 @test "Dashboard state rejects a reused listener PID with a different start time" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$RUNTIME_DIR/playwright-cli"
+  mkdir -p "$STATE_DIR"
 
   sleep 60 &
   local reused_pid=$!
-  printf '%s\n' "$reused_pid" >"$RUNTIME_DIR/playwright-cli/dashboard.pid"
-  printf '%s\n' 1 >"$RUNTIME_DIR/playwright-cli/dashboard.starttime"
+  printf '%s\n' "$reused_pid" >"$STATE_DIR/dashboard.pid"
+  printf '%s\n' 1 >"$STATE_DIR/dashboard.starttime"
   printf '%s\n' "$reused_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
   "$FAKE_PROC_HELPER" listener "$reused_pid" "$reused_pid" 2 424242
   touch "$DASHBOARD_READY"
@@ -912,11 +919,12 @@ EOF
 
 @test "Chrome close refuses a CDP listener that no longer matches recorded ownership" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$RUNTIME_DIR/playwright-cli"
-  printf '%s\n' 4242 >"$RUNTIME_DIR/playwright-cli/chrome.pid"
+  run bash "$WRAPPER" -s=alpha open
+  [ "$status" -eq 0 ]
+  printf '%s\n' 4242 >"$STATE_DIR/chrome.pid"
   printf '%s\n' 'port-conflict:5150' >"$POWERSHELL_STATE"
 
-  run bash "$WRAPPER" close-all
+  run bash "$WRAPPER" -s=alpha close
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"refusing to close Chrome"* ]]
@@ -930,12 +938,12 @@ EOF
   export PWCLI_FAKE_CLOSE_INSPECTIONS=2
   : >"$POWERSHELL_LOG"
 
-  run bash "$WRAPPER" close-all
+  run bash "$WRAPPER" -s=alpha close
 
   [ "$status" -eq 0 ]
   [ "$(cat "$POWERSHELL_STATE")" = "absent" ]
   [ ! -e "$POWERSHELL_STATE.close-inspections" ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
   [ "$(grep -Fc -- "-Action Inspect" "$POWERSHELL_LOG")" -ge 4 ]
 }
 
@@ -946,12 +954,12 @@ EOF
   export PWCLI_FAKE_CLOSE_INSPECTIONS=100
   export PWCLI_CDP_TIMEOUT=0
 
-  run bash "$WRAPPER" close-all
+  run bash "$WRAPPER" -s=alpha close
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"did not exit before the timeout"* ]]
   [[ "$output" == *"ownership state was preserved"* ]]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+  [ "$(cat "$STATE_DIR/chrome.pid")" = "4242" ]
   [ "$(cat "$POWERSHELL_STATE")" = "managed:headless:4242" ]
 }
 
@@ -962,12 +970,12 @@ EOF
   export PWCLI_FAKE_CLOSE_INSPECT_FAIL=1
   export PWCLI_CDP_TIMEOUT=0
 
-  run bash "$WRAPPER" close-all
+  run bash "$WRAPPER" -s=alpha close
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"could not inspect Managed Playwright Chrome after Browser.close"* ]]
   [[ "$output" == *"ownership state was preserved"* ]]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+  [ "$(cat "$STATE_DIR/chrome.pid")" = "4242" ]
 }
 
 @test "Chrome close fails closed when post-ack ownership changes" {
@@ -977,13 +985,13 @@ EOF
   export PWCLI_FAKE_CLOSE_STATUS=managed:headless:5150
   export PWCLI_CDP_TIMEOUT=0
 
-  run bash "$WRAPPER" close-all
+  run bash "$WRAPPER" -s=alpha close
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"ownership changed while closing"* ]]
   [[ "$output" == *"managed:headless:5150"* ]]
   [[ "$output" == *"ownership state was preserved"* ]]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/chrome.pid")" = "4242" ]
+  [ "$(cat "$STATE_DIR/chrome.pid")" = "4242" ]
 }
 
 @test "a failed Dashboard start removes stale state and closes unused Chrome" {
@@ -994,8 +1002,8 @@ EOF
   run bash "$WRAPPER" show
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"did not start on http://127.0.0.1:9323/"* ]]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
+  [[ "$output" == *"did not start on http://127.0.0.1:$DASHBOARD_PORT/"* ]]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
   [ -s "$CDP_CLOSE_LOG" ]
 }
 
@@ -1008,18 +1016,18 @@ EOF
 
   run bash "$WRAPPER" -s=alpha close
   [ "$status" -eq 0 ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
+  [ ! -e "$STATE_DIR/lease" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
 
   local dashboard_pid
-  dashboard_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+  dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
   run bash "$WRAPPER" show --kill
   [ "$status" -eq 0 ]
   run kill -0 "$dashboard_pid"
   [ "$status" -ne 0 ]
   [ -s "$CDP_CLOSE_LOG" ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.pid" ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/dashboard.starttime" ]
 }
 
 @test "Dashboard stop timeout preserves process identity across wrapper calls" {
@@ -1029,7 +1037,7 @@ EOF
   run bash "$WRAPPER" show
   [ "$status" -eq 0 ]
   local dashboard_pid
-  dashboard_pid="$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")"
+  dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
   printf '%s\n' "$dashboard_pid" >>"$BATS_TEST_TMPDIR/extra-pids"
   export PWCLI_FAKE_DASHBOARD_STOP_STUCK=1
   export PWCLI_DASHBOARD_STOP_TIMEOUT=0
@@ -1038,11 +1046,11 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"did not exit before the timeout"* ]]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
-  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
-  [ -e "$RUNTIME_DIR/playwright-cli/dashboard.stdin" ]
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
+  [ -s "$STATE_DIR/dashboard.starttime" ]
+  [ -e "$STATE_DIR/dashboard.stdin" ]
   kill -0 "$dashboard_pid"
-  [ -s "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
+  [ -s "$STATE_DIR/chrome.pid" ]
   [ ! -e "$CDP_CLOSE_LOG" ]
 
   "$FAKE_PROC_HELPER" unlisten "$dashboard_pid"
@@ -1052,11 +1060,11 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"is still stopping"* ]]
-  [ "$(cat "$RUNTIME_DIR/playwright-cli/dashboard.pid")" = "$dashboard_pid" ]
-  [ -s "$RUNTIME_DIR/playwright-cli/dashboard.starttime" ]
-  [ -e "$RUNTIME_DIR/playwright-cli/dashboard.stdin" ]
-  [ "$(grep -Fc -- "--port=9323" "$DASHBOARD_CALL_LOG")" -eq 1 ]
-  [ -s "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
+  [ -s "$STATE_DIR/dashboard.starttime" ]
+  [ -e "$STATE_DIR/dashboard.stdin" ]
+  [ "$(grep -Fc -- "--port=$DASHBOARD_PORT" "$DASHBOARD_CALL_LOG")" -eq 1 ]
+  [ -s "$STATE_DIR/chrome.pid" ]
 }
 
 @test "managed delete-data refuses to remove the dedicated profile" {
@@ -1068,7 +1076,8 @@ EOF
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"will not delete Managed Playwright Chrome data"* ]]
-  [[ "$output" == *"%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile"* ]]
+  [[ "$output" == *"$PROFILE"* ]]
+  [[ "$output" != *"playwright-cli\\chrome-profile"* ]]
   [[ "$output" == *"close the session and Dashboard"* ]]
 }
 
@@ -1117,12 +1126,12 @@ EOF
   [[ "$output" == *"already running without matching state"* ]]
   [[ "$output" == *"Close that dedicated Chrome manually"* ]]
 
-  run "$MANAGED_CHROME_OWNER" status
+  run "$MANAGED_CHROME_OWNER" --identity "$IDENTITY" status
   [ "$output" = null ]
   printf '%s\n' 'port-conflict:5150' >"$POWERSHELL_STATE"
   run bash "$WRAPPER" open https://example.com
   [ "$status" -ne 0 ]
-  [[ "$output" == *"127.0.0.1:9222 is owned by a process that is not"* ]]
+  [[ "$output" == *"$ENDPOINT is owned by a process that is not"* ]]
   [[ "$output" == *"will not be replaced automatically"* ]]
 }
 
@@ -1135,7 +1144,7 @@ EOF
     run bash "$WRAPPER" -s=preflight-retry open https://example.com
     [ "$status" -ne 0 ]
     ! grep -Fq -- '-Action Start' "$POWERSHELL_LOG"
-    run "$MANAGED_CHROME_OWNER" status
+    run "$MANAGED_CHROME_OWNER" --identity "$IDENTITY" status
     [ "$output" = null ]
 
     printf '%s\n' absent >"$POWERSHELL_STATE"
@@ -1146,56 +1155,127 @@ EOF
   done
 }
 
-@test "close-all reconciles the managed lease and closes Chrome gracefully" {
+@test "bulk termination is rejected without closing a worktree browser" {
   export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
+  run bash "$WRAPPER" -s=alpha open
   [ "$status" -eq 0 ]
-
-  run bash "$WRAPPER" close-all
-
-  [ "$status" -eq 0 ]
-  grep -Fxq -- "close-all" "$UPSTREAM_LOG"
-  [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
-  [ -s "$CDP_CLOSE_LOG" ]
-}
-
-@test "close-all refuses to close Chrome if the Dashboard port becomes unowned" {
-  export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
-  [ "$status" -eq 0 ]
-  export PWCLI_FAKE_OCCUPY_DASHBOARD_ON_CLOSE_ALL=1
-
-  run bash "$WRAPPER" close-all
-
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"refusing to close Chrome while 127.0.0.1:9323 is in use"* ]]
+  for command in close-all kill-all; do
+    run bash "$WRAPPER" "$command"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Use session-scoped close"* ]]
+    [ "$(sed -n '1p' "$STATE_DIR/lease")" = alpha ]
+    [ "$(cat "$POWERSHELL_STATE")" = managed:headless:4242 ]
+  done
   [ ! -e "$CDP_CLOSE_LOG" ]
 }
 
-@test "kill-all never force-kills managed Chrome and uses graceful CDP close" {
-  export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
+@test "two worktrees open independent browsers and closing A leaves B usable" {
+  mkdir -p "$BATS_TEST_TMPDIR/a" "$BATS_TEST_TMPDIR/b"
+  cd "$BATS_TEST_TMPDIR/a"
+  run bash "$WRAPPER" -s=alpha open http://localhost:3001
   [ "$status" -eq 0 ]
-
-  run bash "$WRAPPER" kill-all
-
+  local first_profile
+  first_profile="$(cat "$POWERSHELL_LOG")"
+  cd "$BATS_TEST_TMPDIR/b"
+  export POWERSHELL_STATE="$BATS_TEST_TMPDIR/b.state"
+  run bash "$WRAPPER" -s=beta open http://localhost:3002
   [ "$status" -eq 0 ]
-  grep -Fxq -- "kill-all" "$UPSTREAM_LOG"
-  [ ! -e "$RUNTIME_DIR/playwright-cli/lease" ]
-  [ -s "$CDP_CLOSE_LOG" ]
-  ! grep -Fq -- "-Action Stop" "$POWERSHELL_LOG"
+  run bash "$WRAPPER" -s=beta close
+  [ "$status" -eq 0 ]
+  cd "$BATS_TEST_TMPDIR/a"
+  export POWERSHELL_STATE="$BATS_TEST_TMPDIR/powershell.state"
+  run bash "$WRAPPER" -s=alpha open http://localhost:3001
+  [ "$status" -eq 0 ]
+  [[ "$first_profile" == *'-ProfileDir'* ]]
 }
 
-@test "kill-all from another workspace removes the recorded browser owner" {
+@test "another session cannot stop the Dashboard owner" {
   export PWCLI_TEST_WSL=1
-  run bash "$WRAPPER" -s=alpha open https://example.com
+  run bash "$WRAPPER" -s=alpha show
   [ "$status" -eq 0 ]
+  local dashboard_pid
+  dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
+  run bash "$WRAPPER" -s=beta show --kill
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'Dashboard belongs to session'* ]]
+  kill -0 "$dashboard_pid"
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
+}
 
-  local other_workspace="$BATS_TEST_TMPDIR/other-workspace"
-  mkdir -p "$other_workspace"
-  run bash -c 'cd "$1" && bash "$2" kill-all' _ "$other_workspace" "$WRAPPER"
-
+@test "profile reset requires the exact stopped worktree identity" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" reset-profile --confirm-identity wrong-worktree
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'exact identity'* ]]
+  [ ! -e "$POWERSHELL_LOG" ]
+  run bash "$WRAPPER" -s=alpha open
   [ "$status" -eq 0 ]
-  [ ! -e "$BROWSER_OWNERSHIP_DIR/owner" ]
-  [ ! -e "$RUNTIME_DIR/playwright-cli/chrome.pid" ]
+  run bash "$WRAPPER" reset-profile --confirm-identity "$IDENTITY"
+  [ "$status" -ne 0 ]
+  ! grep -Fq -- '-Action Reset' "$POWERSHELL_LOG"
+  run bash "$WRAPPER" -s=alpha close
+  [ "$status" -eq 0 ]
+  run bash "$WRAPPER" reset-profile --confirm-identity "$IDENTITY"
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-Action Reset -ProfileDir $PROFILE" "$POWERSHELL_LOG"
+}
+
+@test "same session name uses independent registries across worktrees and stable registry in subdirectories" {
+  mkdir -p "$BATS_TEST_TMPDIR/first/sub" "$BATS_TEST_TMPDIR/second"
+  git -C "$BATS_TEST_TMPDIR/first" init -q
+  git -C "$BATS_TEST_TMPDIR/second" init -q
+  cd "$BATS_TEST_TMPDIR/first"
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  local first
+  first="$(cat "$UPSTREAM_LOG.registry")"
+  [ -n "$(sed -n '1p' "$UPSTREAM_LOG.registry")" ]
+  [ -n "$(sed -n '2p' "$UPSTREAM_LOG.registry")" ]
+  [ -n "$(sed -n '3p' "$UPSTREAM_LOG.registry")" ]
+  cd sub
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" = "$first" ]
+  cd "$BATS_TEST_TMPDIR/second"
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" != "$first" ]
+}
+
+@test "evidence bundles preserve the explicit worktree browser and registry identity" {
+  export PWCLI_TEST_WSL=1
+  mkdir -p "$BATS_TEST_TMPDIR/bundle-a" "$BATS_TEST_TMPDIR/bundle-b" "$BATS_TEST_TMPDIR/task/sub"
+  git -C "$BATS_TEST_TMPDIR/task" init -q
+  ln -s "$BATS_TEST_TMPDIR/task" "$BATS_TEST_TMPDIR/task-link"
+  export PWCLI_WORKSPACE="$BATS_TEST_TMPDIR/task"
+  cd "$BATS_TEST_TMPDIR/bundle-a"
+  run bash "$WRAPPER" -s=shared open
+  [ "$status" -eq 0 ]
+  local first allocations
+  first="$(cat "$UPSTREAM_LOG.registry")"
+  allocations="$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")"
+  cd "$BATS_TEST_TMPDIR/bundle-b"
+  export PWCLI_WORKSPACE="$BATS_TEST_TMPDIR/task-link/sub"
+  run bash "$WRAPPER" -s=shared snapshot
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" = "$first" ]
+  [ "$(cat "$BROWSER_OWNERSHIP_DIR/allocations.json")" = "$allocations" ]
+  run bash "$WRAPPER" -s=other open
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"owned by session 'shared'"* ]]
+  run bash "$WRAPPER" -s=shared close
+  [ "$status" -eq 0 ]
+  [ "$(cat "$UPSTREAM_LOG.registry")" = "$first" ]
+}
+
+@test "invalid explicit worktree paths fail before browser or upstream operations" {
+  export PWCLI_TEST_WSL=1
+  local candidate
+  for candidate in '' relative "$BATS_TEST_TMPDIR/missing" "$BATS_TEST_TMPDIR"; do
+    run env PWCLI_WORKSPACE="$candidate" bash "$WRAPPER" -s=shared open
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'PWCLI_WORKSPACE must'* ]]
+    [ ! -e "$POWERSHELL_LOG" ]
+    [ ! -e "$UPSTREAM_LOG" ]
+  done
 }

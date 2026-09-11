@@ -88,6 +88,13 @@ class RendererContract(unittest.TestCase):
         self.assertIn("V E0@--> OK", source)
         self.assertIn("V E1@--> ERR", source)
 
+    def test_retry_path_preserves_repeated_traversals_without_duplicating_graph_edges(self):
+        self.model["edges"].append({"from": "V", "to": "V", "label": "再試行"})
+        self.model["paths"].append({"label": "2回再試行して成功", "edges": [2, 2, 0]})
+        model = self.load()
+        self.assertEqual(model["paths"][-1]["edges"], [2, 2, 0])
+        self.assertEqual(renderer.diagram(model).count("V E2@--> V"), 1)
+
     def test_svg_must_match_model_and_contain_no_external_content(self):
         svg = self.svg
         renderer.prepare_svg(svg, self.load())

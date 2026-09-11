@@ -11,6 +11,8 @@ status: accepted
 
 ADR-0031 は通常の Playwright 操作を Windows の Managed Playwright Chrome へ移した一方、非 WSL 互換と明示 override のため `playwright-driver` の browser 一式を WSL2 の devShell closure に残していた。これにより WSL2 は引き続き Chromium / Firefox / WebKit を所有でき、URL opener と自動操作の browser routing も別々に決まり得る。現在の環境では過去の `xdg-open` による二重起動自体は再現できず、Nix の Playwright Chromium に desktop handler も確認できなかったため旧 process の直接原因は断定しない。その代わり、WSL2 が browser identity を所有しない境界を設け、WSL browser と Windows browser が同時に起動し得る routing を構造的に除去する。
 
+> #301 の [ADR-0059](0059-scope-browser-ownership-and-share-attachments.md) が、単一所有者の全体排他と検証 profile による添付を置き換える。WSL browser-free と手動確立済み認証を使う境界は維持する。
+
 ## Decision
 
 1. managed dotfiles の標準経路では WSL2 の devShell closure に Chromium / Firefox / WebKit を含めず、Playwright の browser download も禁止する。非 WSL Linux と macOS は従来のローカル browser 経路を維持する。手動で別の Nix package や browser を導入する行為は対象外とする。

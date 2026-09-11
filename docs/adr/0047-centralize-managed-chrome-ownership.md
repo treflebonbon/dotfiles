@@ -11,6 +11,8 @@ status: accepted
 
 Managed Playwright Chrome と Managed Dogfood Chrome は共有の所有者記録を Bash と JavaScript で別々に管理し、更新・解放の手順が異なる。Playwright の通常終了では Chrome の停止確認まで記録を保持する一方、起動失敗や Dogfood の cleanup 失敗では確認できなくても解放する経路がある。同時起動禁止を維持するため、記録の操作だけでなく、停止確認と解放の関係も共通の契約にする。
 
+> #301 の実装契約は [ADR-0059](0059-scope-browser-ownership-and-share-attachments.md) により identity ごとの管理へ移行する。以下の全体排他・固定 port は旧構成の判断を記録する。
+
 ## Decision
 
 1. [ADR-0038](0038-keep-wsl2-browser-free.md) の用途別 browser identity と同時起動禁止を維持する。所有権の予約・取得・競合判定・更新・解放を一つの module に集約する。

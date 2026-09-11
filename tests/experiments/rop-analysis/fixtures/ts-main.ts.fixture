@@ -1,0 +1,18 @@
+import { Fx } from './exports.js';
+import { load, fallback, audit, Failed } from './operations.js';
+
+class Label {
+  constructor(readonly value: string) {}
+  catchTag(_name: string, _callback: () => string): string { return this.value; }
+}
+
+export const checkout = (sku: string) => {
+  const label = new Label(sku).catchTag('Missing', () => 'unused');
+  const normalized = [label].map(value => value.trim())[0]!;
+  return load(normalized).pipe(
+    Fx.catchTag('Missing', () => fallback(normalized)),
+    Fx.tap(audit),
+    Fx.map(value => `ready:${value}`),
+    Fx.mapError(error => new Failed({ cause: error._tag })),
+  );
+};

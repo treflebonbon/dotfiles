@@ -1,0 +1,3919 @@
+{
+  "date": "2026-09-11",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "medium",
+  "verification": {
+    "runs": 75,
+    "valid": 74,
+    "identical_prompt_groups": 25,
+    "native_item_types": {
+      "reasoning": 54,
+      "agent_message": 75
+    },
+    "native_usage_available": 75,
+    "producer_input_tokens": 2004249,
+    "producer_output_tokens": 235087,
+    "legacy_fixtures_unchanged": true,
+    "helper_before_sha256": "d645982164044cecba9470c01307a37286c3861d87b527f4c140adf550831b82",
+    "helper_after_sha256": "534467e6af483de788ad3a9665ab8bf0ad2c925e804540b501fa8fe4e300f45f",
+    "reviews": 7,
+    "review_input_tokens": 397282,
+    "review_output_tokens": 70312,
+    "experiment_tests": 7,
+    "renderer_contract_tests": 8,
+    "browser_reports": 9,
+    "candidate_browser_reports": ["run-011", "run-029", "run-019"],
+    "sensitivity_corrections": 6,
+    "post_review_experiment_tests": 11
+  },
+  "preregistered": {
+    "observations": [
+      {
+        "case": "rust-symbols",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-001",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 81.88257566600078,
+        "usage": {
+          "input_tokens": 27098,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2489,
+          "reasoning_output_tokens": 24
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-002",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 82.43428280099761,
+        "usage": {
+          "input_tokens": 25733,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2511,
+          "reasoning_output_tokens": 30
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-003",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 158.29433302600228,
+        "usage": {
+          "input_tokens": 29427,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5032,
+          "reasoning_output_tokens": 71
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-004",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 97.97401821999665,
+        "usage": {
+          "input_tokens": 23060,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3052,
+          "reasoning_output_tokens": 197
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-005",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 92.06832454899995,
+        "usage": {
+          "input_tokens": 28111,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2843,
+          "reasoning_output_tokens": 42
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-006",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 1,
+        "duration_seconds": 95.31107195499499,
+        "usage": {
+          "input_tokens": 28111,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2941,
+          "reasoning_output_tokens": 118
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-007",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 82.71048804600287,
+        "usage": {
+          "input_tokens": 22731,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2546,
+          "reasoning_output_tokens": 152
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-008",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 156.38892505399417,
+        "usage": {
+          "input_tokens": 34702,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4969,
+          "reasoning_output_tokens": 57
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-009",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 90.82020216000092,
+        "usage": {
+          "input_tokens": 25401,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2812,
+          "reasoning_output_tokens": 49
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-010",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 97.19488729500154,
+        "usage": {
+          "input_tokens": 33364,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2950,
+          "reasoning_output_tokens": 50
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-011",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 94.34688588699646,
+        "usage": {
+          "input_tokens": 28163,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2889,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-012",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 87.7888594219985,
+        "usage": {
+          "input_tokens": 23141,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2610,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-013",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 1,
+        "duration_seconds": 93.01094297200325,
+        "usage": {
+          "input_tokens": 28111,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2877,
+          "reasoning_output_tokens": 57
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-014",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 85.22665994300041,
+        "usage": {
+          "input_tokens": 26577,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2616,
+          "reasoning_output_tokens": 53
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-015",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 85.82830613500118,
+        "usage": {
+          "input_tokens": 25733,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2587,
+          "reasoning_output_tokens": 67
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-016",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 88.84353369699966,
+        "usage": {
+          "input_tokens": 22865,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2758,
+          "reasoning_output_tokens": 137
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-017",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 76.83414051,
+        "usage": {
+          "input_tokens": 22821,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2317,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-018",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 154.95407148800587,
+        "usage": {
+          "input_tokens": 27217,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4945,
+          "reasoning_output_tokens": 104
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-019",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 111.28375572499499,
+        "usage": {
+          "input_tokens": 25112,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3476,
+          "reasoning_output_tokens": 227
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-020",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 84.3861010440014,
+        "usage": {
+          "input_tokens": 24516,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2600,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-021",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 82.48865847999696,
+        "usage": {
+          "input_tokens": 28139,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2522,
+          "reasoning_output_tokens": 59
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-022",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 161.47255805399618,
+        "usage": {
+          "input_tokens": 29427,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5138,
+          "reasoning_output_tokens": 43
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-023",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 80.99211579999974,
+        "usage": {
+          "input_tokens": 22731,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2376,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ts-morph",
+        "repeat": 1,
+        "id": "run-024",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 101.27745239900105,
+        "usage": {
+          "input_tokens": 29709,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3051,
+          "reasoning_output_tokens": 43
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-025",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 99.96026620400517,
+        "usage": {
+          "input_tokens": 23060,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3093,
+          "reasoning_output_tokens": 218
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-026",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 91.5071872769986,
+        "usage": {
+          "input_tokens": 23078,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2822,
+          "reasoning_output_tokens": 109
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-027",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 83.59061242499592,
+        "usage": {
+          "input_tokens": 32236,
+          "cached_input_tokens": 22656,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2568,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-028",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 93.97087536600156,
+        "usage": {
+          "input_tokens": 33364,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2893,
+          "reasoning_output_tokens": 40
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-029",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 89.46502888800023,
+        "usage": {
+          "input_tokens": 28145,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2768,
+          "reasoning_output_tokens": 104
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-030",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 88.76434046000213,
+        "usage": {
+          "input_tokens": 23078,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2731,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ts-morph",
+        "repeat": 1,
+        "id": "run-031",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 1,
+        "critical": 1,
+        "unknowns": 4,
+        "duration_seconds": 104.21701076099998,
+        "usage": {
+          "input_tokens": 25244,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3254,
+          "reasoning_output_tokens": 153
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-032",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 157.12294894499792,
+        "usage": {
+          "input_tokens": 27217,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5013,
+          "reasoning_output_tokens": 45
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-033",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.04864211899985,
+        "usage": {
+          "input_tokens": 26577,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2784,
+          "reasoning_output_tokens": 75
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-034",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 76.61744516099861,
+        "usage": {
+          "input_tokens": 22821,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2282,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-035",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 159.9163560779998,
+        "usage": {
+          "input_tokens": 27217,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5042,
+          "reasoning_output_tokens": 104
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-036",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 161.46409895100078,
+        "usage": {
+          "input_tokens": 34702,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5151,
+          "reasoning_output_tokens": 70
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-037",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 106.09355635700194,
+        "usage": {
+          "input_tokens": 25112,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3312,
+          "reasoning_output_tokens": 96
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ts-morph",
+        "repeat": 3,
+        "id": "run-038",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 5,
+        "duration_seconds": 102.19703365700116,
+        "usage": {
+          "input_tokens": 29709,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3124,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-039",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 104.91029020000133,
+        "usage": {
+          "input_tokens": 23060,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3248,
+          "reasoning_output_tokens": 209
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-040",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 86.48564892200375,
+        "usage": {
+          "input_tokens": 23141,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2627,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ts-morph",
+        "repeat": 2,
+        "id": "run-041",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 101.78460501800146,
+        "usage": {
+          "input_tokens": 28334,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3151,
+          "reasoning_output_tokens": 40
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-042",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 85.16696611199586,
+        "usage": {
+          "input_tokens": 25401,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2613,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-043",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 97.80763814399688,
+        "usage": {
+          "input_tokens": 28163,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3044,
+          "reasoning_output_tokens": 26
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-044",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 88.27305054599856,
+        "usage": {
+          "input_tokens": 24516,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2486,
+          "reasoning_output_tokens": 42
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-045",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.08082013300009,
+        "usage": {
+          "input_tokens": 33364,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2774,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-046",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 87.98136833799799,
+        "usage": {
+          "input_tokens": 28145,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2679,
+          "reasoning_output_tokens": 37
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-047",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 80.85666271600348,
+        "usage": {
+          "input_tokens": 27098,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2441,
+          "reasoning_output_tokens": 73
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-048",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 148.99712272200122,
+        "usage": {
+          "input_tokens": 34702,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4619,
+          "reasoning_output_tokens": 99
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-049",
+        "valid": false,
+        "fulfilled": 0,
+        "missing": 8,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 0,
+        "duration_seconds": 83.62401567199413,
+        "usage": {
+          "input_tokens": 22865,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2545,
+          "reasoning_output_tokens": 61
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ts-morph",
+        "repeat": 1,
+        "id": "run-050",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 90.42618272599793,
+        "usage": {
+          "input_tokens": 28334,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2737,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-051",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 70.44514357300068,
+        "usage": {
+          "input_tokens": 22821,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2147,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-052",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 88.01705393299926,
+        "usage": {
+          "input_tokens": 28139,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2671,
+          "reasoning_output_tokens": 113
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ts-morph",
+        "repeat": 2,
+        "id": "run-053",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 102.629877526997,
+        "usage": {
+          "input_tokens": 25244,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3120,
+          "reasoning_output_tokens": 127
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-054",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.6303923910018,
+        "usage": {
+          "input_tokens": 32236,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2758,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-055",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 165.2702209160052,
+        "usage": {
+          "input_tokens": 29427,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5239,
+          "reasoning_output_tokens": 121
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-056",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 152.0573711420002,
+        "usage": {
+          "input_tokens": 23159,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4777,
+          "reasoning_output_tokens": 121
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-057",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 93.11583842599794,
+        "usage": {
+          "input_tokens": 28145,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2788,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ts-morph",
+        "repeat": 2,
+        "id": "run-058",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 97.2699766959995,
+        "usage": {
+          "input_tokens": 29709,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3011,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-059",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 91.20050549000007,
+        "usage": {
+          "input_tokens": 25401,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2792,
+          "reasoning_output_tokens": 100
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-060",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 87.98804121200374,
+        "usage": {
+          "input_tokens": 24516,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2648,
+          "reasoning_output_tokens": 90
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-061",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 93.23137781799596,
+        "usage": {
+          "input_tokens": 28163,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2871,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-062",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 162.26260149100563,
+        "usage": {
+          "input_tokens": 23159,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5074,
+          "reasoning_output_tokens": 128
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-063",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 81.20589882900094,
+        "usage": {
+          "input_tokens": 25733,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2473,
+          "reasoning_output_tokens": 28
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-064",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 86.0000411200017,
+        "usage": {
+          "input_tokens": 22865,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2637,
+          "reasoning_output_tokens": 96
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-065",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 91.99867851199815,
+        "usage": {
+          "input_tokens": 26577,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2831,
+          "reasoning_output_tokens": 56
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-066",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 90.74995978699735,
+        "usage": {
+          "input_tokens": 28139,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2789,
+          "reasoning_output_tokens": 53
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ts-morph",
+        "repeat": 3,
+        "id": "run-067",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 101.73486880299606,
+        "usage": {
+          "input_tokens": 25244,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3139,
+          "reasoning_output_tokens": 116
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ts-morph",
+        "repeat": 3,
+        "id": "run-068",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 88.02730449700175,
+        "usage": {
+          "input_tokens": 28334,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2679,
+          "reasoning_output_tokens": 76
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-069",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 84.05664582800091,
+        "usage": {
+          "input_tokens": 32236,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2570,
+          "reasoning_output_tokens": 39
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-070",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 154.19666266699642,
+        "usage": {
+          "input_tokens": 23159,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4905,
+          "reasoning_output_tokens": 174
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-071",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 83.28277739800251,
+        "usage": {
+          "input_tokens": 22731,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2556,
+          "reasoning_output_tokens": 164
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-072",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 1,
+        "duration_seconds": 90.5666476799961,
+        "usage": {
+          "input_tokens": 23141,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2784,
+          "reasoning_output_tokens": 71
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-073",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 113.36969092699292,
+        "usage": {
+          "input_tokens": 25112,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3509,
+          "reasoning_output_tokens": 147
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-074",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 94.59829967899714,
+        "usage": {
+          "input_tokens": 23078,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2876,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-075",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.68158055000822,
+        "usage": {
+          "input_tokens": 27098,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2735,
+          "reasoning_output_tokens": 72
+        }
+      }
+    ],
+    "aggregate": {
+      "rust": {
+        "ast-grep": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.666666666666666,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 2.5833333333333335,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 1.3333333333333333,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "syn": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.666666666666666,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 3,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "baseline": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.583333333333334,
+          "missing_mean": 0.16666666666666666,
+          "unknowns_mean": 2.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 1.6666666666666667,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "rust-analyzer": {
+          "n": 12,
+          "false_mean": 0.16666666666666666,
+          "fulfilled_mean": 8.416666666666666,
+          "missing_mean": 0.3333333333333333,
+          "unknowns_mean": 2.9166666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0.6666666666666666,
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        }
+      },
+      "ts": {
+        "baseline": {
+          "n": 9,
+          "false_mean": 0.1111111111111111,
+          "fulfilled_mean": 6.777777777777778,
+          "missing_mean": 1.2222222222222223,
+          "unknowns_mean": 3.111111111111111,
+          "critical_mean": 0,
+          "failure_mean": 0.1111111111111111,
+          "critical_total": 0,
+          "failures_total": 1,
+          "by_case": {
+            "effect-checkout": {
+              "n": 3,
+              "false_mean": 0.3333333333333333,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "effect-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 7,
+              "missing_mean": 1,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "ts-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 5.333333333333333,
+              "missing_mean": 2.6666666666666665,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0.3333333333333333,
+              "critical_total": 0,
+              "failures_total": 1
+            }
+          }
+        },
+        "ast-grep": {
+          "n": 9,
+          "false_mean": 0,
+          "fulfilled_mean": 7.777777777777778,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "effect-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "effect-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "ts-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "ts-morph": {
+          "n": 9,
+          "false_mean": 0.4444444444444444,
+          "fulfilled_mean": 7.777777777777778,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.7777777777777777,
+          "critical_mean": 0.1111111111111111,
+          "failure_mean": 0,
+          "critical_total": 1,
+          "failures_total": 0,
+          "by_case": {
+            "effect-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "effect-public": {
+              "n": 3,
+              "false_mean": 0.3333333333333333,
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 4,
+              "critical_mean": 0.3333333333333333,
+              "failure_mean": 0,
+              "critical_total": 1,
+              "failures_total": 0
+            },
+            "ts-symbols": {
+              "n": 3,
+              "false_mean": 1,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        }
+      }
+    },
+    "decisions": {
+      "rust": {
+        "qualifying": [],
+        "recommendation": "retain baseline"
+      },
+      "ts": {
+        "qualifying": ["ast-grep"],
+        "recommendation": "ast-grep"
+      }
+    },
+    "interpretation": "Descriptive three-repeat comparison, not statistical superiority.",
+    "aggregation_revision": {
+      "reason": "Code review: include all protocol means and share adoption selection.",
+      "source": "summary.json",
+      "source_sha256": "5f7cb956957df7fc63e8661ae12f19ccad8b7d4e9c19a24a3d115e2ca5dcade0",
+      "frozen_manifest_sha256": "544fcdd90e055e55913e1cc13e0c4c967a28fd457dd2f0e98120bed4249b57ef",
+      "verification": "All original frozen files verified in frozen-source; current analysis code is a post-review revision."
+    }
+  },
+  "post_review_sensitivity": {
+    "observations": [
+      {
+        "case": "rust-symbols",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-001",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 81.88257566600078,
+        "usage": {
+          "input_tokens": 27098,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2489,
+          "reasoning_output_tokens": 24
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-002",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 82.43428280099761,
+        "usage": {
+          "input_tokens": 25733,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2511,
+          "reasoning_output_tokens": 30
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-003",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 158.29433302600228,
+        "usage": {
+          "input_tokens": 29427,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5032,
+          "reasoning_output_tokens": 71
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-004",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 97.97401821999665,
+        "usage": {
+          "input_tokens": 23060,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3052,
+          "reasoning_output_tokens": 197
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-005",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 92.06832454899995,
+        "usage": {
+          "input_tokens": 28111,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2843,
+          "reasoning_output_tokens": 42
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-006",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 1,
+        "duration_seconds": 95.31107195499499,
+        "usage": {
+          "input_tokens": 28111,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2941,
+          "reasoning_output_tokens": 118
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-007",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 82.71048804600287,
+        "usage": {
+          "input_tokens": 22731,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2546,
+          "reasoning_output_tokens": 152
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-008",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 156.38892505399417,
+        "usage": {
+          "input_tokens": 34702,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4969,
+          "reasoning_output_tokens": 57
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-009",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 90.82020216000092,
+        "usage": {
+          "input_tokens": 25401,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2812,
+          "reasoning_output_tokens": 49
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-010",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 97.19488729500154,
+        "usage": {
+          "input_tokens": 33364,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2950,
+          "reasoning_output_tokens": 50
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-011",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 94.34688588699646,
+        "usage": {
+          "input_tokens": 28163,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2889,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-012",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 87.7888594219985,
+        "usage": {
+          "input_tokens": 23141,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2610,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-013",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 1,
+        "duration_seconds": 93.01094297200325,
+        "usage": {
+          "input_tokens": 28111,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2877,
+          "reasoning_output_tokens": 57
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-014",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 85.22665994300041,
+        "usage": {
+          "input_tokens": 26577,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2616,
+          "reasoning_output_tokens": 53
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-015",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 85.82830613500118,
+        "usage": {
+          "input_tokens": 25733,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2587,
+          "reasoning_output_tokens": 67
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-016",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 88.84353369699966,
+        "usage": {
+          "input_tokens": 22865,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2758,
+          "reasoning_output_tokens": 137
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-017",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 76.83414051,
+        "usage": {
+          "input_tokens": 22821,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2317,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-018",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 154.95407148800587,
+        "usage": {
+          "input_tokens": 27217,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4945,
+          "reasoning_output_tokens": 104
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-019",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 111.28375572499499,
+        "usage": {
+          "input_tokens": 25112,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3476,
+          "reasoning_output_tokens": 227
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "syn",
+        "repeat": 2,
+        "id": "run-020",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 84.3861010440014,
+        "usage": {
+          "input_tokens": 24516,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2600,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-021",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 82.48865847999696,
+        "usage": {
+          "input_tokens": 28139,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2522,
+          "reasoning_output_tokens": 59
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-022",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 161.47255805399618,
+        "usage": {
+          "input_tokens": 29427,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5138,
+          "reasoning_output_tokens": 43
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-023",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 80.99211579999974,
+        "usage": {
+          "input_tokens": 22731,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2376,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ts-morph",
+        "repeat": 1,
+        "id": "run-024",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 101.27745239900105,
+        "usage": {
+          "input_tokens": 29709,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3051,
+          "reasoning_output_tokens": 43
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-025",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 99.96026620400517,
+        "usage": {
+          "input_tokens": 23060,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3093,
+          "reasoning_output_tokens": 218
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-026",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 91.5071872769986,
+        "usage": {
+          "input_tokens": 23078,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2822,
+          "reasoning_output_tokens": 109
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-027",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 83.59061242499592,
+        "usage": {
+          "input_tokens": 32236,
+          "cached_input_tokens": 22656,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2568,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-028",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 93.97087536600156,
+        "usage": {
+          "input_tokens": 33364,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2893,
+          "reasoning_output_tokens": 40
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-029",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 89.46502888800023,
+        "usage": {
+          "input_tokens": 28145,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2768,
+          "reasoning_output_tokens": 104
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-030",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 88.76434046000213,
+        "usage": {
+          "input_tokens": 23078,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2731,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ts-morph",
+        "repeat": 1,
+        "id": "run-031",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 104.21701076099998,
+        "usage": {
+          "input_tokens": 25244,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3254,
+          "reasoning_output_tokens": 153
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-032",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 157.12294894499792,
+        "usage": {
+          "input_tokens": 27217,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5013,
+          "reasoning_output_tokens": 45
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-033",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.04864211899985,
+        "usage": {
+          "input_tokens": 26577,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2784,
+          "reasoning_output_tokens": 75
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-034",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 76.61744516099861,
+        "usage": {
+          "input_tokens": 22821,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2282,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-035",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 159.9163560779998,
+        "usage": {
+          "input_tokens": 27217,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5042,
+          "reasoning_output_tokens": 104
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-036",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 161.46409895100078,
+        "usage": {
+          "input_tokens": 34702,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5151,
+          "reasoning_output_tokens": 70
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-037",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 106.09355635700194,
+        "usage": {
+          "input_tokens": 25112,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3312,
+          "reasoning_output_tokens": 96
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ts-morph",
+        "repeat": 3,
+        "id": "run-038",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 5,
+        "duration_seconds": 102.19703365700116,
+        "usage": {
+          "input_tokens": 29709,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3124,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-039",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 104.91029020000133,
+        "usage": {
+          "input_tokens": 23060,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3248,
+          "reasoning_output_tokens": 209
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-040",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 86.48564892200375,
+        "usage": {
+          "input_tokens": 23141,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2627,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ts-morph",
+        "repeat": 2,
+        "id": "run-041",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 101.78460501800146,
+        "usage": {
+          "input_tokens": 28334,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3151,
+          "reasoning_output_tokens": 40
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-042",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 85.16696611199586,
+        "usage": {
+          "input_tokens": 25401,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2613,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-043",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 97.80763814399688,
+        "usage": {
+          "input_tokens": 28163,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3044,
+          "reasoning_output_tokens": 26
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-044",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 88.27305054599856,
+        "usage": {
+          "input_tokens": 24516,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2486,
+          "reasoning_output_tokens": 42
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-045",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.08082013300009,
+        "usage": {
+          "input_tokens": 33364,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2774,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-046",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 87.98136833799799,
+        "usage": {
+          "input_tokens": 28145,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2679,
+          "reasoning_output_tokens": 37
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-047",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 80.85666271600348,
+        "usage": {
+          "input_tokens": 27098,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2441,
+          "reasoning_output_tokens": 73
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-048",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 148.99712272200122,
+        "usage": {
+          "input_tokens": 34702,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4619,
+          "reasoning_output_tokens": 99
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-049",
+        "valid": false,
+        "fulfilled": 0,
+        "missing": 8,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 0,
+        "duration_seconds": 83.62401567199413,
+        "usage": {
+          "input_tokens": 22865,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2545,
+          "reasoning_output_tokens": 61
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ts-morph",
+        "repeat": 1,
+        "id": "run-050",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 90.42618272599793,
+        "usage": {
+          "input_tokens": 28334,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2737,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-051",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 70.44514357300068,
+        "usage": {
+          "input_tokens": 22821,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2147,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-052",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 88.01705393299926,
+        "usage": {
+          "input_tokens": 28139,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2671,
+          "reasoning_output_tokens": 113
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ts-morph",
+        "repeat": 2,
+        "id": "run-053",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 102.629877526997,
+        "usage": {
+          "input_tokens": 25244,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3120,
+          "reasoning_output_tokens": 127
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "rust-analyzer",
+        "repeat": 1,
+        "id": "run-054",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.6303923910018,
+        "usage": {
+          "input_tokens": 32236,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2758,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-055",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 165.2702209160052,
+        "usage": {
+          "input_tokens": 29427,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5239,
+          "reasoning_output_tokens": 121
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "baseline",
+        "repeat": 1,
+        "id": "run-056",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 152.0573711420002,
+        "usage": {
+          "input_tokens": 23159,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4777,
+          "reasoning_output_tokens": 121
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-057",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 93.11583842599794,
+        "usage": {
+          "input_tokens": 28145,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2788,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ts-morph",
+        "repeat": 2,
+        "id": "run-058",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 97.2699766959995,
+        "usage": {
+          "input_tokens": 29709,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3011,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-059",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 91.20050549000007,
+        "usage": {
+          "input_tokens": 25401,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2792,
+          "reasoning_output_tokens": 100
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-060",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 87.98804121200374,
+        "usage": {
+          "input_tokens": 24516,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2648,
+          "reasoning_output_tokens": 90
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "ast-grep",
+        "repeat": 3,
+        "id": "run-061",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 93.23137781799596,
+        "usage": {
+          "input_tokens": 28163,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2871,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-062",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 162.26260149100563,
+        "usage": {
+          "input_tokens": 23159,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5074,
+          "reasoning_output_tokens": 128
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "syn",
+        "repeat": 1,
+        "id": "run-063",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 81.20589882900094,
+        "usage": {
+          "input_tokens": 25733,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2473,
+          "reasoning_output_tokens": 28
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-064",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 86.0000411200017,
+        "usage": {
+          "input_tokens": 22865,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2637,
+          "reasoning_output_tokens": 96
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "syn",
+        "repeat": 3,
+        "id": "run-065",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 91.99867851199815,
+        "usage": {
+          "input_tokens": 26577,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2831,
+          "reasoning_output_tokens": 56
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "rust-analyzer",
+        "repeat": 3,
+        "id": "run-066",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 90.74995978699735,
+        "usage": {
+          "input_tokens": 28139,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2789,
+          "reasoning_output_tokens": 53
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ts-morph",
+        "repeat": 3,
+        "id": "run-067",
+        "valid": true,
+        "fulfilled": 7,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 101.73486880299606,
+        "usage": {
+          "input_tokens": 25244,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3139,
+          "reasoning_output_tokens": 116
+        }
+      },
+      {
+        "case": "ts-symbols",
+        "condition": "ts-morph",
+        "repeat": 3,
+        "id": "run-068",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 88.02730449700175,
+        "usage": {
+          "input_tokens": 28334,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2679,
+          "reasoning_output_tokens": 76
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "rust-analyzer",
+        "repeat": 2,
+        "id": "run-069",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 84.05664582800091,
+        "usage": {
+          "input_tokens": 32236,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2570,
+          "reasoning_output_tokens": 39
+        }
+      },
+      {
+        "case": "rust-public",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-070",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 154.19666266699642,
+        "usage": {
+          "input_tokens": 23159,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4905,
+          "reasoning_output_tokens": 174
+        }
+      },
+      {
+        "case": "holdout-local-scope",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-071",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 83.28277739800251,
+        "usage": {
+          "input_tokens": 22731,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2556,
+          "reasoning_output_tokens": 164
+        }
+      },
+      {
+        "case": "rust-checkout",
+        "condition": "baseline",
+        "repeat": 3,
+        "id": "run-072",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 1,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 1,
+        "duration_seconds": 90.5666476799961,
+        "usage": {
+          "input_tokens": 23141,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2784,
+          "reasoning_output_tokens": 71
+        }
+      },
+      {
+        "case": "effect-public",
+        "condition": "ast-grep",
+        "repeat": 1,
+        "id": "run-073",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 3,
+        "duration_seconds": 113.36969092699292,
+        "usage": {
+          "input_tokens": 25112,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3509,
+          "reasoning_output_tokens": 147
+        }
+      },
+      {
+        "case": "effect-checkout",
+        "condition": "baseline",
+        "repeat": 2,
+        "id": "run-074",
+        "valid": true,
+        "fulfilled": 8,
+        "missing": 0,
+        "false": 1,
+        "critical": 0,
+        "unknowns": 4,
+        "duration_seconds": 94.59829967899714,
+        "usage": {
+          "input_tokens": 23078,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2876,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "case": "rust-symbols",
+        "condition": "ast-grep",
+        "repeat": 2,
+        "id": "run-075",
+        "valid": true,
+        "fulfilled": 9,
+        "missing": 0,
+        "false": 0,
+        "critical": 0,
+        "unknowns": 2,
+        "duration_seconds": 90.68158055000822,
+        "usage": {
+          "input_tokens": 27098,
+          "cached_input_tokens": 16384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2735,
+          "reasoning_output_tokens": 72
+        }
+      }
+    ],
+    "aggregate": {
+      "rust": {
+        "ast-grep": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.666666666666666,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 2.5833333333333335,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 1.3333333333333333,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "syn": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.666666666666666,
+          "missing_mean": 0.08333333333333333,
+          "unknowns_mean": 3,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.666666666666666,
+              "missing_mean": 0.3333333333333333,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "baseline": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.583333333333334,
+          "missing_mean": 0.16666666666666666,
+          "unknowns_mean": 2.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 1.6666666666666667,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "rust-analyzer": {
+          "n": 12,
+          "false_mean": 0,
+          "fulfilled_mean": 8.583333333333334,
+          "missing_mean": 0.16666666666666666,
+          "unknowns_mean": 2.9166666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "holdout-local-scope": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8.333333333333334,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "rust-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 9,
+              "missing_mean": 0,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        }
+      },
+      "ts": {
+        "baseline": {
+          "n": 9,
+          "false_mean": 0.1111111111111111,
+          "fulfilled_mean": 6.777777777777778,
+          "missing_mean": 1.2222222222222223,
+          "unknowns_mean": 3.111111111111111,
+          "critical_mean": 0,
+          "failure_mean": 0.1111111111111111,
+          "critical_total": 0,
+          "failures_total": 1,
+          "by_case": {
+            "effect-checkout": {
+              "n": 3,
+              "false_mean": 0.3333333333333333,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "effect-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 7,
+              "missing_mean": 1,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "ts-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 5.333333333333333,
+              "missing_mean": 2.6666666666666665,
+              "unknowns_mean": 2,
+              "critical_mean": 0,
+              "failure_mean": 0.3333333333333333,
+              "critical_total": 0,
+              "failures_total": 1
+            }
+          }
+        },
+        "ast-grep": {
+          "n": 9,
+          "false_mean": 0,
+          "fulfilled_mean": 7.777777777777778,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.6666666666666665,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "effect-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "effect-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 3.6666666666666665,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "ts-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        },
+        "ts-morph": {
+          "n": 9,
+          "false_mean": 0,
+          "fulfilled_mean": 7.777777777777778,
+          "missing_mean": 0.2222222222222222,
+          "unknowns_mean": 3.7777777777777777,
+          "critical_mean": 0,
+          "failure_mean": 0,
+          "critical_total": 0,
+          "failures_total": 0,
+          "by_case": {
+            "effect-checkout": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "effect-public": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 7.333333333333333,
+              "missing_mean": 0.6666666666666666,
+              "unknowns_mean": 4,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            },
+            "ts-symbols": {
+              "n": 3,
+              "false_mean": 0,
+              "fulfilled_mean": 8,
+              "missing_mean": 0,
+              "unknowns_mean": 3.3333333333333335,
+              "critical_mean": 0,
+              "failure_mean": 0,
+              "critical_total": 0,
+              "failures_total": 0
+            }
+          }
+        }
+      }
+    },
+    "decisions": {
+      "rust": {
+        "qualifying": [],
+        "recommendation": "retain baseline"
+      },
+      "ts": {
+        "qualifying": ["ast-grep", "ts-morph"],
+        "recommendation": "ast-grep"
+      }
+    },
+    "interpretation": "Post-review sensitivity analysis, not preregistered; compare with unchanged summary.json.",
+    "post_review_corrections": [
+      {
+        "id": "run-008",
+        "original_claim": {
+          "description": "索引ガード不成立を index() == 0 と置き換え、通常検索の分岐条件を根拠なく狭めている。index() の型・値域は提示されていないため、この置換はソースから導けない。",
+          "critical": false,
+          "evidence": [
+            "SELECT_MODE→SEARCH",
+            "SELECT_MODE→SEARCH_PARALLEL",
+            "crates/core/main.rs:L88-L90"
+          ]
+        },
+        "producer_evidence": "pub(crate) fn index(&self) -> usize",
+        "prompt_sha256": "c47104f015ec74dcdf07e2fb5d3a3bf8169b08af5bc1b96a81b0d2bf28d8e046",
+        "reason": "Producer evidence resolves index() to usize. For this unsigned type, the failed > 0 guard is equivalent to == 0. The gold requirement is unchanged.",
+        "restored_requirement": {
+          "id": "search-dispatch-and-propagation",
+          "fulfilled": false,
+          "reason": "検索省略と各呼出しの失敗伝播は正しいが、通常検索の辺を index() == 0 に限定している。提示ソースから確認できる条件は先行する index() > 0 ガードの不成立であり、戻り値の非負性は未提示なので同値と確定できない。",
+          "evidence": [
+            "SELECT_MODE→SEARCH",
+            "SELECT_MODE→SEARCH_PARALLEL",
+            "INDEX_READ→HANDLE_ERROR",
+            "SEARCH→HANDLE_ERROR",
+            "SEARCH_PARALLEL→HANDLE_ERROR",
+            "crates/core/main.rs:L88-L90"
+          ]
+        }
+      },
+      {
+        "id": "run-031",
+        "original_claim": {
+          "description": "BUILD_RESPONSE の注記は、未提供の「補助証拠」で request がリクエストを生成する Effect と解決済みだと主張する。許可されたソースには request の型やその補助証拠がなく、未確認事項を確認済みの事実として補っている。",
+          "critical": true,
+          "evidence": ["BUILD_RESPONSE.notes[0]", "L263-L278"]
+        },
+        "producer_evidence": "Effect.Effect<ClientRequest.HttpClientRequest, any, any>",
+        "prompt_sha256": "14568284086a17eb0ac2560266b2b45b2144eeae204a8f85d36b07d4548f8736",
+        "reason": "The evidence was supplied to the producer, but hidden from the blind reviewer. No source semantics or gold requirement was changed."
+      },
+      {
+        "id": "run-036",
+        "original_claim": {
+          "description": "index()>0 の不成立を index()==0 と置き換え、通常検索の分岐条件を根拠なく狭めている。提示ソースには index() の戻り値が非負であることを証明する宣言や実装がない。",
+          "critical": false,
+          "evidence": [
+            "SELECT→SEARCH",
+            "SELECT→SEARCH_PARALLEL",
+            "crates/core/main.rs:L88-L90"
+          ]
+        },
+        "producer_evidence": "pub(crate) fn index(&self) -> usize",
+        "prompt_sha256": "c47104f015ec74dcdf07e2fb5d3a3bf8169b08af5bc1b96a81b0d2bf28d8e046",
+        "reason": "Producer evidence resolves index() to usize. For this unsigned type, the failed > 0 guard is equivalent to == 0. The gold requirement is unchanged.",
+        "restored_requirement": {
+          "id": "search-dispatch-and-propagation",
+          "fulfilled": false,
+          "reason": "検索省略と ? の伝播は保持しているが、通常検索の辺が index()==0 に限定されている。元の条件は index()>0 ガードの不成立であり、提示範囲に型や非負性の根拠はない。",
+          "evidence": [
+            "SELECT→SEARCH",
+            "SELECT→SEARCH_PARALLEL",
+            "INDEX_READ→RUN_ERROR",
+            "SEARCH→RUN_ERROR",
+            "SEARCH_PARALLEL→RUN_ERROR",
+            "crates/core/main.rs:L88-L90"
+          ]
+        }
+      },
+      {
+        "id": "run-041",
+        "original_claim": {
+          "description": "提示されていない補助的な型・宣言解決情報を、取得済みの証拠として引用している。記載された返却型はソースの意味と整合するため、制御フローや利用不能な動作の捏造ではなく、証拠の出所に関する不適切な断定である。",
+          "critical": false,
+          "evidence": ["BUILD.notes[1]", "limitations[1]", "src/main.ts:9-18"]
+        },
+        "producer_evidence": "Fx.Effect<string, Failed, never>",
+        "prompt_sha256": "7f439b87c9f9a8d9456748bf86363f09075184409f0fc6c662bb49f1ebecc58e",
+        "reason": "The evidence was supplied to the producer, but hidden from the blind reviewer. No source semantics or gold requirement was changed."
+      },
+      {
+        "id": "run-050",
+        "original_claim": {
+          "description": "提示資料に存在しない補助証拠の返却型を、確認済みの証拠として引用している。型の内容はソースの意味と整合しており、誤りは動作ではなく証拠の出所の断定にある。",
+          "critical": false,
+          "evidence": ["BUILD.notes[1]", "src/main.ts:9-18"]
+        },
+        "producer_evidence": "Fx.Effect<string, Failed, never>",
+        "prompt_sha256": "7f439b87c9f9a8d9456748bf86363f09075184409f0fc6c662bb49f1ebecc58e",
+        "reason": "The evidence was supplied to the producer, but hidden from the blind reviewer. No source semantics or gold requirement was changed."
+      },
+      {
+        "id": "run-068",
+        "original_claim": {
+          "description": "提供されていない補助型情報を証拠として引用し、返却型を補助証拠で確認したかのように記述している。型の内容と制御フローはソースに整合しており、誤りは証拠の出所の断定に限られる。",
+          "critical": false,
+          "evidence": ["BUILD.notes[1]", "limitations[1]", "src/main.ts:9-18"]
+        },
+        "producer_evidence": "Fx.Effect<string, Failed, never>",
+        "prompt_sha256": "7f439b87c9f9a8d9456748bf86363f09075184409f0fc6c662bb49f1ebecc58e",
+        "reason": "The evidence was supplied to the producer, but hidden from the blind reviewer. No source semantics or gold requirement was changed."
+      }
+    ],
+    "aggregation_revision": {
+      "reason": "Code review: include all protocol means and share adoption selection.",
+      "source": "sensitivity.json",
+      "source_sha256": "42cd7d57c83f10e718005e68b9da12b6af74254c5bb66fb8d9b811b57cfff265",
+      "frozen_manifest_sha256": "544fcdd90e055e55913e1cc13e0c4c967a28fd457dd2f0e98120bed4249b57ef",
+      "verification": "All original frozen files verified in frozen-source; current analysis code is a post-review revision."
+    }
+  }
+}

@@ -106,7 +106,8 @@ code = r"""async page => {
       }
       for (const [index, path] of model.paths.entries()) {
         await tab.locator('#path').selectOption(String(index));
-        const expected = [...path.edges].sort((a,b) => a-b);
+        // A retry can traverse an edge twice; the SVG contains one element per edge.
+        const expected = [...new Set(path.edges)].sort((a,b) => a-b);
         const actual = await tab.locator('#graph .on-path').evaluateAll(els =>
           els.map(el => Number(el.dataset.edgeIndex)).sort((a,b) => a-b));
         if (JSON.stringify(actual) !== JSON.stringify(expected)) throw Error('incorrect path edges');
