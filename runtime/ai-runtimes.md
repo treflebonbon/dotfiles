@@ -93,8 +93,26 @@ Herdr の通常の agent picker／`herdr agent start --kind codex` による直�
 workflow パイプライン（mattpocock skills）は Claude Code の Skill tool 前提だが、汎用コーディングは Codex でも行える二刀流を維持する。
 
 - **Claude**: `private_dot_claude/settings.json.tmpl` → `~/.claude/settings.json`。`language: japanese`、`effortLevel: xhigh`、`permissions.defaultMode: auto`、`permissions.blockReadsOutsideWorkingDirectories: false`（[ADR-0055](../docs/adr/0055-disable-block-reads-outside-working-directories.md) で無効化、credential 系 `deny` パターン拡充と引き換え）、`teammateMode: auto`、`model: sonnet` + `advisorModel: opus`（experimental advisor tool、下記参照）、deny ルール群、`enabledPlugins`（LSP / codex / security-guidance / ponytail）。working directory 外の read はもう拒否しない。共通知識の `~/runtime`、background job state の `~/.claude/jobs`、cross-project memory の `~/.claude/projects`、immutable な `/nix/store`、ghq 管理下の repo checkout `~/ghq/github.com`、nix devShell の静的 TMPDIR base `~/.cache/nix-devshell-tmp` は `additionalDirectories` のまま維持し、Auto mode の初回確認プロンプトを省略する。`~/runtime` は `Edit(~/runtime/**)` deny で read-only に保ち、validated task worktree からの更新経路を迂回させない。`~/ghq/github.com` は実装対象の repository 自身（`EnterWorktree` が作る worktree を含む）の置き場でもあるため同じ Edit-deny は適用せず、書込み抑止は validated task worktree を経由してしか実装しないという運用契約だけに委ねる（issue #250、[ADR-0048 の 2026-09-08 追記](../docs/adr/0048-extend-additional-directories-with-edit-deny-readonly.md)）。`~/.claude/projects` と `~/.cache/nix-devshell-tmp` は書込みが必要（前者は memory システム、後者は background task output や to-pr の TMPDIR fallback）なため read-only にしない。追加・除外の判断根拠は [ADR-0048](../docs/adr/0048-extend-additional-directories-with-edit-deny-readonly.md) / [ADR-0054](../docs/adr/0054-stabilize-nix-shell-tmpdir-base.md) を参照する。permission Auto mode は user settings が所有するため、package launcher alias を介さず `claude` を直接起動する。既存 `PreToolUse` に加え、quiet な Impeccable Design Hook を user-global の `PostToolUse`（per-edit、timeout 5s）と `Stop`（deep pass、matcher なし・timeout 30s）として持つ。個人・端末差分は `~/.claude/settings.local.json`（管理外）。
-- **Codex**: `private_dot_config/codex/`（config.toml / rules / AGENTS.md / hooks.json / environments）を `run_onchange_after_codex-managed-sync.sh.tmpl` が `~/.config/codex/` 経由で `~/.codex/`（`$CODEX_HOME`）へマージ配置する。既定モデルは `gpt-6-astra` / `xhigh`、subagent は品質とコストを均衡させる `gpt-5.6-terra` / `high` とし、experimental context management は opt-in しない。managed `hooks.json` は共有ハブの Impeccable runtime を quiet な `PostToolUse` と `Stop` で呼ぶ（Claude と同じ二層）。4.1.2 runtime は `turn_id` で Codex を判別し、Stop finding を top-level `decision` / `reason` で返すため、managed command は追加変換せず fail-open で pass-through する。宣言的設定のみ管理しローカル state は保全する。**Codex の hook は entry 単位で trust が要る** — `config.toml` の `[hooks.state]` に `"<hooks.json path>:<event>:<idx>:<idx>"` をキーとして `trusted_hash` が積まれ、未登録の entry は "New hook - review required" として初回に承認を求められる。よって `hooks.json` に event を足した回は、Codex 側で一度承認するまでその hook は走らない。
+- **Codex**: `private_dot_config/codex/`（config.toml / rules / AGENTS.md / hooks.json / environments）を `run_onchange_after_codex-managed-sync.sh.tmpl` が `~/.config/codex/` 経由で `~/.codex/`（`$CODEX_HOME`）へマージ配置する。既定モデルは `gpt-6-astra` / `medium`、subagent は `gpt-5.6-terra` / `high` とする。設計・レビュー時の切替と5タスクの試行は下記「Codex の推論強度と試行」に従う。experimental context management は opt-in しない。managed `hooks.json` は共有ハブの Impeccable runtime を quiet な `PostToolUse` と `Stop` で呼ぶ（Claude と同じ二層）。4.1.2 runtime は `turn_id` で Codex を判別し、Stop finding を top-level `decision` / `reason` で返すため、managed command は追加変換せず fail-open で pass-through する。宣言的設定のみ管理しローカル state は保全する。**Codex の hook は entry 単位で trust が要る** — `config.toml` の `[hooks.state]` に `"<hooks.json path>:<event>:<idx>:<idx>"` をキーとして `trusted_hash` が積まれ、未登録の entry は "New hook - review required" として初回に承認を求められる。よって `hooks.json` に event を足した回は、Codex 側で一度承認するまでその hook は走らない。
 - **AGENTS.md** — Codex / OpenCode / Zed / Cursor 向け指示（`~/AGENTS.md`、`private_dot_gemini/AGENTS.md` は Gemini 向け）。CLAUDE.md は Claude Code 向けに別管理。
+
+### Codex の推論強度と試行
+
+通常の親は `astra/medium`、設計・レビューでは `astra/xhigh` を提案する2段階運用とする。中間の `astra/high` は設けず、子は限定的なレビューを含め `terra/high` のままにする。提案条件・実効設定が不明な場合・通常作業への復帰は、配備先 `~/.config/codex/AGENTS.md` の「Codex reasoning effort」を参照する。リポジトリ内では [管理ソース](../private_dot_config/codex/AGENTS.md#codex-reasoning-effort) が正本であり、切替は人間が行う。モデルを自動変更する仕組みは追加しない。
+
+2026-09-11 の見直しは、品質を保ちながら修正・検証を含む完了時間を短縮するための試行。[Artificial Analysis の medium / xhigh 比較](https://artificialanalysis.ai/models/comparisons/gpt-6-astra-medium-vs-gpt-6-astra-xhigh) は生成量・生成時間の削減を示す一方、Terminal-Bench の成功率には差がある。生成時間の指標は初動待ち・ツール実行を含まず、Codex の実作業の速度や品質が同等とはみなさない。API 料金比を契約内の利用枠消費へ換算せず、追加クレジット購入・従量課金への切替も行わない。
+
+受入後に live source から通常の `chezmoi apply` で配備し、新しいセッションで既定値を確認してから、普段の通常作業5件を下表に記録する。完了時間は作業開始から修正・検証完了までとし、人間の回答待ち・長い外部処理待ちは注記する。未 merge の task worktree から apply しない。
+
+| 作業 | 完了時間・待ち時間の注記 | 検証・レビュー結果 | 人間の追加修正・やり直し回数 | xhigh 切替回数・理由 |
+| --- | --- | --- | --- | --- |
+| 1 | 未実施 | — | — | — |
+| 2 | 未実施 | — | — | — |
+| 3 | 未実施 | — | — | — |
+| 4 | 未実施 | — | — | — |
+| 5 | 未実施 | — | — | — |
+
+記録は task worktree 内のこの表を更新する。5件終了時に、既存テスト・レビューの合格と追加修正・やり直しを確認する。比較可能な従来記録がなければ速度改善は未確認と報告し、品質上の問題がなければ暫定継続する。medium に起因すると考えられる見落とし・手戻りが続く場合は親の既定値を元の `xhigh` へ戻すことを提案する。復帰時も source・テストの期待値・本節を更新して検証し、受入後の通常配備で反映する。
 
 ### Codex 管理設定の同期
 

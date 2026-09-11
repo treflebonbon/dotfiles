@@ -263,7 +263,7 @@ TASK
   local host_codex_home="${CODEX_HOME:-$HOME/.codex}"
   raw_fixture
   ln -s "$host_codex_home/auth.json" "$RAW_BASE/home/.codex/auth.json"
-  sed -i 's/model_reasoning_effort = "xhigh"/model_reasoning_effort = "low"/' "$RAW_BASE/home/.codex/config.toml"
+  sed -i 's/model_reasoning_effort = "medium"/model_reasoning_effort = "low"/' "$RAW_BASE/home/.codex/config.toml"
   cat > "$RAW_BASE/work/task.sh" <<'TASK'
 set -eu
 test -z "${RAW_DUMMY_SECRET+x}"
