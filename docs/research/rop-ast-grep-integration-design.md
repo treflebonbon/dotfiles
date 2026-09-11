@@ -1,6 +1,6 @@
 # ROP visualizerへのTypeScript構文補助の導入設計
 
-状態: 設計合意済み、実装・検証中。PR #306 の比較実験を受けた別の変更。
+状態: 実装・検証・コードレビュー完了。PR #306 の比較実験を受けた別の変更。live環境への反映は受入後。
 
 ## 目的と前提
 
@@ -52,5 +52,5 @@ TypeScript EffectのROPフロー図を作る際に、ast-grepが返す構文と�
 - 抽出器contract: 9テスト成功。固定済み0.42.1を使った.ts/.tsx・Unicode範囲・構文エラー・CLI出力を含み、nativeテストのskipなし。
 - 既存renderer contract: 8テスト成功。
 - Linuxのdefault/wsl devShellを評価し、ast-grep 0.42.1がnativeBuildInputsに含まれることを確認。バイナリも同じ固定済みNix入力から取得して検証した。
-
 - 配布検証: 隔離したHOMEでlocal skill配布hookを実行し、抽出ヘルパーとreferenceが `.agents` / `.claude` に同梱されることを確認。`tests/rop-visualizer.bats` 全3件成功。live環境は変更していない。
+- コードレビュー: 実装commit `54f9a4c` を規約・仕様の2軸で独立レビューし、修正を要する指摘なし。明示ファイル限定、失敗時の継続、構文情報の解釈、配布先が合意と一致することを確認した。
