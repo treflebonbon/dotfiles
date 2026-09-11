@@ -12,7 +12,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 ## Conventions
 
-- コミットと PR タイトルは Conventional Commits 形式にし、PR タイトルへ `[codex]` などの prefix を付けない。`cog verify` と lefthook pre-commit hook で検証する。
+- コミットと PR タイトルは Conventional Commits 形式にし、PR タイトルへ `[codex]` などの prefix を付けない。
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
 - ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
 
