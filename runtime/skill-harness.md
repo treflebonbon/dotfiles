@@ -209,15 +209,17 @@ raw adapter は Linux／WSL2 で `devshell-env trust` と worktree ごとの公�
 
 単発のブラウザ操作・スクレイピング・フォーム操作・スクリーンショットは `playwright-cli` skill を優先する。nix devshell のローカル package（`private_dot_config/nix-devshell/packages/playwright-cli.nix`、vendored `@playwright/cli`）を `modules/ai.nix` の shellHook が `~/.agents/skills/playwright-cli` へ symlink 配備する。agent-browser は削除した。`to-pr` の browser-observable 検証もこの skill を使う。
 
-WSL2 の通常の `playwright-cli open [URL]` は Managed Playwright Chrome の headless モードを既定経路とする。Windows Google Chrome、`%LOCALAPPDATA%\aiakos\playwright-cli\chrome-profile` の専用 profile、`127.0.0.1:9222` の CDP endpoint を一体として管理し、mirrored networking が利用できなければ WSL browser へフォールバックせず修復手順付きで失敗する。`open --headed` と `PLAYWRIGHT_MCP_HEADLESS=false|0` は同じ browser identity の headed モード、`PLAYWRIGHT_MCP_HEADLESS=true|1` は headless モードを選び、`--headed` を優先する。両モードは同時起動せず、不一致なら既存 consumer を変更せず明示的な cleanup を要求する。Managed Dogfood Chrome と共有する browser-ownership record に別 role がある場合も起動を拒否する。managed CLI session は1つだけが排他的に所有し、`open` は既存 tab を遷移せず新規 tab を作る。
+WSL2 の通常の `playwright-cli open [URL]` は Windows 側の worktree 別 browser identity を headless で使用する。物理 worktree root から profile・CDP endpoint・Dashboard port・lease を割り当て、同じ worktree の状態を保持する。別 worktree と Dogfood は独立して利用できる。同じ identity の headless / headed 競合は既存 consumer を保持して拒否する。WSL browser へフォールバックしない。
 
-`playwright-cli show` と `show --annotate` は headed モードを要求し、WSL2 の `127.0.0.1:9323` に Dashboard をバックグラウンド起動して `http://localhost:9323/` を開く。headless session が動作中なら、`close`、`open --headed`、`show` の順で開き直す。Dashboard は `show --kill` まで存続する。WSL2 では `--config` / `--browser` / `--profile` / `--persistent` / `--device` / `--mobile`、project config、browser/context shaping 環境変数を local browser escape として拒否し、明示 `playwright-cli attach --cdp=<remote-endpoint>` だけを remote CDP の互換経路とする。Dogfood の annotation は attach 後に外部 owner を明示して Dashboard コマンドを upstream へ渡す。詳細な境界と lifecycle は [ADR-0038](../docs/adr/0038-keep-wsl2-browser-free.md) と [ADR-0031](../docs/adr/0031-managed-playwright-chrome-on-wsl2.md) を正本とする。
+`show` / `show --annotate` は人間の明示開始による headed モードを要求し、その worktree の Dashboard を使う。annotation は lease 所有 session だけに結び付く。背景処理は自動 headed 起動・前面化・OS 入力をしない。終了は session 指定の `close` と対象 Dashboard の `show --kill` を使い、`close-all` / `kill-all` は拒否する。明示 remote CDP attach と WSL browser-free の override 制約は維持する。
+
+PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `to-pr` 外で `browser-attachments auth` → 手動ログイン → `browser-attachments close`。自動添付は headless のみ。
 
 ### Managed Chrome 所有権の確認と復旧
 
 WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `managed-chrome-owner` を共有する。`MANAGED_CHROME_OWNER` は同梱 CLI の絶対パスを指す。所有権は共通の `BROWSER_OWNERSHIP_DIR`、未指定なら `$XDG_RUNTIME_DIR/browser-ownership`、さらに未設定なら `${TMPDIR:-/tmp}/browser-ownership` に置く。Dogfood 固有のディレクトリ指定がこの場所と異なる場合は拒否する。
 
-`managed-chrome-owner status` で role・所有者・workspace・起動状態を確認する。終了に失敗した場合は記録された consumer を終了し、`managed-chrome-owner recover` を実行する。Windows 側の照会が成功し、Chrome が停止済みで、未確定の起動処理もない場合だけ解放する。Chrome の終了要求や profile 削除は行わない。`starting` のまま起動監視 process が異常終了した場合は、後から Chrome を起動し得る処理の完了を証明できないため、記録を保持して調査を要する。
+`managed-chrome-owner status` で identity ごとの role・所有者・workspace・起動状態を確認する。`locate --role playwright --workspace <physical-root>` の先頭フィールドが対象 identity。終了に失敗した場合は記録された consumer を終了し、`managed-chrome-owner --identity <identity> recover` を実行する。Windows 側の照会が成功し、Chrome が停止済みで、未確定の起動処理もない場合だけ解放する。Chrome の終了要求や profile 削除は行わない。`starting` のまま起動監視 process が異常終了した場合は、後から Chrome を起動し得る処理の完了を証明できないため、記録を保持して調査を要する。
 
 起動コマンドが戻った後の `settled` でも、呼出元が生存して CDP の準備を待っている間は `recover` による回収を拒否する。起動を一度も試みていない `reserved` の予約は、token が一致する caller の通常 `release` で取り消せる。この取消は起動処理と同じ lock 内で token を無効化するため、初期確認で Chrome 未インストールや port/profile 競合を検出した場合も、問題を解消してそのまま再試行できる。
 

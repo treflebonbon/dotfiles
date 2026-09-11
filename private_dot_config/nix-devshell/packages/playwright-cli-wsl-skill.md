@@ -1,49 +1,17 @@
 ## WSL2 Managed Playwright Chrome
 
-On WSL2, a normal `playwright-cli open [URL]` uses **Managed Playwright
-Chrome** headless by default: Windows Google Chrome with CDP on
-`127.0.0.1:9222` and the dedicated profile
-`%LOCALAPPDATA%\aiakos\playwright-cli\chrome-profile`.
+On WSL2, a normal `playwright-cli open [URL]` uses **Managed Playwright Chrome** headless by default, using a persistent profile and allocated loopback CDP endpoint for the physical worktree root. Different worktrees have different browser identities. Subdirectories of the same worktree share its identity.
 
-- WSL mirrored networking is required. The command fails with remediation
-  instead of falling back to a WSL browser.
-- `open --headed` uses the same managed Windows Chrome identity in headed mode.
-  `PLAYWRIGHT_MCP_HEADLESS=true|1` selects headless and
-  `PLAYWRIGHT_MCP_HEADLESS=false|0` selects headed; `--headed` takes precedence.
-- Headless and headed modes share the profile and CDP port but cannot run at the
-  same time. Close the current managed consumer before changing modes.
-- Only one managed CLI session may own the browser at a time. Reuse that
-  session name or close it before opening another managed session.
-- `open` creates a new tab. It does not navigate an existing Dashboard or
-  authentication tab.
-- `show` and `show --annotate` require headed mode. If a headless session is
-  running, close it, run `open --headed`, then retry `show`. The Dashboard stays
-  on `127.0.0.1:9323` until `show --kill`.
-- `show --annotate` requires the session that owns the managed lease.
-- `delete-data` is refused for a managed session. Reset the dedicated profile
-  manually only after closing the session and Dashboard.
-- Managed Dogfood Chrome uses the same browser-ownership directory with role
-  `dogfood`; Playwright refuses to start while a dogfood run owns the browser.
-- `managed-chrome-owner status` shows the shared ownership. If startup or
-  shutdown fails, close the recorded consumer and use `managed-chrome-owner
-recover` to release ownership only after Windows confirms Chrome is absent.
-  Recovery never closes Chrome or deletes a profile. A live or uncertain
-  startup remains reserved; do not delete its record to bypass the conflict.
-- Upgrade the Nix browser package and local Dogfood skill together, after all
-  managed sessions and the Dashboard have stopped. Legacy ownership records
-  and acquisition locks require investigation with the old tools before
-  cutover; the new CLI preserves them.
+- WSL mirrored networking is required; no WSL browser fallback is installed.
+- `open --headed` and `PLAYWRIGHT_MCP_HEADLESS=false|0` select headed mode. Background tasks use headless, never OS input, foreground activation or automatic login / Dashboard display. A visible browser is a human-initiated operation.
+- One CLI session owns each worktree browser. The same identity cannot be headless and headed simultaneously; conflicts preserve the current consumer. Different worktrees, attachment requests and Dogfood runs may proceed concurrently.
+- `open` creates a new tab and never navigates another consumer's tab.
+- `show` / `show --annotate` use the worktree's allocated Dashboard port and require headed mode. Annotation requires the lease-owning session. `show --kill` stops only that Dashboard. Do not change mode automatically to satisfy a background task.
+- Use `-s=<owner> close`; `close-all` and `kill-all` are refused. `delete-data` is refused for a managed session. Profile reset is a separate explicit action after stopping that identity's session and Dashboard.
+- `managed-chrome-owner locate --role playwright --workspace <physical-root>` prints identity, profile, CDP endpoint and Dashboard port, separated by tabs. `status` lists active records; use `--identity <identity> status` or `recover` for one browser. Recovery releases only confirmed stopped browsers, never profiles. A live or uncertain startup remains reserved; do not delete its record.
+- Upgrade the package and Dogfood skill together after closing old consumers with the old package. Legacy global owner records and runtime leases block migration.
+- PR evidence uses `browser-attachments upload`, not the worktree browser. For human authentication outside `to-pr`, run `browser-attachments auth`, log in in the dedicated window, then `browser-attachments close`. Uploads reopen headless with that profile. Never copy authentication or use a normal browsing profile.
 
-Explicit `--config`, `--browser`, `--profile`, `--persistent`, `--device`,
-or `--mobile` options, browser-shaping `PLAYWRIGHT_MCP_*` environment variables
-other than `PLAYWRIGHT_MCP_HEADLESS`, `PWTEST_CLI_GLOBAL_CONFIG`, project
-`.playwright/cli.config.json` files are rejected in WSL2 browser-free mode.
-Use `playwright-cli attach --cdp=<remote-endpoint>` for an explicit remote CDP
-browser. Non-WSL environments retain upstream behavior.
+Explicit `--config`, `--browser`, `--profile`, `--persistent`, `--device`, or `--mobile` options, browser-shaping `PLAYWRIGHT_MCP_*` environment variables other than `PLAYWRIGHT_MCP_HEADLESS`, `PWTEST_CLI_GLOBAL_CONFIG`, project `.playwright/cli.config.json` files are rejected in WSL2 browser-free mode. Use `playwright-cli attach --cdp=<remote-endpoint>` for an explicit remote CDP browser. Non-WSL environments retain upstream behavior.
 
-The dedicated profile may reuse authentication that the user established
-manually. Authentication is not authorization for payments, production data
-changes, or other irreversible actions. Never automate login, import
-credentials, or reuse the user's normal Chrome profile. If authentication
-expires during a headless session, close it. For manual authentication, use
-`open --headed`, close it again, then reopen normally to return to headless.
+The dedicated profile may reuse authentication that the user established manually. Authentication is not authorization for payments, production data changes, or other irreversible actions. Never automate login, import credentials, or reuse the user's normal Chrome profile. If authentication expires during a headless session, close it. For manual authentication, use `open --headed`, close it again, then reopen normally to return to headless.

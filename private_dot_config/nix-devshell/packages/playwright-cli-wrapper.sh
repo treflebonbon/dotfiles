@@ -11,7 +11,7 @@ pwcli_cdp_close="${PWCLI_CDP_CLOSE:-@cdpClose@}"
 pwcli_windows_script="${PWCLI_WINDOWS_SCRIPT:-@windowsScript@}"
 pwcli_proc_root="${PWCLI_PROC_ROOT:-/proc}"
 pwcli_flock="${PWCLI_FLOCK:-@flock@}"
-pwcli_cdp_endpoint="http://127.0.0.1:9222"
+pwcli_owner_command="${MANAGED_CHROME_OWNER:-@managedChromeOwner@}"
 
 fail() {
   printf 'playwright-cli: %s\n' "$*" >&2
@@ -27,7 +27,7 @@ if [[ "${1:-}" == "__pwcli-dashboard-daemon" ]]; then
   fi
   printf '%s\n' "$$" >"$pwcli_launcher_file"
   exec 3<>"$pwcli_fifo"
-  exec "$pwcli_upstream" show --host=127.0.0.1 --port=9323 <&3
+  exec "$pwcli_upstream" show --host=127.0.0.1 --port="$5" <&3
 fi
 
 is_wsl() {
@@ -182,6 +182,16 @@ elif [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
 else
   pwcli_state_dir="${PWCLI_TMPDIR:-/tmp}/playwright-cli-$UID"
 fi
+pwcli_workspace="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+pwcli_workspace="$(cd "$pwcli_workspace" && pwd -P)"
+# Legacy runtime state must be drained with the old package before migration.
+if [[ -f "$pwcli_state_dir/lease" || -f "$pwcli_state_dir/dashboard.pid" || -f "$pwcli_state_dir/owner.token" ]]; then
+  fail "Legacy Playwright consumers exist. Close them with the old package before migration."
+fi
+pwcli_allocation="$("$pwcli_owner_command" locate --role playwright --workspace "$pwcli_workspace")"
+IFS=$'\t' read -r pwcli_identity pwcli_profile pwcli_cdp_endpoint pwcli_dashboard_port <<<"$pwcli_allocation"
+[[ -n "$pwcli_identity" && "$pwcli_dashboard_port" =~ ^[0-9]+$ ]] || fail "Invalid browser allocation"
+pwcli_state_dir="$pwcli_state_dir/$pwcli_identity"
 umask 077
 mkdir -p "$pwcli_state_dir"
 chmod 700 "$pwcli_state_dir"
@@ -202,7 +212,6 @@ pwcli_dashboard_start_time_file="$pwcli_state_dir/dashboard.starttime"
 pwcli_dashboard_launcher_file="$pwcli_state_dir/dashboard.launcher"
 pwcli_dashboard_log="$pwcli_state_dir/dashboard.log"
 pwcli_dashboard_fifo="$pwcli_state_dir/dashboard.stdin"
-pwcli_workspace="$(pwd -P)"
 pwcli_powershell_ready=0
 pwcli_had_consumer=0
 pwcli_managed_owner=0
@@ -223,7 +232,7 @@ pwcli_owner_token_file="$pwcli_state_dir/owner.token"
 pwcli_owner_token="$(cat "$pwcli_owner_token_file" 2>/dev/null || true)"
 
 browser_owner() {
-  "$pwcli_owner_command" "$@"
+  "$pwcli_owner_command" --identity "$pwcli_identity" "$@"
 }
 
 check_browser_owner_conflict() {
@@ -239,7 +248,7 @@ reserve_browser_owner() {
   local previous_token="$pwcli_owner_token"
   pwcli_owner_token="$(browser_owner reserve --role playwright \
     --id "$pwcli_session@$pwcli_workspace" --pid "$$" \
-    --mode "$pwcli_requested_mode" --profile '%LOCALAPPDATA%\\aiakos\\playwright-cli\\chrome-profile' \
+    --mode "$pwcli_requested_mode" --profile "$pwcli_profile" \
     --endpoint "$pwcli_cdp_endpoint" --token "$previous_token")"
   printf '%s\n' "$pwcli_owner_token" >"$pwcli_owner_token_file"
   if [[ "$previous_token" != "$pwcli_owner_token" ]]; then
@@ -280,6 +289,7 @@ powershell_action() {
   local -a powershell_args=(
     -NoProfile
     -NonInteractive
+    -WindowStyle Hidden
     -ExecutionPolicy Bypass
     -File "$pwcli_windows_script"
     -Action "$action"
@@ -287,6 +297,7 @@ powershell_action() {
   if [[ -n "$mode" ]]; then
     powershell_args+=(-Mode "$mode")
   fi
+  powershell_args+=(-ProfileDir "$pwcli_profile" -DebugPort "${pwcli_cdp_endpoint##*:}")
   if [[ "$action" == "Start" ]]; then
     browser_owner run "$pwcli_owner_token" -- "$pwcli_powershell" "${powershell_args[@]}"
   else
@@ -315,11 +326,13 @@ dashboard_port_ready() {
     --fail \
     --silent \
     --max-time "${PWCLI_DASHBOARD_PROBE_TIMEOUT:-0.25}" \
-    "http://127.0.0.1:9323/" >/dev/null
+    "http://127.0.0.1:$pwcli_dashboard_port/" >/dev/null
 }
 
 dashboard_listener_inodes() {
-  awk '$2 == "0100007F:246B" && $4 == "0A" { print $10 }' "$pwcli_proc_root/net/tcp"
+  local address
+  printf -v address '0100007F:%04X' "$pwcli_dashboard_port"
+  awk -v address="$address" '$2 == address && $4 == "0A" { print $10 }' "$pwcli_proc_root/net/tcp"
 }
 
 process_owns_socket_inode() {
@@ -528,14 +541,7 @@ if [[ "$pwcli_command" == "close" ]]; then
 fi
 
 if [[ "$pwcli_command" == "close-all" || "$pwcli_command" == "kill-all" ]]; then
-  "$pwcli_upstream" "$@"
-  if [[ "$pwcli_command" == "kill-all" ]]; then
-    rm -f "$pwcli_lease"
-  elif [[ -f "$pwcli_lease" && "$pwcli_owner_workspace" == "$pwcli_workspace" ]]; then
-    rm -f "$pwcli_lease"
-  fi
-  close_chrome_if_unused
-  exit 0
+  fail "Use session-scoped close; bulk termination can affect other worktrees."
 fi
 
 if ((pwcli_show_kill)); then
@@ -543,7 +549,7 @@ if ((pwcli_show_kill)); then
   if [[ -f "$pwcli_dashboard_pid_file" ]]; then
     pwcli_dashboard_pid="$(cat "$pwcli_dashboard_pid_file")"
   fi
-  "$pwcli_upstream" "$@"
+  "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port"
   pwcli_kill_deadline=$((SECONDS + ${PWCLI_DASHBOARD_STOP_TIMEOUT:-5}))
   while [[ "$pwcli_dashboard_pid" =~ ^[0-9]+$ ]] &&
     kill -0 "$pwcli_dashboard_pid" 2>/dev/null &&
@@ -672,7 +678,7 @@ if [[ "$pwcli_command" == "open" ]]; then
     '{' \
     '  "browser": {' \
     '    "browserName": "chromium",' \
-    '    "cdpEndpoint": "http://127.0.0.1:9222",' \
+    "    \"cdpEndpoint\": \"$pwcli_cdp_endpoint\"," \
     '    "cdpTimeout": 10000' \
     '  }' \
     '}' >"$pwcli_config"
@@ -699,7 +705,7 @@ if ((pwcli_dashboard_running == 0)); then
     __pwcli-dashboard-daemon \
     "$pwcli_dashboard_fifo" \
     "$pwcli_dashboard_launcher_file" \
-    "$pwcli_lock_fd" \
+    "$pwcli_lock_fd" "$pwcli_dashboard_port" \
     >>"$pwcli_dashboard_log" 2>&1 &
   pwcli_dashboard_bootstrap_pid=$!
   pwcli_dashboard_launcher_pid=
@@ -737,7 +743,7 @@ if ((pwcli_dashboard_running == 0)); then
       "$pwcli_dashboard_launcher_file" \
       "$pwcli_dashboard_fifo"
     close_chrome_if_unused
-    fail "Managed Playwright Dashboard did not start on http://127.0.0.1:9323/. Inspect $pwcli_dashboard_log and verify port 9323 is free."
+    fail "Managed Playwright Dashboard did not start on http://127.0.0.1:$pwcli_dashboard_port/. Inspect $pwcli_dashboard_log and verify port 9323 is free."
   fi
 fi
 
@@ -747,8 +753,12 @@ fi
   --show-error \
   --max-time 5 \
   --request PUT \
-  "$pwcli_cdp_endpoint/json/new?http%3A%2F%2Flocalhost%3A9323%2F" >/dev/null
+  "$pwcli_cdp_endpoint/json/new?http%3A%2F%2Flocalhost%3A${pwcli_dashboard_port}%2F" >/dev/null
 
 release_lock
 trap - EXIT
-"$pwcli_upstream" "$@"
+if ((pwcli_show_annotate)); then
+  "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port"
+else
+  printf 'Dashboard: http://127.0.0.1:%s/\n' "$pwcli_dashboard_port"
+fi

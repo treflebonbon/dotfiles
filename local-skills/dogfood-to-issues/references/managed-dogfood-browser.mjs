@@ -67,11 +67,13 @@ const windowsScript = async () => {
   return windowsScriptPath;
 };
 
-const powershellAction = async (args, token) => {
+const powershellAction = async (args, token, identity) => {
   const scriptPath = await windowsScript();
   const command = [
     "-NoProfile",
     "-NonInteractive",
+    "-WindowStyle",
+    "Hidden",
     "-ExecutionPolicy",
     "Bypass",
     "-File",
@@ -79,7 +81,15 @@ const powershellAction = async (args, token) => {
     ...args,
   ];
   return token
-    ? ownership("run", token, "--", powershell(), ...command)
+    ? ownership(
+        "--identity",
+        identity,
+        "run",
+        token,
+        "--",
+        powershell(),
+        ...command
+      )
     : run(powershell(), command);
 };
 
@@ -129,6 +139,8 @@ export const acquireManagedDogfoodChrome = async ({
     return null;
   }
   const id = runId || `dogfood-${process.pid}-${Date.now()}`;
+  const identity = `dogfood-${id}`;
+  const owned = (...args) => ownership("--identity", identity, ...args);
   const endpointOverride = process.env.DOGFOOD_CDP_ENDPOINT;
   if (endpointOverride && process.env.DOGFOOD_TEST_ALLOW_CDP_ENDPOINT !== "1") {
     throw new Error(
@@ -141,7 +153,7 @@ export const acquireManagedDogfoodChrome = async ({
   const extensionPath = extension
     ? await run(wslpath(), ["-w", path.resolve(extension)])
     : "";
-  const token = await ownership(
+  const token = await owned(
     "reserve",
     "--role",
     "dogfood",
@@ -203,10 +215,11 @@ export const acquireManagedDogfoodChrome = async ({
           profile,
           ...(extensionPath ? ["-ExtensionPath", extensionPath] : []),
         ],
-        token
+        token,
+        identity
       );
       await waitForCdp(endpoint);
-      await ownership("activate", token);
+      await owned("activate", token);
     }
   } catch (error) {
     if (started) {
@@ -224,7 +237,7 @@ export const acquireManagedDogfoodChrome = async ({
       }
     }
     try {
-      await ownership("release", token);
+      await owned("release", token);
     } catch (releaseError) {
       error.message = `${error.message}; ${releaseError.message}`;
     }
@@ -250,7 +263,7 @@ export const acquireManagedDogfoodChrome = async ({
         cleanupError = error;
       } finally {
         try {
-          await ownership("release", token);
+          await owned("release", token);
         } catch (error) {
           releaseError = error;
         }

@@ -34,9 +34,13 @@
 
 **Codex 管理設定**: dotfiles が内容の正本を持ち、Codex の各利用環境へまとめて同期する設定の集合。利用環境に固有の信頼設定や実行状態とは区別する。 _Avoid_: Codex の全設定, Codex home, 更新単位
 
-**Managed Playwright Chrome**: WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。専用 profile の手動認証状態を、排他的な CLI session と Dashboard が再利用する。 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
+**Managed Playwright Chrome**: WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。worktree ごとの検証状態を、その identity の排他的な CLI session と Dashboard が再利用する。GitHub 添付認証とは別に保持する。 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
 
 **Managed Chrome モード**: Managed Playwright Chrome の同一 identity が、排他的に取る headless または headed の実行形態。別の browser identity や別 profile を意味しない。 _Avoid_: headless Chrome, headed Chrome, 別ブラウザー
+
+**Worktree 検証ブラウザ**: 通常の UI 検証で worktree ごとに所有し、検証対象アプリのログイン状態を次回の利用へ引き継ぐブラウザ。GitHub 添付用の共有認証と、Dogfood 試行の一時的な状態とは区別する。 _Avoid_: session 名, 共有添付ブラウザ, Dogfood profile
+
+**共有添付ブラウザ**: PR 画像添付のために、専用ブラウザで手動確立済みの GitHub 認証を複数の添付処理が利用するブラウザ。処理ごとのタブ所有権は誤操作を防ぐ境界であり、認証や storage のセキュリティ分離ではない。 _Avoid_: 通常閲覧用ブラウザ, Worktree 検証ブラウザ, 認証情報の複製
 
 **Managed Playwright Dashboard**: Managed Playwright Chrome の headed モードを表示面として使う、CLI session とは独立した Playwright の操作画面。annotation は排他 lease を所有する session にだけ結び付く。 _Avoid_: Dashboard tab, show 画面, headless Dashboard
 

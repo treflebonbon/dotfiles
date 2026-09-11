@@ -74,7 +74,7 @@ STUB
     "import { acquireManagedDogfoodChrome } from '$MODULE'; await acquireManagedDogfoodChrome({ headed: false });"
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"Managed playwright Chrome is already owned by 'alpha'"* ]]
+  [[ "$output" == *"Legacy ownership exists"* ]]
   ! grep -Fq -- '-Action Start' "$LOG"
   run env BROWSER_OWNERSHIP_DIR="$STATE" "$MANAGED_CHROME_OWNER" status
   [[ "$output" == *'"role":"playwright"'* ]]
@@ -113,7 +113,7 @@ STUB
     "import { acquireManagedDogfoodChrome } from '$MODULE'; await acquireManagedDogfoodChrome({ runId: 'second-run' });"
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *"already owned by 'first-run'"* ]]
+  [[ "$output" == *"Legacy ownership exists"* ]]
   run env BROWSER_OWNERSHIP_DIR="$STATE" "$MANAGED_CHROME_OWNER" status
   [[ "$output" == *'"role":"dogfood"'* ]]
   ! grep -Fq -- '-Action Start' "$LOG"
@@ -204,7 +204,8 @@ JS
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"cleanup failed"* ]]
-  [ -e "$STATE/owner" ]
+  run env BROWSER_OWNERSHIP_DIR="$STATE" "$MANAGED_CHROME_OWNER" status
+  [[ "$output" == *'"role":"dogfood"'* ]]
 }
 
 @test "Managed Dogfood Chrome releases a stopped browser despite profile cleanup failure" {
@@ -228,4 +229,17 @@ JS
   [[ "$output" == *"profile cleanup failed"* ]]
   run "$MANAGED_CHROME_OWNER" status
   [ "$output" = null ]
+}
+
+@test "Dogfood can run beside a distinct worktree browser without releasing it" {
+  export BROWSER_OWNERSHIP_DIR="$STATE"
+  "$MANAGED_CHROME_OWNER" reserve --identity worktree-a --role playwright \
+    --id alpha --pid "$$" --mode headless --profile other-profile --endpoint http://127.0.0.1:19901
+  run env DOGFOOD_TEST_WSL=1 DOGFOOD_TEST_ALLOW_CDP_ENDPOINT=1 \
+    DOGFOOD_CDP_ENDPOINT=http://127.0.0.1:19333 DOGFOOD_POWERSHELL="$BIN/powershell.exe" \
+    DOGFOOD_WSLPATH="$BIN/wslpath" node --input-type=module -e \
+    "import { acquireManagedDogfoodChrome } from '$MODULE'; const b = await acquireManagedDogfoodChrome({runId:'parallel'}); await b.close();"
+  [ "$status" -eq 0 ]
+  run "$MANAGED_CHROME_OWNER" status --identity worktree-a
+  [[ "$output" == *'"id":"alpha"'* ]]
 }

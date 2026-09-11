@@ -1,6 +1,7 @@
 {
   buildNpmPackage,
   curl,
+  git,
   lib,
   makeWrapper,
   nodejs,
@@ -77,6 +78,12 @@ buildNpmPackage {
 
     cp ${./playwright-cli-windows.ps1} "$out/share/playwright-cli/windows.ps1"
     cp ${./dogfood-chrome-windows.ps1} "$out/share/playwright-cli/dogfood-chrome-windows.ps1"
+    cp ${./browser-attachments.mjs} "$out/share/playwright-cli/browser-attachments.mjs"
+    cp ${./pr-evidence.mjs} "$out/share/playwright-cli/pr-evidence.mjs"
+    makeWrapper ${nodejs}/bin/node "$out/bin/browser-attachments" \
+      --set-default MANAGED_CHROME_OWNER "$out/bin/managed-chrome-owner" \
+      --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
+      --add-flags "$out/share/playwright-cli/browser-attachments.mjs"
     cp ${./managed-chrome-owner.mjs} "$out/share/playwright-cli/managed-chrome-owner.mjs"
     makeWrapper ${nodejs}/bin/node "$out/bin/managed-chrome-owner" \
       --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
@@ -90,6 +97,7 @@ buildNpmPackage {
       --replace-fail '@managedChromeOwner@' "$out/bin/managed-chrome-owner" \
       --replace-fail '@flock@' '${util-linux}/bin/flock'
     chmod +x "$out/bin/playwright-cli"
+    wrapProgram "$out/bin/playwright-cli" --prefix PATH : ${lib.makeBinPath [ git ]}
 
     mkdir -p "$out/share/playwright-cli/skills"
     cp -R "$pkg/skills/playwright-cli" "$out/share/playwright-cli/skills/playwright-cli"

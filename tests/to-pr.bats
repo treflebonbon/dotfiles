@@ -632,19 +632,19 @@ write_hierarchy_state() {
   grep -Fq '（ただし scratchpad を特定できない場合の明示 fallback は除く）' "$PROJECT_ROOT/CONTEXT.md"
 }
 
-@test "to-pr publishes images through an authenticated Managed Playwright Chrome profile" {
+@test "to-pr publishes images through the dedicated parallel attachment CLI" {
   local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
   local adr="$PROJECT_ROOT/docs/adr/0026-attach-playwright-evidence-to-pr.md"
   local attachment_section
   attachment_section="$(sed -n '/^## 7\. Attach Playwright evidence/,/^## Out of scope/p' "$SKILL" | tr '\n' ' ' | tr -s ' ')"
 
-  [[ "$attachment_section" == *'authenticated GitHub session'* ]]
-  grep -Fq 'anonymized URL' "$SKILL"
+  [[ "$attachment_section" == *'authentication already established by a human'* ]]
+  [[ "$attachment_section" == *'preserves the returned asset before publishing'* ]]
   grep -Fq 'gh pr edit --body-file' "$SKILL"
-  [[ "$attachment_section" == *'On WSL2, use Managed Playwright Chrome'* ]]
-  [[ "$attachment_section" == *'only when its dedicated profile already has an authenticated GitHub session'* ]]
-  [[ "$attachment_section" == *"Never substitute the user's normal Windows Chrome profile"* ]]
-  [[ "$attachment_section" == *'Existing authentication permits this PR-evidence upload only'* ]]
+  [[ "$attachment_section" == *'On WSL2, use `browser-attachments upload'*  ]]
+  [[ "$attachment_section" == *'its own dedicated GitHub profile'*  ]]
+  [[ "$attachment_section" == *'substitute a normal browsing profile'*  ]]
+  [[ "$attachment_section" == *'Existing authentication authorizes this requested evidence upload only'*  ]]
   [[ "$attachment_section" == *'If no authenticated browser is available'* ]]
   [[ "$attachment_section" == *'do not retry by logging in'* ]]
   [[ "$attachment_section" == *'手動添付待ち'* ]]
@@ -652,7 +652,7 @@ write_hierarchy_state() {
   ! grep -Fq '.github/pr-assets' "$SKILL"
 
   grep -Fq 'GitHub の PR 添付' "$runtime"
-  grep -Fq 'Managed Playwright Chrome の専用 profile' "$runtime"
+  grep -Fq '添付専用 identity' "$runtime"
   grep -Fq '手動添付待ち' "$runtime"
   ! grep -Fq '.github/pr-assets' "$runtime"
 

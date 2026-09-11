@@ -214,6 +214,8 @@ const probe = async (owner) => {
   const args = [
     "-NoProfile",
     "-NonInteractive",
+    "-WindowStyle",
+    "Hidden",
     "-ExecutionPolicy",
     "Bypass",
     "-File",
@@ -487,6 +489,17 @@ const main = () => {
     }
     const owner = await readOwner();
     if (command === "status") {
+      if (!identity && !owner) {
+        const files = await fs.readdir(root);
+        const owners = await Promise.all(
+          files
+            .filter(
+              (name) => name.startsWith("identity-") && name.endsWith(".json")
+            )
+            .map((name) => readOwner(path.join(root, name)))
+        );
+        return JSON.stringify(owners.length ? owners : null);
+      }
       return JSON.stringify(owner);
     }
     if (command === "check") {
