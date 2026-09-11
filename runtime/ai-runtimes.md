@@ -98,7 +98,7 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 ### Codex の推論強度と試行
 
-通常の親は `astra/medium`、設計・レビューでは `astra/xhigh` を提案する2段階運用とする。中間の `astra/high` は設けず、子は限定的なレビューを含め `terra/high` のままにする。提案条件・実効設定が不明な場合・通常作業への復帰は [Codex 管理指示](../private_dot_config/codex/AGENTS.md#codex-reasoning-effort) を正本とし、切替は人間が行う。モデルを自動変更する仕組みは追加しない。
+通常の親は `astra/medium`、設計・レビューでは `astra/xhigh` を提案する2段階運用とする。中間の `astra/high` は設けず、子は限定的なレビューを含め `terra/high` のままにする。提案条件・実効設定が不明な場合・通常作業への復帰は、配備先 `~/.config/codex/AGENTS.md` の「Codex reasoning effort」を参照する。リポジトリ内では [管理ソース](../private_dot_config/codex/AGENTS.md#codex-reasoning-effort) が正本であり、切替は人間が行う。モデルを自動変更する仕組みは追加しない。
 
 2026-09-11 の見直しは、品質を保ちながら修正・検証を含む完了時間を短縮するための試行。[Artificial Analysis の medium / xhigh 比較](https://artificialanalysis.ai/models/comparisons/gpt-6-astra-medium-vs-gpt-6-astra-xhigh) は生成量・生成時間の削減を示す一方、Terminal-Bench の成功率には差がある。生成時間の指標は初動待ち・ツール実行を含まず、Codex の実作業の速度や品質が同等とはみなさない。API 料金比を契約内の利用枠消費へ換算せず、追加クレジット購入・従量課金への切替も行わない。
 
