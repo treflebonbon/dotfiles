@@ -23,6 +23,10 @@
         let
           pkgs = pkgsFor.${system};
           python = pythonFor.${system};
+          withEnvSource = pkgs.runCommand "with-env-source" { } ''
+            install -D ${./private_dot_local/bin/executable_devshell-env} $out/bin/devshell-env
+            install -D ${./private_dot_local/share/devshell-env/devshell_environment.py} $out/share/devshell-env/devshell_environment.py
+          '';
         in
         {
           with-env = pkgs.writeShellApplication {
@@ -35,7 +39,7 @@
                   pkgs.bash
                 ]
               }"
-              exec ${python}/bin/python3 ${./private_dot_local/bin/executable_devshell-env} with-env "$@"
+              exec ${python}/bin/python3 ${withEnvSource}/bin/devshell-env with-env "$@"
             '';
           };
         }

@@ -79,3 +79,6 @@ local-skills/**
 CONTEXT.md
 docs
 docs/**
+
+# Python import caches are runtime state, not managed source.
+**/__pycache__/

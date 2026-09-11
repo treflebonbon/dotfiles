@@ -37,3 +37,6 @@ apm_modules/
 /.tmp-*/
 /a/
 /b/
+
+# Python import caches are runtime state, not managed source.
+**/__pycache__/
