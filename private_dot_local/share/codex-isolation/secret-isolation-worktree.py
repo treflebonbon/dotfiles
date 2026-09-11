@@ -20,12 +20,21 @@ import tomllib
 import uuid
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "devshell-env"))
+import devshell_environment
+from devshell_environment import (
+    InvalidContext,
+    Repository,
+    selected_output,
+    trust_file,
+    trusted,
+)
+
 BIN = Path(__file__).resolve().parents[2] / "bin"
 HELPER = BIN / "devshell-env"
 if not HELPER.is_file():
     HELPER = BIN / "executable_devshell-env"
-DEVENV = runpy.run_path(str(HELPER))
-Repository = DEVENV["Repository"]
+INNER = runpy.run_path(str(Path(__file__).with_name("codex-inner.py")))
 
 
 def toml_value(value):
@@ -62,7 +71,7 @@ def toml_document(value):
 
 
 def input_policy(repo):
-    directory = DEVENV["trust_file"](repo).parent.parent / "inputs"
+    directory = trust_file(repo).parent.parent / "inputs"
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     if (
         directory.is_symlink()
@@ -198,7 +207,7 @@ def admit(repo, head, names, *, mcp=(), github_policy=None):
             "--git-path",
             "hooks",
         ],
-        env=DEVENV["git_environment"](),
+        env=devshell_environment.git_environment(),
         text=True,
     ).strip()
     if Path(hooks_path).is_dir():
@@ -210,7 +219,7 @@ def admit(repo, head, names, *, mcp=(), github_policy=None):
     for key in ("user.name", "user.email"):
         result = subprocess.run(
             ["git", "-C", str(repo.root), "config", "--get", key],
-            env=DEVENV["git_environment"](),
+            env=devshell_environment.git_environment(),
             capture_output=True,
             text=True,
         )
@@ -249,7 +258,7 @@ def admit(repo, head, names, *, mcp=(), github_policy=None):
 
 
 def launch(arguments):
-    DEVENV["validate_codex_arguments"](arguments)
+    INNER["validate_codex_arguments"](arguments)
     if not sys.platform.startswith("linux"):
         raise ValueError("raw isolated Codex requires Linux or WSL2")
     tool_paths = {
@@ -294,7 +303,7 @@ def launch(arguments):
     os.environ.clear()
     os.environ.update(selected)
     repo = Repository.discover(Path.cwd(), linked_only=True)
-    if not DEVENV["trusted"](repo):
+    if not trusted(repo):
         raise ValueError("untrusted repository; run devshell-env trust")
     if not (repo.root / "flake.nix").is_file():
         raise ValueError("no flake.nix at the worktree root")
@@ -311,7 +320,7 @@ def launch(arguments):
     with policy.with_suffix(".lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         record = json.loads(read_input(policy.parent, policy.name)[0])
-        runtime = record["runtime"] | {"output": DEVENV["selected_output"](repo)}
+        runtime = record["runtime"] | {"output": selected_output(repo)}
         if runtime.get("github"):
             os.environ["PATH"] += os.pathsep + os.pathsep.join(
                 selected_tool(name) for name in ("awk", "jq")
@@ -337,7 +346,12 @@ def launch(arguments):
             repo,
             policy,
             session,
-            ["python3", "-I", "/nix/codex-isolation/codex-inner.py", *arguments],
+            [
+                "python3",
+                "-I",
+                "/nix/codex-isolation/share/codex-isolation/codex-inner.py",
+                *arguments,
+            ],
             services,
             Path(runtime["ca_bundle"]),
             runtime,
@@ -691,8 +705,15 @@ export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
         runtime_copy = output / "runtime"
         (runtime_copy / "bin").mkdir(parents=True)
         shutil.copyfile(HELPER, runtime_copy / "bin/devshell-env")
+        (runtime_copy / "share/devshell-env").mkdir(parents=True)
+        (runtime_copy / "share/codex-isolation").mkdir(parents=True)
         shutil.copyfile(
-            runtime_source / "codex-inner.py", runtime_copy / "codex-inner.py"
+            devshell_environment.__file__,
+            runtime_copy / "share/devshell-env/devshell_environment.py",
+        )
+        shutil.copyfile(
+            runtime_source / "codex-inner.py",
+            runtime_copy / "share/codex-isolation/codex-inner.py",
         )
         if runtime.get("github"):
             shutil.copyfile(
@@ -1151,7 +1172,7 @@ def main():
     except (
         OSError,
         ValueError,
-        DEVENV["InvalidContext"],
+        InvalidContext,
         subprocess.SubprocessError,
     ) as error:
         print(f"secret-isolation-worktree: {error}", file=sys.stderr)

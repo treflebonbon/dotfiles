@@ -28,6 +28,12 @@ CLAUDE.md / AGENTS.md / `runtime/` バンドルは chezmoi が `~/` へ配備す
 
 6テンプレートは共通 `with-env` の検証済み dotfiles revision を flake input に固定し、言語用 nixpkgs を `follows` で共有する。生成先の `nix flake lock` で依存を確定し、`nix develop .#default` と `nix run .#with-env -- command` を `.envrc` なしで使える。各 devShell に同じ package を含め、準備済み raw Codex の `with-env --prepared` にも対応する。 raw Codex は公開入力だけを専用 store・HOME へ渡すため、この入口ではホスト dotenv を注入しない。共通の隔離実装は `private_dot_local/share/codex-isolation/` に置き、手動 probe と配備する launcher が共有する。独立 repo 向けの手順・言語別 app 組込み例は各テンプレートの `DEVELOPMENT.md`、生成先の dotenv 除外は `.gitignore` に同梱する。共通処理をテンプレートへコピーせず、更新時は6 input の revision と独立展開テストを揃える。
 
+## プロジェクト環境準備
+
+`private_dot_local/share/devshell-env/devshell_environment.py` が Repository・trust・環境準備を共有する。`prepare_environment` は準備前後の Git 所属と flake の対応を確認してから環境を返し、`reuse_environment` は Nix を再評価せず準備済み環境を照合する。CLI・Claude・raw Codex は同じ module を読み、CLI の再実行で内部定義を取得しない。dotenv、Claude session、Codex の隔離・固定設定・起動・結果返却は各 adapter に残す。
+
+chezmoi 配備・公開 Nix `with-env`・raw の隔離コピーは `bin/` と `share/devshell-env/` の配置を揃える。Python `-I` でも配備先の絶対パスから同じ module を読み込み、プロジェクトの cwd や `PYTHONPATH` に依存しない。共通化は raw の初期化場所を変えず、Nix の評価は隔離後に行う（[ADR-0044](adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)）。
+
 ## ツール追加先の使い分け
 
 - chezmoi リポジトリ編集向け（lefthook hooks 等）→ `./flake.nix`

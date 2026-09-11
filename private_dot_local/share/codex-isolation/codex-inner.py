@@ -3,40 +3,93 @@
 import json
 import os
 from pathlib import Path
-import runpy
 import sys
 import tempfile
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "devshell-env"))
+from devshell_environment import (
+    InvalidContext,
+    PreparationError,
+    Repository,
+    executable,
+    prepare_environment,
+)
+
+
 RUNTIME = Path("/nix/codex-isolation")
-DEVENV = runpy.run_path(str(RUNTIME / "bin/devshell-env"))
+
+
+def validate_codex_arguments(arguments):
+    expect_profile = False
+    prohibited_long = {
+        "--cd",
+        "--worktree",
+        "--config",
+        "--enable",
+        "--disable",
+        "--sandbox",
+        "--add-dir",
+        "--profile",
+        "--approve-for-me",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "--yolo",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--dangerously-bypass-hook-trust",
+        "--remote",
+        "--remote-auth-token-env",
+        "--sandbox-state-json",
+        "--sandbox-state-readable-root",
+    }
+    for argument in arguments:
+        if expect_profile:
+            if argument != "dotfiles-secure":
+                raise InvalidContext("permission profile must remain dotfiles-secure")
+            expect_profile = False
+        elif argument == "--":
+            break
+        elif argument in ("-P", "--permission-profile", "--permissions-profile"):
+            expect_profile = True
+        elif argument.startswith(
+            ("-P", "--permission-profile=", "--permissions-profile=")
+        ):
+            profile = (
+                argument[2:] if argument.startswith("-P") else argument.split("=", 1)[1]
+            )
+            if profile != "dotfiles-secure":
+                raise InvalidContext("permission profile must remain dotfiles-secure")
+        elif (
+            argument == "features"
+            or argument.split("=", 1)[0] in prohibited_long
+            or argument.startswith(("-C", "-c", "-s", "-p"))
+        ):
+            raise InvalidContext(
+                f"argument can replace the worktree runtime boundary: {argument}"
+            )
+    if expect_profile:
+        raise InvalidContext("missing permission profile value")
 
 
 def main():
     launch = json.loads((RUNTIME / "launch.json").read_text())
     arguments = sys.argv[1:]
-    DEVENV["validate_codex_arguments"](arguments)
-    repo = DEVENV["Repository"].discover(launch["root"], linked_only=True)
+    validate_codex_arguments(arguments)
+    repo = Repository.discover(launch["root"], linked_only=True)
     if (
         str(repo.git_dir) != launch["git_dir"]
         or str(repo.common_dir) != launch["common_dir"]
     ):
         raise ValueError("isolated Git ownership does not match the selected worktree")
-    identity = repo.identity()
-    codex = DEVENV["executable"]("codex")
+    codex = executable("codex")
     if not codex:
         raise ValueError("the selected Codex is unavailable")
-    environment = DEVENV["prepare_environment"](
+    environment = prepare_environment(
         repo,
         dict(os.environ),
         require_trust=False,
         isolated=True,
     )
-    if (
-        DEVENV["Repository"].discover(repo.root, linked_only=True) != repo
-        or repo.identity() != identity
-    ):
-        raise ValueError("Git metadata changed during initialization")
     # These values and arguments belong to the launcher, not shellHook output.
     environment["CODEX_HOME"] = "/home/agent/.codex"
     environment["TMPDIR"] = tempfile.mkdtemp(prefix="codex-worktree-", dir="/tmp")
@@ -79,8 +132,8 @@ if __name__ == "__main__":
     except (
         OSError,
         ValueError,
-        DEVENV["InvalidContext"],
-        DEVENV["PreparationError"],
+        InvalidContext,
+        PreparationError,
     ) as error:
         print(f"codex-worktree: {error}; initialization incomplete", file=sys.stderr)
         sys.exit(1)

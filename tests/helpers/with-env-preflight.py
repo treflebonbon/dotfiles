@@ -15,9 +15,10 @@ script = r"""
 set -eu
 source "$PROJECT_ROOT/tests/helpers/raw-codex.bash"
 raw_fixture
-mkdir -p "$RAW_BASE/work/dotfiles/private_dot_local/bin"
+mkdir -p "$RAW_BASE/work/dotfiles/private_dot_local/bin" "$RAW_BASE/work/dotfiles/private_dot_local/share/devshell-env"
 cp "$PROJECT_ROOT/flake.nix" "$PROJECT_ROOT/flake.lock" "$RAW_BASE/work/dotfiles/"
 cp "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$RAW_BASE/work/dotfiles/private_dot_local/bin/"
+cp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" "$RAW_BASE/work/dotfiles/private_dot_local/share/devshell-env/"
 cat > "$RAW_BASE/work/flake.nix" <<'NIX'
 {
   inputs.dotfiles.url = "path:./dotfiles";
@@ -55,7 +56,7 @@ git commit -qm 'test: public app inside isolation'
 printf PUBLIC_APP_ISOLATED_OK
 TASK
 printf 'touch envrc-executed\n' > "$RAW_BASE/work/.envrc"
-raw_admit flake.nix task.sh .envrc dotfiles/flake.nix dotfiles/flake.lock dotfiles/private_dot_local/bin/executable_devshell-env
+raw_admit flake.nix task.sh .envrc dotfiles/flake.nix dotfiles/flake.lock dotfiles/private_dot_local/bin/executable_devshell-env dotfiles/private_dot_local/share/devshell-env/devshell_environment.py
 export RAW_DUMMY_SECRET=dummy-inherited-public-app
 raw_run sandbox -- bash task.sh
 [ "$(git -C "$RAW_BASE/work" log -1 --format=%s)" = 'test: public app inside isolation' ]

@@ -66,6 +66,7 @@ let
         "private_dot_local/share/codex-isolation/github-service.py"
         "private_dot_local/share/codex-isolation/github-client.py"
         "private_dot_local/bin/executable_devshell-env"
+        "private_dot_local/share/devshell-env/devshell_environment.py"
         "private_dot_local/bin/executable_codex-worktree"
         "private_dot_local/bin/executable_git-push-topic"
         "private_dot_config/codex/config.toml.tmpl"

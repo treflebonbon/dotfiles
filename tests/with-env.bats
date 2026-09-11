@@ -129,6 +129,7 @@ EOF
     bash -c 'cd "$1"; exec "$2" with-env -- touch launched' _ "$FIXTURE/separate" "$CLI"
   [ "$status" -ne 0 ]
   [[ "$output" == *'changed during preparation'* ]]
+  [[ "$output" != *'devshell-env: ready;'* ]]
   [ ! -e "$FIXTURE/separate/launched" ]
 }
 
@@ -404,4 +405,25 @@ SH
   run python3 "$PROJECT_ROOT/tests/helpers/with-env-preflight.py"
   raw_assert_status 0
   [[ "$output" == *'Evidence:'* ]]
+}
+
+@test "chezmoi deployed with-env runs under isolated Python without its source checkout" {
+  local source="$FIXTURE/source" config="$FIXTURE/chezmoi.yaml"
+  mkdir -p "$source/private_dot_local/bin" "$source/private_dot_local/share/devshell-env"
+  cp "$CLI" "$source/private_dot_local/bin/executable_devshell-env"
+  cp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" \
+    "$source/private_dot_local/share/devshell-env/"
+  cp "$PROJECT_ROOT/.chezmoiignore" "$source/.chezmoiignore"
+  mkdir -p "$source/private_dot_local/share/devshell-env/__pycache__"
+  printf 'stale bytecode\n' >"$source/private_dot_local/share/devshell-env/__pycache__/stale.pyc"
+  printf '{}\n' >"$config"
+  env HOME="$FIXTURE/home" chezmoi --source "$source" --destination "$FIXTURE/home" \
+    --config "$config" --persistent-state "$FIXTURE/chezmoi-state.boltdb" apply
+  [ ! -e "$FIXTURE/home/.local/share/devshell-env/__pycache__/stale.pyc" ]
+  mv "$source" "$FIXTURE/retired-source"
+  printf 'raise RuntimeError("untrusted import")\n' >"$FIXTURE/worktree/devshell_environment.py"
+  run env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" PYTHONPATH="$FIXTURE/worktree" \
+    bash -c 'cd "$1"; exec python3 -I "$2" with-env -- sh -c '\''test "$PROJECT_257" = prepared'\' \
+    _ "$FIXTURE/worktree" "$FIXTURE/home/.local/bin/devshell-env"
+  [ "$status" -eq 0 ]
 }

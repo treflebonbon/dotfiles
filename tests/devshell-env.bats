@@ -213,7 +213,7 @@ test -z "${LD_LIBRARY_PATH+x}"
 test -f fake-bin/codex
 test ! -e fake-codex-ran
 test -f flake.nix
-if printf changed >> /nix/codex-isolation/codex-inner.py 2>/dev/null; then exit 1; fi
+if printf changed >> /nix/codex-isolation/share/codex-isolation/codex-inner.py 2>/dev/null; then exit 1; fi
 if printf changed >> /etc/codex/requirements.toml 2>/dev/null; then exit 1; fi
 printf POLICY_FIXED
 SH
