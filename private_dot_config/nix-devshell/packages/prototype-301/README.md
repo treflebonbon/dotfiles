@@ -44,3 +44,11 @@ PROTOTYPE_PLAYWRIGHT_CORE=/absolute/path/to/playwright-core/index.mjs \
 集計は `windows-result-summary.json`。raw evidence は `/tmp/prototype-301-1789084461708/` の results.json / focus-samples.json。観測区間は Chrome 操作の開始前から終了後までを覆う。生の window handle / cursor 座標を GitHub へ公開せず、集計だけを保存する。
 
 独立 profile と状態保持はこの環境で成立したため採用候補を支持する。Dogfood / Dashboard 共存とカーソルへの影響が未確定のため、#301 の ready-for-agent 化と本実装への反映は引き続き保留。
+
+## 2026-09-11 再観測
+
+Q7 の回答は「前回のマウス操作は覚えていない」。操作を控える観測条件を案内し、同じ承認範囲の probe を再実行した。profile 分離・再起動後の保持・両 Chrome の停止は再度成功。
+
+436 sample 全体で前面 window handle は同一。Chrome 操作区間（00:22:23.499Z–00:22:45.634Z、約22.1秒）の107 sample では cursor 座標も同一で、読取り失敗は0。全90秒では14種類の cursor 位置があり、変化は操作区間外だった。今回の操作区間で干渉は観測されなかったが、200ms未満の変化や未試験の Dashboard 操作を保証しない。
+
+集計は windows-result-repeat-summary.json、raw evidence は /tmp/prototype-301-1789086142063/。Q6 は「別 identity は並列、同一 identity のモード競合は既存 consumer を保持して拒否」で合意。新構成の共存試験を本実装の必須受入条件へ移すかは Q8 で確認中。

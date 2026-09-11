@@ -1,0 +1,21 @@
+{
+  "operationsStart": "2026-09-11T00:22:23.499Z",
+  "operationsEnd": "2026-09-11T00:22:45.634Z",
+  "firstSample": "2026-09-11T00:22:22.5811092Z",
+  "lastSample": "2026-09-11T00:23:52.5092864Z",
+  "samples": 436,
+  "activeSamples": 107,
+  "cursorReadFailures": 0,
+  "foregroundCount": 1,
+  "cursorPositions": 14,
+  "activeForegroundCount": 1,
+  "activeCursorPositions": 1,
+  "observer": {
+    "code": 0,
+    "cursorChanged": true,
+    "error": "",
+    "foregroundChanged": false,
+    "limitation": "200ms samples can miss transient changes. Human input is indistinguishable; changes require investigation. Does not cover Dashboard or Dogfood coexistence.",
+    "samples": 436
+  }
+}
