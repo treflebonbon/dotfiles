@@ -51,7 +51,7 @@ report の書込み途中の内容を完了状態として公開しない。repo
 - 同じ出力ルートでの再試行に古い画像・trace・動画が混ざらず、過去の試行も正しい相対パスでレビューできること。
 - 警告・失敗・状態不明を連続0件へ数えないことと、旧版・外部 report を読み取り専用でレビューできること。
 
-実装対象は runner と必要な内部 module、`dogfood-to-issues` の呼出し・再開・連続回数の契約、関連する証跡・検証文書とテストに限る。Managed Chrome 所有権の module は結果を受け取る依存として維持する。既知の screenshot timeout や Dashboard 起動失敗そのものの修復は別の問題として扱い、本変更の効果はその失敗を正確に記録できることとする。
+実装対象は runner と必要な内部 module、`dogfood-to-issues`（現 `playwright-dogfood`）の呼出し・再開・連続回数の契約、関連する証跡・検証文書とテストに限る。Managed Chrome 所有権の module は結果を受け取る依存として維持する。既知の screenshot timeout や Dashboard 起動失敗そのものの修復は別の問題として扱い、本変更の効果はその失敗を正確に記録できることとする。
 
 ## Consequences
 
