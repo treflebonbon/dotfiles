@@ -50,8 +50,11 @@ for cap in "${NEEDS[@]}"; do
   gh-issues)
     # issue 作成は push 権限不要 (gh-write より弱い検査)。auth + repo 解決 + issues 有効のみ確認する。
     gh auth status >/dev/null 2>&1 || fail gh-issues "gh is not authenticated. Check: gh auth status"
-    repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) ||
-      fail gh-issues "cannot resolve repository via gh repo view"
+    repo="${REPO:-}"
+    if [[ -z "$repo" ]]; then
+      repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) ||
+        fail gh-issues "cannot resolve repository via gh repo view"
+    fi
     has_issues=$(gh api "repos/$repo" --jq .has_issues 2>/dev/null) ||
       fail gh-issues "cannot read repository metadata for $repo (network/approval?)"
     [[ "$has_issues" == "true" ]] || fail gh-issues "issues are disabled on $repo"

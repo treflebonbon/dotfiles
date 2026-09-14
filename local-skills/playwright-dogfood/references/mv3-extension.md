@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
+  - skills/playwright-dogfood/SKILL.md
 topics: [dogfood, mv3, chrome-extension, playwright]
 source: human
 ---
@@ -9,11 +9,11 @@ source: human
 
 ## When to use this runner
 
-`dogfood-to-issues` uses the bundled Playwright dogfood runner (`playwright-dogfood-runner.mjs`) for normal web targets and for Chrome MV3 extension targets. Pass `--extension <path>` when the run must load an unpacked MV3 Chrome extension directory (i.e. a directory containing `manifest.json` with `"manifest_version": 3`).
+`playwright-dogfood` uses the bundled Playwright dogfood runner (`playwright-dogfood-runner.mjs`) for normal web targets and for Chrome MV3 extension targets. Pass `--extension <path>` when the run must load an unpacked MV3 Chrome extension directory (i.e. a directory containing `manifest.json` with `"manifest_version": 3`).
 
 ## Why Playwright is the standard path
 
-The runner writes deterministic artifacts (`report.md`, screenshots, traces, console/network JSON, and videos when the browser supports Playwright recording) without feeding DOM dumps or trace bodies into the model context. This keeps `dogfood-to-issues` evidence reproducible and low-token. WSL2's CDP path is intentionally video-free because `connectOverCDP` cannot reliably provide `recordVideo`; it uses an explicit 1440x1000 viewport instead.
+The runner writes deterministic artifacts (`report.md`, screenshots, traces, console/network JSON, and videos when the browser supports Playwright recording) without feeding DOM dumps or trace bodies into the model context. This keeps `playwright-dogfood` evidence reproducible and low-token. WSL2's CDP path is intentionally video-free because `connectOverCDP` cannot reliably provide `recordVideo`; it uses an explicit 1440x1000 viewport instead.
 
 With the opt-in `--annotate` flag, Playwright CLI attaches over CDP to this same Managed Dogfood Chrome context after service-worker inspection. It does not launch a second browser. The runner detaches the CLI session before releasing the dogfood ownership record and retains annotation artifacts with the other evidence.
 

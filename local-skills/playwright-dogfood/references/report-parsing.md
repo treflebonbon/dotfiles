@@ -1,13 +1,13 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
+  - skills/playwright-dogfood/SKILL.md
 topics: [dogfood, report, parsing]
 source: human
 ---
 
 # Report Parsing
 
-Parse the `dogfood` report into finding candidates before asking for approval. Prefer structured Markdown parsing if available; otherwise use the block contract below.
+Parse the `dogfood` report into findings for the summary, or candidates for approval when `--issues` is supplied. Prefer structured Markdown parsing if available; otherwise use the block contract below.
 
 ## Required Inputs
 
@@ -38,7 +38,7 @@ Accepted aliases are `### Finding 001:` and `### Bug 001:`. The parser should co
 
 Within each block, extract these fields when present:
 
-- `Severity`: `Critical`, `High`, `Medium`, or `Low`. Normalize resumed priority aliases P0/P1/P2/P3 to those values using [severity-label-mapping.md](severity-label-mapping.md).
+- `Severity`: `Critical`, `High`, `Medium`, or `Low`. Normalize resumed priority aliases P0/P1/P2/P3 to Critical/High/Medium/Low respectively. GitHub label mapping is needed only with `--issues`.
 - `Category`: `visual`, `functional`, `ux`, `content`, `perf`, `console`, `network`, or `a11y`
 - `URL`
 - `Summary`

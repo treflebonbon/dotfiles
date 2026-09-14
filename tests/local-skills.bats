@@ -6,6 +6,26 @@ setup() {
   setup_local_skills_fixture
 }
 
+@test "playwright dogfood replaces the retired issue-only skill in both deployment hubs" {
+  local dir
+  for dir in .agents .claude .codex; do
+    mkdir -p "$SKILL_HOME/$dir/skills/dogfood-to-issues"
+    printf 'old skill\n' >"$SKILL_HOME/$dir/skills/dogfood-to-issues/SKILL.md"
+  done
+
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+
+  for dir in .agents .claude .codex; do
+    [ ! -e "$SKILL_HOME/$dir/skills/dogfood-to-issues" ]
+  done
+  for dir in .agents .claude; do
+    cmp "$SKILL_SOURCE/local-skills/playwright-dogfood/SKILL.md" "$SKILL_HOME/$dir/skills/playwright-dogfood/SKILL.md"
+  done
+}
+
 @test "SKILL.md must resolve to a regular file before cleanup" {
   mkdir -p "$SKILL_SOURCE/local-skills/incomplete" "$SKILL_HOME/.claude/skills/orphan"
   mkfifo "$SKILL_SOURCE/local-skills/incomplete/SKILL.md"

@@ -1,7 +1,7 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
-  - skills/dogfood-to-issues/templates/issue-body.md
+  - skills/playwright-dogfood/SKILL.md
+  - skills/playwright-dogfood/templates/issue-body.md
 topics: [github-issues, template]
 source: human
 ---

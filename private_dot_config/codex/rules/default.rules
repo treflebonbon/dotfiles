@@ -265,7 +265,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["gh", "search", "issues"],
     decision = "allow",
-    justification = "issue dedup preflight (dogfood-to-issues)。",
+    justification = "issue dedup preflight (playwright-dogfood)。",
     match = ["gh search issues query"],
 )
 

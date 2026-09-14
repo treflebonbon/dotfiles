@@ -2,7 +2,7 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   REF_DIR="$BATS_TEST_TMPDIR/references"
   mkdir -p "$REF_DIR/node_modules/playwright"
-  cp "$PROJECT_ROOT/local-skills/dogfood-to-issues/references/"*.mjs "$REF_DIR/"
+  cp "$PROJECT_ROOT/local-skills/playwright-dogfood/references/"*.mjs "$REF_DIR/"
   cp "$PROJECT_ROOT/tests/fixtures/dogfood-playwright.mjs" "$REF_DIR/node_modules/playwright/index.mjs"
   printf '%s\n' '{"type":"module","exports":"./index.mjs"}' >"$REF_DIR/node_modules/playwright/package.json"
   export DOGFOOD_TEST_WSL=0
@@ -12,6 +12,52 @@ setup() {
   cp "$PROJECT_ROOT/tests/fixtures/dogfood-annotation-cli.sh" "$BATS_TEST_TMPDIR/bin/playwright-cli"
   chmod +x "$BATS_TEST_TMPDIR/bin/playwright-cli"
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+}
+
+@test "documented evidence worktree needs no GitHub or remote and uses current HEAD" {
+  local repo="$BATS_TEST_TMPDIR/local-repo"
+  git init -q -b feature-under-review "$repo"
+  printf '.worktrees/\n' >"$repo/.gitignore"
+  git -C "$repo" add .gitignore
+  git -C "$repo" -c user.name=Test -c user.email=test@example.com commit -qm 'test: initial'
+  export GH_CALL_LOG="$BATS_TEST_TMPDIR/gh-calls"
+  printf '#!/bin/sh\nprintf called >>"$GH_CALL_LOG"\nexit 1\n' >"$BATS_TEST_TMPDIR/bin/gh"
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  python3 - "$PROJECT_ROOT/local-skills/playwright-dogfood/references/worktree-setup.md" "$BATS_TEST_TMPDIR/worktree.sh" <<'PY'
+from pathlib import Path
+import re
+import sys
+blocks = re.findall(r'```bash\n(.*?)```', Path(sys.argv[1]).read_text(), re.S)
+Path(sys.argv[2]).write_text('set -eu\n' + '\n'.join(blocks[:2]))
+PY
+
+  cd "$repo"
+  run env TARGET_URL=http://localhost:3000 bash "$BATS_TEST_TMPDIR/worktree.sh"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$GH_CALL_LOG" ]
+  [ "$(git rev-parse HEAD)" = "$(git -C .worktrees/dogfood-localhost-3000 rev-parse HEAD)" ]
+  [ -z "$(git status --short)" ]
+}
+
+@test "issue preflight uses the explicit repository outside a Git checkout" {
+  export GH_CALL_LOG="$BATS_TEST_TMPDIR/gh-calls"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >>"$GH_CALL_LOG"
+case "$*" in
+  'auth status') exit 0 ;;
+  'api repos/example/review-target --jq .has_issues') printf 'true\n' ;;
+  *) exit 1 ;;
+esac
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  cd "$BATS_TEST_TMPDIR"
+
+  run env REPO=example/review-target bash "$PROJECT_ROOT/local-skills/playwright-dogfood/scripts/runtime-preflight.sh" --need gh-issues
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$GH_CALL_LOG")" = $'auth status\napi repos/example/review-target --jq .has_issues' ]
 }
 
 @test "retry keeps earlier evidence and resolves both latest and historical report paths" {
@@ -167,7 +213,7 @@ run_documented_invocation() {
   mkdir -p "$OUT"
   printf '%s\n' 'MV3 service worker did not register' >"$OUT/report.md"
   export CLI_RUN_LOG="$BATS_TEST_TMPDIR/cli-runs"
-  export CODEX_SKILL_DIR="$PROJECT_ROOT/local-skills/dogfood-to-issues"
+  export CODEX_SKILL_DIR="$PROJECT_ROOT/local-skills/playwright-dogfood"
   export WT_DIR="$BATS_TEST_TMPDIR" OUTPUT_DIR=output TARGET_URL=about:blank EXTENSION_PATH=fixture
   export WSL_DISTRO_NAME=test
   printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$BATS_TEST_TMPDIR/bin/npm"

@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
+  - skills/playwright-dogfood/SKILL.md
 topics: [approval, dedup, github-issues]
 source: human
 ---

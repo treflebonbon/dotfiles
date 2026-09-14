@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
+  - skills/playwright-dogfood/SKILL.md
 topics: [verification, smoke-test]
 source: human
 ---
@@ -11,14 +11,14 @@ Use the smallest verification path that matches the change.
 
 ## Static Checks
 
-The skill lives under `local-skills/dogfood-to-issues/` (chezmoi SoT) and is materialised to `~/.agents/skills/` and `~/.claude/skills/` by `run_onchange_after_deploy-local-skills.sh.tmpl`.
+The skill lives under `local-skills/playwright-dogfood/` (chezmoi SoT) and is materialised to `~/.agents/skills/` and `~/.claude/skills/` by `run_onchange_after_deploy-local-skills.sh.tmpl`.
 
 ## Runner Smoke Test
 
 Run the bundled runner directly so browser automation is verified without creating GitHub Issues. On WSL2 set `DOGFOOD_WINDOWS_SCRIPT` to the packaged PowerShell script; the runner connects to Windows Managed Dogfood Chrome over CDP and does not launch a WSL browser:
 
 ```bash
-REF_DIR="$HOME/.agents/skills/dogfood-to-issues/references"
+REF_DIR="$HOME/.agents/skills/playwright-dogfood/references"
 OUT_DIR="$(mktemp -d)"
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 # The WSL devShell shellHook supplies DOGFOOD_WINDOWS_SCRIPT.
@@ -39,7 +39,7 @@ For WSL2, the runner uses Windows Chrome over CDP and intentionally does not pro
 Run the subprocess-level Bats coverage for the opt-in path:
 
 ```bash
-bats tests/dogfood-results.bats tests/dogfood-to-issues.bats
+bats tests/dogfood-results.bats tests/playwright-dogfood.bats
 ```
 
 The browser tests use the current platform path (Windows Managed Dogfood Chrome on WSL2), preserving the root report entry. CLI fault-injection tests also verify unavailable artifacts, failed cleanup, interrupted retries, and stale report handling. Together these verify `--resume` rejection, two rectangles plus overall feedback, empty submission, a real CDP attach/eval/detach against the runner-owned Chromium, MV3 coexistence, and evidence finalization on CLI failures.
@@ -48,14 +48,14 @@ For a manual dashboard check, run the runner with `--annotate` against a disposa
 
 ## Read-only Resume Check
 
-Resume is a skill procedure, not a runner CLI mode. Verify its report-reading step using an external, read-only output directory and [report-parsing.md](report-parsing.md). Include a legacy report without run status, a priority alias, valid evidence, and missing or escaping evidence paths. Confirm that the candidate survives, its severity is normalized, invalid evidence is shown as warnings, and the run remains unknown. Also review empty legacy, failed, and warning-only reports: none adds a clean cycle or proves the target passed. Compare file hashes, symlink targets, and directory contents before and after review to confirm no mutation. This check ends before candidate approval and does not launch a browser or create GitHub Issues.
+Resume is a skill procedure, not a runner CLI mode. Verify its report-reading step using an external, read-only output directory and [report-parsing.md](report-parsing.md). Include a legacy report without run status, a priority alias, valid evidence, and missing or escaping evidence paths. Confirm that the candidate survives, its severity is normalized, invalid evidence is shown as warnings, and the run remains unknown. Also review empty legacy, failed, and warning-only reports: none adds a clean cycle or proves the target passed. Compare file hashes, symlink targets, and directory contents before and after review to confirm no mutation. Without `--issues`, this check ends with the findings summary and does not launch a browser, invoke GitHub commands, or ask for candidate approval. `--resume <path> --issues` adds the normal approval and creation phase; `--resume <path> --annotate` is rejected before side effects.
 
 ## Skill Smoke Test
 
 Run against a low-risk public page:
 
 ```text
-/dogfood-to-issues https://example.com
+/playwright-dogfood https://example.com
 ```
 
 Expected:
@@ -63,6 +63,8 @@ Expected:
 - a `dogfood/YYYY-MM-DD-example-com` branch/worktree is created
 - Playwright runner writes `dogfood-output/<session>/report.md`
 - zero findings exits with explicit run/evidence status; warnings do not count as a clean cycle
+- no GitHub commands, authentication preflight, or Issue-creation questions occur, including when findings exist
+- no annotation Dashboard opens unless `--annotate` was supplied
 - no GitHub Issues are created
 - no commit or push of evidence happens
 
@@ -70,7 +72,7 @@ Expected:
 
 Use a small app with known visual or functional defects:
 
-1. Run `/dogfood-to-issues <local-app-url> --parent #N`.
+1. Run `/playwright-dogfood <local-app-url> --issues --parent #N`.
 2. Approve one finding, skip one, and edit one.
 3. Confirm created issues contain repro steps and local evidence path references (no committed URLs).
 4. Confirm parent issue body is updated only because `--parent` was explicit.
