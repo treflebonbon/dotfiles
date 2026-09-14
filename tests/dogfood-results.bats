@@ -300,3 +300,22 @@ PY
   grep -Fq 'Expected one Chromium executable' "$OUT/report.md"
   ! grep -Fq 'target loaded' "$OUT/report.md"
 }
+
+@test "runner rejects resume before changing an existing report" {
+  mkdir -p "$OUT"
+  printf 'saved report\n' >"$OUT/report.md"
+  for resume_path in "$OUT" ''; do
+    run node "$RUNNER" --target about:blank --output "$OUT" --resume "$resume_path"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"--resume is a skill option"* ]]
+    [ "$(cat "$OUT/report.md")" = 'saved report' ]
+    [ "$(ls -A "$OUT")" = report.md ]
+  done
+}
+
+@test "runner does not export authentication state as evidence" {
+  run node "$RUNNER" --target about:blank --output "$OUT"
+  [ "$status" -eq 0 ]
+  [ -z "$(find "$OUT" -name auth-state.json -print)" ]
+  ! grep -Fq 'auth-state.json' "$OUT/report.md"
+}

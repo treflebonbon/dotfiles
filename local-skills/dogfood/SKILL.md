@@ -24,10 +24,10 @@ Without `--issues`, finish with the report and findings summary, including run/e
 
 ## Steps
 
-0. Reject `--annotate` together with `--resume <path>` before preflight, worktree, report, browser, or GitHub operations. Do not silently drop either option.
+0. Reject `--annotate` together with `--resume <path>` before preflight, worktree, report, browser, or GitHub operations. Do not silently drop either option. For an external `--resume <path>` with `--issues`, require an explicit `REPO=owner/name` before GitHub preflight; ask for the repository when missing. Never infer its destination from the caller's checkout. Without `--issues`, no repository is required.
 1. Run the bundled preflight `REPO="${REPO:-}" bash <this skill dir>/scripts/runtime-preflight.sh --need gh-issues` only with `--issues`; stop on `PREFLIGHT_FAIL`. Pass the requested `REPO` when supplied, including for external resumed reports. Without `--issues`, skip this GitHub preflight. Reject `--parent` or `REPO` without `--issues` before preflight or other operations.
 2. Read [references/index.md](references/index.md), then load only the reference files needed for the current phase.
-3. For a new run, resolve the required `TARGET_URL` and the local Git repository. With `--resume`, validate the existing report instead; no URL or local Git repository is required. Only with `--issues`, resolve the GitHub `REPO`, defaulting to `gh repo view --json nameWithOwner`.
+3. For a new run, resolve the required `TARGET_URL` and the local Git repository. With `--resume`, validate the existing report instead; no URL or local Git repository is required. Only with `--issues`, resolve the GitHub `REPO`, using the explicit destination for external resumed reports and otherwise defaulting to `gh repo view --json nameWithOwner`.
 4. Create an isolated dogfood worktree on `dogfood/YYYY-MM-DD-<target-slug>` from local `HEAD` for a new run; no fetch or GitHub lookup is needed. With `--resume`, resolve the supplied output as the evidence root instead; reuse its dogfood worktree when present, but do not create a worktree merely to wrap an external output directory.
 5. Unless `--resume <path>` is supplied, run the Playwright dogfood runner. **If `--auth-from` is supplied, stop and report that authenticated Playwright dogfood state import is not yet supported (follow-up) - do not silently dogfood an unauthenticated profile.** Resolve this skill's `references/` dir and output paths to **absolute** (the runner and its `node_modules` live under this skill's `references/`, a different base than the dogfood worktree):
 
@@ -60,7 +60,7 @@ Without `--issues`, finish with the report and findings summary, including run/e
    fi
    ```
 
-   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` prevents npm from downloading a browser. On WSL2 the runner acquires Windows Managed Dogfood Chrome over loopback CDP; normal Web, MV3, and annotation share the output-derived profile identity and ownership record. Non-WSL environments retain the local Playwright path. Headless is primary. Exit 2 alone requests one headed MV3 retry with the same profile identity; exit 1 stops, including on cleanup or report publication failures. Each attempt retains its own report and evidence under `attempts/<id>/`; the root `report.md` is the latest view. On WSL2 the retry does not start a WSL browser or use `xvfb-run`.
+   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` prevents npm from downloading a browser. On WSL2 the runner acquires Windows Managed Dogfood Chrome over loopback CDP; normal Web, MV3, and annotation share the output-derived profile identity and ownership record. Non-WSL environments retain the local Playwright path. Annotation uses a separate Dashboard window that displays the target via screencast, so the inspected browser can remain headless. Headless is primary. Exit 2 alone requests one headed MV3 retry with the same profile identity; exit 1 stops, including on cleanup or report publication failures. Each attempt retains its own report and evidence under `attempts/<id>/`; the root `report.md` is the latest view. On WSL2 the retry does not start a WSL browser or use `xvfb-run`.
 
    WSL2 requires the matching Nix `managed-chrome-owner` CLI (`MANAGED_CHROME_OWNER`). Startup and cleanup failures preserve ownership when Chrome's absence cannot be confirmed. Use `managed-chrome-owner status` to identify the consumer, finish that consumer, then run `managed-chrome-owner recover`. Recovery only verifies absence and releases ownership; it never closes Chrome or deletes profiles. Keep an uncertain startup reserved for investigation, and do not retry headed while ownership remains. Upgrade the Nix package and this local skill together after managed sessions and the Dashboard stop.
 
@@ -89,7 +89,7 @@ For multi-cycle requests, track cycle count and zero-finding streak separately f
 ## Inputs
 
 - `TARGET_URL`: required URL for a new run; not required with `--resume`.
-- `REPO`: optional `owner/name`, valid only with `--issues`; default is the current GitHub repository.
+- `REPO`: optional `owner/name`, valid only with `--issues`; required for an external resumed report; otherwise defaults to the current GitHub repository.
 - `--issues`: opt into GitHub dedup, label lookup, candidate approval, and Issue creation. Without it, finish with the report and findings summary.
 - `--resume <path>`: optional existing dogfood output directory containing `report.md`. The directory is a read-only evidence root. It may be an output root or an individual `attempts/<id>/` directory. Legacy/external reports without run status are reviewed as status unknown and never count toward consecutive zero-finding cycles.
 - `--annotate`: optional visual feedback collection through Playwright CLI. It waits for human submission after automated checks and is incompatible with `--resume`.

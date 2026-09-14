@@ -31,7 +31,7 @@ const parseArgs = (argv) => {
       out.output = argv[i];
     } else if (a === "--resume") {
       i += 1;
-      out.resume = argv[i];
+      out.resume = true;
     }
   }
   if (!out.target || !out.output) {
@@ -41,6 +41,11 @@ const parseArgs = (argv) => {
   }
   if (out.annotate && out.resume) {
     throw new Error("--annotate cannot be combined with --resume");
+  }
+  if (out.resume) {
+    throw new Error(
+      "--resume is a skill option; the runner only starts new runs"
+    );
   }
   return out;
 };
@@ -434,14 +439,6 @@ if (context) {
           timeout: 5000,
         }),
       [screenshotRel]
-    );
-    await result.capture(
-      "storage state",
-      () =>
-        context.storageState({
-          path: path.join(result.attemptDir, "auth-state.json"),
-        }),
-      ["auth-state.json"]
     );
 
     if (consoleErrors.length) {

@@ -116,7 +116,9 @@ const waitForCdp = async (endpoint, attempts = 100) => {
   for (let i = 0; i < attempts; i += 1) {
     try {
       // eslint-disable-next-line no-await-in-loop -- poll the endpoint sequentially
-      const response = await fetch(`${endpoint}/json/version`);
+      const response = await fetch(`${endpoint}/json/version`, {
+        signal: AbortSignal.timeout(2000),
+      });
       if (response.ok) {
         return;
       }

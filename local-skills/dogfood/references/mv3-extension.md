@@ -46,7 +46,6 @@ The runner keeps each attempt under `<output>/attempts/<id>/`. Its report and co
 | `traces/playwright-trace.zip` | Playwright trace archive for deterministic local replay |
 | `console.json` | Captured console/page errors |
 | `network.json` | Captured failed requests and 5xx responses |
-| `auth-state.json` | Playwright storage state snapshot |
 
 The runner emits findings in the `report-parsing.md` block contract so Step 5 parses them directly: console/page errors become a `Category: console` finding, failed requests and 5xx responses become a `Category: network` finding, a missing MV3 service worker becomes a `Critical` `functional` finding, and navigation failures become `High` `functional` findings. Video files are finalized only after `context.close()`; the runner enumerates them after closing and lists them under each finding's `Evidence`.
 
@@ -57,7 +56,7 @@ On WSL2 the runner uses `chromium.connectOverCDP` to the Managed Dogfood Chrome 
 - `--disable-extensions-except=<extension>` — disables all other extensions
 - `--load-extension=<extension>` — loads the unpacked MV3 extension
 
-Playwright does not reliably support `recordVideo` for an existing browser reached through `connectOverCDP`. WSL2 CDP runs therefore omit video capture and apply the required 1440x1000 viewport with `page.setViewportSize`, including when an extension run reuses `browser.contexts()[0]`. Healthy-run verification requires report, screenshot, trace, console/network data, and storage state; a `.webm` is required only for locally launched contexts. Collection failures are explicitly reported: completed inspection with missing evidence returns 0 with warnings, while execution/cleanup/report failures return 1. The report retains observed findings, and Evidence includes only successfully saved files.
+Playwright does not reliably support `recordVideo` for an existing browser reached through `connectOverCDP`. WSL2 CDP runs therefore omit video capture and apply the required 1440x1000 viewport with `page.setViewportSize`, including when an extension run reuses `browser.contexts()[0]`. Healthy-run verification requires report, screenshot, trace, console/network data; a `.webm` is required only for locally launched contexts. Collection failures are explicitly reported: completed inspection with missing evidence returns 0 with warnings, while execution/cleanup/report failures return 1. The report retains observed findings, and Evidence includes only successfully saved files.
 
 The service worker is obtained by filtering for `chrome-extension://` workers (so a reused profile or an unrelated worker is not mistaken for the extension under test), with the `waitForEvent` wrapped so a timeout does not throw:
 
@@ -106,10 +105,9 @@ Expected outputs inside the latest attempt after the runner exits (the fixture's
 
 - `report.md` containing an `Extension ID:` line (and `No findings recorded.` for the clean fixture)
 - `screenshots/initial.png`
-- `auth-state.json`
 - `traces/playwright-trace.zip`
 - `videos/` directory with a `.webm` file when run through a locally launched context; WSL2 CDP runs intentionally omit this directory entry
 
 ## Limitations
 
-- **`--auth-from` is not yet supported on this runner.** The Playwright runner launches a fresh persistent context and does not apply the `--auth-from` profile/notes, so an authenticated target would be dogfooded unauthenticated (degrading the run into a login-page check or misleading findings). `SKILL.md` Step 4 therefore stops with an error when `--auth-from` is supplied. Applying auth state (e.g. `storageState` input or `context.addCookies()` from a stored profile) is a follow-up. `auth-state.json` written by the runner is an output snapshot, not an input.
+- **`--auth-from` is not yet supported on this runner.** The Playwright runner launches a fresh persistent context and does not apply the `--auth-from` profile/notes, so an authenticated target would be dogfooded unauthenticated (degrading the run into a login-page check or misleading findings). `SKILL.md` Step 4 therefore stops with an error when `--auth-from` is supplied. Applying auth state (e.g. `storageState` input or `context.addCookies()` from a stored profile) is a follow-up. The runner does not export cookies or localStorage into a separate authentication-state evidence file.
