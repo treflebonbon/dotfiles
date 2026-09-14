@@ -6,7 +6,7 @@ setup() {
   setup_local_skills_fixture
 }
 
-@test "playwright dogfood replaces the retired issue-only skill in both deployment hubs" {
+@test "dogfood replaces the retired issue-only skill in both deployment hubs" {
   local dir
   for dir in .agents .claude .codex; do
     mkdir -p "$SKILL_HOME/$dir/skills/dogfood-to-issues"
@@ -22,7 +22,7 @@ setup() {
     [ ! -e "$SKILL_HOME/$dir/skills/dogfood-to-issues" ]
   done
   for dir in .agents .claude; do
-    cmp "$SKILL_SOURCE/local-skills/playwright-dogfood/SKILL.md" "$SKILL_HOME/$dir/skills/playwright-dogfood/SKILL.md"
+    cmp "$SKILL_SOURCE/local-skills/dogfood/SKILL.md" "$SKILL_HOME/$dir/skills/dogfood/SKILL.md"
   done
 }
 

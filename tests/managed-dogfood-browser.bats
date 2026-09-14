@@ -4,7 +4,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  MODULE="$PROJECT_ROOT/local-skills/playwright-dogfood/references/managed-dogfood-browser.mjs"
+  MODULE="$PROJECT_ROOT/local-skills/dogfood/references/managed-dogfood-browser.mjs"
   BIN="$BATS_TEST_TMPDIR/bin"
   STATE="$BATS_TEST_TMPDIR/ownership"
   LOG="$BATS_TEST_TMPDIR/powershell.log"

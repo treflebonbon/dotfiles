@@ -1,5 +1,5 @@
 ---
-name: playwright-dogfood
+name: dogfood
 description: "Inspect a web app or Chrome MV3 extension with the bundled Playwright runner and report findings with local evidence. Add --annotate for human visual feedback, --issues for approved GitHub Issues, or --resume to review saved results. Use for implementation QA; not code review, feature design, or open-ended manual browser exploration."
 allowed-tools: AskUserQuestion, Read, Write, Edit, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(mkdir:*), Bash(date:*), Bash(find:*), Bash(readlink:*), Bash(npm:*), Bash(node:*), Bash(xvfb-run:*), Bash(bash:*)
 metadata:
@@ -8,16 +8,16 @@ metadata:
   source: human
 ---
 
-# Playwright Dogfood
+# Dogfood
 
 Run automated inspection and report findings with local evidence. Annotation and Issue creation are independent opt-ins:
 
 ```text
-/playwright-dogfood <URL>
-/playwright-dogfood <URL> --annotate
-/playwright-dogfood <URL> --issues
-/playwright-dogfood <URL> --annotate --issues
-/playwright-dogfood --resume <path> --issues
+/dogfood <URL>
+/dogfood <URL> --annotate
+/dogfood <URL> --issues
+/dogfood <URL> --annotate --issues
+/dogfood --resume <path> --issues
 ```
 
 Without `--issues`, finish with the report and findings summary, including run/evidence status and warnings. Do not invoke `gh`, require GitHub authentication, ask about Issue creation, or load Issue-only procedures. `--issues` enables candidate review and creation after the user settles the candidates; it does not approve every finding automatically. `--issues` and `--resume` are skill options, not runner arguments.
@@ -76,7 +76,7 @@ Without `--issues`, finish with the report and findings summary, including run/e
 
 This skill ends with the report and findings summary, or with approved Issue creation and its summary when `--issues` is supplied. Do not implement fixes, create code branches, commit application changes, push code, open implementation PRs, close issues, or run finalization inside this skill.
 
-If the user includes a follow-on workflow, finish only the playwright-dogfood phase first, then report an explicit handoff summary:
+If the user includes a follow-on workflow, finish only the dogfood phase first, then report an explicit handoff summary:
 
 - report path and findings, plus created issue numbers and skipped/duplicate candidates when `--issues` is supplied
 - current cycle number and zero-finding streak when the request is multi-cycle

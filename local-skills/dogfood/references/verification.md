@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/playwright-dogfood/SKILL.md
+  - skills/dogfood/SKILL.md
 topics: [verification, smoke-test]
 source: human
 ---
@@ -11,14 +11,14 @@ Use the smallest verification path that matches the change.
 
 ## Static Checks
 
-The skill lives under `local-skills/playwright-dogfood/` (chezmoi SoT) and is materialised to `~/.agents/skills/` and `~/.claude/skills/` by `run_onchange_after_deploy-local-skills.sh.tmpl`.
+The skill lives under `local-skills/dogfood/` (chezmoi SoT) and is materialised to `~/.agents/skills/` and `~/.claude/skills/` by `run_onchange_after_deploy-local-skills.sh.tmpl`.
 
 ## Runner Smoke Test
 
 Run the bundled runner directly so browser automation is verified without creating GitHub Issues. On WSL2 set `DOGFOOD_WINDOWS_SCRIPT` to the packaged PowerShell script; the runner connects to Windows Managed Dogfood Chrome over CDP and does not launch a WSL browser:
 
 ```bash
-REF_DIR="$HOME/.agents/skills/playwright-dogfood/references"
+REF_DIR="$HOME/.agents/skills/dogfood/references"
 OUT_DIR="$(mktemp -d)"
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix "$REF_DIR" ci
 # The WSL devShell shellHook supplies DOGFOOD_WINDOWS_SCRIPT.
@@ -39,7 +39,7 @@ For WSL2, the runner uses Windows Chrome over CDP and intentionally does not pro
 Run the subprocess-level Bats coverage for the opt-in path:
 
 ```bash
-bats tests/dogfood-results.bats tests/playwright-dogfood.bats
+bats tests/dogfood-results.bats tests/dogfood.bats
 ```
 
 The browser tests use the current platform path (Windows Managed Dogfood Chrome on WSL2), preserving the root report entry. CLI fault-injection tests also verify unavailable artifacts, failed cleanup, interrupted retries, and stale report handling. Together these verify `--resume` rejection, two rectangles plus overall feedback, empty submission, a real CDP attach/eval/detach against the runner-owned Chromium, MV3 coexistence, and evidence finalization on CLI failures.
@@ -55,7 +55,7 @@ Resume is a skill procedure, not a runner CLI mode. Verify its report-reading st
 Run against a low-risk public page:
 
 ```text
-/playwright-dogfood https://example.com
+/dogfood https://example.com
 ```
 
 Expected:
@@ -72,7 +72,7 @@ Expected:
 
 Use a small app with known visual or functional defects:
 
-1. Run `/playwright-dogfood <local-app-url> --issues --parent #N`.
+1. Run `/dogfood <local-app-url> --issues --parent #N`.
 2. Approve one finding, skip one, and edit one.
 3. Confirm created issues contain repro steps and local evidence path references (no committed URLs).
 4. Confirm parent issue body is updated only because `--parent` was explicit.

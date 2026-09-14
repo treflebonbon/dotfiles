@@ -2,7 +2,7 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   REF_DIR="$BATS_TEST_TMPDIR/references"
   mkdir -p "$REF_DIR/node_modules/playwright"
-  cp "$PROJECT_ROOT/local-skills/playwright-dogfood/references/"*.mjs "$REF_DIR/"
+  cp "$PROJECT_ROOT/local-skills/dogfood/references/"*.mjs "$REF_DIR/"
   cp "$PROJECT_ROOT/tests/fixtures/dogfood-playwright.mjs" "$REF_DIR/node_modules/playwright/index.mjs"
   printf '%s\n' '{"type":"module","exports":"./index.mjs"}' >"$REF_DIR/node_modules/playwright/package.json"
   export DOGFOOD_TEST_WSL=0
@@ -23,7 +23,7 @@ setup() {
   export GH_CALL_LOG="$BATS_TEST_TMPDIR/gh-calls"
   printf '#!/bin/sh\nprintf called >>"$GH_CALL_LOG"\nexit 1\n' >"$BATS_TEST_TMPDIR/bin/gh"
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
-  python3 - "$PROJECT_ROOT/local-skills/playwright-dogfood/references/worktree-setup.md" "$BATS_TEST_TMPDIR/worktree.sh" <<'PY'
+  python3 - "$PROJECT_ROOT/local-skills/dogfood/references/worktree-setup.md" "$BATS_TEST_TMPDIR/worktree.sh" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -54,7 +54,7 @@ SH
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
   cd "$BATS_TEST_TMPDIR"
 
-  run env REPO=example/review-target bash "$PROJECT_ROOT/local-skills/playwright-dogfood/scripts/runtime-preflight.sh" --need gh-issues
+  run env REPO=example/review-target bash "$PROJECT_ROOT/local-skills/dogfood/scripts/runtime-preflight.sh" --need gh-issues
 
   [ "$status" -eq 0 ]
   [ "$(cat "$GH_CALL_LOG")" = $'auth status\napi repos/example/review-target --jq .has_issues' ]
@@ -213,7 +213,7 @@ run_documented_invocation() {
   mkdir -p "$OUT"
   printf '%s\n' 'MV3 service worker did not register' >"$OUT/report.md"
   export CLI_RUN_LOG="$BATS_TEST_TMPDIR/cli-runs"
-  export CODEX_SKILL_DIR="$PROJECT_ROOT/local-skills/playwright-dogfood"
+  export CODEX_SKILL_DIR="$PROJECT_ROOT/local-skills/dogfood"
   export WT_DIR="$BATS_TEST_TMPDIR" OUTPUT_DIR=output TARGET_URL=about:blank EXTENSION_PATH=fixture
   export WSL_DISTRO_NAME=test
   printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$BATS_TEST_TMPDIR/bin/npm"

@@ -1,11 +1,11 @@
 ---
 depends_on:
-  - skills/playwright-dogfood/SKILL.md
-topics: [playwright-dogfood, references]
+  - skills/dogfood/SKILL.md
+topics: [dogfood, references]
 source: human
 ---
 
-# playwright-dogfood references
+# dogfood references
 
 Read this file first. Then open the reference needed for the active phase:
 

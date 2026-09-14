@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/playwright-dogfood/SKILL.md
+  - skills/dogfood/SKILL.md
 topics: [dogfood, report, parsing]
 source: human
 ---
