@@ -254,7 +254,7 @@ run_script() {
 @test "removes local skill duplicates from Codex native skill dirs" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills"; do
-    mkdir -p "$dir/to-pr" "$dir/to-worktree" "$dir/dogfood-to-issues" "$dir/ui-grill-with-docs" "$dir/frontend-design"
+    mkdir -p "$dir/to-pr" "$dir/to-worktree" "$dir/dogfood" "$dir/ui-grill-with-docs" "$dir/frontend-design"
     printf 'stub\n' >"$dir/to-pr/SKILL.md"
     printf 'stub\n' >"$dir/frontend-design/SKILL.md"
   done
@@ -268,11 +268,11 @@ run_script() {
   [ -d "$FAKE_HOME/.claude/skills/ui-grill-with-docs" ]
   [ ! -e "$FAKE_HOME/.codex/skills/to-pr" ]
   [ ! -e "$FAKE_HOME/.codex/skills/to-worktree" ]
-  [ ! -e "$FAKE_HOME/.codex/skills/dogfood-to-issues" ]
+  [ ! -e "$FAKE_HOME/.codex/skills/dogfood" ]
   [ ! -e "$FAKE_HOME/.codex/skills/ui-grill-with-docs" ]
   [ ! -e "$codex_home/skills/to-pr" ]
   [ ! -e "$codex_home/skills/to-worktree" ]
-  [ ! -e "$codex_home/skills/dogfood-to-issues" ]
+  [ ! -e "$codex_home/skills/dogfood" ]
   [ ! -e "$codex_home/skills/ui-grill-with-docs" ]
   [ -d "$FAKE_HOME/.codex/skills/frontend-design" ]
   [ -d "$codex_home/skills/frontend-design" ]

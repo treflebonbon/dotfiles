@@ -51,7 +51,7 @@ report の書込み途中の内容を完了状態として公開しない。repo
 - 同じ出力ルートでの再試行に古い画像・trace・動画が混ざらず、過去の試行も正しい相対パスでレビューできること。
 - 警告・失敗・状態不明を連続0件へ数えないことと、旧版・外部 report を読み取り専用でレビューできること。
 
-実装対象は runner と必要な内部 module、`dogfood-to-issues` の呼出し・再開・連続回数の契約、関連する証跡・検証文書とテストに限る。Managed Chrome 所有権の module は結果を受け取る依存として維持する。既知の screenshot timeout や Dashboard 起動失敗そのものの修復は別の問題として扱い、本変更の効果はその失敗を正確に記録できることとする。
+実装対象は runner と必要な内部 module、`dogfood-to-issues`（現 `dogfood`）の呼出し・再開・連続回数の契約、関連する証跡・検証文書とテストに限る。Managed Chrome 所有権の module は結果を受け取る依存として維持する。既知の screenshot timeout や Dashboard 起動失敗そのものの修復は別の問題として扱い、本変更の効果はその失敗を正確に記録できることとする。
 
 ## Consequences
 
@@ -61,4 +61,4 @@ report の書込み途中の内容を完了状態として公開しない。repo
 
 [ADR-0038](0038-keep-wsl2-browser-free.md) の証跡収集対象と WSL2 の video-free 契約は維持し、収集に失敗した実行の報告・レビュー条件を本決定で明確にする。正常系の実機検証で取得成功を確認する責務は、警告付き完了の導入によって省略しない。Managed Chrome の所有権と復旧条件は [ADR-0047](0047-centralize-managed-chrome-ownership.md) を維持する。
 
-関連: [CONTEXT.md](../../CONTEXT.md) / [Dogfood runner](../../local-skills/dogfood-to-issues/references/playwright-dogfood-runner.mjs) / [Report Parsing](../../local-skills/dogfood-to-issues/references/report-parsing.md)
+関連: [CONTEXT.md](../../CONTEXT.md) / [Dogfood runner](../../local-skills/dogfood/references/playwright-dogfood-runner.mjs) / [Report Parsing](../../local-skills/dogfood/references/report-parsing.md)

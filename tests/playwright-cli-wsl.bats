@@ -258,7 +258,7 @@ EOF
     fi
   ) &
   local playwright_pid=$!
-  node --input-type=module - "$PROJECT_ROOT/local-skills/dogfood-to-issues/references/managed-dogfood-browser.mjs" <<'JS' &
+  node --input-type=module - "$PROJECT_ROOT/local-skills/dogfood/references/managed-dogfood-browser.mjs" <<'JS' &
 import fs from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 const root = process.env.CALLER_RACE_DIR;

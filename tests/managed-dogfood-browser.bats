@@ -4,7 +4,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  MODULE="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/managed-dogfood-browser.mjs"
+  MODULE="$PROJECT_ROOT/local-skills/dogfood/references/managed-dogfood-browser.mjs"
   BIN="$BATS_TEST_TMPDIR/bin"
   STATE="$BATS_TEST_TMPDIR/ownership"
   LOG="$BATS_TEST_TMPDIR/powershell.log"
@@ -242,4 +242,39 @@ JS
   [ "$status" -eq 0 ]
   run "$MANAGED_CHROME_OWNER" status --identity worktree-a
   [[ "$output" == *'"id":"alpha"'* ]]
+}
+
+@test "Managed Dogfood Chrome retries a stalled CDP request" {
+  export DOGFOOD_TEST_WSL=1
+  export DOGFOOD_POWERSHELL="$BIN/powershell.exe" DOGFOOD_WSLPATH="$BIN/wslpath"
+  export BROWSER_OWNERSHIP_DIR="$STATE"
+  run node --input-type=module - "$MODULE" <<'JS'
+import assert from 'node:assert/strict';
+import http from 'node:http';
+const { acquireManagedDogfoodChrome } = await import(process.argv[2]);
+let requests = 0;
+let aborted = false;
+let timer;
+const server = http.createServer((request, response) => {
+  if (++requests === 1) {
+    request.on('close', () => { aborted = !response.writableEnded; });
+    timer = setTimeout(() => response.writeHead(503).end(), 4000);
+  } else {
+    response.end('ok');
+  }
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+process.env.DOGFOOD_CDP_PORT = String(server.address().port);
+try {
+  const browser = await acquireManagedDogfoodChrome({ runId: 'stalled-cdp' });
+  await browser.close();
+  assert.equal(aborted, true, 'the stalled request must be aborted before retrying');
+  assert.equal(requests, 2);
+} finally {
+  clearTimeout(timer);
+  server.closeAllConnections();
+  server.close();
+}
+JS
+  [ "$status" -eq 0 ]
 }

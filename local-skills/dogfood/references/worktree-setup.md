@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
+  - skills/dogfood/SKILL.md
 topics: [dogfood, worktree, evidence]
 source: human
 ---
@@ -12,7 +12,6 @@ Use a dedicated branch and worktree for each dogfood run so screenshots, videos,
 ## Resolve Names
 
 ```bash
-REPO="${REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
 TARGET_SLUG="$(printf '%s' "$TARGET_URL" | sed -E 's#^[a-zA-Z]+://##; s#[/?#].*$##; s#[^A-Za-z0-9]+#-#g; s#^-|-$##g' | tr '[:upper:]' '[:lower:]')"
 SESSION="$(date -u +%Y%m%dT%H%M%SZ)"
 BRANCH="dogfood/$(date -u +%F)-$TARGET_SLUG"
@@ -25,15 +24,11 @@ If the slug is empty, stop and ask for a concrete target URL.
 ## Create
 
 ```bash
-BASE_BRANCH="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null \
-  || git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' \
-  || echo main)"
-git fetch origin "$BASE_BRANCH"
-git worktree add -b "$BRANCH" "$WT_DIR" "origin/$BASE_BRANCH"
+git worktree add -b "$BRANCH" "$WT_DIR" HEAD
 mkdir -p "$WT_DIR/$OUTPUT_DIR"
 ```
 
-The repo's default branch (`origin/$BASE_BRANCH` — do not hardcode `main`; targets may use `master` or `develop`) is the base because the worktree exists only to isolate the dogfood run from the caller's branch. The branch is never pushed; evidence lives under the `.worktrees/` worktree, which is gitignored, so it stays local.
+Use local `HEAD` as the base: the worktree isolates evidence, while `TARGET_URL` selects the running app to inspect. No remote, fetch, or GitHub authentication is required. Follow the runtime’s native worktree entry rules when applicable. The branch is never pushed; evidence stays local under the gitignored `.worktrees/` directory.
 
 > **Note on paths**: `WT_DIR` is relative to the repo root (inside the repository at `.worktrees/`). `OUTPUT_DIR` is relative to `WT_DIR`. All dogfood artifacts therefore live under `.worktrees/`, which is gitignored, so they stay a local-only audit trail (the `dogfood-output/` subtree is covered transitively by `.worktrees/`, not by a `dogfood-output/` entry).
 
@@ -54,15 +49,13 @@ node "$REF_DIR/playwright-dogfood-runner.mjs" \
   --output "$OUT_ABS"
 ```
 
-When `--extension <path>` is supplied, append `--extension "$(readlink -f "$EXTENSION_PATH")"`.
-When `--annotate` is supplied, append `--annotate`; reject it if `--resume` is also present. The runner waits for Playwright Dashboard feedback only after automated inspection.
-Only if that headless MV3 run returns exit 2, retry once with `--headed` using the same output-derived Managed Dogfood profile identity. On WSL2 this is Windows Chrome over CDP and does not use `xvfb-run`; non-WSL callers may provide their normal display wrapper.
+When `--extension <path>` is supplied, append `--extension "$(readlink -f "$EXTENSION_PATH")"`. When `--annotate` is supplied, append `--annotate`; reject it if `--resume` is also present. The runner waits for Playwright Dashboard feedback only after automated inspection. Only if that headless MV3 run returns exit 2, retry once with `--headed` using the same output-derived Managed Dogfood profile identity. On WSL2 this is Windows Chrome over CDP and does not use `xvfb-run`; non-WSL callers may provide their normal display wrapper.
 
 The runner creates a fresh `attempts/<id>/` directory under `$WT_DIR/$OUTPUT_DIR`, with its report and collected evidence. `report.md` at the output root presents the latest attempt with root-relative evidence paths. Annotation CLI output and response JSON also live inside the attempt. Failed acquisitions are recorded as warnings, with no missing paths advertised. Earlier attempts remain available for audit and `--resume`. Profile identity remains tied to the output root, not the attempt directory. Exit 1 stops; report text is never a retry trigger.
 
 ## Cleanup
 
-Do not auto-remove the worktree. The final summary may include manual cleanup commands after issues have been reviewed:
+Do not auto-remove the worktree. The final summary may include manual cleanup commands after the evidence has been reviewed:
 
 ```bash
 git worktree remove "$WT_DIR"

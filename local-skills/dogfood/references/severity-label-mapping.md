@@ -1,6 +1,6 @@
 ---
 depends_on:
-  - skills/dogfood-to-issues/SKILL.md
+  - skills/dogfood/SKILL.md
 topics: [labels, severity, github]
 source: human
 ---

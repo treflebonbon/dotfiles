@@ -1,6 +1,6 @@
 setup_file() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  SOURCE_REF_DIR="$PROJECT_ROOT/local-skills/dogfood-to-issues/references"
+  SOURCE_REF_DIR="$PROJECT_ROOT/local-skills/dogfood/references"
   TEST_REF_DIR="$BATS_FILE_TMPDIR/references"
   mkdir -p "$TEST_REF_DIR"
   cp "$SOURCE_REF_DIR/package.json" \
@@ -86,7 +86,7 @@ EOF
 }
 
 @test "skill rejects annotation resume conflict before side effects" {
-  local skill="$PROJECT_ROOT/local-skills/dogfood-to-issues/SKILL.md"
+  local skill="$PROJECT_ROOT/local-skills/dogfood/SKILL.md"
   local reject_line preflight_line
 
   reject_line="$(grep -n '^0\. Reject `--annotate` together with `--resume <path>` before preflight' "$skill" | cut -d: -f1)"
@@ -99,10 +99,10 @@ EOF
 }
 
 @test "resume normalizes priority aliases and external evidence roots" {
-  local mapping="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/severity-label-mapping.md"
-  local parsing="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/report-parsing.md"
-  local worktree="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/worktree-setup.md"
-  local body="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/issue-body-template.md"
+  local mapping="$PROJECT_ROOT/local-skills/dogfood/references/severity-label-mapping.md"
+  local parsing="$PROJECT_ROOT/local-skills/dogfood/references/report-parsing.md"
+  local worktree="$PROJECT_ROOT/local-skills/dogfood/references/worktree-setup.md"
+  local body="$PROJECT_ROOT/local-skills/dogfood/references/issue-body-template.md"
 
   grep -Eq '\| P0 +\| Critical +' "$mapping"
   grep -Eq '\| P2 +\| Medium +' "$mapping"
@@ -112,9 +112,9 @@ EOF
 }
 
 @test "WSL CDP dogfood uses an explicit viewport without requiring video" {
-  local runner="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/playwright-dogfood-runner.mjs"
-  local contract="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/mv3-extension.md"
-  local verification="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/verification.md"
+  local runner="$PROJECT_ROOT/local-skills/dogfood/references/playwright-dogfood-runner.mjs"
+  local contract="$PROJECT_ROOT/local-skills/dogfood/references/mv3-extension.md"
+  local verification="$PROJECT_ROOT/local-skills/dogfood/references/verification.md"
 
   grep -Fq 'const cdpContextOptions = { viewport: evidenceViewport };' "$runner"
   grep -Fq 'page.setViewportSize(evidenceViewport)' "$runner"
@@ -123,8 +123,8 @@ EOF
 }
 
 @test "approval protocol adapts to runtimes limited to three choices" {
-  local skill="$PROJECT_ROOT/local-skills/dogfood-to-issues/SKILL.md"
-  local approval="$PROJECT_ROOT/local-skills/dogfood-to-issues/references/approval-protocol.md"
+  local skill="$PROJECT_ROOT/local-skills/dogfood/SKILL.md"
+  local approval="$PROJECT_ROOT/local-skills/dogfood/references/approval-protocol.md"
 
   grep -Fq 'maximum of three choices' "$approval"
   grep -Fq 'Review individually' "$approval"
