@@ -50,7 +50,7 @@ Remotion の exact pin を `3b9e6561dababf40a485772a7cd641268bb7c365` へ更新�
 - 隔離 cwd/HOME の APM install（非frozen→frozen）と `apm audit --ci` 10/10、両 target の remotion payload discovery: 成功。
 - `tests/apm-runtime.bats`: remotion pin/content hash と `computer-use` / `orchestration` の revision-only な resolved_commit（`5e70014d`→`60d79395`）の固定値を更新し、15/15 成功。`tests/apm-cache-refresh.bats` 8/8 成功。
 - `bunx tsc --noEmit`: エラーなし。
-- `bats tests/`（732件）: 716 PASS、16 FAILで `bun run test` は exit 1。失敗16件は (a) `tests/mattpocock-update-gate.bats` の6件、(b) `tests/dogfood.bats` の8件、(c) `tests/local-skills.bats` の1件。(a)はこのセッションの `LANG=en_US.UTF-8` に起因する GNU `sort` 収集順序差（2026-09-02 follow-up で確認済みの既知原因と一致）で、`LC_ALL=C bats tests/mattpocock-update-gate.bats` は13/13全通過した。(b)(c)は本更新の差分（flake.nix/flake.lock、apm.yml/apm.lock.yaml、tests/nix-devshell.bats、tests/apm-runtime.bats）と無関係なファイルへの依存で、変更前の `main`（`7c4ab3d`）で同じ3ファイルを実行しても同一の16件がまったく同じテスト名で失敗することを実測し、本更新による regression ではないことを確認した。原因調査そのものは本更新のスコープ外とする。
+- `bats tests/`（732件）: 716 PASS、16 FAILで `bun run test` は exit 1。失敗16件は (a) `tests/mattpocock-update-gate.bats` の6件、(b) `tests/dogfood.bats` の9件、(c) `tests/local-skills.bats` の1件。(a)はこのセッションの `LANG=en_US.UTF-8` に起因する GNU `sort` 収集順序差（2026-09-02 follow-up で確認済みの既知原因と一致）で、`LC_ALL=C bats tests/mattpocock-update-gate.bats` は13/13全通過した。(b)(c)は本更新の差分（flake.nix/flake.lock、apm.yml/apm.lock.yaml、tests/nix-devshell.bats、tests/apm-runtime.bats）と無関係なファイルへの依存で、変更前の `main`（`7c4ab3d`）で同じ3ファイルを実行しても同一の16件がまったく同じテスト名で失敗することを実測し、本更新による regression ではないことを確認した。原因調査そのものは本更新のスコープ外とする。
 
 ## 二軸レビュー
 
