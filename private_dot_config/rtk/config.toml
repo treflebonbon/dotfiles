@@ -1,0 +1,5 @@
+[hooks]
+# EnterWorktree 隔離セッションの git 検証は、rtk が git 呼び出しを書き換えると
+# launcher (rtk) を透過できず操作先を検証できないとして一律拒否する。
+# git は書き換え対象から除外し、素の git コマンドを直接実行させる。
+exclude_commands = ["git"]
