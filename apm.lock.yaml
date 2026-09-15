@@ -1401,8 +1401,8 @@ dependencies:
 - repo_url: remotion-dev/skills
   name: remotion-best-practices
   host: github.com
-  resolved_commit: bd566b65d521b40fe92e1f26766e82de9e291693
-  resolved_ref: bd566b65d521b40fe92e1f26766e82de9e291693
+  resolved_commit: 3b9e6561dababf40a485772a7cd641268bb7c365
+  resolved_ref: 3b9e6561dababf40a485772a7cd641268bb7c365
   version: unknown
   virtual_path: skills/remotion-best-practices
   is_virtual: true
@@ -1685,27 +1685,27 @@ dependencies:
   - .claude/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml
   - .claude/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg
   deployed_file_hashes:
-    .agents/skills/remotion-best-practices/SKILL.md: sha256:1d79c3676835dd56e64cf6cecca1726d5ea297b8b75fe128aa59b1d20d69d942
+    .agents/skills/remotion-best-practices/SKILL.md: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
     .agents/skills/remotion-best-practices/agents/openai.yaml: sha256:752b402c013ba6f02bd827a7cc56d19e8facb159b52e2e3cecaf2d0229fdefb3
     .agents/skills/remotion-best-practices/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:c7d2e94c210a27b0ac47d6594778f560fa06b2f46f266c43322bf9b2a0af0844
+    .agents/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
     .agents/skills/remotion-best-practices/remotion-captions/agents/openai.yaml: sha256:3b39a48bd00251cf124e80090fe1b792b73020bee858c5d48b5629256cc5f045
     .agents/skills/remotion-best-practices/remotion-captions/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-captions/display-captions.md: sha256:32fabb20c5251c3bec5ca706312dd8668dd9e4e0dd42a1bcfd2f927b90b0c72e
     .agents/skills/remotion-best-practices/remotion-captions/import-srt-captions.md: sha256:cf5988aad6cba8192a81e5a030955ebf09e97473e0b5ce209e18973bf1a60633
     .agents/skills/remotion-best-practices/remotion-captions/transcribe-captions.md: sha256:ad1a62af35fe176b37ac4d98f796451ca66bcc9983207a9710ec3eca6e847738
-    .agents/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:3e91217ac2b02a54351179a0b77cd422925b0221f8646869a56b44db3c009f17
+    .agents/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
     .agents/skills/remotion-best-practices/remotion-create/agents/openai.yaml: sha256:ff3b357b492da1791c672e18ae401a23c31bd1e6f1fa6f98c5efabbb3124bd9c
     .agents/skills/remotion-best-practices/remotion-create/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-create/tailwind.md: sha256:3ef07d3225d212af6a5076e62797a04d22d394434dcdbe2c050dab0d92806f36
     .agents/skills/remotion-best-practices/remotion-create/video-layout.md: sha256:7ad94c22e3ad87671292ebb9b22f234c544d6c7fed13f8cb112b84b0f7077d4c
-    .agents/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:8ecad83a0389c7718ff2784cd67f9c24cd5c5c60627c6071ff15ad35ed462ee1
+    .agents/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
     .agents/skills/remotion-best-practices/remotion-docs/agents/openai.yaml: sha256:ab02cb3008e6fc0702d7a601bfdd2f332e1224fda3c37de0265c24311c00d456
     .agents/skills/remotion-best-practices/remotion-docs/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:cd038345d44d9187fe8a3a7423f8e3336df038e98f6ec3f287923fb2f07ac95a
+    .agents/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
     .agents/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml: sha256:84cd86b0b10e1f8b5be97bbd46677d5f618304303d922f1016ce0ea6a015d4b9
     .agents/skills/remotion-best-practices/remotion-interactivity/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+    .agents/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
     .agents/skills/remotion-best-practices/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .agents/skills/remotion-best-practices/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1738,7 +1738,7 @@ dependencies:
     .agents/skills/remotion-best-practices/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs: sha256:8265f56bd7c27a7d1a5fa528a77bbe1b29c6acc0e6730233583ca53e2632d490
     .agents/skills/remotion-best-practices/remotion-maps/techniques/static-map/TECHNIQUE.md: sha256:1d2b15f2e09cbb2b2ba0d5a6ec54ecf619b6696acced0b7bec7e010fbe1f1f03
     .agents/skills/remotion-best-practices/remotion-markup/3d.md: sha256:42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d
-    .agents/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:17bf2bdcba393a633f5c45cc63dc0b530b377d886b4d69e67a8d5ec8f2570682
+    .agents/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
     .agents/skills/remotion-best-practices/remotion-markup/agents/openai.yaml: sha256:79e440561b613adf930f61b9f2ececc3284dfd92d06c4c282b73b461ffd16cb6
     .agents/skills/remotion-best-practices/remotion-markup/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-markup/audio-visualization.md: sha256:0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9
@@ -1760,7 +1760,7 @@ dependencies:
     .agents/skills/remotion-best-practices/remotion-markup/measuring-text.md: sha256:4bed81d1ea818db3975f878152dc24ecbc17e163117dcab10761dc8690c33f0c
     .agents/skills/remotion-best-practices/remotion-markup/multi-scene-video.md: sha256:00d4c4cdd515b69cee84b2e274393aafd4060612372aa629712c320427e6bd37
     .agents/skills/remotion-best-practices/remotion-markup/parameters.md: sha256:b002ac9959105b2b91da5786bcb20aa6ff4c6632ed37074b32711f248867dff0
-    .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+    .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
     .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1804,49 +1804,49 @@ dependencies:
     .agents/skills/remotion-best-practices/remotion-markup/transitions.md: sha256:41d69d0b5c862bcada825a68413064837fd4fcd55f81ad59492931db982a08ad
     .agents/skills/remotion-best-practices/remotion-markup/video-editing.md: sha256:c43e1b419b0ea32c07b14ff6a17fb3bccb6acea7317de4051827ef0316f4262a
     .agents/skills/remotion-best-practices/remotion-markup/voiceover.md: sha256:28350a793939b6170c535a219b2c4702378346ea8485540f980da5ccc5fa19fc
-    .agents/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:c363dc43b6dfc95f05ab37f432606573517c7628522de675c0173df4af4cb118
+    .agents/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
     .agents/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml: sha256:74e07a383bbf02808320ede199873d00a5fc976cb99d407056456b9abdfb0cb7
     .agents/skills/remotion-best-practices/remotion-multimedia/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-multimedia/get-audio-duration.md: sha256:f4ec12e356144697b802a2d93240612aa09b60a76342154983a2cf41316f0bba
     .agents/skills/remotion-best-practices/remotion-multimedia/get-video-dimensions.md: sha256:d330e701e4a494fdac7502be52f206f6dee11c43314d1b2f731e4120eed72dc5
     .agents/skills/remotion-best-practices/remotion-multimedia/get-video-duration.md: sha256:6e3bec1b3f62e3ab1f16ad41cca7b14e6e3db5046e8282cd2389e05cff42c743
-    .agents/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:7d52eb047bd7ff583756685b2e14b6e3cf764ab6751ba663ee0299036d92feca
+    .agents/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
     .agents/skills/remotion-best-practices/remotion-render/agents/openai.yaml: sha256:386699c32fdc63840ce7ff7412953831095dc4cdf60368648378c32895281290
     .agents/skills/remotion-best-practices/remotion-render/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-render/transparent-videos.md: sha256:394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4
-    .agents/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:e9a659adbaf26747278d0abd04a1a8026d509b45458dc7f3b02aceb9508665d9
+    .agents/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
     .agents/skills/remotion-best-practices/remotion-saas/agents/openai.yaml: sha256:66be5403b3d10194c99e886372bbc1f4bdb2994fe560278bc7a39b4fbe7753a2
     .agents/skills/remotion-best-practices/remotion-saas/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-saas/framework.md: sha256:d1071a392f88fbafde3166547e1000b18a920e89ab8433cd1783edc8cfadc151
     .agents/skills/remotion-best-practices/remotion-saas/player.md: sha256:cc2f2944f1158d6ff1ddfc421a6a790f99ae86f54bbe0f0b18ef8bc7485e1b05
     .agents/skills/remotion-best-practices/remotion-saas/rendering.md: sha256:b2f30b53e0191ef9e7f2da7360b36c0c5448ab5bdcf55575e1f7e55c5bbd257f
-    .agents/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:b8ae4531943634e19f6abeeddcef630f9f4b884957c87ad58e648458c07063e7
+    .agents/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
     .agents/skills/remotion-best-practices/remotion-studio/agents/openai.yaml: sha256:43afba3c8088614ece62949e33a7c8350092e76436bad87ad41e1a1ccaebea5d
     .agents/skills/remotion-best-practices/remotion-studio/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:0efe166181237e4ec299a72401ab830e9dccf6f217d61dde884601cf526f065b
+    .agents/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
     .agents/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml: sha256:3f3bc995d3531cfb5a714fd8f951954e118909b749217cc8418a235326d003cb
     .agents/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/SKILL.md: sha256:1d79c3676835dd56e64cf6cecca1726d5ea297b8b75fe128aa59b1d20d69d942
+    .claude/skills/remotion-best-practices/SKILL.md: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
     .claude/skills/remotion-best-practices/agents/openai.yaml: sha256:752b402c013ba6f02bd827a7cc56d19e8facb159b52e2e3cecaf2d0229fdefb3
     .claude/skills/remotion-best-practices/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:c7d2e94c210a27b0ac47d6594778f560fa06b2f46f266c43322bf9b2a0af0844
+    .claude/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
     .claude/skills/remotion-best-practices/remotion-captions/agents/openai.yaml: sha256:3b39a48bd00251cf124e80090fe1b792b73020bee858c5d48b5629256cc5f045
     .claude/skills/remotion-best-practices/remotion-captions/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-captions/display-captions.md: sha256:32fabb20c5251c3bec5ca706312dd8668dd9e4e0dd42a1bcfd2f927b90b0c72e
     .claude/skills/remotion-best-practices/remotion-captions/import-srt-captions.md: sha256:cf5988aad6cba8192a81e5a030955ebf09e97473e0b5ce209e18973bf1a60633
     .claude/skills/remotion-best-practices/remotion-captions/transcribe-captions.md: sha256:ad1a62af35fe176b37ac4d98f796451ca66bcc9983207a9710ec3eca6e847738
-    .claude/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:3e91217ac2b02a54351179a0b77cd422925b0221f8646869a56b44db3c009f17
+    .claude/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
     .claude/skills/remotion-best-practices/remotion-create/agents/openai.yaml: sha256:ff3b357b492da1791c672e18ae401a23c31bd1e6f1fa6f98c5efabbb3124bd9c
     .claude/skills/remotion-best-practices/remotion-create/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-create/tailwind.md: sha256:3ef07d3225d212af6a5076e62797a04d22d394434dcdbe2c050dab0d92806f36
     .claude/skills/remotion-best-practices/remotion-create/video-layout.md: sha256:7ad94c22e3ad87671292ebb9b22f234c544d6c7fed13f8cb112b84b0f7077d4c
-    .claude/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:8ecad83a0389c7718ff2784cd67f9c24cd5c5c60627c6071ff15ad35ed462ee1
+    .claude/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
     .claude/skills/remotion-best-practices/remotion-docs/agents/openai.yaml: sha256:ab02cb3008e6fc0702d7a601bfdd2f332e1224fda3c37de0265c24311c00d456
     .claude/skills/remotion-best-practices/remotion-docs/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:cd038345d44d9187fe8a3a7423f8e3336df038e98f6ec3f287923fb2f07ac95a
+    .claude/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
     .claude/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml: sha256:84cd86b0b10e1f8b5be97bbd46677d5f618304303d922f1016ce0ea6a015d4b9
     .claude/skills/remotion-best-practices/remotion-interactivity/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+    .claude/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
     .claude/skills/remotion-best-practices/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .claude/skills/remotion-best-practices/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1879,7 +1879,7 @@ dependencies:
     .claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs: sha256:8265f56bd7c27a7d1a5fa528a77bbe1b29c6acc0e6730233583ca53e2632d490
     .claude/skills/remotion-best-practices/remotion-maps/techniques/static-map/TECHNIQUE.md: sha256:1d2b15f2e09cbb2b2ba0d5a6ec54ecf619b6696acced0b7bec7e010fbe1f1f03
     .claude/skills/remotion-best-practices/remotion-markup/3d.md: sha256:42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d
-    .claude/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:17bf2bdcba393a633f5c45cc63dc0b530b377d886b4d69e67a8d5ec8f2570682
+    .claude/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
     .claude/skills/remotion-best-practices/remotion-markup/agents/openai.yaml: sha256:79e440561b613adf930f61b9f2ececc3284dfd92d06c4c282b73b461ffd16cb6
     .claude/skills/remotion-best-practices/remotion-markup/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-markup/audio-visualization.md: sha256:0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9
@@ -1901,7 +1901,7 @@ dependencies:
     .claude/skills/remotion-best-practices/remotion-markup/measuring-text.md: sha256:4bed81d1ea818db3975f878152dc24ecbc17e163117dcab10761dc8690c33f0c
     .claude/skills/remotion-best-practices/remotion-markup/multi-scene-video.md: sha256:00d4c4cdd515b69cee84b2e274393aafd4060612372aa629712c320427e6bd37
     .claude/skills/remotion-best-practices/remotion-markup/parameters.md: sha256:b002ac9959105b2b91da5786bcb20aa6ff4c6632ed37074b32711f248867dff0
-    .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+    .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
     .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1945,29 +1945,29 @@ dependencies:
     .claude/skills/remotion-best-practices/remotion-markup/transitions.md: sha256:41d69d0b5c862bcada825a68413064837fd4fcd55f81ad59492931db982a08ad
     .claude/skills/remotion-best-practices/remotion-markup/video-editing.md: sha256:c43e1b419b0ea32c07b14ff6a17fb3bccb6acea7317de4051827ef0316f4262a
     .claude/skills/remotion-best-practices/remotion-markup/voiceover.md: sha256:28350a793939b6170c535a219b2c4702378346ea8485540f980da5ccc5fa19fc
-    .claude/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:c363dc43b6dfc95f05ab37f432606573517c7628522de675c0173df4af4cb118
+    .claude/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
     .claude/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml: sha256:74e07a383bbf02808320ede199873d00a5fc976cb99d407056456b9abdfb0cb7
     .claude/skills/remotion-best-practices/remotion-multimedia/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-multimedia/get-audio-duration.md: sha256:f4ec12e356144697b802a2d93240612aa09b60a76342154983a2cf41316f0bba
     .claude/skills/remotion-best-practices/remotion-multimedia/get-video-dimensions.md: sha256:d330e701e4a494fdac7502be52f206f6dee11c43314d1b2f731e4120eed72dc5
     .claude/skills/remotion-best-practices/remotion-multimedia/get-video-duration.md: sha256:6e3bec1b3f62e3ab1f16ad41cca7b14e6e3db5046e8282cd2389e05cff42c743
-    .claude/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:7d52eb047bd7ff583756685b2e14b6e3cf764ab6751ba663ee0299036d92feca
+    .claude/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
     .claude/skills/remotion-best-practices/remotion-render/agents/openai.yaml: sha256:386699c32fdc63840ce7ff7412953831095dc4cdf60368648378c32895281290
     .claude/skills/remotion-best-practices/remotion-render/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-render/transparent-videos.md: sha256:394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4
-    .claude/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:e9a659adbaf26747278d0abd04a1a8026d509b45458dc7f3b02aceb9508665d9
+    .claude/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
     .claude/skills/remotion-best-practices/remotion-saas/agents/openai.yaml: sha256:66be5403b3d10194c99e886372bbc1f4bdb2994fe560278bc7a39b4fbe7753a2
     .claude/skills/remotion-best-practices/remotion-saas/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-saas/framework.md: sha256:d1071a392f88fbafde3166547e1000b18a920e89ab8433cd1783edc8cfadc151
     .claude/skills/remotion-best-practices/remotion-saas/player.md: sha256:cc2f2944f1158d6ff1ddfc421a6a790f99ae86f54bbe0f0b18ef8bc7485e1b05
     .claude/skills/remotion-best-practices/remotion-saas/rendering.md: sha256:b2f30b53e0191ef9e7f2da7360b36c0c5448ab5bdcf55575e1f7e55c5bbd257f
-    .claude/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:b8ae4531943634e19f6abeeddcef630f9f4b884957c87ad58e648458c07063e7
+    .claude/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
     .claude/skills/remotion-best-practices/remotion-studio/agents/openai.yaml: sha256:43afba3c8088614ece62949e33a7c8350092e76436bad87ad41e1a1ccaebea5d
     .claude/skills/remotion-best-practices/remotion-studio/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:0efe166181237e4ec299a72401ab830e9dccf6f217d61dde884601cf526f065b
+    .claude/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
     .claude/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml: sha256:3f3bc995d3531cfb5a714fd8f951954e118909b749217cc8418a235326d003cb
     .claude/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-  content_hash: sha256:f9ad7d6b5b58e55fd774c4001f826938f2d7fe8dc67e6c30fb51f7008bd6eb6d
+  content_hash: sha256:ff59c02fc8374266df224aac5c1c37b767c572fdeff4d6ded2f9b841f25ec2dc
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
@@ -2044,7 +2044,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 5e70014da8ee6aa6635fe4f031baa7dbaca17231
+  resolved_commit: 60d793956af91d16070d852567d7d82718aaf0db
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2079,7 +2079,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 5e70014da8ee6aa6635fe4f031baa7dbaca17231
+  resolved_commit: 60d793956af91d16070d852567d7d82718aaf0db
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2705,7 +2705,7 @@ dependencies:
 - repo_url: vercel-labs/skills
   name: find-skills
   host: github.com
-  resolved_commit: d667282815248da03a08a18272b5d2eef9caf77c
+  resolved_commit: d6b37f62ae23c3825b0ed16c73e123eee0a41fdc
   version: unknown
   virtual_path: skills/find-skills
   is_virtual: true
@@ -6148,7 +6148,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:1d79c3676835dd56e64cf6cecca1726d5ea297b8b75fe128aa59b1d20d69d942
+  content_hash: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/agents/openai.yaml
@@ -6175,7 +6175,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c7d2e94c210a27b0ac47d6594778f560fa06b2f46f266c43322bf9b2a0af0844
+  content_hash: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-captions/agents/openai.yaml
@@ -6229,7 +6229,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:3e91217ac2b02a54351179a0b77cd422925b0221f8646869a56b44db3c009f17
+  content_hash: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-create/agents/openai.yaml
@@ -6274,7 +6274,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:8ecad83a0389c7718ff2784cd67f9c24cd5c5c60627c6071ff15ad35ed462ee1
+  content_hash: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-docs/agents/openai.yaml
@@ -6301,7 +6301,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:cd038345d44d9187fe8a3a7423f8e3336df038e98f6ec3f287923fb2f07ac95a
+  content_hash: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml
@@ -6328,7 +6328,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-maps/agents/openai.yaml
@@ -6625,7 +6625,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:17bf2bdcba393a633f5c45cc63dc0b530b377d886b4d69e67a8d5ec8f2570682
+  content_hash: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/agents/openai.yaml
@@ -6823,7 +6823,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml
@@ -7183,7 +7183,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c363dc43b6dfc95f05ab37f432606573517c7628522de675c0173df4af4cb118
+  content_hash: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml
@@ -7237,7 +7237,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:7d52eb047bd7ff583756685b2e14b6e3cf764ab6751ba663ee0299036d92feca
+  content_hash: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-render/agents/openai.yaml
@@ -7273,7 +7273,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:e9a659adbaf26747278d0abd04a1a8026d509b45458dc7f3b02aceb9508665d9
+  content_hash: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-saas/agents/openai.yaml
@@ -7327,7 +7327,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:b8ae4531943634e19f6abeeddcef630f9f4b884957c87ad58e648458c07063e7
+  content_hash: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-studio/agents/openai.yaml
@@ -7354,7 +7354,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:0efe166181237e4ec299a72401ab830e9dccf6f217d61dde884601cf526f065b
+  content_hash: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml
@@ -11953,7 +11953,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:1d79c3676835dd56e64cf6cecca1726d5ea297b8b75fe128aa59b1d20d69d942
+  content_hash: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/agents/openai.yaml
@@ -11980,7 +11980,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c7d2e94c210a27b0ac47d6594778f560fa06b2f46f266c43322bf9b2a0af0844
+  content_hash: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-captions/agents/openai.yaml
@@ -12034,7 +12034,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:3e91217ac2b02a54351179a0b77cd422925b0221f8646869a56b44db3c009f17
+  content_hash: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-create/agents/openai.yaml
@@ -12079,7 +12079,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:8ecad83a0389c7718ff2784cd67f9c24cd5c5c60627c6071ff15ad35ed462ee1
+  content_hash: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-docs/agents/openai.yaml
@@ -12106,7 +12106,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:cd038345d44d9187fe8a3a7423f8e3336df038e98f6ec3f287923fb2f07ac95a
+  content_hash: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml
@@ -12133,7 +12133,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-maps/agents/openai.yaml
@@ -12430,7 +12430,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:17bf2bdcba393a633f5c45cc63dc0b530b377d886b4d69e67a8d5ec8f2570682
+  content_hash: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/agents/openai.yaml
@@ -12628,7 +12628,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:0a456e027e6b815cb0dc9561a421aaa8058ccaf135d251778fe1a0f8151e75eb
+  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml
@@ -12988,7 +12988,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c363dc43b6dfc95f05ab37f432606573517c7628522de675c0173df4af4cb118
+  content_hash: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml
@@ -13042,7 +13042,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:7d52eb047bd7ff583756685b2e14b6e3cf764ab6751ba663ee0299036d92feca
+  content_hash: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-render/agents/openai.yaml
@@ -13078,7 +13078,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:e9a659adbaf26747278d0abd04a1a8026d509b45458dc7f3b02aceb9508665d9
+  content_hash: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-saas/agents/openai.yaml
@@ -13132,7 +13132,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:b8ae4531943634e19f6abeeddcef630f9f4b884957c87ad58e648458c07063e7
+  content_hash: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-studio/agents/openai.yaml
@@ -13159,7 +13159,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:0efe166181237e4ec299a72401ab830e9dccf6f217d61dde884601cf526f065b
+  content_hash: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml
