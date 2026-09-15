@@ -55,8 +55,14 @@
 - `nix flake check --no-build --all-systems`: 全6 devShell と formatter の評価成功。
 - 3 system の実 package metadata: 上表の7 CLI の版が一致。
 - `nix develop .#wsl --command true` と `bunx tsc --noEmit`: 成功。
-- 関連テストの初回実行で snapshot の旧固定値2件が失敗。期待値を今回の revision と本記録へ更新して再検証する。
-- Linux user devShell build・RTK 起動・full suite は進行中。
-- それ以外の6 CLI は候補 package の絶対パスを使い、隔離 HOME で version/help 計12 probe が終了0。
+- 関連テストの初回実行で snapshot の旧固定値2件が失敗。期待値を今回の revision と本記録へ更新し、該当2件の再実行は2/2成功。初回関連49件はこの2件だけ失敗した。
+- Linux user devShell build と隔離 HOME の shell 起動: 成功。full suite は進行中。
+- 7 CLI は候補 package の絶対パスを使い、隔離 HOME で version/help 計14 probe が終了0。RTK の Git status と Claude PreToolUse hook も成功し、rewrite が permissionDecision=allow を付与しないことを確認。
 
 [Claude 2.1.270](https://github.com/anthropics/claude-code/releases/tag/v2.1.270) と [RTK 0.49.0](https://github.com/rtk-ai/rtk/releases/tag/v0.49.0) は非 prerelease。Claude は長時間セッションの read-only Git 操作で不要な承認が発生する回帰を修正する。RTK は recall・rewrite の変更を含むため、候補の CLI 起動に加え、隔離 HOME で既存の Git コマンド経路を検証する。
+
+RTK rewrite probe は当初終了0を期待して失敗したが、[v0.49.0 の実装](https://github.com/rtk-ai/rtk/blob/v0.49.0/src/hooks/rewrite_cmd.rs) では明示 allow がない場合の終了3は承認を保持する正しい応答だった。CLI help の簡略説明だけで判断せず、仕様どおりの終了値と hook の JSON 出力を照合した。実装や権限を変更して検証を通していない。
+
+## 二軸レビュー
+
+Standards / Spec 各1件: cross-repo の runtime 文書が旧 snapshot だけを案内していたため、`runtime/ai-runtimes.md` に今回の採用版と検証記録へのリンクを追記した。それ以外の指摘なし。
