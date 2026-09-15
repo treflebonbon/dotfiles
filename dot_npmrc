@@ -3,3 +3,4 @@ engine-strict=true
 ignore-scripts=true
 legacy-peer-deps=true
 min-release-age=7
+registry=https://npm.flatt.tech
