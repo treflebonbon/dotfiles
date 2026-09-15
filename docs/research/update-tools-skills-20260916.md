@@ -54,7 +54,7 @@ Remotion の exact pin を `3b9e6561dababf40a485772a7cd641268bb7c365` へ更新�
 
 ## 二軸レビュー
 
-Standards / Spec 各1件（`code-review` 実行）。指摘内容は次を参照。
+`/code-review`（base: `main`）を実行し、Standards / Spec の両サブエージェントが独立に「研究ドキュメントが llm-agents snapshot のコミットにのみ含まれ、remotion 更新の判断根拠・検証記録まで同居している点」を指摘した（ADR-0045 が要求する更新単位ごとの独立した rollback 境界の趣旨と厳密には一致しない、judgement call）。過度な分割はこの chore の規模に対して過剰と判断し、記録の同居は維持した。Spec 側はさらに、前回更新（2026-09-15）が行った `runtime/ai-runtimes.md` への採用版追記が今回まだ無いこと、および本節が指摘内容への参照だけで中身を欠いていたことを指摘した。両方とも本ドキュメントの本節と `runtime/ai-runtimes.md` の追記で解消した。他の hard violation・scope creep・実装誤りの指摘はなかった。
 
 ## 最終結果
 
