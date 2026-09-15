@@ -56,7 +56,7 @@
 - 3 system の実 package metadata: 上表の7 CLI の版が一致。
 - `nix develop .#wsl --command true` と `bunx tsc --noEmit`: 成功。
 - 関連テストの初回実行で snapshot の旧固定値2件が失敗。期待値を今回の revision と本記録へ更新し、該当2件の再実行は2/2成功。初回関連49件はこの2件だけ失敗した。
-- Linux user devShell build と隔離 HOME の shell 起動: 成功。full suite は進行中。
+- Linux user devShell build と隔離 HOME の shell 起動: 成功。full suite は終了0（全732件、710 PASS・22 skip・0 FAIL）。
 - 7 CLI は候補 package の絶対パスを使い、隔離 HOME で version/help 計14 probe が終了0。RTK の Git status と Claude PreToolUse hook も成功し、rewrite が permissionDecision=allow を付与しないことを確認。
 
 [Claude 2.1.270](https://github.com/anthropics/claude-code/releases/tag/v2.1.270) と [RTK 0.49.0](https://github.com/rtk-ai/rtk/releases/tag/v0.49.0) は非 prerelease。Claude は長時間セッションの read-only Git 操作で不要な承認が発生する回帰を修正する。RTK は recall・rewrite の変更を含むため、候補の CLI 起動に加え、隔離 HOME で既存の Git コマンド経路を検証する。
@@ -66,3 +66,11 @@ RTK rewrite probe は当初終了0を期待して失敗したが、[v0.49.0 の�
 ## 二軸レビュー
 
 Standards / Spec 各1件: cross-repo の runtime 文書が旧 snapshot だけを案内していたため、`runtime/ai-runtimes.md` に今回の採用版と検証記録へのリンクを追記した。それ以外の指摘なし。
+
+## 最終結果
+
+`nix develop .#wsl --command bun run test` は終了0、全732件（710 PASS・22 skip・0 FAIL）。skip は実機・認証・runtime の opt-in 条件によるもので、実施済みとは扱わない。full suite の再実行は行っていない。型チェック・3 system 評価・Linux build/startup・7 CLI 起動・RTK hook 検証も完了した。aarch64 実機、認証を伴う対話 agent session、live 配備後の動作は未確認。Antigravity の版固有 changelog と advisor 非公開内部構造も保証しない。
+
+二軸レビューの各1指摘は `b005919` で解消し、両 reviewer の再確認で追加指摘なし。コミット hook の format・gitleaks・Conventional Commits 検証も成功。APM manifest/lock は基準コミットから byte 不変。live apply、push・PR は未実施。
+
+主要証跡: `nix-check.log`、`package-metadata.json`、`comparison.json`、`build.log`、`startup.log`、`smoke.json`、`related.log`、`pin-tests.log`、`full-suite.log`。
