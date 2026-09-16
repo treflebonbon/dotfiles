@@ -527,3 +527,29 @@ EOF
   [ -d "$herdr/myrepo/feature-x" ]
   [ -d "$herdr/myrepo/feature-y" ]
 }
+
+@test "統合: 単体とfan-outの既定は3日で、danglingにも適用する" {
+  local ghq_root="$BATS_TEST_TMPDIR/ghq"
+  local repo="$ghq_root/host/org/myrepo"
+  local herdr="$BATS_TEST_TMPDIR/herdr"
+  local orca="$BATS_TEST_TMPDIR/orca"
+  make_ghq_repo "$repo"
+  local days
+  for days in 2 3; do
+    mkdir -p "$repo/.worktrees/day-$days" "$orca/gone/day-$days"
+    echo "gitdir: $BATS_TEST_TMPDIR/missing/.git/worktrees/day-$days" >"$orca/gone/day-$days/.git"
+    touch -d "$days days ago" "$repo/.worktrees/day-$days" "$orca/gone/day-$days"
+  done
+
+  run bash "${SRC%/*}/worktree-gc.sh" --diagnose --repo "$repo" --roots .worktrees
+  assert_success
+  assert_output --partial $'remove-candidate\torphan\tin-root\t-\t'"$repo/.worktrees/day-3"
+  assert_output --partial $'keep\tyoung\tin-root\t-\t'"$repo/.worktrees/day-2"
+
+  run bash "$SRC" --diagnose --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca"
+  assert_success
+  assert_output --partial "$repo/.worktrees/day-3"
+  assert_output --partial "$orca/gone/day-3"
+  refute_output --partial "$repo/.worktrees/day-2"
+  refute_output --partial "$orca/gone/day-2"
+}

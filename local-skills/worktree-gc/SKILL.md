@@ -1,23 +1,27 @@
 ---
 name: worktree-gc
-description: 緊急時に repo-local worktree (.claude/worktrees / .worktrees / tmp/implement-issue/worktrees) を GC して fd/inotify 枯渇を解消する。"worktree cleanup" "fd 枯渇" "Too many open files" "worktree が溜まった" で起動。
+description: 緊急時に repo-local worktree (.claude/worktrees / .worktrees / tmp/implement-issue/worktrees) を GC して fd/inotify 枯渇を解消する。"worktree cleanup" "fd 枯渇" "Too many open files" "worktree が溜まった" で起動。home 全体・ghq 全体の掃除を明示依頼された場合は home-wide fan-out を使う。
 ---
 
 # worktree-gc
 
 ## Steps
 
-1. この skill に同梱の `scripts/worktree-gc.sh`（配備先例: `~/.agents/skills/worktree-gc/scripts/worktree-gc.sh`）を `bash <script path> --diagnose --repo "$(git rev-parse --show-toplevel)" --roots ".claude/worktrees,.worktrees,tmp/implement-issue/worktrees" --max-report 50` で実行し、まず `summary` だけを読む。
-2. `candidates` と主要な keep 理由 (`out_of_root`, `keep_dirty`, `keep_detached`, `keep_unique`, `keep_open_pr`) をユーザーに示す。大量の明細は貼らず、必要な時だけ TSV を抜粋する。
-3. AskUserQuestion で「適用するか / age 閾値を変えるか」を確認する。
-4. 承認されたら `--diagnose` を外し、同じ `--repo` / `--roots` / age 設定に `--apply` を付けて実行する。緊急時は `--age-days 0 --locked-age-days 0` で即時回収も可 (ライブ agent を撃つ恐れを明示)。
-5. 実行後 `git worktree list | wc -l` で残数を報告する。
+1. `git worktree list --porcelain` の先頭 `worktree` 行で main worktree の絶対パスを確認し、`GC_REPO` に設定する。`git -C "$GC_REPO" rev-parse --is-bare-repository` が `false` であることを確認する。bare repo・Git 管理情報を解決できない場合は適用せず、必要な確認事項を報告する。linked worktree 内の `--show-toplevel` は現在の checkout を返すため、repo-local roots の基準に使わない。
+2. 同梱の `scripts/worktree-gc.sh` を `bash <script path> --diagnose --repo "$GC_REPO" --roots ".claude/worktrees,.worktrees,tmp/implement-issue/worktrees" --max-report 50` で実行し、まず `summary` を読む。
+3. `candidates` と主要な keep 理由 (`out_of_root`, `keep_dirty`, `keep_detached`, `keep_unique`, `keep_open_pr`) をユーザーに示す。大量の明細は貼らず、必要な時だけ TSV を抜粋する。
+4. AskUserQuestion で「適用するか / age 閾値を変えるか」を確認する。
+5. 承認されたら `--diagnose` を外し、同じ `--repo` / `--roots` / age 設定に `--apply` を付けて実行する。緊急時は `--age-days 0 --locked-age-days 0` で即時回収も可 (ライブ agent を撃つ恐れを明示)。
+6. 実行後 `git -C "$GC_REPO" worktree list --porcelain | grep -c '^worktree '` で残数を報告する。
 
 ## Notes
 
+- 単一 repo の診断で現在の checkout が削除候補に含まれた場合は `--apply` を実行せず、稼働中の作業として報告する。単体スクリプトには fan-out のプロセス検出ガードがない。
 - dry-run が既定。`--apply` を付けない限り削除しない。
 - `--diagnose` は削除しない。`--apply` と併用しても診断のみ。
 - summary は `out_of_root` を scope バケット、`keep_*` を in-root/main 側の保護理由として読む。
+- `keep_open_pr` は open PR がある場合だけでなく、`gh` 未導入・timeout・失敗による確認不能も含む。open PR の存在を断定せず、確認不能なら照会環境を復旧して同設定で再診断する。保護ガードは無効化しない。
+- 年齢の既定値は単体・fan-out とも3日。`--locked-age-days` 未指定時も同じ値を使う。
 - locked は age ゲート。`--locked-age-days` 未満の locked はライブ agent とみなし保護される。
 - `removed=0` でも `git worktree list` が多い場合、roots 外 worktree や dirty / detached / unique commit / open PR で保護されている可能性が高い。
 - 外部 worktree (`~/workspace` 等) は診断表示のみで、自動削除対象外。
@@ -27,12 +31,12 @@ description: 緊急時に repo-local worktree (.claude/worktrees / .worktrees / 
 
 上記の既定フローは現在の repo 1つだけが対象。`~/ghq/` 配下の全リポジトリ + `~/.herdr/worktrees/` + `~/orca/workspaces/` を横断して GC したい場合だけ、ユーザーが明示的に要求したとき（例:「home 全体を掃除して」「ghq 全部まとめて worktree-gc して」）に限り、同梱の `scripts/worktree-gc-fanout.sh` を使う。デフォルトの単一repo緊急GCの動作・トリガーフレーズはこの節と無関係で変更されない。
 
-1. `bash <script path>/worktree-gc-fanout.sh --diagnose --age-days 7` を実行する（`--ghq-root` / `--herdr-root` / `--orca-root` は既定でそれぞれ `~/ghq`・`~/.herdr/worktrees`・`~/orca/workspaces`。別パスなら明示指定）。出力は `source(repo|dangling)\treason\tscope\tbranch\tpath\trepo` の TSV で、全repo分 + dangling worktree 分を1つに集約した一覧。
-2. 集約された候補一覧をユーザーに示し、AskUserQuestion で「まとめて適用するか」を1回だけ確認する（repoごとに個別承認しない）。
+1. `bash <script path>/worktree-gc-fanout.sh --diagnose --age-days 3` を実行する（`--ghq-root` / `--herdr-root` / `--orca-root` は既定でそれぞれ `~/ghq`・`~/.herdr/worktrees`・`~/orca/workspaces`。別パスなら明示指定）。出力は `source(repo|dangling)\treason\tscope\tbranch\tpath\trepo` の TSV で、全repo分 + dangling worktree 分を1つに集約した一覧。
+2. 集約された候補一覧を示す。対象 root の全件確認を求められた場合は、別途 `<repo>/<worktree>` の各ディレクトリを列挙し、Git の所有元・age と照合する。生存する親 repo が ghq 外にある worktree は fan-out 対象外で、age 未達の dangling も候補 TSV に出ない。ディレクトリ総数・候補数・対象外を分けて報告する。診断だけの依頼ならここで完了し、適用も依頼された場合は AskUserQuestion で「まとめて適用するか」を1回だけ確認する（repoごとに個別承認しない）。
 3. 承認されたら同じオプションに `--apply` を付けて実行する。
 4. 実行後、`--herdr-root` / `--orca-root` 配下の残数や `fanout done removed=N` の行で結果を報告する。
 
-- `worktree-gc.sh` 本体は無改修。`~/.herdr/worktrees/<repo>` と `~/orca/workspaces/<repo>` を、各 ghq リポジトリ呼び出しの `--roots` に追加するだけで実削除対象にしている（信頼できる外部ルートの許可リスト、[CONTEXT.md](../../CONTEXT.md)）。
+- `worktree-gc.sh` の既存の保護判定を使う。`~/.herdr/worktrees/<repo>` と `~/orca/workspaces/<repo>` を、各 ghq リポジトリ呼び出しの `--roots` に追加するだけで実削除対象にしている（信頼できる外部ルートの許可リスト、[CONTEXT.md](../../CONTEXT.md)）。
 - dangling worktree（親リポジトリ自体が消滅した worktree、[CONTEXT.md](../../CONTEXT.md)）も `--age-days` 閾値ゲート付きで検出・削除する。
 - 実削除前に稼働中プロセス（`/proc/*/cwd`）を検出し、該当する repo 呼び出し・dangling候補を丸ごと保護する（repo単位の粒度。同じ呼び出しに含まれる他の候補も道連れで保護される）。
 - `--max-removals`（既定50）は **実行全体** の上限。repo単位の上限ではない点が `worktree-gc.sh` 単体と異なる。
