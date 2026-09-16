@@ -783,19 +783,22 @@ if ((pwcli_dashboard_running == 0)); then
   fi
 fi
 
+pwcli_display_status=0
 "$pwcli_curl" \
   --fail \
   --silent \
   --show-error \
   --max-time 5 \
   --request PUT \
-  "$pwcli_cdp_endpoint/json/new?http%3A%2F%2Flocalhost%3A${pwcli_dashboard_port}%2F" >/dev/null
+  "$pwcli_cdp_endpoint/json/new?http%3A%2F%2Flocalhost%3A${pwcli_dashboard_port}%2F" >/dev/null || pwcli_display_status=$?
 
 release_lock
 trap - EXIT
 if ((pwcli_show_annotate)); then
-  pwcli_annotation_status=0
-  "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port" || pwcli_annotation_status=$?
+  pwcli_annotation_status=$pwcli_display_status
+  if ((pwcli_annotation_status == 0)); then
+    "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port" || pwcli_annotation_status=$?
+  fi
   if [[ "${PWCLI_EXTERNAL_CDP:-0}" == "1" ]] && ((pwcli_started_dashboard)); then
     pwcli_cleanup_status=0
     "${BASH:-bash}" "$0" -s="$pwcli_session" show --kill || pwcli_cleanup_status=$?
@@ -805,5 +808,6 @@ if ((pwcli_show_annotate)); then
   fi
   exit "$pwcli_annotation_status"
 else
+  ((pwcli_display_status == 0)) || exit "$pwcli_display_status"
   printf 'Dashboard: http://127.0.0.1:%s/\n' "$pwcli_dashboard_port"
 fi

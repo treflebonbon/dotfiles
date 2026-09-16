@@ -180,6 +180,9 @@ case "$*" in
     printf '%s\n' '{"Browser":"Chrome/150.0.0.0"}'
     ;;
   */json/new*)
+    if [[ "${PWCLI_FAKE_DASHBOARD_TAB_FAIL:-0}" == "1" ]]; then
+      exit 22
+    fi
     printf '%s\n' '{"id":"dashboard"}'
     ;;
   *127.0.0.1:$DASHBOARD_PORT*)
@@ -1397,4 +1400,15 @@ SH
   [ -s "$UPSTREAM_LOG" ]
   run bash "$WRAPPER" -s=after-relocation close
   [ "$status" -eq 0 ]
+}
+
+@test "external annotation cleans its Dashboard when opening the display tab fails" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_DASHBOARD_TAB_FAIL=1
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 22 ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
+  ! grep -Fq -- '--annotate' "$UPSTREAM_LOG.calls"
 }
