@@ -141,3 +141,9 @@ Convergence: 修正後の新規 instruction ambiguity なしは1 roundのみ。E
 - 変更は task worktree 内だけに保持し、live source への配備は行っていない。
 
 最終書式確認は repo の固定依存を `bun install --frozen-lockfile` で展開したうえで oxfmt を使用。system oxfmt の初回実行は依存未展開で設定を読めず失敗したため、検証環境を整えて再実行した。
+
+## PR レビュー後の意味規則の補正
+
+PR #327 のレビューで、「recovery callbacks receive only matching failures」は callback 内で分岐する場合に過剰な制限になると指摘された。Rust fixture の 76–79 行では `or_else` の closure は `PaymentDeclined` でも実行され、`other => Err(other)` が失敗を伝播する。条件に一致するときだけ実行されるのは `reserve_backorder` という回復処理である。一方、Effect fixture の 49–51 行の `catchTag` は、タグを選別してから handler を呼ぶ。
+
+モデル化規則を、combinator による選別と callback 内の分岐に分けて記述した。成功値が error-only callback を迂回する規則は維持し、未回復エラーに対して実行される分岐・伝播処理を図から省略しないことを明記した。既存の Rust / Effect semantics 参照と両 fixture を照合した静的な補正であり、この補正版の新規実行者による empirical 再評価は実施していない。上記の採点・成果物はレビュー前の指示に対する結果として保持する。
