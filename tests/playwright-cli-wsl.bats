@@ -85,6 +85,10 @@ fi
 printf '%s\n' "$PWTEST_DAEMON_SESSION_DIR" "$PWTEST_SERVER_REGISTRY" "$PWTEST_SOCKETS_DIR" >"$UPSTREAM_LOG.registry"
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
 printf '%s\n' "$*" >>"$UPSTREAM_LOG.calls"
+if [[ "${PWCLI_FAKE_ANNOTATION_WAIT:-0}" == "1" && "$*" == *"--annotate"* ]]; then
+  touch "$UPSTREAM_LOG.waiting"
+  exec sleep 60
+fi
 if [[ "${PWCLI_FAKE_ANNOTATION_FAIL:-0}" == "1" && "$*" == *"--annotate"* ]]; then
   exit 47
 fi
@@ -1411,4 +1415,53 @@ SH
   [ ! -e "$STATE_DIR/dashboard.pid" ]
   [ ! -e "$STATE_DIR/chrome.pid" ]
   ! grep -Fq -- '--annotate' "$UPSTREAM_LOG.calls"
+}
+
+@test "interrupted external annotation cleans only its newly started Dashboard" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_ANNOTATION_WAIT=1
+  for existing in 0 1; do
+    if ((existing)); then
+      run bash "$WRAPPER" -s=dogfood-annotate show
+      [ "$status" -eq 0 ]
+    fi
+    for signal_name in SIGINT SIGTERM; do
+      run python3 - "$WRAPPER" "$signal_name" <<'PYTEST'
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+marker = Path(os.environ["UPSTREAM_LOG"] + ".waiting")
+marker.unlink(missing_ok=True)
+proc = subprocess.Popen(
+    ["bash", sys.argv[1], "-s=dogfood-annotate", "show", "--annotate", "--json"],
+    env={**os.environ, "PWCLI_EXTERNAL_CDP": "1"},
+    start_new_session=True,
+)
+try:
+    deadline = time.monotonic() + 15
+    while not marker.exists():
+        assert proc.poll() is None, "wrapper exited before annotation wait"
+        assert time.monotonic() < deadline, "annotation wait timed out"
+        time.sleep(.05)
+    sig = getattr(signal, sys.argv[2])
+    os.killpg(proc.pid, sig)
+    assert proc.wait(timeout=15) == 128 + sig
+finally:
+    if proc.poll() is None:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+PYTEST
+      [ "$status" -eq 0 ]
+      if ((existing)); then
+        [ -e "$STATE_DIR/dashboard.pid" ]
+        [ -e "$STATE_DIR/chrome.pid" ]
+      else
+        [ ! -e "$STATE_DIR/dashboard.pid" ]
+        [ ! -e "$STATE_DIR/chrome.pid" ]
+      fi
+    done
+  done
 }
