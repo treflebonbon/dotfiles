@@ -187,6 +187,17 @@ const validateChange = (change) => {
   evidence(change.evidence);
 };
 
+const validateResolutions = (items = []) => {
+  need(Array.isArray(items), "解決記録は配列で指定してください");
+  for (const item of items) {
+    need(
+      object(item) && nonempty(item.question) && nonempty(item.reason),
+      "解決記録には元の質問と解決理由が必要です"
+    );
+    evidence(item.evidence);
+  }
+};
+
 export const validateDocument = (doc) => {
   need(
     object(doc) && doc.schemaVersion === 1,
@@ -245,6 +256,7 @@ export const validateDocument = (doc) => {
     validateChange(item);
   }
   need(doc.unresolved.every(nonempty), "未解決事項は文字列で指定してください");
+  validateResolutions(doc.resolutions);
   // Imported JSON never supplies executable React Flow props, styles, or HTML.
   return structuredClone(doc);
 };
@@ -302,6 +314,17 @@ const preservesReview = (incoming, saved) => {
   }
   return (
     incoming.repository.name === previous.repository.name &&
+    incoming.repository.revision === previous.repository.revision &&
+    previous.unresolved.every(
+      (question) =>
+        incoming.unresolved.includes(question) ||
+        incoming.resolutions?.some((item) => item.question === question)
+    ) &&
+    (previous.resolutions ?? []).every((item) =>
+      incoming.resolutions?.some(
+        (candidate) => canonical(item) === canonical(candidate)
+      )
+    ) &&
     previous.comments.every((comment) =>
       incoming.comments.some(
         (candidate) => canonical(comment) === canonical(candidate)
@@ -463,7 +486,12 @@ export const artifacts = (doc) => {
         `- ${md(r.view)} / ${md(r.item.id)}: ${md(r.item.data.label ?? r.item.label)}`
     ),
     "\n## 未解決",
-    ...doc.unresolved.map((s) => `- ${md(s)}`)
+    ...doc.unresolved.map((s) => `- ${md(s)}`),
+    "\n## 解決記録",
+    ...(doc.resolutions ?? []).map(
+      (item) =>
+        `\n### ${md(item.question)}\n${md(item.reason)}\n${refs(item.evidence)}`
+    )
   );
   const glossary = [
     "# 用語辞書",

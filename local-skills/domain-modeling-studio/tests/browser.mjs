@@ -186,6 +186,34 @@ try {
   await page
     .getByRole("button", { exact: true, name: "手動でコピーしたことを記録" })
     .click();
+  const expectProtectedImport = async (patch) => {
+    await writeFile(
+      updateFile,
+      JSON.stringify({
+        ...copied.document,
+        basedOn: { exportId: copied.exportId, revision: "r1" },
+        revision: "r2",
+        ...patch,
+      })
+    );
+    await page.locator("input[type=file]").setInputFiles(updateFile);
+    await page.getByRole("region", { name: "更新の競合" }).waitFor();
+    assert.equal(
+      await page.getByLabel("名称", { exact: true }).inputValue(),
+      "コピー後に変更"
+    );
+    await page.getByText("業務ルールを確認する", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { exact: true, name: "現在の編集を続ける" })
+      .click();
+  };
+  await expectProtectedImport({ unresolved: [] });
+  await expectProtectedImport({
+    repository: {
+      ...copied.document.repository,
+      revision: "unexpected-commit",
+    },
+  });
   await writeFile(
     updateFile,
     JSON.stringify({

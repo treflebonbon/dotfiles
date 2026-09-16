@@ -189,3 +189,70 @@ test("AI更新の版・指摘・削除対象・根拠・人の配置を検証す
     true
   );
 });
+
+test("未解決事項は明示的な解決記録だけで除去し、固定したソース版を変えない", () => {
+  const original = example();
+  original.unresolved.push("再発行の条件は？");
+  const saved = {
+    document: original,
+    lastExport: { id: "review-copy", signature: signature(original) },
+    seed: signature(original),
+  };
+  const incoming = {
+    ...structuredClone(original),
+    basedOn: { exportId: "review-copy", revision: "r1" },
+    revision: "r2",
+  };
+  assert.equal(reconcile(incoming, saved).conflict, false);
+  for (const unresolved of [[], original.unresolved.slice(0, 1)]) {
+    const result = reconcile({ ...incoming, unresolved }, saved);
+    assert.equal(result.conflict, true);
+    assert.deepEqual(result.document, original);
+  }
+  const changedSource = {
+    ...incoming,
+    repository: { ...incoming.repository, revision: "another-commit" },
+  };
+  assert.equal(reconcile(changedSource, saved).conflict, true);
+  const resolved = {
+    ...incoming,
+    resolutions: [
+      {
+        evidence: [],
+        question: original.unresolved[1],
+        reason: "担当者の回答で再発行の条件を確認した（実装の証拠ではない）",
+      },
+    ],
+    unresolved: original.unresolved.slice(0, 1),
+  };
+  assert.equal(reconcile(resolved, saved).conflict, false);
+  assert.ok(
+    artifacts(resolved)["model.md"].includes(resolved.resolutions[0].reason)
+  );
+  assert.throws(
+    () =>
+      validateDocument({
+        ...resolved,
+        resolutions: [{ ...resolved.resolutions[0], reason: " " }],
+      }),
+    /解決/u
+  );
+  assert.throws(
+    () => validateDocument({ ...resolved, resolutions: null }),
+    /解決/u
+  );
+  const next = {
+    ...resolved,
+    basedOn: { exportId: "next-copy", revision: "r2" },
+    resolutions: [],
+    revision: "r3",
+  };
+  assert.equal(
+    reconcile(next, {
+      document: resolved,
+      lastExport: { id: "next-copy", signature: signature(resolved) },
+      seed: signature(resolved),
+    }).conflict,
+    true
+  );
+});
