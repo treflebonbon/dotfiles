@@ -141,10 +141,6 @@ if ((pwcli_passthrough_metadata)); then
   exec "$pwcli_upstream" "$@"
 fi
 
-if [[ "$pwcli_command" == "show" && "${PWCLI_EXTERNAL_CDP:-0}" == "1" ]]; then
-  exec "$pwcli_upstream" "$@"
-fi
-
 if [[ "$pwcli_command" == "open" || "$pwcli_command" == "show" ]]; then
   pwcli_browser_env=(
     PLAYWRIGHT_MCP_CONFIG
@@ -602,7 +598,14 @@ if ((pwcli_show_annotate)) && ((pwcli_managed_owner == 0)); then
   if [[ -f "$pwcli_lease" ]]; then
     fail "annotation requires the lease-owning session '$pwcli_owner_session' in '$pwcli_owner_workspace'."
   fi
-  fail "annotation requires an open Managed Playwright Chrome session."
+  if [[ "${PWCLI_EXTERNAL_CDP:-0}" != "1" ]]; then
+    fail "annotation requires an open Managed Playwright Chrome session."
+  fi
+fi
+
+if ((pwcli_show_annotate && pwcli_dashboard_running)) &&
+  [[ "$(cat "$pwcli_dashboard_session_file" 2>/dev/null || true)" != "$pwcli_session" ]]; then
+  fail "annotation requires the Dashboard-owning session."
 fi
 
 pwcli_network_mode="$("$pwcli_wslinfo" --networking-mode 2>/dev/null || true)"
@@ -724,6 +727,7 @@ if [[ "$pwcli_command" == "open" ]]; then
   fi
 fi
 
+pwcli_started_dashboard=0
 if ((pwcli_dashboard_running == 0)); then
   if ! command -v setsid >/dev/null 2>&1; then
     fail "setsid is required to keep the Managed Playwright Dashboard in the background."
@@ -756,6 +760,7 @@ if ((pwcli_dashboard_running == 0)); then
         printf '%s\n' "$pwcli_session" >"$pwcli_dashboard_session_file"
         rm -f "$pwcli_dashboard_launcher_file"
         pwcli_dashboard_running=1
+        pwcli_started_dashboard=1
         break
       fi
     fi
@@ -778,18 +783,39 @@ if ((pwcli_dashboard_running == 0)); then
   fi
 fi
 
+pwcli_display_status=0
 "$pwcli_curl" \
   --fail \
   --silent \
   --show-error \
   --max-time 5 \
   --request PUT \
-  "$pwcli_cdp_endpoint/json/new?http%3A%2F%2Flocalhost%3A${pwcli_dashboard_port}%2F" >/dev/null
+  "$pwcli_cdp_endpoint/json/new?http%3A%2F%2Flocalhost%3A${pwcli_dashboard_port}%2F" >/dev/null || pwcli_display_status=$?
 
 release_lock
 trap - EXIT
 if ((pwcli_show_annotate)); then
-  "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port"
+  # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+  finish_annotation() {
+    local annotation_status=$? cleanup_status=0
+    trap - EXIT
+    if [[ "${PWCLI_EXTERNAL_CDP:-0}" == "1" ]] && ((pwcli_started_dashboard)); then
+      "${BASH:-bash}" "$0" -s="$pwcli_session" show --kill || cleanup_status=$?
+      if ((annotation_status == 0)); then
+        annotation_status=$cleanup_status
+      fi
+    fi
+    exit "$annotation_status"
+  }
+  trap finish_annotation EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  pwcli_annotation_status=$pwcli_display_status
+  if ((pwcli_annotation_status == 0)); then
+    "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port" || pwcli_annotation_status=$?
+  fi
+  exit "$pwcli_annotation_status"
 else
+  ((pwcli_display_status == 0)) || exit "$pwcli_display_status"
   printf 'Dashboard: http://127.0.0.1:%s/\n' "$pwcli_dashboard_port"
 fi

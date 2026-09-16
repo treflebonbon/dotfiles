@@ -84,6 +84,14 @@ if [[ "$*" == *"show"* && "$*" == *"--annotate"* && ! -f "$DASHBOARD_READY" ]]; 
 fi
 printf '%s\n' "$PWTEST_DAEMON_SESSION_DIR" "$PWTEST_SERVER_REGISTRY" "$PWTEST_SOCKETS_DIR" >"$UPSTREAM_LOG.registry"
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
+printf '%s\n' "$*" >>"$UPSTREAM_LOG.calls"
+if [[ "${PWCLI_FAKE_ANNOTATION_WAIT:-0}" == "1" && "$*" == *"--annotate"* ]]; then
+  touch "$UPSTREAM_LOG.waiting"
+  exec sleep 60
+fi
+if [[ "${PWCLI_FAKE_ANNOTATION_FAIL:-0}" == "1" && "$*" == *"--annotate"* ]]; then
+  exit 47
+fi
 if [[ "${PWCLI_FAKE_ASSERT_LOCK_RELEASED:-0}" == "1" ]] &&
   ! "$PWCLI_FLOCK" --exclusive --nonblock \
     "$STATE_DIR/runtime.lock" true; then
@@ -176,6 +184,9 @@ case "$*" in
     printf '%s\n' '{"Browser":"Chrome/150.0.0.0"}'
     ;;
   */json/new*)
+    if [[ "${PWCLI_FAKE_DASHBOARD_TAB_FAIL:-0}" == "1" ]]; then
+      exit 22
+    fi
     printf '%s\n' '{"id":"dashboard"}'
     ;;
   *127.0.0.1:$DASHBOARD_PORT*)
@@ -1097,25 +1108,64 @@ EOF
   grep -Fxq -- "--port=7777" "$UPSTREAM_LOG"
 }
 
-@test "annotation Dashboard commands can use an explicitly attached external CDP owner" {
+@test "external CDP annotation starts a managed Dashboard before annotation and cleans it up" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$BROWSER_OWNERSHIP_DIR"
-  printf '%s\n' \
-    dogfood \
-    dogfood-run-1 \
-    4242 \
-    headed \
-    'C:\\Temp\\aiakos-dogfood-dogfood-run-1' \
-    http://127.0.0.1:49152 \
-    "$PWD" \
-    >"$BROWSER_OWNERSHIP_DIR/owner"
-  touch "$DASHBOARD_READY"
 
   run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
 
   [ "$status" -eq 0 ]
-  grep -Fxq -- "show" "$UPSTREAM_LOG"
-  [ ! -e "$POWERSHELL_LOG" ]
+  grep -Fq -- '--host=127.0.0.1' "$DASHBOARD_CALL_LOG"
+  grep -Fq -- 'show --annotate --json' "$UPSTREAM_LOG.calls"
+  grep -Fq -- 'show --kill' "$UPSTREAM_LOG.calls"
+  grep -Fq -- '-Action Start -Mode headed' "$POWERSHELL_LOG"
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
+}
+
+@test "external annotation failure preserves its exit status and cleans up the Dashboard" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_ANNOTATION_FAIL=1
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 47 ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
+}
+
+@test "external annotation preserves a pre-existing same-session Dashboard" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=dogfood-annotate show
+  [ "$status" -eq 0 ]
+  local dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
+  [ -e "$STATE_DIR/chrome.pid" ]
+}
+
+@test "external annotation preserves its failure when Dashboard cleanup also fails" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_ANNOTATION_FAIL=1
+  export PWCLI_FAKE_DASHBOARD_STOP_STUCK=1 PWCLI_DASHBOARD_STOP_TIMEOUT=0
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 47 ]
+  [[ "$output" == *"Dashboard did not exit"* ]]
+  [ -e "$STATE_DIR/dashboard.pid" ]
+}
+
+@test "external annotation cannot take over another session's Dashboard" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha show
+  [ "$status" -eq 0 ]
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Dashboard-owning session"* ]]
+  [ "$(cat "$STATE_DIR/dashboard.session")" = alpha ]
 }
 
 @test "managed open refuses orphan Chrome and a conflicting CDP port" {
@@ -1354,4 +1404,64 @@ SH
   [ -s "$UPSTREAM_LOG" ]
   run bash "$WRAPPER" -s=after-relocation close
   [ "$status" -eq 0 ]
+}
+
+@test "external annotation cleans its Dashboard when opening the display tab fails" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_DASHBOARD_TAB_FAIL=1
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 22 ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
+  ! grep -Fq -- '--annotate' "$UPSTREAM_LOG.calls"
+}
+
+@test "interrupted external annotation cleans only its newly started Dashboard" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_ANNOTATION_WAIT=1
+  for existing in 0 1; do
+    if ((existing)); then
+      run bash "$WRAPPER" -s=dogfood-annotate show
+      [ "$status" -eq 0 ]
+    fi
+    for signal_name in SIGINT SIGTERM; do
+      run python3 - "$WRAPPER" "$signal_name" <<'PYTEST'
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+marker = Path(os.environ["UPSTREAM_LOG"] + ".waiting")
+marker.unlink(missing_ok=True)
+proc = subprocess.Popen(
+    ["bash", sys.argv[1], "-s=dogfood-annotate", "show", "--annotate", "--json"],
+    env={**os.environ, "PWCLI_EXTERNAL_CDP": "1"},
+    start_new_session=True,
+)
+try:
+    deadline = time.monotonic() + 15
+    while not marker.exists():
+        assert proc.poll() is None, "wrapper exited before annotation wait"
+        assert time.monotonic() < deadline, "annotation wait timed out"
+        time.sleep(.05)
+    sig = getattr(signal, sys.argv[2])
+    os.killpg(proc.pid, sig)
+    assert proc.wait(timeout=15) == 128 + sig
+finally:
+    if proc.poll() is None:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+PYTEST
+      [ "$status" -eq 0 ]
+      if ((existing)); then
+        [ -e "$STATE_DIR/dashboard.pid" ]
+        [ -e "$STATE_DIR/chrome.pid" ]
+      else
+        [ ! -e "$STATE_DIR/dashboard.pid" ]
+        [ ! -e "$STATE_DIR/chrome.pid" ]
+      fi
+    done
+  done
 }
