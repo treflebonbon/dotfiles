@@ -37,9 +37,9 @@ A browser draft or successful clipboard write is not a submitted answer. Use the
 
 Re-investigate each correction against the source. Keep the human's layout, stable IDs, surviving metadata and comments. Preserve removed nodes/edges in `retired`, including incident edges, so their comments remain attributable. Do not regenerate IDs from labels or silently drop unresolved feedback. If semantics change, reconsider associated glossary entries, scenarios and implementation candidates.
 
-Emit a new revision with `basedOn: { revision: <submitted revision>, exportId: <submitted exportId> }`. Carry the submitted edits forward, explain accepted/rejected/unresolved changes, and reset `needsReview` only after reviewing all derived artifacts. The human imports the new plain model JSON using **JSONを読み込む**, or opens the new HTML. Unsent changes or a mismatched baseline are protected; ask for a fresh submitted export rather than bypassing the conflict guard.
+Emit a new revision with `basedOn: { revision: <submitted revision>, exportId: <submitted exportId> }`. Carry the submitted edits forward, explain accepted/rejected/unresolved changes, and reset `needsReview` only after reviewing all derived artifacts. The human imports the new plain model JSON using **JSONを読み込む**, or opens the new HTML. Unsent changes, reused revision IDs, and missing review records are protected; ask for a fresh submitted export rather than bypassing the conflict guard. Imports retain earlier evidence, comments and retired records, and preserve human-adjusted geometry. Explain contradictory citations in unresolved notes instead of silently erasing them.
 
-The **JSONを保存** backup preserves the current document. Loading a backup explicitly asks the human to download the current contents before restoring. Neither a backup nor a draft is permission to accept a proposed business rule.
+The **JSONを保存** backup preserves the current document, including a comment still being typed. Copy and import also incorporate that pending comment before checking the update baseline. Loading a backup explicitly asks the human to download the current contents before restoring. Neither a backup nor a draft is permission to accept a proposed business rule.
 
 ## Finish the modeling session
 

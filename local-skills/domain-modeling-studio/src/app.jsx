@@ -1,5 +1,7 @@
 import {
   ReactFlow,
+  useReactFlow,
+  useStore,
   Background,
   Controls,
   Handle,
@@ -53,6 +55,17 @@ const DomainNode = memo(({ data, selected }) => (
     <Handle type="source" position={Position.Right} />
   </div>
 ));
+const FitOnResize = () => {
+  const { fitView } = useReactFlow();
+  const width = useStore((state) => state.width);
+  const height = useStore((state) => state.height);
+  useEffect(() => {
+    if (width && height) {
+      void fitView();
+    }
+  }, [width, height, fitView]);
+  return null;
+};
 const nodeTypes = { domain: DomainNode };
 const load = (seed) => {
   let raw;
@@ -102,6 +115,7 @@ const Inspector = ({
   comment,
   setComment,
   draftTarget,
+  commitDraft,
 }) => (
   <aside className="inspector" aria-label="根拠と指摘">
     <label>
@@ -268,25 +282,7 @@ const Inspector = ({
         placeholder="認識の違い、例外条件、境界の疑問を記入"
       />
     </label>
-    <button
-      onClick={() => {
-        if (!comment.trim()) {
-          return;
-        }
-        update((d) => {
-          d.comments.push({
-            id: uid(),
-            target: draftTarget.current ?? target,
-            text: comment.trim(),
-          });
-          return d;
-        });
-        setComment("");
-        draftTarget.current = null;
-      }}
-    >
-      指摘を追加
-    </button>
+    <button onClick={commitDraft}>指摘を追加</button>
     <details>
       <summary>削除した対象と指摘（{doc.retired.length}）</summary>
       {doc.retired.map((r, i) => (
@@ -337,7 +333,9 @@ const Status = ({
         <strong>
           編集を保護しています。現在の内容をAIへ渡し直してください。
         </strong>
-        <p>AI更新版の基準と下書きが一致しないため、自動上書きしていません。</p>
+        <p>
+          AI更新版の基準・版番号・保持すべき記録が一致しないため、自動上書きしていません。
+        </p>
         <div className="actions">
           {pending && (
             <button
@@ -576,8 +574,23 @@ const App = ({ seed }) => {
     });
     setSelection({ entity: "node", id: newId });
   };
+  const commitDraft = () => {
+    if (comment.trim()) {
+      update((d) => {
+        d.comments.push({
+          id: uid(),
+          target: draftTarget.current ?? target,
+          text: comment.trim(),
+        });
+        return d;
+      });
+      setComment("");
+      draftTarget.current = null;
+    }
+    return docRef.current;
+  };
   const prepareCopy = async () => {
-    const document = docRef.current;
+    const document = commitDraft();
     const exportId = uid();
     const content = feedback(document, exportId);
     const record = { id: exportId, signature: signature(document) };
@@ -600,7 +613,14 @@ const App = ({ seed }) => {
     }
   };
   const restoreBackup = () => {
-    download("before-restore.json", JSON.stringify(docRef.current, null, 2));
+    download(
+      "before-restore.json",
+      JSON.stringify(
+        { document: commitDraft(), format: "domain-studio-backup-v1" },
+        null,
+        2
+      )
+    );
     seedRef.current = signature(seed);
     docRef.current = backup;
     setDoc(backup);
@@ -639,7 +659,7 @@ const App = ({ seed }) => {
         throw new Error("別セッションです。別のHTMLで開いてください");
       }
       const result = reconcile(incoming, {
-        document: docRef.current,
+        document: commitDraft(),
         lastExport,
         seed: seedRef.current,
       });
@@ -647,7 +667,7 @@ const App = ({ seed }) => {
         setPending(incoming);
         setConflict(true);
         setMessage(
-          "基準版またはコピー後の編集が一致しません。現在の編集をAIへ渡し直してください。"
+          "基準版・版番号・コピー後の編集、または保持すべき記録が一致しません。現在の編集をAIへ渡し直してください。"
         );
       } else {
         seedRef.current = signature(incoming);
@@ -663,8 +683,9 @@ const App = ({ seed }) => {
       }
     } catch (error) {
       setMessage(`取り込めません。${error.message}`);
+    } finally {
+      event.target.value = "";
     }
-    event.target.value = "";
   };
   let storageStatus = "ブラウザ下書き保存";
   if (conflict) {
@@ -703,7 +724,7 @@ const App = ({ seed }) => {
                 `${doc.sessionId}-${doc.revision}.json`,
                 JSON.stringify(
                   {
-                    document: docRef.current,
+                    document: commitDraft(),
                     format: "domain-studio-backup-v1",
                   },
                   null,
@@ -877,6 +898,7 @@ const App = ({ seed }) => {
                 minZoom={0.15}
                 maxZoom={2}
               >
+                <FitOnResize />
                 <Background gap={24} color="#d2dddd" />
                 <Controls showInteractive={false} />
               </ReactFlow>
@@ -895,6 +917,7 @@ const App = ({ seed }) => {
               comment={comment}
               setComment={setComment}
               draftTarget={draftTarget}
+              commitDraft={commitDraft}
             />
           </div>
         </>

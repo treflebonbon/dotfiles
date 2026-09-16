@@ -100,6 +100,32 @@ try {
     "再発行する"
   );
   await page.getByLabel("width", { exact: true }).fill("240");
+  const positionBefore = await page
+    .getByLabel("x", { exact: true })
+    .inputValue();
+  const canvasNode = page.locator('.react-flow__node[data-id="request"]');
+  const bounds = await canvasNode.boundingBox();
+  await page.mouse.move(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds.x + bounds.width / 2 + 60,
+    bounds.y + bounds.height / 2 + 20,
+    { steps: 5 }
+  );
+  await page.mouse.up();
+  assert.notEqual(
+    await page.getByLabel("x", { exact: true }).inputValue(),
+    positionBefore
+  );
+  await page.getByRole("button", { exact: true, name: "元に戻す" }).click();
+  assert.equal(
+    await page.getByLabel("x", { exact: true }).inputValue(),
+    positionBefore
+  );
+
   await page
     .getByLabel("指摘を入力", { exact: false })
     .fill("旧依頼を失効する条件を確認");
@@ -191,11 +217,20 @@ try {
   await page.getByRole("button", { exact: true, name: "関係を追加" }).click();
   await page.getByRole("button", { exact: true, name: "要素を追加" }).click();
   await page.getByLabel("名称", { exact: true }).fill("追加した要素");
+  await page
+    .getByLabel("指摘を入力", { exact: false })
+    .fill("追加ボタン前の指摘も退避する");
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { exact: true, name: "JSONを保存" }).click();
   const backup = await downloaded;
   const backupPath = join(dir, "backup.json");
   await backup.saveAs(backupPath);
+  const backupData = JSON.parse(await readFile(backupPath, "utf-8"));
+  assert.ok(
+    backupData.document.comments.some(
+      (c) => c.text === "追加ボタン前の指摘も退避する"
+    )
+  );
   await page.getByLabel("名称", { exact: true }).fill("復元前の変更");
   await page.locator("input[type=file]").setInputFiles(backupPath);
   await page

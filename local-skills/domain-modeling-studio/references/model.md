@@ -66,7 +66,7 @@ Change candidate: `{ "id": "clarify-expiry", "title": "期限の案内を改善�
 
 # Revision protocol
 
-The copied Markdown contains `{ "format": "domain-studio-feedback-v1", "exportId": "unique-id", "document": <edited document> }`. A new agent-produced document increments `revision` and sets `basedOn` to the received document's revision and exportId. These identify the exact submitted content, not just the session.
+The copied Markdown contains `{ "format": "domain-studio-feedback-v1", "exportId": "unique-id", "document": <edited document> }`. A new agent-produced document increments `revision` and sets `basedOn` to the received document's revision and exportId. These identify the exact submitted content, not just the session. A new revision must differ from the current one. Imports that omit comments, retired records, prior evidence, or existing IDs without complete retirement records are held as conflicts. Preserve human-changed geometry; the agent can arrange newly added or untouched nodes. Keep conflicting historical citations with an explanation in the unresolved record rather than silently erasing them.
 
 The browser stores the seed document, editable draft, and last copied document signature. It adopts an AI update automatically only when the submitted export matches the current draft and revision. Otherwise it protects the draft and exposes the pending update separately for recovery. A fresh export is necessary after additional edits. If local storage is unavailable, retain JSON backups and use the existing open page's import action for the guarded update; opening a new file alone cannot discover an unavailable browser draft.
 

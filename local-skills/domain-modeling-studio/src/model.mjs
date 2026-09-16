@@ -51,6 +51,25 @@ const provenance = (data) => {
     "コードで確認した要素には根拠が必要です"
   );
 };
+const validateNode = (node) => {
+  need(
+    nonempty(node.data.label) && KINDS.includes(node.data.kind),
+    "要素の名称・種別が不正です"
+  );
+  need(
+    object(node.position) &&
+      Number.isFinite(node.position.x) &&
+      Number.isFinite(node.position.y),
+    "要素の配置が不正です"
+  );
+  need(
+    Number.isFinite(node.width) &&
+      node.width >= 100 &&
+      Number.isFinite(node.height) &&
+      node.height >= 60,
+    "要素のサイズが不正です"
+  );
+};
 const validateGraph = (graph, view) => {
   need(
     object(graph) && Array.isArray(graph.nodes) && Array.isArray(graph.edges),
@@ -66,23 +85,7 @@ const validateGraph = (graph, view) => {
     provenance(item.data);
   }
   for (const node of graph.nodes) {
-    need(
-      nonempty(node.data.label) && KINDS.includes(node.data.kind),
-      "要素の名称・種別が不正です"
-    );
-    need(
-      object(node.position) &&
-        Number.isFinite(node.position.x) &&
-        Number.isFinite(node.position.y),
-      "要素の配置が不正です"
-    );
-    need(
-      Number.isFinite(node.width) &&
-        node.width >= 100 &&
-        Number.isFinite(node.height) &&
-        node.height >= 60,
-      "要素のサイズが不正です"
-    );
+    validateNode(node);
   }
   const nodeIds = new Set(graph.nodes.map((n) => n.id));
   for (const edge of graph.edges) {
@@ -119,6 +122,14 @@ const validateRetired = (entry) => {
     "削除記録が不正です"
   );
   provenance(entry.item.data);
+  if (entry.entity === "node") {
+    validateNode(entry.item);
+  } else {
+    need(
+      id(entry.item.source) && id(entry.item.target),
+      "削除した関係の端点が不正です"
+    );
+  }
   need(
     entry.entity === "node"
       ? nonempty(entry.item.data.label)
@@ -239,6 +250,75 @@ export const validateDocument = (doc) => {
 };
 
 export const signature = (doc) => JSON.stringify(doc);
+const canonical = (value) =>
+  JSON.stringify(value, (_key, item) =>
+    object(item)
+      ? Object.fromEntries(
+          Object.entries(item).toSorted(([a], [b]) => a.localeCompare(b))
+        )
+      : item
+  );
+const preservesEvidence = (before, after) =>
+  before.every((ref) =>
+    after.some((candidate) => canonical(ref) === canonical(candidate))
+  );
+const preservesItems = (incoming, previous, view, key, seed) =>
+  previous.models[view][key].every((item) => {
+    const next = incoming.models[view][key].find(
+      (candidate) => candidate.id === item.id
+    );
+    const removed = incoming.retired.find(
+      (entry) =>
+        entry.view === view &&
+        entry.item.id === item.id &&
+        entry.entity === (key === "nodes" ? "node" : "edge")
+    );
+    if (!next) {
+      return Boolean(removed && canonical(removed.item) === canonical(item));
+    }
+    if (!preservesEvidence(item.data.evidence, next.data.evidence)) {
+      return false;
+    }
+    if (key !== "nodes") {
+      return true;
+    }
+    const original = seed.models[view].nodes.find(
+      (candidate) => candidate.id === item.id
+    );
+    // Preserve human layout changes; AI may arrange its untouched source nodes.
+    return ["position", "width", "height"].every(
+      (field) =>
+        (original && canonical(original[field]) === canonical(item[field])) ||
+        canonical(item[field]) === canonical(next[field])
+    );
+  });
+const preservesReview = (incoming, saved) => {
+  const previous = saved.document;
+  let seed;
+  try {
+    seed = validateDocument(JSON.parse(saved.seed));
+  } catch {
+    return false;
+  }
+  return (
+    incoming.repository.name === previous.repository.name &&
+    previous.comments.every((comment) =>
+      incoming.comments.some(
+        (candidate) => canonical(comment) === canonical(candidate)
+      )
+    ) &&
+    previous.retired.every((entry) =>
+      incoming.retired.some(
+        (candidate) => canonical(entry) === canonical(candidate)
+      )
+    ) &&
+    views.every((view) =>
+      ["nodes", "edges"].every((key) =>
+        preservesItems(incoming, previous, view, key, seed)
+      )
+    )
+  );
+};
 export const reconcile = (incoming, saved) => {
   validateDocument(incoming);
   if (!saved) {
@@ -251,6 +331,7 @@ export const reconcile = (incoming, saved) => {
   const sameSeed = saved.seed === signature(incoming);
   const acknowledged =
     incoming.basedOn &&
+    incoming.revision !== saved.document.revision &&
     incoming.basedOn.revision === saved.document.revision &&
     incoming.basedOn.exportId === saved.lastExport?.id &&
     saved.lastExport.signature === signature(saved.document);
@@ -261,7 +342,7 @@ export const reconcile = (incoming, saved) => {
       lastExport: saved.lastExport ?? null,
     };
   }
-  if (acknowledged) {
+  if (acknowledged && preservesReview(incoming, saved)) {
     return { conflict: false, document: incoming, lastExport: null };
   }
   return {
