@@ -24,6 +24,7 @@ Write `flow.json` using [references/report-format.md](references/report-format.m
 
 The graph must preserve control flow, including the edges—not merely describe the correct semantics in prose while drawing contradictory arrows:
 
+- Model executed actions rather than the presence of operators in a pipeline. Success bypasses error-handler and error-transform callbacks and connects directly to the next success stage; keep the operator's source location on its failure/recovery node or in details. For example, `mapError` / `map_err` conversion nodes receive only failures, and recovery callbacks receive only matching failures. A pass-through is not execution of that callback.
 - **Bind** runs its operation only for success. Failure skips later success-only stages and reaches the handler or return belonging to its actual scope.
 - **Map error** changes an error and remains a failure.
 - **Recovery** receives only errors within its scope and matching its condition. Draw both recovery success and recovery failure; mark unmatched errors.
