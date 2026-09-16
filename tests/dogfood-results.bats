@@ -327,3 +327,11 @@ PY
   grep -Fq 'Annotation client exited with code 1' "$OUT/report.md"
   grep -Fq 'Run status: failed' "$OUT/report.md"
 }
+
+@test "annotation stdout and cleanup stderr both survive in the report" {
+  run env DOGFOOD_FAULTS=show-json,cleanup-stderr node "$RUNNER" --target about:blank --output "$OUT" --annotate
+
+  [ "$status" -eq 1 ]
+  grep -Fq 'Annotation client exited with code 1' "$OUT/report.md"
+  grep -Fq 'Dashboard cleanup failed' "$OUT/report.md"
+}

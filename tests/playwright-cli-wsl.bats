@@ -1125,6 +1125,30 @@ EOF
   [ ! -e "$STATE_DIR/chrome.pid" ]
 }
 
+@test "external annotation preserves a pre-existing same-session Dashboard" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=dogfood-annotate show
+  [ "$status" -eq 0 ]
+  local dashboard_pid="$(cat "$STATE_DIR/dashboard.pid")"
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$STATE_DIR/dashboard.pid")" = "$dashboard_pid" ]
+  [ -e "$STATE_DIR/chrome.pid" ]
+}
+
+@test "external annotation preserves its failure when Dashboard cleanup also fails" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_ANNOTATION_FAIL=1
+  export PWCLI_FAKE_DASHBOARD_STOP_STUCK=1 PWCLI_DASHBOARD_STOP_TIMEOUT=0
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 47 ]
+  [[ "$output" == *"Dashboard did not exit"* ]]
+  [ -e "$STATE_DIR/dashboard.pid" ]
+}
+
 @test "external annotation cannot take over another session's Dashboard" {
   export PWCLI_TEST_WSL=1
   run bash "$WRAPPER" -s=alpha show

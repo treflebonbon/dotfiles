@@ -727,6 +727,7 @@ if [[ "$pwcli_command" == "open" ]]; then
   fi
 fi
 
+pwcli_started_dashboard=0
 if ((pwcli_dashboard_running == 0)); then
   if ! command -v setsid >/dev/null 2>&1; then
     fail "setsid is required to keep the Managed Playwright Dashboard in the background."
@@ -759,6 +760,7 @@ if ((pwcli_dashboard_running == 0)); then
         printf '%s\n' "$pwcli_session" >"$pwcli_dashboard_session_file"
         rm -f "$pwcli_dashboard_launcher_file"
         pwcli_dashboard_running=1
+        pwcli_started_dashboard=1
         break
       fi
     fi
@@ -794,8 +796,12 @@ trap - EXIT
 if ((pwcli_show_annotate)); then
   pwcli_annotation_status=0
   "$pwcli_upstream" "$@" --port="$pwcli_dashboard_port" || pwcli_annotation_status=$?
-  if [[ "${PWCLI_EXTERNAL_CDP:-0}" == "1" ]]; then
-    "${BASH:-bash}" "$0" -s="$pwcli_session" show --kill || pwcli_annotation_status=$?
+  if [[ "${PWCLI_EXTERNAL_CDP:-0}" == "1" ]] && ((pwcli_started_dashboard)); then
+    pwcli_cleanup_status=0
+    "${BASH:-bash}" "$0" -s="$pwcli_session" show --kill || pwcli_cleanup_status=$?
+    if ((pwcli_annotation_status == 0)); then
+      pwcli_annotation_status=$pwcli_cleanup_status
+    fi
   fi
   exit "$pwcli_annotation_status"
 else
