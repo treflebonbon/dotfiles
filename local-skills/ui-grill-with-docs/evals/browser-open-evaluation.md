@@ -99,3 +99,22 @@ Aの各実行時にはHTTP 200と実際の表示を確認した。後続評価�
 | iter-3/holdout | `2ccaee5ff3acd36a8ce565f447b731a462dfed072eab856a4a91cdf193b19861` |
 
 対象の修正後 SKILL.md SHA-256: `70b5dd4c9e371f864378a371415529a8037d43265cb1efc115a8017ad10403f9`。
+
+## PR #328 review follow-up — 2026-09-16
+
+この節は上記7実行後の指摘対応。過去のスコア・対象hashは変更せず、以下をその後の検証として記録する。empirical loopの再実行ではない。
+
+- 配信先を `mktemp -d` の専用document rootとし、所有シートだけを `index.html` にコピーする。ログは外側へ置き、次ラウンドでコピーを更新する。確認済みの削除範囲に、このコピーと空の専用ディレクトリを含める。
+- loopback利用を同一ホストまたは既存localhost転送経路に限定する。別ホストには所有シートだけを扱う既存の許可済み到達可能な配信方法を使い、なければ表示不可としてリンクを案内する。executor側のHTTP応答とブラウザ側の表示確認を区別する。
+- 自分で起動したbrowserは所有CLI sessionをcloseし、外部browserへの接続はdetachする。
+
+検証結果:
+
+| 対象 | 操作と結果 |
+| --- | --- |
+| 配信範囲・更新 | Python標準HTTP serverを専用rootで起動。所有HTMLは200、別セッションのファイル・`../`・URLエンコードした親ディレクトリ参照は404。コピー更新後、同じURLがr2を返す。別ファイルは不変。実行可能なローカルcheckは `tmp/ui-grill-review/check-serving.py` に保持。 |
+| browser所有権 | `ui-grill-review-owner open --headed` → `ui-grill-review-attached attach --cdp=...` → `detach` → ownerのDOM読み取り成功 → ownerを`close` → `ui-grill-review-next open --headed`成功。後続sessionもcloseして終了。 |
+| 別ホスト分岐 | SKILL本文を確認し、許可済み配信経路なしの場合の表示不可・ファイルリンク案内、bind拡張とpublic tunnelを行わないことを明記。別ホストの実機は使用していない。 |
+| 既存契約 | `bats tests/workflow-contract.bats` 14件、`bats tests/nix-devshell.bats --filter 'ui grill skill'` 1件が通過。 |
+
+通常の対話をまたぐHTTP配信寿命とネイティブusage不足は、上記評価の未確認事項として引き続き残る。
