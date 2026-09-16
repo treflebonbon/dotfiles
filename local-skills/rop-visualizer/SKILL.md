@@ -24,9 +24,10 @@ Write `flow.json` using [references/report-format.md](references/report-format.m
 
 The graph must preserve control flow, including the edges—not merely describe the correct semantics in prose while drawing contradictory arrows:
 
+- Model executed actions rather than the presence of operators in a pipeline. Success bypasses error-handler and error-transform callbacks and connects directly to the next success stage; keep the operator's source location on its failure/recovery node or in details. For example, `mapError` / `map_err` conversion nodes receive only failures. Distinguish combinator filtering from dispatch inside a callback: `catchTag` invokes its handler only for matching tags, while Rust `or_else` invokes its closure for every `Err`, including an `other => Err(other)` arm. Preserve that executed dispatch and its non-recovering arms; only the recovery action within a selected arm is conditional on that match.
 - **Bind** runs its operation only for success. Failure skips later success-only stages and reaches the handler or return belonging to its actual scope.
 - **Map error** changes an error and remains a failure.
-- **Recovery** receives only errors within its scope and matching its condition. Draw both recovery success and recovery failure; mark unmatched errors.
+- **Recovery actions** run only for errors within their scope and matching their condition. Draw both recovery success and recovery failure; show whether unmatched errors bypass the callback or are propagated by an executed callback arm.
 - **Bypass** is propagation, not an extra function call. Label synthetic bypass nodes as such, with no invented source line.
 - **Termination** ends that path. Early returns must not flow into later code in the same function. A caller may handle the returned error in a separate stage.
 - **Outside typed errors** includes explicitly relevant defects, interruptions, panics, or unsupported constructs. Use the outside category and a bounded explanation instead of forcing these into a typed-error branch.
