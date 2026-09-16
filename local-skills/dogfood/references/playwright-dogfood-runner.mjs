@@ -183,7 +183,8 @@ const runCli = async (cliArgs, cwd, extraEnv = {}) => {
       maxBuffer: 10 * 1024 * 1024,
     });
   } catch (error) {
-    const detail = error.stderr?.trim() || error.message;
+    const detail =
+      error.stderr?.trim() || error.stdout?.trim() || error.message;
     throw new Error(`playwright-cli ${cliArgs.join(" ")} failed: ${detail}`, {
       cause: error,
     });

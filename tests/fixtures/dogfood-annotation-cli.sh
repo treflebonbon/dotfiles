@@ -4,6 +4,10 @@ case " $* " in
 *" show --help "*) printf '%s\n' '--annotate' ;;
 *" attach "*) ;;
 *" show --annotate --json "*)
+  if [[ ",${DOGFOOD_FAULTS:-}," == *,show-json,* ]]; then
+    printf '%s\n' '{"isError":true,"error":"Annotation client exited with code 1"}'
+    exit 1
+  fi
   if [[ ",${DOGFOOD_FAULTS:-}," == *,show,* ]]; then
     printf '%s\n' 'show failed' >&2
     exit 1

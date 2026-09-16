@@ -84,6 +84,10 @@ if [[ "$*" == *"show"* && "$*" == *"--annotate"* && ! -f "$DASHBOARD_READY" ]]; 
 fi
 printf '%s\n' "$PWTEST_DAEMON_SESSION_DIR" "$PWTEST_SERVER_REGISTRY" "$PWTEST_SOCKETS_DIR" >"$UPSTREAM_LOG.registry"
 printf '%s\n' "$@" >"$UPSTREAM_LOG"
+printf '%s\n' "$*" >>"$UPSTREAM_LOG.calls"
+if [[ "${PWCLI_FAKE_ANNOTATION_FAIL:-0}" == "1" && "$*" == *"--annotate"* ]]; then
+  exit 47
+fi
 if [[ "${PWCLI_FAKE_ASSERT_LOCK_RELEASED:-0}" == "1" ]] &&
   ! "$PWCLI_FLOCK" --exclusive --nonblock \
     "$STATE_DIR/runtime.lock" true; then
@@ -1097,25 +1101,40 @@ EOF
   grep -Fxq -- "--port=7777" "$UPSTREAM_LOG"
 }
 
-@test "annotation Dashboard commands can use an explicitly attached external CDP owner" {
+@test "external CDP annotation starts a managed Dashboard before annotation and cleans it up" {
   export PWCLI_TEST_WSL=1
-  mkdir -p "$BROWSER_OWNERSHIP_DIR"
-  printf '%s\n' \
-    dogfood \
-    dogfood-run-1 \
-    4242 \
-    headed \
-    'C:\\Temp\\aiakos-dogfood-dogfood-run-1' \
-    http://127.0.0.1:49152 \
-    "$PWD" \
-    >"$BROWSER_OWNERSHIP_DIR/owner"
-  touch "$DASHBOARD_READY"
 
   run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
 
   [ "$status" -eq 0 ]
-  grep -Fxq -- "show" "$UPSTREAM_LOG"
-  [ ! -e "$POWERSHELL_LOG" ]
+  grep -Fq -- '--host=127.0.0.1' "$DASHBOARD_CALL_LOG"
+  grep -Fq -- 'show --annotate --json' "$UPSTREAM_LOG.calls"
+  grep -Fq -- 'show --kill' "$UPSTREAM_LOG.calls"
+  grep -Fq -- '-Action Start -Mode headed' "$POWERSHELL_LOG"
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
+}
+
+@test "external annotation failure preserves its exit status and cleans up the Dashboard" {
+  export PWCLI_TEST_WSL=1 PWCLI_FAKE_ANNOTATION_FAIL=1
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -eq 47 ]
+  [ ! -e "$STATE_DIR/dashboard.pid" ]
+  [ ! -e "$STATE_DIR/chrome.pid" ]
+}
+
+@test "external annotation cannot take over another session's Dashboard" {
+  export PWCLI_TEST_WSL=1
+  run bash "$WRAPPER" -s=alpha show
+  [ "$status" -eq 0 ]
+
+  run env PWCLI_EXTERNAL_CDP=1 bash "$WRAPPER" -s=dogfood-annotate show --annotate --json
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Dashboard-owning session"* ]]
+  [ "$(cat "$STATE_DIR/dashboard.session")" = alpha ]
 }
 
 @test "managed open refuses orphan Chrome and a conflicting CDP port" {
