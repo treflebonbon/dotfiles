@@ -2,24 +2,28 @@
 
 `SKILL.md` の4点を、この技術スタックでどう実装するかの具体例。ROP(bind/map/tee)の書き方自体は `rop` skill の `references/effect-ts.md` を読む。ここでは「Mediator が Effect を呼ぶ場所」だけを扱う。
 
+データ取得・非同期処理の層には TanStack Query ではなく `@effect/atom-react`(Effect v4 の公式 React バインディング)を使う。Effect をそのまま `Atom` にすると `AsyncResult`(Initial/Success/Failure、それぞれ再検証中を示す `waiting` フラグ付き)として公開され、Promise への変換を挟まない。Effect v4 は執筆時点で RC のため、`Atom` の import path は安定化前に変わり得る — 実装時は現在の `effect` / `@effect/atom-react` のドキュメントで確認する。
+
 ## Root
 
-TanStack Router の Root Route (`createRootRoute`) がそのまま Root の実体になる。Mediator はここで一度だけ生成し、Context で配下全体に渡す。Route ごとに Mediator を作り直さない — Mediator は状態機械であり、Route 遷移をまたいで状態を持ち得る。
+TanStack Router の Root Route (`createRootRoute`) が Root の実体になる。`@effect/atom-react` の `RegistryProvider` でその配下を包み、Atom の状態をこのサブツリーに閉じる。Route ごとに Provider を作り直さない — Atom はレジストリ単位で状態を持ち、Route 遷移をまたいで保持され得る。
 
 ```tsx
 // routes/__root.tsx
+import { RegistryProvider } from "@effect/atom-react";
+
 export const Route = createRootRoute({
   component: () => (
-    <MediatorProvider>
+    <RegistryProvider>
       <Outlet />
-    </MediatorProvider>
+    </RegistryProvider>
   ),
 });
 ```
 
 ## Passive View
 
-コンポーネントは props と、その props から導出できる表示専用の local state しか持たない。TanStack Query の `useQuery` / `useMutation` を Passive View の中で直接呼ばない — それは「データ取得」という判断であり、Mediator の責務。
+コンポーネントは props と、その props から導出できる表示専用の local state しか持たない。`useAtomValue` / `useAtomSet` を Passive View の中で直接呼ばない — どの Atom を読むか・いつ書き込むかは「データ取得・更新」という判断であり、Mediator(connector)の責務。
 
 ```tsx
 // 良い例: 受け取ったデータをそのまま描画する
@@ -40,7 +44,7 @@ function OrderRow({ order, onCancelRequested }: OrderRowProps) {
 }
 ```
 
-`useQuery` でこのコンポーネント自身が注文一覧を取りに行く実装は Passive View 違反。一覧取得は Mediator (または Mediator が委譲する Query 層) の仕事で、`OrderRow` は結果を props で受け取るだけにする。
+`useAtomValue` でこのコンポーネント自身が注文一覧を取りに行く実装は Passive View 違反。一覧取得は Mediator(または Mediator が委譲する Model 層)の仕事で、`OrderRow` は結果を props で受け取るだけにする。
 
 ## Chain of Responsibility
 
@@ -69,107 +73,96 @@ function OrderTable({ orders, onCancelRequested }: OrderTableProps) {
 
 ## Mediator = state machine
 
-Mediator は bubble してきたイベントを受け取り、Effect-TS の tagged union で状態を持つ。**遷移関数 (`reduce`) は同期・純粋な関数にする** — 非同期I/Oを `reduce` の中で完結させると、型で宣言した中間状態(`Cancelling` 等)へ実際には遷移できなくなる(1ステップで結果まで確定してしまうため)。非同期I/Oは `reduce` を呼び出す側(Mediator の Provider)が行い、結果を新しいイベントとして `reduce` に戻す。
+`Atom.make` は Effect / Stream をそのまま `AsyncResult` の Atom にする。`Atom.fn` は引数を書き込むと Effect を実行し、その結果を `AsyncResult` として公開する書き込み可能な Atom を作る — 「トリガー」と「状態更新」が1回の書き込みに結合されているため、SKILL.md rule 4 が警戒する「dispatch する側に reduce と同じ許可条件を重複させる」失敗が構造的に起きにくい。呼び出し箇所が実質1つ(その Atom への書き込み)しかないため、唯一の裁定者が2箇所に分裂しようがない。
 
 ```tsx
-type OrdersState =
-  | { _tag: "Idle" }
-  | { _tag: "Ready"; orders: Order[] }
-  | { _tag: "Cancelling"; orderId: string; orders: Order[] }
-  | { _tag: "Failed"; reason: string; orders: Order[] };
+import { Atom, AsyncResult } from "effect/unstable/reactivity";
 
-type OrdersEvent =
-  | { _tag: "FetchSucceeded"; orders: Order[] }
-  | { _tag: "CancelRequested"; orderId: string }
-  | { _tag: "CancelSucceeded"; orderId: string }
-  | { _tag: "CancelFailed"; reason: string };
+// 一覧取得: Effect をそのまま Atom にすると AsyncResult<Order[], FetchError> になる。
+const ordersAtom = Atom.make(fetchOrders);
 
-// 同期・純粋 — 非同期I/Oを持たない。呼び出し側が結果をイベントとして戻す。
-const reduce = (state: OrdersState, event: OrdersEvent): OrdersState => {
-  switch (event._tag) {
-    case "FetchSucceeded":
-      // Model 層からの背後通知も同じ state machine を通す — 進行中の遷移を無条件に上書きしない。
-      if (state._tag === "Cancelling") return state;
-      return { _tag: "Ready", orders: event.orders };
-    case "CancelRequested":
-      if (state._tag !== "Ready") return state; // 不正な遷移は無視 — 状態機械が唯一の裁定者
-      return {
-        _tag: "Cancelling",
-        orderId: event.orderId,
-        orders: state.orders,
-      };
-    case "CancelSucceeded":
-      if (state._tag !== "Cancelling") return state;
-      return {
-        _tag: "Ready",
-        orders: withoutOrder(state.orders, event.orderId),
-      };
-    case "CancelFailed":
-      if (state._tag !== "Cancelling") return state;
-      return { _tag: "Failed", reason: event.reason, orders: state.orders };
-    default:
-      return state;
-  }
-};
+// キャンセル: 引数(orderId)を書き込むと Effect を実行する Atom。既定では
+// 新しい呼び出しが前の in-flight 呼び出しを interrupt する(concurrent: true を渡さない限り)。
+// 連打で新しいキャンセルが発火しても、古い呼び出しの結果が後から状態を上書きすることはない。
+const cancelOrderAtom = Atom.fn((orderId: string) => cancelOrder(orderId));
 
-// 呼び出し側 (Provider 内) — dispatch は素通しするだけで、reduce と同じ許可条件を重複させない。
-const requestCancel = (orderId: string) =>
-  dispatch({ _tag: "CancelRequested", orderId });
-
-// 副作用は「Cancelling へ実際に入ったこと」自体から駆動する。dispatch する側で
-// 「今 Ready か」を manually 確認する guard を重複させると、唯一の裁定者が2箇所に分裂する —
-// reduce が Ready 以外からの CancelRequested を無視した結果として Cancelling に
-// "実際に入った" ときだけ、この effect が動く。
-useEffect(() => {
-  if (state._tag !== "Cancelling") return;
-  const orderId = state.orderId;
-  Effect.runPromise(
-    Effect.match(cancelOrder(orderId), {
-      onSuccess: (): OrdersEvent => ({ _tag: "CancelSucceeded", orderId }),
-      onFailure: (reason): OrdersEvent => ({
-        _tag: "CancelFailed",
-        reason: reason.message,
-      }),
-    })
-  ).then(dispatch);
-}, [state._tag, state._tag === "Cancelling" ? state.orderId : null]);
+// 「今どの注文をキャンセル中か」という domain 固有の表示状態だけは通常の書き込み可能 Atom で持つ。
+// AsyncResult 自体は「今どの引数で呼ばれたか」までは持たないため、行の isCancelling 判定に要る。
+const cancellingOrderIdAtom = Atom.make<string | null>(null);
 ```
 
-`OrderRow` / `OrderTable` はこの `OrdersState` から導出した props しか受け取らない。分岐 (`state._tag !== "Ready"` を見て無視する、など) は Mediator の中だけにあり、View 側には現れない。
+`OrderRow` / `OrderTable` はこの Atom 群から導出した props しか受け取らない。`AsyncResult.match` によるパターンマッチは Mediator(connector)の中だけにあり、View 側には現れない — 具体例は次節。
 
 ## Wiring: connector と selector
 
-Mediator の Context を読むのは機能ごとにちょうど1つの connector だけにする。`disabled` の算出や表示文言の選択のように複数の値を組み合わせる合成は connector 側の `select*` 関数が行い、Passive View には確定済みの値だけを渡す。
+Mediator の Atom を読むのは機能ごとにちょうど1つの connector だけにする。`AsyncResult.match` / `matchWithWaiting` による状態ごとの view props の組み立て(selector)も connector 側の責務で、Passive View には確定済みの値だけを渡す。
 
 ```tsx
-const selectOrderRowProps = (state: OrdersState, order: Order) => ({
-  order,
-  isCancelling: state._tag === "Cancelling" && state.orderId === order.id,
-});
-
 function OrdersPage() {
-  const { state, dispatch } = useOrdersMediator();
-  // state tag によるマウント切り替えは Mediator が既に決めた状態を 1:1 で写しているだけ — 新しい判断ではない。
-  if (state._tag !== "Ready" && state._tag !== "Cancelling") return null;
-  return (
-    <OrderTable
-      rows={state.orders.map((o) => selectOrderRowProps(state, o))}
-      onCancelRequested={(orderId) =>
-        dispatch({ _tag: "CancelRequested", orderId })
-      }
-    />
+  const ordersResult = useAtomValue(ordersAtom);
+  const [cancelResult, runCancel] = useAtom(cancelOrderAtom);
+  const [cancellingOrderId, setCancellingOrderId] = useAtom(
+    cancellingOrderIdAtom
   );
+  const refreshOrders = useAtomRefresh(ordersAtom);
+
+  // cancelResult が「今キャンセル対象にしている注文」の成功へ落ち着いたら、
+  // キャンセル中表示を解除して一覧を再取得する。素の Atom.fn には他の Atom を
+  // 自動で無効化する仕組みがないため、この明示的な refresh が必要。
+  useEffect(() => {
+    if (cancellingOrderId === null) return;
+    if (
+      AsyncResult.isSuccess(cancelResult) &&
+      cancelResult.value.id === cancellingOrderId
+    ) {
+      setCancellingOrderId(null);
+      refreshOrders();
+    }
+  }, [cancelResult, cancellingOrderId, refreshOrders, setCancellingOrderId]);
+
+  const onCancelRequested = (orderId: string) => {
+    setCancellingOrderId(orderId);
+    runCancel(orderId);
+  };
+
+  // 「キャンセル中」表示は cancelResult.waiting から導く。cancellingOrderIdAtom を
+  // 成功パスでしかクリアしない設計だと、失敗後もボタンが disabled のまま残る事故になる。
+  const activeCancellingOrderId =
+    cancellingOrderId !== null && cancelResult.waiting
+      ? cancellingOrderId
+      : null;
+
+  // selector: AsyncResult のパターンマッチで view props を確定させる。
+  return AsyncResult.match(ordersResult, {
+    onInitial: () => <p>読み込み中…</p>,
+    onFailure: (failure) => <p role="alert">{String(failure.cause)}</p>,
+    onSuccess: (success) => (
+      <OrderTable
+        orders={success.value}
+        cancellingOrderId={activeCancellingOrderId}
+        onCancelRequested={onCancelRequested}
+      />
+    ),
+  });
 }
 ```
 
-## TanStack Query との関係
+`AsyncResult.match` による画面切り替えは Mediator が既に決めた状態を 1:1 でコンポーネント選択に写しているだけで、rule 2 の違反ではない。
 
-TanStack Query の `queryFn` / `mutationFn` は Model 層の実装であって、Mediator が呼ぶ相手であり、Passive View が呼ぶ相手ではない。Effect-TS でラップした Model を Mediator から `Effect.tryPromise` 等で呼ぶか、TanStack Query の cache 自体を Model として Mediator に注入するかは実装判断だが、いずれの場合も **呼び出し元は Mediator 一箇所**にする。複数のコンポーネントがそれぞれ `useQuery` を呼んでいたら、それは Mediator が1つでなくなっているサイン。
+`refreshOrders()` 後、`ordersAtom` の `AsyncResult` は `_tag: "Success"` のまま `waiting: true`(前回の値を保持しつつ再検証中)を経由する。上の `match` はこれも通常の `onSuccess` として扱うため、再取得中は一覧が一瞬古いままになり得る — この間の区別(たとえば行を薄く表示する等)が必要なら `success.waiting` で分岐するか、`AsyncResult.matchWithWaiting` の `onWaiting` 分岐を使う。
 
-`reduce` を純粋・同期にしておく利点はテスト容易性にも及ぶ。Model 層(fetch 関数)を Mediator へ注入可能にしておけば、実際の API を呼ばずに `reduce` 単体のテストと、レスポンスの到着順を制御した Mediator の統合テストの両方を書ける。
+## Model 層(Atom)との関係
 
-TanStack Query は `refetchOnWindowFocus` などで Mediator の関与なく背後から結果を通知してくる。これも UI 起因のイベントと同じく `reduce` を通す一つの `OrdersEvent` として扱い、進行中の遷移(`Cancelling` など)を黙って上書きさせない(上の `FetchSucceeded` のガードを参照)。「Model のライフサイクル通知だから state machine の外で処理してよい」という例外を作らない。
+`Atom.make` / `Atom.fn` に渡す Effect が Model 層の実装であって、Mediator(connector)が呼ぶ相手であり、Passive View が呼ぶ相手ではない。**呼び出し元は Mediator 一箇所**にする — 複数のコンポーネントがそれぞれ `useAtomValue` で同じ Atom を読むのは構わないが(購読は何箇所からでもよい)、`useAtomSet` で書き込む(=判断してトリガーする)のは connector 一箇所にする。
 
-連打によるページ送りなどで古いレスポンスを無視する必要がある場合も、`useEffect` のクリーンアップに `let cancelled = false` を仕込んで判定しない — それ自体が `reduce` と競合するもう一つの裁定者になり、`reduce` 側のガードが到達しないデッドコードになる。リクエストしたページ番号のような domain の識別子を event に含め、`reduce` がその識別子を現在の state と突き合わせて判定する一箇所に一本化する。
+Model 層(Effect)を Atom へ渡す前の関数として独立させておけば、実際の Atom/React を経由せず Effect 単体のテストと、`Atom.fn` を介した統合テストの両方を書ける。ROP の bind/map/tee で Model 層を組み立てる際の書き方は `rop` skill の `references/effect-ts.md` を参照する。
 
-**ドメイン規則の可否判定(例: 発送済みはキャンセル不可)は Model 層の応答を唯一の正とし、`reduce` の中で同じ規則を重複して持たない。** `reduce` が見るのは「今この state でこのイベントが意味を持つか」という state machine 自身の整合性だけで、業務規則そのものの成否ではない。View がボタンを disabled 表示するなど見た目のヒントを出す場合も、state に既にある注文データから導出するだけにとどめ、業務規則を新たに判定させない。
+**ドメイン規則の可否判定(例: 発送済みはキャンセル不可)は Model 層の Effect の失敗として表現し、Atom の外や connector 側で同じ規則を重複して持たない。** `AsyncResult` の `Failure` はこの失敗をそのまま運ぶ。View がボタンを disabled 表示するなど見た目のヒントを出す場合も、Atom から得た注文データ(既にある `status` など)から導出するだけにとどめ、業務規則を新たに判定させない。失敗を型付きドメインエラーとして扱う場合は `Cause.squash` してキャストするより `AsyncResult.matchWithError`(`onError`/`onDefect` を分けて受け取れる)を使う方が安全。
+
+素の `Atom.fn` は書き込み成功後に他の Atom を自動では無効化しない — 一覧を再取得したいなら上の例のように `useAtomRefresh` を明示的に呼ぶ。Effect の Layer をまたいだ自動 invalidation(`reactivityKeys`)が要る場合は Layer ベースの runtime 経由で Atom を作る(`Atom.runtime` 等)必要があり、素の `Atom.make`/`Atom.fn` の範囲外になる。Model 層の Effect が Service/Layer に依存し始めたら、この runtime 層の設計は effect-ts 側の知識であり、このスキルの範囲(コンポーネント構成)を超える。
+
+## Router / Form / Table: 境界の原則
+
+TanStack Router に加え TanStack Form・Table を使う場合、それぞれが自分の狭い関心事(ルーティング、フィールド単位の入力値と入力形式チェック、グリッドの並び替え・行モデル構築)を持つこと自体は rule 2 の違反ではない。native な `<input>` が自分のキー入力を保持するのと同じ扱いで、専用ライブラリに委ねてよい局所的な状態とみなす。
+
+境界線は「そのライブラリが完結できる関心事か、フロー全体の判断か」で引く。TanStack Form の `form.Field` / `validators` はフィールドの入力形式チェックまでを担ってよいが、送信全体の状態遷移(編集中・送信中・成功・失敗)とドメイン規則の可否判定は引き続き Mediator が持つ — `form.handleSubmit` はバリデーション済みの値を1つのイベントとして Mediator へ bubble させるだけにする。TanStack Table の `useTable` はソート・フィルタ・行モデル構築を担ってよいが、どの行を表示するか(取得したデータそのもの)は Mediator から渡された Atom の状態に従う。どちらも API のバージョン差が大きいため、導入時は各ライブラリの現在のドキュメントで実装を確認する。
