@@ -38,7 +38,9 @@ function OrderRow({ order, onCancelRequested }: OrderRowProps) {
       <td>{order.id}</td>
       <td>{order.total}</td>
       <td>{order.status}</td>
-      <button onClick={() => onCancelRequested(order.id)}>Cancel</button>
+      <td>
+        <button onClick={() => onCancelRequested(order.id)}>Cancel</button>
+      </td>
     </tr>
   );
 }
