@@ -125,12 +125,29 @@ function OrdersPage() {
     runCancel(orderId);
   };
 
-  // 「キャンセル中」表示は cancelResult.waiting から導く。cancellingOrderIdAtom を
-  // 成功パスでしかクリアしない設計だと、失敗後もボタンが disabled のまま残る事故になる。
+  // 「キャンセル中」表示は cancelResult.waiting から導く。cancellingOrderIdAtom は
+  // 成功パスの useEffect でしかクリアしない — 対称性のために失敗パスでもクリアする
+  // 必要はない。waiting が false になった時点で activeCancellingOrderId は自動的に
+  // null になり、cancellingOrderId 自体は次にキャンセルするまで残っていて構わない。
   const activeCancellingOrderId =
     cancellingOrderId !== null && cancelResult.waiting
       ? cancellingOrderId
       : null;
+
+  // cancelResult の失敗も、成功パスと対称に identity check をする。AsyncResult は
+  // 次の呼び出し中も直前の outcome を waiting:true のまま保持するため、これを怠ると
+  // 「別の注文への新しいキャンセル操作」に「前の注文の失敗メッセージ」が一瞬漏れる。
+  // matchWithError は型付きドメインエラーをそのまま onError で受け取れるため、
+  // Cause.squash によるキャストより安全。
+  const cancelError = AsyncResult.matchWithError(cancelResult, {
+    onInitial: () => null,
+    onSuccess: () => null,
+    onDefect: () => null,
+    onError: (error) =>
+      error.orderId === cancellingOrderId
+        ? { orderId: error.orderId, message: describeCancelError(error) }
+        : null,
+  });
 
   // selector: AsyncResult のパターンマッチで view props を確定させる。
   return AsyncResult.match(ordersResult, {
@@ -140,6 +157,7 @@ function OrdersPage() {
       <OrderTable
         orders={success.value}
         cancellingOrderId={activeCancellingOrderId}
+        cancelError={cancelError}
         onCancelRequested={onCancelRequested}
       />
     ),
@@ -149,7 +167,34 @@ function OrdersPage() {
 
 `AsyncResult.match` による画面切り替えは Mediator が既に決めた状態を 1:1 でコンポーネント選択に写しているだけで、rule 2 の違反ではない。
 
-`refreshOrders()` 後、`ordersAtom` の `AsyncResult` は `_tag: "Success"` のまま `waiting: true`(前回の値を保持しつつ再検証中)を経由する。上の `match` はこれも通常の `onSuccess` として扱うため、再取得中は一覧が一瞬古いままになり得る — この間の区別(たとえば行を薄く表示する等)が必要なら `success.waiting` で分岐するか、`AsyncResult.matchWithWaiting` の `onWaiting` 分岐を使う。
+### 単一の Atom.fn が画面全体の状態を表すケース
+
+一覧+行操作(上の例)と違い、フォーム送信のように「1つの `Atom.fn` の `AsyncResult` がそのまま画面全体の state machine」になる場合もある。この形では **`waiting` を `_tag`/`matchWithError` より先に見る** — 失敗後に再送信すると、直前の `Failure` を `waiting: true` のまま引き継ぐため、`_tag` 側から先に分岐すると「再送信中」を「失敗のまま」と誤判定する。
+
+```tsx
+type SubmissionState =
+  | { _tag: "editing" }
+  | { _tag: "submitting" }
+  | { _tag: "succeeded"; user: RegisteredUser }
+  | { _tag: "failed"; message: string };
+
+const toSubmissionState = (
+  result: AsyncResult.AsyncResult<RegisteredUser, RegisterError>
+): SubmissionState => {
+  if (result.waiting) return { _tag: "submitting" }; // waiting を先に見る — 再送信中を「失敗のまま」と誤判定しない
+  return AsyncResult.matchWithError(result, {
+    onInitial: () => ({ _tag: "editing" }),
+    onSuccess: (s) => ({ _tag: "succeeded", user: s.value }),
+    onError: (error) => ({
+      _tag: "failed",
+      message: describeRegisterError(error),
+    }),
+    onDefect: () => ({ _tag: "failed", message: "登録に失敗しました" }),
+  });
+};
+```
+
+`refreshOrders()` 後、`ordersAtom` の `AsyncResult` は `_tag: "Success"` のまま `waiting: true`(前回の値を保持しつつ再検証中)を経由する。上の `match` はこれも通常の `onSuccess` として扱うため、再取得中は一覧が一瞬古いままになり得る — この間の区別(たとえば行を薄く表示する等)が必要なら `success.waiting` で分岐するか、`AsyncResult.matchWithWaiting` の `onWaiting` 分岐を使う。同じ staleness は `Failure` 側にも成立する — 「今どの引数を待っているか」の identity check は成功パスだけでなく失敗パスにも対称的に適用する。片方だけに適用すると、この skill が繰り返し警告してきた「同じ判断を一箇所に一本化する」という原則の非対称な適用漏れになる。
 
 ## Model 層(Atom)との関係
 
@@ -166,3 +211,5 @@ Model 層(Effect)を Atom へ渡す前の関数として独立させておけば
 TanStack Router に加え TanStack Form・Table を使う場合、それぞれが自分の狭い関心事(ルーティング、フィールド単位の入力値と入力形式チェック、グリッドの並び替え・行モデル構築)を持つこと自体は rule 2 の違反ではない。native な `<input>` が自分のキー入力を保持するのと同じ扱いで、専用ライブラリに委ねてよい局所的な状態とみなす。
 
 境界線は「そのライブラリが完結できる関心事か、フロー全体の判断か」で引く。TanStack Form の `form.Field` / `validators` はフィールドの入力形式チェックまでを担ってよいが、送信全体の状態遷移(編集中・送信中・成功・失敗)とドメイン規則の可否判定は引き続き Mediator が持つ — `form.handleSubmit` はバリデーション済みの値を1つのイベントとして Mediator へ bubble させるだけにする。TanStack Table の `useTable` はソート・フィルタ・行モデル構築を担ってよいが、どの行を表示するか(取得したデータそのもの)は Mediator から渡された Atom の状態に従う。どちらも API のバージョン差が大きいため、導入時は各ライブラリの現在のドキュメントで実装を確認する。
+
+**注意**: TanStack Form 自身が持つ `form.state.isSubmitting` / `canSubmit` のような、Mediator の状態と名前・形が似た値を Mediator の代わりに使わない。今は見た目が一致していても(例: Mediator への送信を fire-and-forget にしている間はたまたま同期している)、送信を `await` する実装に変える等の変更で簡単に乖離する。「送信中」の唯一の正は Mediator の `AsyncResult`(上の `toSubmissionState`)であり、ライブラリが持つ同名・同形の値は使わない。
