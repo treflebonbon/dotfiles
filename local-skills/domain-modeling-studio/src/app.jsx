@@ -18,6 +18,7 @@ import {
   validateDocument,
   signature,
   reconcile,
+  withRevisionHistory,
   editItem,
   removeItem,
   feedback,
@@ -622,8 +623,9 @@ const App = ({ seed }) => {
       )
     );
     seedRef.current = signature(seed);
-    docRef.current = backup;
-    setDoc(backup);
+    const restored = withRevisionHistory(backup, docRef.current);
+    docRef.current = restored;
+    setDoc(restored);
     setLastExport(null);
     setPast([]);
     setFuture([]);

@@ -1,6 +1,6 @@
 # Model contract (schemaVersion 1)
 
-The JSON document is the editable model, not raw React Flow props. The UI projects whitelisted fields into the graph: supplied HTML, styles and callbacks never execute. See `tests/model.test.mjs` for a minimal fictional example and `src/model.mjs` for the executable validator.
+The JSON document is the editable model, not raw React Flow props. The UI projects whitelisted fields into the graph: supplied HTML, styles and callbacks never execute. See `tests/fixture.mjs` for a minimal fictional example and `src/model.mjs` for the executable validator.
 
 ```json
 {
@@ -9,7 +9,10 @@ The JSON document is the editable model, not raw React Flow props. The UI projec
   "revision": "r1",
   "basedOn": null,
   "title": "業務フローのレビュー",
-  "repository": { "name": "owner/repo", "revision": "full-commit-sha" },
+  "repository": {
+    "name": "owner/repo",
+    "revision": "0000000000000000000000000000000000000000"
+  },
   "scope": "検証対象の開始点と終了点",
   "needsReview": false,
   "models": {
@@ -27,7 +30,7 @@ The JSON document is the editable model, not raw React Flow props. The UI projec
 
 IDs (`sessionId`, `revision`, nodes, edges, comments, scenarios, changes) start with an ASCII letter/digit, followed by up to 99 letters/digits/underscores/hyphens. Node and edge IDs share a namespace per model. Reuse IDs across current/proposed for the same concept. Names are Japanese business vocabulary; IDs are opaque identity.
 
-Evidence: `{ "path": "src/orders.ts", "symbol": "confirmOrder", "revision": "full-commit-sha", "line": 42 }`. `line` is optional; use an exact line only after inspection. Paths are repository-relative. A reference establishes only what was inspected at that version, not a guarantee that a changed proposal is implemented.
+Evidence: `{ "path": "src/orders.ts", "symbol": "confirmOrder", "revision": "0000000000000000000000000000000000000000", "line": 42 }`. Repository and evidence revisions must be complete 40- or 64-character hexadecimal Git commit IDs (case-insensitive), never branch names, `HEAD`, or abbreviations. The all-zero examples are fictional: replace them with inspected commit IDs. `line` is optional; use an exact line only after inspection. Paths are repository-relative. A reference establishes only what was inspected at that version, not a guarantee that a changed proposal is implemented.
 
 Node:
 
@@ -66,7 +69,7 @@ Change candidate: `{ "id": "clarify-expiry", "title": "期限の案内を改善�
 
 # Revision protocol
 
-The copied Markdown contains `{ "format": "domain-studio-feedback-v1", "exportId": "unique-id", "document": <edited document> }`. A new agent-produced document increments `revision` and sets `basedOn` to the received document's revision and exportId. These identify the exact submitted content, not just the session. A new revision must differ from the current one. Both `repository.name` and the pinned `repository.revision` must match the submitted document. A source rebase is not an ordinary AI update: retain the existing session and its backups, explicitly agree on the new source baseline with the human, then start a separate session and re-investigate its evidence. Do not bypass the conflict by changing export IDs. Imports that omit comments, retired records, prior evidence, or existing IDs without complete retirement records are held as conflicts. Preserve human-changed geometry; the agent can arrange newly added or untouched nodes. Keep conflicting historical citations with an explanation in the unresolved record rather than silently erasing them.
+The copied Markdown contains `{ "format": "domain-studio-feedback-v1", "exportId": "unique-id", "document": <edited document> }`. A new agent-produced document increments `revision` and sets `basedOn` to the received document's revision and exportId. These identify the exact submitted content, not just the session. A new revision must never reuse a revision previously used in the session. Preserve optional `revisionHistory` (an array of unique revision IDs) from the submitted document and add the submitted current revision before publishing the update. The browser accumulates this history across imports and backup restores, even if an incoming update omits it. Both `repository.name` and the pinned `repository.revision` must match the submitted document. A source rebase is not an ordinary AI update: retain the existing session and its backups, explicitly agree on the new source baseline with the human, then start a separate session and re-investigate its evidence. Do not bypass the conflict by changing export IDs. Imports that omit comments, retired records, prior evidence, or existing IDs without complete retirement records are held as conflicts. Preserve human-changed proposed node labels/kinds and edge labels/endpoints. The browser compares submitted content with the original seed, including human-created elements. To intentionally supersede such an edit, include an explicit `editResolutions` entry: `{ "id": "request", "entity": "node", "field": "label", "before": "人間の名称", "after": "再調査後の名称", "reason": "訂正理由と人間の合意・実装の根拠の区別", "evidence": [] }`. `entity` is node/edge; allowed fields are label/kind for nodes and label/source/target for edges. The target and before/after values must match the actual change. Preserve earlier entries; `model.md` includes these records. Preserve human-changed geometry; the agent can arrange newly added or untouched nodes. Keep conflicting historical citations with an explanation in the unresolved record rather than silently erasing them.
 
 The browser stores the seed document, editable draft, and last copied document signature. It adopts an AI update automatically only when the submitted export matches the current draft and revision. Otherwise it protects the draft and exposes the pending update separately for recovery. A fresh export is necessary after additional edits. If local storage is unavailable, retain JSON backups and use the existing open page's import action for the guarded update; opening a new file alone cannot discover an unavailable browser draft.
 

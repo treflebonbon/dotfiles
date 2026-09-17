@@ -5,9 +5,9 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { example } from "./model.test.mjs";
+import { example } from "./fixture.mjs";
 
 const { join } = path;
 
@@ -49,7 +49,7 @@ const input = join(dir, "model.json");
 const output = join(dir, "studio.html");
 await writeFile(input, JSON.stringify(base));
 execFileSync(process.execPath, [
-  new URL("../scripts/render.mjs", import.meta.url).pathname,
+  fileURLToPath(new URL("../scripts/render.mjs", import.meta.url)),
   input,
   output,
   join(dir, "artifacts"),
@@ -211,9 +211,13 @@ try {
   await expectProtectedImport({
     repository: {
       ...copied.document.repository,
-      revision: "unexpected-commit",
+      revision: "b".repeat(40),
     },
   });
+  const reverted = structuredClone(copied.document.models);
+  reverted.proposed.nodes[0].data.label =
+    base.models.proposed.nodes[0].data.label;
+  await expectProtectedImport({ models: reverted });
   await writeFile(
     updateFile,
     JSON.stringify({
@@ -259,6 +263,32 @@ try {
       (c) => c.text === "追加ボタン前の指摘も退避する"
     )
   );
+  await page
+    .getByRole("button", { exact: true, name: "指摘・モデルをコピー" })
+    .click();
+  copied = await payload();
+  await page
+    .getByRole("button", { exact: true, name: "手動でコピーしたことを記録" })
+    .click();
+  await writeFile(
+    updateFile,
+    JSON.stringify({
+      ...copied.document,
+      basedOn: { exportId: copied.exportId, revision: "r2" },
+      revision: "r3",
+      revisionHistory: [],
+    })
+  );
+  await page.locator("input[type=file]").setInputFiles(updateFile);
+  await page
+    .getByRole("status")
+    .filter({ hasText: "AI更新版を取り込みました" })
+    .waitFor();
+  await page
+    .getByLabel("レビュー対象", { exact: true })
+    .selectOption(
+      `node:${backupData.document.models.proposed.nodes.find((n) => n.data.label === "追加した要素").id}`
+    );
   await page.getByLabel("名称", { exact: true }).fill("復元前の変更");
   await page.locator("input[type=file]").setInputFiles(backupPath);
   await page
@@ -290,6 +320,23 @@ try {
     .click();
   copied = await payload();
   assert.equal(copied.document.revision, "r2");
+  assert.deepEqual(copied.document.revisionHistory.toSorted(), ["r1", "r3"]);
+  await page
+    .getByRole("button", { exact: true, name: "手動でコピーしたことを記録" })
+    .click();
+  await writeFile(
+    updateFile,
+    JSON.stringify({
+      ...copied.document,
+      basedOn: { exportId: copied.exportId, revision: "r2" },
+      revision: "r1",
+    })
+  );
+  await page.locator("input[type=file]").setInputFiles(updateFile);
+  await page.getByRole("region", { name: "更新の競合" }).waitFor();
+  await page
+    .getByRole("button", { exact: true, name: "現在の編集を続ける" })
+    .click();
   assert.ok(
     copied.document.models.proposed.nodes.some(
       (n) => n.data.label === "追加した要素"

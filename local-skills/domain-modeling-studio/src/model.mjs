@@ -17,6 +17,7 @@ const views = ["current", "proposed"];
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const text = (v) => typeof v === "string";
 const nonempty = (v) => text(v) && v.trim().length > 0;
+const commitId = (v) => text(v) && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/iu.test(v);
 const id = (v) => text(v) && /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/u.test(v);
 const need = (condition, message) => {
   if (!condition) {
@@ -30,8 +31,8 @@ const evidence = (items) => {
       object(ref) &&
         nonempty(ref.path) &&
         nonempty(ref.symbol) &&
-        nonempty(ref.revision),
-      "根拠にpath・symbol・revisionが必要です"
+        commitId(ref.revision),
+      "根拠にpath・symbol・完全なコミットIDのrevisionが必要です"
     );
     need(
       !ref.path.startsWith("/") && !ref.path.split("/").includes(".."),
@@ -198,6 +199,37 @@ const validateResolutions = (items = []) => {
   }
 };
 
+const semanticFields = {
+  edges: ["label", "source", "target"],
+  nodes: ["label", "kind"],
+};
+const validateEditResolutions = (items = []) => {
+  need(Array.isArray(items), "編集解決記録は配列で指定してください");
+  for (const item of items) {
+    need(
+      object(item) &&
+        id(item.id) &&
+        ["node", "edge"].includes(item.entity) &&
+        semanticFields[item.entity === "node" ? "nodes" : "edges"].includes(
+          item.field
+        ) &&
+        text(item.before) &&
+        text(item.after) &&
+        nonempty(item.reason),
+      "編集解決記録には対象・変更前後の値・理由が必要です"
+    );
+    evidence(item.evidence);
+  }
+};
+const validateHistory = (history = []) => {
+  need(
+    Array.isArray(history) &&
+      history.every(id) &&
+      new Set(history).size === history.length,
+    "版履歴は重複のないrevisionの配列で指定してください"
+  );
+};
+
 export const validateDocument = (doc) => {
   need(
     object(doc) && doc.schemaVersion === 1,
@@ -208,8 +240,8 @@ export const validateDocument = (doc) => {
   need(
     object(doc.repository) &&
       nonempty(doc.repository.name) &&
-      nonempty(doc.repository.revision),
-    "リポジトリと参照版が必要です"
+      commitId(doc.repository.revision),
+    "リポジトリと完全なコミットIDの参照版が必要です"
   );
   need(
     doc.basedOn === null ||
@@ -257,6 +289,8 @@ export const validateDocument = (doc) => {
   }
   need(doc.unresolved.every(nonempty), "未解決事項は文字列で指定してください");
   validateResolutions(doc.resolutions);
+  validateEditResolutions(doc.editResolutions);
+  validateHistory(doc.revisionHistory);
   // Imported JSON never supplies executable React Flow props, styles, or HTML.
   return structuredClone(doc);
 };
@@ -274,6 +308,25 @@ const preservesEvidence = (before, after) =>
   before.every((ref) =>
     after.some((candidate) => canonical(ref) === canonical(candidate))
   );
+const fieldValue = (item, key, field) =>
+  key === "nodes" ? item.data[field] : item[field];
+const preservesSemantics = (incoming, item, next, original, key) =>
+  semanticFields[key].every((field) => {
+    const before = fieldValue(item, key, field);
+    const after = fieldValue(next, key, field);
+    return (
+      before === after ||
+      (original && fieldValue(original, key, field) === before) ||
+      incoming.editResolutions?.some(
+        (record) =>
+          record.id === item.id &&
+          record.entity === (key === "nodes" ? "node" : "edge") &&
+          record.field === field &&
+          record.before === before &&
+          record.after === after
+      )
+    );
+  });
 const preservesItems = (incoming, previous, view, key, seed) =>
   previous.models[view][key].every((item) => {
     const next = incoming.models[view][key].find(
@@ -291,12 +344,18 @@ const preservesItems = (incoming, previous, view, key, seed) =>
     if (!preservesEvidence(item.data.evidence, next.data.evidence)) {
       return false;
     }
+    const original = seed.models[view][key].find(
+      (candidate) => candidate.id === item.id
+    );
+    if (
+      view === "proposed" &&
+      !preservesSemantics(incoming, item, next, original, key)
+    ) {
+      return false;
+    }
     if (key !== "nodes") {
       return true;
     }
-    const original = seed.models[view].nodes.find(
-      (candidate) => candidate.id === item.id
-    );
     // Preserve human layout changes; AI may arrange its untouched source nodes.
     return ["position", "width", "height"].every(
       (field) =>
@@ -320,9 +379,11 @@ const preservesReview = (incoming, saved) => {
         incoming.unresolved.includes(question) ||
         incoming.resolutions?.some((item) => item.question === question)
     ) &&
-    (previous.resolutions ?? []).every((item) =>
-      incoming.resolutions?.some(
-        (candidate) => canonical(item) === canonical(candidate)
+    ["resolutions", "editResolutions"].every((key) =>
+      (previous[key] ?? []).every((item) =>
+        incoming[key]?.some(
+          (candidate) => canonical(item) === canonical(candidate)
+        )
       )
     ) &&
     previous.comments.every((comment) =>
@@ -342,10 +403,27 @@ const preservesReview = (incoming, saved) => {
     )
   );
 };
+// History travels with copies/backups; a restore must not forget later revisions.
+export const withRevisionHistory = (doc, ...previous) => ({
+  ...doc,
+  revisionHistory: [
+    ...new Set(
+      [doc, ...previous].flatMap((item) => [
+        ...(item.revisionHistory ?? []),
+        item.revision,
+        item.basedOn?.revision,
+      ])
+    ),
+  ].filter((revision) => revision && revision !== doc.revision),
+});
 export const reconcile = (incoming, saved) => {
   validateDocument(incoming);
   if (!saved) {
-    return { conflict: false, document: incoming, lastExport: null };
+    return {
+      conflict: false,
+      document: withRevisionHistory(incoming),
+      lastExport: null,
+    };
   }
   validateDocument(saved.document);
   if (saved.document.sessionId !== incoming.sessionId) {
@@ -355,6 +433,9 @@ export const reconcile = (incoming, saved) => {
   const acknowledged =
     incoming.basedOn &&
     incoming.revision !== saved.document.revision &&
+    !withRevisionHistory(saved.document).revisionHistory.includes(
+      incoming.revision
+    ) &&
     incoming.basedOn.revision === saved.document.revision &&
     incoming.basedOn.exportId === saved.lastExport?.id &&
     saved.lastExport.signature === signature(saved.document);
@@ -366,7 +447,11 @@ export const reconcile = (incoming, saved) => {
     };
   }
   if (acknowledged && preservesReview(incoming, saved)) {
-    return { conflict: false, document: incoming, lastExport: null };
+    return {
+      conflict: false,
+      document: withRevisionHistory(incoming, saved.document),
+      lastExport: null,
+    };
   }
   return {
     conflict: true,
@@ -487,6 +572,11 @@ export const artifacts = (doc) => {
     ),
     "\n## 未解決",
     ...doc.unresolved.map((s) => `- ${md(s)}`),
+    "\n## 編集の解決記録",
+    ...(doc.editResolutions ?? []).map(
+      (item) =>
+        `- proposed / ${md(item.entity)} / ${md(item.id)} / ${md(item.field)}: ${md(item.before)} → ${md(item.after)}\n${md(item.reason)}\n${refs(item.evidence)}`
+    ),
     "\n## 解決記録",
     ...(doc.resolutions ?? []).map(
       (item) =>

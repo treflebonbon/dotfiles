@@ -6,52 +6,12 @@ import {
   editItem,
   removeItem,
   reconcile,
+  withRevisionHistory,
   signature,
   feedback,
   artifacts,
 } from "../src/model.mjs";
-
-const node = (id, label, x) => ({
-  data: { evidence: [], kind: "COMMAND", label, origin: "inference" },
-  height: 90,
-  id,
-  position: { x, y: 80 },
-  width: 180,
-});
-
-export const example = () => {
-  const graph = {
-    edges: [
-      {
-        data: { evidence: [], origin: "inference" },
-        id: "request-accept",
-        label: "有効な依頼",
-        source: "request",
-        target: "accept",
-      },
-    ],
-    nodes: [node("request", "依頼する", 40), node("accept", "受諾する", 360)],
-  };
-  return {
-    basedOn: null,
-    changes: [],
-    comments: [],
-    glossary: [],
-    models: {
-      current: structuredClone(graph),
-      proposed: structuredClone(graph),
-    },
-    repository: { name: "example/project", revision: "example-only" },
-    retired: [],
-    revision: "r1",
-    scenarios: [],
-    schemaVersion: 1,
-    scope: "実装未確認の説明用モデル",
-    sessionId: "example-session",
-    title: "架空の依頼業務",
-    unresolved: ["業務ルールを確認する"],
-  };
-};
+import { example } from "./fixture.mjs";
 
 test("モデルを受け取り、壊れた接続・重複ID・根拠のない確認済み事実を拒否する", () => {
   assert.equal(validateDocument(example()).title, "架空の依頼業務");
@@ -124,7 +84,7 @@ test("名称変更・削除後もID・根拠・指摘を保持し、コピー後
 test("AI更新の版・指摘・削除対象・根拠・人の配置を検証する", () => {
   const before = example();
   before.models.proposed.nodes[0].data.evidence = [
-    { path: "src/flow.js", revision: "abc", symbol: "request" },
+    { path: "src/flow.js", revision: "a".repeat(40), symbol: "request" },
   ];
   const draft = structuredClone(before);
   draft.models.proposed.nodes[0].position.x += 40;
@@ -211,7 +171,7 @@ test("未解決事項は明示的な解決記録だけで除去し、固定し�
   }
   const changedSource = {
     ...incoming,
-    repository: { ...incoming.repository, revision: "another-commit" },
+    repository: { ...incoming.repository, revision: "b".repeat(40) },
   };
   assert.equal(reconcile(changedSource, saved).conflict, true);
   const resolved = {
@@ -255,4 +215,170 @@ test("未解決事項は明示的な解決記録だけで除去し、固定し�
     }).conflict,
     true
   );
+});
+
+test("ソースと根拠には完全長のGitコミットIDだけを受け入れる", () => {
+  for (const revision of [
+    "a".repeat(40),
+    "B".repeat(64),
+    "main",
+    "HEAD",
+    "abc123",
+    "g".repeat(40),
+    "a".repeat(41),
+  ]) {
+    const valid =
+      (revision.length === 40 && revision.startsWith("a")) ||
+      revision === "B".repeat(64);
+    const doc = example();
+    doc.repository.revision = revision;
+    if (valid) {
+      assert.doesNotThrow(() => validateDocument(doc));
+    } else {
+      assert.throws(() => validateDocument(doc), /コミット/u);
+    }
+    doc.repository = example().repository;
+    doc.models.current.nodes[0].data.evidence = [
+      { path: "src/flow.js", revision, symbol: "request" },
+    ];
+    if (valid) {
+      assert.doesNotThrow(() => validateDocument(doc));
+    } else {
+      assert.throws(() => validateDocument(doc), /コミット/u);
+    }
+  }
+});
+
+test("人間の要素・関係の意味編集は、対象と変更前後が一致する解決記録が必要", () => {
+  for (const [key, field, value] of [
+    ["nodes", "label", "依頼を再発行する"],
+    ["nodes", "kind", "PROCESS"],
+    ["edges", "label", "追加の条件"],
+    ["edges", "source", "accept"],
+    ["edges", "target", "request"],
+  ]) {
+    const seed = example();
+    const draft = structuredClone(seed);
+    const [item] = draft.models.proposed[key];
+    const data = key === "nodes" ? item.data : item;
+    data[field] = value;
+    const saved = {
+      document: draft,
+      lastExport: { id: "copy", signature: signature(draft) },
+      seed: signature(seed),
+    };
+    const incoming = {
+      ...structuredClone(draft),
+      basedOn: { exportId: "copy", revision: "r1" },
+      revision: "r2",
+    };
+    assert.equal(reconcile(incoming, saved).conflict, false);
+    const [next] = incoming.models.proposed[key];
+    const [original] = seed.models.proposed[key];
+    const after = key === "nodes" ? original.data[field] : original[field];
+    (key === "nodes" ? next.data : next)[field] = after;
+    assert.equal(reconcile(incoming, saved).conflict, true);
+    incoming.editResolutions = [
+      {
+        after,
+        before: value,
+        entity: key === "nodes" ? "node" : "edge",
+        evidence: [],
+        field,
+        id: item.id,
+        reason: "人間の指摘を再調査して訂正",
+      },
+    ];
+    assert.equal(reconcile(incoming, saved).conflict, false);
+    assert.ok(
+      artifacts(incoming)["model.md"].includes("人間の指摘を再調査して訂正")
+    );
+    incoming.editResolutions[0].before = "別の値";
+    assert.equal(reconcile(incoming, saved).conflict, true);
+    incoming.editResolutions[0].reason = "";
+    assert.throws(() => validateDocument(incoming), /編集解決/u);
+    // No protection is imposed on untouched AI semantics, or current-model corrections.
+    delete incoming.editResolutions;
+    saved.seed = signature(draft);
+    assert.equal(reconcile(incoming, saved).conflict, false);
+    saved.seed = signature(seed);
+    incoming.models.proposed = structuredClone(draft.models.proposed);
+    incoming.models.current.nodes[0].data.label = "再調査による訂正";
+    assert.equal(reconcile(incoming, saved).conflict, false);
+    // A human-created item has no seed counterpart: all of its semantics are protected.
+    const emptySeed = example();
+    emptySeed.models.proposed = { edges: [], nodes: [] };
+    saved.seed = signature(emptySeed);
+    incoming.models.proposed[key][0] = structuredClone(original);
+    assert.equal(reconcile(incoming, saved).conflict, true);
+  }
+  const doc = example();
+  doc.editResolutions = [
+    {
+      after: "依頼する",
+      before: "旧称",
+      entity: "node",
+      evidence: [],
+      field: "label",
+      id: "request",
+      reason: "合意した名称",
+    },
+  ];
+  const next = {
+    ...doc,
+    basedOn: { exportId: "copy", revision: "r1" },
+    editResolutions: [],
+    revision: "r2",
+  };
+  assert.equal(
+    reconcile(next, {
+      document: doc,
+      lastExport: { id: "copy", signature: signature(doc) },
+      seed: signature(doc),
+    }).conflict,
+    true
+  );
+});
+
+const update = (doc, revision) =>
+  reconcile(
+    {
+      ...structuredClone(doc),
+      basedOn: { exportId: "copy", revision: doc.revision },
+      revision,
+      revisionHistory: [],
+    },
+    {
+      document: doc,
+      lastExport: { id: "copy", signature: signature(doc) },
+      seed: signature(doc),
+    }
+  );
+
+test("更新・リロード・古いバックアップの復元後も使用済み版を再利用しない", () => {
+  const original = example();
+  const second = update(original, "r2");
+  assert.equal(second.conflict, false);
+  assert.deepEqual(second.document.revisionHistory, ["r1"]);
+  const third = update(second.document, "r3");
+  assert.equal(third.conflict, false);
+  const persisted = structuredClone(third.document);
+  assert.equal(update(persisted, "r1").conflict, true);
+  assert.equal(update(persisted, "r2").conflict, true);
+  const restored = withRevisionHistory(original, persisted);
+  assert.deepEqual(restored.revisionHistory.toSorted(), ["r2", "r3"]);
+  assert.equal(update(restored, "r2").conflict, true);
+  assert.equal(update(restored, "r3").conflict, true);
+  assert.equal(update(restored, "r4").conflict, false);
+  const fresh = reconcile(
+    { ...second.document, revisionHistory: undefined },
+    null
+  ).document;
+  assert.equal(update(fresh, "r1").conflict, true);
+  for (const revisionHistory of [null, ["r1", "r1"], ["invalid revision"]]) {
+    assert.throws(
+      () => validateDocument({ ...original, revisionHistory }),
+      /版履歴/u
+    );
+  }
 });
