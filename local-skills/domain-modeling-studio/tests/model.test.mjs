@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -32,6 +33,13 @@ const flowNode = (id, kind, extra = {}) => ({
   id,
   position: { x: 40, y: 80 },
   width: 180,
+});
+const edge = (id, source, target, label) => ({
+  data: { evidence: [], origin: "inference" },
+  id,
+  label,
+  source,
+  target,
 });
 
 test("アーキテクチャ層・関数フロー層の新種別とdrillIntoの正常系・異常系を検証する", () => {
@@ -90,6 +98,309 @@ test("アーキテクチャ層・関数フロー層の新種別とdrillIntoの�
   const oldSchema = withLayers();
   oldSchema.schemaVersion = 1;
   assert.throws(() => validateDocument(oldSchema), /schemaVersion/u);
+});
+
+test("TypeScript EffectとRustのフィクスチャ関数からROP意味論に従って関数フロー層を生成する", () => {
+  const FIXTURE_REVISION = "0".repeat(40);
+  const tsPath =
+    "local-skills/domain-modeling-studio/tests/fixtures/effect-checkout.ts.fixture";
+  const rsPath =
+    "local-skills/domain-modeling-studio/tests/fixtures/rust-checkout.rs.fixture";
+  const ref = (path, symbol, line) => ({
+    line,
+    path,
+    revision: FIXTURE_REVISION,
+    symbol,
+  });
+
+  const businessNode = flowNode("checkout-flow", "COMMAND", {
+    label: "注文を確定する",
+  });
+  const nodes = [
+    businessNode,
+    // Effect: bind (reserve/charge), recovery scoped to reserve's OutOfStock,
+    // a synthetic bypass around catchTag, and mapError as a failure-only handler.
+    flowNode("ts-reserve", "STAGE", {
+      evidence: [ref(tsPath, "reserve", 12)],
+      label: "予約する(reserve)",
+      origin: "code",
+    }),
+    flowNode("ts-charge", "STAGE", {
+      evidence: [ref(tsPath, "charge", 13)],
+      label: "請求する(charge)",
+      origin: "code",
+    }),
+    flowNode("ts-recovery", "RECOVERY", {
+      evidence: [ref(tsPath, "catchTag", 15)],
+      label: "在庫切れを代替入荷へ回復する(catchTag)",
+      origin: "code",
+    }),
+    flowNode("ts-bypass", "BYPASS", {
+      label: "PaymentDeclinedはcatchTagの対象外のため素通りする",
+    }),
+    flowNode("ts-map-error", "FAILURE_HANDLER", {
+      evidence: [ref(tsPath, "mapError", 16)],
+      label: "残った失敗をCheckoutFailedへ変換する(mapError)",
+      origin: "code",
+    }),
+    flowNode("ts-success-end", "TERMINATION", {
+      drillInto: "checkout-flow",
+      evidence: [ref(tsPath, "checkout", 13)],
+      label: "確定応答を返す",
+      origin: "code",
+    }),
+    flowNode("ts-recovered-end", "TERMINATION", {
+      drillInto: "checkout-flow",
+      evidence: [ref(tsPath, "catchTag", 15)],
+      label: "代替入荷で確定する",
+      origin: "code",
+    }),
+    flowNode("ts-failure-end", "TERMINATION", {
+      evidence: [ref(tsPath, "mapError", 16)],
+      label: "失敗を返す",
+      origin: "code",
+    }),
+    // Rust: `?` bind/early-return, or_else recovery scoped to tax_rate, its
+    // executed non-recovering `other => Err(other)` arm as a real bypass, and
+    // expect() turning a returned Err into a panic outside the typed lane.
+    flowNode("rs-normalize", "STAGE", {
+      evidence: [ref(rsPath, "normalize_country", 22)],
+      label: "国コードを正規化する(normalize_country)",
+      origin: "code",
+    }),
+    flowNode("rs-quote", "STAGE", {
+      evidence: [ref(rsPath, "quote_tax", 23)],
+      label: "税率を照会する(quote_tax)",
+      origin: "code",
+    }),
+    flowNode("rs-recovery", "RECOVERY", {
+      evidence: [ref(rsPath, "tax_rate", 24)],
+      label: "ServiceDownを0円へ回復する(or_else)",
+      origin: "code",
+    }),
+    flowNode("rs-bypass", "BYPASS", {
+      evidence: [ref(rsPath, "tax_rate", 25)],
+      label: "ServiceDown以外はor_elseの対象外のまま伝播する",
+      origin: "code",
+    }),
+    flowNode("rs-tax-rate-failure", "TERMINATION", {
+      evidence: [
+        ref(rsPath, "normalize_country", 8),
+        ref(rsPath, "tax_rate", 25),
+      ],
+      label: "tax_rateがErrを返す",
+      origin: "code",
+    }),
+    flowNode("rs-tax-rate-success", "STAGE", {
+      evidence: [ref(rsPath, "quote_tax", 23), ref(rsPath, "tax_rate", 24)],
+      label: "tax_rateがOkを返す",
+      origin: "code",
+    }),
+    flowNode("rs-outside-error", "OUTSIDE_TYPED_ERROR", {
+      evidence: [ref(rsPath, "charge_invoice", 30)],
+      label: "expectがErrでpanicする(型付きエラー外)",
+      origin: "code",
+    }),
+    flowNode("rs-success-end", "TERMINATION", {
+      drillInto: "checkout-flow",
+      evidence: [ref(rsPath, "charge_invoice", 30)],
+      label: "税率込みの金額を返す",
+      origin: "code",
+    }),
+  ];
+  const edges = [
+    edge("e-ts-reserve-charge", "ts-reserve", "ts-charge", "予約成功"),
+    edge("e-ts-charge-success", "ts-charge", "ts-success-end", "請求成功"),
+    edge(
+      "e-ts-reserve-recovery",
+      "ts-reserve",
+      "ts-recovery",
+      "OutOfStock（在庫切れ）"
+    ),
+    edge(
+      "e-ts-recovery-end",
+      "ts-recovery",
+      "ts-recovered-end",
+      "backorderへ回復"
+    ),
+    edge(
+      "e-ts-charge-bypass",
+      "ts-charge",
+      "ts-bypass",
+      "PaymentDeclined（catchTagの対象外）"
+    ),
+    edge(
+      "e-ts-bypass-maperror",
+      "ts-bypass",
+      "ts-map-error",
+      "素通りしてmapErrorへ"
+    ),
+    edge(
+      "e-ts-maperror-end",
+      "ts-map-error",
+      "ts-failure-end",
+      "CheckoutFailedとして返す"
+    ),
+    edge("e-rs-normalize-quote", "rs-normalize", "rs-quote", "正規化成功"),
+    edge(
+      "e-rs-normalize-failure",
+      "rs-normalize",
+      "rs-tax-rate-failure",
+      "InvalidCountryで早期return"
+    ),
+    edge(
+      "e-rs-quote-success",
+      "rs-quote",
+      "rs-tax-rate-success",
+      "税率取得成功"
+    ),
+    edge("e-rs-quote-recovery", "rs-quote", "rs-recovery", "ServiceDown"),
+    edge(
+      "e-rs-recovery-success",
+      "rs-recovery",
+      "rs-tax-rate-success",
+      "0円へ回復"
+    ),
+    edge("e-rs-quote-bypass", "rs-quote", "rs-bypass", "ServiceDown以外のErr"),
+    edge(
+      "e-rs-bypass-failure",
+      "rs-bypass",
+      "rs-tax-rate-failure",
+      "Errのまま伝播"
+    ),
+    edge(
+      "e-rs-success-end",
+      "rs-tax-rate-success",
+      "rs-success-end",
+      "expectが値を取り出す"
+    ),
+    edge(
+      "e-rs-failure-outside",
+      "rs-tax-rate-failure",
+      "rs-outside-error",
+      "expectがErrでpanicする"
+    ),
+  ];
+  const graph = { edges, nodes };
+  const doc = {
+    basedOn: null,
+    changes: [],
+    comments: [],
+    glossary: [],
+    models: {
+      current: structuredClone(graph),
+      proposed: structuredClone(graph),
+    },
+    repository: {
+      name: "example/checkout-fixtures",
+      revision: FIXTURE_REVISION,
+    },
+    retired: [],
+    revision: "r1",
+    scenarios: [],
+    schemaVersion: 2,
+    scope: "TypeScript EffectとRustのフィクスチャ関数のROP関数フロー層",
+    sessionId: "function-flow-fixture-session",
+    title: "関数フロー層のフィクスチャ検証",
+    unresolved: [],
+  };
+
+  assert.doesNotThrow(() => validateDocument(doc));
+
+  // Every cited evidence line must actually contain the construct it is cited
+  // for, so an edit to either fixture fails this test instead of going unnoticed.
+  const fixtureLines = {
+    [tsPath]: readFileSync(
+      new URL("fixtures/effect-checkout.ts.fixture", import.meta.url),
+      "utf-8"
+    ).split("\n"),
+    [rsPath]: readFileSync(
+      new URL("fixtures/rust-checkout.rs.fixture", import.meta.url),
+      "utf-8"
+    ).split("\n"),
+  };
+  const expectedText = {
+    [tsPath]: {
+      12: "reserve(id)",
+      13: "charge(reserved)",
+      15: "catchTag",
+      16: "mapError",
+    },
+    [rsPath]: {
+      22: "normalize_country",
+      23: "quote_tax",
+      24: "ServiceDown => Ok(0)",
+      25: "other => Err(other)",
+      30: "expect(",
+      8: "InvalidCountry",
+    },
+  };
+  for (const node of nodes) {
+    for (const item of node.data.evidence) {
+      const expected = expectedText[item.path]?.[item.line];
+      assert.ok(
+        expected,
+        `no expected text registered for ${item.path}:${item.line}`
+      );
+      assert.ok(
+        fixtureLines[item.path][item.line - 1].includes(expected),
+        `${item.path}:${item.line} does not contain ${JSON.stringify(expected)}`
+      );
+    }
+  }
+
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const outgoing = (nodeId) => edges.filter((e) => e.source === nodeId);
+  const incoming = (nodeId) => edges.filter((e) => e.target === nodeId);
+
+  // Success never routes through a failure-lane node.
+  assert.deepEqual(
+    outgoing("ts-reserve")
+      .map((e) => e.target)
+      .toSorted(),
+    ["ts-charge", "ts-recovery"]
+  );
+  assert.deepEqual(
+    outgoing("ts-charge")
+      .map((e) => e.target)
+      .toSorted(),
+    ["ts-bypass", "ts-success-end"]
+  );
+
+  // Recovery only receives the failure from its actual scope (reserve), never charge's.
+  assert.deepEqual(
+    incoming("ts-recovery").map((e) => e.source),
+    ["ts-reserve"]
+  );
+
+  // A bypass with no dispatching source is synthetic; an executed non-recovering
+  // arm (Rust's `other => Err(other)`) is real source with evidence.
+  assert.equal(byId.get("ts-bypass").data.origin, "inference");
+  assert.deepEqual(byId.get("ts-bypass").data.evidence, []);
+  assert.equal(byId.get("rs-bypass").data.origin, "code");
+  assert.ok(byId.get("rs-bypass").data.evidence.length > 0);
+
+  // Termination ends its path.
+  for (const nodeId of [
+    "ts-success-end",
+    "ts-recovered-end",
+    "ts-failure-end",
+    "rs-success-end",
+  ]) {
+    assert.deepEqual(outgoing(nodeId), []);
+  }
+
+  // Outside-typed-error is a boundary reached only from a returned failure, and
+  // is itself a dead end distinct from the typed-error handlers above it.
+  assert.deepEqual(
+    incoming("rs-outside-error").map((e) => e.source),
+    ["rs-tax-rate-failure"]
+  );
+  assert.deepEqual(outgoing("rs-outside-error"), []);
+
+  // Function-flow terminations drill down into the business flow they implement.
+  assert.equal(byId.get("ts-success-end").data.drillInto, "checkout-flow");
+  assert.equal(byId.get("rs-success-end").data.drillInto, "checkout-flow");
 });
 
 test("名称変更・削除後もID・根拠・指摘を保持し、コピー後の編集を上書きしない", () => {

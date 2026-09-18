@@ -49,7 +49,7 @@ Node:
 }
 ```
 
-`kind`: business flow — `COMMAND`, `EVENT`, `POLICY`, `READ_MODEL`, `AGGREGATE`, `ACTOR`, `PROCESS`; architecture layer — `MODULE`, `EXTERNAL`; function-flow layer — `STAGE`, `FAILURE_HANDLER`, `RECOVERY`, `BYPASS`, `TERMINATION`, `OUTSIDE_TYPED_ERROR` (ROP semantics: see `references/rop-semantics.md`). All three layers share the same `nodes`/`edges` arrays per view; `kind` alone determines which layer a node belongs to. Do not infer kinds from keyword matching. Width ≥100, height ≥60; finite coordinates. Place a small flow left-to-right and separate exception paths vertically.
+`kind`: business flow — `COMMAND`, `EVENT`, `POLICY`, `READ_MODEL`, `AGGREGATE`, `ACTOR`, `PROCESS`; architecture layer — `MODULE`, `EXTERNAL`; function-flow layer — `STAGE`, `FAILURE_HANDLER`, `RECOVERY`, `BYPASS`, `TERMINATION`, `OUTSIDE_TYPED_ERROR` (ROP semantics: see [rop-semantics.md](rop-semantics.md)). All three layers share the same `nodes`/`edges` arrays per view; `kind` alone determines which layer a node belongs to. Do not infer kinds from keyword matching. Width ≥100, height ≥60; finite coordinates. Place a small flow left-to-right and separate exception paths vertically.
 
 `drillInto` (optional, on nodes only): an architecture node's `drillInto` names a node ID inside its function-flow layer; a function-flow node's `drillInto` names the business-flow node ID it implements or affects. The target must exist in the same view and belong to the expected layer. Business-flow nodes do not carry `drillInto`. Not every node needs one.
 
