@@ -1,6 +1,6 @@
 # ROP analysis comparison
 
-Experimental adapters and a frozen, blinded comparison. These files are under `tests/`, outside the deployed skill. Start in the validated dotfiles task worktree. The protocol and producer/evaluator prompts here define the experiment; the existing report format remains owned by `local-skills/rop-visualizer`.
+Experimental adapters and a frozen, blinded comparison. These files are under `tests/`, outside the deployed skill. Start in the validated dotfiles task worktree. The protocol and producer/evaluator prompts here define the experiment; the report format they compare against was `local-skills/rop-visualizer`'s Mermaid+Playwright renderer, since retired without a successor (see [ADR-0061](../../../docs/adr/0061-retire-rop-visualizer-into-domain-modeling-studio.md)). Only that skill's ROP semantics, language references, and TypeScript ast-grep helper moved to `local-skills/domain-modeling-studio`; its report format is a frozen historical artifact, not a format the current domain-modeling-studio skill produces. This frozen comparison predates the retirement and is not re-run against current source.
 
 ## Preparation
 
@@ -29,7 +29,7 @@ python3 tests/experiments/rop-analysis/evaluate.py summarize
 
 Review packets have opaque run ids and omit backend information. Review batches are one fresh context per case. They contain the same source and fixed requirements for all outputs. The deterministic aggregate accepts only complete review coverage. At otherwise equal semantic results, integration burden is ranked ast-grep, then language-specific library, then syn plus a stateful rust-analyzer LSP client.
 
-`summary.json` contains all observations and language-specific adoption gates. Keep raw transcripts and source/model artifacts adjacent. Do not claim that passing the renderer's graph checks establishes semantic correctness. Render representative models using the existing renderer and an authorized Playwright session after review.
+`summary.json` contains all observations and language-specific adoption gates. Keep raw transcripts and source/model artifacts adjacent. Do not claim that passing the renderer's graph checks establishes semantic correctness. Representative models were rendered using rop-visualizer's renderer (retired, see ADR-0061) and an authorized Playwright session after review; this step cannot be repeated against current source.
 
 ## Reaggregate the recorded experiment after code review
 

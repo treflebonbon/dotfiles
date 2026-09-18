@@ -6,10 +6,7 @@
       {
         "rule": "flat-type-hierarchy",
         "value": "*",
-        "files": [
-          "local-skills/rop-visualizer/assets/report.html",
-          "tmp/rop-visualizer-draft/assets/report.html"
-        ],
+        "files": ["tmp/rop-visualizer-draft/assets/report.html"],
         "createdAt": "2026-09-09T08:41:50.163Z",
         "reason": "Agent: these are renderer templates with injected __CSS__, not standalone pages; the draft is frozen evaluation evidence. Verify generated HTML with the actual report.css instead."
       },
