@@ -403,6 +403,84 @@ test("TypeScript EffectとRustのフィクスチャ関数からROP意味論に�
   assert.equal(byId.get("rs-success-end").data.drillInto, "checkout-flow");
 });
 
+const ordersRef = (symbol, line) => ({
+  line,
+  path: "src/orders",
+  revision: "0".repeat(40),
+  symbol,
+});
+
+test("アーキテクチャ層・関数フロー層の内容が4成果物(用語辞書・Gherkin草案・実装変更候補・モデル記録)に反映される", () => {
+  const doc = example();
+  doc.models.proposed.nodes.push(
+    flowNode("module-orders", "MODULE", {
+      evidence: [ordersRef("orders", 1)],
+      label: "ordersモジュール",
+      origin: "code",
+    }),
+    flowNode("flow-confirm", "STAGE", {
+      drillInto: "accept",
+      evidence: [ordersRef("confirmOrder", 12)],
+      label: "confirmOrderを実行する",
+      origin: "code",
+    })
+  );
+  // Nothing in the schema forbids an edge spanning two layers; it must stay
+  // visible rather than being silently dropped from the per-layer diagrams.
+  doc.models.proposed.edges.push(
+    edge(
+      "module-to-stage",
+      "module-orders",
+      "flow-confirm",
+      "モジュール内の関数"
+    )
+  );
+  doc.glossary.push({
+    definition: "confirmOrder関数フローで確認済みの依頼オブジェクト",
+    evidence: [ordersRef("confirmOrder", 12)],
+    status: "confirmed",
+    term: "確認済み依頼",
+  });
+  doc.scenarios.push({
+    evidence: [ordersRef("confirmOrder", 12)],
+    given: ["confirmOrderが呼ばれる"],
+    id: "confirm-order",
+    model: "proposed",
+    status: "confirmed",
+    // oxlint-disable-next-line unicorn/no-thenable -- Gherkin data, not a Promise.
+    then: ["受諾済みになる"],
+    title: "確認済みの依頼を受諾する",
+    when: "confirmOrderを実行する",
+  });
+  doc.changes.push({
+    evidence: [ordersRef("orders", 1), ordersRef("confirmOrder", 12)],
+    id: "clarify-confirm",
+    reason:
+      "ordersモジュールのconfirmOrder関数フローで確認した根拠に基づく変更",
+    status: "proposed",
+    title: "確認応答の文言を改善する",
+  });
+  assert.doesNotThrow(() => validateDocument(doc));
+  const out = artifacts(doc);
+  assert.match(out["model.md"], /### アーキテクチャ層[\s\S]*```mermaid/u);
+  assert.match(out["model.md"], /### 関数フロー層[\s\S]*```mermaid/u);
+  assert.match(out["model.md"], /### 層をまたぐ関係[\s\S]*```mermaid/u);
+  assert.ok(out["model.md"].includes("モジュール内の関数"));
+  assert.ok(out["model.md"].includes("種別: MODULE"));
+  assert.ok(out["model.md"].includes("種別: STAGE / drillInto: accept"));
+  assert.ok(out["glossary.md"].includes("確認済み依頼"));
+  assert.ok(out["glossary.md"].includes("confirmOrder"));
+  assert.ok(out["scenarios.feature"].includes("確認済みの依頼を受諾する"));
+  assert.ok(out["scenarios.feature"].includes("confirmOrder"));
+  assert.ok(
+    out["changes.md"].includes(
+      "ordersモジュールのconfirmOrder関数フローで確認した根拠に基づく変更"
+    )
+  );
+  assert.ok(out["changes.md"].includes("orders"));
+  assert.ok(out["changes.md"].includes("confirmOrder"));
+});
+
 test("名称変更・削除後もID・根拠・指摘を保持し、コピー後の編集を上書きしない", () => {
   const original = example();
   original.comments.push({
