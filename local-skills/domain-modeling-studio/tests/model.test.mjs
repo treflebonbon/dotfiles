@@ -94,6 +94,93 @@ test("アーキテクチャ層・関数フロー層の新種別とdrillIntoの�
   assert.throws(() => validateDocument(oldSchema), /schemaVersion/u);
 });
 
+test("アーキテクチャ層・関数フロー層のノード/エッジにも指摘・削除・drillIntoの規律が及ぶ", () => {
+  // fixture.mjs wires accept-module (MODULE) --drillInto--> accept-stage
+  // (STAGE) --drillInto--> accept (business).
+  const withComments = example();
+  // A second flow node/edge, purely local to this test, so a comment can
+  // target an edge that lives inside the function-flow layer itself (not
+  // just a business-layer edge).
+  withComments.models.proposed.nodes.push(flowNode("verify-stage", "STAGE"));
+  withComments.models.proposed.edges.push(
+    edge("stage-to-verify", "accept-stage", "verify-stage", "確認後")
+  );
+  withComments.comments.push(
+    {
+      id: "c-module",
+      target: { id: "accept-module", view: "proposed" },
+      text: "モジュール境界の指摘",
+    },
+    {
+      id: "c-flow-edge",
+      target: { id: "stage-to-verify", view: "proposed" },
+      text: "関数フロー層エッジへの指摘",
+    }
+  );
+  assert.doesNotThrow(() => validateDocument(withComments));
+
+  // Renaming a non-business node keeps its ID, so drillInto references to
+  // and from it stay valid.
+  const acceptModule = () =>
+    withComments.models.proposed.nodes.find((n) => n.id === "accept-module");
+  const renamed = editItem(withComments, "proposed", "node", "accept-module", {
+    data: { ...acceptModule().data, label: "受付境界" },
+  });
+  const renamedModule = renamed.models.proposed.nodes.find(
+    (n) => n.id === "accept-module"
+  );
+  assert.equal(renamedModule.id, "accept-module");
+  assert.equal(renamedModule.data.drillInto, "accept-stage");
+
+  // Deleting a drillInto *target* must retire it (with its comment) rather
+  // than fail validation over the now-dangling reference on accept-module.
+  // Its attached function-flow edge (and its comment) are retired too.
+  const deleted = removeItem(renamed, "node", "accept-stage");
+  assert.equal(deleted.retired.length, 2);
+  assert.equal(deleted.retired[0].item.id, "accept-stage");
+  assert.equal(deleted.retired[1].item.id, "stage-to-verify");
+  assert.equal(
+    deleted.models.proposed.nodes.find((n) => n.id === "accept-module").data
+      .drillInto,
+    undefined
+  );
+  assert.equal(deleted.comments[0].text, "モジュール境界の指摘");
+  assert.equal(deleted.comments[1].text, "関数フロー層エッジへの指摘");
+
+  // AI may still regenerate drillInto on a node the human never customized...
+  const saved = {
+    document: renamed,
+    lastExport: { id: "copy-1", signature: signature(renamed) },
+    seed: signature(withComments),
+  };
+  const regenerated = structuredClone(renamed);
+  delete regenerated.models.proposed.nodes.find((n) => n.id === "accept-module")
+    .data.drillInto;
+  regenerated.basedOn = { exportId: "copy-1", revision: withComments.revision };
+  regenerated.revision = "r2";
+  assert.equal(reconcile(regenerated, saved).conflict, false);
+
+  // ...but not silently drop a drillInto the human already added locally
+  // (diverged from the seed, which had none).
+  const seedWithoutLink = structuredClone(withComments);
+  delete seedWithoutLink.models.proposed.nodes.find(
+    (n) => n.id === "accept-module"
+  ).data.drillInto;
+  const customized = structuredClone(withComments);
+  customized.revision = "r1b";
+  const savedCustom = {
+    document: customized,
+    lastExport: { id: "copy-2", signature: signature(customized) },
+    seed: signature(seedWithoutLink),
+  };
+  const overwritten = structuredClone(customized);
+  delete overwritten.models.proposed.nodes.find((n) => n.id === "accept-module")
+    .data.drillInto;
+  overwritten.basedOn = { exportId: "copy-2", revision: customized.revision };
+  overwritten.revision = "r3";
+  assert.equal(reconcile(overwritten, savedCustom).conflict, true);
+});
+
 test("TypeScript EffectとRustのフィクスチャ関数からROP意味論に従って関数フロー層を生成する", () => {
   const { nodes, edges } = checkoutFunctionFlow();
   const graph = { edges, nodes };

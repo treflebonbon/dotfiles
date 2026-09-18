@@ -135,6 +135,58 @@ try {
       .getAttribute("aria-pressed"),
     "true"
   );
+  // Comments, Undo/Redo, and deletion must work the same on the
+  // architecture/function-flow layers as on the business layer (#338).
+  await page.getByRole("button", { exact: true, name: "関数フロー" }).click();
+  await page
+    .getByLabel("レビュー対象", { exact: true })
+    .selectOption("node:accept-stage");
+  await page
+    .getByLabel("指摘を入力", { exact: false })
+    .fill("ステージの境界を確認");
+  await page.getByRole("button", { exact: true, name: "指摘を追加" }).click();
+  await page.getByText("ステージの境界を確認", { exact: true }).waitFor();
+  await page
+    .getByRole("button", { exact: true, name: "アーキテクチャ" })
+    .click();
+  await page
+    .getByLabel("レビュー対象", { exact: true })
+    .selectOption("node:accept-module");
+  await page
+    .getByLabel("指摘を入力", { exact: false })
+    .fill("モジュールの範囲を確認");
+  await page.getByRole("button", { exact: true, name: "指摘を追加" }).click();
+  await page.getByText("モジュールの範囲を確認", { exact: true }).waitFor();
+  // Undo/Redo act on the whole document, not just the layer on screen.
+  await page.getByRole("button", { exact: true, name: "元に戻す" }).click();
+  assert.equal(
+    await page.getByText("モジュールの範囲を確認", { exact: true }).count(),
+    0
+  );
+  await page.getByRole("button", { exact: true, name: "やり直す" }).click();
+  await page.getByText("モジュールの範囲を確認", { exact: true }).waitFor();
+  await page
+    .getByRole("button", { exact: true, name: "ドリルダウン: 受諾ステージ" })
+    .click();
+  // The function-flow comment survived the Undo/Redo round trip and the
+  // layer navigation away from it.
+  await page.getByText("ステージの境界を確認", { exact: true }).waitFor();
+  // accept-module.drillInto points at accept-stage: deleting the target
+  // must retire it (with its comment) instead of failing validation.
+  await page
+    .getByRole("button", { exact: true, name: "選択対象を削除" })
+    .click();
+  await page
+    .getByRole("button", { exact: true, name: "アーキテクチャ" })
+    .click();
+  await page
+    .getByLabel("レビュー対象", { exact: true })
+    .selectOption("node:accept-module");
+  assert.equal(
+    await page.getByRole("button", { name: /^ドリルダウン/u }).count(),
+    0
+  );
+  await page.getByRole("button", { exact: true, name: "業務フロー" }).click();
   await page
     .getByLabel("レビュー対象", { exact: true })
     .selectOption("node:request");
@@ -288,7 +340,7 @@ try {
   await page
     .getByRole("button", { exact: true, name: "選択対象を削除" })
     .click();
-  await page.getByText("削除した対象と指摘（2）", { exact: true }).click();
+  await page.getByText("削除した対象と指摘（3）", { exact: true }).click();
   await page.getByText("旧依頼を失効する条件を確認", { exact: true }).waitFor();
   await page.getByRole("button", { exact: true, name: "元に戻す" }).click();
   await page
