@@ -386,11 +386,18 @@ const preservesItems = (incoming, previous, view, key, seed) =>
     if (key !== "nodes") {
       return true;
     }
-    // Preserve human layout changes; AI may arrange its untouched source nodes.
-    return ["position", "width", "height"].every(
-      (field) =>
-        (original && canonical(original[field]) === canonical(item[field])) ||
-        canonical(item[field]) === canonical(next[field])
+    // Preserve human layout and drillInto changes; AI may adjust either one
+    // on nodes the human hasn't touched (drillInto is generation output,
+    // not something a reviewer proposes, so it follows the layout rule).
+    return [
+      (n) => n.position,
+      (n) => n.width,
+      (n) => n.height,
+      (n) => n.data.drillInto,
+    ].every(
+      (get) =>
+        (original && canonical(get(original)) === canonical(get(item))) ||
+        canonical(get(item)) === canonical(get(next))
     );
   });
 const preservesReview = (incoming, saved) => {
@@ -531,6 +538,14 @@ export const removeItem = (doc, entity, itemId) => {
   );
   graph.nodes = graph.nodes.filter((n) => !nodes.includes(n));
   graph.edges = graph.edges.filter((e) => !edges.includes(e));
+  // A survivor's drillInto may point into what was just removed (e.g. an
+  // architecture node drilling into a deleted function-flow node).
+  const removedIds = new Set(nodes.map((n) => n.id));
+  for (const node of graph.nodes) {
+    if (removedIds.has(node.data.drillInto)) {
+      delete node.data.drillInto;
+    }
+  }
   next.needsReview = true;
   return validateDocument(next);
 };
