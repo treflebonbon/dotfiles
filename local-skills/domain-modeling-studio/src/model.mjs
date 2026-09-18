@@ -568,6 +568,53 @@ const refs = (items) =>
     )
     .join("\n");
 const clean = (s) => String(s).replaceAll(/[\r\n]/gu, " ");
+// A node's kind alone names its layer (see model.md).
+const LAYER_ORDER = ["business", "architecture", "function-flow"];
+const LAYER_LABELS = {
+  architecture: "アーキテクチャ層",
+  business: "業務フロー層",
+  "function-flow": "関数フロー層",
+};
+const layerOf = (kind) => {
+  if (ARCHITECTURE_KINDS.includes(kind)) {
+    return "architecture";
+  }
+  if (FLOW_KINDS.includes(kind)) {
+    return "function-flow";
+  }
+  return "business";
+};
+const byLayer = (graph) => {
+  const layers = new Map(LAYER_ORDER.map((l) => [l, { edges: [], nodes: [] }]));
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const nodeLayer = new Map();
+  for (const node of graph.nodes) {
+    const layer = layerOf(node.data.kind);
+    nodeLayer.set(node.id, layer);
+    layers.get(layer).nodes.push(node);
+  }
+  // Nothing forbids a schema-valid edge from spanning two layers; keep it
+  // visible under its own heading rather than silently dropping it.
+  const crossNodeIds = new Set();
+  const crossEdges = [];
+  for (const edge of graph.edges) {
+    const layer = nodeLayer.get(edge.source);
+    if (layer && layer === nodeLayer.get(edge.target)) {
+      layers.get(layer).edges.push(edge);
+    } else {
+      crossEdges.push(edge);
+      crossNodeIds.add(edge.source);
+      crossNodeIds.add(edge.target);
+    }
+  }
+  const cross = {
+    edges: crossEdges,
+    nodes: [...crossNodeIds]
+      .map((nodeId) => nodeById.get(nodeId))
+      .filter(Boolean),
+  };
+  return { cross, layers };
+};
 export const artifacts = (doc) => {
   const model = [
     `# ${md(doc.title)}`,
@@ -575,15 +622,31 @@ export const artifacts = (doc) => {
     md(doc.scope),
   ];
   for (const view of views) {
-    model.push(
-      `\n## ${view === "current" ? "現状" : "改善案"}`,
-      "```mermaid",
-      toMermaid(doc.models[view]),
-      "```"
-    );
+    model.push(`\n## ${view === "current" ? "現状" : "改善案"}`);
+    const { cross, layers } = byLayer(doc.models[view]);
+    for (const layer of LAYER_ORDER) {
+      const graph = layers.get(layer);
+      if (graph.nodes.length === 0) {
+        continue;
+      }
+      model.push(
+        `\n### ${LAYER_LABELS[layer]}`,
+        "```mermaid",
+        toMermaid(graph),
+        "```"
+      );
+    }
+    if (cross.edges.length > 0) {
+      model.push("\n### 層をまたぐ関係", "```mermaid", toMermaid(cross), "```");
+    }
     for (const item of [...doc.models[view].nodes, ...doc.models[view].edges]) {
       model.push(
         `\n### ${md(item.id)}: ${md(item.data.label ?? item.label)}`,
+        ...(item.data.kind
+          ? [
+              `種別: ${item.data.kind}${item.data.drillInto ? ` / drillInto: ${item.data.drillInto}` : ""}`,
+            ]
+          : []),
         ORIGINS[item.data.origin],
         refs(item.data.evidence)
       );
