@@ -146,6 +146,18 @@ export const run = () => { const 日本語 = new Label().catchTag(); return Fx.c
                 self.assertEqual(result['status'], 'ok', result['reason'])
 
     @unittest.skipUnless(shutil.which('ast-grep'), 'native ast-grep is not installed')
+    def test_effect_checkout_fixture_reports_recovery_and_error_mapping_evidence(self):
+        fixture = script.parent.parent / 'tests' / 'fixtures' / 'effect-checkout.ts.fixture'
+        (self.root / 'checkout.ts').write_text(fixture.read_text())
+        result = syntax.collect(self.root, ['checkout.ts'])
+        self.assertEqual(result['status'], 'ok', result['reason'])
+        calls = {n['text'] for n in result['nodes'] if n['kind'] == 'call_expression'}
+        self.assertTrue(any('catchTag("OutOfStock"' in text for text in calls))
+        self.assertTrue(any(text.startswith('Effect.mapError(') for text in calls))
+        self.assertTrue(any(text == 'reserve(id)' for text in calls))
+        self.assertTrue(any(text == 'charge(reserved)' for text in calls))
+
+    @unittest.skipUnless(shutil.which('ast-grep'), 'native ast-grep is not installed')
     def test_cli_writes_evidence_artifact(self):
         output = self.root / 'report/evidence.json'
         proc = subprocess.run([sys.executable, str(script), '--repo-root', str(self.root),
