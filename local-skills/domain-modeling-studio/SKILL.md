@@ -1,6 +1,6 @@
 ---
 name: domain-modeling-studio
-description: Collaboratively model an existing codebase with a human using an editable offline HTML domain diagram. Use for code-grounded domain modeling, reviewing current versus proposed business flows, or incorporating diagram feedback into a glossary, BDD drafts, and implementation candidates. Not a generic architecture diagram or an implementation workflow.
+description: Collaboratively model an existing codebase with a human using an editable offline HTML diagram spanning business-flow, architecture (module-dependency neighborhood), and ROP function-flow layers, with drill-down between them. Use for code-grounded domain modeling, reviewing current versus proposed business flows, mapping the module neighborhood a flow touches, tracing a function's success/failure/recovery control flow, or incorporating diagram feedback into a glossary, BDD drafts, and implementation candidates. Not a whole-repository architecture overview or an implementation workflow.
 ---
 
 # Domain Modeling Studio
