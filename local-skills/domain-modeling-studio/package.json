@@ -1,0 +1,17 @@
+{
+  "name": "domain-modeling-studio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/model.test.mjs"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.11.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
