@@ -7,6 +7,21 @@ export const KINDS = [
   "ACTOR",
   "PROCESS",
 ];
+export const ARCHITECTURE_KINDS = ["MODULE", "EXTERNAL"];
+export const FLOW_KINDS = [
+  "STAGE",
+  "FAILURE_HANDLER",
+  "RECOVERY",
+  "BYPASS",
+  "TERMINATION",
+  "OUTSIDE_TYPED_ERROR",
+];
+const ALL_KINDS = new Set([...KINDS, ...ARCHITECTURE_KINDS, ...FLOW_KINDS]);
+// drillInto: architecture node -> a node in its function-flow graph; flow node -> its business-flow node.
+const DRILL_TARGETS = {
+  ...Object.fromEntries(ARCHITECTURE_KINDS.map((k) => [k, FLOW_KINDS])),
+  ...Object.fromEntries(FLOW_KINDS.map((k) => [k, KINDS])),
+};
 export const ORIGINS = {
   agreement: "業務上の合意",
   code: "コードで確認",
@@ -54,7 +69,7 @@ const provenance = (data) => {
 };
 const validateNode = (node) => {
   need(
-    nonempty(node.data.label) && KINDS.includes(node.data.kind),
+    nonempty(node.data.label) && ALL_KINDS.has(node.data.kind),
     "要素の名称・種別が不正です"
   );
   need(
@@ -69,6 +84,17 @@ const validateNode = (node) => {
       Number.isFinite(node.height) &&
       node.height >= 60,
     "要素のサイズが不正です"
+  );
+};
+const validateDrillInto = (node, nodeKinds) => {
+  const target = node.data.drillInto;
+  if (target === undefined) {
+    return;
+  }
+  const allowed = DRILL_TARGETS[node.data.kind];
+  need(
+    allowed && id(target) && allowed.includes(nodeKinds.get(target)),
+    "ドリルダウン参照先が見つかりません"
   );
 };
 const validateGraph = (graph, view) => {
@@ -87,6 +113,10 @@ const validateGraph = (graph, view) => {
   }
   for (const node of graph.nodes) {
     validateNode(node);
+  }
+  const nodeKinds = new Map(graph.nodes.map((n) => [n.id, n.data.kind]));
+  for (const node of graph.nodes) {
+    validateDrillInto(node, nodeKinds);
   }
   const nodeIds = new Set(graph.nodes.map((n) => n.id));
   for (const edge of graph.edges) {
@@ -232,8 +262,8 @@ const validateHistory = (history = []) => {
 
 export const validateDocument = (doc) => {
   need(
-    object(doc) && doc.schemaVersion === 1,
-    "未対応のモデル形式です（schemaVersion: 1が必要）"
+    object(doc) && doc.schemaVersion === 2,
+    "未対応のモデル形式です（schemaVersion: 2が必要）"
   );
   need(id(doc.sessionId) && id(doc.revision), "sessionId・revisionが不正です");
   need(nonempty(doc.title) && text(doc.scope), "タイトル・対象範囲が必要です");

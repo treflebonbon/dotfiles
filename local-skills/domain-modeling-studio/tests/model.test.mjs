@@ -26,6 +26,72 @@ test("モデルを受け取り、壊れた接続・重複ID・根拠のない確
   assert.throws(() => validateDocument(unsupported), /根拠/u);
 });
 
+const flowNode = (id, kind, extra = {}) => ({
+  data: { evidence: [], kind, label: id, origin: "inference", ...extra },
+  height: 90,
+  id,
+  position: { x: 40, y: 80 },
+  width: 180,
+});
+
+test("アーキテクチャ層・関数フロー層の新種別とdrillIntoの正常系・異常系を検証する", () => {
+  const withLayers = () => {
+    const doc = example();
+    doc.models.proposed.nodes.push(
+      flowNode("module-a", "MODULE", { drillInto: "stage-1" }),
+      flowNode("external-a", "EXTERNAL"),
+      flowNode("stage-1", "STAGE", { drillInto: "request" }),
+      flowNode("failure-1", "FAILURE_HANDLER"),
+      flowNode("recovery-1", "RECOVERY"),
+      flowNode("bypass-1", "BYPASS"),
+      flowNode("termination-1", "TERMINATION"),
+      flowNode("outside-1", "OUTSIDE_TYPED_ERROR")
+    );
+    return doc;
+  };
+  assert.doesNotThrow(() => validateDocument(withLayers()));
+
+  const danglingTarget = withLayers();
+  danglingTarget.models.proposed.nodes.find(
+    (n) => n.id === "stage-1"
+  ).data.drillInto = "missing-node";
+  assert.throws(() => validateDocument(danglingTarget), /ドリルダウン/u);
+
+  const architectureToBusiness = withLayers();
+  architectureToBusiness.models.proposed.nodes.find(
+    (n) => n.id === "module-a"
+  ).data.drillInto = "request";
+  assert.throws(
+    () => validateDocument(architectureToBusiness),
+    /ドリルダウン/u
+  );
+
+  const flowToFlow = withLayers();
+  flowToFlow.models.proposed.nodes.find(
+    (n) => n.id === "stage-1"
+  ).data.drillInto = "failure-1";
+  assert.throws(() => validateDocument(flowToFlow), /ドリルダウン/u);
+
+  const businessWithDrillInto = withLayers();
+  businessWithDrillInto.models.proposed.nodes[0].data.drillInto = "stage-1";
+  assert.throws(() => validateDocument(businessWithDrillInto), /ドリルダウン/u);
+
+  const malformedId = withLayers();
+  malformedId.models.proposed.nodes.find(
+    (n) => n.id === "stage-1"
+  ).data.drillInto = "../etc/passwd";
+  assert.throws(() => validateDocument(malformedId), /ドリルダウン/u);
+
+  const unknownKind = withLayers();
+  unknownKind.models.proposed.nodes.find((n) => n.id === "module-a").data.kind =
+    "BOGUS";
+  assert.throws(() => validateDocument(unknownKind), /種別/u);
+
+  const oldSchema = withLayers();
+  oldSchema.schemaVersion = 1;
+  assert.throws(() => validateDocument(oldSchema), /schemaVersion/u);
+});
+
 test("名称変更・削除後もID・根拠・指摘を保持し、コピー後の編集を上書きしない", () => {
   const original = example();
   original.comments.push({
