@@ -14,6 +14,8 @@ import { createRoot } from "react-dom/client";
 
 import {
   KINDS,
+  ARCHITECTURE_KINDS,
+  FLOW_KINDS,
   ORIGINS,
   validateDocument,
   signature,
@@ -30,6 +32,33 @@ import "./style.css";
 
 const uid = () => crypto.randomUUID();
 const names = { current: "現状", proposed: "改善案" };
+const LAYERS = [
+  { id: "architecture", kinds: ARCHITECTURE_KINDS, label: "アーキテクチャ" },
+  { id: "flow", kinds: FLOW_KINDS, label: "関数フロー" },
+  { id: "business", kinds: KINDS, label: "業務フロー" },
+];
+const LAYER_KINDS = Object.fromEntries(LAYERS.map((l) => [l.id, l.kinds]));
+const layerOf = (kind) => LAYERS.find((l) => l.kinds.includes(kind)).id;
+const NEW_NODE_DEFAULTS = {
+  architecture: { kind: "MODULE", label: "新しいモジュール" },
+  business: { kind: "PROCESS", label: "新しい業務" },
+  flow: { kind: "STAGE", label: "新しいステージ" },
+};
+// Isolated so drillInto lookup doesn't add to App's own cyclomatic complexity.
+const deriveLayerView = (graph, layer, selected) => {
+  const layerKinds = LAYER_KINDS[layer];
+  const layerNodes = graph.nodes.filter((n) =>
+    layerKinds.includes(n.data.kind)
+  );
+  const layerNodeIds = new Set(layerNodes.map((n) => n.id));
+  const layerEdges = graph.edges.filter(
+    (e) => layerNodeIds.has(e.source) && layerNodeIds.has(e.target)
+  );
+  const drillTarget =
+    selected?.data?.drillInto &&
+    graph.nodes.find((n) => n.id === selected.data.drillInto);
+  return { drillTarget, layerEdges, layerKinds, layerNodes };
+};
 const download = (name, content) => {
   const url = URL.createObjectURL(
     new Blob([content], { type: "text/plain;charset=utf-8" })
@@ -105,6 +134,7 @@ const Evidence = ({ evidence }) =>
 const Inspector = ({
   doc,
   graph,
+  kinds,
   selected,
   selection,
   setSelection,
@@ -117,6 +147,8 @@ const Inspector = ({
   setComment,
   draftTarget,
   commitDraft,
+  drillTarget,
+  onDrillInto,
 }) => (
   <aside className="inspector" aria-label="根拠と指摘">
     <label>
@@ -173,7 +205,7 @@ const Inspector = ({
         {selection.entity === "node" ? (
           <>
             <label>
-              DDD種別
+              種別
               <select
                 disabled={!editable}
                 value={selected.data.kind}
@@ -183,7 +215,7 @@ const Inspector = ({
                   })
                 }
               >
-                {KINDS.map((k) => (
+                {kinds.map((k) => (
                   <option key={k}>{k}</option>
                 ))}
               </select>
@@ -241,6 +273,11 @@ const Inspector = ({
               </label>
             ))}
           </div>
+        )}
+        {drillTarget && (
+          <button onClick={onDrillInto}>
+            ドリルダウン: {drillTarget.data.label}
+          </button>
         )}
         {editable && (
           <button
@@ -393,6 +430,7 @@ const App = ({ seed }) => {
   const [doc, setDoc] = useState(initial.document);
   const docRef = useRef(doc);
   const [view, setView] = useState("current");
+  const [layer, setLayer] = useState("business");
   const [selection, setSelection] = useState(null);
   const [filter, setFilter] = useState("ALL");
   const [tab, setTab] = useState("model");
@@ -421,6 +459,19 @@ const App = ({ seed }) => {
       (n) => n.id === selection.id
     );
   const target = selected ? { id: selected.id, view } : { view: "whole" };
+  const { drillTarget, layerEdges, layerKinds, layerNodes } = deriveLayerView(
+    graph,
+    layer,
+    selected
+  );
+  const goToDrillTarget = () => {
+    if (!drillTarget) {
+      return;
+    }
+    setLayer(layerOf(drillTarget.data.kind));
+    setFilter("ALL");
+    setSelection({ entity: "node", id: drillTarget.id });
+  };
   const dirtyAfterCopy = lastExport && lastExport.signature !== signature(doc);
   useEffect(() => {
     document.title = doc.title;
@@ -557,12 +608,13 @@ const App = ({ seed }) => {
   };
   const addNode = () => {
     const newId = uid();
+    const { kind, label } = NEW_NODE_DEFAULTS[layer];
     update((d) => {
       d.models.proposed.nodes.push({
         data: {
           evidence: [],
-          kind: "PROCESS",
-          label: "新しい業務",
+          kind,
+          label,
           origin: "proposal",
         },
         height: 100,
@@ -703,7 +755,7 @@ const App = ({ seed }) => {
     glossary: "glossary.md",
     model: "model.md",
   }[tab];
-  const visibleNodes = graph.nodes.filter(
+  const visibleNodes = layerNodes.filter(
     (n) => filter === "ALL" || n.data.kind === filter
   );
   const visibleIds = new Set(visibleNodes.map((n) => n.id));
@@ -807,6 +859,21 @@ const App = ({ seed }) => {
                 </button>
               ))}
             </div>
+            <div className="segmented" role="group" aria-label="レイヤー">
+              {LAYERS.map((l) => (
+                <button
+                  key={l.id}
+                  aria-pressed={layer === l.id}
+                  onClick={() => {
+                    setLayer(l.id);
+                    setFilter("ALL");
+                    setSelection(null);
+                  }}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
             <label>
               種別
               <select
@@ -815,7 +882,7 @@ const App = ({ seed }) => {
                 onChange={(e) => setFilter(e.target.value)}
               >
                 <option value="ALL">すべて</option>
-                {KINDS.map((k) => (
+                {layerKinds.map((k) => (
                   <option key={k}>{k}</option>
                 ))}
               </select>
@@ -830,11 +897,11 @@ const App = ({ seed }) => {
               要素を追加
             </button>
             <button
-              disabled={!editable || graph.nodes.length < 2}
+              disabled={!editable || layerNodes.length < 2}
               onClick={() =>
                 connect({
-                  source: graph.nodes[0].id,
-                  target: graph.nodes[1].id,
+                  source: layerNodes[0].id,
+                  target: layerNodes[1].id,
                 })
               }
             >
@@ -852,7 +919,7 @@ const App = ({ seed }) => {
               aria-label={`${names[view]}の業務フロー`}
             >
               <ReactFlow
-                key={view}
+                key={`${view}-${layer}`}
                 nodeTypes={nodeTypes}
                 nodes={visibleNodes.map((n) => ({
                   data: {
@@ -870,7 +937,7 @@ const App = ({ seed }) => {
                   type: "domain",
                   width: n.width,
                 }))}
-                edges={graph.edges
+                edges={layerEdges
                   .filter(
                     (e) => visibleIds.has(e.source) && visibleIds.has(e.target)
                   )
@@ -907,7 +974,8 @@ const App = ({ seed }) => {
             </section>
             <Inspector
               doc={doc}
-              graph={graph}
+              graph={{ edges: layerEdges, nodes: layerNodes }}
+              kinds={layerKinds}
               selected={selected}
               selection={selection}
               setSelection={setSelection}
@@ -920,6 +988,8 @@ const App = ({ seed }) => {
               setComment={setComment}
               draftTarget={draftTarget}
               commitDraft={commitDraft}
+              drillTarget={drillTarget}
+              onDrillInto={goToDrillTarget}
             />
           </div>
         </>

@@ -84,7 +84,57 @@ try {
     ""
   );
   assert.equal(await page.evaluate(() => window.pwned), undefined);
+  // Layer selection drills architecture -> function-flow -> business-flow,
+  // switching the selected layer and node together (fixture: fixture.mjs).
+  await page
+    .getByRole("button", { exact: true, name: "アーキテクチャ" })
+    .click();
+  // The layer filter must change what's actually on the canvas, not just
+  // which options the inspector lists.
+  await page.locator('.react-flow__node[data-id="accept-module"]').waitFor();
+  assert.equal(
+    await page.locator('.react-flow__node[data-id="request"]').count(),
+    0
+  );
+  await page
+    .getByLabel("レビュー対象", { exact: true })
+    .selectOption("node:accept-module");
+  await page
+    .getByRole("button", { exact: true, name: "ドリルダウン: 受諾ステージ" })
+    .click();
+  assert.equal(
+    await page
+      .getByRole("button", { exact: true, name: "関数フロー" })
+      .getAttribute("aria-pressed"),
+    "true"
+  );
+  assert.equal(
+    await page.getByLabel("レビュー対象", { exact: true }).inputValue(),
+    "node:accept-stage"
+  );
+  await page.locator('.react-flow__node[data-id="accept-stage"]').waitFor();
+  await page
+    .getByRole("button", { exact: true, name: "ドリルダウン: 受諾する" })
+    .click();
+  assert.equal(
+    await page
+      .getByRole("button", { exact: true, name: "業務フロー" })
+      .getAttribute("aria-pressed"),
+    "true"
+  );
+  assert.equal(
+    await page.getByLabel("レビュー対象", { exact: true }).inputValue(),
+    "node:accept"
+  );
+  await page.locator('.react-flow__node[data-id="accept"]').waitFor();
   await page.getByRole("button", { exact: true, name: "改善案" }).click();
+  // Layer selection stays independent of the current/proposed tab switch.
+  assert.equal(
+    await page
+      .getByRole("button", { exact: true, name: "業務フロー" })
+      .getAttribute("aria-pressed"),
+    "true"
+  );
   await page
     .getByLabel("レビュー対象", { exact: true })
     .selectOption("node:request");
