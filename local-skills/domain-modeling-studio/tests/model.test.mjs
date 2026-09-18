@@ -104,6 +104,13 @@ test("アーキテクチャ層・関数フロー層のノード/エッジにも�
   // fixture.mjs wires accept-module (MODULE) --drillInto--> accept-stage
   // (STAGE) --drillInto--> accept (business).
   const withComments = example();
+  // A second flow node/edge, purely local to this test, so a comment can
+  // target an edge that lives inside the function-flow layer itself (not
+  // just a business-layer edge).
+  withComments.models.proposed.nodes.push(flowNode("verify-stage", "STAGE"));
+  withComments.models.proposed.edges.push(
+    edge("stage-to-verify", "accept-stage", "verify-stage", "確認後")
+  );
   withComments.comments.push(
     {
       id: "c-module",
@@ -111,9 +118,9 @@ test("アーキテクチャ層・関数フロー層のノード/エッジにも�
       text: "モジュール境界の指摘",
     },
     {
-      id: "c-edge",
-      target: { id: "request-accept", view: "proposed" },
-      text: "エッジへの指摘",
+      id: "c-flow-edge",
+      target: { id: "stage-to-verify", view: "proposed" },
+      text: "関数フロー層エッジへの指摘",
     }
   );
   assert.doesNotThrow(() => validateDocument(withComments));
@@ -133,15 +140,18 @@ test("アーキテクチャ層・関数フロー層のノード/エッジにも�
 
   // Deleting a drillInto *target* must retire it (with its comment) rather
   // than fail validation over the now-dangling reference on accept-module.
+  // Its attached function-flow edge (and its comment) are retired too.
   const deleted = removeItem(renamed, "node", "accept-stage");
-  assert.equal(deleted.retired.length, 1);
+  assert.equal(deleted.retired.length, 2);
   assert.equal(deleted.retired[0].item.id, "accept-stage");
+  assert.equal(deleted.retired[1].item.id, "stage-to-verify");
   assert.equal(
     deleted.models.proposed.nodes.find((n) => n.id === "accept-module").data
       .drillInto,
     undefined
   );
   assert.equal(deleted.comments[0].text, "モジュール境界の指摘");
+  assert.equal(deleted.comments[1].text, "関数フロー層エッジへの指摘");
 
   // AI may still regenerate drillInto on a node the human never customized...
   const saved = {
