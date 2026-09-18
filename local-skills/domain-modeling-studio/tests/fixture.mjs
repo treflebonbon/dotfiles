@@ -32,7 +32,7 @@ export const example = () => {
     retired: [],
     revision: "r1",
     scenarios: [],
-    schemaVersion: 1,
+    schemaVersion: 2,
     scope: "実装未確認の説明用モデル",
     sessionId: "example-session",
     title: "架空の依頼業務",

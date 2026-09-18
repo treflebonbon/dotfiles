@@ -1,10 +1,10 @@
-# Model contract (schemaVersion 1)
+# Model contract (schemaVersion 2)
 
 The JSON document is the editable model, not raw React Flow props. The UI projects whitelisted fields into the graph: supplied HTML, styles and callbacks never execute. See `tests/fixture.mjs` for a minimal fictional example and `src/model.mjs` for the executable validator.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sessionId": "project-flow-unique-session",
   "revision": "r1",
   "basedOn": null,
@@ -49,9 +49,11 @@ Node:
 }
 ```
 
-`kind`: `COMMAND`, `EVENT`, `POLICY`, `READ_MODEL`, `AGGREGATE`, `ACTOR`, `PROCESS`. Do not infer kinds from keyword matching. Width ≥100, height ≥60; finite coordinates. Place a small flow left-to-right and separate exception paths vertically.
+`kind`: business flow — `COMMAND`, `EVENT`, `POLICY`, `READ_MODEL`, `AGGREGATE`, `ACTOR`, `PROCESS`; architecture layer — `MODULE`, `EXTERNAL`; function-flow layer — `STAGE`, `FAILURE_HANDLER`, `RECOVERY`, `BYPASS`, `TERMINATION`, `OUTSIDE_TYPED_ERROR` (ROP semantics: see `local-skills/rop-visualizer/SKILL.md` §2). All three layers share the same `nodes`/`edges` arrays per view; `kind` alone determines which layer a node belongs to. Do not infer kinds from keyword matching. Width ≥100, height ≥60; finite coordinates. Place a small flow left-to-right and separate exception paths vertically.
 
-`origin`: `code` (inspected implementation, requires evidence), `inference` (AI deduction), `agreement` (human business decision), `proposal` (unverified change). Editing business content sets `proposal` and `needsReview`; moving a node does not change its provenance. Preserve original references as context, not evidence for new semantics.
+`drillInto` (optional, on nodes only): an architecture node's `drillInto` names a node ID inside its function-flow layer; a function-flow node's `drillInto` names the business-flow node ID it implements or affects. The target must exist in the same view and belong to the expected layer. Business-flow nodes do not carry `drillInto`. Not every node needs one.
+
+`origin`: `code` (inspected implementation, requires evidence), `inference` (AI deduction), `agreement` (human business decision), `proposal` (unverified change). Editing business content sets `proposal` and `needsReview`; moving a node does not change its provenance. Preserve original references as context, not evidence for new semantics. This discipline, and the ID rules above, apply identically across all three layers.
 
 Edge: `{ "id": "e1", "source": "request", "target": "accepted", "label": "期限内", "data": { "origin": "inference", "evidence": [] } }`. Both endpoints must exist. Record evidence on relationships as well as nodes.
 
