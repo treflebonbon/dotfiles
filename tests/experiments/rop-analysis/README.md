@@ -1,6 +1,6 @@
 # ROP analysis comparison
 
-Experimental adapters and a frozen, blinded comparison. These files are under `tests/`, outside the deployed skill. Start in the validated dotfiles task worktree. The protocol and producer/evaluator prompts here define the experiment; the report format they compare against was owned by `local-skills/rop-visualizer`, since retired into `local-skills/domain-modeling-studio` (see [ADR-0061](../../../docs/adr/0061-retire-rop-visualizer-into-domain-modeling-studio.md)). This frozen comparison predates that retirement and is not re-run against current source.
+Experimental adapters and a frozen, blinded comparison. These files are under `tests/`, outside the deployed skill. Start in the validated dotfiles task worktree. The protocol and producer/evaluator prompts here define the experiment; the report format they compare against was `local-skills/rop-visualizer`'s Mermaid+Playwright renderer, since retired without a successor (see [ADR-0061](../../../docs/adr/0061-retire-rop-visualizer-into-domain-modeling-studio.md)). Only that skill's ROP semantics, language references, and TypeScript ast-grep helper moved to `local-skills/domain-modeling-studio`; its report format is a frozen historical artifact, not a format the current domain-modeling-studio skill produces. This frozen comparison predates the retirement and is not re-run against current source.
 
 ## Preparation
 

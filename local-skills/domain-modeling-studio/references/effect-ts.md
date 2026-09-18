@@ -6,7 +6,8 @@ Check the project's installed Effect version and its actual imports. The mapping
 | --- | --- |
 | `Effect.gen` / `yield*`, `flatMap` | Bind: typed failure skips the rest of that sequence until an enclosing handler or return. |
 | `map` | Transform only the success value; typed errors pass through. |
-| `mapError`, `mapBoth.onFailure` | Transform the error value/type on the error lane; no recovery. |
+| `mapError` | Transform the error value/type on the error lane; no recovery. |
+| `mapBoth` | Transform both lanes via its `onFailure`/`onSuccess` callbacks; neither branch recovers. |
 | `tap` | Preserve the original success value only when the tap succeeds. A fallible tap can fail the entire sequence. |
 | `catchTag` | Handle a matching `_tag` within the wrapped effect's scope. Unmatched errors pass through; the handler's own failure remains possible. |
 | `catchAll` | Handle typed errors in that scope. The fallback may itself fail. |
