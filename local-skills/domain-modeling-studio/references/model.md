@@ -67,7 +67,7 @@ Scenario: `{ "id": "expiry", "title": "満了した依頼を拒否する", "mode
 
 Change candidate: `{ "id": "clarify-expiry", "title": "期限の案内を改善する", "reason": "合意した変更理由と検討事項", "status": "proposed", "evidence": [] }`. `status` is proposed/agreed. Evidence lists affected source locations. Changes are not implemented by the modeling skill.
 
-`unresolved` is an array of questions. Keep contradicting code/business explanations visible until resolved. An update must retain each prior question verbatim or provide an explicit entry in optional `resolutions`: `{ "question": "元の質問と完全一致", "reason": "確認した回答・解決理由。人間の合意と実装の証拠を区別する", "evidence": [] }`. Both question and reason must be nonempty. Preserve earlier resolution entries in subsequent rounds; these records also appear in `model.md`. A renamed question must retain the original question in its resolution record, rather than silently replacing history.
+`unresolved` is an array of plain, nonempty question **strings** — not objects; the structured `{question, reason, evidence}` shape below belongs to `resolutions` only, once a question is answered. Keep contradicting code/business explanations visible until resolved. An update must retain each prior question verbatim or provide an explicit entry in optional `resolutions`: `{ "question": "元の質問と完全一致", "reason": "確認した回答・解決理由。人間の合意と実装の証拠を区別する", "evidence": [] }`. Both question and reason must be nonempty. Preserve earlier resolution entries in subsequent rounds; these records also appear in `model.md`. A renamed question must retain the original question in its resolution record, rather than silently replacing history.
 
 # Revision protocol
 
