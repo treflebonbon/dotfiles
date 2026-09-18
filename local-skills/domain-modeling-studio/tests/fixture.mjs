@@ -5,6 +5,13 @@ const node = (id, label, x) => ({
   position: { x, y: 80 },
   width: 180,
 });
+const layerNode = (id, kind, label, y, extra = {}) => ({
+  data: { evidence: [], kind, label, origin: "inference", ...extra },
+  height: 90,
+  id,
+  position: { x: 40, y },
+  width: 180,
+});
 
 export const example = () => {
   const graph = {
@@ -17,7 +24,16 @@ export const example = () => {
         target: "accept",
       },
     ],
-    nodes: [node("request", "依頼する", 40), node("accept", "受諾する", 360)],
+    nodes: [
+      node("request", "依頼する", 40),
+      node("accept", "受諾する", 360),
+      layerNode("accept-module", "MODULE", "受付モジュール", 260, {
+        drillInto: "accept-stage",
+      }),
+      layerNode("accept-stage", "STAGE", "受諾ステージ", 440, {
+        drillInto: "accept",
+      }),
+    ],
   };
   return {
     basedOn: null,
