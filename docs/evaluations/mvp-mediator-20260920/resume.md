@@ -1,5 +1,7 @@
 # Empirical tuning continuation
 
+続き: [第7ラウンド以降の追加評価](confirmation.md)。以下は前回セッション終了時の記録。
+
 Baseline: `5bed6d408d70439594626dfaa9d9b869cdd33019`. 前回の [results](results.md) と failure ledger を引き継ぐ。固定課題 A/B/C、6項目の採点と critical 指定は [protocol](protocol.md) のまま。各回に履歴なしの新規 gpt-5.6-terra / high 実行者を使用する。
 
 Iter 0 再確認: description と本文の範囲は一致。表示変更への移行強制を避け、制約のある UI フローだけを明示的に裁定する。静的確認は empirical clear に数えない。
