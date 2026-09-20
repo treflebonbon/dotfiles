@@ -1,5 +1,7 @@
 # 実行可能モデルによる評価
 
+続き: [検証手順とbinding再利用の構造変更](structure.md)。以下の過去の採点・不採用判断は保持する。
+
 [事前固定した契約](protocol.md)。既存の [メモ評価](../mvp-mediator-20260920/confirmation.md) とは成果物・課題条件が異なるため、達成率の改善を直接比較しない。現行スキルのまま新契約で評価し、必要性が確認できた場合だけ本文を変更する。
 
 対象 hash: `6ace6b48ea30aaf24a000057524c5a8cb70c972358094bc21446f0a75f062819`、reference: `a446ebe95eb01feddbc8fd30041db60d9b66dcb07e629fcd3e5bbeeaf97a27d8`。本文・description は変更なし、Iter 0 の範囲整合を確認。
