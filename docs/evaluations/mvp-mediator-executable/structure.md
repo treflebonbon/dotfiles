@@ -1,5 +1,7 @@
 # 検証手順の構造変更による再評価
 
+追加確認は [confirmation.md](confirmation.md) を参照。採用本文を維持した再実行で、検証メモと実行列の不一致が1件再発した。以下は採用時点の結果として保持する。
+
 **結論: 候補Cを採用。** 計18実行で3候補を評価し、最終候補はE/S/Bの3独立反復（9実行）と未使用holdout Dですべて固定6項目を達成した。定性的な安定を確認したが、正式な使用回数・時間メタデータがないため定量的収束は未確認。
 
 開始点: `68f762a`。対象は `local-skills/mvp-mediator-architecture/SKILL.md`。description/bodyの範囲一致を再確認し、referenceとADR-0063の責務分担は変更しない。[既存protocol](protocol.md)のE/B/S各6項目、critical指定、52件の独立checkerをそのまま使う。Sは既に使用済みの回帰課題。旧成果物の再採点はしない。
