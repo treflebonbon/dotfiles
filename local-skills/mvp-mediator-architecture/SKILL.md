@@ -1,6 +1,6 @@
 ---
 name: mvp-mediator-architecture
-description: "Enforce a Passive View (MVP) + Mediator component architecture for React/TanStack/Effect-TS frontends: every component lives under one Root, is a pure Passive View limited to render parameters, and bubbles behavior as events via Chain of Responsibility up to a Mediator that arbitrates as an explicit state machine. Use whenever writing or reviewing React components, deciding where component logic/state/business rules belong, wiring event handlers or callbacks between parent and child components, or splitting up a growing component — even if the user never names MVP, Passive View, Mediator, or Chain of Responsibility explicitly, just describes a component getting hard to test or doing too much. Governs component/event architecture only; for Effect-TS Result/error-handling composition, see the `rop` skill instead."
+description: "Design or review UI responsibility boundaries with Passive View and hierarchical Mediators. Use for new frontend architecture, MVP-based UI changes, or competing UI flows such as submission, cancellation, and cross-screen coordination. Preserve existing project architecture; routine React edits do not require migration. Library-independent principles, with Effect-oriented guidance when Effect is already adopted. Delegate Result/error composition to rop."
 allowed-tools: Read, Edit, Write
 metadata:
   depends_on: []
@@ -21,31 +21,61 @@ metadata:
 
 # MVP + Mediator Architecture
 
-## The doctrine
+## 適用範囲
 
-React/TanStack/Effect-TS のコンポーネント構成は次の4点を1つの一貫したアーキテクチャとして適用する。個別の tips ではなく、互いに支え合う制約として扱う: Passive View がロジックを持たないから CoR で bubble させる必要があり、bubble させるから Mediator という唯一の裁定者が要る。
+新規開発の UI 設計の既定として使う。既存プロジェクトでは、その設計規約と今回の変更範囲を確認してから適用する。小修正を理由に MVP への移行や依存ライブラリの変更を要求しない。
 
-1. **Root 集約** — すべてのコンポーネントは単一の Root の配下に置く。Root の外にコンポーネントを作らない。CoR のイベントが必ずどこかへ終着するための、ツリーの単一の終端。
-2. **Passive View (MVP)** — 各コンポーネントは描画パラメータ（props / 表示用ローカル state）だけを操作する。分岐条件・計算・API 呼び出し・状態遷移の判断はコンポーネント内に書かない。ローカルに持ってよいのは、何の判断にも使われない表示専用の状態(トグルの開閉、フォーカスなど)だけ。入力欄の値のように何らかの判断(バリデーション等)の材料になる値は、コンポーネントに保持せず生の値のまま Mediator へ bubble させ、確定した表示値を props として受け取り直す(controlled)。複数の値を組み合わせて `disabled` や表示文言を決めるのも計算であり、Mediator 側(state → props への変換)で確定させてから View に渡す。
-3. **Chain of Responsibility** — 動作はコンポーネント内で完結させず、イベントとして親へ bubble させる。中間コンポーネントは pass-through に徹し、イベントの意味を解釈・改変しない。bubble の終着点(Mediator)で生の callback を tagged event に組み立て直すのは違反ではない — 違反になるのは途中の中間コンポーネントが意味を解釈・改変すること。
-4. **Mediator = state machine** — bubble してきた全イベントの唯一の裁定者。UI 起因のイベントだけでなく、Model 層(再検証・キャッシュ更新などの非同期通知)も同じ state machine のイベントとして扱い、進行中の遷移を無条件に上書きさせない。トリガーと状態更新を1回の書き込みで結合するリアクティブプリミティブ(例: Effect の Atom)を使う場合、それ自体が「唯一の裁定者」を保ちやすくする — 呼び出し箇所が1つしかなければ、後述の二重ガードは原理的に起こりにくい。遷移関数 (`reduce`) 自体は同期・純粋にし、非同期I/Oは呼び出す側が行って結果を新しいイベントとして戻す — 遷移関数の中で非同期処理を完結させると、型で宣言した中間状態に実際には到達できなくなる。副作用(API 呼び出し等)は「その state に実際に入ったこと」自体から駆動し、dispatch する側に `reduce` と同じ許可条件を重複させない — 重複させると唯一の裁定者が2箇所に分裂する。典型的な事故は `useEffect` のクリーンアップに `let cancelled = false` を仕込んで古い応答を握りつぶすパターンで、これも隠れたもう一つの裁定者になる。古い応答を無視する判断は `reduce` 内のガード(domain の識別子で比較する)だけに一本化する。コンポーネント側は Mediator が決めた描画パラメータを受け取るだけ。
+このスキルが定めるのは UI の責務とイベントの裁定。構造の原則はライブラリ非依存とし、単純な UI に形式的な Mediator や reducer を追加しない。
 
-ROP（Railway Oriented Programming）準拠はここでは重複して記載しない。`metadata.depends_on` はこのリポジトリのローカル skill 群では自動ロードの仕組みを持たない単なる記述用フィールドなので、必要な箇所では `rop` skill を明示的に呼び出し(Skill tool でスキル名 `rop` を指定する、またはユーザーに `rop` skill の起動を促す)、その `rop` skill 自身の `references/effect-ts.md`(このスキル自身の `references/` には無い)を参照する。
+## 責務の所有者
 
-## Wiring
+| 役割 | 所有する責務 |
+| --- | --- |
+| Model／ユースケース | 業務規則と実行時の検証。UI 技術に依存しない処理。 |
+| Mediator | 担当 UI フローの操作許可、状態遷移、取消・再試行の方針、結果採用。Model の判定や結果を表示へ変換する。 |
+| 実行層 | 裁定された処理の実行、通信中断、購読解除、リソース解放。 |
+| Passive View | 表示と利用者操作の通知。他の操作の許可・取消・進行に影響しない局所状態。 |
 
-Mediator の Context を読むのは、機能ごとにちょうど1つの「connector」コンポーネントだけにする。それより下位はすべて props しか受け取らない Passive View。connector が `state._tag` を見てどの Passive View をマウントするか選ぶ分岐は rule 2 の違反ではない — Mediator が既に決めた状態を 1:1 でコンポーネント選択に写しているだけで、新しい判断をしていない。
+業務上の可否と UI の操作許可を分ける。例えば発送済み注文のキャンセル可否は Model が決め、実行時にも検証する。Mediator はその判定と進行中の UI 状態から表示を作る。disabled のために業務規則を再実装しない。
 
-## Applying it
+## Root と階層的な裁定
 
-新規コンポーネントを書く、または既存コンポーネントをレビューするときは確認する:
+独立した UI フローごとに Mediator を置き、複数フローの競合には共通の親を設ける。各 Mediator は担当範囲のイベントを処理し、範囲を超える要求を親へ委ねる。これが Chain of Responsibility の境界であり、すべての中間層を転送だけに限定する意味ではない。
 
-- このコンポーネントは Root からたどれる位置にあるか。Root の外に浮いていないか。
-- props / 表示 state 以外に分岐条件・計算・API 呼び出しを持っていないか。持っていたら Mediator 側へ移す。
-- `disabled` や表示文言のような複数値の合成を View 側で組み立てていないか。Mediator 側(state → props の変換)で確定済みか。
-- イベントハンドラは `on〜` 形式で親へ bubble しているか。ハンドラ内で状態更新や API 呼び出しなど処理を完結させていないか。
-- 状態遷移の判断が Mediator の外に漏れていないか。複数コンポーネントがそれぞれ独自に同じ判断をしていないか。
-- Model 層からの背後通知(キャッシュ更新・再検証等)が UI 起因のイベントを経由せずに描画へ反映されていないか。Mediator の state machine を素通りしていたら、進行中の遷移を無条件に上書きするバグの元になる。
-- 副作用の発火条件を dispatch する側で `reduce` と別に判定していないか。state に実際に入ったことから駆動しているか。
+Root は全体の構成を組み立て、必要なら全体に関係する UI 操作を裁定する。Root の単一性と判断の所有単位を区別する。「唯一の裁定者」は同じ判断に所有者が1つあるという意味で、全イベントをアプリ全体の1つの Mediator に集めるという意味ではない。
 
-React/TanStack/Effect-TS への具体的な当てはめ(Root の置き場所、Mediator の実装パターン、Model 層(`@effect/atom-react`)との関係)は `references/tanstack-effect.md` を読む。
+View は担当 Mediator に操作を通知する。兄弟の View を直接操作せず、フロー間の連携は責任を持つ親へ要求する。注文一覧とプロフィール編集は独立してよいが、同時実行不可の音声入力と範囲選択は共通の親が切替を決める。
+
+## View と接続方法
+
+props、Context、compound components はプロジェクトに合わせて選ぶ。複数の View が表示状態を購読したり同じイベント送信口を使ったりしてよい。購読箇所や connector の個数ではなく、裁定が同じ所有者へ届くかを確認する。転送だけのコンポーネントをこの規則のために追加しない。
+
+純粋な表示整形、表示条件の分岐、ツールチップの開閉などは View に置ける。入力値と形式チェックはフォームに保持できる。ただし、その状態が他の操作の許可・取消・進行を左右する場合は Mediator が裁定する。閉じると送信が取り消されるダイアログは、単なる表示用の開閉状態ではない。
+
+## 状態遷移と非同期処理
+
+状態間の制約がある UI フローでは、状態・イベント・許可される遷移を明示する。reduce を使う場合は同期・純粋に保ち、I/O の結果をイベントとして戻す。裁定された遷移から処理を実行し、呼出側に同じ許可条件を重複させない。
+
+再送信・取消・結果採用の方針は Mediator が所有する。方針に従う通信中断や購読解除は実行層へ委譲できる。ライフサイクルの cleanup を独立した業務判断と混同しない。中断は外部処理の巻き戻しを保証しないので、業務上の取消と区別する。
+
+古い成功・失敗やキャッシュ再検証の通知で進行中の操作を上書きさせない。同じ対象への再試行を区別する必要があれば、操作単位の識別子を使う。単なるデータ再描画は購読機構に任せ、操作の許可・進行を変える通知を Mediator の裁定へ戻す。結果の除外を reduce 内だけに限定せず、実行層の仕組みが採用方針を満たすかを確認する。
+
+## 他の設計規約・Effect との分担
+
+- **VSA**: 機能・ユースケース単位の slice 内に UI の裁定を置く。Root のために業務処理を横断集約しない。
+- **ヘキサゴナル**: Model／ユースケースは React・Atom から独立させ、UI との接続を外側に置く。
+- **ROP**: 成功・失敗の合成には `rop` スキルを明示的に読み、その言語別 reference を使う。ここに規則を重複定義しない。
+- **Effect 採用時**: 型付きエラー、明示した依存関係、Effect の合成、Fiber／Scope による実行と寿命管理を優先する。想定内エラー・defect・中断を区別し、Mediator のために同等の非同期制御を自作しない。
+
+既存の取得状態だけでフローを表せるなら、それを使う。追加の排他や取消制約がある場合だけ、その制約を Mediator の状態として表す。Atom を使うこと自体は、フローの裁定が成立する保証ではない。
+
+React／TanStack／Effect を採用したプロジェクトに適用するときは [実装例](references/tanstack-effect.md) を読む。Effect 自体の導入や TanStack Query からの置換はこのスキルの責務に含めない。
+
+## 適用後の確認
+
+- 既存設計と変更範囲に合い、表示だけの修正に新たな裁定層を持ち込んでいないか。
+- 業務規則、UI の遷移、実行と寿命管理の所有者を特定できるか。
+- props／Context のどちらでも、同じ判断が複数箇所へ分散していないか。
+- 局所状態が他の操作を変えないか。フロー間の競合は共通の親が扱うか。
+- 連打、取消、同じ対象への再試行、遅延した成功・失敗、再検証通知で操作の制約を破らないか。
+- Effect や既存ライブラリが担う状態・非同期制御を二重に実装していないか。
