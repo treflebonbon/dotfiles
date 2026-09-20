@@ -1,5 +1,7 @@
 # MVP Mediator empirical tuning — 2026-09-20
 
+続き: [再開評価（Iteration 5 以降）](resume.md)。以下は初回セッション終了時の記録。
+
 [固定シナリオ・採点基準](protocol.md)。対象 baseline は `7302e42d9012b85027976a5c754aea629c620ce3`。実行者は履歴を継承しない `gpt-5.6-terra` / `high`。各シナリオ・各ラウンドで新しいエージェントを使う。
 
 ## 評価の範囲と制約
