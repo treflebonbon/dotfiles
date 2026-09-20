@@ -1,5 +1,7 @@
 # 採用本文の追加確認 — 2026-09-21
 
+後続の構造改訂実験は [evidence.md](evidence.md) を参照。以下は変更前本文での追加確認結果として保持する。
+
 Baseline: `a1afdcf19a264931e3493176adc779e7cd8b1ea3`。対象本文 SHA-256: `25cc12b199514b6876f499469814f5a14421ef5d8a7f1362a39d6e5947032fb6`。Iter 0: description と本文の適用範囲は一致。本文を変更せず、[前回の3連続 clear](structure.md) を引き継ぐ。
 
 [固定 E/B/S](protocol.md) を新規 gpt-5.6-terra/high executor で各1回確認する。過去の成果物と親 checker を渡さない。各6項目、full=1 / partial=0.5 / absent=0、critical が全て full の場合だけ成功○。判定基準と checker は変更しない。tool_uses / duration_ms は提供されないため推計せず、strict convergence に含めない。再発がなければ未使用 holdout U を追加して qualitative plateau を確認する。
