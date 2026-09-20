@@ -1,5 +1,7 @@
 # Additional confirmation
 
+続き: [実行可能モデルを使う別実験](../mvp-mediator-executable/results.md)。以下の既存採点と終了判断は変更しない。
+
 Baseline: `c77a50d0f6e422fcc31acdcd4f72299f6653430f`。ユーザーの再実行依頼により [前回の評価](resume.md) を継続する。Iter 0: description と本文の適用範囲に差分なし。本文の SHA-256 は `6ace6b48ea30aaf24a000057524c5a8cb70c972358094bc21446f0a75f062819`。変更を先に加えず、[固定 A/B/C](protocol.md) の第7ラウンドで3連続 clear を確認し、新しい holdout K を実行する。前回の2連続結果を引き継ぐため、問題がなければ余分な反復はしない。
 
 モデル、fresh executor、親の独立採点、critical 指定、達成率計算、metadata 取得不能の扱いは既存 protocol と同じ。既存 ledger 2件を継続監視する。採点基準は変更しない。
