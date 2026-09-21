@@ -1,0 +1,113 @@
+# MVP評価v2専用の実行入口
+
+## Contract
+
+目的は、固定した評価契約v2を、実証済みの隔離起動へ接続すること。本文・既存評価・prototypeは変更しない。本評価の開始は別の明示依頼で行う。
+
+受入条件:
+
+- E/B/Sを3組、条件成立時にLを1回。各実行へ担当課題・本文・条件付き参照・明示した実行指示だけを渡す。
+- 永続する書込みは、その実行の `memo.md` と、B以外の `model.mjs` に限定する。
+- 配布内容・hash、実行条件、tool call/resultを含むstdout、stderr、終了状態、成果物hashを親側へ保存する。
+- 親が証拠を参照して入力監査と採点を確定するまで、次の実行を拒否する。監査は該当証拠のhashへ結び付ける。
+- 入力invalid/unknownだけを明示置換でき、最大2件。機能・遵守failを置換理由にしない。同じ失敗パターンが独立した2実行で再発すれば停止する。全dispatchは12件以内、3組を超えて追加しない。
+- Lは3組clearと親による未使用確認が必要。canonical metadataは取得できなければN/Aのまま保存する。
+- 合成workerを使い、公開CLIを通して隔離・監査・停止を検証する。本評価もモデル通信もテストでは開始しない。
+
+非目標は汎用agent基盤、採点・意味的入力監査の全自動化、全runtimeの別起動経路の禁止、既存成果物の再採点。
+
+関連する一次資料は `docs/evaluations/mvp-mediator-evaluation-v2/protocol.md` と `docs/evaluations/prototype-input-isolation/llm-run/`。実装ではprototypeをimportしない。既存のmodel gatewayを再利用し、実行入口自身が評価用の起動前条件を検査する。
+
+判断済みのtradeoff: 契約が許す組内並列は使わず直列実行する。監査の意味判断・失敗パターンの分類・採点は親が行う。ホストの同一ユーザーによる悪意あるstate改変は対象外だが、二重CLI起動と証拠の変更は拒否する。
+
+## CLIと状態の境界
+
+`init` で実行条件と入力を固定し、`prepare` で次の課題を隔離用に抽出する。親が `approve` で配布内容を確認した後にだけ `dispatch` できる。完了後は `audit` で入力有効性・6項目・C1〜C4・失敗パターン・証拠参照を確定するまで次の `prepare` を拒否する。`status` は状態と停止理由を読むだけで、モデルを起動しない。
+
+入力不良の置換には `prepare --replace` を使う。同じ課題slotに新しい実行IDを割り当て、元実行の証拠を残す。監査レコードは上書きしない。Lの配布前には、親が履歴を確認した証拠を渡す。
+
+通常runと合成fixture runは初期化時に区別し、途中で切り替えない。fixture runはgatewayを起動せず、合成workerだけを隔離内で動かす。通常runは明示した `dispatch` だけがモデルを起動する。
+
+## 操作
+
+入口は `python3 scripts/mvp-evaluation.py`。以下は操作例であり、この実装作業では通常runを作成・dispatchしない。
+
+初期化には次のJSONを `conditions.json` として用意する。`instructions` だけが実行者への追加指示となる。過去評価や正解を含めない。`effective_context` には実効system/developer/AGENTS・Ponytail等のログ参照と、見えない部分のunknownを記録する。`runtime_notes` にはツールや隔離環境の条件を記録する。親側の2項目は実行者へ渡さない。
+
+```json
+{
+  "instructions": "今回の実行者へ適用するAGENTS等の指示全文",
+  "effective_context": "実効指示のログ参照。モデル基本指示の非公開部分はunknown",
+  "runtime_notes": "Linux/Nix、専用bubblewrap境界、評価用ツールセット"
+}
+```
+
+```sh
+python3 scripts/mvp-evaluation.py init /absolute/new-run --conditions conditions.json
+python3 scripts/mvp-evaluation.py prepare /absolute/new-run
+python3 scripts/mvp-evaluation.py status /absolute/new-run
+```
+
+runは存在しないディレクトリを指定する。`init` は入力元・実装・ツール・Git情報を固定する。`prepare` は担当節を抽出し、Sのheld-out表記と投入時期の一文だけを除く。`attempts/01/inputs/` と `prompt.txt` の配布内容を親が確認する。承認JSONは、statusにある最新attemptの `bundle_sha256` と具体的な確認理由を持つ。
+
+```json
+{
+  "bundle_sha256": "statusに表示されたhash",
+  "reason": "担当節・6基準・指定版・追加指示を確認。他課題と親checkerは配布に含まれない"
+}
+```
+
+```sh
+python3 scripts/mvp-evaluation.py approve /absolute/new-run --record approval.json
+python3 scripts/mvp-evaluation.py dispatch /absolute/new-run
+```
+
+dispatchは同期実行し、run単位のlockを終了まで保持する。stdout/stderrは逐次保存する。900秒でtimeoutし、証拠を残して監査待ちにする。再dispatchは禁止する。通常runだけが既存のChatGPT gatewayを起動し、空のHOMEで新規Codex `gpt-5.6-terra/high` を動かす。認証情報はgatewayから隔離側へ渡さない。
+
+永続成果物は `artifacts/memo.md`、E/S/Lのみ `artifacts/model.mjs`。親が用意した既存ファイルへ直接上書きする。ディレクトリへの追加・削除・renameは許可しないため、実行者はatomic renameを使う編集方式を避ける。内部のHOMEと/tmpは使い捨て領域で、返却対象ではない。実行コードとツールのNix依存closureも隔離内から読めるが、repo・過去成果物・checkerはmountしない。
+
+## 親の監査
+
+親は `stdout.jsonl` の実読取りと返却内容、実行者の報告、成果物を照合する。契約の独立検査も親側で行い、そのログを当該attemptの `parent-checks/` 以下へ保存する。生成コードを無条件にホストで実行せず、別の隔離境界で検査する。親の検査結果は実行者の実績へ加えない。
+
+監査JSONの例（数値は例示であり、実採点ではない）:
+
+```json
+{
+  "evidence_sha256": "statusに表示された最新attemptの証拠hash",
+  "input": "valid",
+  "scores": [1, 1, 1, 1, 1, 1],
+  "compliance": ["pass", "pass", "pass", "pass"],
+  "issues": [],
+  "failure_patterns": [],
+  "reason": "各基準とC1〜C4の根拠、および自己報告との差を参照記録に記載",
+  "references": [
+    { "path": "stdout.jsonl", "locator": "入力読取りと実行結果のevent ID" },
+    { "path": "parent-checks/review.md", "locator": "採点根拠と親検査の節" }
+  ],
+  "decision_retry": "自己報告の回数・理由・出典。未報告ならunknown",
+  "mechanical_retry": "親がログから集計した回数と対応イベント"
+}
+```
+
+```sh
+python3 scripts/mvp-evaluation.py audit /absolute/new-run --record audit.json
+```
+
+入力判定は `valid/invalid/unknown`、6項目は `0/0.5/1`、C1〜C4は `pass/fail/unknown`。clearでなければ再発照合用の `failure_patterns` を必須とする。同じ原因には同じ名称を使い、入力不良と機能・遵守失敗を区別する。CLIは意味判断を代行せず、証拠の存在・hash・値域と停止条件を検査する。unknown確定後の置換と、監査レコード自体が未提出の状態は異なる。
+
+監査・証拠・返却成果物は上書きしない。既存ログ・成果物の変更があれば次操作を拒否する。入力invalid/unknownのときだけ `prepare --replace` を使う。3組clear後のLには `prepare --unused-evidence unused.json` を使い、JSONに `{"unused":true,"reason":"履歴照合の参照と理由"}` を記す。
+
+失敗再発・置換上限・3組終了・L終了後は `status` の `stop` に理由を残す。4組目や上限を超えた追加試行は作らない。モデル内部の複数HTTP応答は1セッションに含め、dispatch数とは分ける。起動失敗も予約したattemptを消費する。
+
+## 検証と限界
+
+```sh
+bats tests/mvp-evaluation.bats
+```
+
+テストは `init --fixture` で固定し、同じmount境界の合成workerでCLIを検証する。fixture runをliveへ変更できない。モデル評価は開始しない。実LLMとgatewayの接続実証は既存prototypeを参照し、今回変更した書込み境界はfixtureで確認する。
+
+親による監査が意味的に正しいか、指定されたログ位置が採点を実際に裏付けるかは親の責務。ホストの同一ユーザーは別の起動経路を使えるため、全runtime共通の強制とは呼ばない。親プロセスが強制終了した場合はrunningのままfail-closedとなる。自動再開・状態書換えによる救済はせず、残った証拠を調査する。
+
+契約・対象本文の未コミット状態を勝手に取り込まないため、このcommitは既存のローカル評価文書を依存として参照する。別checkoutへ移す際は、固定hashに一致する契約・本文が揃っている必要がある。
