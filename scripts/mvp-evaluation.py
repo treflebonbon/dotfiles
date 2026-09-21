@@ -77,7 +77,7 @@ def init(args):
 
 def clear(audit):
     return (audit['input']=='valid' and audit['scores']==[1]*6 and
-            audit['compliance']==['pass']*4 and not audit['issues'])
+            audit['compliance']==['pass']*4 and not audit['issues'] and not audit['failure_patterns'])
 
 def summary(state):
     decided = [a for a in state['attempts'] if a.get('audit')]
@@ -165,8 +165,11 @@ def verify_bundle(directory, attempt):
 def verify_history(run, state):
     for attempt in state['attempts']:
         directory = run/'attempts'/attempt['id']
+        if attempt.get('approval_sha256'):
+            require(sha(directory/'approval.json')==attempt['approval_sha256'],'approval changed')
         if attempt.get('audit'):
             require(read(directory/'audit.json')==attempt['audit'], 'previous audit changed')
+            require(all(sha(directory/ref['path'])==ref['sha256'] for ref in attempt['audit']['references']), 'audit reference changed')
         if attempt.get('evidence_sha256'):
             require(sha(directory/'evidence.json')==attempt['evidence_sha256'],'evidence changed')
             result = read(directory/'evidence.json')
@@ -225,12 +228,12 @@ def main():
     if args.action=='init':
         init(args)
         return
+    if args.action=='status':
+        print(json.dumps(read(args.run/'state.json'),ensure_ascii=False,indent=2))
+        return
     with (args.run/'lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         state, start = read(args.run/'state.json'), read(args.run/'start.json')
-        if args.action=='status':
-            print(json.dumps(state,ensure_ascii=False,indent=2))
-            return
         check_sources()
         require(sha(args.run/'start.json')==state['start_sha256'], 'start conditions changed')
         require(all(sha(Path(p))==h for p,h in start['implementation'].items()), 'implementation changed')
@@ -247,6 +250,7 @@ def main():
             record = read(args.record)
             require(record.get('bundle_sha256')==attempt['bundle_sha256'] and record.get('reason'),'approval must bind bundle and give reason')
             save(directory/'approval.json',record)
+            attempt['approval_sha256']=sha(directory/'approval.json')
             attempt['phase']='approved'
             update(args.run,state)
         elif args.action=='dispatch':

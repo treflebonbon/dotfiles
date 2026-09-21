@@ -99,12 +99,6 @@ execute_next() {
 @test "MVP functional failure is not replaceable and three nonclear groups stop without L" {
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   execute_next
-  # Parent grading changes only its audit record, never the worker artifact.
-  audit valid
-  # Use a fresh run to submit a failing functional grade before it is immutable.
-  RUN="$BATS_TEST_TMPDIR/failing-run"
-  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
-  execute_next
   python3 - "$RUN" "$BATS_TEST_TMPDIR/failing.json" <<'PY'
 import json,sys
 from pathlib import Path
@@ -152,12 +146,25 @@ PY
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   python3 "$CLI" prepare "$RUN"
   approve
+  run flock "$RUN/lock" python3 "$CLI" status "$RUN"
+  [ "$status" -eq 0 ]
   run flock "$RUN/lock" python3 "$CLI" dispatch "$RUN"
   [ "$status" -ne 0 ]
   printf '\nchanged\n' >> "$RUN/attempts/01/inputs/SKILL.md"
   run python3 "$CLI" dispatch "$RUN"
   [ "$status" -ne 0 ]
   [[ "$output" == *"input changed"* ]]
+  [ ! -f "$RUN/attempts/01/evidence.json" ]
+}
+
+@test "MVP approval records cannot be changed before dispatch" {
+  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
+  python3 "$CLI" prepare "$RUN"
+  approve
+  printf '\n' >> "$RUN/attempts/01/approval.json"
+  run python3 "$CLI" dispatch "$RUN"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"approval changed"* ]]
   [ ! -f "$RUN/attempts/01/evidence.json" ]
 }
 
