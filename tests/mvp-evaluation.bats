@@ -228,3 +228,23 @@ PY
   [ ! -d "$RUN/attempts/11" ]
   [ ! -f "$RUN/attempts/02/artifacts/model.mjs" ]
 }
+
+@test "MVP audited input bundles remain immutable before preparing another attempt" {
+  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
+  execute_next
+  audit unknown fixture-input-unconfirmed
+  for file in inputs/SKILL.md prompt.txt bundle.json; do
+    cp "$RUN/attempts/01/$file" "$BATS_TEST_TMPDIR/original"
+    printf '\n' >> "$RUN/attempts/01/$file"
+    run python3 "$CLI" prepare "$RUN" --replace
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"input changed"* || "$output" == *"bundle changed"* ]]
+    [ ! -d "$RUN/attempts/02" ]
+    cp "$BATS_TEST_TMPDIR/original" "$RUN/attempts/01/$file"
+  done
+}
+
+@test "MVP retains native tool calls and failures absent from compact exec events" {
+  run python3 "$ROOT/tests/mvp-evaluation-records.py"
+  [ "$status" -eq 0 ]
+}

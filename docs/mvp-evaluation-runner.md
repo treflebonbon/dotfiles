@@ -26,7 +26,7 @@
 
 入力不良の置換には `prepare --replace` を使う。同じ課題slotに新しい実行IDを割り当て、元実行の証拠を残す。監査レコードは上書きしない。Lの配布前には、親が履歴を確認した証拠を渡す。
 
-通常runと合成fixture runは初期化時に区別し、途中で切り替えない。fixture runはgatewayを起動せず、合成workerだけを隔離内で動かす。通常runは明示した `dispatch` だけがモデルを起動する。
+通常runと合成fixture runは初期化時に区別し、途中で切り替えない。fixture runはgatewayを起動せず、Codexのnative sandboxを経由して合成workerを隔離内で動かす。通常runは明示した `dispatch` だけがモデルを起動する。
 
 ## 操作
 
@@ -64,11 +64,11 @@ python3 scripts/mvp-evaluation.py dispatch /absolute/new-run
 
 dispatchは同期実行し、run単位のlockを終了まで保持する。stdout/stderrは逐次保存する。900秒でtimeoutし、証拠を残して監査待ちにする。再dispatchは禁止する。通常runだけが既存のChatGPT gatewayを起動し、空のHOMEで新規Codex `gpt-5.6-terra/high` を動かす。認証情報はgatewayから隔離側へ渡さない。
 
-永続成果物は `artifacts/memo.md`、E/S/Lのみ `artifacts/model.mjs`。親が用意した既存ファイルへ直接上書きする。ディレクトリへの追加・削除・renameは許可しないため、実行者はatomic renameを使う編集方式を避ける。内部のHOMEと/tmpは使い捨て領域で、返却対象ではない。実行コードとツールのNix依存closureも隔離内から読めるが、repo・過去成果物・checkerはmountしない。
+永続成果物は `artifacts/memo.md`、E/S/Lのみ `artifacts/model.mjs`。親が用意した既存ファイルへ直接上書きする。ディレクトリへの追加・削除・renameは許可しないため、実行者はatomic renameを使う編集方式を避ける。内部のHOMEと/tmpは使い捨て領域で、返却対象ではない。Codexの保護処理が参照する `.git`・`.codex`・`.agents` の空ディレクトリをreadonly側に事前作成し、内側sandboxがmount先を作成できず停止することを防ぐ。実行コードとツールのNix依存closureも隔離内から読めるが、repo・過去成果物・checkerはmountしない。
 
 ## 親の監査
 
-親は `stdout.jsonl` の実読取りと返却内容、実行者の報告、成果物を照合する。契約の独立検査も親側で行い、そのログを当該attemptの `parent-checks/` 以下へ保存する。生成コードを無条件にホストで実行せず、別の隔離境界で検査する。親の検査結果は実行者の実績へ加えない。
+親は `stdout.jsonl` の実読取りと返却内容、実行者の報告、成果物を照合する。通常のexecイベントに加え、子の終了後に使い捨てHOMEのnative sessionからtool call/resultを `runtime.tool_record` として同じstdoutへ出力する。各レコードはnative sessionの相対path・行番号・原レコードを持つ。system本文・推論記録は転記しない。`--ephemeral` は使わないが、セッション自体は隔離内だけに保存され終了時に失われる。強制終了や破損で必要なcall/resultが取れなければ親はunknownを維持する。契約の独立検査も親側で行い、そのログを当該attemptの `parent-checks/` 以下へ保存する。生成コードを無条件にホストで実行せず、別の隔離境界で検査する。親の検査結果は実行者の実績へ加えない。
 
 監査JSONの例（数値は例示であり、実採点ではない）:
 
@@ -97,7 +97,7 @@ python3 scripts/mvp-evaluation.py audit /absolute/new-run --record audit.json
 
 入力判定は `valid/invalid/unknown`、6項目は `0/0.5/1`、C1〜C4は `pass/fail/unknown`。clearでなければ再発照合用の `failure_patterns` を必須とする。同じ原因には同じ名称を使い、入力不良と機能・遵守失敗を区別する。CLIは意味判断を代行せず、証拠の存在・hash・値域と停止条件を検査する。unknown確定後の置換と、監査レコード自体が未提出の状態は異なる。
 
-監査・証拠・返却成果物は上書きしない。既存ログ・成果物の変更があれば次操作を拒否する。入力invalid/unknownのときだけ `prepare --replace` を使う。3組clear後のLには `prepare --unused-evidence unused.json` を使い、JSONに `{"unused":true,"reason":"履歴照合の参照と理由"}` を記す。
+監査・証拠・返却成果物は上書きしない。既存ログ・成果物に加え、全attemptのbundle・入力・promptの変更があれば次操作を拒否する。入力invalid/unknownのときだけ `prepare --replace` を使う。3組clear後のLには `prepare --unused-evidence unused.json` を使い、JSONに `{"unused":true,"reason":"履歴照合の参照と理由"}` を記す。
 
 入力validの監査には `parent_checks` を必須とする。E/S/Lは `self_check`、Eはさらに `fixed_checker` を含むJSONを用意する。各項目は `status`（executed/not-run）、`reason`、`artifact_sha256`（証拠のmodel.mjs hash）を持ち、executedなら `command`・`expected`・`exit_code`・`output` も保存する。固定checkerには `checker_sha256` を付け、契約の値と一致させる。未実行・失敗の検査ではclearを拒否する。Bは `proposal_review` に `status: "not-run"` と提案確認の `reason` を記し、未実行アプリ検査を成功と扱わない。これらの記録もhashで固定する。検査の意味的な十分性は親が判断する。
 
@@ -141,3 +141,29 @@ bats tests/mvp-evaluation.bats
 - P2: canonical metadataの取得不能をnullで記録していた。literal `N/A` とsource・reasonへ修正した。
 
 未解消指摘はStandards 0件、Spec 0件。レビュー比較の起点は `94e283a346eaf12edece45bb7a5ca94295340faa`。
+
+## Runtime障害の診断・修正（2026-09-21、b782437以後）
+
+`run-20260921-02` の失敗とレビューP1の2件を対象にした。本文・評価契約・既存評価run・prototypeは変更していない。本評価は再開せず、`tmp/debug-mvp-runtime/live` に実LLM実行者1回の診断記録を保存した。
+
+根因と修正:
+
+- 外側readonly artifactsと、内側Codex sandboxの保護用mount先作成が衝突していた。`python3 tmp/debug-mvp-runtime/repro.py` で `bwrap: Can't mkdir /artifacts/.codex: Read-only file system` を再現。空の `.git`・`.codex`・`.agents` をreadonly側へ事前作成した比較だけで、同じ読取り・更新コマンドが成功した。ディレクトリ全体へのwrite権限は追加していない。実LLMの `apply_patch` も成功し、別の編集方式障害という仮説は今回の更新経路では棄却した。
+- 通常の `codex exec --json` は一部のtool失敗を出さない。使い捨てHOMEのnative sessionからcall/resultを追加保存する。診断で `touch /artifacts/unlisted` の失敗がcompact側に欠け、native側のcall/result（session行50/52）には存在することを照合した。
+- 過去attemptの入力は `verify_history` の照合対象外だった。全attemptへ `verify_bundle` を適用し、本文・prompt・bundleの改変を次のprepareより前に拒否する。
+
+回帰検査は修正前の失敗を確認してから追加した。fixtureもCodex native sandboxを経由するようにし、モデル通信なしでmount衝突と指定ファイル更新を検査する。native tool記録の検査は `tests/mvp-evaluation-records.py` をBatsから実行する。
+
+| 確認 | 結果 |
+| --- | --- |
+| `bats tests/mvp-evaluation.bats` | 13/13成功。履歴検査は本文・prompt・bundleの各変更を拒否 |
+| 実LLM診断 | gpt-5.6-terra/high、新規1セッション。入力全文読取り、指定2成果物更新、self-check4ケース成功 |
+| 親の隔離再実行 | self-check4ケース成功、固定checker52/52成功 |
+| 入力と証拠 | native22レコード＝11call/result対を照合。入力valid、診断用Eの6項目とC1〜C4を親確認 |
+| 起動ゲート | 診断実行の未監査時prepareをexit1で拒否。監査後も後続dispatchは実施しない |
+| 書込み境界 | 実LLMの `touch /artifacts/unlisted` はreadonlyエラー。指定ファイルの既存更新は成功 |
+| 読取り境界 | fixtureは実在するhost側bundleの読取りを拒否。実LLMのcanaryは不存在pathのENOENTだけで、単独の隔離証明とは扱わない |
+
+診断の証拠: `tmp/debug-mvp-runtime/live/attempts/01/` の `evidence.json`、`stdout.jsonl`、`audit.json`、`parent-checks/`。model.mjs SHA-256は `9cf3dd6f66a9408717cd448f3ce7ba382093fbf5119c16e66eacc5bb181ad355`、stdout SHA-256は `d4ab946b7645f49a6e131e2e2f02289e42c54107db9954c9caa6b2a626f4c6b1`。native記録の件数は独自集計であり、canonical tool_uses/duration_msはN/Aを維持する。診断1回から評価の収束は主張しない。
+
+限界: native sessionの回収は子終了後であり、強制終了時の未回収区間はunknown。fixtureはCodex native sandboxを通すが、実モデルの全tool選択を網羅しない。診断用ファイルは明示したdebugディレクトリに保持し、既存prototypeを削除・編集しない。

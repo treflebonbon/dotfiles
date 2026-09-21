@@ -28,6 +28,10 @@ def execute(directory, start, bundle):
         args.extend(['--ro-bind',path,path])
     empty = directory/'empty'
     empty.mkdir()
+    # Codex masks these paths while constructing its nested workspace sandbox.
+    # Pre-create read-only mount points; the artifact directory stays read-only.
+    for name in ('.git', '.codex', '.agents'):
+        (empty/name).mkdir()
     for name in bundle['artifacts']:
         (empty/name).touch()
     args.extend(['--proc','/proc','--dev','/dev','--tmpfs','/tmp','--dir','/home/agent',
@@ -67,22 +71,42 @@ def execute(directory, start, bundle):
             gateway.shutdown()
             gateway.server_close()
 
+def fixture_worker():
+    config = json.load(sys.stdin)
+    # This mode never mounts a gateway or starts Codex.
+    assert Path('/inputs/SKILL.md').read_text()
+    for path,mode in ((config['forbidden'],'r'),('/inputs/SKILL.md','a'),('/artifacts/unlisted','w')):
+        try:
+            with open(path,mode):
+                pass
+        except OSError:
+            continue
+        raise RuntimeError('boundary violation: '+path)
+    for name in config['files']:
+        Path('/artifacts',name).write_text('export const fixture = true;\n' if name.endswith('.mjs') else 'fixture memo\n')
+    print(json.dumps({'type':'fixture','result':'FIXTURE_BOUNDARY_OK'}))
+
+def emit_tool_records(home):
+    # exec --json omits some tool setup errors; retain the native call/result pairs.
+    kinds = {'function_call', 'function_call_output', 'custom_tool_call', 'custom_tool_call_output'}
+    for path in sorted((home/'sessions').rglob('*.jsonl')):
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            record = json.loads(line)
+            if record.get('type')=='response_item' and record.get('payload', {}).get('type') in kinds:
+                print(json.dumps({'type':'runtime.tool_record', 'path':str(path.relative_to(home)),
+                                  'line':number, 'record':record}, ensure_ascii=False), flush=True)
+
 def inside():
     config = json.load(sys.stdin)
+    Path('/home/agent/.codex').mkdir(parents=True, exist_ok=True)
     if config['mode']=='fixture':
-        # This mode never mounts a gateway or starts Codex.
-        assert Path('/inputs/SKILL.md').read_text()
-        for path,mode in ((config['forbidden'],'r'),('/inputs/SKILL.md','a'),('/artifacts/unlisted','w')):
-            try:
-                with open(path,mode):
-                    pass
-            except OSError:
-                continue
-            raise RuntimeError('boundary violation: '+path)
-        for name in config['files']:
-            Path('/artifacts',name).write_text('export const fixture = true;\n' if name.endswith('.mjs') else 'fixture memo\n')
-        print(json.dumps({'type':'fixture','result':'FIXTURE_BOUNDARY_OK'}))
-        return
+        # Exercise Codex's real nested sandbox without contacting a model.
+        command = [config['paths']['codex'], 'sandbox', '-C', '/artifacts',
+                   '-P', 'evaluation-fixture', '-c',
+                   'permissions.evaluation-fixture.filesystem={"/"="read","/artifacts"={"."="write",".git"="read"}}',
+                   '--', config['paths']['python3'], '-I', '/runner.py', '--fixture-worker']
+        result = subprocess.run(command, input=json.dumps(config), text=True)
+        sys.exit(result.returncode)
     module = runpy.run_path('/gateway-bridge.py')
     threading.Thread(target=module['bridge'],args=('/gateway/service.sock',8123),daemon=True).start()
     for _ in range(100):
@@ -93,8 +117,7 @@ def inside():
             time.sleep(.01)
     else:
         raise RuntimeError('model bridge unavailable')
-    Path('/home/agent/.codex').mkdir(parents=True)
-    args = [config['paths']['codex'],'exec','--ignore-user-config','--ephemeral',
+    args = [config['paths']['codex'],'exec','--ignore-user-config',
             '--skip-git-repo-check','--sandbox','workspace-write','--json','-m','gpt-5.6-terra',
             '-C','/artifacts']
     for setting in ('approval_policy="never"','model_reasoning_effort="high"',
@@ -103,7 +126,11 @@ def inside():
                     'web_search="disabled"','features.shell_snapshot=false'):
         args.extend(['-c',setting])
     result = subprocess.run([*args,'-'],input=config['prompt']+'\n追加の実行指示:\n'+Path('/inputs/AGENTS.md').read_text(),text=True)
+    emit_tool_records(Path('/home/agent/.codex'))
     sys.exit(result.returncode)
 
-if __name__=='__main__' and sys.argv[1:]==['--inside']:
-    inside()
+if __name__=='__main__':
+    if sys.argv[1:]==['--inside']:
+        inside()
+    elif sys.argv[1:]==['--fixture-worker']:
+        fixture_worker()

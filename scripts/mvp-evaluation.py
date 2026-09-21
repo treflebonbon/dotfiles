@@ -165,6 +165,7 @@ def verify_bundle(directory, attempt):
 def verify_history(run, state):
     for attempt in state['attempts']:
         directory = run/'attempts'/attempt['id']
+        verify_bundle(directory, attempt)
         if attempt.get('approval_sha256'):
             require(sha(directory/'approval.json')==attempt['approval_sha256'],'approval changed')
         if attempt.get('audit'):
