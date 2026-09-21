@@ -2,13 +2,23 @@
 
 このスタックを採用済みのプロジェクト向けの実装例。[SKILL.md](../SKILL.md) の責務分担を具体化する。TanStack Query など既存の選択を尊重し、Atom への移行を前提にしない。
 
+## Effect / Atom を基盤にする場合
+
+業務の型と規則は React・Atom から独立させ、ユースケースを Effect として合成する。必要な外部依存を Service として要求し、Adapter の実装を Layer で供給する。UI 接続は外側に置く。Service は必要な依存境界に使い、各関数に形式的な Port を追加しない。[公式: Layers](https://effect.website/docs/v4/requirements-management/layers)
+
+静的な依存方向は `ユースケース → Port` と `Adapter → Port` とし、具体 Adapter の選択は組立箇所で行う。実行時のユースケースから Adapter への呼出経路とは区別する。
+
+`@effect/atom-react` は Atom の読み取り・更新を React に接続する。Atom の状態・依存・実行の管理には既存 Registry を使い、共有範囲と寿命を合わせる。Mediator の方針は純粋な関数や Atom の更新処理に置ける。追加の状態機械が必要かは、通常の実行状態では表せない操作間の制約があるかで決める。[公式: React binding](https://github.com/Effect-TS/effect/blob/main/packages/atom/react/README.md)、[公式: Atom](https://github.com/Effect-TS/effect/blob/main/packages/effect/src/unstable/reactivity/Atom.ts)
+
+例えば既存 binding が二重送信と古い応答を処理済みなら、表示はそこから導出するだけでよい。新たな Mediator class、別の `isSubmitting`、操作 ID を追加しない。複数フローの排他や解放待ちが追加された場合に、その不足する裁定を担当する関数・状態を設ける。
+
 Effect の実装前に、導入版の `node_modules/effect/AGENTS.md` があれば全文と必要な参照先を読む。API・import path・Atom の並行実行や購読の挙動は導入版のソースと公式ドキュメントで確認する。以下は特定バージョンの API を固定しない構成例である。
 
 ## Root と UI 接続
 
 TanStack Router の Root Route は全体の組立箇所にできる。Effect の依存関係は既存の Service／Layer 構成で供給し、Atom を採用している場合は Registry の配置と寿命を必要な共有範囲に合わせる。ルートをまたいで保持する状態と、フロー終了時に解放するリソースを区別する。
 
-View は props または Context から表示状態とイベント送信口を受け取る。複数の購読箇所や compound components を許す。購読が取得を起動する仕組みなら、その起動と寿命も設計済みの方針に含める。イベント送信は共有した裁定処理へ接続し、View ごとに業務規則や排他判断を置かない。
+View は props または Context から表示状態とイベント送信口を受け取る。このスキルの緩和した Passive View では複数箇所で Atom 等を購読できる。厳密な Passive View が必要なら購読を接続部分へ置き、表示部分を props とイベントに限定する。いずれも connector を一つに集約する規則ではない。購読が取得を起動する仕組みなら、その起動と寿命も設計済みの方針に含める。イベント送信は共有した裁定処理へ接続し、View ごとに業務規則や排他判断を置かない。
 
 ## 例1: 注文一覧からのキャンセル
 
