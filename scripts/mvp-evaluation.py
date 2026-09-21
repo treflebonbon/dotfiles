@@ -71,7 +71,7 @@ def init(args):
          'implementation':{str(p):sha(p) for p in (Path(__file__),RUNTIME,ROOT/'private_dot_local/share/codex-isolation/secret-isolation-gateway.py')},
          'conditions':conditions, 'model':'gpt-5.6-terra','effort':'high', 'fork':False,
          'mode':'fixture' if args.fixture else 'live',
-         'canonical_metadata':{'tool_uses':None,'duration_ms':None,'reason':'Codex JSONL does not establish canonical counters'},
+         'canonical_metadata':{'tool_uses':'N/A','duration_ms':'N/A','source':'codex exec --json', 'reason':'Codex JSONL does not establish canonical counters'},
          'scenario_s_change':'remove held-out heading marker and timing sentence only'})
     update(args.run, {'attempts':[], 'stop':None, 'start_sha256':sha(args.run/'start.json')})
 
@@ -195,6 +195,27 @@ def audit(args, state, attempt, directory):
         path = (directory/ref['path']).resolve()
         require(path.is_relative_to(directory.resolve()) and ref.get('locator'),'local evidence locator required')
         ref['sha256']=sha(path)
+    if record['input']=='valid':
+        parent_path = (directory/record.get('parent_checks','')).resolve()
+        require(parent_path.is_relative_to((directory/'parent-checks').resolve()), 'parent-checks record required')
+        checks = read(parent_path)
+        required = ['proposal_review'] if attempt['task']=='B' else ['self_check']
+        if attempt['task']=='E':
+            required.append('fixed_checker')
+        for name in required:
+            check = checks.get(name,{})
+            require(check.get('reason'), f'parent {name} record required')
+            if name=='proposal_review':
+                require(check.get('status')=='not-run','B records proposal review, not application execution')
+                continue
+            require(check.get('artifact_sha256')==result['artifacts']['model.mjs'], 'parent check artifact mismatch')
+            require(check.get('status') in ('executed','not-run'), 'parent check status required')
+            if check['status']=='executed':
+                require(check.get('command') and check.get('expected') and type(check.get('exit_code')) is int and isinstance(check.get('output'),str), 'parent command, expected result, exit and output required')
+            if name=='fixed_checker':
+                require(check.get('checker_sha256')==SOURCES['docs/evaluations/mvp-mediator-executable/check-device.mjs'],'frozen checker mismatch')
+            require(not clear(record) or (check['status']=='executed' and check['exit_code']==0), 'unexecuted/failed parent checks cannot clear')
+        record['references'].append({'path':str(parent_path.relative_to(directory.resolve())), 'locator':'required parent checks','sha256':sha(parent_path)})
     require(clear(record) or record['failure_patterns'],'non-clear audit needs classified failure patterns')
     require(not clear(record) or result.get('exit_code')==0,'failed runtime cannot be clear')
     record['six_item_rate']=sum(scores)/6

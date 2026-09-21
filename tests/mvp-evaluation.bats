@@ -17,7 +17,19 @@ PY
   python3 "$CLI" approve "$RUN" --record "$BATS_TEST_TMPDIR/approval.json"
 }
 
+parent_checks() {
+  python3 - "$RUN" <<'PY'
+import json,sys
+from pathlib import Path
+r=Path(sys.argv[1]);a=json.loads((r/'state.json').read_text())['attempts'][-1];d=r/'attempts'/a['id'];e=json.loads((d/'evidence.json').read_text())
+p=d/'parent-checks';p.mkdir(exist_ok=True)
+c={'status':'executed','reason':'synthetic parent check fixture','command':'synthetic checker','expected':'synthetic success','exit_code':0,'output':'synthetic expected result','artifact_sha256':e['artifacts'].get('model.mjs')}
+(p/'checks.json').write_text(json.dumps({'self_check':c,'fixed_checker':dict(c,checker_sha256='72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1'),'proposal_review':{'status':'not-run','reason':'display-only proposal fixture'}}))
+PY
+}
+
 audit() {
+  parent_checks
   python3 - "$RUN" "$BATS_TEST_TMPDIR/audit.json" "$1" "${2:-}" <<'PY'
 import json,sys
 from pathlib import Path
@@ -25,7 +37,7 @@ r=Path(sys.argv[1]);s=json.loads((r/'state.json').read_text());a=s['attempts'][-
 Path(sys.argv[2]).write_text(json.dumps({'evidence_sha256':a['evidence_sha256'],'input':sys.argv[3],
 'scores':[1]*6,'compliance':['pass']*4,'issues':[], 'reason':'fixture evidence inspected',
 'failure_patterns':[sys.argv[4]] if sys.argv[4] else [],
-'references':[{'path':'stdout.jsonl','locator':'fixture boundary event'}]}))
+'references':[{'path':'stdout.jsonl','locator':'fixture boundary event'}], 'parent_checks':'parent-checks/checks.json'}))
 PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/audit.json"
 }
@@ -99,6 +111,7 @@ execute_next() {
 @test "MVP functional failure is not replaceable and three nonclear groups stop without L" {
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   execute_next
+  parent_checks
   python3 - "$RUN" "$BATS_TEST_TMPDIR/failing.json" <<'PY'
 import json,sys
 from pathlib import Path
@@ -106,7 +119,7 @@ s=json.loads((Path(sys.argv[1])/'state.json').read_text())
 Path(sys.argv[2]).write_text(json.dumps({'evidence_sha256':s['attempts'][-1]['evidence_sha256'],
 'input':'valid','scores':[1,1,1,1,1,.5],'compliance':['pass']*4,'issues':[],
 'failure_patterns':['verification overclaim'],'reason':'fixture functional failure',
-'references':[{'path':'stdout.jsonl','locator':'fixture'}]}))
+'references':[{'path':'stdout.jsonl','locator':'fixture'}], 'parent_checks':'parent-checks/checks.json'}))
 PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/failing.json"
   run python3 "$CLI" prepare "$RUN" --replace
@@ -166,6 +179,24 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *"approval changed"* ]]
   [ ! -f "$RUN/attempts/01/evidence.json" ]
+}
+
+@test "MVP clear audit requires frozen parent checker evidence and preserves canonical N/A" {
+  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
+  execute_next
+  python3 - "$RUN" "$BATS_TEST_TMPDIR/missing.json" <<'PY'
+import json,sys
+from pathlib import Path
+r=Path(sys.argv[1]);a=json.loads((r/'state.json').read_text())['attempts'][-1]
+e=json.loads((r/'attempts'/a['id']/'evidence.json').read_text())
+assert e['canonical_metadata']['tool_uses']=='N/A'
+assert e['canonical_metadata']['duration_ms']=='N/A'
+Path(sys.argv[2]).write_text(json.dumps({'evidence_sha256':a['evidence_sha256'],'input':'valid','scores':[1]*6,'compliance':['pass']*4,'issues':[],'failure_patterns':[],'reason':'missing checks','references':[{'path':'stdout.jsonl','locator':'fixture'}]}))
+PY
+  run python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/missing.json"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"parent-checks record required"* ]]
+  audit valid
 }
 
 @test "MVP input and execution evidence mutations cannot receive approval or audit" {

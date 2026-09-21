@@ -81,6 +81,7 @@ dispatchは同期実行し、run単位のlockを終了まで保持する。stdou
   "issues": [],
   "failure_patterns": [],
   "reason": "各基準とC1〜C4の根拠、および自己報告との差を参照記録に記載",
+  "parent_checks": "parent-checks/checks.json",
   "references": [
     { "path": "stdout.jsonl", "locator": "入力読取りと実行結果のevent ID" },
     { "path": "parent-checks/review.md", "locator": "採点根拠と親検査の節" }
@@ -97,6 +98,8 @@ python3 scripts/mvp-evaluation.py audit /absolute/new-run --record audit.json
 入力判定は `valid/invalid/unknown`、6項目は `0/0.5/1`、C1〜C4は `pass/fail/unknown`。clearでなければ再発照合用の `failure_patterns` を必須とする。同じ原因には同じ名称を使い、入力不良と機能・遵守失敗を区別する。CLIは意味判断を代行せず、証拠の存在・hash・値域と停止条件を検査する。unknown確定後の置換と、監査レコード自体が未提出の状態は異なる。
 
 監査・証拠・返却成果物は上書きしない。既存ログ・成果物の変更があれば次操作を拒否する。入力invalid/unknownのときだけ `prepare --replace` を使う。3組clear後のLには `prepare --unused-evidence unused.json` を使い、JSONに `{"unused":true,"reason":"履歴照合の参照と理由"}` を記す。
+
+入力validの監査には `parent_checks` を必須とする。E/S/Lは `self_check`、Eはさらに `fixed_checker` を含むJSONを用意する。各項目は `status`（executed/not-run）、`reason`、`artifact_sha256`（証拠のmodel.mjs hash）を持ち、executedなら `command`・`expected`・`exit_code`・`output` も保存する。固定checkerには `checker_sha256` を付け、契約の値と一致させる。未実行・失敗の検査ではclearを拒否する。Bは `proposal_review` に `status: "not-run"` と提案確認の `reason` を記し、未実行アプリ検査を成功と扱わない。これらの記録もhashで固定する。検査の意味的な十分性は親が判断する。
 
 失敗再発・置換上限・3組終了・L終了後は `status` の `stop` に理由を残す。4組目や上限を超えた追加試行は作らない。モデル内部の複数HTTP応答は1セッションに含め、dispatch数とは分ける。起動失敗も予約したattemptを消費する。
 
