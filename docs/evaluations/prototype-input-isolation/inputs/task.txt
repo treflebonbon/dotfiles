@@ -1,0 +1,4 @@
+PROTOTYPE: 入力可視範囲の実証。MVPスキルの採点は行わない。
+指定入力は SKILL.md、references/tanstack-effect.md、このtask.txtのみ。
+workerは指定入力のhashを確認し、親が渡す禁止pathへの読取りを試す。
+禁止pathの内容を返さず、可否とerrnoだけを記録する。

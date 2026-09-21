@@ -1,0 +1,655 @@
+{
+  "cases": [
+    {
+      "after": 0,
+      "before": 0,
+      "label": "audit unknown: no process",
+      "passed": true,
+      "state": {
+        "phase": "idle",
+        "audit": "unknown",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": null,
+        "started": 0,
+        "reason": "監査未確定のため起動拒否"
+      }
+    },
+    {
+      "after": 0,
+      "before": 0,
+      "label": "audit invalid: no process",
+      "passed": true,
+      "state": {
+        "phase": "halted",
+        "audit": "invalid",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "started": 0,
+        "reason": "無効な試行は停止済み"
+      }
+    },
+    {
+      "after": 0,
+      "before": 0,
+      "label": "invalid remains halted",
+      "passed": true,
+      "state": {
+        "phase": "halted",
+        "audit": "invalid",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "started": 0,
+        "reason": "無効な試行は停止済み"
+      }
+    },
+    {
+      "after": 0,
+      "before": 0,
+      "label": "stale audit: no process",
+      "passed": true,
+      "state": {
+        "phase": "idle",
+        "audit": "valid",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": "stale-digest",
+        "started": 0,
+        "reason": "入力と監査が一致しないため起動拒否"
+      }
+    },
+    {
+      "after": 1,
+      "before": 0,
+      "label": "valid audit: actual process starts",
+      "passed": true,
+      "state": {
+        "phase": "running",
+        "audit": "unknown",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": null,
+        "started": 1,
+        "reason": "起動を許可・監査を消費"
+      }
+    },
+    {
+      "after": 1,
+      "before": 1,
+      "label": "running: no overlapping process",
+      "passed": true,
+      "state": {
+        "phase": "running",
+        "audit": "valid",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "started": 1,
+        "reason": "実行中のため起動拒否"
+      }
+    },
+    {
+      "after": 1,
+      "before": 1,
+      "label": "finished but audit pending: no next process",
+      "passed": true,
+      "state": {
+        "phase": "idle",
+        "audit": "unknown",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": null,
+        "started": 1,
+        "reason": "監査未確定のため起動拒否"
+      }
+    },
+    {
+      "after": 2,
+      "before": 1,
+      "label": "new valid audit: second actual process starts",
+      "passed": true,
+      "state": {
+        "phase": "running",
+        "audit": "unknown",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": null,
+        "started": 2,
+        "reason": "起動を許可・監査を消費"
+      }
+    },
+    {
+      "after": 2,
+      "before": 2,
+      "label": "invalid after completion: no next process",
+      "passed": true,
+      "state": {
+        "phase": "halted",
+        "audit": "invalid",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "started": 2,
+        "reason": "無効な試行は停止済み"
+      }
+    },
+    {
+      "after": 2,
+      "before": 2,
+      "label": "extra input after audit: no process",
+      "passed": true,
+      "state": {
+        "phase": "halted",
+        "audit": "invalid",
+        "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+        "auditedDigest": null,
+        "started": 0,
+        "reason": "無効な試行は停止済み"
+      }
+    }
+  ],
+  "digest": "a00905235c5832752fb10ef524cbf7d9fc6853418463e7e58b1e9eb428415ba7",
+  "expected": {
+    "SKILL.md": "b41003050263f896d24ffb101c4b61b4f94ff93a7f1fcbad98779945574d2c24",
+    "references/tanstack-effect.md": "110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca",
+    "task.txt": "840b42b8b4f162b0407d140b84d253967acb2d32c1aaf424952df3b43fa0c9f7"
+  },
+  "gate_sha256": "f4d7c7a0c6b0a3ddfdb97e4dfe418cdee4311d573ba349988d0500848cfa9a7a",
+  "launches": [
+    {
+      "command": [
+        "/nix/store/v24sx9l1jmvvia3z8iznrd7jwhvc8kcf-bubblewrap-0.11.2/bin/bwrap",
+        "--unshare-all",
+        "--die-with-parent",
+        "--new-session",
+        "--clearenv",
+        "--ro-bind",
+        "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+        "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+        "--ro-bind",
+        "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+        "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+        "--ro-bind",
+        "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+        "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+        "--ro-bind",
+        "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+        "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+        "--ro-bind",
+        "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+        "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+        "--ro-bind",
+        "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+        "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+        "--ro-bind",
+        "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+        "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+        "--ro-bind",
+        "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+        "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+        "--ro-bind",
+        "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+        "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+        "--ro-bind",
+        "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+        "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+        "--ro-bind",
+        "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+        "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+        "--ro-bind",
+        "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+        "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+        "--ro-bind",
+        "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+        "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+        "--ro-bind",
+        "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+        "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+        "--ro-bind",
+        "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+        "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+        "--ro-bind",
+        "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+        "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+        "--ro-bind",
+        "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+        "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+        "--ro-bind",
+        "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+        "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+        "--ro-bind",
+        "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+        "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+        "--ro-bind",
+        "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+        "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+        "--ro-bind",
+        "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+        "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+        "--ro-bind",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--dir",
+        "/work",
+        "--chdir",
+        "/work",
+        "--ro-bind",
+        "/tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-input-prototype-o6rWN2/inputs",
+        "/inputs",
+        "--ro-bind",
+        "/home/ubuntu/.codex/worktrees/90ae/dotfiles/docs/evaluations/prototype-input-isolation/worker.py",
+        "/worker.py",
+        "--",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15/bin/python3.13",
+        "-I",
+        "-S",
+        "/worker.py"
+      ],
+      "exit": 0,
+      "kind": "boundary-preflight",
+      "output": {
+        "hashes": {
+          "task.txt": "840b42b8b4f162b0407d140b84d253967acb2d32c1aaf424952df3b43fa0c9f7",
+          "SKILL.md": "b41003050263f896d24ffb101c4b61b4f94ff93a7f1fcbad98779945574d2c24",
+          "references/tanstack-effect.md": "110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca"
+        },
+        "forbidden_reads": {
+          "canary": {
+            "readable": false,
+            "errno": 2
+          },
+          "git": {
+            "readable": false,
+            "errno": 2
+          },
+          "previous_result": {
+            "readable": false,
+            "errno": 2
+          },
+          "source": {
+            "readable": false,
+            "errno": 2
+          },
+          "symlink": {
+            "readable": false,
+            "errno": 2
+          },
+          "proc_root": {
+            "readable": false,
+            "errno": 2
+          },
+          "traversal": {
+            "readable": false,
+            "errno": 2
+          }
+        },
+        "input_write_errno": 30,
+        "environment_sentinel_visible": false,
+        "network_namespace": "net:[4026532523]",
+        "root_entries": [
+          "dev",
+          "inputs",
+          "nix",
+          "proc",
+          "tmp",
+          "work",
+          "worker.py"
+        ],
+        "cwd": "/work",
+        "ok": true
+      },
+      "signal": null,
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/nix/store/v24sx9l1jmvvia3z8iznrd7jwhvc8kcf-bubblewrap-0.11.2/bin/bwrap",
+        "--unshare-all",
+        "--die-with-parent",
+        "--new-session",
+        "--clearenv",
+        "--ro-bind",
+        "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+        "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+        "--ro-bind",
+        "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+        "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+        "--ro-bind",
+        "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+        "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+        "--ro-bind",
+        "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+        "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+        "--ro-bind",
+        "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+        "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+        "--ro-bind",
+        "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+        "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+        "--ro-bind",
+        "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+        "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+        "--ro-bind",
+        "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+        "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+        "--ro-bind",
+        "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+        "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+        "--ro-bind",
+        "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+        "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+        "--ro-bind",
+        "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+        "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+        "--ro-bind",
+        "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+        "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+        "--ro-bind",
+        "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+        "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+        "--ro-bind",
+        "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+        "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+        "--ro-bind",
+        "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+        "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+        "--ro-bind",
+        "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+        "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+        "--ro-bind",
+        "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+        "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+        "--ro-bind",
+        "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+        "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+        "--ro-bind",
+        "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+        "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+        "--ro-bind",
+        "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+        "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+        "--ro-bind",
+        "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+        "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+        "--ro-bind",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--dir",
+        "/work",
+        "--chdir",
+        "/work",
+        "--ro-bind",
+        "/tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-input-prototype-o6rWN2/inputs",
+        "/inputs",
+        "--ro-bind",
+        "/home/ubuntu/.codex/worktrees/90ae/dotfiles/docs/evaluations/prototype-input-isolation/worker.py",
+        "/worker.py",
+        "--",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15/bin/python3.13",
+        "-I",
+        "-S",
+        "/worker.py"
+      ],
+      "exit": 0,
+      "kind": "gated-worker",
+      "output": {
+        "hashes": {
+          "task.txt": "840b42b8b4f162b0407d140b84d253967acb2d32c1aaf424952df3b43fa0c9f7",
+          "SKILL.md": "b41003050263f896d24ffb101c4b61b4f94ff93a7f1fcbad98779945574d2c24",
+          "references/tanstack-effect.md": "110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca"
+        },
+        "forbidden_reads": {
+          "canary": {
+            "readable": false,
+            "errno": 2
+          },
+          "git": {
+            "readable": false,
+            "errno": 2
+          },
+          "previous_result": {
+            "readable": false,
+            "errno": 2
+          },
+          "source": {
+            "readable": false,
+            "errno": 2
+          },
+          "symlink": {
+            "readable": false,
+            "errno": 2
+          },
+          "proc_root": {
+            "readable": false,
+            "errno": 2
+          },
+          "traversal": {
+            "readable": false,
+            "errno": 2
+          }
+        },
+        "input_write_errno": 30,
+        "environment_sentinel_visible": false,
+        "network_namespace": "net:[4026532586]",
+        "root_entries": [
+          "dev",
+          "inputs",
+          "nix",
+          "proc",
+          "tmp",
+          "work",
+          "worker.py"
+        ],
+        "cwd": "/work",
+        "ok": true
+      },
+      "signal": null,
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/nix/store/v24sx9l1jmvvia3z8iznrd7jwhvc8kcf-bubblewrap-0.11.2/bin/bwrap",
+        "--unshare-all",
+        "--die-with-parent",
+        "--new-session",
+        "--clearenv",
+        "--ro-bind",
+        "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+        "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+        "--ro-bind",
+        "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+        "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+        "--ro-bind",
+        "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+        "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+        "--ro-bind",
+        "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+        "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+        "--ro-bind",
+        "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+        "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+        "--ro-bind",
+        "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+        "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+        "--ro-bind",
+        "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+        "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+        "--ro-bind",
+        "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+        "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+        "--ro-bind",
+        "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+        "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+        "--ro-bind",
+        "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+        "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+        "--ro-bind",
+        "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+        "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+        "--ro-bind",
+        "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+        "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+        "--ro-bind",
+        "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+        "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+        "--ro-bind",
+        "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+        "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+        "--ro-bind",
+        "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+        "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+        "--ro-bind",
+        "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+        "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+        "--ro-bind",
+        "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+        "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+        "--ro-bind",
+        "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+        "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+        "--ro-bind",
+        "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+        "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+        "--ro-bind",
+        "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+        "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+        "--ro-bind",
+        "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+        "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+        "--ro-bind",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--dir",
+        "/work",
+        "--chdir",
+        "/work",
+        "--ro-bind",
+        "/tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-input-prototype-o6rWN2/inputs",
+        "/inputs",
+        "--ro-bind",
+        "/home/ubuntu/.codex/worktrees/90ae/dotfiles/docs/evaluations/prototype-input-isolation/worker.py",
+        "/worker.py",
+        "--",
+        "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15/bin/python3.13",
+        "-I",
+        "-S",
+        "/worker.py"
+      ],
+      "exit": 0,
+      "kind": "gated-worker",
+      "output": {
+        "hashes": {
+          "task.txt": "840b42b8b4f162b0407d140b84d253967acb2d32c1aaf424952df3b43fa0c9f7",
+          "SKILL.md": "b41003050263f896d24ffb101c4b61b4f94ff93a7f1fcbad98779945574d2c24",
+          "references/tanstack-effect.md": "110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca"
+        },
+        "forbidden_reads": {
+          "canary": {
+            "readable": false,
+            "errno": 2
+          },
+          "git": {
+            "readable": false,
+            "errno": 2
+          },
+          "previous_result": {
+            "readable": false,
+            "errno": 2
+          },
+          "source": {
+            "readable": false,
+            "errno": 2
+          },
+          "symlink": {
+            "readable": false,
+            "errno": 2
+          },
+          "proc_root": {
+            "readable": false,
+            "errno": 2
+          },
+          "traversal": {
+            "readable": false,
+            "errno": 2
+          }
+        },
+        "input_write_errno": 30,
+        "environment_sentinel_visible": false,
+        "network_namespace": "net:[4026532526]",
+        "root_entries": [
+          "dev",
+          "inputs",
+          "nix",
+          "proc",
+          "tmp",
+          "work",
+          "worker.py"
+        ],
+        "cwd": "/work",
+        "ok": true
+      },
+      "signal": null,
+      "stderr": ""
+    }
+  ],
+  "scratch": "/tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-input-prototype-o6rWN2",
+  "timestamp": "2026-09-21T09:34:47.230Z",
+  "runtime": {
+    "bwrap": "/nix/store/v24sx9l1jmvvia3z8iznrd7jwhvc8kcf-bubblewrap-0.11.2/bin/bwrap",
+    "closure": [
+      "/nix/store/rdw0n35z6xhipyiq6sc8qv0mg7vrldaj-xgcc-15.2.0-libgcc",
+      "/nix/store/fp6wnyklwzdncp0nvhdy9d5fnir0mjq5-libunistring-1.4.2",
+      "/nix/store/xidgjdv05b8yz6w6qrhk4mmjxm4l2zjf-libidn2-2.3.8",
+      "/nix/store/rkiwrqh8g6gs5rws4bf1s3mrdcs15gm9-glibc-2.42-84",
+      "/nix/store/iyzdbzddvnpgvax38yf8x12aaiydq54d-ncurses-6.6",
+      "/nix/store/2c5pv97v3mzjcdy6vwvx0ssnl388n8dh-readline-8.3p3",
+      "/nix/store/yf2c1gngi2dqvgni1rgvnixxc0d8di02-gcc-15.2.0-libgcc",
+      "/nix/store/3b7njvjfc2w5lhj1jklrsw4lq7nwypri-gcc-15.2.0-lib",
+      "/nix/store/4h1an4wxr2hgvlz4xs253a1xzygzrrfx-mailcap-2.1.54",
+      "/nix/store/axl12yr00f105bjqvj628f5f0s6r0cnp-bash-5.3p9",
+      "/nix/store/dhd6pn549sfkyqdbv55s1xb9a0jva8w9-util-linux-minimal-2.42.2-lib",
+      "/nix/store/h5fj8jq0n0aal756qac3b24lc1zjnqjw-bzip2-1.0.8",
+      "/nix/store/jq1i9l9wb2783bcg1k1jsjip5q10qi7f-mpdecimal-4.0.1",
+      "/nix/store/p26kxyf1s61k1fbfiv1r7fk36mkaj4jp-openssl-3.6.3",
+      "/nix/store/yq335q9gkpbpm9z7vzfcfngydldpj6q4-zlib-1.3.2",
+      "/nix/store/pzjyfhk4dgmm5wgma0y1m272ly2vb9gw-sqlite-3.51.2",
+      "/nix/store/qzymnjpi1lzx6si3h6kxp914l8lz3qgz-gdbm-1.26-lib",
+      "/nix/store/whnzhhywhswb2ch34rdsppwir53817zb-tzdata-2026c",
+      "/nix/store/ws9r38pminy9z70n2dvpz4p4v7vfy90v-libffi-3.8.0",
+      "/nix/store/x99x6r4wr8bm9s4k2363xrl8n3palbv2-expat-2.8.3",
+      "/nix/store/yyl2a2i8fpnip00fqpw613znhxpqn3vy-xz-5.8.3",
+      "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15"
+    ],
+    "python": "/nix/store/h3l4z7p6wny3phbckwwhy1i2g52pdnj4-python3-3.13.15/bin/python3.13"
+  },
+  "host_canary_sha256": "b9b703478421c62a1b5b6276f3eeff7b822ec9980e44b0be5ced4ba3792c4f22",
+  "worker_sha256": "20efa2a4f9c855a405c7c4ee4ce0d92fa92da0efb18b3ecfc44996f16783d2ce",
+  "probe_config": {
+    "expected": {
+      "SKILL.md": "b41003050263f896d24ffb101c4b61b4f94ff93a7f1fcbad98779945574d2c24",
+      "references/tanstack-effect.md": "110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca",
+      "task.txt": "840b42b8b4f162b0407d140b84d253967acb2d32c1aaf424952df3b43fa0c9f7"
+    },
+    "forbidden": {
+      "canary": "/tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-input-prototype-o6rWN2/host-canary.txt",
+      "git": "/home/ubuntu/ghq/github.com/treflebonbon/dotfiles/.git/HEAD",
+      "previous_result": "/home/ubuntu/.codex/worktrees/90ae/dotfiles/docs/evaluations/mvp-mediator-evaluation-v2/run-20260921-01/results.md",
+      "source": "/home/ubuntu/.codex/worktrees/90ae/dotfiles/local-skills/mvp-mediator-architecture/SKILL.md"
+    },
+    "host_network_namespace": "net:[4026531833]"
+  },
+  "ok": true,
+  "actual_dispatches": 2,
+  "scope": "Dedicated deterministic bwrap workers only; native collaboration and live LLM evaluation are not isolated by this entrypoint."
+}

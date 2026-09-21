@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — 評価の入力監査と起動ゲート</title>
+<style>
+body{font:16px/1.7 system-ui,sans-serif;max-width:850px;margin:32px auto;padding:0 20px;color:#182b35;background:#f7f9fa}button{font:inherit;padding:8px 12px;margin:4px;border:1px solid #647985;border-radius:5px;background:white;color:inherit;cursor:pointer}button:focus-visible{outline:3px solid #075fbe;outline-offset:3px}button[aria-selected=true]{background:#164f75;color:white}section{margin-block:24px}dl{display:grid;grid-template-columns:1fr 2fr;padding:20px;background:white;border:1px solid #c5d1d8}dt,dd{margin:0;padding:4px;overflow-wrap:anywhere}small{color:#3e525e}#reason{font-weight:bold}button:disabled{opacity:.6;cursor:default}
+</style>
+<main>
+<h1>PROTOTYPE：監査が終わるまで次を起動しない</h1>
+<p>指定入力だけを渡し、入力監査が未確定・無効なら、次の評価実行を止められるか。ここでは起動入口の状態を操作します。ボタンは実際のエージェントを起動しません。OSでの実証は隣の evidence.json を参照してください。</p>
+<section aria-labelledby="state-title"><h2 id="state-title">現在の状態</h2><dl id="state"></dl><p id="reason" role="status"></p></section>
+<section aria-labelledby="free-title"><h2 id="free-title">自由に操作</h2><div id="free"></div></section>
+<section aria-labelledby="guide-title"><h2 id="guide-title">順番に試す</h2><div id="tabs" role="tablist" aria-label="確認する場面"></div><div id="scenario" role="tabpanel" tabindex="0"><p id="description"></p><div id="steps"></div></div></section>
+<p><small>無効判定はその試行を停止します。再開には新しい試行が必要です。実行完了後も監査は未確定に戻ります。入力が変わると以前の監査は使えません。</small></p>
+</main>
+<script id="gate">
+const Gate = {
+  initial: () => ({phase: 'idle', audit: 'unknown', digest: 'input-1', auditedDigest: null, started: 0, reason: '監査待ち'}),
+  step(state, action) {
+    const s = {...state};
+    if (action.type === 'reset') return this.initial();
+    if (s.phase === 'halted') return {...s, reason: '無効な試行は停止済み'};
+    switch (action.type) {
+      case 'input': s.digest = action.digest; s.reason = '入力を変更'; break;
+      case 'audit':
+        s.audit = action.status; s.auditedDigest = action.digest;
+        if (action.status === 'invalid') s.phase = 'halted';
+        s.reason = '監査結果: ' + action.status; break;
+      case 'dispatch':
+        if (s.phase === 'running') s.reason = '実行中のため起動拒否';
+        else if (s.audit !== 'valid') s.reason = '監査未確定のため起動拒否';
+        else if (s.digest !== s.auditedDigest) s.reason = '入力と監査が一致しないため起動拒否';
+        else { s.phase = 'running'; s.started++; s.audit = 'unknown'; s.auditedDigest = null; s.reason = '起動を許可・監査を消費'; }
+        break;
+      case 'finish':
+        if (s.phase === 'running') { s.phase = 'idle'; s.audit = 'unknown'; s.auditedDigest = null; s.reason = '実行完了・次の監査待ち'; }
+        break;
+    }
+    return s;
+  }
+};
+</script>
+<script>
+let state = Gate.initial();
+const actions = {
+  valid: ['監査を有効にする', () => ({type:'audit',status:'valid',digest:state.digest})],
+  unknown: ['監査を未確定にする', () => ({type:'audit',status:'unknown',digest:state.digest})],
+  invalid: ['監査を無効にする', () => ({type:'audit',status:'invalid',digest:state.digest})],
+  input: ['入力を変更する', () => ({type:'input',digest:state.digest+'*'})],
+  dispatch: ['次の評価を起動', () => ({type:'dispatch'})],
+  finish: ['実行完了', () => ({type:'finish'})],
+  reset: ['新しい試行', () => ({type:'reset'})]
+};
+function render() {
+  const labels = {phase:'実行状態',audit:'入力監査',digest:'現在の入力',auditedDigest:'監査した入力',started:'起動した数'};
+  document.querySelector('#state').replaceChildren(...Object.entries(labels).flatMap(([key,label]) => {
+    const dt=document.createElement('dt'),dd=document.createElement('dd'); dt.textContent=label;dd.textContent=state[key]??'なし';return [dt,dd];
+  }));
+  document.querySelector('#reason').textContent=state.reason;
+}
+function perform(key) {state=Gate.step(state,actions[key][1]());render();}
+function button(key,handler) {const b=document.createElement('button');b.textContent=actions[key][0];b.onclick=handler;return b;}
+document.querySelector('#free').append(...Object.keys(actions).map(key=>button(key,()=>perform(key))));
+const scenarios = [
+  ['正常と再監査','完了しただけでは次の評価は始められません。',['dispatch','valid','dispatch','finish','dispatch','valid','dispatch']],
+  ['無効なら停止','無効を有効に書き換えても、同じ試行は再開できません。',['invalid','dispatch','valid','dispatch']],
+  ['入力の差替え','監査後の入力変更は、もう一度監査するまで起動を止めます。',['valid','input','dispatch','valid','dispatch']],
+  ['同時起動','実行中に次の起動を要求しても起動数は増えません。',['valid','dispatch','valid','dispatch','finish','dispatch']]
+];
+const tabs=document.querySelector('#tabs');
+function select(i) {
+  perform('reset');
+  [...tabs.children].forEach((b,j)=>{b.setAttribute('aria-selected',String(i===j));b.tabIndex=i===j?0:-1;});
+  document.querySelector('#scenario').setAttribute('aria-labelledby','tab-'+i);
+  document.querySelector('#description').textContent=scenarios[i][1];
+  const steps=document.querySelector('#steps');
+  steps.replaceChildren(...scenarios[i][2].map((key,j)=>{
+    const b=button(key,()=>{perform(key);b.disabled=true;if(steps.children[j+1]){steps.children[j+1].disabled=false;steps.children[j+1].focus();}});
+    b.textContent=(j+1)+'. '+b.textContent;b.disabled=j!==0;return b;
+  }));
+}
+scenarios.forEach(([title],i)=>{const b=document.createElement('button');b.id='tab-'+i;b.role='tab';b.setAttribute('aria-controls','scenario');b.textContent=title;b.onclick=()=>select(i);b.onkeydown=e=>{let n;if(e.key==='ArrowRight')n=(i+1)%scenarios.length;if(e.key==='ArrowLeft')n=(i+scenarios.length-1)%scenarios.length;if(e.key==='Home')n=0;if(e.key==='End')n=scenarios.length-1;if(n!==undefined){e.preventDefault();select(n);tabs.children[n].focus();}};tabs.append(b);});
+select(0);
+</script>
+</html>

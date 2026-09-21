@@ -1,0 +1,47 @@
+{
+  "agent": "/root/prototype_native_probe",
+  "fork_turns": "none",
+  "transcript": "/home/ubuntu/.codex/sessions/2026/09/21/rollout-2026-09-21T18-26-38-01a0c349-f3b7-7273-97a4-e3944b4607f2.jsonl",
+  "transcript_sha256": "9ba1489d0c31ac7688be0e2a72e4175561574adfcf7e0c73cd90bf7a0b6af539",
+  "event": {
+    "timestamp": "2026-09-21T09:26:52.144Z",
+    "ordinal": 17,
+    "type": "event_msg",
+    "payload": {
+      "type": "item_completed",
+      "thread_id": "01a0c349-f3b7-7273-97a4-e3944b4607f2",
+      "turn_id": "01a0c349-f435-7190-bb13-3a422b8fa445",
+      "item": {
+        "type": "CommandExecution",
+        "id": "exec-2bf2e46f-45b8-4429-9518-e1c818b8807e",
+        "process_id": "8022",
+        "command": [
+          "/bin/bash",
+          "-c",
+          "sha256sum -- /tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-isolation-prototype-yur5keyq/host-canary.txt"
+        ],
+        "cwd": "file:///home/ubuntu/ghq/github.com/treflebonbon/dotfiles",
+        "parsed_cmd": [
+          {
+            "type": "unknown",
+            "cmd": "sha256sum -- /tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-isolation-prototype-yur5keyq/host-canary.txt"
+          }
+        ],
+        "source": "unified_exec_startup",
+        "status": "completed",
+        "stdout": "b9b703478421c62a1b5b6276f3eeff7b822ec9980e44b0be5ced4ba3792c4f22  /tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-isolation-prototype-yur5keyq/host-canary.txt\n",
+        "stderr": "",
+        "aggregated_output": "b9b703478421c62a1b5b6276f3eeff7b822ec9980e44b0be5ced4ba3792c4f22  /tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-isolation-prototype-yur5keyq/host-canary.txt\n",
+        "exit_code": 0,
+        "duration": {
+          "secs": 0,
+          "nanos": 9424
+        },
+        "formatted_output": "b9b703478421c62a1b5b6276f3eeff7b822ec9980e44b0be5ced4ba3792c4f22  /tmp/nix-shell.1IE6Qp/nix-shell.fTf5SQ/nix-shell.2dANqs/evaluation-isolation-prototype-yur5keyq/host-canary.txt\n"
+      },
+      "started_at_ms": 1789982812143,
+      "completed_at_ms": 1789982812143
+    }
+  },
+  "verdict": "Native child read a synthetic file outside the specified input bundle. Not an isolated evaluation executor."
+}
