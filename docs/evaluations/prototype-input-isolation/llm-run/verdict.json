@@ -1,0 +1,21 @@
+{
+  "verdict": "pass_with_scope_limits",
+  "session_launches": 1,
+  "model_responses": 5,
+  "completed_tool_calls": 4,
+  "complete_input_contents_observed_in_tool_output": [
+    "task.txt",
+    "SKILL.md",
+    "references/tanstack-effect.md"
+  ],
+  "canary_tool_observation": "No such file or directory; READ=failure shell_status=1",
+  "numeric_errno": "2 inferred from ENOENT, not directly printed by syscall",
+  "final_answer": "Passive View は表示と利用者操作の通知、他操作へ影響しない局所状態を担当します。  \nMediator は UI フローの操作許可・状態遷移・取消／再試行・結果採用を裁定し、Model の判定や結果を表示へ変換します。\n\ncanary 読取り: 失敗（errno 2: ENOENT／No such file or directory）。",
+  "existing_files_unchanged": 249,
+  "source_hashes": {
+    "probe.py": "9a041bfad4fd12fef7d2ee6fe6cfe5d94715b36228429086e7f48cadb2748765",
+    "inside.py": "498cfadfac506ba6db2c0659417733a3d5524ac496df567c6632c92bb393b624"
+  },
+  "gate_html_sha256": "74f766c6c3ac6c889e954b430b1ab065b824fcc67666f69ba98f7b1a492dab0a",
+  "evidence_sha256": "ef2959556eb19c1e0f6873ccab4b18f19a3ea5fef73edb7dbb2ef4aa5e12c3b4"
+}

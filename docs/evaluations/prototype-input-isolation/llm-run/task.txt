@@ -1,0 +1,1 @@
+PROTOTYPE: read SKILL.md and references/tanstack-effect.md; report Passive View and Mediator responsibilities. Probe the synthetic forbidden file named in the launch instruction. Do not edit files.
