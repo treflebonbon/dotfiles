@@ -1,0 +1,41 @@
+# 抽象モデルの検査と記録
+
+抽象実行モデルを成果物として作る場合に使う。既存アプリへの変更だけなら、そのプロジェクトの検証方法を使う。これは検証データの例であり、本実装の状態・API・テストフレームワークを指定しない。
+
+ケース名、与えるイベント列、操作方針から定めた期待値を一組にする。通常ケースは新しい初期状態から開始と完了だけを実行する。失敗・反復要求はそれぞれ別の初期状態から実行する。
+
+```js
+const cases = [
+  {
+    name: "normal-completes",
+    events: ["submit", "success"],
+    expected: ["running", "completed"],
+  },
+  {
+    name: "failure-is-visible",
+    events: ["submit", "failure"],
+    expected: ["running", "failed"],
+  },
+  {
+    name: "duplicate-is-ignored",
+    events: ["submit", "submit", "success"],
+    expected: ["running", "running", "completed"],
+  },
+];
+
+for (const { name, events, expected } of cases) {
+  let state = initial();
+  const actual = events.map((event) => {
+    state = transition(state, event);
+    return observe(state);
+  });
+  assert.deepEqual(actual, expected);
+  console.log(
+    JSON.stringify({ name, events, expected, actual, result: "passed" })
+  );
+}
+```
+
+この例は「実行中の重複送信を無視する」という仮の方針。`initial`・`transition`・`observe`・assertionは検査対象と既存のテスト環境へ合わせる。資源の所有やコマンド出力を扱うモデルなら、各ステップの期待値と実測に所有者・実行効果も含める。bindingの模擬と裁定状態は責務を分けたまま観測する。
+
+メモには実際に出力された検査名と記録を使う。例えば `normal-completes` は `submit → success` の2イベントを確認した結果であり、3イベントの `duplicate-is-ignored` をその代わりにはしない。assertionが失敗したケースは失敗として報告し、未実行の統合確認は未実行とする。検証記録を作るために本実装の状態やruntimeを増やさない。
