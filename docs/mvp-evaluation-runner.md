@@ -8,6 +8,28 @@
 
 この変更のcommitには、新本文の前提となる既存の未コミット本文改善も保持して含める。実装開始時の本文からの変更は状態説明段落のみ。v2契約と旧runは既存ローカル依存として保持し、一括でcommitしない。
 
+### v4接続の検証結果
+
+実装commit: `1098fa0`。`3e6ad30...1098fa0`をStandards／Specの独立した2軸でレビューした。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 状態説明の具体化 | 実装開始時の固定本文との差分と2軸レビュー | 状態説明段落だけを変更。保持フィールドの対応と未確認の取得元を明示。適用効果の実測は未実施 |
+| 新本文・契約の固定と配布 | `bats tests/mvp-evaluation.bats` | 14/14成功。v4未登録でredを確認後、startの契約hashと配布本文hash・記入欄を確認してgreen |
+| 既存ゲート・旧記録の保持 | 同じ14件、旧v3 runのprepare/status、437ファイルのSHA-256照合 | 隔離・承認・監査・再発停止・上限を維持。旧runの変更はimplementation changedで拒否、status成功、旧ファイルすべて不変 |
+| 型・構文 | `bunx tsc --noEmit`、Python AST parse | 成功 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | 755件、732成功・23skip・失敗0、exit0。実行中にコード・テスト変更なし |
+
+全体ログと保存照合の作業記録は `tmp/mvp-v4-implementation/`。opt-inの実モデル・プラットフォーム検査は既存のskip条件に従う。今回の新しい実LLM評価は0件。
+
+#### Standards
+
+規約違反0件、設計スメル0件。状態説明を一箇所へ集約し、既存の意味を保持したこと、固定hashとCLIの一致を確認。
+
+#### Spec
+
+未達・scope creep・誤実装0件。新本文/v2/v3/v4固定、Bのモデル不要条件、課題・採点・停止条件の維持を確認。既存未コミット本文改善と今回の差分を区別してレビューした。
+
 ## v3接続（2026-09-22）
 
 v3接続時のCLIは[v3差分契約](evaluations/mvp-mediator-evaluation-v3/protocol.md)へ接続する。新規runの`start.json.sources`には基礎v2と差分v3の両path/hashを保存し、配布promptへv3のケース別実行出力要件を挿入する。Bにはその条件が適用されず、提案確認のままである。以下のv2初期実装・診断の記録は経緯として保持する。
