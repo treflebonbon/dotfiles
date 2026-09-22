@@ -2,9 +2,23 @@
 
 ## v6接続（2026-09-22）
 
-現行CLIは[v6契約](evaluations/mvp-mediator-evaluation-v6/protocol.md)へ接続する。設計対話で、skill単体の改善として、実装前に状態表を作って実装後に更新し、assertionと実行結果を根拠にした表を検証報告の本体にする方針を確定した。必須検査の不足は追加・再実行で埋め、未検証事項と提案のみの未実行を明示する。
+現行CLIは[v6契約](evaluations/mvp-mediator-evaluation-v6/protocol.md)へ接続する。対象本文の変更内容と受入条件は同契約を参照する。
 
 CLIの変更は新版の登録と本文hashだけ。新規runは新本文とv2〜v6契約を固定し、評価手順・採点・配布テンプレート・runtimeを維持する。公開CLI fixtureの成功は報告内容の意味的な正しさや行動改善の証明ではない。実LLM評価は別の明示的なempirical-prompt-tuning依頼で行う。
+
+### v6接続の検証結果
+
+実装 `717a529`、比較起点 `e326e5e`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 本文の作業順序・報告構成・適用範囲 | Standards/Specレビュー、skill quick_validate | 形式検証成功。Spec指摘0件。行動改善は未検証 |
+| 新本文・v2〜v6固定と配布 | `bats tests/mvp-evaluation.bats` | v6未登録でred、接続後14/14成功 |
+| 型確認 | `bunx tsc --noEmit` | 成功 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | 717a529で755件、732成功・23skip・失敗0、exit0。検査中の編集なし |
+| 既存記録・凍結source | SHA-256照合、v5 runのstatus参照 | 既存評価671ファイル不変、凍結hash一致。v5の再発停止状態を参照可能 |
+
+Standardsレビューの指摘は、この文書と契約の手順説明の重複1件。契約への参照に整理した。全体検査後の変更はこの文書の説明と検証結果のみ。全体ログと保全記録は `tmp/mvp-v6-implementation/` に保存した。実LLM評価・配備は未実施。過去の未追跡評価記録は今回のcommitへ一括追加していない。
 
 ## v5接続（2026-09-22）
 
