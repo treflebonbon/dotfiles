@@ -14,7 +14,7 @@
 
     llm-agents = {
       # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
-      url = "github:numtide/llm-agents.nix/52aac5d0a0c206feaeb1889cbec62ad37dc8843e";
+      url = "github:numtide/llm-agents.nix/9032892fd4d89bdad79c858a81aae1268ad2d191";
     };
   };
 

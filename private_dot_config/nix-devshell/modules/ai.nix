@@ -23,8 +23,8 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; adoption history is in ADR-0047.
-  minClaudeCode = "2.1.261";
-  minCodex = "0.153.4";
+  minClaudeCode = "2.1.277";
+  minCodex = "0.155.0";
 
   requireQualityFloor =
     {
@@ -52,14 +52,14 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "read fence の worktree 対応、background resume・teammate 通知と危険コマンド検出の修正。";
+    reason = "worktree 隔離済み Bash の nested shell expansion 拒否、special 変数を介した permission bypass の修正、subagent/background agent の結果報告漏れ修正、LSP plugin 終了時の background session 巻き添え終了修正、--worktree session での project skill 未検出の修正。";
   };
 
   codex = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
-    reason = "Astra の bundled model picker 表示と、model 未指定時の既定モデルの修正。";
+    reason = "restricted WSL sandbox からの Windows-process escape 遮断・shell snapshot の credential exposure 強化、Unix SIGTERM での app-server stdio shutdown の graceful化。";
   };
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;

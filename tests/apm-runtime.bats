@@ -56,7 +56,7 @@ assert_lock_entry() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
-  grep -Fq 'apm_version: 0.30.0' "$lock"
+  grep -Fq 'apm_version: 0.31.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
   grep -Fq 'resolved_commit: cb56ed6c19a07329a9fa0cd4e657bee040156593' "$lock"
   grep -Fq 'content_hash: sha256:c2fb70948308355a6d25f7345548ab32d13eb92aac9bc911f026292ab28404e8' "$lock"
@@ -132,18 +132,18 @@ assert_lock_entry() {
     '3b9e6561dababf40a485772a7cd641268bb7c365' \
     'sha256:ff59c02fc8374266df224aac5c1c37b767c572fdeff4d6ded2f9b841f25ec2dc'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    '2b3e6d4f8d9161fe5c19340dc383aade392012dd' \
+    '98a1fe67b439324ddc857f47fbdce056600a4329' \
     'sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '60d793956af91d16070d852567d7d82718aaf0db' \
-    'sha256:87549f18a6a67d02dc03b27d53def70becb95bee90c5f2a41946766256bcaae8'
+    '059ee59a48272854a2317cc267bdd03f23ec9aa6' \
+    'sha256:dc999be3d9692278ff281951d897f0a7497aca607cee8354ac128b63ec2da3f0'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'de0a91b99fc845c9510340786f807ea1c988859b' \
     'sha256:953feacb808f096f4d3d6bf4ba1b6d299aa49138bbe805da609dca51f3c72713'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '60d793956af91d16070d852567d7d82718aaf0db' \
-    'sha256:2b0116fe242b0c0ecc1177600de8bafe356fc126745faad2fba9c4d19c94a1d0'
-  [ "$(grep -Fc 'resolved_commit: 60d793956af91d16070d852567d7d82718aaf0db' "$lock")" -eq 2 ]
+    '059ee59a48272854a2317cc267bdd03f23ec9aa6' \
+    'sha256:247d274538eafa19d2fc622681dd7373d752e15e77b0efe41087e4790f062c50'
+  [ "$(grep -Fc 'resolved_commit: 059ee59a48272854a2317cc267bdd03f23ec9aa6' "$lock")" -eq 2 ]
   [ "$(grep -Fc 'resolved_commit: de0a91b99fc845c9510340786f807ea1c988859b' "$lock")" -eq 1 ]
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |

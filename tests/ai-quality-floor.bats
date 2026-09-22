@@ -16,34 +16,34 @@ evaluate_floor() {
   evaluate_floor claude-code '{ }'
   [ "$status" -ne 0 ]
   [[ "$output" == *'claude-code 不明'* ]]
-  [[ "$output" == *'2.1.261'* ]]
+  [[ "$output" == *'2.1.277'* ]]
 }
 
 @test "quality floor rejects Codex with missing version metadata and identifies it as unknown" {
   evaluate_floor codex '{ }'
   [ "$status" -ne 0 ]
   [[ "$output" == *'codex 不明'* ]]
-  [[ "$output" == *'0.153.4'* ]]
+  [[ "$output" == *'0.155.0'* ]]
 }
 
 @test "quality floor accepts the exact input packages at the approved floors" {
-  evaluate_floor claude-code '{ version = "2.1.261"; }'
+  evaluate_floor claude-code '{ version = "2.1.277"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.261" and .matchesInput' <<<"$output"
+  jq -e '.version == "2.1.277" and .matchesInput' <<<"$output"
 
-  evaluate_floor codex '{ version = "0.153.4"; }'
+  evaluate_floor codex '{ version = "0.155.0"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.153.4" and .matchesInput' <<<"$output"
+  jq -e '.version == "0.155.0" and .matchesInput' <<<"$output"
 }
 
 @test "quality floor accepts the exact input packages above the approved floors" {
-  evaluate_floor claude-code '{ version = "2.1.262"; }'
+  evaluate_floor claude-code '{ version = "2.1.278"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.262" and .matchesInput' <<<"$output"
+  jq -e '.version == "2.1.278" and .matchesInput' <<<"$output"
 
-  evaluate_floor codex '{ version = "0.153.5"; }'
+  evaluate_floor codex '{ version = "0.155.1"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.153.5" and .matchesInput' <<<"$output"
+  jq -e '.version == "0.155.1" and .matchesInput' <<<"$output"
 }
 
 @test "quality floor rejects null versions as unknown for each tool" {
@@ -68,8 +68,8 @@ evaluate_floor() {
     [[ "$diagnostic" == *'private_dot_config/nix-devshell/flake.nix'* ]]
     [ "$(wc -l <<<"$diagnostic")" -le 12 ]
   done <<'CASES'
-claude-code 2.1.260 2.1.261
-codex 0.153.3 0.153.4
+claude-code 2.1.276 2.1.277
+codex 0.154.9 0.155.0
 CASES
 }
 

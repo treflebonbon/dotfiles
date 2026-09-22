@@ -27,7 +27,7 @@ dependencies:
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902
     # mizchi/skills
-    - mizchi/skills/meta/empirical-prompt-tuning
+    - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills v1.2.3 plugin collection — 公式 full set を一括管理。
     # 検証済み default-branch revision を pin し、APM の lock / frozen install で同期する。
     - mattpocock/skills#6654f6b60cd9d5be8b54c6fafe44346dabeb3b76
