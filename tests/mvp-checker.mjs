@@ -146,10 +146,17 @@ test("model initialization errors and unavailable checker inputs are distinguish
   );
   assert.equal(missing.status, 1);
   assert.equal(JSON.parse(missing.stdout).status, "checker-error");
-  const thrownNull = run(
-    "export const initial = () => {throw null}; export const transition = () => {}; export const observe = () => ({});"
-  );
-  assert.equal(thrownNull.report.status, "model-error");
+  for (const value of [
+    "null",
+    "Object.create(null)",
+    "{get message() {throw new Error('bad getter')}}",
+  ]) {
+    const thrown = run(
+      `export const initial = () => {throw ${value}}; export const transition = () => {}; export const observe = () => ({});`
+    );
+    assert.equal(thrown.report.status, "model-error", value);
+    assert.equal(thrown.report.executed, 0);
+  }
 });
 
 test("a checker failure during a case aborts remaining cases instead of reporting model failures", () => {

@@ -76,13 +76,15 @@ try {
     try {
       return model[name](...args);
     } catch (error) {
-      throw new EvaluationError(
-        "model-error",
-        `${name}: ${error?.message ?? String(error)}`,
-        {
-          cause: error,
-        }
-      );
+      let message;
+      try {
+        message = String(error?.message ?? error);
+      } catch {
+        message = "unprintable thrown value";
+      }
+      throw new EvaluationError("model-error", `${name}: ${message}`, {
+        cause: error,
+      });
     }
   };
   validateState(invoke("initial"), "initial");
