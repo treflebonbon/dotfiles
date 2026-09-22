@@ -6,6 +6,22 @@
 
 本文の例は `node --test tests/mvp-purity-example.mjs` で直接実行する。正常例の成功と、初回入力変更を再呼出しで戻す不正例、再呼出し時の入力変更、非決定的な結果、返却object再利用を検出する。公開CLI検査は `bats tests/mvp-evaluation.bats`。S/Lへの比較順序の明示化と、実行者の行動改善は区別して次の実評価で確認する。実LLM再評価は別の明示依頼で開始する。
 
+### v11接続の検証結果
+
+比較起点 `0e21bbc`、実装 `0262bf2`、レビュー修正 `9d9b898` / `2875994`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 比較順序の具体例と検出感度 | `node --test tests/mvp-purity-example.mjs` | 1/1成功。本文の純粋性節を直接実行し、正常例と5つの不正例を確認。初回入力変更を復元前に検出、再呼出し時の入力変更、非決定性、初回結果だけの書換え、同じ返却object再利用を検出 |
+| 新本文・契約の配布と旧版境界 | `bats tests/mvp-evaluation.bats` | 18/18成功。v11を固定し、E課題・checkerはv10を維持。旧実装のstatus参照と書込み再開拒否を確認 |
+| 型・形式・構文 | `bunx tsc --noEmit`、skill `quick_validate.py`、oxlint、Python AST、commit hooks | 成功。tscは既存TypeScript対象。新しいJSは直接実行とlint、Pythonは公開CLIと構文確認で検証 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | `2875994`で759件、736成功・23skip・失敗0、exit0。1回実行、実行中のコード変更なし |
+| Standardsレビュー | `git diff 0e21bbc...HEAD` | 例の抽出対象が曖昧という指摘1件を修正し、再レビュー残件0 |
+| Specレビュー | 同差分とv11確定設計 | 初回結果保持の独立した検出感度の指摘1件を修正し、再レビュー残件0 |
+| 既存記録・凍結source | SHA-256照合、v10 runのstatus・監査履歴確認 | 既存1081ファイル不変。v10 E/checker・条件付き参照・runtimeを維持し、新しいsource pinも一致 |
+
+red→greenと全体ログ・保全記録は `tmp/mvp-v11-implementation/` に保存した。全体検査後の変更は設計状態とこの検証記録のみ。実LLM評価・配備・pushは未実施。旧評価記録は今回のcommitへ一括追加していない。S/Lへの手順明示化や実行者の行動改善はfixture成功では証明せず、次の明示的な評価へ残す。
+
 ## v10接続（2026-09-23）
 
 v10時点のCLIは[v10契約](evaluations/mvp-mediator-evaluation-v10/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-checker/design.md)に従い、E課題の状態を明示的なデータに限定し、新版checkerで全入力stateの非破壊性と同入力結果の決定性を検査する。機能ケースは従来の52件を維持する。
