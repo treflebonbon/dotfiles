@@ -1,8 +1,12 @@
 # MVP評価専用の実行入口
 
+## v8接続（2026-09-22）
+
+現行CLIは[v8契約](evaluations/mvp-mediator-evaluation-v8/protocol.md)へ接続する。本文の変更・受入条件・比較上の制限は同契約を参照する。新規runは新本文とv2〜v8契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
+
 ## v7接続（2026-09-22）
 
-現行CLIは[v7契約](evaluations/mvp-mediator-evaluation-v7/protocol.md)へ接続する。本文の変更と、要件緩和を品質改善として数えない比較条件は同契約を参照する。新規runは新本文とv2〜v7契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
+v7時点のCLIは[v7契約](evaluations/mvp-mediator-evaluation-v7/protocol.md)へ接続する。本文の変更と、要件緩和を品質改善として数えない比較条件は同契約を参照する。新規runは新本文とv2〜v7契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
 
 ### v7接続の検証結果
 
