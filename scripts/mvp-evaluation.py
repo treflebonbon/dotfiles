@@ -15,8 +15,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = Path(__file__).with_name('mvp-evaluation-runtime.py')
 SOURCES = {
-    'docs/evaluations/mvp-mediator-evaluation-v5/protocol.md': 'dc2f0d626577ef9eff0543aa19b40489416649a605ff2e4a1ec13789d22b3370',
-    'local-skills/mvp-mediator-architecture/SKILL.md': '99498c6ea671e711052757dae292b407160254201822d78ad7bf6544c0917f0d',
+    'docs/evaluations/mvp-mediator-evaluation-v5/protocol.md': '0bfa5674f914d9f0361ab7784371ab1847718d452bb499d302de66bcbf63baa2',
+    'local-skills/mvp-mediator-architecture/SKILL.md': 'fe23163138cf384063853b8ae05dd710195e1fd6345e60f565d66347246905a5',
     'local-skills/mvp-mediator-architecture/references/tanstack-effect.md': '110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca',
     'docs/evaluations/mvp-mediator-executable/protocol.md': 'ba0c8fa045387c5026e470b357afe4d8c9a1392fbadc1f0ccceca54d7cbfbcb2',
     'docs/evaluations/mvp-mediator-executable/check-device.mjs': '72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1',
