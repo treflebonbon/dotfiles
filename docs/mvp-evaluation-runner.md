@@ -18,6 +18,15 @@
 
 検証は`bats tests/mvp-evaluation.bats`の公開CLI fixtureで行う。v2/v3固定・配布要件、復帰証拠を残した3組clearとL投入、未解決失敗の再発停止、既存の隔離・監査・証拠・上限ゲートを対象とする。実LLM評価は開始していない。
 
+### v3接続の検証結果
+
+実装commit: `a314d8c`。`b9449a0...a314d8c`をStandards／Specの2軸でレビューし、未解消指摘は各0件。Bへの条件付き指示に関する初回指摘は、v3の適用条件と全文を再照合して撤回された。
+
+- `bats tests/mvp-evaluation.bats`: 14/14成功。配布・契約固定の追加検査は修正前にv3未登録で失敗し、接続後に成功した。
+- `./node_modules/.bin/tsc --noEmit`: 成功。変更Pythonの構文検査も成功。
+- `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test`: 755件、732成功・23skip・失敗0、終了コード0。`with-env`はこのcheckoutの`nix build .#with-env --no-link --print-out-paths`で取得。全体実行中にコード・テストは変更していない。
+- 対象本文・契約・既存評価・prototype・監査補足を含む既存352ファイルはhash不変。追加LLM評価は0件。
+
 ## Contract
 
 目的は、固定した評価契約v2を、実証済みの隔離起動へ接続すること。本文・既存評価・prototypeは変更しない。本評価の開始は別の明示依頼で行う。
