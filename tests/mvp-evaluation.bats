@@ -97,12 +97,13 @@ execute_next() {
 import hashlib,json,sys
 from pathlib import Path
 r=Path(sys.argv[1]);start=json.loads((r/'start.json').read_text())
-for version in ('v2','v3','v4','v5','v6','v7','v8'):
+for version in ('v2','v3','v4','v5','v6','v7','v8','v9'):
     path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
     assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
 assert hashlib.sha256(skill).hexdigest()==start['sources']['local-skills/mvp-mediator-architecture/SKILL.md']
-assert '本実装での取得元' in skill.decode()
+assert '本実装での情報源' in skill.decode()
+assert '抽象モデルでの表現' in skill.decode()
 prompt=(r/'attempts/01/prompt.txt').read_text()
 assert '各名前付きケースの名前と成功・失敗を検査コマンドの結果に出力' in prompt
 assert '失敗した検査は非0終了' in prompt
