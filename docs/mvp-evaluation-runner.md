@@ -4,6 +4,20 @@
 
 現行CLIは[v8契約](evaluations/mvp-mediator-evaluation-v8/protocol.md)へ接続する。本文の変更・受入条件・比較上の制限は同契約を参照する。新規runは新本文とv2〜v8契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
 
+### v8接続の検証結果
+
+実装 `aa183eb`、比較起点 `093bf81`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 検証主張とassertionの対応・状態区分・適用範囲 | Standards/Specレビュー、skill quick_validate | 形式検証成功。Standards指摘0件、Spec指摘0件。行動改善は未検証 |
+| 新本文・v2〜v8固定と配布 | `bats tests/mvp-evaluation.bats` | v8未登録でred、接続後14/14成功 |
+| 型確認 | `bunx tsc --noEmit` | 成功 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | aa183ebで755件、732成功・23skip・失敗0、exit0。検査中の編集なし |
+| 既存記録・凍結source | SHA-256照合、v7 runのstatus参照 | 既存評価811ファイル不変、凍結hash一致。v7の停止状態を参照可能 |
+
+全体ログと保全記録は `tmp/mvp-v8-implementation/` に保存した。全体検査後の変更はこの検証記録のみ。実LLM評価・配備は未実施。過去の未追跡評価記録は今回のcommitへ一括追加していない。
+
 ## v7接続（2026-09-22）
 
 v7時点のCLIは[v7契約](evaluations/mvp-mediator-evaluation-v7/protocol.md)へ接続する。本文の変更と、要件緩和を品質改善として数えない比較条件は同契約を参照する。新規runは新本文とv2〜v7契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
