@@ -4,11 +4,27 @@
 
 現行CLIは[v10契約](evaluations/mvp-mediator-evaluation-v10/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-checker/design.md)に従い、E課題の状態を明示的なデータに限定し、新版checkerで全入力stateの非破壊性と同入力結果の決定性を検査する。機能ケースは従来の52件を維持する。
 
-親のE検査は `node docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs <model.mjs>` を使う。JSONのstatus、executed、notRun、failuresを保存し、契約違反・モデル検査失敗・検査未成立を区別する。状態外の判断用可変データは親のコード監査でも確認する。旧checkerのhashは新版監査で拒否される。
+親のE検査は `node docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs <model.mjs>` を使う。JSONのstatus、executed、completed、notRun、failuresを保存し、契約違反・モデル検査失敗・検査未成立を区別する。状態外の判断用可変データは親のコード監査でも確認する。旧checkerのhashは新版監査で拒否される。
 
 スキル本文はv9のままで、B/S/L課題・共通テンプレート・runtime・採点・停止条件も維持する。新旧契約とcheckerをhash固定し、旧runはstatus参照だけを許可する。APIと検査条件が変わるため、旧版との単純な改善率比較は行わない。実LLM再評価は別の明示依頼で開始する。
 
 専用検査は `bats tests/mvp-evaluation.bats`。この中でcheckerの公開コマンド入口を `node --test tests/mvp-checker.mjs` により検査し、通常／freeze、入力破壊、非決定性、返却object再利用、不正形式、エラー分類と旧52件のnegative controlを確認する。CLI fixtureは配布と証拠の版を検査し、実モデルを起動しない。
+
+### v10接続の検証結果
+
+比較起点 `e14efb8`、実装 `b0d8154`、検査中断・例外分類の修正 `bb6b133` / `6b03b02` / `951a56f`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 明示データ契約、入力非破壊性、決定性、失敗分類 | `node --test tests/mvp-checker.mjs` | 最終修正後7/7成功。通常／freezeで旧52件成功、negative controlは失敗。準備失敗・検査中断・表示不能なモデル例外も区別 |
+| E配布・checker hash・旧版境界 | `bats tests/mvp-evaluation.bats` | 最終修正後17/17成功。旧checker hashを拒否し、旧runのstatus参照と再開拒否を確認 |
+| 型・構文・形式 | `bunx tsc --noEmit`、Node公開入口、Python AST、oxlint、commit hooks | 成功。tscの対象は既存TypeScriptで、新JS/Pythonの型保証ではない |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | `6b03b02`で758件、735成功・23skip・失敗0、exit0。検査中の編集なし |
+| 既存記録・凍結source | SHA-256照合、v9 runのstatusと監査履歴確認 | 既存990ファイル不変、source pin一致。v9スキル・runtime・旧評価を保存 |
+
+Standardsレビューは指摘0件。Specレビューで見つかった検査中断時の集計とモデル例外の分類を修正し、最終再レビューの残件は0件。
+
+全体検査は1回実行した。その後の `951a56f` は表示不能なモデル例外の分類と回帰検査・hashを修正し、専用Node検査7件・CLI検査17件・型／lintを再実行した。全体suiteを最終HEADで再実行したという主張はしない。検証ログと保全記録は `tmp/mvp-v10-implementation/` に保存した。実LLM再評価・配備・pushは未実施。過去の未追跡評価記録は今回のcommitへ一括追加していない。
 
 ## v9接続（2026-09-22）
 
