@@ -4,6 +4,20 @@
 
 現行CLIは[v7契約](evaluations/mvp-mediator-evaluation-v7/protocol.md)へ接続する。本文の変更と、要件緩和を品質改善として数えない比較条件は同契約を参照する。新規runは新本文とv2〜v7契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
 
+### v7接続の検証結果
+
+実装 `71a1d5d`、レビュー修正 `9b48214`、比較起点 `2393b59`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 状態説明・根拠表への集約・適用範囲 | Standards/Specレビュー、skill quick_validate | 形式検証成功。Standards指摘0件。Specの達成欄作成指示1件を明確化し、再レビューで解消。行動改善は未検証 |
+| 新本文・v2〜v7固定と配布 | `bats tests/mvp-evaluation.bats` | v7未登録でred、接続後14/14成功。レビュー修正後も `--filter 'freezes only'` で1/1成功 |
+| 型確認 | `bunx tsc --noEmit` | 実装時・レビュー修正後とも成功 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | 71a1d5dで755件、732成功・23skip・失敗0、exit0。検査中の編集なし |
+| 既存記録・凍結source | SHA-256照合、v6 runのstatus参照 | 既存評価744ファイル不変、最終本文・契約とCLI固定hash一致。v6の停止状態を参照可能 |
+
+全体検査後の9b48214は達成欄の作成指示1文と対応hashだけを変更し、対象CLI・型・形式検査を再実行した。未解消指摘はStandards 0件、Spec 0件。全体ログと保全記録は `tmp/mvp-v7-implementation/` に保存した。実LLM評価・配備は未実施。過去の未追跡評価記録は今回のcommitへ一括追加していない。
+
 ## v6接続（2026-09-22）
 
 v6時点のCLIは[v6契約](evaluations/mvp-mediator-evaluation-v6/protocol.md)へ接続した。対象本文の変更内容と受入条件は同契約を参照する。
