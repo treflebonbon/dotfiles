@@ -12,7 +12,8 @@ const skill = readFileSync(
 );
 
 test("documented purity example accepts pure transitions and rejects changes on either call", () => {
-  const example = skill.match(/```js\n(?<example>[\s\S]*?)\n\s*```/u)?.groups
+  const section = skill.split("- **純粋な遷移**:")[1]?.split("\n- **")[0];
+  const example = section?.match(/```js\n(?<example>[\s\S]*?)\n\s*```/u)?.groups
     ?.example;
   assert.ok(example, "the skill must supply its executable comparison example");
   const check = (transition) =>
