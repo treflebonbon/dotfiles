@@ -6,6 +6,28 @@
 
 既存の公開CLI fixtureでv5未登録のredを確認し、新版の固定・配布を検証する。過去runは保存し、新版での再開は認めない。実LLM評価は次の明示的なempirical-prompt-tuning依頼で実施する。fixtureの成功は行動改善の証明ではない。
 
+### v5接続の検証結果
+
+実装 `eae71cf`、レビュー修正 `31fd56f`。比較起点は `a2150ee`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 最終成果物との照合 | 本文差分、Standards/Specレビュー、skill quick_validate | 3照合と修正後の更新を明記。提案のみは未実行とする。形式検証成功。行動改善は未検証 |
+| 新本文・v2〜v5固定と配布 | `bats tests/mvp-evaluation.bats` | v5未登録でred、接続後14/14成功。レビュー修正後も `--filter 'freezes only'` で1/1成功 |
+| 型確認 | `bunx tsc --noEmit` | 実装時・レビュー修正後とも成功 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | eae71cfの内容で755件、732成功・23skip・失敗0、exit0。実行中のコード・テスト変更なし |
+| 既存記録・凍結source | SHA-256照合 | 既存評価525ファイル不変。最終版本文・v5契約とCLI固定hash一致 |
+
+全体検査後の31fd56fは提案の完了条件と対応hashだけを変更し、影響する公開CLI・型・形式検査を再実行した。全体ログは `tmp/mvp-v5-implementation/full-test.log`。実LLM評価と配備は未実施。既存の未追跡評価記録・v2契約は保持し、今回のcommitへ一括追加していない。
+
+#### Standards
+
+独立レビューで規約違反0件、smell指摘0件。task worktree、ローカルskillの配置、既存定義を参照する完了手順、最小の版更新を確認。
+
+#### Spec
+
+初回1件: 提案のみでも末尾の完了条件が検査成功を要求し得た。31fd56fで提案と実装の完了条件を分け、同じレビュー担当が解消を確認。未解消0件、新たなscope creepなし。
+
 ## v4接続（2026-09-22、履歴）
 
 v4時点のCLIは[v4契約](evaluations/mvp-mediator-evaluation-v4/protocol.md)へ接続する。対象本文の状態説明を、保持状態・目的/所有者・区分・本実装の取得元の欄へ具体化した。新規runは新本文とv2/v3/v4のpath/hashを固定する。配布テンプレート・課題・採点・停止条件はv3を維持し、実行者には新本文として変更を渡す。
