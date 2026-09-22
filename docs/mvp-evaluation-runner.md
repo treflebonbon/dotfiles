@@ -1,8 +1,14 @@
 # MVP評価専用の実行入口
 
+## v6接続（2026-09-22）
+
+現行CLIは[v6契約](evaluations/mvp-mediator-evaluation-v6/protocol.md)へ接続する。設計対話で、skill単体の改善として、実装前に状態表を作って実装後に更新し、assertionと実行結果を根拠にした表を検証報告の本体にする方針を確定した。必須検査の不足は追加・再実行で埋め、未検証事項と提案のみの未実行を明示する。
+
+CLIの変更は新版の登録と本文hashだけ。新規runは新本文とv2〜v6契約を固定し、評価手順・採点・配布テンプレート・runtimeを維持する。公開CLI fixtureの成功は報告内容の意味的な正しさや行動改善の証明ではない。実LLM評価は別の明示的なempirical-prompt-tuning依頼で行う。
+
 ## v5接続（2026-09-22）
 
-現行CLIは[v5契約](evaluations/mvp-mediator-evaluation-v5/protocol.md)へ接続する。対象本文の検証メモ指示を、最終編集後にケースと操作列、保持状態と説明、検証主張とassertion・実行結果を照合する完了手順へ組み替えた。新規runは新本文とv2〜v5契約のpath/hashを固定する。課題・配布テンプレート・採点・runtime・停止条件は維持する。
+v5時点のCLIは[v5契約](evaluations/mvp-mediator-evaluation-v5/protocol.md)へ接続した。対象本文の検証メモ指示を、最終編集後にケースと操作列、保持状態と説明、検証主張とassertion・実行結果を照合する完了手順へ組み替えた。新規runは新本文とv2〜v5契約のpath/hashを固定する。課題・配布テンプレート・採点・runtime・停止条件は維持する。
 
 既存の公開CLI fixtureでv5未登録のredを確認し、新版の固定・配布を検証する。過去runは保存し、新版での再開は認めない。実LLM評価は次の明示的なempirical-prompt-tuning依頼で実施する。fixtureの成功は行動改善の証明ではない。
 
