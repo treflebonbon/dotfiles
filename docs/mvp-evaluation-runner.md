@@ -1,8 +1,16 @@
 # MVP評価専用の実行入口
 
+## v4接続（2026-09-22）
+
+現行CLIは[v4契約](evaluations/mvp-mediator-evaluation-v4/protocol.md)へ接続する。対象本文の状態説明を、保持状態・目的/所有者・区分・本実装の取得元の欄へ具体化した。新規runは新本文とv2/v3/v4のpath/hashを固定する。配布テンプレート・課題・採点・停止条件はv3を維持し、実行者には新本文として変更を渡す。
+
+公開CLIのinit/prepare fixtureで、v4登録前の失敗と、新版の固定・配布後の成功を確認する。旧runの記録は保持し、新版による再開は認めない。今回の実装では実LLM評価を開始しない。本文の適用効果は次のempirical評価で確認する。
+
+この変更のcommitには、新本文の前提となる既存の未コミット本文改善も保持して含める。実装開始時の本文からの変更は状態説明段落のみ。v2契約と旧runは既存ローカル依存として保持し、一括でcommitしない。
+
 ## v3接続（2026-09-22）
 
-現行CLIは[v3差分契約](evaluations/mvp-mediator-evaluation-v3/protocol.md)へ接続する。新規runの`start.json.sources`には基礎v2と差分v3の両path/hashを保存し、配布promptへv3のケース別実行出力要件を挿入する。Bにはその条件が適用されず、提案確認のままである。以下のv2初期実装・診断の記録は経緯として保持する。
+v3接続時のCLIは[v3差分契約](evaluations/mvp-mediator-evaluation-v3/protocol.md)へ接続する。新規runの`start.json.sources`には基礎v2と差分v3の両path/hashを保存し、配布promptへv3のケース別実行出力要件を挿入する。Bにはその条件が適用されず、提案確認のままである。以下のv2初期実装・診断の記録は経緯として保持する。
 
 親は監査確定時に残る未解決条件だけを`issues`・`failure_patterns`へ入れる。復帰済みの任意の探索エラーは、当該attempt内の`environment.md`等に失敗・代替手段のcall/resultと復帰根拠を記録し、監査の`references`と`reason`から参照する。CLIは参照先をhash固定し、次回操作でも照合する。新しい採点エンジンやエラーの自動分類は導入しない。
 
