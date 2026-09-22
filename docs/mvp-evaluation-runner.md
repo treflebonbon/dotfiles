@@ -1,8 +1,27 @@
 # MVP評価専用の実行入口
 
+## v9接続（2026-09-22）
+
+現行CLIは[v9契約](evaluations/mvp-mediator-evaluation-v9/protocol.md)へ接続する。状態表と根拠表の変更、受入条件、形式遵守と内容の正確さを分ける比較条件は同契約を参照する。新規runは新本文とv2〜v9契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
+
+### v9接続の検証結果
+
+実装 `e7523fd`、比較起点 `10c19e6`。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| 状態の情報源の分離・観測時点ごとの根拠行 | Standards/Specレビュー、skill quick_validate | 形式検証成功。Standards指摘0件、Spec指摘0件。行動改善は未検証 |
+| 新本文・v2〜v9固定と配布 | `bats tests/mvp-evaluation.bats` | v9未登録でred、接続後14/14成功 |
+| 型確認 | `bunx tsc --noEmit` | 成功 |
+| 全体回帰 | `bun run test` | e7523fdで755件、731成功・23skip・1失敗、exit1。失敗は起動PATHにwith-envがない既存human-validation検査 |
+| 環境検査の再確認 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bats tests/human-validation.bats` | 1/1成功、exit0。テスト内容は変更していない |
+| 既存記録・凍結source | SHA-256照合、v8 runのstatus参照 | 既存評価899ファイル不変、凍結hash一致。runtime・条件付き参照も不変、v8の停止状態を参照可能 |
+
+全体検査は1回実行し、実行中のコード・テスト変更はない。失敗した1件は環境を補って個別再検証したため、全体の単一runがgreenだったとは扱わない。全体検査後の変更はこの案内・検証記録のみ。検証ログと保全記録は `tmp/mvp-v9-implementation/` に保存した。実LLM評価・配備は未実施。過去の未追跡評価記録は今回のcommitへ一括追加していない。
+
 ## v8接続（2026-09-22）
 
-現行CLIは[v8契約](evaluations/mvp-mediator-evaluation-v8/protocol.md)へ接続する。本文の変更・受入条件・比較上の制限は同契約を参照する。新規runは新本文とv2〜v8契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
+v8時点のCLIは[v8契約](evaluations/mvp-mediator-evaluation-v8/protocol.md)へ接続する。本文の変更・受入条件・比較上の制限は同契約を参照する。新規runは新本文とv2〜v8契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
 
 ### v8接続の検証結果
 
