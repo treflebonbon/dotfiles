@@ -37,7 +37,21 @@ UI の責務分離を設計・レビューする。新規開発では以下の�
 制約のあるフローを実装した場合、または抽象実行モデルを求められた場合は、次の形で検証する。関数名は既存コードに合わせてよい。
 
 - **通常経路**: self-check の最初に、新しい初期状態から開始要求と現在の処理の正常完了だけを与える独立した `normalPath` を実行する。失敗・反復要求・古い通知は別の名前付きケースにする。操作方針から定めた後状態・資源所有者・実行効果のうち関係する値を assertion で照合する。
-- **純粋な遷移**: 純粋なモデルでは状態を引数から受け、新しい状態を返す。ケース内で入力の呼出し前 snapshot と呼出し後の入力を比較し、同じ入力を再度渡した結果も等しいことを assertion で確認する。外部 I/O がないだけでは純粋とは扱わない。
+- **純粋な遷移**: 純粋なモデルでは状態を引数から受け、新しい状態を返す。ケース内の検査対象遷移では、次の順序で各呼出し直後の入力不変性、初回結果の保持、同入力の結果一致を assertion で確認する。比較対象は入力 state と、effects を含む全返却値。外部 I/O がないだけでは純粋とは扱わない。
+
+  ```js
+  const before = snapshot(state);
+  const first = transition(state, event);
+  assertEqual(state, before);
+  const firstBefore = snapshot(first);
+  const second = transition(state, event);
+  assertEqual(state, before);
+  assertEqual(first, firstBefore);
+  assertEqual(second, firstBefore);
+  ```
+
+  これは比較順序の例であり、関数名やライブラリは既存コードに合わせる。`snapshot` は状態・返却値の意味を保持する独立した記録、`assertEqual` はその意味に合う等値比較を表す。通常のデータなら標準の複製・深い比較を使える。opaque や独自表現では意味を検査できる既存の方法へ置換し、空の外形だけを比べない。比較を用意できなければ未確認の範囲と必要な確認方法を記し、純粋性確認済みとしない。実アプリの状態表現を通常データへ制限したり、この検査のために汎用ライブラリや inspect API を追加したりする指定ではない。
+
 - **導出表示**: binding の通常状態と追加の採用裁定をモデル化するときは、表示を `selectDisplay(bindingState, coordination)` のような読み取り関数から得る。完了通知は binding の結果と必要な裁定だけを更新し、Mediator 側で別の `display` を書き換えない。検査もこの読み取り関数の戻り値を照合する。
 
 最終編集後、成果物を開いて次の順にメモを更新する。

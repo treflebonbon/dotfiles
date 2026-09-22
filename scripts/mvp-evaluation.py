@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dedicated, serial entrypoint for the frozen MVP evaluation v10 contract."""
+"""Dedicated, serial entrypoint for the frozen MVP evaluation v11 contract."""
 import argparse
 from collections import Counter
 import fcntl
@@ -15,6 +15,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = Path(__file__).with_name('mvp-evaluation-runtime.py')
 SOURCES = {
+    'docs/evaluations/mvp-mediator-evaluation-v11/protocol.md': 'e0c59975797b96d748f82c498d8ec43ef1845e9339e46f53c4afaaef52355150',
     'docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs': 'bb68c78102ea838e8fe75473bbd2ffee0201965867276305a793e9066ef22a27',
     'docs/evaluations/mvp-mediator-evaluation-v10/protocol.md': '6767e52eca35a275153c1f9655911f998ee821002d70b556f0c13bec45599184',
     'docs/evaluations/mvp-mediator-evaluation-v9/protocol.md': '3a8308a89628d74b86519a68b15bdea91757fa6bb0cf82160dc68fccffe837f2',
@@ -22,7 +23,7 @@ SOURCES = {
     'docs/evaluations/mvp-mediator-evaluation-v7/protocol.md': 'ddf710d6e2f81a89e52cc7defae528eeb355e57f470f4867ba841f65ea74ef94',
     'docs/evaluations/mvp-mediator-evaluation-v6/protocol.md': '2c9fc22d2553d8e683bc782d94dd876f8d32a8ae41dbaefefcf2fc30c9e999a6',
     'docs/evaluations/mvp-mediator-evaluation-v5/protocol.md': '0bfa5674f914d9f0361ab7784371ab1847718d452bb499d302de66bcbf63baa2',
-    'local-skills/mvp-mediator-architecture/SKILL.md': '6ef323f5126cdf0373baef52c3f0aedc0f1d7f55305138eb3072b5eeb6fa4fc6',
+    'local-skills/mvp-mediator-architecture/SKILL.md': '32126db46011ee957fe8cc10ec63d8a93c856a3811ea3bbf1be662bb7d8bad1a',
     'local-skills/mvp-mediator-architecture/references/tanstack-effect.md': '110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca',
     'docs/evaluations/mvp-mediator-executable/protocol.md': 'ba0c8fa045387c5026e470b357afe4d8c9a1392fbadc1f0ccceca54d7cbfbcb2',
     'docs/evaluations/mvp-mediator-executable/check-device.mjs': '72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1',

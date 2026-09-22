@@ -1,8 +1,14 @@
 # MVP評価専用の実行入口
 
+## v11接続（2026-09-23）
+
+現行CLIは[v11契約](evaluations/mvp-mediator-evaluation-v11/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v11/design.md)に従い、スキルの純粋性段落へ各呼出し直後の入力比較と初回結果snapshotを示す例を置いた。snapshot/equalityは既存表現へ合わせ、比較不能は未確認として扱う。E課題と親checkerはv10を維持し、状態分類・根拠表・runtimeは変更しない。
+
+本文の例は `node --test tests/mvp-purity-example.mjs` で直接実行する。正常例の成功と、初回入力変更を再呼出しで戻す不正例、再呼出し時の入力変更、非決定的な結果、返却object再利用を検出する。公開CLI検査は `bats tests/mvp-evaluation.bats`。S/Lへの比較順序の明示化と、実行者の行動改善は区別して次の実評価で確認する。実LLM再評価は別の明示依頼で開始する。
+
 ## v10接続（2026-09-23）
 
-現行CLIは[v10契約](evaluations/mvp-mediator-evaluation-v10/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-checker/design.md)に従い、E課題の状態を明示的なデータに限定し、新版checkerで全入力stateの非破壊性と同入力結果の決定性を検査する。機能ケースは従来の52件を維持する。
+v10時点のCLIは[v10契約](evaluations/mvp-mediator-evaluation-v10/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-checker/design.md)に従い、E課題の状態を明示的なデータに限定し、新版checkerで全入力stateの非破壊性と同入力結果の決定性を検査する。機能ケースは従来の52件を維持する。
 
 親のE検査は `node docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs <model.mjs>` を使う。JSONのstatus、executed、completed、notRun、failuresを保存し、契約違反・モデル検査失敗・検査未成立を区別する。状態外の判断用可変データは親のコード監査でも確認する。旧checkerのhashは新版監査で拒否される。
 

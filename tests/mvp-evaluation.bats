@@ -48,7 +48,7 @@ PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/audit.json"
 }
 
-@test "MVP v10 distributes the explicit-data E contract and pins its checker" {
+@test "MVP v11 distributes the purity example and retains the v10 E checker" {
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   python3 "$CLI" prepare "$RUN"
   python3 - "$RUN" "$ROOT" <<'PYTEST'
@@ -63,8 +63,16 @@ prompt=(r/'attempts/01/prompt.txt').read_text()
 assert 'All decision state must be contained in state' in prompt
 assert 'fresh opaque state' not in prompt
 assert '## B —' not in prompt and '## S —' not in prompt
-assert hashlib.sha256((r/'attempts/01/inputs/SKILL.md').read_bytes()).hexdigest()=='6ef323f5126cdf0373baef52c3f0aedc0f1d7f55305138eb3072b5eeb6fa4fc6'
+skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
+assert skill==(root/'local-skills/mvp-mediator-architecture/SKILL.md').read_bytes()
+assert b'const firstBefore = snapshot(first);' in skill
+assert 'docs/evaluations/mvp-mediator-evaluation-v11/protocol.md' in start['sources']
 PYTEST
+}
+
+@test "MVP skill purity example detects input and result mutation" {
+  run node --test "$ROOT/tests/mvp-purity-example.mjs"
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
 }
 
 @test "MVP checker validates data, purity, deterministic results and error reporting" {
@@ -121,7 +129,7 @@ execute_next() {
 import hashlib,json,sys
 from pathlib import Path
 r=Path(sys.argv[1]);start=json.loads((r/'start.json').read_text())
-for version in ('v2','v3','v4','v5','v6','v7','v8','v9','v10'):
+for version in ('v2','v3','v4','v5','v6','v7','v8','v9','v10','v11'):
     path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
     assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
