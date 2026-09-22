@@ -65,6 +65,21 @@ test("documented purity example accepts pure transitions and rejects changes on 
     { code: "ERR_ASSERTION" }
   );
 
+  const firstResult = { effects: [], state: { count: 0 } };
+  calls = 0;
+  assert.throws(
+    () =>
+      check(() => {
+        calls += 1;
+        if (calls === 1) {
+          return firstResult;
+        }
+        firstResult.effects.push("changed after return");
+        return { effects: [], state: { count: 0 } };
+      }),
+    { code: "ERR_ASSERTION" }
+  );
+
   const reused = { effects: [], state: { count: 0 } };
   assert.throws(
     () =>
