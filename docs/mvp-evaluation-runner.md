@@ -1,8 +1,18 @@
 # MVP評価専用の実行入口
 
+## v10接続（2026-09-23）
+
+現行CLIは[v10契約](evaluations/mvp-mediator-evaluation-v10/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-checker/design.md)に従い、E課題の状態を明示的なデータに限定し、新版checkerで全入力stateの非破壊性と同入力結果の決定性を検査する。機能ケースは従来の52件を維持する。
+
+親のE検査は `node docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs <model.mjs>` を使う。JSONのstatus、executed、notRun、failuresを保存し、契約違反・モデル検査失敗・検査未成立を区別する。状態外の判断用可変データは親のコード監査でも確認する。旧checkerのhashは新版監査で拒否される。
+
+スキル本文はv9のままで、B/S/L課題・共通テンプレート・runtime・採点・停止条件も維持する。新旧契約とcheckerをhash固定し、旧runはstatus参照だけを許可する。APIと検査条件が変わるため、旧版との単純な改善率比較は行わない。実LLM再評価は別の明示依頼で開始する。
+
+専用検査は `bats tests/mvp-evaluation.bats`。この中でcheckerの公開コマンド入口を `node --test tests/mvp-checker.mjs` により検査し、通常／freeze、入力破壊、非決定性、返却object再利用、不正形式、エラー分類と旧52件のnegative controlを確認する。CLI fixtureは配布と証拠の版を検査し、実モデルを起動しない。
+
 ## v9接続（2026-09-22）
 
-現行CLIは[v9契約](evaluations/mvp-mediator-evaluation-v9/protocol.md)へ接続する。状態表と根拠表の変更、受入条件、形式遵守と内容の正確さを分ける比較条件は同契約を参照する。新規runは新本文とv2〜v9契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
+v9時点のCLIは[v9契約](evaluations/mvp-mediator-evaluation-v9/protocol.md)へ接続する。状態表と根拠表の変更、受入条件、形式遵守と内容の正確さを分ける比較条件は同契約を参照する。新規runは新本文とv2〜v9契約を固定する。CLIの変更は版登録とhashのみ。実LLM評価は次の明示的なempirical-prompt-tuning依頼で行う。
 
 ### v9接続の検証結果
 

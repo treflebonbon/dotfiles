@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dedicated, serial entrypoint for the frozen MVP evaluation v9 contract."""
+"""Dedicated, serial entrypoint for the frozen MVP evaluation v10 contract."""
 import argparse
 from collections import Counter
 import fcntl
@@ -15,6 +15,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = Path(__file__).with_name('mvp-evaluation-runtime.py')
 SOURCES = {
+    'docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs': '0b76dfb15fd2041d60e09a3b4d156e41c3e7ddd499f6a9feff15975a90fdde94',
+    'docs/evaluations/mvp-mediator-evaluation-v10/protocol.md': '0edeb66311eca4e6d9c58c0e5623700a5a39f896ed64e45f87689c2c6e335a7d',
     'docs/evaluations/mvp-mediator-evaluation-v9/protocol.md': '3a8308a89628d74b86519a68b15bdea91757fa6bb0cf82160dc68fccffe837f2',
     'docs/evaluations/mvp-mediator-evaluation-v8/protocol.md': 'e7bdcde3adb7fd558b80e28dc9b675cf4592d49a7f28234752e15260ffb0d732',
     'docs/evaluations/mvp-mediator-evaluation-v7/protocol.md': 'ddf710d6e2f81a89e52cc7defae528eeb355e57f470f4867ba841f65ea74ef94',
@@ -129,7 +131,8 @@ def prepare(args, state, start):
         unused = read(args.unused_evidence)
         require(unused.get('unused') is True and unused.get('reason'), 'explicit unused-history attestation required')
     task = 'EBS'[slot%3] if slot<9 else 'L'
-    source = 'mvp-mediator-followup' if task=='L' else 'mvp-mediator-executable'
+    source = ('mvp-mediator-evaluation-v10' if task=='E' else
+              'mvp-mediator-followup' if task=='L' else 'mvp-mediator-executable')
     text = (ROOT/f'docs/evaluations/{source}/protocol.md').read_text()
     section = re.search(r'^## '+task+r' — .*?(?=^## |\Z)',text,re.M|re.S).group()
     if task=='S':
@@ -225,7 +228,7 @@ def audit(args, state, attempt, directory):
             if check['status']=='executed':
                 require(check.get('command') and check.get('expected') and type(check.get('exit_code')) is int and isinstance(check.get('output'),str), 'parent command, expected result, exit and output required')
             if name=='fixed_checker':
-                require(check.get('checker_sha256')==SOURCES['docs/evaluations/mvp-mediator-executable/check-device.mjs'],'frozen checker mismatch')
+                require(check.get('checker_sha256')==SOURCES['docs/evaluations/mvp-mediator-evaluation-v10/check-device.mjs'],'frozen checker mismatch')
             require(not clear(record) or (check['status']=='executed' and check['exit_code']==0), 'unexecuted/failed parent checks cannot clear')
         record['references'].append({'path':str(parent_path.relative_to(directory.resolve())), 'locator':'required parent checks','sha256':sha(parent_path)})
     require(clear(record) or record['failure_patterns'],'non-clear audit needs classified failure patterns')

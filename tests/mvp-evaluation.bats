@@ -24,7 +24,7 @@ from pathlib import Path
 r=Path(sys.argv[1]);a=json.loads((r/'state.json').read_text())['attempts'][-1];d=r/'attempts'/a['id'];e=json.loads((d/'evidence.json').read_text())
 p=d/'parent-checks';p.mkdir(exist_ok=True)
 c={'status':'executed','reason':'synthetic parent check fixture','command':'synthetic checker','expected':'synthetic success','exit_code':0,'output':'synthetic expected result','artifact_sha256':e['artifacts'].get('model.mjs')}
-(p/'checks.json').write_text(json.dumps({'self_check':c,'fixed_checker':dict(c,checker_sha256='72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1'),'proposal_review':{'status':'not-run','reason':'display-only proposal fixture'}}))
+(p/'checks.json').write_text(json.dumps({'self_check':c,'fixed_checker':dict(c,checker_sha256='0b76dfb15fd2041d60e09a3b4d156e41c3e7ddd499f6a9feff15975a90fdde94'),'proposal_review':{'status':'not-run','reason':'display-only proposal fixture'}}))
 PY
 }
 
@@ -46,6 +46,30 @@ if sys.argv[5]:
 Path(sys.argv[2]).write_text(json.dumps(record))
 PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/audit.json"
+}
+
+@test "MVP v10 distributes the explicit-data E contract and pins its checker" {
+  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
+  python3 "$CLI" prepare "$RUN"
+  python3 - "$RUN" "$ROOT" <<'PYTEST'
+import hashlib,json,sys
+from pathlib import Path
+r,root=map(Path,sys.argv[1:]);start=json.loads((r/'start.json').read_text())
+for name in ('protocol.md','check-device.mjs'):
+    path=f'docs/evaluations/mvp-mediator-evaluation-v10/{name}'
+    assert path in start['sources'], 'v10 source must be pinned'
+    assert start['sources'][path]==hashlib.sha256((root/path).read_bytes()).hexdigest()
+prompt=(r/'attempts/01/prompt.txt').read_text()
+assert 'All decision state must be contained in state' in prompt
+assert 'fresh opaque state' not in prompt
+assert '## B —' not in prompt and '## S —' not in prompt
+assert hashlib.sha256((r/'attempts/01/inputs/SKILL.md').read_bytes()).hexdigest()=='6ef323f5126cdf0373baef52c3f0aedc0f1d7f55305138eb3072b5eeb6fa4fc6'
+PYTEST
+}
+
+@test "MVP checker validates data, purity, deterministic results and error reporting" {
+  run node --test "$ROOT/tests/mvp-checker.mjs"
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
 }
 
 execute_next() {
@@ -97,7 +121,7 @@ execute_next() {
 import hashlib,json,sys
 from pathlib import Path
 r=Path(sys.argv[1]);start=json.loads((r/'start.json').read_text())
-for version in ('v2','v3','v4','v5','v6','v7','v8','v9'):
+for version in ('v2','v3','v4','v5','v6','v7','v8','v9','v10'):
     path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
     assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
@@ -219,7 +243,37 @@ PY
   run python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/missing.json"
   [ "$status" -ne 0 ]
   [[ "$output" == *"parent-checks record required"* ]]
+  parent_checks
+  python3 - "$RUN" "$BATS_TEST_TMPDIR/missing.json" <<'PY'
+import json,sys
+from pathlib import Path
+r=Path(sys.argv[1]);record=Path(sys.argv[2]);d=r/'attempts/01/parent-checks/checks.json'
+c=json.loads(d.read_text());c['fixed_checker']['checker_sha256']='72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1';d.write_text(json.dumps(c))
+a=json.loads(record.read_text());a['parent_checks']='parent-checks/checks.json';record.write_text(json.dumps(a))
+PY
+  run python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/missing.json"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"frozen checker mismatch"* ]]
   audit valid
+}
+
+@test "MVP old implementation records allow status but prohibit resuming writes" {
+  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
+  python3 - "$RUN" "$CLI" <<'PY'
+import hashlib,json,sys
+from pathlib import Path
+r=Path(sys.argv[1]);p=r/'start.json';start=json.loads(p.read_text())
+start['implementation'][sys.argv[2]]='0'*64
+p.write_text(json.dumps(start))
+state=json.loads((r/'state.json').read_text());state['start_sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
+(r/'state.json').write_text(json.dumps(state))
+PY
+  run python3 "$CLI" status "$RUN"
+  [ "$status" -eq 0 ]
+  run python3 "$CLI" prepare "$RUN"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"implementation changed"* ]]
+  [ ! -d "$RUN/attempts/01" ]
 }
 
 @test "MVP input and execution evidence mutations cannot receive approval or audit" {
