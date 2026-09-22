@@ -16,13 +16,13 @@ E課題の配布元は本書のE節、固定checkerは同ディレクトリの `
 
 旧52機能ケースと `--known-bug` negative controlを維持する。初期状態と返却状態の形式を確認し、各呼出し後の全入力stateの不変性と同入力の2結果の一致を検査する。初回結果は再呼出し前に複製する。effectsの実行はせず、機能ケースの履歴には初回結果だけを採用する。
 
-checkerのJSONは `status`、`passed`、`executed`（開始したケース数）、`notRun`、`total=52`、ケース別 `failures`、必要なら `error` を報告する。`passed` とfailuresが完了結果であり、準備失敗で開始していないケースを失敗へ算入しない。
+checkerのJSONは `status`、`passed`、`executed`（開始したケース数）、`completed`（合否まで確定したケース数）、`notRun`、`total=52`、ケース別 `failures`（`kind`でmodel-failure／model-error／contract-errorを区別）、必要なら `error` を報告する。`passed` とfailuresが完了結果であり、準備失敗で開始していないケースを失敗へ算入しない。
 
 - `pass`: 全52ケースが成功。exit0。
 - `fail`: 実行したケースで非破壊・決定性・機能検査が不合格、またはモデル呼出しが例外。exit1。
 - `contract-error`: モデルの状態形式・APIが契約外。具体的な箇所を示して後続を止める。初期状態で拒否された場合はexecuted0／notRun52／failures空。exit1。
 - `model-error`: ケース開始前のモデル初期化が例外。機能検査未実行。exit1。
-- `checker-error`: ファイルを読み込めないなど、checkerが検査を成立させられない。機能検査の結果とは分離し、理由を記録。exit1。JSON自体が出ないプロセス障害も親が検査未成立と記録する。
+- `checker-error`: ファイルを読み込めないなど、checkerが検査を成立させられない。機能検査の結果とは分離し、理由を記録。exit1。ケース中の障害はcase名も記録し、開始済みexecutedへ含めるがcompleted／failuresには含めない。JSON自体が出ないプロセス障害も親が検査未成立と記録する。
 
 モデルの契約違反を配布入力invalidへ付け替えず、replacementの理由にしない。検査未成立を52件の機能不良としない。採点は従来の6項目・C1〜C4へ根拠別に行い、新しい一律減点は設けない。親の追加検査を実行者の自己検査実績へ加えない。状態外の隠れた判断状態はコード監査でも確認し、有限検査の成功だけで完全な純粋性を証明したとしない。
 

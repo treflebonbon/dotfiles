@@ -61,6 +61,7 @@ const mutant = process.argv.includes("--known-bug");
 const results = [];
 const targets = ["recording", "calibration"];
 let fatal;
+let executed = 0;
 try {
   const model = await import(pathToFileURL(path.resolve(process.argv[2])).href);
   for (const name of ["initial", "transition", "observe"]) {
@@ -146,13 +147,24 @@ try {
     if (fatal) {
       return;
     }
+    executed += 1;
     try {
       check();
       results.push({ name, pass: true });
     } catch (error) {
-      results.push({ error: error.message, name, pass: false });
-      if (error instanceof EvaluationError && error.kind === "contract-error") {
-        fatal = { error: error.message, status: "contract-error" };
+      let kind = "checker-error";
+      if (error instanceof EvaluationError) {
+        ({ kind } = error);
+      } else if (error instanceof assert.AssertionError) {
+        kind = "model-failure";
+      }
+      if (kind === "checker-error") {
+        fatal = { case: name, error: error.message, status: kind };
+        return;
+      }
+      results.push({ error: error.message, kind, name, pass: false });
+      if (kind === "contract-error") {
+        fatal = { error: error.message, status: kind };
       }
     }
   };
@@ -270,10 +282,11 @@ console.log(
   JSON.stringify(
     {
       ...fatal,
-      executed: results.length,
+      completed: results.length,
+      executed,
       failures,
       negativeControl: mutant,
-      notRun: 52 - results.length,
+      notRun: 52 - executed,
       passed: results.filter((r) => r.pass).length,
       status: fatal?.status ?? (failures.length ? "fail" : "pass"),
       total: 52,

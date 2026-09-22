@@ -24,7 +24,7 @@ from pathlib import Path
 r=Path(sys.argv[1]);a=json.loads((r/'state.json').read_text())['attempts'][-1];d=r/'attempts'/a['id'];e=json.loads((d/'evidence.json').read_text())
 p=d/'parent-checks';p.mkdir(exist_ok=True)
 c={'status':'executed','reason':'synthetic parent check fixture','command':'synthetic checker','expected':'synthetic success','exit_code':0,'output':'synthetic expected result','artifact_sha256':e['artifacts'].get('model.mjs')}
-(p/'checks.json').write_text(json.dumps({'self_check':c,'fixed_checker':dict(c,checker_sha256='0b76dfb15fd2041d60e09a3b4d156e41c3e7ddd499f6a9feff15975a90fdde94'),'proposal_review':{'status':'not-run','reason':'display-only proposal fixture'}}))
+(p/'checks.json').write_text(json.dumps({'self_check':c,'fixed_checker':dict(c,checker_sha256='ee1eda20c14a1e2f154b21bc0189b88a1644a6846c2e6c5980e084bc87b04f71'),'proposal_review':{'status':'not-run','reason':'display-only proposal fixture'}}))
 PY
 }
 

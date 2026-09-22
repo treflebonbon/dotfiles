@@ -147,3 +147,17 @@ test("model initialization errors and unavailable checker inputs are distinguish
   assert.equal(missing.status, 1);
   assert.equal(JSON.parse(missing.stdout).status, "checker-error");
 });
+
+test("a checker failure during a case aborts remaining cases instead of reporting model failures", () => {
+  const result = run(`
+    export * from ${JSON.stringify(new URL("fixtures/mvp-device.mjs", import.meta.url).href)};
+    globalThis.structuredClone = () => { throw new Error("snapshot unavailable"); };
+  `);
+  assert.equal(result.exit, 1);
+  assert.equal(result.report.status, "checker-error");
+  assert.equal(result.report.executed, 1);
+  assert.equal(result.report.completed, 0);
+  assert.equal(result.report.failures.length, 0);
+  assert.equal(result.report.notRun, 51);
+  assert.match(result.report.error, /snapshot unavailable/u);
+});
