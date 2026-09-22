@@ -1,8 +1,14 @@
 # MVP評価専用の実行入口
 
-## v4接続（2026-09-22）
+## v5接続（2026-09-22）
 
-現行CLIは[v4契約](evaluations/mvp-mediator-evaluation-v4/protocol.md)へ接続する。対象本文の状態説明を、保持状態・目的/所有者・区分・本実装の取得元の欄へ具体化した。新規runは新本文とv2/v3/v4のpath/hashを固定する。配布テンプレート・課題・採点・停止条件はv3を維持し、実行者には新本文として変更を渡す。
+現行CLIは[v5契約](evaluations/mvp-mediator-evaluation-v5/protocol.md)へ接続する。対象本文の検証メモ指示を、最終編集後にケースと操作列、保持状態と説明、検証主張とassertion・実行結果を照合する完了手順へ組み替えた。新規runは新本文とv2〜v5契約のpath/hashを固定する。課題・配布テンプレート・採点・runtime・停止条件は維持する。
+
+既存の公開CLI fixtureでv5未登録のredを確認し、新版の固定・配布を検証する。過去runは保存し、新版での再開は認めない。実LLM評価は次の明示的なempirical-prompt-tuning依頼で実施する。fixtureの成功は行動改善の証明ではない。
+
+## v4接続（2026-09-22、履歴）
+
+v4時点のCLIは[v4契約](evaluations/mvp-mediator-evaluation-v4/protocol.md)へ接続する。対象本文の状態説明を、保持状態・目的/所有者・区分・本実装の取得元の欄へ具体化した。新規runは新本文とv2/v3/v4のpath/hashを固定する。配布テンプレート・課題・採点・停止条件はv3を維持し、実行者には新本文として変更を渡す。
 
 公開CLIのinit/prepare fixtureで、v4登録前の失敗と、新版の固定・配布後の成功を確認する。旧runの記録は保持し、新版による再開は認めない。今回の実装では実LLM評価を開始しない。本文の適用効果は次のempirical評価で確認する。
 
