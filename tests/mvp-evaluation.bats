@@ -97,7 +97,7 @@ execute_next() {
 import hashlib,json,sys
 from pathlib import Path
 r=Path(sys.argv[1]);start=json.loads((r/'start.json').read_text())
-for version in ('v2','v3','v4','v5','v6'):
+for version in ('v2','v3','v4','v5','v6','v7'):
     path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
     assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
