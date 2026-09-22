@@ -76,9 +76,13 @@ try {
     try {
       return model[name](...args);
     } catch (error) {
-      throw new EvaluationError("model-error", `${name}: ${error.message}`, {
-        cause: error,
-      });
+      throw new EvaluationError(
+        "model-error",
+        `${name}: ${error?.message ?? String(error)}`,
+        {
+          cause: error,
+        }
+      );
     }
   };
   validateState(invoke("initial"), "initial");

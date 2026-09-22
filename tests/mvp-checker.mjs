@@ -146,6 +146,10 @@ test("model initialization errors and unavailable checker inputs are distinguish
   );
   assert.equal(missing.status, 1);
   assert.equal(JSON.parse(missing.stdout).status, "checker-error");
+  const thrownNull = run(
+    "export const initial = () => {throw null}; export const transition = () => {}; export const observe = () => ({});"
+  );
+  assert.equal(thrownNull.report.status, "model-error");
 });
 
 test("a checker failure during a case aborts remaining cases instead of reporting model failures", () => {
