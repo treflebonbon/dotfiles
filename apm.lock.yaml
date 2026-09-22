@@ -1,5 +1,5 @@
 lockfile_version: '1'
-apm_version: 0.30.0
+apm_version: 0.31.0
 dependencies:
 - repo_url: anthropics/skills
   name: pdf
@@ -1138,9 +1138,9 @@ dependencies:
 - repo_url: mizchi/skills
   name: empirical-prompt-tuning
   host: github.com
-  resolved_commit: 66dadd9613719251c1501ba482c08cbd7f55ffee
+  resolved_commit: a3f2f1bac20fc500c2688ffe6ca4ce048d0cfedc
   version: unknown
-  virtual_path: meta/empirical-prompt-tuning
+  virtual_path: empirical-prompt-tuning
   is_virtual: true
   package_type: claude_skill
   deployed_files:
@@ -1153,13 +1153,13 @@ dependencies:
   - .claude/skills/empirical-prompt-tuning/SKILL-ja.md
   - .claude/skills/empirical-prompt-tuning/SKILL.md
   deployed_file_hashes:
-    .agents/skills/empirical-prompt-tuning/README.md: sha256:c7db7d27122bcffe416e5607700a7cd1778cad260d3e104c5bb6da7b7f976b3d
+    .agents/skills/empirical-prompt-tuning/README.md: sha256:5fc8e7774a7290497c941e46baeb2712731dd92a7ea2ddff75fecc9173ccc347
     .agents/skills/empirical-prompt-tuning/SKILL-ja.md: sha256:0a38d830802c2e08a7faca13928fedf6911e00b896946b4b03910d662de6dea5
     .agents/skills/empirical-prompt-tuning/SKILL.md: sha256:252418e7ef022981d2dda2e3ec57fa1c786d30af68c50b7e062edf1d7361b0cb
-    .claude/skills/empirical-prompt-tuning/README.md: sha256:c7db7d27122bcffe416e5607700a7cd1778cad260d3e104c5bb6da7b7f976b3d
+    .claude/skills/empirical-prompt-tuning/README.md: sha256:5fc8e7774a7290497c941e46baeb2712731dd92a7ea2ddff75fecc9173ccc347
     .claude/skills/empirical-prompt-tuning/SKILL-ja.md: sha256:0a38d830802c2e08a7faca13928fedf6911e00b896946b4b03910d662de6dea5
     .claude/skills/empirical-prompt-tuning/SKILL.md: sha256:252418e7ef022981d2dda2e3ec57fa1c786d30af68c50b7e062edf1d7361b0cb
-  content_hash: sha256:20e7fba93c7267ba6e3a7b27787ca49191b762dffcfb804b01da9183b1b0c891
+  content_hash: sha256:26042612e2d8b6ee1deebcdfc556da494640488e03471aaae74da587ae84fa2b
 - repo_url: pbakaus/impeccable
   name: impeccable
   host: github.com
@@ -1971,7 +1971,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 2b3e6d4f8d9161fe5c19340dc383aade392012dd
+  resolved_commit: 98a1fe67b439324ddc857f47fbdce056600a4329
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2044,7 +2044,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 60d793956af91d16070d852567d7d82718aaf0db
+  resolved_commit: 059ee59a48272854a2317cc267bdd03f23ec9aa6
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2055,9 +2055,9 @@ dependencies:
   - .claude/skills/computer-use
   - .claude/skills/computer-use/SKILL.md
   deployed_file_hashes:
-    .agents/skills/computer-use/SKILL.md: sha256:da1df6e6dab96373add40b36a5dee7d6b29e5a92e0cf827466ea1ad364546961
-    .claude/skills/computer-use/SKILL.md: sha256:da1df6e6dab96373add40b36a5dee7d6b29e5a92e0cf827466ea1ad364546961
-  content_hash: sha256:87549f18a6a67d02dc03b27d53def70becb95bee90c5f2a41946766256bcaae8
+    .agents/skills/computer-use/SKILL.md: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
+    .claude/skills/computer-use/SKILL.md: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
+  content_hash: sha256:dc999be3d9692278ff281951d897f0a7497aca607cee8354ac128b63ec2da3f0
 - repo_url: stablyai/orca
   name: orca-cli
   host: github.com
@@ -2079,7 +2079,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 60d793956af91d16070d852567d7d82718aaf0db
+  resolved_commit: 059ee59a48272854a2317cc267bdd03f23ec9aa6
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2090,9 +2090,9 @@ dependencies:
   - .claude/skills/orchestration
   - .claude/skills/orchestration/SKILL.md
   deployed_file_hashes:
-    .agents/skills/orchestration/SKILL.md: sha256:f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732
-    .claude/skills/orchestration/SKILL.md: sha256:f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732
-  content_hash: sha256:2b0116fe242b0c0ecc1177600de8bafe356fc126745faad2fba9c4d19c94a1d0
+    .agents/skills/orchestration/SKILL.md: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
+    .claude/skills/orchestration/SKILL.md: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
+  content_hash: sha256:247d274538eafa19d2fc622681dd7373d752e15e77b0efe41087e4790f062c50
 - repo_url: supabase/agent-skills
   name: supabase-postgres-best-practices
   host: github.com
@@ -2705,7 +2705,7 @@ dependencies:
 - repo_url: vercel-labs/skills
   name: find-skills
   host: github.com
-  resolved_commit: d6b37f62ae23c3825b0ed16c73e123eee0a41fdc
+  resolved_commit: 7407f3893ad4dceab546ac002c3ef806e4000c73
   version: unknown
   virtual_path: skills/find-skills
   is_virtual: true
@@ -2980,7 +2980,7 @@ deployments:
   owners:
   - stablyai/orca/skills/computer-use
   active_owner: stablyai/orca/skills/computer-use
-  content_hash: sha256:da1df6e6dab96373add40b36a5dee7d6b29e5a92e0cf827466ea1ad364546961
+  content_hash: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
 - kind: project-relative
   target: claude
   value: .claude/skills/diagnosing-bugs
@@ -3086,8 +3086,8 @@ deployments:
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
   content_hash: null
 - kind: project-relative
   target: claude
@@ -3095,17 +3095,17 @@ deployments:
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
-  content_hash: sha256:c7db7d27122bcffe416e5607700a7cd1778cad260d3e104c5bb6da7b7f976b3d
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
+  content_hash: sha256:5fc8e7774a7290497c941e46baeb2712731dd92a7ea2ddff75fecc9173ccc347
 - kind: project-relative
   target: claude
   value: .claude/skills/empirical-prompt-tuning/SKILL-ja.md
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
   content_hash: sha256:0a38d830802c2e08a7faca13928fedf6911e00b896946b4b03910d662de6dea5
 - kind: project-relative
   target: claude
@@ -3113,8 +3113,8 @@ deployments:
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
   content_hash: sha256:252418e7ef022981d2dda2e3ec57fa1c786d30af68c50b7e062edf1d7361b0cb
 - kind: project-relative
   target: claude
@@ -5185,7 +5185,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732
+  content_hash: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
 - kind: project-relative
   target: claude
   value: .claude/skills/pdf
@@ -8785,7 +8785,7 @@ deployments:
   owners:
   - stablyai/orca/skills/computer-use
   active_owner: stablyai/orca/skills/computer-use
-  content_hash: sha256:da1df6e6dab96373add40b36a5dee7d6b29e5a92e0cf827466ea1ad364546961
+  content_hash: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
 - kind: project-relative
   target: codex
   value: .agents/skills/diagnosing-bugs
@@ -8891,8 +8891,8 @@ deployments:
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
   content_hash: null
 - kind: project-relative
   target: codex
@@ -8900,17 +8900,17 @@ deployments:
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
-  content_hash: sha256:c7db7d27122bcffe416e5607700a7cd1778cad260d3e104c5bb6da7b7f976b3d
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
+  content_hash: sha256:5fc8e7774a7290497c941e46baeb2712731dd92a7ea2ddff75fecc9173ccc347
 - kind: project-relative
   target: codex
   value: .agents/skills/empirical-prompt-tuning/SKILL-ja.md
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
   content_hash: sha256:0a38d830802c2e08a7faca13928fedf6911e00b896946b4b03910d662de6dea5
 - kind: project-relative
   target: codex
@@ -8918,8 +8918,8 @@ deployments:
   runtime: null
   scope: project
   owners:
-  - mizchi/skills/meta/empirical-prompt-tuning
-  active_owner: mizchi/skills/meta/empirical-prompt-tuning
+  - mizchi/skills/empirical-prompt-tuning
+  active_owner: mizchi/skills/empirical-prompt-tuning
   content_hash: sha256:252418e7ef022981d2dda2e3ec57fa1c786d30af68c50b7e062edf1d7361b0cb
 - kind: project-relative
   target: codex
@@ -10990,7 +10990,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:f7da0dd40d8681e2b0303fa0fa2f7ee4e36f2eca6495a4af57b92b9857dff732
+  content_hash: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
 - kind: project-relative
   target: codex
   value: .agents/skills/pdf

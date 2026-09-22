@@ -29,7 +29,7 @@ setup() {
   jq -e '
     keys == ["aarch64-darwin", "aarch64-linux", "x86_64-linux"] and
     all(.[];
-      .expected.version == "0.9.0" and
+      .expected.version == "0.9.1" and
       .shells.default == [.expected] and
       .shells.wsl == [.expected]
     )
