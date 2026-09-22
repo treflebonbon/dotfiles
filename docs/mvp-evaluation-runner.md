@@ -1,4 +1,22 @@
-# MVP評価v2専用の実行入口
+# MVP評価専用の実行入口
+
+## v3接続（2026-09-22）
+
+現行CLIは[v3差分契約](evaluations/mvp-mediator-evaluation-v3/protocol.md)へ接続する。新規runの`start.json.sources`には基礎v2と差分v3の両path/hashを保存し、配布promptへv3のケース別実行出力要件を挿入する。Bにはその条件が適用されず、提案確認のままである。以下のv2初期実装・診断の記録は経緯として保持する。
+
+親は監査確定時に残る未解決条件だけを`issues`・`failure_patterns`へ入れる。復帰済みの任意の探索エラーは、当該attempt内の`environment.md`等に失敗・代替手段のcall/resultと復帰根拠を記録し、監査の`references`と`reason`から参照する。CLIは参照先をhash固定し、次回操作でも照合する。新しい採点エンジンやエラーの自動分類は導入しない。
+
+たとえば、必要な探索結果をrgで取得したfind不在は環境記録へ残し、未解決条件がなければ`issues: []`・`failure_patterns: []`とする。同じ復帰が2実行で発生しても停止せず、他のclear条件を満たせばLの投入判定を妨げない。禁止入力混入・承認境界違反や必須手順の省略は復帰済みへ分類しない。
+
+監査JSONの`references`へ追加する例:
+
+```json
+{ "path": "environment.md", "locator": "失敗・代替実行のevent IDと復帰根拠" }
+```
+
+既存runは再開・再採点しない。旧runの実装hashは新CLIと一致しないため変更操作が拒否され、`status`で保存状態だけを確認できる。契約v3本文の「接続前」は契約固定時点の状態であり、接続状況は本節を参照する。
+
+検証は`bats tests/mvp-evaluation.bats`の公開CLI fixtureで行う。v2/v3固定・配布要件、復帰証拠を残した3組clearとL投入、未解決失敗の再発停止、既存の隔離・監査・証拠・上限ゲートを対象とする。実LLM評価は開始していない。
 
 ## Contract
 

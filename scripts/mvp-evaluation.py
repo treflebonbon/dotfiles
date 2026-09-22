@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dedicated, serial entrypoint for the frozen MVP evaluation v2 contract."""
+"""Dedicated, serial entrypoint for the frozen MVP evaluation v3 contract."""
 import argparse
 from collections import Counter
 import fcntl
@@ -20,6 +20,7 @@ SOURCES = {
     'docs/evaluations/mvp-mediator-executable/protocol.md': 'ba0c8fa045387c5026e470b357afe4d8c9a1392fbadc1f0ccceca54d7cbfbcb2',
     'docs/evaluations/mvp-mediator-executable/check-device.mjs': '72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1',
     'docs/evaluations/mvp-mediator-evaluation-v2/protocol.md': '19c48ebb1c35a7aa5d011c3b280a5451ed5cdbc8dd56ddba8607dceff790fbae',
+    'docs/evaluations/mvp-mediator-evaluation-v3/protocol.md': 'e2c31bc70a9412b9782bb709122c7fadd34e3b59934f7d355e4f35ef89d1f73c',
     'docs/evaluations/mvp-mediator-followup/protocol.md': 'ce4fe0c46a15f96cfd842c0c50c9310fb77f8b5118130c3fed42fd02b3a17664',
 }
 
@@ -138,6 +139,10 @@ def prepare(args, state, start):
     for name in files:
         (directory/'artifacts'/name).touch()
     template = (ROOT/'docs/evaluations/mvp-mediator-evaluation-v2/protocol.md').read_text().split('```text\n',1)[1].split('```',1)[0]
+    requirement = (ROOT/'docs/evaluations/mvp-mediator-evaluation-v3/protocol.md').read_text().split('```text\n',1)[1].split('```',1)[0]
+    anchor = '  検査名は実行したコードに存在する名前を使い、検査範囲は実際のassertionに合わせてください。\n'
+    require(template.count(anchor)==1, 'case-output insertion point missing')
+    template = template.replace(anchor, anchor+requirement)
     values = [f'/inputs (isolated snapshot), branch={start["branch"]}, HEAD={start["head"]}, host Git dir={start["git_dir"]} (not mounted)',
               '/inputs/SKILL.md, '+SOURCES['local-skills/mvp-mediator-architecture/SKILL.md'],
               '/inputs/references/tanstack-effect.md, '+SOURCES['local-skills/mvp-mediator-architecture/references/tanstack-effect.md'],

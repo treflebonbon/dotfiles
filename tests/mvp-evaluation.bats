@@ -30,14 +30,20 @@ PY
 
 audit() {
   parent_checks
-  python3 - "$RUN" "$BATS_TEST_TMPDIR/audit.json" "$1" "${2:-}" <<'PY'
+  python3 - "$RUN" "$BATS_TEST_TMPDIR/audit.json" "$1" "${2:-}" "${3:-}" <<'PY'
 import json,sys
 from pathlib import Path
 r=Path(sys.argv[1]);s=json.loads((r/'state.json').read_text());a=s['attempts'][-1]
-Path(sys.argv[2]).write_text(json.dumps({'evidence_sha256':a['evidence_sha256'],'input':sys.argv[3],
+record={'evidence_sha256':a['evidence_sha256'],'input':sys.argv[3],
 'scores':[1]*6,'compliance':['pass']*4,'issues':[], 'reason':'fixture evidence inspected',
 'failure_patterns':[sys.argv[4]] if sys.argv[4] else [],
-'references':[{'path':'stdout.jsonl','locator':'fixture boundary event'}], 'parent_checks':'parent-checks/checks.json'}))
+'references':[{'path':'stdout.jsonl','locator':'fixture boundary event'}], 'parent_checks':'parent-checks/checks.json'}
+if sys.argv[5]:
+    directory=r/'attempts'/a['id']
+    (directory/'environment.md').write_text('Synthetic recovery: find failed; rg returned the required input listing. No unresolved condition.\n')
+    record['references'].append({'path':'environment.md','locator':'Synthetic recovery'})
+    record['reason']+='; recovered optional exploration failure: see environment.md'
+Path(sys.argv[2]).write_text(json.dumps(record))
 PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/audit.json"
 }
@@ -87,6 +93,19 @@ execute_next() {
   [ "$status" -eq 0 ]
   [ -f "$RUN/attempts/01/inputs/SKILL.md" ]
   [ -f "$RUN/attempts/01/prompt.txt" ]
+  python3 - "$RUN" <<'PYTEST'
+import hashlib,json,sys
+from pathlib import Path
+r=Path(sys.argv[1]);start=json.loads((r/'start.json').read_text())
+for version in ('v2','v3'):
+    path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
+    assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
+prompt=(r/'attempts/01/prompt.txt').read_text()
+assert '各名前付きケースの名前と成功・失敗を検査コマンドの結果に出力' in prompt
+assert '失敗した検査は非0終了' in prompt
+assert '## E — exclusive device' in prompt
+assert '## B —' not in prompt and '## S —' not in prompt
+PYTEST
   ! grep -q 'display-only negative control' "$RUN/attempts/01/prompt.txt"
   ! grep -q 'held-out search UI' "$RUN/attempts/01/prompt.txt"
   run python3 "$CLI" dispatch "$RUN"
@@ -210,12 +229,26 @@ PY
   [ "$status" -ne 0 ]
 }
 
-@test "MVP admits L only after three clear groups and stops after L" {
+@test "MVP recovered errors retain evidence without stopping or blocking three clear groups and L" {
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   for index in {1..9}; do
     execute_next
-    audit valid
+    if [ "$index" -le 2 ]; then
+      audit valid "" recovered
+    else
+      audit valid
+    fi
   done
+  python3 - "$RUN" <<'PYTEST'
+import json,sys
+from pathlib import Path
+r=Path(sys.argv[1]);state=json.loads((r/'state.json').read_text())
+assert state['stop'] is None
+for attempt in state['attempts'][:2]:
+    refs=attempt['audit']['references']
+    ref=next(v for v in refs if v['path']=='environment.md')
+    assert ref['sha256'] and 'Synthetic recovery' in (r/'attempts'/attempt['id']/ref['path']).read_text()
+PYTEST
   run python3 "$CLI" prepare "$RUN"
   [ "$status" -ne 0 ]
   [[ "$output" == *"unused-history evidence required"* ]]
@@ -247,4 +280,16 @@ PY
 @test "MVP retains native tool calls and failures absent from compact exec events" {
   run python3 "$ROOT/tests/mvp-evaluation-records.py"
   [ "$status" -eq 0 ]
+}
+
+@test "MVP repeated unresolved failures stop valid inputs too" {
+  python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
+  for index in 1 2; do
+    execute_next
+    audit valid missing-required-evidence
+  done
+  run python3 "$CLI" prepare "$RUN"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"repeated failure: missing-required-evidence"* ]]
+  [ ! -d "$RUN/attempts/03" ]
 }
