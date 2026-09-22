@@ -6,7 +6,7 @@
 
 ## 対象と仮説
 
-対象 `local-skills/mvp-mediator-architecture/SKILL.md` のSHA-256を `e48b08af5e37c50020aded17e5b58ee751e90ee1767ecc6835080eb3e775501c` に更新する。条件付き参照は変更しない。
+対象 `local-skills/mvp-mediator-architecture/SKILL.md` のSHA-256を `084bd08205c4dd599662b908d09a8958ef5bb36fee5ef621da6b7609369fd401` に更新する。条件付き参照は変更しない。
 
 v6ではE/Sが状態表をモデルと同時に生成し、事前記入の省略で再発停止した。Sの最終説明と検証報告は成立したが、Eには本実装の取得元説明不足と、根拠表外の要約に検証範囲の過大報告が残った。
 
