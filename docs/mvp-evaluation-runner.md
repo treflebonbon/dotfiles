@@ -1,8 +1,14 @@
 # MVP評価専用の実行入口
 
+## v12接続（2026-09-23）
+
+現行CLIは[v12契約](evaluations/mvp-mediator-evaluation-v12/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v12/design.md)に従い、根拠表を最終assertionの観測時点・対象値・比較相手から作る手順へ整理した。短いコードと対応表でstate維持とeffects空、別時点の未検査effectsを区別する。v11の純粋性比較順序、状態分類、課題・checker・runtime・判定基準は維持する。
+
+本文の例は `node --test tests/mvp-reporting-example.mjs` で直接実行する。旧通知のeffects空を確認し、不正なeffectsを拒否する。現通知のeffectsを確認しない例であることと根拠表の対応は別途レビューする。公開CLI fixtureは `bats tests/mvp-evaluation.bats`。例やfixtureの成功は実LLMの報告精度の証明ではなく、実評価は次の明示的な依頼で開始する。
+
 ## v11接続（2026-09-23）
 
-現行CLIは[v11契約](evaluations/mvp-mediator-evaluation-v11/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v11/design.md)に従い、スキルの純粋性段落へ各呼出し直後の入力比較と初回結果snapshotを示す例を置いた。snapshot/equalityは既存表現へ合わせ、比較不能は未確認として扱う。E課題と親checkerはv10を維持し、状態分類・根拠表・runtimeは変更しない。
+v11時点のCLIは[v11契約](evaluations/mvp-mediator-evaluation-v11/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v11/design.md)に従い、スキルの純粋性段落へ各呼出し直後の入力比較と初回結果snapshotを示す例を置いた。snapshot/equalityは既存表現へ合わせ、比較不能は未確認として扱う。E課題と親checkerはv10を維持し、状態分類・根拠表・runtimeは変更しない。
 
 本文の例は `node --test tests/mvp-purity-example.mjs` で直接実行する。正常例の成功と、初回入力変更を再呼出しで戻す不正例、再呼出し時の入力変更、非決定的な結果、返却object再利用を検出する。公開CLI検査は `bats tests/mvp-evaluation.bats`。S/Lへの比較順序の明示化と、実行者の行動改善は区別して次の実評価で確認する。実LLM再評価は別の明示依頼で開始する。
 
