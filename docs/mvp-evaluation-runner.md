@@ -1,8 +1,16 @@
 # MVP評価専用の実行入口
 
+## v16接続（2026-09-24）
+
+現行CLIは[v16契約](evaluations/mvp-mediator-evaluation-v16/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v16/design.md)に従い、抽象モデルを作らない提案は3列の状態説明表、説明対象がなければ一文で完了することを明記した。抽象モデル付きの成果物は従来の5列を維持する。
+
+提案への専用2欄省略の適用を明示・拡張する変更として比較上の制限を記録する。保持状態がある提案の表は引き続き必須。課題・v10 E/checker・runtime・採点アルゴリズム・旧runを維持する。状態なし境界の実LLM効果は既存B課題では測れず未検証。実LLM再評価は別途明示された依頼で行う。
+
+検証記録は `tmp/mvp-v16-implementation/` に保存する。受入検証・レビューは進行中。
+
 ## v15接続（2026-09-23）
 
-現行CLIは[v15契約](evaluations/mvp-mediator-evaluation-v15/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v15/design.md)に従い、状態分類の比較例を正式な状態表と同じ5列へ揃え、手順3もモデル表現と本実装情報源を「表の別々の欄に記す」と明記した。
+v15時点のCLIは[v15契約](evaluations/mvp-mediator-evaluation-v15/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v15/design.md)に従い、状態分類の比較例を正式な状態表と同じ5列へ揃え、手順3もモデル表現と本実装情報源を「表の別々の欄に記す」と明記した。
 
 v14の役割分類と別欄要件を維持する説明・例の整合であり、要件緩和ではない。形式遵守と説明内容の正確さは分けて評価する。検証範囲の過大報告とBの表省略への対策は別テーマに残し、既存基準で引き続き判定する。
 
