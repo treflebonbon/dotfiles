@@ -6,7 +6,7 @@
 
 ## 対象と変更テーマ
 
-対象 `local-skills/mvp-mediator-architecture/SKILL.md` のSHA-256は `cef1e119bf778cb8ead837c4c7bb82b1651ee2966516428dcbf727d0f5b35abb`。条件付き参照は `110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca` を維持する。
+対象 `local-skills/mvp-mediator-architecture/SKILL.md` のSHA-256は `4126e8823338673e9b4c8c590dad534919543910b47526535ad254939bd725cf`。条件付き参照は `110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca` を維持する。
 
 抽象モデルを作らない提案では、状態／判断に使う目的・所有者／本実装での情報源の3列で、提案が追加・保持する状態を説明する。既存の局所状態を使う提案も対象とする。説明対象の保持状態がなければ「説明対象の保持状態なし」と一文で記し、空表は不要。実装コードを作らない提案でも抽象モデルを成果物に含む場合は、従来の5列でモデル表現と本実装情報源を分ける。
 

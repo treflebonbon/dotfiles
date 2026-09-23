@@ -15,7 +15,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = Path(__file__).with_name('mvp-evaluation-runtime.py')
 SOURCES = {
-    'docs/evaluations/mvp-mediator-evaluation-v16/protocol.md': '96a8443e7fd2f61e90419d5f35d73abc2853e0567ba4527da72729e2e76a0e98',
+    'docs/evaluations/mvp-mediator-evaluation-v16/protocol.md': '7d4f65161b73ccc1f3c8292112cca1eb64af718fabce875be1b57fa3c468015b',
     'docs/evaluations/mvp-mediator-evaluation-v15/protocol.md': '10bfa61abe5076d1b1e1f86c36adc6538432433e670b3859f9c19d507820c6c0',
     'docs/evaluations/mvp-mediator-evaluation-v14/protocol.md': '094799f6fd750e87ef50095b01e728d8de50e19151a0788df41d4997b8b07053',
     'docs/evaluations/mvp-mediator-evaluation-v13/protocol.md': 'bd163b4cf79697344d6c1a7c97efc890a2399625be9d88e3a65d546b49af5bb4',
@@ -28,7 +28,7 @@ SOURCES = {
     'docs/evaluations/mvp-mediator-evaluation-v7/protocol.md': 'ddf710d6e2f81a89e52cc7defae528eeb355e57f470f4867ba841f65ea74ef94',
     'docs/evaluations/mvp-mediator-evaluation-v6/protocol.md': '2c9fc22d2553d8e683bc782d94dd876f8d32a8ae41dbaefefcf2fc30c9e999a6',
     'docs/evaluations/mvp-mediator-evaluation-v5/protocol.md': '0bfa5674f914d9f0361ab7784371ab1847718d452bb499d302de66bcbf63baa2',
-    'local-skills/mvp-mediator-architecture/SKILL.md': 'cef1e119bf778cb8ead837c4c7bb82b1651ee2966516428dcbf727d0f5b35abb',
+    'local-skills/mvp-mediator-architecture/SKILL.md': '4126e8823338673e9b4c8c590dad534919543910b47526535ad254939bd725cf',
     'local-skills/mvp-mediator-architecture/references/tanstack-effect.md': '110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca',
     'docs/evaluations/mvp-mediator-executable/protocol.md': 'ba0c8fa045387c5026e470b357afe4d8c9a1392fbadc1f0ccceca54d7cbfbcb2',
     'docs/evaluations/mvp-mediator-executable/check-device.mjs': '72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1',
