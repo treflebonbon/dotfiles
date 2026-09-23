@@ -6,7 +6,20 @@
 
 提案への専用2欄省略の適用を明示・拡張する変更として比較上の制限を記録する。保持状態がある提案の表は引き続き必須。課題・v10 E/checker・runtime・採点アルゴリズム・旧runを維持する。状態なし境界の実LLM効果は既存B課題では測れず未検証。実LLM再評価は別途明示された依頼で行う。
 
-検証記録は `tmp/mvp-v16-implementation/` に保存する。受入検証・レビューは進行中。
+### v16接続の検証結果
+
+| 対象 | 検証 | 結果 |
+| --- | --- | --- |
+| 本文と設計の一致 | `ec0d612...d53b432` のSpecレビューと追加差分の再レビュー | 既存局所状態の包含を明記する指摘1件を`d85a233`で修正、残り0件。formatterのみの状態なし提案・tooltip状態あり提案・抽象モデル付き提案の3境界を確認 |
+| Standards | 初回差分を独立agentでレビュー、追加差分を親が照合 | 文書規約違反・ヒューリスティックとも指摘0件 |
+| 固定配布・旧版境界 | `bats tests/mvp-evaluation.bats` | v16未登録でred、接続後19/19成功。レビュー修正後も19/19成功。本文コード例・checker検査も含む |
+| 型・形式・構文 | `bunx tsc --noEmit`、skill `quick_validate.py`、Python AST/source hash、commit hooks | 成功。tscは既存TypeScript対象。Pythonは構文と公開CLIで検証。レビュー修正後の形式・hashも確認 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | 最終版`d85a233`で1回完走。760件、737成功・23skip・失敗0、exit0。完走した検査中のコード変更なし |
+| 旧記録と実行ロジック | 変更前後のSHA-256照合、15 runの履歴検証・status参照、CLIのAST比較 | 旧評価・runtime・条件付き参照の計1,460ファイル不変。版説明とsource登録以外のCLIロジック不変 |
+
+ログ・red→green・レビュー・保全記録は `tmp/mvp-v16-implementation/` に保存。`d53b432`で開始した全体テストはSpec修正のため途中停止（exit143）し、ログを別保存した。その未完了実行は成功実績へ含めず、最終版で上記の全体テストを実行した。
+
+全体テスト後の変更は設計状態と本書の検証記録のみで、親が実行記録と照合する。実LLM評価・配備・pushは未実施。状態なし境界は文面レビューで確認したもので、実LLM効果の実証ではない。旧未追跡runは今回のcommitへ追加していない。
 
 ## v15接続（2026-09-23）
 
