@@ -1,8 +1,18 @@
 # MVP評価専用の実行入口
 
+## v15接続（2026-09-23）
+
+現行CLIは[v15契約](evaluations/mvp-mediator-evaluation-v15/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v15/design.md)に従い、状態分類の比較例を正式な状態表と同じ5列へ揃え、手順3もモデル表現と本実装情報源を「表の別々の欄に記す」と明記した。
+
+v14の役割分類と別欄要件を維持する説明・例の整合であり、要件緩和ではない。形式遵守と説明内容の正確さは分けて評価する。検証範囲の過大報告とBの表省略への対策は別テーマに残し、既存基準で引き続き判定する。
+
+固定配布の版登録を更新し、v10 E/checker・runtime・採点アルゴリズム・旧runを維持する。実LLM再評価は別途明示された依頼で行い、静的整合やfixture成功を行動改善の実証には数えない。
+
+検証記録は `tmp/mvp-v15-implementation/` に保存する。受入検証・レビューは進行中。
+
 ## v14接続（2026-09-23）
 
-現行CLIは[v14契約](evaluations/mvp-mediator-evaluation-v14/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v14/design.md)に従い、状態説明を使い道の確認、情報の役割による分類、モデル表現と本実装の情報源の分離という3手順と比較例へ置き換えた。4分類と全保持フィールドの説明を維持する。
+v14時点のCLIは[v14契約](evaluations/mvp-mediator-evaluation-v14/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v14/design.md)に従い、状態説明を使い道の確認、情報の役割による分類、モデル表現と本実装の情報源の分離という3手順と比較例へ置き換えた。4分類と全保持フィールドの説明を維持する。
 
 操作IDを発行するモデル内の連番は、既存のID発行機構を模擬する役割として説明する。追加の採用判断、View局所、検査だけの補助との違いを使用箇所から確認する。既存の保証で足りる場合は状態を重複保持しない。
 
