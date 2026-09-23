@@ -8,7 +8,18 @@ v14の役割分類と別欄要件を維持する説明・例の整合であり�
 
 固定配布の版登録を更新し、v10 E/checker・runtime・採点アルゴリズム・旧runを維持する。実LLM再評価は別途明示された依頼で行い、静的整合やfixture成功を行動改善の実証には数えない。
 
-検証記録は `tmp/mvp-v15-implementation/` に保存する。受入検証・レビューは進行中。
+### v15接続の検証結果
+
+| 対象 | 検証 | 結果 |
+| --- | --- | --- |
+| 本文と設計の一致 | `aaa18d1...0f51ac6` のSpecレビュー | 指摘0件。5列の見出し・順序と4例の意味、手順3、既存要件の維持を確認 |
+| Standards | 同差分を独立agentでレビュー | 文書規約違反・ヒューリスティックとも指摘0件 |
+| 固定配布・旧版境界 | `bats tests/mvp-evaluation.bats` | v15未登録でred、接続後19/19成功。既存の本文コード例・checker検査も含む |
+| 型・形式・構文 | `bunx tsc --noEmit`、skill `quick_validate.py`、Python AST/source hash、commit hooks | 成功。tscは既存TypeScript対象。Pythonは構文と公開CLIで検証 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | `0f51ac6`で1回実行。760件、737成功・23skip・失敗0、exit0。検査中のコード変更なし |
+| 旧記録と実行ロジック | 変更前後のSHA-256照合、14 runの履歴検証・status参照、CLIのAST比較 | 旧評価・runtime・条件付き参照の計1,344ファイル不変。版説明とsource登録以外のCLIロジック不変 |
+
+ログ・red→green・レビュー・保全記録は `tmp/mvp-v15-implementation/` に保存。全体テスト後の変更は設計状態と本書の検証記録のみで、親が記録との一致を確認する。実LLM評価・配備・pushは未実施。静的整合やfixture成功を行動改善の実証に数えない。旧未追跡runは今回のcommitへ追加していない。
 
 ## v14接続（2026-09-23）
 
