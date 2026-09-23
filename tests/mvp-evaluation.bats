@@ -48,7 +48,7 @@ PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/audit.json"
 }
 
-@test "MVP v13 distributes the reporting contract and retains the v10 E checker" {
+@test "MVP v14 distributes the state classification contract and retains the v10 E checker" {
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   python3 "$CLI" prepare "$RUN"
   python3 - "$RUN" "$ROOT" <<'PYTEST'
@@ -66,7 +66,7 @@ assert '## B —' not in prompt and '## S —' not in prompt
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
 assert skill==(root/'local-skills/mvp-mediator-architecture/SKILL.md').read_bytes()
 assert b'const firstBefore = snapshot(first);' in skill
-assert 'docs/evaluations/mvp-mediator-evaluation-v13/protocol.md' in start['sources']
+assert 'docs/evaluations/mvp-mediator-evaluation-v14/protocol.md' in start['sources']
 PYTEST
 }
 
@@ -134,7 +134,7 @@ execute_next() {
 import hashlib,json,sys
 from pathlib import Path
 r=Path(sys.argv[1]);start=json.loads((r/'start.json').read_text())
-for version in ('v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13'):
+for version in ('v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14'):
     path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
     assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()

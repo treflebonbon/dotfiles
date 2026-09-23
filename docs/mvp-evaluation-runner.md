@@ -1,8 +1,18 @@
 # MVP評価専用の実行入口
 
+## v14接続（2026-09-23）
+
+現行CLIは[v14契約](evaluations/mvp-mediator-evaluation-v14/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v14/design.md)に従い、状態説明を使い道の確認、情報の役割による分類、モデル表現と本実装の情報源の分離という3手順と比較例へ置き換えた。4分類と全保持フィールドの説明を維持する。
+
+操作IDを発行するモデル内の連番は、既存のID発行機構を模擬する役割として説明する。追加の採用判断、View局所、検査だけの補助との違いを使用箇所から確認する。既存の保証で足りる場合は状態を重複保持しない。
+
+評価契約と固定配布を更新し、v10 E/checker・runtime・採点アルゴリズム・v13の正確な統合行の許容を維持する。旧runは再採点しない。実LLM評価は別途明示された依頼で行い、今回の実装検証を分類精度の実証には数えない。
+
+検証記録は `tmp/mvp-v14-implementation/` に保存する。受入検証・レビューは進行中。
+
 ## v13接続（2026-09-23）
 
-現行CLIは[v13契約](evaluations/mvp-mediator-evaluation-v13/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v13/design.md)に従い、根拠表の観測時点ごとの行分割を推奨へ変更した。統合行でも、各時点の対象値・比較相手・assertion・実行結果の対応と、未実装／未実行の区別は必須とする。表の列構成とコード例は維持する。
+v13時点のCLIは[v13契約](evaluations/mvp-mediator-evaluation-v13/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v13/design.md)に従い、根拠表の観測時点ごとの行分割を推奨へ変更した。統合行でも、各時点の対象値・比較相手・assertion・実行結果の対応と、未実装／未実行の区別は必須とする。表の列構成とコード例は維持する。
 
 正確な統合行だけを形式違反として減点・再発停止へ数えない。要件緩和によるclear増加と報告精度の改善は区別し、旧runを再採点しない。E課題と親checkerはv10のまま、runtimeと採点アルゴリズムも維持する。
 
