@@ -1,6 +1,6 @@
 # MVPスキルの検証報告改善設計
 
-状態: 設計確定。Q1は「1: 手順を整理＋短い完成例」、Q2は「確定」とユーザーが回答。本文変更・実装・新規評価は未開始。
+状態: 設計確定。Q1は「1: 手順を整理＋短い完成例」、Q2は「確定」とユーザーが回答。実装・受入検証完了。実LLM再評価は未開始。検証結果は[MVP評価専用の実行入口](../../mvp-evaluation-runner.md)に記録した。
 
 ## 起点と範囲
 
@@ -21,7 +21,7 @@
 
 ## 次の段階
 
-次のimplementは本書の変更内容と受入条件を使う。評価条件の変更を意図しない。v11成果物・入力・採点を保持し、本文修正後の実LLM評価は別途明示されたempirical-prompt-tuningで行う。
+本書の変更内容と受入条件に基づくimplementを完了した。評価条件の変更を意図しない。v11成果物・入力・採点を保持し、本文修正後の実LLM評価は別途明示されたempirical-prompt-tuningで行う。
 
 ## Q2 — 具体案と受入条件（合意済み）
 
@@ -70,4 +70,4 @@ assert.deepEqual(observe(current.state), expectedCurrent);
 
 本文だけをこのテーマで変更し、E課題と親checkerはv10、B/S/L課題・共通配布テンプレート・6基準/critical・C1〜C4の枠組み・実行者model/effort・隔離・直列親監査・再発停止・実行上限・L投入条件・canonical metadata規則は維持する。観測時点の形式遵守と報告内容の正確さを分けて記録し、clear数だけで改善を主張しない。旧runを再採点しない。
 
-設計全体は合意済み。次のimplementで本文変更・版管理・受入検証を行う。実LLM再評価は実装完了後の明示的なempirical-prompt-tuning依頼で行う。
+設計全体は合意済み。implementで本文変更・版管理・受入検証を完了した。実LLM再評価は実装完了後の明示的なempirical-prompt-tuning依頼で行う。

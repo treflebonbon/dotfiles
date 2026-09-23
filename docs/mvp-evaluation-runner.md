@@ -6,6 +6,23 @@
 
 本文の例は `node --test tests/mvp-reporting-example.mjs` で直接実行する。旧通知のeffects空を確認し、不正なeffectsを拒否する。現通知のeffectsを確認しない例であることと根拠表の対応は別途レビューする。公開CLI fixtureは `bats tests/mvp-evaluation.bats`。例やfixtureの成功は実LLMの報告精度の証明ではなく、実評価は次の明示的な依頼で開始する。
 
+### v12接続の検証結果
+
+比較起点 `eba6b83`、実装 `bae95ec`。全体検査は同コミットで1回実行し、検査中のコード変更なし。
+
+| AC | 検証 | 結果・限界 |
+| --- | --- | --- |
+| assertion起点の手順と表の対応 | 最終本文とv12設計のSpecレビュー | 指摘0件。旧通知のstate比較とeffects空を個別に記録し、現通知のeffectsは未実装。正確な要約、全assertion転記不要、必要検査の追加を維持 |
+| 本文のコード例 | `node --test tests/mvp-reporting-example.mjs tests/mvp-purity-example.mjs` | 2/2成功。新例は実際の本文を実行し、正常な旧通知と誤った旧通知effectsの拒否を確認。現通知effectsは非空でもこの例の検査対象外。既存の純粋性例と5つの不正例検出も維持 |
+| 固定配布・旧版境界 | `bats tests/mvp-evaluation.bats` | 19/19成功。v12を固定し、E課題/checkerはv10のまま。旧実装はstatus参照だけを許可し書込み再開を拒否 |
+| 型・形式・構文 | `bunx tsc --noEmit`、skill `quick_validate.py`、oxlint、Python AST、commit hooks | 成功。tscは既存TypeScript対象。新JSは実行/lint、Pythonは公開CLIと構文確認で検証 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | `bae95ec`で760件、737成功・23skip・失敗0、exit0 |
+| Standardsレビュー | `git diff eba6b83...bae95ec` | 指摘0件、baseline smellなし |
+| Specレビュー | 同差分とv12確定設計 | 指摘0件。変更範囲、コード/表の対応、実LLM改善未検証の区別を確認 |
+| 既存記録とsource pin | SHA-256照合、v11 status/監査履歴確認 | 旧1145ファイル不変、source pinと履歴hash一致。v11純粋性手順・条件付き参照・runtime維持 |
+
+red→green、全体ログ、レビュー、保全記録は `tmp/mvp-v12-implementation/` に保存。全体検査後の変更は設計完了状態とこの検証記録のみ。実LLM再評価は明示依頼後に行い、静的検査・fixture成功から報告精度の改善を主張しない。配備・pushは未実施。旧未追跡runは今回のcommitへ一括追加していない。
+
 ## v11接続（2026-09-23）
 
 v11時点のCLIは[v11契約](evaluations/mvp-mediator-evaluation-v11/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v11/design.md)に従い、スキルの純粋性段落へ各呼出し直後の入力比較と初回結果snapshotを示す例を置いた。snapshot/equalityは既存表現へ合わせ、比較不能は未確認として扱う。E課題と親checkerはv10を維持し、状態分類・根拠表・runtimeは変更しない。
