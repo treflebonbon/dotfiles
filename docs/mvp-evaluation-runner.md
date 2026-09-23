@@ -8,9 +8,23 @@
 
 検証は既存の `bats tests/mvp-evaluation.bats` と本文コード例のNode検査を再利用する。報告生成器や表パーサーは追加しない。実LLM再評価は実装完了後の明示的な依頼で開始する。
 
+### v13接続の検証結果
+
+| 対象 | 検証 | 結果 |
+| --- | --- | --- |
+| 本文と設計の一致 | 最終本文とv13設計のSpecレビュー | 指摘0件。正確な統合行と分割行を許容し、各検証主張の根拠・結果・未確認の区別を維持 |
+| 固定配布・旧版境界 | `bats tests/mvp-evaluation.bats` | v13未登録でred、接続後19/19成功。v10 E/checker、旧run参照と書込み再開拒否を維持 |
+| 本文コード例 | `node --test tests/mvp-reporting-example.mjs tests/mvp-purity-example.mjs` | 既存2件成功。報告例のstate/effects照合と、不正な旧通知effectsの拒否、純粋性比較の検出を維持 |
+| 型・形式・構文 | `bunx tsc --noEmit`、skill `quick_validate.py`、oxlint、Python AST/source hash、commit hooks | 成功。tscは既存TypeScript対象で、Pythonは構文と公開CLI、JS例は実行とlintで検証 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | `f1169bb`で760件、737成功・23skip・失敗0、exit0。1回実行し検査中のコード変更なし |
+| Standardsレビュー | `bfcdcbd...f1169bb` | 文書状態表記2件を指摘。設計の実装完了状態と旧v12節の「現行CLI」を修正。ヒューリスティック指摘なし |
+| 旧記録の保全 | 変更前後のSHA-256照合 | 旧評価ファイル1,212件の変更なし。旧契約・checker・run・採点を保持 |
+
+ログ・red→green・レビュー・保全記録は `tmp/mvp-v13-implementation/` に保存。全体テスト後の変更は設計状態と本書の検証記録のみ。実LLM再評価・配備・pushは未実施。行分割要件の緩和やfixture成功を報告精度の改善として扱わない。旧未追跡runを今回のcommitへ一括追加していない。
+
 ## v12接続（2026-09-23）
 
-現行CLIは[v12契約](evaluations/mvp-mediator-evaluation-v12/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v12/design.md)に従い、根拠表を最終assertionの観測時点・対象値・比較相手から作る手順へ整理した。短いコードと対応表でstate維持とeffects空、別時点の未検査effectsを区別する。v11の純粋性比較順序、状態分類、課題・checker・runtime・判定基準は維持する。
+v12時点のCLIは[v12契約](evaluations/mvp-mediator-evaluation-v12/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v12/design.md)に従い、根拠表を最終assertionの観測時点・対象値・比較相手から作る手順へ整理した。短いコードと対応表でstate維持とeffects空、別時点の未検査effectsを区別する。v11の純粋性比較順序、状態分類、課題・checker・runtime・判定基準は維持する。
 
 本文の例は `node --test tests/mvp-reporting-example.mjs` で直接実行する。旧通知のeffects空を確認し、不正なeffectsを拒否する。現通知のeffectsを確認しない例であることと根拠表の対応は別途レビューする。公開CLI fixtureは `bats tests/mvp-evaluation.bats`。例やfixtureの成功は実LLMの報告精度の証明ではなく、実評価は次の明示的な依頼で開始する。
 
