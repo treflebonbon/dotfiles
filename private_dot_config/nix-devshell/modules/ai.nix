@@ -23,7 +23,7 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; adoption history is in ADR-0047.
-  minClaudeCode = "2.1.277";
+  minClaudeCode = "2.1.280";
   minCodex = "0.155.0";
 
   requireQualityFloor =
@@ -52,7 +52,7 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "worktree 隔離済み Bash の nested shell expansion 拒否、special 変数を介した permission bypass の修正、subagent/background agent の結果報告漏れ修正、LSP plugin 終了時の background session 巻き添え終了修正、--worktree session での project skill 未検出の修正。";
+    reason = "Opus 5.5 (claude-opus-5-5) をデフォルト Opus モデルへ追加、symlink 経由の書込みが in-tree spelling で誤判定され auto mode が越境書込みを承認していた permission bypass の修正、auto mode の safety-filter retry/deny ループ修正、LSP plugin 有効時に background subagent が LSP tool を使えない不具合の修正、background subagent へのメッセージ消失と compaction 後の report 消失の修正、manifest.json 記載名と一致する skill が .claude/skills/.trash へ誤退避される不具合の修正。";
   };
 
   codex = requireQualityFloor {
