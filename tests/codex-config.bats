@@ -329,7 +329,7 @@ for path in sys.argv[1:]:
     assert config["model_verbosity"] == "medium"
     assert config["personality"] == "pragmatic"
     assert config["agents"] == {
-        "default_subagent_model": "gpt-5.6-terra",
+        "default_subagent_model": "gpt-6-sol",
         "default_subagent_reasoning_effort": "high",
         "max_concurrent_threads_per_session": 3,
     }
@@ -1355,7 +1355,7 @@ model_verbosity = "medium"
 personality = "pragmatic"
 
 [agents]
-default_subagent_model = "gpt-5.6-terra"
+default_subagent_model = "gpt-6-sol"
 default_subagent_reasoning_effort = "high"
 max_concurrent_threads_per_session = 3
 
@@ -1480,7 +1480,7 @@ model_verbosity = "medium"
 personality = "pragmatic"
 
 [agents]
-default_subagent_model = "gpt-5.6-terra"
+default_subagent_model = "gpt-6-sol"
 default_subagent_reasoning_effort = "high"
 max_concurrent_threads_per_session = 3
 
