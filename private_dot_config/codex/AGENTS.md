@@ -21,9 +21,9 @@
 
 ## Codex reasoning effort
 
-- Use `gpt-6-astra` / `medium` for ordinary parent-agent work. At the start of design or review, or after two consecutive unsuccessful fixes for the same failure, propose `xhigh` with a short reason; the user controls the switch. If already at `xhigh`, omit the proposal. If the effective setting is unknown, say so rather than claiming a switch occurred.
-- When returning from design or review to ordinary implementation, suggest returning to `medium` once. Keep working at the current effort unless the user asks to pause; a switch proposal alone does not block work.
-- Keep default subagents, including bounded review tasks, at `gpt-6-sol` / `high`. Parent review effort and subagent effort are separate choices.
+- Use `gpt-6-sol` / `high` for ordinary parent-agent work. At the start of design or review, or after two consecutive unsuccessful fixes for the same failure, propose `xhigh` with a short reason; the user controls the switch. If already at `xhigh`, omit the proposal. If the effective setting is unknown, say so rather than claiming a switch occurred.
+- When returning from design or review to ordinary implementation, suggest returning to `high` once. Keep working at the current effort unless the user asks to pause; a switch proposal alone does not block work.
+- Keep default subagents, including bounded review tasks, at `gpt-6-luna` / `xhigh`. Parent review effort and subagent effort are separate choices.
 
 ## Parallel tool calls
 
