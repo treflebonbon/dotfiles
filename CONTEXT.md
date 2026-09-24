@@ -112,6 +112,8 @@
 
 **Review Round**: 選択した unresolved review thread 群を、修正または説明の確認から、検証・1 commit・topic push・日本語返信・resolve まで一括処理する単位。説明のみなら空 commit を作らず、thread 単位の失敗は残りの処理を止めない。 _Avoid_: コメント対応, review fix
 
+**Ticket Chain**: `to-tickets` が記録した「Blocked by」(本文テキストまたは native blocking/tracked-by 関係)で連結している ticket 群の連結成分。依存先を持たない単独 ticket も要素数1の chain として扱う。chain 全体を1つの worktree/branch に割り当て、`implement` を ticket 境界を跨いで継続し、chain の全 ticket が完了したときだけ `to-pr` を一度実行する。他の chain と依存関係を共有しないため、常に fetch 済みの default branch を明示 `--base` として新規 worktree を作る。 _Avoid_: epic, ticket group, dependency graph, frontier ticket
+
 **ローカル skill 上書き**: 外部 skill を fork せず、その repo の指示層で実運用に必要な差分だけを優先規則として定義すること。外部 skill 本文の一般手順は維持し、上書き範囲を明示できる場合に限る。 _Avoid_: skill fork, upstream patch, vendored skill 改変
 
 **Scope Matching**: skill 逸脱を判定する前に、制約の主語・対象層・関数種別・実行文脈が観測対象と一致することを確認する工程。一致しない制約は finding の根拠に使わない。 _Avoid_: keyword matching, 部分一致判定
