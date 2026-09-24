@@ -11,7 +11,7 @@ status: accepted
 
 ## 2026-09-24 配布終了
 
-[スキル有無の比較と共同判断](../evaluations/mvp-mediator-ab-20260924/decision.md)に基づき、現行スキルの配布を終了する。以下の設計原則は判断履歴として保持し、本文・参照例は評価資料に固定保存する。新しい短縮スキルは今回は作成しない。配布の撤去は既存のlocalSkills.retired経路を使い、受入・merge後にlive sourceから反映する。
+[スキル有無の比較と共同判断](../evaluations/mvp-mediator-ab-20260924/decision.md)に基づき、現行スキルの配布を終了する。以下の設計原則は判断履歴として保持し、本文・参照例は評価資料に固定保存する。新しい短縮スキルは今回は作成しない。配布の撤去は既存のlocalSkills.retired経路を使い、main側の別の最小差分が受入・mergeされた後にlive sourceから反映する。
 
 保存リンクは配布終了時点のv17を指す。以下のContextはADR決定前の版についての歴史説明であり、v17のdescriptionがReact全般への適用を要求するという意味ではない。
 

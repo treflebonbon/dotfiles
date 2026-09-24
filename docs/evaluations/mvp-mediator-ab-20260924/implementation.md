@@ -17,8 +17,10 @@
 | 評価CLI・local skill配備・cleanup | `bats tests/mvp-evaluation.bats tests/local-skills.bats tests/run_onchange_before_remove-orphan-claude-skills.bats`、59/59成功。配備検査は一時HOME内のみ。 |
 | 型・lint | `bunx tsc --noEmit`、変更したTS/MJSのoxlint成功。 |
 | 記録保全 | 変更前1676ファイルのSHA-256一致、固定SOURCES、17旧runのverify_history/status成功。 |
-| 全体テスト | 実行中。完了後に実結果を追記する。 |
-| レビュー | Claudeとの設計・差分照合を実施中。最終結果を追記する。 |
+| 全体テスト | `bun run test`（既存`with-env`をPATHへ追加）、761/761成功、exit 0。 |
+| レビュー | Standardsは指摘なし。Specの配備懸念はHEADのarchiveから`chezmoi managed`を実行して対象外と確認。Claude再レビューも阻害事項なし。ADRのmain統合条件を明確化した。 |
+
+秘密検査は群対応表のSHA-256をAPI keyと誤認したため、固定manifestの該当fingerprint 1件だけを`.gitleaksignore`で除外した。通常のcommit hook（format・lint・型検査・秘密検査）は成功し、commit後も原資料72ファイルのhashは一致した。`.gitleaksignore`自体がhomeの配備対象外であることをHEADのarchiveからread-onlyで確認した。
 
 ログと保全manifestは `tmp/mvp-retirement/`。静的検査成功をスキルの効果検証とは扱わない。今回は追加LLM評価を行っていない。
 
