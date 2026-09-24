@@ -26,6 +26,21 @@ setup() {
   done
 }
 
+@test "retired MVP skill is removed from all deployment locations" {
+  local dir
+  for dir in .agents .claude .codex; do
+    mkdir -p "$SKILL_HOME/$dir/skills/mvp-mediator-architecture"
+    printf 'old skill\n' >"$SKILL_HOME/$dir/skills/mvp-mediator-architecture/SKILL.md"
+  done
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  for dir in .agents .claude .codex; do
+    [ ! -e "$SKILL_HOME/$dir/skills/mvp-mediator-architecture" ]
+  done
+}
+
 @test "SKILL.md must resolve to a regular file before cleanup" {
   mkdir -p "$SKILL_SOURCE/local-skills/incomplete" "$SKILL_HOME/.claude/skills/orphan"
   mkfifo "$SKILL_SOURCE/local-skills/incomplete/SKILL.md"
