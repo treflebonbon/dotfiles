@@ -1,0 +1,23 @@
+
+A React/Effect app has recording and calibration that cannot own a device concurrently; a profile editor is independent. The parent owns exclusion; child flows own local UI. Product policy: latest start request wins during acquisition, stop and release, including returning to an earlier requested target. In-flight work continues with its identity unchanged. After acquisition, keep that owner if it matches latest intent, otherwise stop then release before acquiring the latest target. Stop/release failure blocks new acquisition until explicit retry of the failed stage. Repeated starts in blocked state update intent but do not retry automatically. Acquisition failure returns idle without auto-retrying. Same-owner start in active state is a no-op. Stale completions are ignored.
+
+Deliver a minimal executable **abstract decision model**, plus a short responsibility/verification memo. This is not a replacement Effect runtime: output commands for the existing execution boundary; do not perform I/O. Use only JavaScript and Node built-ins. Export:
+
+- `initial()` -> fresh explicit-data state (representation contract below).
+- `transition(state, event)` -> `{ state, effects }`, without mutating input.
+- `observe(state)` -> `{ phase, owner, desired, operationId }`. Phases: `idle`, `acquiring`, `active`, `stopping`, `releasing`, `blocked`. owner/desired are `recording`, `calibration` or null; operationId is the pending execution ID or null. IDs must not be reused within a run.
+- Events: `{type:'start', target}`, `{type:'ok', id}`, `{type:'fail', id}`, `{type:'retry'}`, `{type:'profile'}`. Completion applies to the current stage. Unknown/stale events leave state/effects unchanged.
+- Effects: `{type:'acquire'|'stop'|'release', target, id}`. Acquisition owns nothing until successful; stopping/releasing/blocked reserve the old owner until successful release. State field names and organization are your choice within the representation contract below.
+
+State representation and purity contract (evaluation model only):
+
+All decision state must be contained in state; do not hide mutable decision state in a WeakMap, closure or module-global variable. State is acyclic data composed only of ordinary objects (`Object.prototype`), ordinary dense arrays, null, booleans, strings and finite numbers. Object properties are own enumerable string-keyed data properties. Arrays have no holes, accessors or extra properties. Frozen data is allowed. Functions, undefined, symbols, bigint, getters/setters, custom classes/prototypes, null-prototype objects, Map/Set and other non-data values are outside this contract. This restriction does not prescribe production application state representation or internal field names.
+
+For every checked transition, preserve the entire input state and return structurally equal state/effects for the same state/event. Compare input snapshots after both calls. Snapshot the first result before the second call so reusing and overwriting a result object cannot hide nondeterminism. The parent checks state representation and full-state purity; it still checks functional expectations through observe/effects, and audits the code for hidden decision state. These finite checks do not prove purity for every possible execution. No additional inspect API is required.
+
+1. [critical] Executable transitions implement latest intent consistently in every waiting phase, including target changes back to the in-flight target, without duplicate I/O.
+2. [critical] Stop and release success are required before the next acquire; failure blocks acquisition and explicit retry repeats only the failed stage.
+3. Execution IDs survive intent changes, are fresh for new stages/retries, and stale success/failure cannot advance state.
+4. Common UI parent owns policy; Effect owns execution, typed errors/defects/interruption/lifetime. The pure model only emits commands and does not invent a scheduler or runtime.
+5. Child local flows and the profile editor remain independent; profile events leave device state/effects unchanged.
+6. Model, memo and concrete checks agree; run at least one meaningful assertion-based check and report its actual result, separating executed checks from proposed checks.

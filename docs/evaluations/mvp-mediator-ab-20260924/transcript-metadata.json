@@ -1,0 +1,3589 @@
+[
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a29cda84a42fe40df.jsonl",
+    "sha256": "6ce03a765f39c2b0f541e72a6410e5b04988f8105a4fe0369a37b96fe2205b9e",
+    "run": "F-skill-1",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 29,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 45,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 50,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 51,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 59,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 63,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 66,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 67,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 70,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 71,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 74,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 75,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 78,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a30462ce42c66d2b9.jsonl",
+    "sha256": "2de572ecde4066098a0502312b91ccda0a11022f40d9a48f21491d7733c1ebba",
+    "run": "S-noskill-1",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 32,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 33,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 41,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 45,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 48,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 55,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 58,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 59,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 62,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 63,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 67,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 68,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 71,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a329413ec2135e091.jsonl",
+    "sha256": "72d7a71fd7a8dee304274d6ae9c8d324beb8038e1ee7e506dfaac6e2681cc20c",
+    "run": "E-skill-1",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 29,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 35,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 39,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 50,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 51,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 59,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 63,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 64,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 68,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 69,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 72,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a438afd9c8fc1a576.jsonl",
+    "sha256": "07a91b5b8d0bbdd1abb88b8017276c6618ae5bb29e85efb2328cd45daa1a8847",
+    "run": "S-noskill-2",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 41,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 45,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 48,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 59,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 63,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 66,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 67,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 70,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 71,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 74,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 75,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 79,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 80,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 83,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a789255a857ba3733.jsonl",
+    "sha256": "042a11b5f3cd6ed1fd6de3c5ff14ecfbca2bb46a4a37b8cd3d216b12bfd7fdac",
+    "run": "S-skill-1",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 35,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 36,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 40,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 41,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 47,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 48,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 51,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 61,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 64,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 65,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 68,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 69,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 72,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 73,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 74,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 75,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 76,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 79,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 80,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 83,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 84,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 87,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 88,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 91,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 92,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 95,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 96,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 100,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 101,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 102,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 103,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 106,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 109,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 113,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 116,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 120,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 123,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 124,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 128,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 129,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 132,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 135,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 138,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 139,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 142,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 143,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 146,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 147,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 150,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a7bb8ec0a03ecc45c.jsonl",
+    "sha256": "db2ce4a54488135782d638a33ed0af9af7e1bc5cf57a589c9a9675585dfdb4cb",
+    "run": "F-noskill-1",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 32,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 33,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 39,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 40,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 50,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a846964fe98fff59a.jsonl",
+    "sha256": "7444dfd6c2035731d2d5b84c0f4b203850b96bed3ecf62b0d3e54c5c77eab3da",
+    "run": "S-skill-2",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 29,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 41,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 45,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 48,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 57,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 58,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 61,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-a98a041781fbaa87d.jsonl",
+    "sha256": "a8d4cbb337960c2eeb06f1bdcd23ca1fef8758a76c46357bcc6cbab9eb07a83e",
+    "run": "grader",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 27,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 33,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 35,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 40,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 41,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 47,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 57,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 61,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 64,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 67,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 68,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 70,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 72,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 75,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 76,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 80,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 81,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 84,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 87,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 90,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 91,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 92,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 94,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 96,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 98,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 101,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 102,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 105,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 108,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-aa3ca132678b05d27.jsonl",
+    "sha256": "2d0a7e7f15a8e409cf60b18093b901743d960ea1ab16503efae1e445214d9ba1",
+    "run": "E-skill-2",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 29,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 33,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 39,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 50,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 51,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 59,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 63,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 66,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 67,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 70,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 71,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 72,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 73,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 74,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 77,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 80,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 83,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 84,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 87,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 88,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 91,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 92,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 95,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 96,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 99,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 102,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 103,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 106,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 109,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 113,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 117,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 118,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 122,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 123,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 126,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 127,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 131,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 135,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 136,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 139,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 140,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 143,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 146,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 149,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 150,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 153,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 156,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 157,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 160,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 161,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 164,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 165,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 168,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-ac3ae51f4b0ec4f53.jsonl",
+    "sha256": "e836b99f390ba9790bddf77041424faef79a174f30b44a016c785e5dc37dd1c6",
+    "run": "F-noskill-2",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 32,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 33,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 37,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-ac94b1b72807e02da.jsonl",
+    "sha256": "ac25a779b79db2816ea364d885e363ea4d794b65d028d4a006e7e0bbcc2b478a",
+    "run": "E-noskill-1",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 35,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 41,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 45,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 48,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 57,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 61,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 64,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 65,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 68,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 69,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 73,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 74,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 77,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 78,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 82,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 83,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 86,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 87,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 90,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 93,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 94,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 97,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 98,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 101,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 102,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 106,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 107,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 110,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-af23a5bd33a9b9cc9.jsonl",
+    "sha256": "0e7a5c5551728d7e39acd421f6d0617e78c33f8a9f2242a3f4f54b6e771ffa4c",
+    "run": "F-skill-2",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 25,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 29,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 30,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 33,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 34,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 38,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 39,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 42,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 45,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 46,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 49,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 50,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 53,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 54,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 57,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 58,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 61,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 62,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 65,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 66,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 69,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  },
+  {
+    "path": "/home/ubuntu/.claude/projects/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/subagents/agent-af7a95e0c1697ae74.jsonl",
+    "sha256": "d32896839aff28e3c6a424c459a740de64ff41b8bd0ca3123bf526223e8238af",
+    "run": "E-noskill-2",
+    "model_records": [
+      {
+        "line": 15,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 16,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 26,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 27,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 31,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 32,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 35,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 36,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 39,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 40,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 43,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 44,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 47,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 48,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 51,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 52,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 55,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 56,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 59,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 60,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 63,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 64,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 68,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 69,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 73,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 76,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 79,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 80,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 83,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 84,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 87,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 88,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 92,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 93,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      },
+      {
+        "line": 96,
+        "type": "assistant",
+        "message.model": "claude-sonnet-5",
+        "effort": "high",
+        "perTurnEffort": null,
+        "advisorModel": "claude-opus-5-5"
+      }
+    ]
+  }
+]

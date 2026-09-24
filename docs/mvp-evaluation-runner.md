@@ -1,5 +1,13 @@
 # MVP評価専用の実行入口
 
+## スキル配布終了後の保存入力（2026-09-24）
+
+[共同判断](evaluations/mvp-mediator-ab-20260924/decision.md)とユーザー承認に基づき、現行スキルの配布元を撤去した。CLIと本文例テストは、[固定保存したv17本文](evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md)・参照を読む。本文hash、課題、checker、runtime、採点処理は維持する。新しい評価を自動実行する変更ではない。
+
+旧runの`status`は引き続き参照できる。CLIの変更前に作成したrunは既存のimplementation hash照合で書込み再開を拒否し、旧start/auditを更新して再開させない。過去の評価資料・採点は保存する。配備済みhomeへの反映は受入・merge後のlive sourceで行う。
+
+以下の版別記録は各実装時点の履歴であり、配布が現在も有効という意味ではない。
+
 ## v17接続（2026-09-24）
 
 現行CLIは[v17契約](evaluations/mvp-mediator-evaluation-v17/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v17/design.md)に従い、要件欄の実装説明と根拠表の検証証拠を分け、報告する検証主張に比較式の短い抜粋を必須とした。正確な統合行・共通参照・要約を許容し、必要な検査の追加・実行条件を維持する。

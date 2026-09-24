@@ -1,0 +1,11 @@
+Before starting, read and follow the architecture guidance in /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/skill/SKILL.md (read its references/ files only if SKILL.md tells you to). Do not use the Skill tool.
+
+Work only inside the directory /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/runs/F-skill-2. Do not read or write anything else under /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab except what is named above. Put all deliverables (code files, memo as memo.md) in /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/runs/F-skill-2. If the task asks for an executable model, name it model.mjs. Run any checks you write with node and report their actual output.
+
+## Task
+
+既存React / Effect / @effect/atom-reactフォームの送信中表示と独立したhelp tooltipを整える。既存bindingがpending/result/errorと操作識別を所有し、今回必要な二重送信抑止・古い結果の除外はすでに保証され、テスト済みとする。フォームは入力値と形式チェックを所有し、業務検証はユースケースにある。複数Context consumerが表示を読む。新しい排他・取消方針はない。最小変更案と具体的な確認項目を日本語メモにする。実アプリ・実行モデル・APIコードは不要。
+
+
+
+Finish with a 3-line summary of what you delivered.

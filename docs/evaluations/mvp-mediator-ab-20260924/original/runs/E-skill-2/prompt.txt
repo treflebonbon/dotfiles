@@ -1,0 +1,24 @@
+Before starting, read and follow the architecture guidance in /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/skill/SKILL.md (read its references/ files only if SKILL.md tells you to). Do not use the Skill tool.
+
+Work only inside the directory /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/runs/E-skill-2. Do not read or write anything else under /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab except what is named above. Put all deliverables (code files, memo as memo.md) in /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/runs/E-skill-2. If the task asks for an executable model, name it model.mjs. Run any checks you write with node and report their actual output.
+
+## Task
+
+A React/Effect app has recording and calibration that cannot own a device concurrently; a profile editor is independent. The parent owns exclusion; child flows own local UI. Product policy: latest start request wins during acquisition, stop and release, including returning to an earlier requested target. In-flight work continues with its identity unchanged. After acquisition, keep that owner if it matches latest intent, otherwise stop then release before acquiring the latest target. Stop/release failure blocks new acquisition until explicit retry of the failed stage. Repeated starts in blocked state update intent but do not retry automatically. Acquisition failure returns idle without auto-retrying. Same-owner start in active state is a no-op. Stale completions are ignored.
+
+Deliver a minimal executable **abstract decision model**, plus a short responsibility/verification memo. This is not a replacement Effect runtime: output commands for the existing execution boundary; do not perform I/O. Use only JavaScript and Node built-ins. Export:
+
+- `initial()` -> fresh explicit-data state (representation contract below).
+- `transition(state, event)` -> `{ state, effects }`, without mutating input.
+- `observe(state)` -> `{ phase, owner, desired, operationId }`. Phases: `idle`, `acquiring`, `active`, `stopping`, `releasing`, `blocked`. owner/desired are `recording`, `calibration` or null; operationId is the pending execution ID or null. IDs must not be reused within a run.
+- Events: `{type:'start', target}`, `{type:'ok', id}`, `{type:'fail', id}`, `{type:'retry'}`, `{type:'profile'}`. Completion applies to the current stage. Unknown/stale events leave state/effects unchanged.
+- Effects: `{type:'acquire'|'stop'|'release', target, id}`. Acquisition owns nothing until successful; stopping/releasing/blocked reserve the old owner until successful release. State field names and organization are your choice within the representation contract below.
+
+State representation and purity contract (evaluation model only):
+
+All decision state must be contained in state; do not hide mutable decision state in a WeakMap, closure or module-global variable. State is acyclic data composed only of ordinary objects (`Object.prototype`), ordinary dense arrays, null, booleans, strings and finite numbers. Object properties are own enumerable string-keyed data properties. Arrays have no holes, accessors or extra properties. Frozen data is allowed. Functions, undefined, symbols, bigint, getters/setters, custom classes/prototypes, null-prototype objects, Map/Set and other non-data values are outside this contract. This restriction does not prescribe production application state representation or internal field names.
+
+For every checked transition, preserve the entire input state and return structurally equal state/effects for the same state/event. Compare input snapshots after both calls. Snapshot the first result before the second call so reusing and overwriting a result object cannot hide nondeterminism. The parent checks state representation and full-state purity; it still checks functional expectations through observe/effects, and audits the code for hidden decision state. These finite checks do not prove purity for every possible execution. No additional inspect API is required.
+
+
+Finish with a 3-line summary of what you delivered.

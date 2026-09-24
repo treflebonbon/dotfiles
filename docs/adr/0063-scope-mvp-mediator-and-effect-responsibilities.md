@@ -9,9 +9,17 @@ status: accepted
 
 # MVP スキルを UI の裁定に限定し Effect の実行モデルと協調させる
 
+## 2026-09-24 配布終了
+
+[スキル有無の比較と共同判断](../evaluations/mvp-mediator-ab-20260924/decision.md)に基づき、現行スキルの配布を終了する。以下の設計原則は判断履歴として保持し、本文・参照例は評価資料に固定保存する。新しい短縮スキルは今回は作成しない。配布の撤去は既存のlocalSkills.retired経路を使い、受入・merge後にlive sourceから反映する。
+
+保存リンクは配布終了時点のv17を指す。以下のContextはADR決定前の版についての歴史説明であり、v17のdescriptionがReact全般への適用を要求するという意味ではない。
+
+mainには同番号の別ADRが存在するため、本prototype branch全体をmainへmergeしない。mainの旧配布版への撤去は、2ソース・retired登録・番号衝突のない判断文書という別の最小差分で統合する。
+
 ## Context
 
-設計検討時の [MVP スキル](../../local-skills/mvp-mediator-architecture/SKILL.md) は React 開発全般に強く適用され、単一 Root、親経由のイベント転送、単一 connector を要求する。[実装例](../../local-skills/mvp-mediator-architecture/references/tanstack-effect.md) には業務規則の所有者と購読箇所について食い違う説明があり、コンポーネント構成の範囲を超えて Atom の採用も指定している。他の設計規約と併用すると、UI の裁定、業務規則、非同期処理の責務が混ざる。
+設計検討時の [MVP スキル](../evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md) は React 開発全般に強く適用され、単一 Root、親経由のイベント転送、単一 connector を要求する。[実装例](../evaluations/mvp-mediator-ab-20260924/original/skill/references/tanstack-effect.md) には業務規則の所有者と購読箇所について食い違う説明があり、コンポーネント構成の範囲を超えて Atom の採用も指定している。他の設計規約と併用すると、UI の裁定、業務規則、非同期処理の責務が混ざる。
 
 参考記事は Presenter の階層と、担当範囲を超える判断を親に委ねる構造を説明している。これはすべての中間層を転送だけに限定する規則とは異なる。今回の対話ではこの階層性を採用し、Effect の思想を重視しながら既存プロジェクトの設計と共存させる方針を確定した。[参考記事](https://zenn.dev/nrs/articles/9ba91aea587bf5)
 

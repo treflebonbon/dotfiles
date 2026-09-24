@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 
 const skill = readFileSync(
   new URL(
-    "../local-skills/mvp-mediator-architecture/SKILL.md",
+    "../docs/evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md",
     import.meta.url
   ),
   "utf-8"

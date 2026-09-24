@@ -48,7 +48,7 @@ PY
   python3 "$CLI" audit "$RUN" --record "$BATS_TEST_TMPDIR/audit.json"
 }
 
-@test "MVP v17 distributes the assertion evidence contract and retains the v10 E checker" {
+@test "MVP archived v17 distributes frozen evidence after skill retirement" {
   python3 "$CLI" init "$RUN" --conditions "$BATS_TEST_TMPDIR/conditions.json" --fixture
   python3 "$CLI" prepare "$RUN"
   python3 - "$RUN" "$ROOT" <<'PYTEST'
@@ -64,7 +64,8 @@ assert 'All decision state must be contained in state' in prompt
 assert 'fresh opaque state' not in prompt
 assert '## B —' not in prompt and '## S —' not in prompt
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
-assert skill==(root/'local-skills/mvp-mediator-architecture/SKILL.md').read_bytes()
+assert not (root/'local-skills/mvp-mediator-architecture').exists()
+assert skill==(root/'docs/evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md').read_bytes()
 assert b'const firstBefore = snapshot(first);' in skill
 assert 'docs/evaluations/mvp-mediator-evaluation-v17/protocol.md' in start['sources']
 PYTEST
@@ -138,7 +139,7 @@ for version in ('v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13',
     path=f'docs/evaluations/mvp-mediator-evaluation-{version}/protocol.md'
     assert start['sources'][path]==hashlib.sha256(Path(path).read_bytes()).hexdigest()
 skill=(r/'attempts/01/inputs/SKILL.md').read_bytes()
-assert hashlib.sha256(skill).hexdigest()==start['sources']['local-skills/mvp-mediator-architecture/SKILL.md']
+assert hashlib.sha256(skill).hexdigest()==start['sources']['docs/evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md']
 assert '本実装での情報源' in skill.decode()
 assert '抽象モデルでの表現' in skill.decode()
 prompt=(r/'attempts/01/prompt.txt').read_text()

@@ -1,0 +1,10 @@
+Do not use the Skill tool, and do not read any SKILL.md or files under skills/ or local-skills/ directories. Use your own judgment.
+
+Work only inside the directory /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/runs/S-noskill-1. Do not read or write anything else under /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab except what is named above. Put all deliverables (code files, memo as memo.md) in /tmp/nix-shell.1IE6Qp/nix-shell.nIPVB2/nix-shell.lisrE2/nix-shell.lLt6rM/claude-1000/-home-ubuntu-ghq-github-com-treflebonbon-dotfiles/0df31814-6774-43dc-9854-523dea1cded4/scratchpad/ab/runs/S-noskill-1. If the task asks for an executable model, name it model.mjs. Run any checks you write with node and report their actual output.
+
+## Task
+
+An existing React/Query screen has a search binding exposing pending/result for each request. Typing issues overlapping searches, including re-entering the same text. Only the newest request's success/failure may update displayed results. A help tooltip is independent. Query cancellation is best effort and does not prove the server stopped. Design the responsibility/event/verification memo and a minimal pure executable model with a self-check (no prescribed model API). Keep Query and its execution facilities; do not introduce Effect.
+
+
+Finish with a 3-line summary of what you delivered.

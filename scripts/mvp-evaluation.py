@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dedicated, serial entrypoint for the frozen MVP evaluation v17 contract."""
+"""Dedicated, serial entrypoint for archived MVP evaluation v17 inputs."""
 import argparse
 from collections import Counter
 import fcntl
@@ -29,8 +29,8 @@ SOURCES = {
     'docs/evaluations/mvp-mediator-evaluation-v7/protocol.md': 'ddf710d6e2f81a89e52cc7defae528eeb355e57f470f4867ba841f65ea74ef94',
     'docs/evaluations/mvp-mediator-evaluation-v6/protocol.md': '2c9fc22d2553d8e683bc782d94dd876f8d32a8ae41dbaefefcf2fc30c9e999a6',
     'docs/evaluations/mvp-mediator-evaluation-v5/protocol.md': '0bfa5674f914d9f0361ab7784371ab1847718d452bb499d302de66bcbf63baa2',
-    'local-skills/mvp-mediator-architecture/SKILL.md': '995b09a26838e05704cf96ab1034ffc6a21d7ec3c2299f80340a1774ac9c8afa',
-    'local-skills/mvp-mediator-architecture/references/tanstack-effect.md': '110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca',
+    'docs/evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md': '995b09a26838e05704cf96ab1034ffc6a21d7ec3c2299f80340a1774ac9c8afa',
+    'docs/evaluations/mvp-mediator-ab-20260924/original/skill/references/tanstack-effect.md': '110b25b8ba320ac61ceb38c19142f5028aabfcc28a27cfd6b7a51b0eef288cca',
     'docs/evaluations/mvp-mediator-executable/protocol.md': 'ba0c8fa045387c5026e470b357afe4d8c9a1392fbadc1f0ccceca54d7cbfbcb2',
     'docs/evaluations/mvp-mediator-executable/check-device.mjs': '72adc7af373705e1324d26c48cec7eec123e5bbbc493f77bf1f34d259eb05ae1',
     'docs/evaluations/mvp-mediator-evaluation-v2/protocol.md': '19c48ebb1c35a7aa5d011c3b280a5451ed5cdbc8dd56ddba8607dceff790fbae',
@@ -149,7 +149,7 @@ def prepare(args, state, start):
     (directory/'inputs/references').mkdir(parents=True)
     (directory/'artifacts').mkdir()
     for name in ('SKILL.md','references/tanstack-effect.md'):
-        (directory/'inputs'/name).write_bytes((ROOT/'local-skills/mvp-mediator-architecture'/name).read_bytes())
+        (directory/'inputs'/name).write_bytes((ROOT/'docs/evaluations/mvp-mediator-ab-20260924/original/skill'/name).read_bytes())
     (directory/'inputs/AGENTS.md').write_text(start['conditions']['instructions'])
     files = ['memo.md'] if task=='B' else ['memo.md','model.mjs']
     for name in files:
@@ -160,8 +160,8 @@ def prepare(args, state, start):
     require(template.count(anchor)==1, 'case-output insertion point missing')
     template = template.replace(anchor, anchor+requirement)
     values = [f'/inputs (isolated snapshot), branch={start["branch"]}, HEAD={start["head"]}, host Git dir={start["git_dir"]} (not mounted)',
-              '/inputs/SKILL.md, '+SOURCES['local-skills/mvp-mediator-architecture/SKILL.md'],
-              '/inputs/references/tanstack-effect.md, '+SOURCES['local-skills/mvp-mediator-architecture/references/tanstack-effect.md'],
+              '/inputs/SKILL.md, '+SOURCES['docs/evaluations/mvp-mediator-ab-20260924/original/skill/SKILL.md'],
+              '/inputs/references/tanstack-effect.md, '+SOURCES['docs/evaluations/mvp-mediator-ab-20260924/original/skill/references/tanstack-effect.md'],
               ', '.join('/artifacts/'+f for f in files), section]
     for value in values:
         template = re.sub(r'<[^>]+>',lambda _:value,template,count=1)

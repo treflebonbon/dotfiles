@@ -1,0 +1,10 @@
+
+既存React / Effect / @effect/atom-reactフォームの送信中表示と独立したhelp tooltipを整える。既存bindingがpending/result/errorと操作識別を所有し、今回必要な二重送信抑止・古い結果の除外はすでに保証され、テスト済みとする。フォームは入力値と形式チェックを所有し、業務検証はユースケースにある。複数Context consumerが表示を読む。新しい排他・取消方針はない。最小変更案と具体的な確認項目を日本語メモにする。実アプリ・実行モデル・APIコードは不要。
+
+1. [critical] 既存bindingからpending/result/errorを導出し、二重のisSubmitting/reducer/storeや独自runtimeを追加しない。
+2. [critical] 新しいMediator class/CoRチェーン/Root再編/操作ID/状態機械を形式的に追加せず、既存の所有者を維持する。
+3. tooltipの開閉を局所に保ち、複数Context consumerと既存フォームの入力・形式チェックを維持する。
+4. 業務検証をユースケースに残し、表示条件のために再実装しない。Atom採用だけを保証とせず、課題に与えたbindingの確認済み保証を根拠にする。
+5. 投稿中表示、完了/失敗表示、tooltip独立性の確認項目を示し、未実行アプリ検査を成功扱いしない。
+6. 追加不要なパターンの理由を今回の制約に結び付け、strict Passive Viewのための一律の購読移動や中継専用層を要求しない。
+

@@ -1,0 +1,8 @@
+S-1 S-noskill-1
+S-2 S-noskill-2
+S-3 S-skill-1
+S-4 S-skill-2
+F-1 F-skill-1
+F-2 F-skill-2
+F-3 F-noskill-1
+F-4 F-noskill-2
