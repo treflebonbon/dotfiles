@@ -1,0 +1,96 @@
+---
+name: batch-implement
+description: 'Drive every ready-for-agent ticket under a parent (epic) issue to completion, one Ticket Chain at a time, until each chain has produced exactly one main-based PR (or been reported as incomplete/blocked). Invoke explicitly (e.g. "実装可能な issue の PR がすべて作成されるまで" batch-driven from a to-tickets run) — do not trigger automatically, since invocation itself authorizes the AFK-style `to-pr` call each completed chain makes.'
+disable-model-invocation: true
+---
+
+# batch-implement
+
+Drives `to-tickets` output to completion: every ready-for-agent ticket under one parent issue ends up in exactly one PR against the real default branch, never stacked on another ticket's unmerged branch. This skill only adds the piece existing skills don't cover — grouping tickets into **Ticket Chains** (see `CONTEXT.md`) and assigning one worktree per chain with an explicit base. It does not reimplement `implement` / `tdd` / `code-review` / `to-pr`; it hands each chain to a fresh child agent session that invokes them itself (`implement` refuses direct invocation from another skill and its workflow may not be replicated by other means).
+
+Out of scope: anything not under the given parent issue, parallel processing of independent chains (chains are handed off one at a time, in sequence — see step 3), and re-polling for tickets created after this run started. One pass over the current snapshot of children is the whole job.
+
+## 1. Scope
+
+Take a parent (epic) issue number as input. If none was given, ask for one — do not sweep the whole repository's `ready-for-agent` backlog.
+
+- Collect **both** candidate sets, always — a non-empty result from one is not a reason to skip the other, since `to-tickets` may have recorded some children only natively and others only in body text:
+  - Native sub-issues: `gh issue view <parent> --json subIssues --jq '.subIssues[].number'`.
+  - Body-declared children: open issues labeled `ready-for-agent` whose body declares `## Parent` pointing at this parent — read each candidate's body to confirm (do not guess from title/search snippets alone). Search with an explicit large `--limit` (e.g. `gh issue list --label ready-for-agent --state open --limit 1000 ...`): `gh issue list`'s default limit is only 30 (`gh issue list --help`), which could silently truncate the candidate list — before any body is even inspected — well short of exhaustive once a repo has more than 30 open `ready-for-agent` issues.
+- The batch is the union of both sets; a ticket needs only one of the two declarations to count. Then check each candidate for a genuine conflict — a native parent field or body `## Parent` that names a _different_ issue than this parent, not merely a declaration missing from the other source. If a real conflict is found, stop and report it — do not guess which is authoritative (same caution as `to-pr`'s Hierarchy Repair).
+- Keep only tickets that are still **open** and carry `ready-for-agent`. A closed child is already done; exclude it.
+- Exclude a ticket that already has an open PR closing it — check the structured `gh issue view <n> --json closedByPullRequestsReferences` field and confirm any referenced PR is still open with `gh pr view <pr-number> --json state -q .state`, rather than a free-text `gh pr list --search "#<n>"` (that also matches a PR that merely mentions the number, e.g. as dependency context, without actually closing it — a false positive that would wrongly skip an implementable ticket). A real match means the ticket is mid-progress from an earlier `batch-implement` run; report it as already-in-progress rather than re-implementing it.
+
+The result is the batch: the fixed set of ticket numbers this run will process. Tickets opened under this parent after this point are out of scope for this run.
+
+## 2. Compute Ticket Chains
+
+For each ticket in the batch, read `gh issue view <n> --json body,number,blockedBy` — `blockedBy` is the platform's native blocking relation (`gh issue view --help` lists it under `JSON FIELDS`). Always also parse the `## Blocked by` section text for issue numbers, even when `blockedBy` is non-empty — a partially-populated native relation (some blockers recorded natively, others only in the text `to-tickets` also writes) is possible, and trusting native alone whenever it's non-empty would silently drop the text-only ones. Take the union of both sources for each ticket's blocker set.
+
+Classify each blocker reference:
+
+- **In the batch**: it becomes an in-batch blocker for the script's grouping.
+- **Not in the batch, but closed** (`gh issue view <b> --json state`): already satisfied — omit it entirely, from both columns below.
+- **Not in the batch, and still open**: record this ticket's own `external-open-blocker` value as that blocker's issue number (pick any one if there are several — the script only needs to know the ticket is blocked, not by how many). Do **not** try to work out which other batch tickets transitively depend on it yourself — the script does that.
+
+Feed one line per ticket in the batch to the bundled script, three tab-separated columns — `issue<TAB>comma-separated in-batch blocker numbers<TAB>external-open-blocker (empty if none)`:
+
+```bash
+bash <skill-directory>/scripts/compute-chains.sh <<'EOF'
+101
+102	101
+103	101,102
+104		500
+105	104
+EOF
+```
+
+Output is one of two line shapes:
+
+- `chain_id<TAB>order_in_chain<TAB>issue` — implementable, grouped by connected component and ordered blockers-first within each chain (a ticket with no in-batch blocker is its own chain of size 1).
+- `SKIP<TAB>issue<TAB>reason` — not implementable this run. `reason` is `external-open-blocker:<n>` (this ticket's own still-open external blocker), `blocked-by-excluded:<n>` (it transitively depends on another skipped ticket), or `cycle` (its connected component has a circular dependency). The script works all three out itself — you don't need to trace them by hand. Report every `SKIP` line in the final report (step 4); do not attempt these tickets.
+
+A non-zero exit means at least one component had a cycle (`cycle detected` on stderr); every ticket in that component comes out as `SKIP ... cycle`, never as a partial, half-ordered chain — unaffected components still proceed normally.
+
+## 3. Hand off each chain to a fresh agent, in order
+
+`implement` is reserved for explicit invocation and cannot be called from within this skill, directly or by replicating its steps. Each chain is instead handed to its own fresh, disposable agent session, which invokes `implement` and `to-pr` itself exactly as a human would. Process chains one at a time (in the order the script emitted chain ids) — do not start the next chain's session until the current one is done.
+
+This handoff (steps 3-4 below) is **Herdr-only** for now: it needs a way to start a fresh agent in an isolated worktree, submit input to it, and wait for a completion state, and Herdr (`herdr agent start`/`prompt`/`wait`) is the only mechanism this skill has verified provides that. Confirm `HERDR_ENV=1` (per the `herdr` skill's own precondition) before proceeding. If this session is running under a different native mechanism (Claude Code, Orca) without Herdr available, stop before step 2 (worktree creation) and report that this skill's automated handoff doesn't yet support that runtime — do not attempt to invent an equivalent by other means. Extending this to another runtime is future work, gated on verifying that runtime has an equivalent start/submit/wait primitive.
+
+**If this session's own kind is Codex, stop before step 2 the same way, even though Herdr is available.** Two independent gaps compound here: the direct launch form (`herdr agent start --kind codex`, same as the ordinary agent picker or a bare `codex`) skips Codex's managed isolation/secret-non-disclosure guarantee (`runtime/ai-runtimes.md`); and the isolated alternative, `codex-worktree` run from the pane's shell prompt, has an empirically observed Herdr 0.9.0 gap where the interactive adapter session doesn't show up in `herdr agent list` (`runtime/skill-harness.md`, ADR-0057) even when it's actually input-capable — so a later `herdr agent prompt <name>` in step 3 has no reliable target and the chain never receives `/implement`. Report this the same way `runtime/skill-harness.md` prescribes for that gap: automated handoff incomplete, not a chain failure.
+
+1. **Resolve and fetch the real base** — do not rely on the current checkout's local branch, which may be stale, and never rely on the current checkout's HEAD, which may still be sitting on a previous chain's unmerged branch:
+
+   ```bash
+   default_ref="$(git ls-remote --symref origin HEAD | awk '$1 == "ref:" && $3 == "HEAD" { print $2; exit }')"
+   default_branch="${default_ref#refs/heads/}"
+   git fetch origin "$default_branch"
+   ```
+
+   Use `origin/$default_branch` (or, if the worktree tool requires a local branch name, fast-forward one first: `git fetch origin "$default_branch:$default_branch"`) as the base in the next step — always the just-fetched tip, never an existing local branch that might predate it.
+
+2. **Create one fresh worktree for this chain**, explicitly passing the resolved, fetched ref as the base — never omit it and never let the tool default to "current HEAD" (this was the root cause of non-main PRs: a worktree created without an explicit base silently branches off whatever the previous chain's loop iteration left checked out). Before picking a name, check whether `task/<N>-<slug>` (the chain's first, most-blocking ticket) already exists, locally or on origin (`git rev-parse --verify --quiet refs/heads/task/<N>-<slug>`, `git ls-remote --exit-code origin task/<N>-<slug>`) — a leftover branch from an earlier incomplete run. Herdr checks out an existing branch of the given name rather than creating a fresh one from `--base`, which would silently defeat the explicit base above. If it already exists, use a fresh, guaranteed-unique name instead (e.g. append the current epoch seconds) rather than trying to reuse or repair the stale branch. Use `herdr worktree create --branch <name> --base <resolved-ref> ...` (check `herdr worktree create --help` for the exact current flags) — the same Herdr environment that step 3 needs a pane from, not a different native worktree mechanism (a worktree created outside Herdr has no Herdr pane for the handoff below). Note the pane it opens for the next step.
+3. **Start a fresh agent in that pane and hand off the chain**, per `runtime/skill-harness.md`'s Herdr contract (confirm the agent is recognized and input-ready before handing off). `--until` must be repeated once per state, not passed as one space-separated value (`herdr agent prompt --help`). Always pass `--timeout` — without one, `--wait` blocks indefinitely, and an unresponsive child stalls every chain still queued behind it. This session's own kind is never Codex here (see the precondition above), so `herdr agent start --kind <kind>` is always the direct, non-adapter form:
+
+   ```bash
+   herdr agent start <name> --kind <same kind as this session> --pane <pane-id>
+   herdr agent prompt <name> "/implement Implement tickets #<n1>, #<n2>, ... in this exact order (the script already put blockers before what they block) under parent #<parent>. Read each ticket's own issue body for its Contract. When you run /to-pr, use #<n1> (this chain's first ticket) as the linked issue." --wait --until idle --until done --until blocked --timeout 3600000
+   ```
+
+   `--timeout 3600000` (1 hour) is a starting point for `/implement`, which can cover several tickets' `tdd` cycles — tune it to how long these normally take in this repo. If the call itself reports `timeout`, treat it the same as `blocked` below (do not resend the prompt): report it as **needs human attention**, note it timed out, leave the pane open, and move to the next chain. If the child reaches `blocked` (needs human input it can't resolve on its own) rather than `idle`/`done`, do the same.
+
+4. **On apparent completion**, read the child's recent output (`herdr agent read <name>` or `herdr pane read`) to judge whether it actually finished the chain (every ticket committed) or stalled/failed partway. This is a judgment call, not a fixed string match — read enough of the transcript to be sure.
+   - **Success**: prompt the same session once more, `herdr agent prompt <name> "/to-pr" --wait --until idle --until done --until blocked --timeout 900000` (15 minutes is a starting point; tune similarly), then read its output for the resulting PR (number/URL) — treating `timeout`/`blocked` the same as step 3 above. Handing this chain to a fresh session via `batch-implement` is itself the AFK-style completion authorization for this one `to-pr` call — the same authorization `to-pr` already documents for AFK operation, scoped here to chains that actually finished. It does not authorize anything `to-pr` itself doesn't authorize (no force-push, no direct default-branch push, no merge, no close/reopen).
+
+     `to-pr` computes Parent Reconciliation from its one linked issue's perspective, so this chain's _other_ tickets look like uncovered siblings to it — even though this PR actually implements and covers them too. Close this chain's own tickets directly, unconditionally: for every other ticket in this chain, add its Acceptance Criteria to the PR body's `## Contract` and one row per AC to `## Verification Matrix` — exactly what `to-pr` step 1-2 would do for its own linked issue. This _is_ `to-pr`'s definition of Ticket Coverage; a bare `Fixes` line without it does not establish coverage. Once documented this way, give it its own `Fixes #<n>` line directly — you already know it's genuinely covered by this PR (chain membership itself established that in step 2). Do **not** get this from re-running `to-pr`'s reconciliation helper: its uncovered-child branch returns a closing keyword for only the single linked issue whenever _any_ direct child of the parent is still open and uncovered — including one from a different, not-yet-implemented chain outside this run — regardless of what you pass as `coveredIssues`. That is a correct guard against closing tickets nobody's verified in the general case, but it has no way to know this chain's own tickets _are_ verified, so relying on its `fixes` here would silently drop them.
+
+     Leave the **parent** alone: never add `Fixes #<parent>` from this skill, even when this chain happens to be the epic's last remaining open child. Deciding that safely means re-deriving `to-pr`'s own parent-completeness judgment against the _true_, unfiltered set of direct children (native and body-declared, labeled or not) — a check with enough edge cases (a native-only snapshot blind to body-only siblings, pagination on an exhaustive scan, an already-closed parent making `state: 確認済み` ambiguous on its own) that it isn't worth this skill's weight to own. A human running `/to-pr` by hand on the parent once every chain has actually merged gets the same result without carrying that surface here.
+
+     Rewrite `## Parent Reconciliation` rather than leaving `to-pr`'s original wording — its `reason` (e.g. "open direct children lack Ticket Coverage: #n2, #n3") is now stale, since you just added exactly that coverage. Keep the `state` as `未実施`, but replace the reason with one that reflects reality: this chain's tickets are covered and closing on merge, and the parent is deliberately left for a later manual reconciliation (not because anything is actually uncovered). List every chain ticket's `Fixes` as the close targets (the parent is never among them, per the above). Then update the PR with `gh pr edit <pr> --body-file <updated-body>`.
+
+   - **Failure** (a ticket in the chain didn't converge through `tdd`/`code-review`): do not prompt `/to-pr` — a partial chain has no clean acceptance-criteria story. Record the chain as incomplete with the failing ticket and reason, leave its worktree/branch/pane as-is for a human to inspect, and move on to the next chain. Do not stop the whole run for one chain's failure.
+
+## 4. Report
+
+When every chain has been attempted, report: for each chain, its tickets, and one of — the resulting PR (number/URL, confirmed base = the resolved default branch, confirmed `Fixes` coverage for every chain ticket), incomplete (failing ticket + reason), needs human attention (blocked or timed-out state), or skipped (`SKIP` line from step 2, with its reason). A chain that isn't a clean success keeps its worktree/branch/pane around for inspection — do not delete or close it as part of this skill.
