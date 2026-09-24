@@ -28,7 +28,7 @@ run_compute_chains() {
     HOME="$BATS_TEST_TMPDIR/home" \
     /bin/bash -c "
       set -euo pipefail
-      $(extract_functions "$SRC" compute_chains find_root union ensure_node)
+      $(extract_functions "$SRC" compute_chains find_root union ensure_node split_tsv_line)
       compute_chains
     "
 }
@@ -98,4 +98,35 @@ EOF
 EOF
   assert_failure
   assert_output --partial "cycle detected"
+}
+
+@test "openな外部blockerを持つticketはSKIPとして報告される" {
+  run_compute_chains <<'EOF'
+40		999
+EOF
+  assert_success
+  assert_output $'SKIP\t40\texternal-open-blocker:999'
+}
+
+@test "openな外部blockerに依存するticketは連鎖的にSKIPされる" {
+  run_compute_chains <<'EOF'
+A
+B	A
+C		999
+D	C
+EOF
+  assert_success
+  assert_output --partial $'1\t1\tA'
+  assert_output --partial $'1\t2\tB'
+  assert_output --partial $'SKIP\tC\texternal-open-blocker:999'
+  assert_output --partial $'SKIP\tD\tblocked-by-excluded:C'
+}
+
+@test "3列目が空でも従来どおり2列形式として解釈される" {
+  run_compute_chains <<'EOF'
+10
+20	10
+EOF
+  assert_success
+  assert_output $'1\t1\t10\n1\t2\t20'
 }
