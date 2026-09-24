@@ -113,6 +113,7 @@ assert_lock_entry() {
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e' "$manifest"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#41b22eec767aa77eb31df62ccb3bacf52ed771fb' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#4a5afd70a3db16f1cd546458e070681a4eb0da18' "$manifest"
+  grep -Fq 'herdrdev/herdr/skills/herdr#065ef9d6a531c49fb8bee7e818ef837065b21ee9' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
   ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
   ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"
@@ -140,6 +141,9 @@ assert_lock_entry() {
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     '4a5afd70a3db16f1cd546458e070681a4eb0da18' \
     'sha256:7ad2f1fd9217ab275ae73ffbaf119306e67841b4babc4341ed42fe63e25a4c1b'
+  assert_lock_entry "$lock" 'herdrdev/herdr' 'herdr' \
+    '065ef9d6a531c49fb8bee7e818ef837065b21ee9' \
+    'sha256:c741134cc22372c08da2f469d49aac9f9bbddd4f5e1da0558cf1132836fa3287'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
     '122b8c25d7c16f76e395bf9a65887d7c4bc5003b' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'

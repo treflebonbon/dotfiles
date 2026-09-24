@@ -29,7 +29,7 @@ Claude Code の公式 CHANGELOG（v2.1.281）を確認した。この repo の q
 
 他は resumed session の履歴破損修正、tool call の overlong name 起因スタック、MCP・PDF・headless session まわりの修正など trust boundary に直結しない項目のため床上げ根拠から除外した。よって `minClaudeCode` を `2.1.280` → `2.1.281` へ引き上げ、pin も `2.1.281` を採用する（2.1.281 が最新）。
 
-Codex は snapshot 内で `0.155.1` → `0.156.1` へ進んだ。前回（2026-09-23、ADR-0065）は 0.156.1 の release note（0.156.0→0.156.1 の hotfix 差分。GPT-6 モデルカタログ追加のみ）だけを確認して `minCodex` を `0.155.0` に据え置いたが、実際に進んだ差分の起点は `0.155.1`→`0.156.0` であり、0.156.0 自体の公式 release note を確認していなかった。今回 GitHub Releases（`rust-v0.156.0`）本文を確認したところ、次の記載があった:
+Codex は snapshot 内で `0.155.1` → `0.156.1` へ進んだ。前回（2026-09-23、ADR-0065）は 0.156.1 の release note（0.156.0→0.156.1 の hotfix 差分。GPT-6 モデルカタログ追加のみ）だけを確認して `minCodex` を `0.155.0` に据え置いたが、実際に snapshot が進んだ差分は `0.155.1`→`0.156.1` であり、その途中の `0.156.0` 自体の公式 release note を確認していなかった。今回 GitHub Releases（`rust-v0.156.0`）本文を確認したところ、次の記載があった:
 
 > Close sandbox isolation gaps involving inbound Windows connections, privileged Linux/macOS sockets, and writes through read-only macOS file handles. (#44639, #45984, #46500)
 
@@ -61,7 +61,7 @@ Copilot CLI 1.0.87→1.0.88、Antigravity CLI 1.2.8→1.2.10 は非公開 change
 - x86_64-linux の実 `nix develop` build と8 CLI version 起動（隔離 HOME）: 成功。
 - `tests/ai-quality-floor.bats`: floor 値（`2.1.281` / `0.156.0`）と診断メッセージの固定値を更新し、7/7 成功。
 - `tests/nix-devshell.bats`: snapshot revision の固定値、AI toolset snapshot contract の参照先 research doc（本ファイル）を追従させ、28/28 成功。
-- `tests/apm-runtime.bats`: herdr を除く4 exact pin（modern-web-guidance / remotion-best-practices / orca-cli）と floating orca 2件（orchestration / computer-use）の resolved_commit・content_hash 断定を追従させ、15/15 成功。
+- `tests/apm-runtime.bats`: 4 exact pin（herdr / modern-web-guidance / remotion-best-practices / orca-cli）と floating orca 2件（orchestration / computer-use）の resolved_commit・content_hash 断定を追従・新設し、15/15 成功。herdr は従来 `assert_lock_entry` 断定を持たなかったため、この更新単位で新設した。
 - `bunx tsc --noEmit`: エラーなし。
 - `bats tests/*.bats`（全スイート）: `LC_ALL=C bats tests/*.bats` で740/742成功。失敗2件は次の通り、いずれも regression ではない:
   - `tests/codex-config.bats` の「Codex config migration keeps dotenv denied and public examples readable without a raw read grant」（`codex sandbox` を起動する統合テスト）。別 worktree で main（`8ed3db4`、Codex 0.155.1）をベースラインとして同じテストを単体実行し、同じく失敗することを確認した（この diff とは無関係な既存の環境依存フレーク）。

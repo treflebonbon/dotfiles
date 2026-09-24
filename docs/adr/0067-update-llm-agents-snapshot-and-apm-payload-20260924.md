@@ -9,7 +9,7 @@ status: accepted
 
 # llm-agents snapshot と通常 APM payload を更新する（2026-09-24）
 
-ユーザーの `/implement ツールとスキル更新` に基づき、既存 AI tool snapshot と APM 全19依存の更新候補を確認する。ADR-0045 に従い、tool snapshot と通常 APM payload の2更新単位を同じ task worktree・別 commit で採否する（Impeccable、Matt Pocock managed set は対象外）。task worktree は main `8ed3db4` から作成した。
+ユーザーの `/implement ツールとスキル更新` に基づき、既存 AI tool snapshot と APM 全19依存の更新候補を確認する。ADR-0045 に従い、tool snapshot と通常 APM payload の2更新単位を同じ task worktree・同一 commit で採否する（Impeccable、Matt Pocock managed set は対象外。両単位とも小規模なため commit は分割しない）。task worktree は main `8ed3db4` から作成した。
 
 受入条件は exact snapshot と lock の整合、3 system の評価、Linux build・CLI起動、関連テスト・型チェック・full suite、二軸レビューとコミット。品質 floor は根拠がある場合のみ変更する。モデル・権限設定、配布経路、新規ツール追加、private skill 改稿は対象外。live apply・push・PR は行わない。
 
@@ -19,7 +19,7 @@ status: accepted
 
 - `private_dot_config/nix-devshell/flake.nix` の `llm-agents.url` を immutable revision `8011aaf2e65e9222b2121c2fbb622912d7469bd6` から upstream default branch HEAD `8bec0ce1cbb0a39f8f08dc97a7635af847779f99`（2026-09-24）へ更新する。共有 nixpkgs（`nixpkgs-26.05-darwin`）と x86_64-linux / aarch64-linux / aarch64-darwin の3-system境界は維持する。3 system の package metadata は claude-code 2.1.281、codex 0.156.1、copilot-cli 1.0.88、antigravity-cli(`agy`) 1.2.10、rtk 0.49.0（変化なし）、apm 0.31.0（変化なし）、herdr 0.9.1（変化なし）、code-review-graph 2.3.9（変化なし）で一致する。
 - Claude Code の quality floor を `2.1.280` から `2.1.281` へ引き上げる。根拠は 2.1.281 の公式 CHANGELOG から確認した次の内容: auto mode / `--dangerously-skip-permissions` で、削除対象がコマンド置換結果のみの再帰 `rm`（例: `rm -rf "$(pwd)"`）が Bash allow ルールに関わらず無承認実行されていた permission bypass の修正（この repo は `defaultMode: auto`）、NUL byte を含む permission rule がワイルドカード一致へ展開されていた不具合の修正、sandbox `excludedCommands` が `git rev-parse --git-dir` 等の正当な呼び出しに一致しなかった不具合の修正。pin 自体も 2.1.281 が最新のため、床と pin を同じ `2.1.281` に揃える。
-- Codex の quality floor を `0.155.0` から `0.156.0` へ引き上げる。前回（2026-09-23、ADR-0065）は 0.156.1 の release note（0.156.0→0.156.1 の hotfix 差分のみ）だけを確認して `minCodex` を据え置いたが、実際に進んだ差分の起点は `0.155.1`→`0.156.0` であり、0.156.0 自体の公式 release note を確認していなかった。今回確認した 0.156.0 の GitHub Releases 本文には "Close sandbox isolation gaps involving inbound Windows connections, privileged Linux/macOS sockets, and writes through read-only macOS file handles" とあり、この repo の Codex floor 判断基準（[ADR-0047](0047-test-quality-floors-through-package-outputs.md) の sandbox・trust boundary の信頼性）に合致する。pin は snapshot 内の 0.156.1（GPT-6 モデルカタログ追加のみで追加の床上げ根拠なし）を採用する。
+- Codex の quality floor を `0.155.0` から `0.156.0` へ引き上げる。前回（2026-09-23、ADR-0065）は 0.156.1 の release note（0.156.0→0.156.1 の hotfix 差分のみ）だけを確認して `minCodex` を据え置いたが、実際に snapshot が進んだ差分は `0.155.1`→`0.156.1` であり、その途中の `0.156.0` 自体の公式 release note を確認していなかった。今回確認した 0.156.0 の GitHub Releases 本文には "Close sandbox isolation gaps involving inbound Windows connections, privileged Linux/macOS sockets, and writes through read-only macOS file handles" とあり、この repo の Codex floor 判断基準（[ADR-0047](0047-test-quality-floors-through-package-outputs.md) の sandbox・trust boundary の信頼性）に合致する。pin は snapshot 内の 0.156.1（GPT-6 モデルカタログ追加のみで追加の床上げ根拠なし）を採用する。
 - Copilot CLI 1.0.87→1.0.88、Antigravity CLI 1.2.9→1.2.10 は非公開 changelog のため package metadata の追従のみ確認し、quality floor 対象外のまま据え置く。RTK・APM・Herdr（バイナリ）・code-review-graph は snapshot 内でも変化なし。
 - 実装の正本は Nix flake / lock、`modules/ai.nix` とし、配備先を直接編集しない。
 
