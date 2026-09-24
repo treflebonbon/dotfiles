@@ -110,9 +110,10 @@ assert_lock_entry() {
   local manifest_pins
   local lock_refs
 
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#3b9e6561dababf40a485772a7cd641268bb7c365' "$manifest"
-  grep -Fq 'stablyai/orca/skills/orca-cli#de0a91b99fc845c9510340786f807ea1c988859b' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#41b22eec767aa77eb31df62ccb3bacf52ed771fb' "$manifest"
+  grep -Fq 'stablyai/orca/skills/orca-cli#4a5afd70a3db16f1cd546458e070681a4eb0da18' "$manifest"
+  grep -Fq 'herdrdev/herdr/skills/herdr#065ef9d6a531c49fb8bee7e818ef837065b21ee9' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
   ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
   ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"
@@ -120,8 +121,8 @@ assert_lock_entry() {
   ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
   assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
-    'bfd8c8dded770f3ba07a518e28991a32df40f902' \
-    'sha256:3c64ad4db7184718e9f5217af22a728a5a272e4a0ab887d5c6038cddf51815f5'
+    '22ab18dfb50a5d7e3bdcf471c14076a5534eae4e' \
+    'sha256:f5eaaa78a2e20f5ca7151deb6de140d9c5c883450415c26cb1e4aa5aa55dd927'
   assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
     '34040c9c568585f6929bedeaad110ad08f079624' \
     'sha256:69e2ac9eb2bbe2881df26acc53b46b39a15cfda206f5357e5f9c83feb0fadcc7'
@@ -129,22 +130,25 @@ assert_lock_entry() {
     '34040c9c568585f6929bedeaad110ad08f079624' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    '3b9e6561dababf40a485772a7cd641268bb7c365' \
-    'sha256:ff59c02fc8374266df224aac5c1c37b767c572fdeff4d6ded2f9b841f25ec2dc'
+    '41b22eec767aa77eb31df62ccb3bacf52ed771fb' \
+    'sha256:7b5d039c731ba8d75a40e0c474703dfa17c99aa60432c211843266f0528e3fbf'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
     '98a1fe67b439324ddc857f47fbdce056600a4329' \
     'sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '059ee59a48272854a2317cc267bdd03f23ec9aa6' \
-    'sha256:dc999be3d9692278ff281951d897f0a7497aca607cee8354ac128b63ec2da3f0'
+    '122b8c25d7c16f76e395bf9a65887d7c4bc5003b' \
+    'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
-    'de0a91b99fc845c9510340786f807ea1c988859b' \
-    'sha256:953feacb808f096f4d3d6bf4ba1b6d299aa49138bbe805da609dca51f3c72713'
+    '4a5afd70a3db16f1cd546458e070681a4eb0da18' \
+    'sha256:7ad2f1fd9217ab275ae73ffbaf119306e67841b4babc4341ed42fe63e25a4c1b'
+  assert_lock_entry "$lock" 'herdrdev/herdr' 'herdr' \
+    '065ef9d6a531c49fb8bee7e818ef837065b21ee9' \
+    'sha256:c741134cc22372c08da2f469d49aac9f9bbddd4f5e1da0558cf1132836fa3287'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '059ee59a48272854a2317cc267bdd03f23ec9aa6' \
-    'sha256:247d274538eafa19d2fc622681dd7373d752e15e77b0efe41087e4790f062c50'
-  [ "$(grep -Fc 'resolved_commit: 059ee59a48272854a2317cc267bdd03f23ec9aa6' "$lock")" -eq 2 ]
-  [ "$(grep -Fc 'resolved_commit: de0a91b99fc845c9510340786f807ea1c988859b' "$lock")" -eq 1 ]
+    '122b8c25d7c16f76e395bf9a65887d7c4bc5003b' \
+    'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
+  [ "$(grep -Fc 'resolved_commit: 122b8c25d7c16f76e395bf9a65887d7c4bc5003b' "$lock")" -eq 2 ]
+  [ "$(grep -Fc 'resolved_commit: 4a5afd70a3db16f1cd546458e070681a4eb0da18' "$lock")" -eq 1 ]
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
       awk '{

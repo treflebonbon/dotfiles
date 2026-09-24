@@ -169,8 +169,8 @@ dependencies:
   materialization_repo_url: GoogleChrome/modern-web-guidance
   name: modern-web-guidance
   host: github.com
-  resolved_commit: bfd8c8dded770f3ba07a518e28991a32df40f902
-  resolved_ref: bfd8c8dded770f3ba07a518e28991a32df40f902
+  resolved_commit: 22ab18dfb50a5d7e3bdcf471c14076a5534eae4e
+  resolved_ref: 22ab18dfb50a5d7e3bdcf471c14076a5534eae4e
   version: unknown
   virtual_path: skills/modern-web-guidance
   is_virtual: true
@@ -245,6 +245,7 @@ dependencies:
   - .agents/skills/modern-web-guidance/guides/performance/optimize-image-priority.md
   - .agents/skills/modern-web-guidance/guides/performance/optimize-preload-priority.md
   - .agents/skills/modern-web-guidance/guides/performance/optimize-script-priority.md
+  - .agents/skills/modern-web-guidance/guides/performance/out-of-order-html-streaming.md
   - .agents/skills/modern-web-guidance/guides/performance/performance.md
   - .agents/skills/modern-web-guidance/guides/performance/resolution-optimized-pseudo-elements.md
   - .agents/skills/modern-web-guidance/guides/performance/schedule-tasks-by-priority.md
@@ -256,6 +257,7 @@ dependencies:
   - .agents/skills/modern-web-guidance/guides/security/passkey-reauthentication.md
   - .agents/skills/modern-web-guidance/guides/security/passkey-registration.md
   - .agents/skills/modern-web-guidance/guides/security/passkeys.md
+  - .agents/skills/modern-web-guidance/guides/security/sanitize-untrusted-html.md
   - .agents/skills/modern-web-guidance/guides/security/security.md
   - .agents/skills/modern-web-guidance/guides/ui-atoms/carousel-slide-effects.md
   - .agents/skills/modern-web-guidance/guides/ui-atoms/component-specific-light-dark-theme.md
@@ -306,6 +308,7 @@ dependencies:
   - .agents/skills/modern-web-guidance/guides/visual-design/adapt-scrollbar-to-contrast-preferences.md
   - .agents/skills/modern-web-guidance/guides/visual-design/apply-webgl-shaders.md
   - .agents/skills/modern-web-guidance/guides/visual-design/complex-shapes.md
+  - .agents/skills/modern-web-guidance/guides/visual-design/contrast-color.md
   - .agents/skills/modern-web-guidance/guides/visual-design/customize-scrollbar-color-and-thickness.md
   - .agents/skills/modern-web-guidance/guides/visual-design/dark-mode.md
   - .agents/skills/modern-web-guidance/guides/visual-design/export-html-media-from-canvas.md
@@ -391,6 +394,7 @@ dependencies:
   - .claude/skills/modern-web-guidance/guides/performance/optimize-image-priority.md
   - .claude/skills/modern-web-guidance/guides/performance/optimize-preload-priority.md
   - .claude/skills/modern-web-guidance/guides/performance/optimize-script-priority.md
+  - .claude/skills/modern-web-guidance/guides/performance/out-of-order-html-streaming.md
   - .claude/skills/modern-web-guidance/guides/performance/performance.md
   - .claude/skills/modern-web-guidance/guides/performance/resolution-optimized-pseudo-elements.md
   - .claude/skills/modern-web-guidance/guides/performance/schedule-tasks-by-priority.md
@@ -402,6 +406,7 @@ dependencies:
   - .claude/skills/modern-web-guidance/guides/security/passkey-reauthentication.md
   - .claude/skills/modern-web-guidance/guides/security/passkey-registration.md
   - .claude/skills/modern-web-guidance/guides/security/passkeys.md
+  - .claude/skills/modern-web-guidance/guides/security/sanitize-untrusted-html.md
   - .claude/skills/modern-web-guidance/guides/security/security.md
   - .claude/skills/modern-web-guidance/guides/ui-atoms/carousel-slide-effects.md
   - .claude/skills/modern-web-guidance/guides/ui-atoms/component-specific-light-dark-theme.md
@@ -452,6 +457,7 @@ dependencies:
   - .claude/skills/modern-web-guidance/guides/visual-design/adapt-scrollbar-to-contrast-preferences.md
   - .claude/skills/modern-web-guidance/guides/visual-design/apply-webgl-shaders.md
   - .claude/skills/modern-web-guidance/guides/visual-design/complex-shapes.md
+  - .claude/skills/modern-web-guidance/guides/visual-design/contrast-color.md
   - .claude/skills/modern-web-guidance/guides/visual-design/customize-scrollbar-color-and-thickness.md
   - .claude/skills/modern-web-guidance/guides/visual-design/dark-mode.md
   - .claude/skills/modern-web-guidance/guides/visual-design/export-html-media-from-canvas.md
@@ -481,7 +487,7 @@ dependencies:
     .agents/skills/modern-web-guidance/guides/css/calculate-with-intrinsic-sizes.md: sha256:9f82ae938a142fff3ce808476e83d833b3e9265afd0e21e9281bf21d807bf97b
     .agents/skills/modern-web-guidance/guides/css/child-state-based-styling.md: sha256:1461c9f33a3becfa92d0d694067f5bb60de1e582780e910e79cb6ed7e1f01c85
     .agents/skills/modern-web-guidance/guides/css/content-based-styling.md: sha256:e2f89c713bf0959898ff9d3d83f606a69b248abf572da25f47ba68db02aac3e1
-    .agents/skills/modern-web-guidance/guides/css/css-layout.md: sha256:738d1cc3db7ab22aa136eaf149452d987c3efa3f25433072d8ae1cd7186ac666
+    .agents/skills/modern-web-guidance/guides/css/css-layout.md: sha256:b4f32216f444e6580ea038df21ae61b62cdbcb66abe9ef5df4450647d243e8ba
     .agents/skills/modern-web-guidance/guides/css/css.md: sha256:8a23dbec80bb90c3c025fba8bfde1bcbfa04b5ecd6f0d43f71db3e6a0ec598c1
     .agents/skills/modern-web-guidance/guides/css/design-token-reactivity.md: sha256:b01a7c7f3acbe3dac8ecb0e5f46301cc4ca13a6e5cb25d93ca96a59a798fa906
     .agents/skills/modern-web-guidance/guides/css/dynamic-sibling-styling.md: sha256:d40bfca05b8d043fe769fe855f4c1b43dc8b693f4944d225d5ee4d3b6db419b0
@@ -492,20 +498,20 @@ dependencies:
     .agents/skills/modern-web-guidance/guides/css/size-aware-styling.md: sha256:3c9b9f48d053441535615243503b1822bdbe80a79dd5acee09875d7272299fac
     .agents/skills/modern-web-guidance/guides/css/style-parent-with-has.md: sha256:1daa831051199af73a360c3812aefed36268e1582740aeef75cbd994f0acef74
     .agents/skills/modern-web-guidance/guides/css/usage-aware-component-variations.md: sha256:515b34e7a6f9174fb4a6bbcc6a9af39d1e78d10adecdceb22f56b6b9bc1516d6
-    .agents/skills/modern-web-guidance/guides/forms/animated-select-picker.md: sha256:a6d0b70c535d04136f1cecf942520198ce6f438c45b5214a04f0ba7873e3f4a0
+    .agents/skills/modern-web-guidance/guides/forms/animated-select-picker.md: sha256:87ee7e11cbaee6c36e41503c6e265cffa1713cfa03747faa1fd64bbdaa451ae8
     .agents/skills/modern-web-guidance/guides/forms/autofill-address-form.md: sha256:4635ca2463c2a37c7988acd552681854d7d9fea758d15d12964274a5c4aee52f
     .agents/skills/modern-web-guidance/guides/forms/autofill-highlight-inputs.md: sha256:661b8ff3f54e04b866e703b36f0cfed1f92356d7a4e7e436ba1f7e1cecfce7b4
     .agents/skills/modern-web-guidance/guides/forms/autofill-payment-form.md: sha256:cc48632a71eabf46b466b9fa6b64ae3dfc79f48215355c737764b06f79db4e5d
     .agents/skills/modern-web-guidance/guides/forms/autofill-sign-in-form.md: sha256:bc746d3d596e8fed9351e14adb3b679b8bb47055b32f8a6aac4888028788a833
     .agents/skills/modern-web-guidance/guides/forms/autofill-sign-up-form.md: sha256:582d26cbf9df1de76ecc9dda43608675ddb3919fe163cb57a589ee6150b075f2
     .agents/skills/modern-web-guidance/guides/forms/brand-consistent-forms.md: sha256:640a6525637fed28040a481ffd02a0ea98e81b2cbc06e1989386fc0150883617
-    .agents/skills/modern-web-guidance/guides/forms/branded-select-styling.md: sha256:683cdd9a4da1ddd578e3b15b51649dc772fe540787838a7298150e7faea0111e
-    .agents/skills/modern-web-guidance/guides/forms/custom-select-picker-layouts.md: sha256:1b3810e7a569df9e13e06cb46e4b196539ce174d05f559c7d3c23c367607c156
+    .agents/skills/modern-web-guidance/guides/forms/branded-select-styling.md: sha256:27877190876f3ee6ba3c4bd88f389d3c4e7893e5570767cdcda9fddb62e7fdee
+    .agents/skills/modern-web-guidance/guides/forms/custom-select-picker-layouts.md: sha256:03c00ca2acb6db21e82f451366bec987c0961a2cc5087299d79442ec0f306fbc
     .agents/skills/modern-web-guidance/guides/forms/form-fields-automatically-fit-contents.md: sha256:34f5d124e79b3c438a3ae8541e9974186c628f03ece91a588d19506d1865b502
     .agents/skills/modern-web-guidance/guides/forms/forms.md: sha256:73ed375f9d72fe6333695a6e1c6e510be5b3fbd9487cd7d0d86be440331019ee
-    .agents/skills/modern-web-guidance/guides/forms/ime-safe-enter-submit.md: sha256:949776ebc9ca5207bd10345884d22f6c150eb7e5a7add174dd5a3e8724a89bd5
+    .agents/skills/modern-web-guidance/guides/forms/ime-safe-enter-submit.md: sha256:03433c0936d8c32f7bb4e8a9db142d61c049c8c95b7778ce90fe7dbdc19f9fd4
     .agents/skills/modern-web-guidance/guides/forms/required-field-feedback.md: sha256:6e5cab4e43105ba39ad13800d6df434b95c0f8ae163e799f4ef8f38cd59bb69e
-    .agents/skills/modern-web-guidance/guides/forms/rich-media-picker.md: sha256:3d1be9161c9561ee29c36c8f81af3330e1448d8f60a7815a4eb1b1cc5f8d44fa
+    .agents/skills/modern-web-guidance/guides/forms/rich-media-picker.md: sha256:84c1619362a1f508d7a79397cd40d9818636e698e0391fbd421b0ef00c1fc0da
     .agents/skills/modern-web-guidance/guides/forms/select-menu-interaction.md: sha256:b588c522099f9015228932cb4673d951f8196ec6f6527990d512a372f4b7e7d5
     .agents/skills/modern-web-guidance/guides/forms/validate-input-after-interaction.md: sha256:a3699bb30041af3142858c9ec4066932e865410f2777873684ce8ad1a188cc3f
     .agents/skills/modern-web-guidance/guides/html/html.md: sha256:87ca3f2b6535c06f96857ed5ca1b577d8ccaa8168348a10e878c5693d8633621
@@ -519,25 +525,26 @@ dependencies:
     .agents/skills/modern-web-guidance/guides/js/support-global-calendar-systems.md: sha256:ec389be8fa12890eee6e84f41fd4af409fe1237585f16c1531ad35da60b3b508
     .agents/skills/modern-web-guidance/guides/performance/batch-analytics-events.md: sha256:42e0ec8135e8e6c8547161148ed99f57a7c50d531e8197ac7c74bc54a4640175
     .agents/skills/modern-web-guidance/guides/performance/break-up-long-tasks.md: sha256:4a9032b12809fc848cc5045d6ca2c3bad371d326a4fd72c0a4a9a7307583c619
-    .agents/skills/modern-web-guidance/guides/performance/calculate-total-foreground-time.md: sha256:d0c29d8924bb1da00b8febf6694fb14bece0bfd1abcf732aec1be5cefea6ea94
-    .agents/skills/modern-web-guidance/guides/performance/conditional-async-dependencies.md: sha256:707d50e841179c90df87028cc0a66e7db9b7d4fd7f4c5b0043e76398f8e0cdd3
+    .agents/skills/modern-web-guidance/guides/performance/calculate-total-foreground-time.md: sha256:89116f26c362fb77f7388e3a45acb6e6e1e89049a0fe946deb6f99144da1478b
+    .agents/skills/modern-web-guidance/guides/performance/conditional-async-dependencies.md: sha256:d8e066a249e463f23812d8375eb18eca241fb70df4adfdba3a49fc89b248abae
     .agents/skills/modern-web-guidance/guides/performance/defer-rendering-heavy-content.md: sha256:99f4e9b7b376b7be9c9acd22c04ec66d8bb8b50677a31d212c394d84f74adae9
     .agents/skills/modern-web-guidance/guides/performance/defer-work-until-scroll-ends.md: sha256:3e69a3fb9e3e8a748bec61392e013839c690322424ea8e84a42b6e1cf178f758
     .agents/skills/modern-web-guidance/guides/performance/deliver-optimized-decorative-images.md: sha256:5537b241966ff8a8e9ce99232ed715d887aad8db72965ca77965a328ebc41ab1
     .agents/skills/modern-web-guidance/guides/performance/deprioritize-background-fetches.md: sha256:14836fc6fc94567c2451ef427c11c381a71b1d348ae57f23b4082eceb9773b12
-    .agents/skills/modern-web-guidance/guides/performance/detect-initial-visibility-state.md: sha256:9aaf498f3f67c32b82a5057fe6f0ac153786738fbe467e9c783f2361f56eb8fe
+    .agents/skills/modern-web-guidance/guides/performance/detect-initial-visibility-state.md: sha256:1d47db09e023a39cfb9fc54117f44951c0e39f02a8c520da32a840be8a2c75ae
     .agents/skills/modern-web-guidance/guides/performance/efficient-background-processing.md: sha256:585dc8e70e7f302e8c250407e36505ad5bd47cea8750717887844f7a79ab9f9a
     .agents/skills/modern-web-guidance/guides/performance/faster-spa-view-transitions.md: sha256:e1b353e06c9ec52bae90f41150ffa5ce1d3f2f3f18e23141ecde79e550973a97
     .agents/skills/modern-web-guidance/guides/performance/flicker-free-client-side-ab-testing.md: sha256:22b9e88076030dba35e63b4007a7fef59abb85b65ca6b01800fa1d36580ba7fa
     .agents/skills/modern-web-guidance/guides/performance/full-session-analytics.md: sha256:24872a06076e961b0db74916441d538db87801f1fc0bded10135fc919b1a29b8
-    .agents/skills/modern-web-guidance/guides/performance/identify-heavy-scripts.md: sha256:8206670b5caaee2e9fedbe495ca7b832acb2327eab30a79ecadbb888ba8fc2b2
-    .agents/skills/modern-web-guidance/guides/performance/identify-inp-causes.md: sha256:bbf6b3708a59c56f02f9063fb41e09dd52197c8dfd67ee37c6575635c7391f88
+    .agents/skills/modern-web-guidance/guides/performance/identify-heavy-scripts.md: sha256:38acb908e5d2db81f204fda8bca3c9d01e8b26fe23e6957af5aa2069ab0a3a61
+    .agents/skills/modern-web-guidance/guides/performance/identify-inp-causes.md: sha256:695ce538e2f909e5499edd387abdb042427ad8c0553b675fe74f55a3af08851a
     .agents/skills/modern-web-guidance/guides/performance/improve-next-page-load-performance.md: sha256:bd4c92ee1d2a581858fbb30d517f2acaacd1add78ca10d8a88a231417ba7008f
     .agents/skills/modern-web-guidance/guides/performance/interactions-in-complex-layouts.md: sha256:32519cb50656ec3188565cf934826f483c1f1ef3075547dc04414f1908deafc3
     .agents/skills/modern-web-guidance/guides/performance/optimize-image-priority.md: sha256:4f1345b87b2e96b3e97185082cd1f38b8fc06f5a2e98f5c66062aa88ed00bc46
     .agents/skills/modern-web-guidance/guides/performance/optimize-preload-priority.md: sha256:5239d1bb2718a2698a5288b069018af1cf40385c2a2d997e7ab9d7b49c892bf1
     .agents/skills/modern-web-guidance/guides/performance/optimize-script-priority.md: sha256:a3b6af33195d56febe9ca9490af06e420b0d3c62f37d9cf3594f89233d5ab41a
-    .agents/skills/modern-web-guidance/guides/performance/performance.md: sha256:2f22c7d1482189d1f3f68f96dc5bb6c01c459338938bdabf4549d77003afa76f
+    .agents/skills/modern-web-guidance/guides/performance/out-of-order-html-streaming.md: sha256:1d75e4b907f473b9c27d00094ddb8b93091ad729f6402c560f9117a4b47f6e21
+    .agents/skills/modern-web-guidance/guides/performance/performance.md: sha256:147c6ef99368bfa9dc7938aea477ddbd4848f9dca3323882a8023d6fa9b57e4b
     .agents/skills/modern-web-guidance/guides/performance/resolution-optimized-pseudo-elements.md: sha256:05375d370b54f814e07ce0232f0909ee2a937e03d1a53f7004620dc9e9916fb8
     .agents/skills/modern-web-guidance/guides/performance/schedule-tasks-by-priority.md: sha256:f9e05d222cd89f7612fa2d98042f62cecb406be527c642a1ef55afa5125f0366
     .agents/skills/modern-web-guidance/guides/performance/sequence-distributed-events.md: sha256:77ef181ced3afc8db506a2a04e566d8fa6d512704089a5c78e89ebc7f462a129
@@ -548,18 +555,19 @@ dependencies:
     .agents/skills/modern-web-guidance/guides/security/passkey-reauthentication.md: sha256:ccdeb78dc5e3cb73d8f0f9373c2f7e0aeef9489fd56dfa740859182afff69778
     .agents/skills/modern-web-guidance/guides/security/passkey-registration.md: sha256:3d388f38336e2bb7927034107237640700dab91d6eb0b87363e519624899b447
     .agents/skills/modern-web-guidance/guides/security/passkeys.md: sha256:ff4ce1015e4572f74cfdd34d2cfd38b70d05d5b9f23fb72b8f0ab8ade0a3551f
-    .agents/skills/modern-web-guidance/guides/security/security.md: sha256:39dee469938960946b45af3d19ed7a4a361d281f41046a028b63ca0b9fe09b9c
+    .agents/skills/modern-web-guidance/guides/security/sanitize-untrusted-html.md: sha256:4c4826ecd6a70c0a6f3218289034482f406bd445f4e04e30410d48c67170644d
+    .agents/skills/modern-web-guidance/guides/security/security.md: sha256:dcb2da9b51e711c2e17d8ed066e587ed05783cd9b1dc841740effd2ca3d2c898
     .agents/skills/modern-web-guidance/guides/ui-atoms/carousel-slide-effects.md: sha256:8e6c8109a078dd5616b9d6c79044f1f38576c63fd7b1d43d990797cf95a7f34e
     .agents/skills/modern-web-guidance/guides/ui-atoms/component-specific-light-dark-theme.md: sha256:4076c0a3918b9d59034c03670ac5296dfe36106091d383c47cd1f96f41a248ca
     .agents/skills/modern-web-guidance/guides/ui-atoms/position-aware-tooltips.md: sha256:43f45151d6f6faf7fe8edf5c3655d390ee27a05e24fbbba8be7d2c02e6287349
     .agents/skills/modern-web-guidance/guides/ui-atoms/pull-to-reveal.md: sha256:5ff57863a7f9201671f0cf86da9f063d334ccaeaacd85ef4f875f66e85fc0510
-    .agents/skills/modern-web-guidance/guides/ui-atoms/resilient-context-menus-and-nested-dropdowns.md: sha256:44bf43ed55e203de6c6460fa12fe71c0d544d715df915ad773546aab12aabe59
+    .agents/skills/modern-web-guidance/guides/ui-atoms/resilient-context-menus-and-nested-dropdowns.md: sha256:f456d09af6cbf31770e5fd73622eae7583cd5e9a13b888df69981ebb8d1949c8
     .agents/skills/modern-web-guidance/guides/ui-atoms/scroll-position-aware-elements.md: sha256:f4c01952462b54133286f6e4219f23d80872d3471a58b8dde638207f6c20d62f
     .agents/skills/modern-web-guidance/guides/ui-atoms/scroll-progress-indicator.md: sha256:5221cab35adfd624654221f34fb29b06f089a7d8ae092b3be78f67675540babf
     .agents/skills/modern-web-guidance/guides/ui-atoms/scrollability-affordance-hints.md: sha256:06678336b23fd934f8e18f00868f9e88cf7ab2ba73586d2b0d3a4a2a825b5efd
     .agents/skills/modern-web-guidance/guides/ui-atoms/shrinking-header-on-scroll.md: sha256:a97e48d9a9289fa73f21300f1ae364d995da7288f50de6a74e98c381244d147b
     .agents/skills/modern-web-guidance/guides/ui-atoms/state-aware-sticky-headers.md: sha256:69bc9e11ae75b6bc4e3a5d36ba23a5e849cc5dc6825e690f557d325d3fc62c4b
-    .agents/skills/modern-web-guidance/guides/ui-behaviors/anchor-positioning-tab-underline.md: sha256:f3fbde1fddfc8bd5242726f0ad93e96efcc7c88c5b88a399630c592014fc5898
+    .agents/skills/modern-web-guidance/guides/ui-behaviors/anchor-positioning-tab-underline.md: sha256:3ec7407f33445106ac26c6d73122114f8d3344c09693a6df9a828e43a6ef381b
     .agents/skills/modern-web-guidance/guides/ui-behaviors/animate-element-entry-exit.md: sha256:4a600fce08457fa7e6ef4548bca8a165477c6269e1592a41185c7cb8179ce72c
     .agents/skills/modern-web-guidance/guides/ui-behaviors/animate-to-from-top-layer.md: sha256:989feb0fbfce0db216e5cc5950c74d5340241a8d38c87df7c196da86bd34f927
     .agents/skills/modern-web-guidance/guides/ui-behaviors/carousel-snap-highlights.md: sha256:0451f4dbd40f98a1d8a5068bbea3ab03fe297f2e8ee0c6c7e98dcce0134586f0
@@ -573,7 +581,7 @@ dependencies:
     .agents/skills/modern-web-guidance/guides/ui-behaviors/highlight-text-ranges.md: sha256:0af66c1bee36d9b1fa254feca75b7b3d4ca477b4340b1ad95d36fe3a52d3ac16
     .agents/skills/modern-web-guidance/guides/ui-behaviors/interactive-content-reveal.md: sha256:6dccf43443e6f1fc7eced7565ced180ce36ac2c0ccc73b4e96a35886179afc68
     .agents/skills/modern-web-guidance/guides/ui-behaviors/interest-triggered-action-previews.md: sha256:49d37d435ca8c27a46d22c75363936230a43ec849237ace289a872c31e9893e1
-    .agents/skills/modern-web-guidance/guides/ui-behaviors/interest-triggered-tooltips.md: sha256:7a1d12274e8d48379e9d3c4a65db40f4d9a4ec7bcf028a457a51ef0fe130b32c
+    .agents/skills/modern-web-guidance/guides/ui-behaviors/interest-triggered-tooltips.md: sha256:26ad5c0e8f5442e8625a6f54b6741cd297dad0e2f5c8afe98fe544dae8eca8a0
     .agents/skills/modern-web-guidance/guides/ui-behaviors/light-dismiss-a-dialog.md: sha256:bfee31fb9178dd1545e49c4f2dfa8565bc44ffe2bb7fc2b9461e698df8c41e11
     .agents/skills/modern-web-guidance/guides/ui-behaviors/move-dom-element-without-losing-state.md: sha256:f7732d64e28d5c8cf90c9d56e75a41430e3639022478a8278485344b3ba6fcf3
     .agents/skills/modern-web-guidance/guides/ui-behaviors/parallax-scroll-effects.md: sha256:081ae662fddca6287f41c09f8b75f080ce700b1a8f2a626b816935cc7190e729
@@ -589,15 +597,16 @@ dependencies:
     .agents/skills/modern-web-guidance/guides/ui-behaviors/search-hidden-content.md: sha256:4f5d3bce39670d06baaba7acc6739106268a11e6d4774f1cd43ad0a28f1be941
     .agents/skills/modern-web-guidance/guides/ui-behaviors/swipe-to-remove.md: sha256:cf67af64724ed97e197463c75520f2f3fb04681627ca5e4918556742d417b1f8
     .agents/skills/modern-web-guidance/guides/ui-components/navigation-drawer.md: sha256:b033746b07a1e42f78d52885096821118614f8580051f9d73be5624b3cb70448
-    .agents/skills/modern-web-guidance/guides/ui-components/persistent-app-tours.md: sha256:1fe79fcbc5ef7d5e8ae4e8a856000b7a0f93903b58e3cc192a0e08ec55808288
+    .agents/skills/modern-web-guidance/guides/ui-components/persistent-app-tours.md: sha256:c47dd311c85dd7795a1d068812b1dc3f9ce07c6e0677b698c24572300d7ed5a3
     .agents/skills/modern-web-guidance/guides/ui-components/persistent-toast-notifications.md: sha256:68ba2f3e284d181ba5b9ffa17bef8e97efe7368245a2d81fe05bf12dce1c0b3f
-    .agents/skills/modern-web-guidance/guides/ui-components/progress-ring.md: sha256:3a5db7de594a827a7141b423acbc64dde99bd08be49a5999a7279ee79d8d705c
+    .agents/skills/modern-web-guidance/guides/ui-components/progress-ring.md: sha256:70416e8dc8e5975790e9c21f027790151ea1f262a93769cd4bbbb1c2473b4467
     .agents/skills/modern-web-guidance/guides/ui-components/scrollspy.md: sha256:08110934d24039860834b903ff6381069fd1e924921b3104f4afc4d4686cf73b
     .agents/skills/modern-web-guidance/guides/ui-components/spinner.md: sha256:c186f8827ca8eff95451228cf19f074d0ab7f3694c781103b1becb9b04b82774
     .agents/skills/modern-web-guidance/guides/ui-components/stack-drill-down.md: sha256:ca65d2c51d1db9218ec0224df509d3e2381b7301377d8f5f68c1d4b6982b3b23
     .agents/skills/modern-web-guidance/guides/visual-design/adapt-scrollbar-to-contrast-preferences.md: sha256:afa06625e02f48d7d844edb2ea4b24b022412ce69760e1c9176ff8c6d7dbaed9
     .agents/skills/modern-web-guidance/guides/visual-design/apply-webgl-shaders.md: sha256:9fb56e26cb6bfa5159c062172ccbfc6c84033bbd3d013bb1f5990ec7dbec6faf
     .agents/skills/modern-web-guidance/guides/visual-design/complex-shapes.md: sha256:dad784ec45a78656fe6eb3f4be32132f50d6517dd25b087ece2b7b9dcaa6de36
+    .agents/skills/modern-web-guidance/guides/visual-design/contrast-color.md: sha256:302d747e5baeacf1dc7c7531d0089069af1133b3dcc6a00982bb487aeb8da891
     .agents/skills/modern-web-guidance/guides/visual-design/customize-scrollbar-color-and-thickness.md: sha256:8b73513c3fedc839dafd4ddb9b0ba15c350deaef739e4b6158008006661a86f7
     .agents/skills/modern-web-guidance/guides/visual-design/dark-mode.md: sha256:cb14030bf581478475c357e735c7092623e30524df89a90ebd2f23fdb025c149
     .agents/skills/modern-web-guidance/guides/visual-design/export-html-media-from-canvas.md: sha256:21fcd33f60be01f02415cb8b9627b302406fe6b6919c4d936ce659c88bd5d87f
@@ -626,7 +635,7 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/css/calculate-with-intrinsic-sizes.md: sha256:9f82ae938a142fff3ce808476e83d833b3e9265afd0e21e9281bf21d807bf97b
     .claude/skills/modern-web-guidance/guides/css/child-state-based-styling.md: sha256:1461c9f33a3becfa92d0d694067f5bb60de1e582780e910e79cb6ed7e1f01c85
     .claude/skills/modern-web-guidance/guides/css/content-based-styling.md: sha256:e2f89c713bf0959898ff9d3d83f606a69b248abf572da25f47ba68db02aac3e1
-    .claude/skills/modern-web-guidance/guides/css/css-layout.md: sha256:738d1cc3db7ab22aa136eaf149452d987c3efa3f25433072d8ae1cd7186ac666
+    .claude/skills/modern-web-guidance/guides/css/css-layout.md: sha256:b4f32216f444e6580ea038df21ae61b62cdbcb66abe9ef5df4450647d243e8ba
     .claude/skills/modern-web-guidance/guides/css/css.md: sha256:8a23dbec80bb90c3c025fba8bfde1bcbfa04b5ecd6f0d43f71db3e6a0ec598c1
     .claude/skills/modern-web-guidance/guides/css/design-token-reactivity.md: sha256:b01a7c7f3acbe3dac8ecb0e5f46301cc4ca13a6e5cb25d93ca96a59a798fa906
     .claude/skills/modern-web-guidance/guides/css/dynamic-sibling-styling.md: sha256:d40bfca05b8d043fe769fe855f4c1b43dc8b693f4944d225d5ee4d3b6db419b0
@@ -637,20 +646,20 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/css/size-aware-styling.md: sha256:3c9b9f48d053441535615243503b1822bdbe80a79dd5acee09875d7272299fac
     .claude/skills/modern-web-guidance/guides/css/style-parent-with-has.md: sha256:1daa831051199af73a360c3812aefed36268e1582740aeef75cbd994f0acef74
     .claude/skills/modern-web-guidance/guides/css/usage-aware-component-variations.md: sha256:515b34e7a6f9174fb4a6bbcc6a9af39d1e78d10adecdceb22f56b6b9bc1516d6
-    .claude/skills/modern-web-guidance/guides/forms/animated-select-picker.md: sha256:a6d0b70c535d04136f1cecf942520198ce6f438c45b5214a04f0ba7873e3f4a0
+    .claude/skills/modern-web-guidance/guides/forms/animated-select-picker.md: sha256:87ee7e11cbaee6c36e41503c6e265cffa1713cfa03747faa1fd64bbdaa451ae8
     .claude/skills/modern-web-guidance/guides/forms/autofill-address-form.md: sha256:4635ca2463c2a37c7988acd552681854d7d9fea758d15d12964274a5c4aee52f
     .claude/skills/modern-web-guidance/guides/forms/autofill-highlight-inputs.md: sha256:661b8ff3f54e04b866e703b36f0cfed1f92356d7a4e7e436ba1f7e1cecfce7b4
     .claude/skills/modern-web-guidance/guides/forms/autofill-payment-form.md: sha256:cc48632a71eabf46b466b9fa6b64ae3dfc79f48215355c737764b06f79db4e5d
     .claude/skills/modern-web-guidance/guides/forms/autofill-sign-in-form.md: sha256:bc746d3d596e8fed9351e14adb3b679b8bb47055b32f8a6aac4888028788a833
     .claude/skills/modern-web-guidance/guides/forms/autofill-sign-up-form.md: sha256:582d26cbf9df1de76ecc9dda43608675ddb3919fe163cb57a589ee6150b075f2
     .claude/skills/modern-web-guidance/guides/forms/brand-consistent-forms.md: sha256:640a6525637fed28040a481ffd02a0ea98e81b2cbc06e1989386fc0150883617
-    .claude/skills/modern-web-guidance/guides/forms/branded-select-styling.md: sha256:683cdd9a4da1ddd578e3b15b51649dc772fe540787838a7298150e7faea0111e
-    .claude/skills/modern-web-guidance/guides/forms/custom-select-picker-layouts.md: sha256:1b3810e7a569df9e13e06cb46e4b196539ce174d05f559c7d3c23c367607c156
+    .claude/skills/modern-web-guidance/guides/forms/branded-select-styling.md: sha256:27877190876f3ee6ba3c4bd88f389d3c4e7893e5570767cdcda9fddb62e7fdee
+    .claude/skills/modern-web-guidance/guides/forms/custom-select-picker-layouts.md: sha256:03c00ca2acb6db21e82f451366bec987c0961a2cc5087299d79442ec0f306fbc
     .claude/skills/modern-web-guidance/guides/forms/form-fields-automatically-fit-contents.md: sha256:34f5d124e79b3c438a3ae8541e9974186c628f03ece91a588d19506d1865b502
     .claude/skills/modern-web-guidance/guides/forms/forms.md: sha256:73ed375f9d72fe6333695a6e1c6e510be5b3fbd9487cd7d0d86be440331019ee
-    .claude/skills/modern-web-guidance/guides/forms/ime-safe-enter-submit.md: sha256:949776ebc9ca5207bd10345884d22f6c150eb7e5a7add174dd5a3e8724a89bd5
+    .claude/skills/modern-web-guidance/guides/forms/ime-safe-enter-submit.md: sha256:03433c0936d8c32f7bb4e8a9db142d61c049c8c95b7778ce90fe7dbdc19f9fd4
     .claude/skills/modern-web-guidance/guides/forms/required-field-feedback.md: sha256:6e5cab4e43105ba39ad13800d6df434b95c0f8ae163e799f4ef8f38cd59bb69e
-    .claude/skills/modern-web-guidance/guides/forms/rich-media-picker.md: sha256:3d1be9161c9561ee29c36c8f81af3330e1448d8f60a7815a4eb1b1cc5f8d44fa
+    .claude/skills/modern-web-guidance/guides/forms/rich-media-picker.md: sha256:84c1619362a1f508d7a79397cd40d9818636e698e0391fbd421b0ef00c1fc0da
     .claude/skills/modern-web-guidance/guides/forms/select-menu-interaction.md: sha256:b588c522099f9015228932cb4673d951f8196ec6f6527990d512a372f4b7e7d5
     .claude/skills/modern-web-guidance/guides/forms/validate-input-after-interaction.md: sha256:a3699bb30041af3142858c9ec4066932e865410f2777873684ce8ad1a188cc3f
     .claude/skills/modern-web-guidance/guides/html/html.md: sha256:87ca3f2b6535c06f96857ed5ca1b577d8ccaa8168348a10e878c5693d8633621
@@ -664,25 +673,26 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/js/support-global-calendar-systems.md: sha256:ec389be8fa12890eee6e84f41fd4af409fe1237585f16c1531ad35da60b3b508
     .claude/skills/modern-web-guidance/guides/performance/batch-analytics-events.md: sha256:42e0ec8135e8e6c8547161148ed99f57a7c50d531e8197ac7c74bc54a4640175
     .claude/skills/modern-web-guidance/guides/performance/break-up-long-tasks.md: sha256:4a9032b12809fc848cc5045d6ca2c3bad371d326a4fd72c0a4a9a7307583c619
-    .claude/skills/modern-web-guidance/guides/performance/calculate-total-foreground-time.md: sha256:d0c29d8924bb1da00b8febf6694fb14bece0bfd1abcf732aec1be5cefea6ea94
-    .claude/skills/modern-web-guidance/guides/performance/conditional-async-dependencies.md: sha256:707d50e841179c90df87028cc0a66e7db9b7d4fd7f4c5b0043e76398f8e0cdd3
+    .claude/skills/modern-web-guidance/guides/performance/calculate-total-foreground-time.md: sha256:89116f26c362fb77f7388e3a45acb6e6e1e89049a0fe946deb6f99144da1478b
+    .claude/skills/modern-web-guidance/guides/performance/conditional-async-dependencies.md: sha256:d8e066a249e463f23812d8375eb18eca241fb70df4adfdba3a49fc89b248abae
     .claude/skills/modern-web-guidance/guides/performance/defer-rendering-heavy-content.md: sha256:99f4e9b7b376b7be9c9acd22c04ec66d8bb8b50677a31d212c394d84f74adae9
     .claude/skills/modern-web-guidance/guides/performance/defer-work-until-scroll-ends.md: sha256:3e69a3fb9e3e8a748bec61392e013839c690322424ea8e84a42b6e1cf178f758
     .claude/skills/modern-web-guidance/guides/performance/deliver-optimized-decorative-images.md: sha256:5537b241966ff8a8e9ce99232ed715d887aad8db72965ca77965a328ebc41ab1
     .claude/skills/modern-web-guidance/guides/performance/deprioritize-background-fetches.md: sha256:14836fc6fc94567c2451ef427c11c381a71b1d348ae57f23b4082eceb9773b12
-    .claude/skills/modern-web-guidance/guides/performance/detect-initial-visibility-state.md: sha256:9aaf498f3f67c32b82a5057fe6f0ac153786738fbe467e9c783f2361f56eb8fe
+    .claude/skills/modern-web-guidance/guides/performance/detect-initial-visibility-state.md: sha256:1d47db09e023a39cfb9fc54117f44951c0e39f02a8c520da32a840be8a2c75ae
     .claude/skills/modern-web-guidance/guides/performance/efficient-background-processing.md: sha256:585dc8e70e7f302e8c250407e36505ad5bd47cea8750717887844f7a79ab9f9a
     .claude/skills/modern-web-guidance/guides/performance/faster-spa-view-transitions.md: sha256:e1b353e06c9ec52bae90f41150ffa5ce1d3f2f3f18e23141ecde79e550973a97
     .claude/skills/modern-web-guidance/guides/performance/flicker-free-client-side-ab-testing.md: sha256:22b9e88076030dba35e63b4007a7fef59abb85b65ca6b01800fa1d36580ba7fa
     .claude/skills/modern-web-guidance/guides/performance/full-session-analytics.md: sha256:24872a06076e961b0db74916441d538db87801f1fc0bded10135fc919b1a29b8
-    .claude/skills/modern-web-guidance/guides/performance/identify-heavy-scripts.md: sha256:8206670b5caaee2e9fedbe495ca7b832acb2327eab30a79ecadbb888ba8fc2b2
-    .claude/skills/modern-web-guidance/guides/performance/identify-inp-causes.md: sha256:bbf6b3708a59c56f02f9063fb41e09dd52197c8dfd67ee37c6575635c7391f88
+    .claude/skills/modern-web-guidance/guides/performance/identify-heavy-scripts.md: sha256:38acb908e5d2db81f204fda8bca3c9d01e8b26fe23e6957af5aa2069ab0a3a61
+    .claude/skills/modern-web-guidance/guides/performance/identify-inp-causes.md: sha256:695ce538e2f909e5499edd387abdb042427ad8c0553b675fe74f55a3af08851a
     .claude/skills/modern-web-guidance/guides/performance/improve-next-page-load-performance.md: sha256:bd4c92ee1d2a581858fbb30d517f2acaacd1add78ca10d8a88a231417ba7008f
     .claude/skills/modern-web-guidance/guides/performance/interactions-in-complex-layouts.md: sha256:32519cb50656ec3188565cf934826f483c1f1ef3075547dc04414f1908deafc3
     .claude/skills/modern-web-guidance/guides/performance/optimize-image-priority.md: sha256:4f1345b87b2e96b3e97185082cd1f38b8fc06f5a2e98f5c66062aa88ed00bc46
     .claude/skills/modern-web-guidance/guides/performance/optimize-preload-priority.md: sha256:5239d1bb2718a2698a5288b069018af1cf40385c2a2d997e7ab9d7b49c892bf1
     .claude/skills/modern-web-guidance/guides/performance/optimize-script-priority.md: sha256:a3b6af33195d56febe9ca9490af06e420b0d3c62f37d9cf3594f89233d5ab41a
-    .claude/skills/modern-web-guidance/guides/performance/performance.md: sha256:2f22c7d1482189d1f3f68f96dc5bb6c01c459338938bdabf4549d77003afa76f
+    .claude/skills/modern-web-guidance/guides/performance/out-of-order-html-streaming.md: sha256:1d75e4b907f473b9c27d00094ddb8b93091ad729f6402c560f9117a4b47f6e21
+    .claude/skills/modern-web-guidance/guides/performance/performance.md: sha256:147c6ef99368bfa9dc7938aea477ddbd4848f9dca3323882a8023d6fa9b57e4b
     .claude/skills/modern-web-guidance/guides/performance/resolution-optimized-pseudo-elements.md: sha256:05375d370b54f814e07ce0232f0909ee2a937e03d1a53f7004620dc9e9916fb8
     .claude/skills/modern-web-guidance/guides/performance/schedule-tasks-by-priority.md: sha256:f9e05d222cd89f7612fa2d98042f62cecb406be527c642a1ef55afa5125f0366
     .claude/skills/modern-web-guidance/guides/performance/sequence-distributed-events.md: sha256:77ef181ced3afc8db506a2a04e566d8fa6d512704089a5c78e89ebc7f462a129
@@ -693,18 +703,19 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/security/passkey-reauthentication.md: sha256:ccdeb78dc5e3cb73d8f0f9373c2f7e0aeef9489fd56dfa740859182afff69778
     .claude/skills/modern-web-guidance/guides/security/passkey-registration.md: sha256:3d388f38336e2bb7927034107237640700dab91d6eb0b87363e519624899b447
     .claude/skills/modern-web-guidance/guides/security/passkeys.md: sha256:ff4ce1015e4572f74cfdd34d2cfd38b70d05d5b9f23fb72b8f0ab8ade0a3551f
-    .claude/skills/modern-web-guidance/guides/security/security.md: sha256:39dee469938960946b45af3d19ed7a4a361d281f41046a028b63ca0b9fe09b9c
+    .claude/skills/modern-web-guidance/guides/security/sanitize-untrusted-html.md: sha256:4c4826ecd6a70c0a6f3218289034482f406bd445f4e04e30410d48c67170644d
+    .claude/skills/modern-web-guidance/guides/security/security.md: sha256:dcb2da9b51e711c2e17d8ed066e587ed05783cd9b1dc841740effd2ca3d2c898
     .claude/skills/modern-web-guidance/guides/ui-atoms/carousel-slide-effects.md: sha256:8e6c8109a078dd5616b9d6c79044f1f38576c63fd7b1d43d990797cf95a7f34e
     .claude/skills/modern-web-guidance/guides/ui-atoms/component-specific-light-dark-theme.md: sha256:4076c0a3918b9d59034c03670ac5296dfe36106091d383c47cd1f96f41a248ca
     .claude/skills/modern-web-guidance/guides/ui-atoms/position-aware-tooltips.md: sha256:43f45151d6f6faf7fe8edf5c3655d390ee27a05e24fbbba8be7d2c02e6287349
     .claude/skills/modern-web-guidance/guides/ui-atoms/pull-to-reveal.md: sha256:5ff57863a7f9201671f0cf86da9f063d334ccaeaacd85ef4f875f66e85fc0510
-    .claude/skills/modern-web-guidance/guides/ui-atoms/resilient-context-menus-and-nested-dropdowns.md: sha256:44bf43ed55e203de6c6460fa12fe71c0d544d715df915ad773546aab12aabe59
+    .claude/skills/modern-web-guidance/guides/ui-atoms/resilient-context-menus-and-nested-dropdowns.md: sha256:f456d09af6cbf31770e5fd73622eae7583cd5e9a13b888df69981ebb8d1949c8
     .claude/skills/modern-web-guidance/guides/ui-atoms/scroll-position-aware-elements.md: sha256:f4c01952462b54133286f6e4219f23d80872d3471a58b8dde638207f6c20d62f
     .claude/skills/modern-web-guidance/guides/ui-atoms/scroll-progress-indicator.md: sha256:5221cab35adfd624654221f34fb29b06f089a7d8ae092b3be78f67675540babf
     .claude/skills/modern-web-guidance/guides/ui-atoms/scrollability-affordance-hints.md: sha256:06678336b23fd934f8e18f00868f9e88cf7ab2ba73586d2b0d3a4a2a825b5efd
     .claude/skills/modern-web-guidance/guides/ui-atoms/shrinking-header-on-scroll.md: sha256:a97e48d9a9289fa73f21300f1ae364d995da7288f50de6a74e98c381244d147b
     .claude/skills/modern-web-guidance/guides/ui-atoms/state-aware-sticky-headers.md: sha256:69bc9e11ae75b6bc4e3a5d36ba23a5e849cc5dc6825e690f557d325d3fc62c4b
-    .claude/skills/modern-web-guidance/guides/ui-behaviors/anchor-positioning-tab-underline.md: sha256:f3fbde1fddfc8bd5242726f0ad93e96efcc7c88c5b88a399630c592014fc5898
+    .claude/skills/modern-web-guidance/guides/ui-behaviors/anchor-positioning-tab-underline.md: sha256:3ec7407f33445106ac26c6d73122114f8d3344c09693a6df9a828e43a6ef381b
     .claude/skills/modern-web-guidance/guides/ui-behaviors/animate-element-entry-exit.md: sha256:4a600fce08457fa7e6ef4548bca8a165477c6269e1592a41185c7cb8179ce72c
     .claude/skills/modern-web-guidance/guides/ui-behaviors/animate-to-from-top-layer.md: sha256:989feb0fbfce0db216e5cc5950c74d5340241a8d38c87df7c196da86bd34f927
     .claude/skills/modern-web-guidance/guides/ui-behaviors/carousel-snap-highlights.md: sha256:0451f4dbd40f98a1d8a5068bbea3ab03fe297f2e8ee0c6c7e98dcce0134586f0
@@ -718,7 +729,7 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/ui-behaviors/highlight-text-ranges.md: sha256:0af66c1bee36d9b1fa254feca75b7b3d4ca477b4340b1ad95d36fe3a52d3ac16
     .claude/skills/modern-web-guidance/guides/ui-behaviors/interactive-content-reveal.md: sha256:6dccf43443e6f1fc7eced7565ced180ce36ac2c0ccc73b4e96a35886179afc68
     .claude/skills/modern-web-guidance/guides/ui-behaviors/interest-triggered-action-previews.md: sha256:49d37d435ca8c27a46d22c75363936230a43ec849237ace289a872c31e9893e1
-    .claude/skills/modern-web-guidance/guides/ui-behaviors/interest-triggered-tooltips.md: sha256:7a1d12274e8d48379e9d3c4a65db40f4d9a4ec7bcf028a457a51ef0fe130b32c
+    .claude/skills/modern-web-guidance/guides/ui-behaviors/interest-triggered-tooltips.md: sha256:26ad5c0e8f5442e8625a6f54b6741cd297dad0e2f5c8afe98fe544dae8eca8a0
     .claude/skills/modern-web-guidance/guides/ui-behaviors/light-dismiss-a-dialog.md: sha256:bfee31fb9178dd1545e49c4f2dfa8565bc44ffe2bb7fc2b9461e698df8c41e11
     .claude/skills/modern-web-guidance/guides/ui-behaviors/move-dom-element-without-losing-state.md: sha256:f7732d64e28d5c8cf90c9d56e75a41430e3639022478a8278485344b3ba6fcf3
     .claude/skills/modern-web-guidance/guides/ui-behaviors/parallax-scroll-effects.md: sha256:081ae662fddca6287f41c09f8b75f080ce700b1a8f2a626b816935cc7190e729
@@ -734,15 +745,16 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/ui-behaviors/search-hidden-content.md: sha256:4f5d3bce39670d06baaba7acc6739106268a11e6d4774f1cd43ad0a28f1be941
     .claude/skills/modern-web-guidance/guides/ui-behaviors/swipe-to-remove.md: sha256:cf67af64724ed97e197463c75520f2f3fb04681627ca5e4918556742d417b1f8
     .claude/skills/modern-web-guidance/guides/ui-components/navigation-drawer.md: sha256:b033746b07a1e42f78d52885096821118614f8580051f9d73be5624b3cb70448
-    .claude/skills/modern-web-guidance/guides/ui-components/persistent-app-tours.md: sha256:1fe79fcbc5ef7d5e8ae4e8a856000b7a0f93903b58e3cc192a0e08ec55808288
+    .claude/skills/modern-web-guidance/guides/ui-components/persistent-app-tours.md: sha256:c47dd311c85dd7795a1d068812b1dc3f9ce07c6e0677b698c24572300d7ed5a3
     .claude/skills/modern-web-guidance/guides/ui-components/persistent-toast-notifications.md: sha256:68ba2f3e284d181ba5b9ffa17bef8e97efe7368245a2d81fe05bf12dce1c0b3f
-    .claude/skills/modern-web-guidance/guides/ui-components/progress-ring.md: sha256:3a5db7de594a827a7141b423acbc64dde99bd08be49a5999a7279ee79d8d705c
+    .claude/skills/modern-web-guidance/guides/ui-components/progress-ring.md: sha256:70416e8dc8e5975790e9c21f027790151ea1f262a93769cd4bbbb1c2473b4467
     .claude/skills/modern-web-guidance/guides/ui-components/scrollspy.md: sha256:08110934d24039860834b903ff6381069fd1e924921b3104f4afc4d4686cf73b
     .claude/skills/modern-web-guidance/guides/ui-components/spinner.md: sha256:c186f8827ca8eff95451228cf19f074d0ab7f3694c781103b1becb9b04b82774
     .claude/skills/modern-web-guidance/guides/ui-components/stack-drill-down.md: sha256:ca65d2c51d1db9218ec0224df509d3e2381b7301377d8f5f68c1d4b6982b3b23
     .claude/skills/modern-web-guidance/guides/visual-design/adapt-scrollbar-to-contrast-preferences.md: sha256:afa06625e02f48d7d844edb2ea4b24b022412ce69760e1c9176ff8c6d7dbaed9
     .claude/skills/modern-web-guidance/guides/visual-design/apply-webgl-shaders.md: sha256:9fb56e26cb6bfa5159c062172ccbfc6c84033bbd3d013bb1f5990ec7dbec6faf
     .claude/skills/modern-web-guidance/guides/visual-design/complex-shapes.md: sha256:dad784ec45a78656fe6eb3f4be32132f50d6517dd25b087ece2b7b9dcaa6de36
+    .claude/skills/modern-web-guidance/guides/visual-design/contrast-color.md: sha256:302d747e5baeacf1dc7c7531d0089069af1133b3dcc6a00982bb487aeb8da891
     .claude/skills/modern-web-guidance/guides/visual-design/customize-scrollbar-color-and-thickness.md: sha256:8b73513c3fedc839dafd4ddb9b0ba15c350deaef739e4b6158008006661a86f7
     .claude/skills/modern-web-guidance/guides/visual-design/dark-mode.md: sha256:cb14030bf581478475c357e735c7092623e30524df89a90ebd2f23fdb025c149
     .claude/skills/modern-web-guidance/guides/visual-design/export-html-media-from-canvas.md: sha256:21fcd33f60be01f02415cb8b9627b302406fe6b6919c4d936ce659c88bd5d87f
@@ -759,12 +771,12 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/webmcp/agentic-forms.md: sha256:80f4a505998d5bf292f72d47a9392d7df46fa21b5f62d2813993e4f2e02d696f
     .claude/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md: sha256:f9d896c1a06a413570e99291ef0e085a09bc56bfe754fce858a1a2680c8fc3a5
     .claude/skills/modern-web-guidance/guides/webmcp/webmcp.md: sha256:78b80afc94fcdc0177345d7cbd0abb83660f309a400266ff408325142db41b2c
-  content_hash: sha256:3c64ad4db7184718e9f5217af22a728a5a272e4a0ab887d5c6038cddf51815f5
+  content_hash: sha256:f5eaaa78a2e20f5ca7151deb6de140d9c5c883450415c26cb1e4aa5aa55dd927
 - repo_url: herdrdev/herdr
   name: herdr
   host: github.com
-  resolved_commit: b99002ac99b09e00b4ca692436cb15a6b0d676f1
-  resolved_ref: b99002ac99b09e00b4ca692436cb15a6b0d676f1
+  resolved_commit: 065ef9d6a531c49fb8bee7e818ef837065b21ee9
+  resolved_ref: 065ef9d6a531c49fb8bee7e818ef837065b21ee9
   version: unknown
   virtual_path: skills/herdr
   is_virtual: true
@@ -775,9 +787,9 @@ dependencies:
   - .claude/skills/herdr
   - .claude/skills/herdr/SKILL.md
   deployed_file_hashes:
-    .agents/skills/herdr/SKILL.md: sha256:25a68bc36d9309048db89e7d168f2e04d1689d734c5d72cc3688bf4ff9db1e9f
-    .claude/skills/herdr/SKILL.md: sha256:25a68bc36d9309048db89e7d168f2e04d1689d734c5d72cc3688bf4ff9db1e9f
-  content_hash: sha256:d2ee5846631446f22067c52980d100c9355df48106a679a04aab1c7a383b5f41
+    .agents/skills/herdr/SKILL.md: sha256:03855a7a1f9d0aa1ba6444fed2e4971adf796e91e73001d8f2472f5f9e5f659f
+    .claude/skills/herdr/SKILL.md: sha256:03855a7a1f9d0aa1ba6444fed2e4971adf796e91e73001d8f2472f5f9e5f659f
+  content_hash: sha256:c741134cc22372c08da2f469d49aac9f9bbddd4f5e1da0558cf1132836fa3287
 - repo_url: mattpocock/skills
   name: mattpocock-skills
   host: github.com
@@ -1401,8 +1413,8 @@ dependencies:
 - repo_url: remotion-dev/skills
   name: remotion-best-practices
   host: github.com
-  resolved_commit: 3b9e6561dababf40a485772a7cd641268bb7c365
-  resolved_ref: 3b9e6561dababf40a485772a7cd641268bb7c365
+  resolved_commit: 41b22eec767aa77eb31df62ccb3bacf52ed771fb
+  resolved_ref: 41b22eec767aa77eb31df62ccb3bacf52ed771fb
   version: unknown
   virtual_path: skills/remotion-best-practices
   is_virtual: true
@@ -1469,6 +1481,7 @@ dependencies:
   - .agents/skills/remotion-best-practices/remotion-markup/audio.md
   - .agents/skills/remotion-best-practices/remotion-markup/calculate-metadata.md
   - .agents/skills/remotion-best-practices/remotion-markup/compositions.md
+  - .agents/skills/remotion-best-practices/remotion-markup/connected-compositions.md
   - .agents/skills/remotion-best-practices/remotion-markup/cropping.md
   - .agents/skills/remotion-best-practices/remotion-markup/effects.md
   - .agents/skills/remotion-best-practices/remotion-markup/embedding-videos.md
@@ -1607,6 +1620,7 @@ dependencies:
   - .claude/skills/remotion-best-practices/remotion-markup/audio.md
   - .claude/skills/remotion-best-practices/remotion-markup/calculate-metadata.md
   - .claude/skills/remotion-best-practices/remotion-markup/compositions.md
+  - .claude/skills/remotion-best-practices/remotion-markup/connected-compositions.md
   - .claude/skills/remotion-best-practices/remotion-markup/cropping.md
   - .claude/skills/remotion-best-practices/remotion-markup/effects.md
   - .claude/skills/remotion-best-practices/remotion-markup/embedding-videos.md
@@ -1685,27 +1699,27 @@ dependencies:
   - .claude/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml
   - .claude/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg
   deployed_file_hashes:
-    .agents/skills/remotion-best-practices/SKILL.md: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
+    .agents/skills/remotion-best-practices/SKILL.md: sha256:118050408d8adc9437cc3abe84a5e7f17d4eddb550fc032077daecb42a39fc2d
     .agents/skills/remotion-best-practices/agents/openai.yaml: sha256:752b402c013ba6f02bd827a7cc56d19e8facb159b52e2e3cecaf2d0229fdefb3
     .agents/skills/remotion-best-practices/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
+    .agents/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:65f9219648f2304817c893a9c1503a0eb0bad114c077ca47bed1681d5c572a07
     .agents/skills/remotion-best-practices/remotion-captions/agents/openai.yaml: sha256:3b39a48bd00251cf124e80090fe1b792b73020bee858c5d48b5629256cc5f045
     .agents/skills/remotion-best-practices/remotion-captions/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-captions/display-captions.md: sha256:32fabb20c5251c3bec5ca706312dd8668dd9e4e0dd42a1bcfd2f927b90b0c72e
     .agents/skills/remotion-best-practices/remotion-captions/import-srt-captions.md: sha256:cf5988aad6cba8192a81e5a030955ebf09e97473e0b5ce209e18973bf1a60633
     .agents/skills/remotion-best-practices/remotion-captions/transcribe-captions.md: sha256:ad1a62af35fe176b37ac4d98f796451ca66bcc9983207a9710ec3eca6e847738
-    .agents/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
+    .agents/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:c89f0465f5b7e69a6e3acc4f438f602d4096f3614be3b386486295cdc00bcd65
     .agents/skills/remotion-best-practices/remotion-create/agents/openai.yaml: sha256:ff3b357b492da1791c672e18ae401a23c31bd1e6f1fa6f98c5efabbb3124bd9c
     .agents/skills/remotion-best-practices/remotion-create/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-create/tailwind.md: sha256:3ef07d3225d212af6a5076e62797a04d22d394434dcdbe2c050dab0d92806f36
     .agents/skills/remotion-best-practices/remotion-create/video-layout.md: sha256:7ad94c22e3ad87671292ebb9b22f234c544d6c7fed13f8cb112b84b0f7077d4c
-    .agents/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
+    .agents/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:033bfea9e6b0550169868cb197af003cf1b0d2ac0bbc591bd9a58f2578724850
     .agents/skills/remotion-best-practices/remotion-docs/agents/openai.yaml: sha256:ab02cb3008e6fc0702d7a601bfdd2f332e1224fda3c37de0265c24311c00d456
     .agents/skills/remotion-best-practices/remotion-docs/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
+    .agents/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:74a493e1df1ee0fa9bed02418e3078e37fafbf7d722b5e9d48e1e73685dcfeae
     .agents/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml: sha256:84cd86b0b10e1f8b5be97bbd46677d5f618304303d922f1016ce0ea6a015d4b9
     .agents/skills/remotion-best-practices/remotion-interactivity/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+    .agents/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
     .agents/skills/remotion-best-practices/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .agents/skills/remotion-best-practices/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1738,16 +1752,17 @@ dependencies:
     .agents/skills/remotion-best-practices/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs: sha256:8265f56bd7c27a7d1a5fa528a77bbe1b29c6acc0e6730233583ca53e2632d490
     .agents/skills/remotion-best-practices/remotion-maps/techniques/static-map/TECHNIQUE.md: sha256:1d2b15f2e09cbb2b2ba0d5a6ec54ecf619b6696acced0b7bec7e010fbe1f1f03
     .agents/skills/remotion-best-practices/remotion-markup/3d.md: sha256:42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d
-    .agents/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
+    .agents/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:9397574aefd070767137037536811f5cdf0e37affdebbddb8c772e08f168ef29
     .agents/skills/remotion-best-practices/remotion-markup/agents/openai.yaml: sha256:79e440561b613adf930f61b9f2ececc3284dfd92d06c4c282b73b461ffd16cb6
     .agents/skills/remotion-best-practices/remotion-markup/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-markup/audio-visualization.md: sha256:0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9
-    .agents/skills/remotion-best-practices/remotion-markup/audio.md: sha256:59b03efd20139ec344c850add031bf5784e744927f896f7437242178d22ab932
+    .agents/skills/remotion-best-practices/remotion-markup/audio.md: sha256:6659ea94112594e4307b6b40d8c237725691bb8f378e90b0f41123f7936cce45
     .agents/skills/remotion-best-practices/remotion-markup/calculate-metadata.md: sha256:711743642a475970dcadddb71805939dd6ee8f348825818cc8897b6a01e1eef0
-    .agents/skills/remotion-best-practices/remotion-markup/compositions.md: sha256:c99d15ce34ba5d5e2fdfdef7be715b8afdae106001bf234f7fceab15378ed6df
+    .agents/skills/remotion-best-practices/remotion-markup/compositions.md: sha256:bd0da9fb807fdaeee9f7b38b21683e068f3e937149a618971523f83ec277ef8e
+    .agents/skills/remotion-best-practices/remotion-markup/connected-compositions.md: sha256:3718327482077d3ea06022e56983b95c95f7d469a65c5800e96535e1c7eef3d7
     .agents/skills/remotion-best-practices/remotion-markup/cropping.md: sha256:66b470cb09d2a93939b08340a3503b6cb7aef6682c62c7ef478ca802994d622d
     .agents/skills/remotion-best-practices/remotion-markup/effects.md: sha256:4f8abd99e3a89668aa1b6521d2cbde8a9b3d25aa9cb4ca2b135b96fe4e70fae7
-    .agents/skills/remotion-best-practices/remotion-markup/embedding-videos.md: sha256:543ddf73e53bd750019b0283506d2cc30e9acb605c8628fa12fc9dd3edbc145c
+    .agents/skills/remotion-best-practices/remotion-markup/embedding-videos.md: sha256:5f9265aa46039a8e6f26f733a6f0bf8070f25c9458e8c657a85bbff432433cdf
     .agents/skills/remotion-best-practices/remotion-markup/ffmpeg.md: sha256:930d26b519b744e97f0c080608b55200b97ff15d6c366c6c5361bab56ff0e873
     .agents/skills/remotion-best-practices/remotion-markup/gifs.md: sha256:91e17126f7f0d57efdbdbaf34e0c234f874bd6aa66ec7854b80f17b0e32c3b22
     .agents/skills/remotion-best-practices/remotion-markup/google-fonts.md: sha256:fff29cf692ccab0cda263cd85255cf634dbb4d1d2d99e8372b01d9fedbd6cbfd
@@ -1758,9 +1773,9 @@ dependencies:
     .agents/skills/remotion-best-practices/remotion-markup/lottie.md: sha256:666268c8151d91042162f9efe3f02fe8c62b4c45053614eb1a9325c169428826
     .agents/skills/remotion-best-practices/remotion-markup/measuring-dom-nodes.md: sha256:a677b976eaf1cbc3cdd29cf29a3fd546c557b9a31e6b1fd70e473fde7e828733
     .agents/skills/remotion-best-practices/remotion-markup/measuring-text.md: sha256:4bed81d1ea818db3975f878152dc24ecbc17e163117dcab10761dc8690c33f0c
-    .agents/skills/remotion-best-practices/remotion-markup/multi-scene-video.md: sha256:00d4c4cdd515b69cee84b2e274393aafd4060612372aa629712c320427e6bd37
+    .agents/skills/remotion-best-practices/remotion-markup/multi-scene-video.md: sha256:a00ecb7b961b1cfa702018e05faebc4655245b75e042138c9ab4b39da80e9b12
     .agents/skills/remotion-best-practices/remotion-markup/parameters.md: sha256:b002ac9959105b2b91da5786bcb20aa6ff4c6632ed37074b32711f248867dff0
-    .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+    .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
     .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1804,49 +1819,49 @@ dependencies:
     .agents/skills/remotion-best-practices/remotion-markup/transitions.md: sha256:41d69d0b5c862bcada825a68413064837fd4fcd55f81ad59492931db982a08ad
     .agents/skills/remotion-best-practices/remotion-markup/video-editing.md: sha256:c43e1b419b0ea32c07b14ff6a17fb3bccb6acea7317de4051827ef0316f4262a
     .agents/skills/remotion-best-practices/remotion-markup/voiceover.md: sha256:28350a793939b6170c535a219b2c4702378346ea8485540f980da5ccc5fa19fc
-    .agents/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
+    .agents/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:865b491e56dec79b1e1ad034de5cc56ae5215d82acab9f06c44ed73a489a37fc
     .agents/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml: sha256:74e07a383bbf02808320ede199873d00a5fc976cb99d407056456b9abdfb0cb7
     .agents/skills/remotion-best-practices/remotion-multimedia/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-multimedia/get-audio-duration.md: sha256:f4ec12e356144697b802a2d93240612aa09b60a76342154983a2cf41316f0bba
     .agents/skills/remotion-best-practices/remotion-multimedia/get-video-dimensions.md: sha256:d330e701e4a494fdac7502be52f206f6dee11c43314d1b2f731e4120eed72dc5
     .agents/skills/remotion-best-practices/remotion-multimedia/get-video-duration.md: sha256:6e3bec1b3f62e3ab1f16ad41cca7b14e6e3db5046e8282cd2389e05cff42c743
-    .agents/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
+    .agents/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:dd013ab8e0db274d209c49183750fae94218424210833e1e1512f5cd18e4575a
     .agents/skills/remotion-best-practices/remotion-render/agents/openai.yaml: sha256:386699c32fdc63840ce7ff7412953831095dc4cdf60368648378c32895281290
     .agents/skills/remotion-best-practices/remotion-render/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .agents/skills/remotion-best-practices/remotion-render/transparent-videos.md: sha256:394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4
-    .agents/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
+    .agents/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:b5c279b300ae08be6dc5ec16022ae66f51f2dd9e7603b72b830396ba46805655
     .agents/skills/remotion-best-practices/remotion-saas/agents/openai.yaml: sha256:66be5403b3d10194c99e886372bbc1f4bdb2994fe560278bc7a39b4fbe7753a2
     .agents/skills/remotion-best-practices/remotion-saas/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-saas/framework.md: sha256:d1071a392f88fbafde3166547e1000b18a920e89ab8433cd1783edc8cfadc151
+    .agents/skills/remotion-best-practices/remotion-saas/framework.md: sha256:5e35ca3306ac15ad1df189789642cefbc62c59f4929372ffc10a67165d7b04b5
     .agents/skills/remotion-best-practices/remotion-saas/player.md: sha256:cc2f2944f1158d6ff1ddfc421a6a790f99ae86f54bbe0f0b18ef8bc7485e1b05
     .agents/skills/remotion-best-practices/remotion-saas/rendering.md: sha256:b2f30b53e0191ef9e7f2da7360b36c0c5448ab5bdcf55575e1f7e55c5bbd257f
-    .agents/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
+    .agents/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:cf34d9705b140caac62af184321839e380daf436a947e96dacf155154724bddf
     .agents/skills/remotion-best-practices/remotion-studio/agents/openai.yaml: sha256:43afba3c8088614ece62949e33a7c8350092e76436bad87ad41e1a1ccaebea5d
     .agents/skills/remotion-best-practices/remotion-studio/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .agents/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
+    .agents/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:71e40216f86cbddd3e7527c85f85669abdc4d1592a31bc780f08b6a44ed87817
     .agents/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml: sha256:3f3bc995d3531cfb5a714fd8f951954e118909b749217cc8418a235326d003cb
     .agents/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/SKILL.md: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
+    .claude/skills/remotion-best-practices/SKILL.md: sha256:118050408d8adc9437cc3abe84a5e7f17d4eddb550fc032077daecb42a39fc2d
     .claude/skills/remotion-best-practices/agents/openai.yaml: sha256:752b402c013ba6f02bd827a7cc56d19e8facb159b52e2e3cecaf2d0229fdefb3
     .claude/skills/remotion-best-practices/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
+    .claude/skills/remotion-best-practices/remotion-captions/REFERENCE.md: sha256:65f9219648f2304817c893a9c1503a0eb0bad114c077ca47bed1681d5c572a07
     .claude/skills/remotion-best-practices/remotion-captions/agents/openai.yaml: sha256:3b39a48bd00251cf124e80090fe1b792b73020bee858c5d48b5629256cc5f045
     .claude/skills/remotion-best-practices/remotion-captions/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-captions/display-captions.md: sha256:32fabb20c5251c3bec5ca706312dd8668dd9e4e0dd42a1bcfd2f927b90b0c72e
     .claude/skills/remotion-best-practices/remotion-captions/import-srt-captions.md: sha256:cf5988aad6cba8192a81e5a030955ebf09e97473e0b5ce209e18973bf1a60633
     .claude/skills/remotion-best-practices/remotion-captions/transcribe-captions.md: sha256:ad1a62af35fe176b37ac4d98f796451ca66bcc9983207a9710ec3eca6e847738
-    .claude/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
+    .claude/skills/remotion-best-practices/remotion-create/REFERENCE.md: sha256:c89f0465f5b7e69a6e3acc4f438f602d4096f3614be3b386486295cdc00bcd65
     .claude/skills/remotion-best-practices/remotion-create/agents/openai.yaml: sha256:ff3b357b492da1791c672e18ae401a23c31bd1e6f1fa6f98c5efabbb3124bd9c
     .claude/skills/remotion-best-practices/remotion-create/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-create/tailwind.md: sha256:3ef07d3225d212af6a5076e62797a04d22d394434dcdbe2c050dab0d92806f36
     .claude/skills/remotion-best-practices/remotion-create/video-layout.md: sha256:7ad94c22e3ad87671292ebb9b22f234c544d6c7fed13f8cb112b84b0f7077d4c
-    .claude/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
+    .claude/skills/remotion-best-practices/remotion-docs/REFERENCE.md: sha256:033bfea9e6b0550169868cb197af003cf1b0d2ac0bbc591bd9a58f2578724850
     .claude/skills/remotion-best-practices/remotion-docs/agents/openai.yaml: sha256:ab02cb3008e6fc0702d7a601bfdd2f332e1224fda3c37de0265c24311c00d456
     .claude/skills/remotion-best-practices/remotion-docs/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
+    .claude/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md: sha256:74a493e1df1ee0fa9bed02418e3078e37fafbf7d722b5e9d48e1e73685dcfeae
     .claude/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml: sha256:84cd86b0b10e1f8b5be97bbd46677d5f618304303d922f1016ce0ea6a015d4b9
     .claude/skills/remotion-best-practices/remotion-interactivity/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+    .claude/skills/remotion-best-practices/remotion-maps/REFERENCE.md: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
     .claude/skills/remotion-best-practices/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .claude/skills/remotion-best-practices/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1879,16 +1894,17 @@ dependencies:
     .claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs: sha256:8265f56bd7c27a7d1a5fa528a77bbe1b29c6acc0e6730233583ca53e2632d490
     .claude/skills/remotion-best-practices/remotion-maps/techniques/static-map/TECHNIQUE.md: sha256:1d2b15f2e09cbb2b2ba0d5a6ec54ecf619b6696acced0b7bec7e010fbe1f1f03
     .claude/skills/remotion-best-practices/remotion-markup/3d.md: sha256:42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d
-    .claude/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
+    .claude/skills/remotion-best-practices/remotion-markup/REFERENCE.md: sha256:9397574aefd070767137037536811f5cdf0e37affdebbddb8c772e08f168ef29
     .claude/skills/remotion-best-practices/remotion-markup/agents/openai.yaml: sha256:79e440561b613adf930f61b9f2ececc3284dfd92d06c4c282b73b461ffd16cb6
     .claude/skills/remotion-best-practices/remotion-markup/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-markup/audio-visualization.md: sha256:0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9
-    .claude/skills/remotion-best-practices/remotion-markup/audio.md: sha256:59b03efd20139ec344c850add031bf5784e744927f896f7437242178d22ab932
+    .claude/skills/remotion-best-practices/remotion-markup/audio.md: sha256:6659ea94112594e4307b6b40d8c237725691bb8f378e90b0f41123f7936cce45
     .claude/skills/remotion-best-practices/remotion-markup/calculate-metadata.md: sha256:711743642a475970dcadddb71805939dd6ee8f348825818cc8897b6a01e1eef0
-    .claude/skills/remotion-best-practices/remotion-markup/compositions.md: sha256:c99d15ce34ba5d5e2fdfdef7be715b8afdae106001bf234f7fceab15378ed6df
+    .claude/skills/remotion-best-practices/remotion-markup/compositions.md: sha256:bd0da9fb807fdaeee9f7b38b21683e068f3e937149a618971523f83ec277ef8e
+    .claude/skills/remotion-best-practices/remotion-markup/connected-compositions.md: sha256:3718327482077d3ea06022e56983b95c95f7d469a65c5800e96535e1c7eef3d7
     .claude/skills/remotion-best-practices/remotion-markup/cropping.md: sha256:66b470cb09d2a93939b08340a3503b6cb7aef6682c62c7ef478ca802994d622d
     .claude/skills/remotion-best-practices/remotion-markup/effects.md: sha256:4f8abd99e3a89668aa1b6521d2cbde8a9b3d25aa9cb4ca2b135b96fe4e70fae7
-    .claude/skills/remotion-best-practices/remotion-markup/embedding-videos.md: sha256:543ddf73e53bd750019b0283506d2cc30e9acb605c8628fa12fc9dd3edbc145c
+    .claude/skills/remotion-best-practices/remotion-markup/embedding-videos.md: sha256:5f9265aa46039a8e6f26f733a6f0bf8070f25c9458e8c657a85bbff432433cdf
     .claude/skills/remotion-best-practices/remotion-markup/ffmpeg.md: sha256:930d26b519b744e97f0c080608b55200b97ff15d6c366c6c5361bab56ff0e873
     .claude/skills/remotion-best-practices/remotion-markup/gifs.md: sha256:91e17126f7f0d57efdbdbaf34e0c234f874bd6aa66ec7854b80f17b0e32c3b22
     .claude/skills/remotion-best-practices/remotion-markup/google-fonts.md: sha256:fff29cf692ccab0cda263cd85255cf634dbb4d1d2d99e8372b01d9fedbd6cbfd
@@ -1899,9 +1915,9 @@ dependencies:
     .claude/skills/remotion-best-practices/remotion-markup/lottie.md: sha256:666268c8151d91042162f9efe3f02fe8c62b4c45053614eb1a9325c169428826
     .claude/skills/remotion-best-practices/remotion-markup/measuring-dom-nodes.md: sha256:a677b976eaf1cbc3cdd29cf29a3fd546c557b9a31e6b1fd70e473fde7e828733
     .claude/skills/remotion-best-practices/remotion-markup/measuring-text.md: sha256:4bed81d1ea818db3975f878152dc24ecbc17e163117dcab10761dc8690c33f0c
-    .claude/skills/remotion-best-practices/remotion-markup/multi-scene-video.md: sha256:00d4c4cdd515b69cee84b2e274393aafd4060612372aa629712c320427e6bd37
+    .claude/skills/remotion-best-practices/remotion-markup/multi-scene-video.md: sha256:a00ecb7b961b1cfa702018e05faebc4655245b75e042138c9ab4b39da80e9b12
     .claude/skills/remotion-best-practices/remotion-markup/parameters.md: sha256:b002ac9959105b2b91da5786bcb20aa6ff4c6632ed37074b32711f248867dff0
-    .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+    .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
     .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml: sha256:9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee
     .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md: sha256:09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675
@@ -1945,29 +1961,29 @@ dependencies:
     .claude/skills/remotion-best-practices/remotion-markup/transitions.md: sha256:41d69d0b5c862bcada825a68413064837fd4fcd55f81ad59492931db982a08ad
     .claude/skills/remotion-best-practices/remotion-markup/video-editing.md: sha256:c43e1b419b0ea32c07b14ff6a17fb3bccb6acea7317de4051827ef0316f4262a
     .claude/skills/remotion-best-practices/remotion-markup/voiceover.md: sha256:28350a793939b6170c535a219b2c4702378346ea8485540f980da5ccc5fa19fc
-    .claude/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
+    .claude/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md: sha256:865b491e56dec79b1e1ad034de5cc56ae5215d82acab9f06c44ed73a489a37fc
     .claude/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml: sha256:74e07a383bbf02808320ede199873d00a5fc976cb99d407056456b9abdfb0cb7
     .claude/skills/remotion-best-practices/remotion-multimedia/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-multimedia/get-audio-duration.md: sha256:f4ec12e356144697b802a2d93240612aa09b60a76342154983a2cf41316f0bba
     .claude/skills/remotion-best-practices/remotion-multimedia/get-video-dimensions.md: sha256:d330e701e4a494fdac7502be52f206f6dee11c43314d1b2f731e4120eed72dc5
     .claude/skills/remotion-best-practices/remotion-multimedia/get-video-duration.md: sha256:6e3bec1b3f62e3ab1f16ad41cca7b14e6e3db5046e8282cd2389e05cff42c743
-    .claude/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
+    .claude/skills/remotion-best-practices/remotion-render/REFERENCE.md: sha256:dd013ab8e0db274d209c49183750fae94218424210833e1e1512f5cd18e4575a
     .claude/skills/remotion-best-practices/remotion-render/agents/openai.yaml: sha256:386699c32fdc63840ce7ff7412953831095dc4cdf60368648378c32895281290
     .claude/skills/remotion-best-practices/remotion-render/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
     .claude/skills/remotion-best-practices/remotion-render/transparent-videos.md: sha256:394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4
-    .claude/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
+    .claude/skills/remotion-best-practices/remotion-saas/REFERENCE.md: sha256:b5c279b300ae08be6dc5ec16022ae66f51f2dd9e7603b72b830396ba46805655
     .claude/skills/remotion-best-practices/remotion-saas/agents/openai.yaml: sha256:66be5403b3d10194c99e886372bbc1f4bdb2994fe560278bc7a39b4fbe7753a2
     .claude/skills/remotion-best-practices/remotion-saas/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-saas/framework.md: sha256:d1071a392f88fbafde3166547e1000b18a920e89ab8433cd1783edc8cfadc151
+    .claude/skills/remotion-best-practices/remotion-saas/framework.md: sha256:5e35ca3306ac15ad1df189789642cefbc62c59f4929372ffc10a67165d7b04b5
     .claude/skills/remotion-best-practices/remotion-saas/player.md: sha256:cc2f2944f1158d6ff1ddfc421a6a790f99ae86f54bbe0f0b18ef8bc7485e1b05
     .claude/skills/remotion-best-practices/remotion-saas/rendering.md: sha256:b2f30b53e0191ef9e7f2da7360b36c0c5448ab5bdcf55575e1f7e55c5bbd257f
-    .claude/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
+    .claude/skills/remotion-best-practices/remotion-studio/REFERENCE.md: sha256:cf34d9705b140caac62af184321839e380daf436a947e96dacf155154724bddf
     .claude/skills/remotion-best-practices/remotion-studio/agents/openai.yaml: sha256:43afba3c8088614ece62949e33a7c8350092e76436bad87ad41e1a1ccaebea5d
     .claude/skills/remotion-best-practices/remotion-studio/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-    .claude/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
+    .claude/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md: sha256:71e40216f86cbddd3e7527c85f85669abdc4d1592a31bc780f08b6a44ed87817
     .claude/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml: sha256:3f3bc995d3531cfb5a714fd8f951954e118909b749217cc8418a235326d003cb
     .claude/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg: sha256:5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58
-  content_hash: sha256:ff59c02fc8374266df224aac5c1c37b767c572fdeff4d6ded2f9b841f25ec2dc
+  content_hash: sha256:7b5d039c731ba8d75a40e0c474703dfa17c99aa60432c211843266f0528e3fbf
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
@@ -2044,7 +2060,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 059ee59a48272854a2317cc267bdd03f23ec9aa6
+  resolved_commit: 122b8c25d7c16f76e395bf9a65887d7c4bc5003b
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2055,14 +2071,14 @@ dependencies:
   - .claude/skills/computer-use
   - .claude/skills/computer-use/SKILL.md
   deployed_file_hashes:
-    .agents/skills/computer-use/SKILL.md: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
-    .claude/skills/computer-use/SKILL.md: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
-  content_hash: sha256:dc999be3d9692278ff281951d897f0a7497aca607cee8354ac128b63ec2da3f0
+    .agents/skills/computer-use/SKILL.md: sha256:2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3
+    .claude/skills/computer-use/SKILL.md: sha256:2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3
+  content_hash: sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194
 - repo_url: stablyai/orca
   name: orca-cli
   host: github.com
-  resolved_commit: de0a91b99fc845c9510340786f807ea1c988859b
-  resolved_ref: de0a91b99fc845c9510340786f807ea1c988859b
+  resolved_commit: 4a5afd70a3db16f1cd546458e070681a4eb0da18
+  resolved_ref: 4a5afd70a3db16f1cd546458e070681a4eb0da18
   version: unknown
   virtual_path: skills/orca-cli
   is_virtual: true
@@ -2073,13 +2089,13 @@ dependencies:
   - .claude/skills/orca-cli
   - .claude/skills/orca-cli/SKILL.md
   deployed_file_hashes:
-    .agents/skills/orca-cli/SKILL.md: sha256:b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77
-    .claude/skills/orca-cli/SKILL.md: sha256:b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77
-  content_hash: sha256:953feacb808f096f4d3d6bf4ba1b6d299aa49138bbe805da609dca51f3c72713
+    .agents/skills/orca-cli/SKILL.md: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
+    .claude/skills/orca-cli/SKILL.md: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
+  content_hash: sha256:7ad2f1fd9217ab275ae73ffbaf119306e67841b4babc4341ed42fe63e25a4c1b
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 059ee59a48272854a2317cc267bdd03f23ec9aa6
+  resolved_commit: 122b8c25d7c16f76e395bf9a65887d7c4bc5003b
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2090,13 +2106,13 @@ dependencies:
   - .claude/skills/orchestration
   - .claude/skills/orchestration/SKILL.md
   deployed_file_hashes:
-    .agents/skills/orchestration/SKILL.md: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
-    .claude/skills/orchestration/SKILL.md: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
-  content_hash: sha256:247d274538eafa19d2fc622681dd7373d752e15e77b0efe41087e4790f062c50
+    .agents/skills/orchestration/SKILL.md: sha256:cd1b364bf35781bad06bf75ab1766afa8d6cec69cb2060529691d89871a2098a
+    .claude/skills/orchestration/SKILL.md: sha256:cd1b364bf35781bad06bf75ab1766afa8d6cec69cb2060529691d89871a2098a
+  content_hash: sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed
 - repo_url: supabase/agent-skills
   name: supabase-postgres-best-practices
   host: github.com
-  resolved_commit: 8331f910845103c08d51f6ca1d86ebb7d1f745e3
+  resolved_commit: 551274ed2fe97c8fea1325f7ceb05803a542f8df
   version: unknown
   virtual_path: skills/supabase-postgres-best-practices
   is_virtual: true
@@ -2980,7 +2996,7 @@ deployments:
   owners:
   - stablyai/orca/skills/computer-use
   active_owner: stablyai/orca/skills/computer-use
-  content_hash: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
+  content_hash: sha256:2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3
 - kind: project-relative
   target: claude
   value: .claude/skills/diagnosing-bugs
@@ -3259,7 +3275,7 @@ deployments:
   owners:
   - herdrdev/herdr/skills/herdr
   active_owner: herdrdev/herdr/skills/herdr
-  content_hash: sha256:25a68bc36d9309048db89e7d168f2e04d1689d734c5d72cc3688bf4ff9db1e9f
+  content_hash: sha256:03855a7a1f9d0aa1ba6444fed2e4971adf796e91e73001d8f2472f5f9e5f659f
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable
@@ -3961,7 +3977,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:738d1cc3db7ab22aa136eaf149452d987c3efa3f25433072d8ae1cd7186ac666
+  content_hash: sha256:b4f32216f444e6580ea038df21ae61b62cdbcb66abe9ef5df4450647d243e8ba
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/css/css.md
@@ -4060,7 +4076,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:a6d0b70c535d04136f1cecf942520198ce6f438c45b5214a04f0ba7873e3f4a0
+  content_hash: sha256:87ee7e11cbaee6c36e41503c6e265cffa1713cfa03747faa1fd64bbdaa451ae8
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/forms/autofill-address-form.md
@@ -4123,7 +4139,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:683cdd9a4da1ddd578e3b15b51649dc772fe540787838a7298150e7faea0111e
+  content_hash: sha256:27877190876f3ee6ba3c4bd88f389d3c4e7893e5570767cdcda9fddb62e7fdee
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/forms/custom-select-picker-layouts.md
@@ -4132,7 +4148,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:1b3810e7a569df9e13e06cb46e4b196539ce174d05f559c7d3c23c367607c156
+  content_hash: sha256:03c00ca2acb6db21e82f451366bec987c0961a2cc5087299d79442ec0f306fbc
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/forms/form-fields-automatically-fit-contents.md
@@ -4159,7 +4175,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:949776ebc9ca5207bd10345884d22f6c150eb7e5a7add174dd5a3e8724a89bd5
+  content_hash: sha256:03433c0936d8c32f7bb4e8a9db142d61c049c8c95b7778ce90fe7dbdc19f9fd4
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/forms/required-field-feedback.md
@@ -4177,7 +4193,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:3d1be9161c9561ee29c36c8f81af3330e1448d8f60a7815a4eb1b1cc5f8d44fa
+  content_hash: sha256:84c1619362a1f508d7a79397cd40d9818636e698e0391fbd421b0ef00c1fc0da
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/forms/select-menu-interaction.md
@@ -4303,7 +4319,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:d0c29d8924bb1da00b8febf6694fb14bece0bfd1abcf732aec1be5cefea6ea94
+  content_hash: sha256:89116f26c362fb77f7388e3a45acb6e6e1e89049a0fe946deb6f99144da1478b
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/conditional-async-dependencies.md
@@ -4312,7 +4328,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:707d50e841179c90df87028cc0a66e7db9b7d4fd7f4c5b0043e76398f8e0cdd3
+  content_hash: sha256:d8e066a249e463f23812d8375eb18eca241fb70df4adfdba3a49fc89b248abae
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/defer-rendering-heavy-content.md
@@ -4357,7 +4373,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:9aaf498f3f67c32b82a5057fe6f0ac153786738fbe467e9c783f2361f56eb8fe
+  content_hash: sha256:1d47db09e023a39cfb9fc54117f44951c0e39f02a8c520da32a840be8a2c75ae
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/efficient-background-processing.md
@@ -4402,7 +4418,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:8206670b5caaee2e9fedbe495ca7b832acb2327eab30a79ecadbb888ba8fc2b2
+  content_hash: sha256:38acb908e5d2db81f204fda8bca3c9d01e8b26fe23e6957af5aa2069ab0a3a61
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/identify-inp-causes.md
@@ -4411,7 +4427,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:bbf6b3708a59c56f02f9063fb41e09dd52197c8dfd67ee37c6575635c7391f88
+  content_hash: sha256:695ce538e2f909e5499edd387abdb042427ad8c0553b675fe74f55a3af08851a
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/improve-next-page-load-performance.md
@@ -4459,13 +4475,22 @@ deployments:
   content_hash: sha256:a3b6af33195d56febe9ca9490af06e420b0d3c62f37d9cf3594f89233d5ab41a
 - kind: project-relative
   target: claude
+  value: .claude/skills/modern-web-guidance/guides/performance/out-of-order-html-streaming.md
+  runtime: null
+  scope: project
+  owners:
+  - googlechrome/modern-web-guidance/skills/modern-web-guidance
+  active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
+  content_hash: sha256:1d75e4b907f473b9c27d00094ddb8b93091ad729f6402c560f9117a4b47f6e21
+- kind: project-relative
+  target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/performance.md
   runtime: null
   scope: project
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:2f22c7d1482189d1f3f68f96dc5bb6c01c459338938bdabf4549d77003afa76f
+  content_hash: sha256:147c6ef99368bfa9dc7938aea477ddbd4848f9dca3323882a8023d6fa9b57e4b
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/performance/resolution-optimized-pseudo-elements.md
@@ -4558,13 +4583,22 @@ deployments:
   content_hash: sha256:ff4ce1015e4572f74cfdd34d2cfd38b70d05d5b9f23fb72b8f0ab8ade0a3551f
 - kind: project-relative
   target: claude
+  value: .claude/skills/modern-web-guidance/guides/security/sanitize-untrusted-html.md
+  runtime: null
+  scope: project
+  owners:
+  - googlechrome/modern-web-guidance/skills/modern-web-guidance
+  active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
+  content_hash: sha256:4c4826ecd6a70c0a6f3218289034482f406bd445f4e04e30410d48c67170644d
+- kind: project-relative
+  target: claude
   value: .claude/skills/modern-web-guidance/guides/security/security.md
   runtime: null
   scope: project
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:39dee469938960946b45af3d19ed7a4a361d281f41046a028b63ca0b9fe09b9c
+  content_hash: sha256:dcb2da9b51e711c2e17d8ed066e587ed05783cd9b1dc841740effd2ca3d2c898
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/ui-atoms/carousel-slide-effects.md
@@ -4609,7 +4643,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:44bf43ed55e203de6c6460fa12fe71c0d544d715df915ad773546aab12aabe59
+  content_hash: sha256:f456d09af6cbf31770e5fd73622eae7583cd5e9a13b888df69981ebb8d1949c8
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/ui-atoms/scroll-position-aware-elements.md
@@ -4663,7 +4697,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:f3fbde1fddfc8bd5242726f0ad93e96efcc7c88c5b88a399630c592014fc5898
+  content_hash: sha256:3ec7407f33445106ac26c6d73122114f8d3344c09693a6df9a828e43a6ef381b
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/ui-behaviors/animate-element-entry-exit.md
@@ -4789,7 +4823,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:7a1d12274e8d48379e9d3c4a65db40f4d9a4ec7bcf028a457a51ef0fe130b32c
+  content_hash: sha256:26ad5c0e8f5442e8625a6f54b6741cd297dad0e2f5c8afe98fe544dae8eca8a0
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/ui-behaviors/light-dismiss-a-dialog.md
@@ -4933,7 +4967,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:1fe79fcbc5ef7d5e8ae4e8a856000b7a0f93903b58e3cc192a0e08ec55808288
+  content_hash: sha256:c47dd311c85dd7795a1d068812b1dc3f9ce07c6e0677b698c24572300d7ed5a3
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/ui-components/persistent-toast-notifications.md
@@ -4951,7 +4985,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:3a5db7de594a827a7141b423acbc64dde99bd08be49a5999a7279ee79d8d705c
+  content_hash: sha256:70416e8dc8e5975790e9c21f027790151ea1f262a93769cd4bbbb1c2473b4467
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/ui-components/scrollspy.md
@@ -5006,6 +5040,15 @@ deployments:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
   content_hash: sha256:dad784ec45a78656fe6eb3f4be32132f50d6517dd25b087ece2b7b9dcaa6de36
+- kind: project-relative
+  target: claude
+  value: .claude/skills/modern-web-guidance/guides/visual-design/contrast-color.md
+  runtime: null
+  scope: project
+  owners:
+  - googlechrome/modern-web-guidance/skills/modern-web-guidance
+  active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
+  content_hash: sha256:302d747e5baeacf1dc7c7531d0089069af1133b3dcc6a00982bb487aeb8da891
 - kind: project-relative
   target: claude
   value: .claude/skills/modern-web-guidance/guides/visual-design/customize-scrollbar-color-and-thickness.md
@@ -5167,7 +5210,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orca-cli
   active_owner: stablyai/orca/skills/orca-cli
-  content_hash: sha256:b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77
+  content_hash: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
 - kind: project-relative
   target: claude
   value: .claude/skills/orchestration
@@ -5185,7 +5228,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
+  content_hash: sha256:cd1b364bf35781bad06bf75ab1766afa8d6cec69cb2060529691d89871a2098a
 - kind: project-relative
   target: claude
   value: .claude/skills/pdf
@@ -6148,7 +6191,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
+  content_hash: sha256:118050408d8adc9437cc3abe84a5e7f17d4eddb550fc032077daecb42a39fc2d
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/agents/openai.yaml
@@ -6175,7 +6218,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
+  content_hash: sha256:65f9219648f2304817c893a9c1503a0eb0bad114c077ca47bed1681d5c572a07
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-captions/agents/openai.yaml
@@ -6229,7 +6272,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
+  content_hash: sha256:c89f0465f5b7e69a6e3acc4f438f602d4096f3614be3b386486295cdc00bcd65
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-create/agents/openai.yaml
@@ -6274,7 +6317,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
+  content_hash: sha256:033bfea9e6b0550169868cb197af003cf1b0d2ac0bbc591bd9a58f2578724850
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-docs/agents/openai.yaml
@@ -6301,7 +6344,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
+  content_hash: sha256:74a493e1df1ee0fa9bed02418e3078e37fafbf7d722b5e9d48e1e73685dcfeae
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml
@@ -6328,7 +6371,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+  content_hash: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-maps/agents/openai.yaml
@@ -6625,7 +6668,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
+  content_hash: sha256:9397574aefd070767137037536811f5cdf0e37affdebbddb8c772e08f168ef29
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/agents/openai.yaml
@@ -6661,7 +6704,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:59b03efd20139ec344c850add031bf5784e744927f896f7437242178d22ab932
+  content_hash: sha256:6659ea94112594e4307b6b40d8c237725691bb8f378e90b0f41123f7936cce45
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/calculate-metadata.md
@@ -6679,7 +6722,16 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c99d15ce34ba5d5e2fdfdef7be715b8afdae106001bf234f7fceab15378ed6df
+  content_hash: sha256:bd0da9fb807fdaeee9f7b38b21683e068f3e937149a618971523f83ec277ef8e
+- kind: project-relative
+  target: claude
+  value: .claude/skills/remotion-best-practices/remotion-markup/connected-compositions.md
+  runtime: null
+  scope: project
+  owners:
+  - remotion-dev/skills/skills/remotion-best-practices
+  active_owner: remotion-dev/skills/skills/remotion-best-practices
+  content_hash: sha256:3718327482077d3ea06022e56983b95c95f7d469a65c5800e96535e1c7eef3d7
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/cropping.md
@@ -6706,7 +6758,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:543ddf73e53bd750019b0283506d2cc30e9acb605c8628fa12fc9dd3edbc145c
+  content_hash: sha256:5f9265aa46039a8e6f26f733a6f0bf8070f25c9458e8c657a85bbff432433cdf
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/ffmpeg.md
@@ -6805,7 +6857,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:00d4c4cdd515b69cee84b2e274393aafd4060612372aa629712c320427e6bd37
+  content_hash: sha256:a00ecb7b961b1cfa702018e05faebc4655245b75e042138c9ab4b39da80e9b12
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/parameters.md
@@ -6823,7 +6875,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+  content_hash: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml
@@ -7183,7 +7235,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
+  content_hash: sha256:865b491e56dec79b1e1ad034de5cc56ae5215d82acab9f06c44ed73a489a37fc
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml
@@ -7237,7 +7289,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
+  content_hash: sha256:dd013ab8e0db274d209c49183750fae94218424210833e1e1512f5cd18e4575a
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-render/agents/openai.yaml
@@ -7273,7 +7325,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
+  content_hash: sha256:b5c279b300ae08be6dc5ec16022ae66f51f2dd9e7603b72b830396ba46805655
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-saas/agents/openai.yaml
@@ -7300,7 +7352,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:d1071a392f88fbafde3166547e1000b18a920e89ab8433cd1783edc8cfadc151
+  content_hash: sha256:5e35ca3306ac15ad1df189789642cefbc62c59f4929372ffc10a67165d7b04b5
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-saas/player.md
@@ -7327,7 +7379,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
+  content_hash: sha256:cf34d9705b140caac62af184321839e380daf436a947e96dacf155154724bddf
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-studio/agents/openai.yaml
@@ -7354,7 +7406,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
+  content_hash: sha256:71e40216f86cbddd3e7527c85f85669abdc4d1592a31bc780f08b6a44ed87817
 - kind: project-relative
   target: claude
   value: .claude/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml
@@ -8785,7 +8837,7 @@ deployments:
   owners:
   - stablyai/orca/skills/computer-use
   active_owner: stablyai/orca/skills/computer-use
-  content_hash: sha256:244b06656c849aaaa79c29a6053fd4c2be98933ca10bd1edaeb727ce73ede793
+  content_hash: sha256:2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3
 - kind: project-relative
   target: codex
   value: .agents/skills/diagnosing-bugs
@@ -9064,7 +9116,7 @@ deployments:
   owners:
   - herdrdev/herdr/skills/herdr
   active_owner: herdrdev/herdr/skills/herdr
-  content_hash: sha256:25a68bc36d9309048db89e7d168f2e04d1689d734c5d72cc3688bf4ff9db1e9f
+  content_hash: sha256:03855a7a1f9d0aa1ba6444fed2e4971adf796e91e73001d8f2472f5f9e5f659f
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable
@@ -9766,7 +9818,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:738d1cc3db7ab22aa136eaf149452d987c3efa3f25433072d8ae1cd7186ac666
+  content_hash: sha256:b4f32216f444e6580ea038df21ae61b62cdbcb66abe9ef5df4450647d243e8ba
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/css/css.md
@@ -9865,7 +9917,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:a6d0b70c535d04136f1cecf942520198ce6f438c45b5214a04f0ba7873e3f4a0
+  content_hash: sha256:87ee7e11cbaee6c36e41503c6e265cffa1713cfa03747faa1fd64bbdaa451ae8
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/forms/autofill-address-form.md
@@ -9928,7 +9980,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:683cdd9a4da1ddd578e3b15b51649dc772fe540787838a7298150e7faea0111e
+  content_hash: sha256:27877190876f3ee6ba3c4bd88f389d3c4e7893e5570767cdcda9fddb62e7fdee
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/forms/custom-select-picker-layouts.md
@@ -9937,7 +9989,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:1b3810e7a569df9e13e06cb46e4b196539ce174d05f559c7d3c23c367607c156
+  content_hash: sha256:03c00ca2acb6db21e82f451366bec987c0961a2cc5087299d79442ec0f306fbc
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/forms/form-fields-automatically-fit-contents.md
@@ -9964,7 +10016,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:949776ebc9ca5207bd10345884d22f6c150eb7e5a7add174dd5a3e8724a89bd5
+  content_hash: sha256:03433c0936d8c32f7bb4e8a9db142d61c049c8c95b7778ce90fe7dbdc19f9fd4
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/forms/required-field-feedback.md
@@ -9982,7 +10034,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:3d1be9161c9561ee29c36c8f81af3330e1448d8f60a7815a4eb1b1cc5f8d44fa
+  content_hash: sha256:84c1619362a1f508d7a79397cd40d9818636e698e0391fbd421b0ef00c1fc0da
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/forms/select-menu-interaction.md
@@ -10108,7 +10160,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:d0c29d8924bb1da00b8febf6694fb14bece0bfd1abcf732aec1be5cefea6ea94
+  content_hash: sha256:89116f26c362fb77f7388e3a45acb6e6e1e89049a0fe946deb6f99144da1478b
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/conditional-async-dependencies.md
@@ -10117,7 +10169,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:707d50e841179c90df87028cc0a66e7db9b7d4fd7f4c5b0043e76398f8e0cdd3
+  content_hash: sha256:d8e066a249e463f23812d8375eb18eca241fb70df4adfdba3a49fc89b248abae
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/defer-rendering-heavy-content.md
@@ -10162,7 +10214,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:9aaf498f3f67c32b82a5057fe6f0ac153786738fbe467e9c783f2361f56eb8fe
+  content_hash: sha256:1d47db09e023a39cfb9fc54117f44951c0e39f02a8c520da32a840be8a2c75ae
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/efficient-background-processing.md
@@ -10207,7 +10259,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:8206670b5caaee2e9fedbe495ca7b832acb2327eab30a79ecadbb888ba8fc2b2
+  content_hash: sha256:38acb908e5d2db81f204fda8bca3c9d01e8b26fe23e6957af5aa2069ab0a3a61
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/identify-inp-causes.md
@@ -10216,7 +10268,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:bbf6b3708a59c56f02f9063fb41e09dd52197c8dfd67ee37c6575635c7391f88
+  content_hash: sha256:695ce538e2f909e5499edd387abdb042427ad8c0553b675fe74f55a3af08851a
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/improve-next-page-load-performance.md
@@ -10264,13 +10316,22 @@ deployments:
   content_hash: sha256:a3b6af33195d56febe9ca9490af06e420b0d3c62f37d9cf3594f89233d5ab41a
 - kind: project-relative
   target: codex
+  value: .agents/skills/modern-web-guidance/guides/performance/out-of-order-html-streaming.md
+  runtime: null
+  scope: project
+  owners:
+  - googlechrome/modern-web-guidance/skills/modern-web-guidance
+  active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
+  content_hash: sha256:1d75e4b907f473b9c27d00094ddb8b93091ad729f6402c560f9117a4b47f6e21
+- kind: project-relative
+  target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/performance.md
   runtime: null
   scope: project
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:2f22c7d1482189d1f3f68f96dc5bb6c01c459338938bdabf4549d77003afa76f
+  content_hash: sha256:147c6ef99368bfa9dc7938aea477ddbd4848f9dca3323882a8023d6fa9b57e4b
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/performance/resolution-optimized-pseudo-elements.md
@@ -10363,13 +10424,22 @@ deployments:
   content_hash: sha256:ff4ce1015e4572f74cfdd34d2cfd38b70d05d5b9f23fb72b8f0ab8ade0a3551f
 - kind: project-relative
   target: codex
+  value: .agents/skills/modern-web-guidance/guides/security/sanitize-untrusted-html.md
+  runtime: null
+  scope: project
+  owners:
+  - googlechrome/modern-web-guidance/skills/modern-web-guidance
+  active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
+  content_hash: sha256:4c4826ecd6a70c0a6f3218289034482f406bd445f4e04e30410d48c67170644d
+- kind: project-relative
+  target: codex
   value: .agents/skills/modern-web-guidance/guides/security/security.md
   runtime: null
   scope: project
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:39dee469938960946b45af3d19ed7a4a361d281f41046a028b63ca0b9fe09b9c
+  content_hash: sha256:dcb2da9b51e711c2e17d8ed066e587ed05783cd9b1dc841740effd2ca3d2c898
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/ui-atoms/carousel-slide-effects.md
@@ -10414,7 +10484,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:44bf43ed55e203de6c6460fa12fe71c0d544d715df915ad773546aab12aabe59
+  content_hash: sha256:f456d09af6cbf31770e5fd73622eae7583cd5e9a13b888df69981ebb8d1949c8
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/ui-atoms/scroll-position-aware-elements.md
@@ -10468,7 +10538,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:f3fbde1fddfc8bd5242726f0ad93e96efcc7c88c5b88a399630c592014fc5898
+  content_hash: sha256:3ec7407f33445106ac26c6d73122114f8d3344c09693a6df9a828e43a6ef381b
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/ui-behaviors/animate-element-entry-exit.md
@@ -10594,7 +10664,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:7a1d12274e8d48379e9d3c4a65db40f4d9a4ec7bcf028a457a51ef0fe130b32c
+  content_hash: sha256:26ad5c0e8f5442e8625a6f54b6741cd297dad0e2f5c8afe98fe544dae8eca8a0
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/ui-behaviors/light-dismiss-a-dialog.md
@@ -10738,7 +10808,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:1fe79fcbc5ef7d5e8ae4e8a856000b7a0f93903b58e3cc192a0e08ec55808288
+  content_hash: sha256:c47dd311c85dd7795a1d068812b1dc3f9ce07c6e0677b698c24572300d7ed5a3
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/ui-components/persistent-toast-notifications.md
@@ -10756,7 +10826,7 @@ deployments:
   owners:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
-  content_hash: sha256:3a5db7de594a827a7141b423acbc64dde99bd08be49a5999a7279ee79d8d705c
+  content_hash: sha256:70416e8dc8e5975790e9c21f027790151ea1f262a93769cd4bbbb1c2473b4467
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/ui-components/scrollspy.md
@@ -10811,6 +10881,15 @@ deployments:
   - googlechrome/modern-web-guidance/skills/modern-web-guidance
   active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
   content_hash: sha256:dad784ec45a78656fe6eb3f4be32132f50d6517dd25b087ece2b7b9dcaa6de36
+- kind: project-relative
+  target: codex
+  value: .agents/skills/modern-web-guidance/guides/visual-design/contrast-color.md
+  runtime: null
+  scope: project
+  owners:
+  - googlechrome/modern-web-guidance/skills/modern-web-guidance
+  active_owner: googlechrome/modern-web-guidance/skills/modern-web-guidance
+  content_hash: sha256:302d747e5baeacf1dc7c7531d0089069af1133b3dcc6a00982bb487aeb8da891
 - kind: project-relative
   target: codex
   value: .agents/skills/modern-web-guidance/guides/visual-design/customize-scrollbar-color-and-thickness.md
@@ -10972,7 +11051,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orca-cli
   active_owner: stablyai/orca/skills/orca-cli
-  content_hash: sha256:b21b9b80475c35996b9c046379b9c9fa788f2d357c9e917befd8ab1b37df2e77
+  content_hash: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
 - kind: project-relative
   target: codex
   value: .agents/skills/orchestration
@@ -10990,7 +11069,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:36bc32f022447418b566db35f9ffcff75113eb023e37d06fd1bd609c5dd173ef
+  content_hash: sha256:cd1b364bf35781bad06bf75ab1766afa8d6cec69cb2060529691d89871a2098a
 - kind: project-relative
   target: codex
   value: .agents/skills/pdf
@@ -11953,7 +12032,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:6ae252772ca74923a2b529059caa83526cf20580aa9fafa6f0bb8524f950d194
+  content_hash: sha256:118050408d8adc9437cc3abe84a5e7f17d4eddb550fc032077daecb42a39fc2d
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/agents/openai.yaml
@@ -11980,7 +12059,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:28bbc6768d06726c99ee16bf550ed544e171a755050e9cad60f28b16361f2355
+  content_hash: sha256:65f9219648f2304817c893a9c1503a0eb0bad114c077ca47bed1681d5c572a07
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-captions/agents/openai.yaml
@@ -12034,7 +12113,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:5511d75dcd0730d64e960b9a0bff5ca3e8916693b1e187c467325aa7275df412
+  content_hash: sha256:c89f0465f5b7e69a6e3acc4f438f602d4096f3614be3b386486295cdc00bcd65
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-create/agents/openai.yaml
@@ -12079,7 +12158,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:419f25d3b6fc2779308f979bd344470577c3b7a4856a565217f8726a1e3726dc
+  content_hash: sha256:033bfea9e6b0550169868cb197af003cf1b0d2ac0bbc591bd9a58f2578724850
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-docs/agents/openai.yaml
@@ -12106,7 +12185,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:d95417bdfdc2c5e10ff83282488571a69fee076c0188f35ed5b3614aacc18393
+  content_hash: sha256:74a493e1df1ee0fa9bed02418e3078e37fafbf7d722b5e9d48e1e73685dcfeae
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-interactivity/agents/openai.yaml
@@ -12133,7 +12212,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+  content_hash: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-maps/agents/openai.yaml
@@ -12430,7 +12509,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:1eb8d64ccfddd2fd4a6a03ec311e1d507b01f1f5711c050c8ac6cf8292d18765
+  content_hash: sha256:9397574aefd070767137037536811f5cdf0e37affdebbddb8c772e08f168ef29
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/agents/openai.yaml
@@ -12466,7 +12545,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:59b03efd20139ec344c850add031bf5784e744927f896f7437242178d22ab932
+  content_hash: sha256:6659ea94112594e4307b6b40d8c237725691bb8f378e90b0f41123f7936cce45
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/calculate-metadata.md
@@ -12484,7 +12563,16 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c99d15ce34ba5d5e2fdfdef7be715b8afdae106001bf234f7fceab15378ed6df
+  content_hash: sha256:bd0da9fb807fdaeee9f7b38b21683e068f3e937149a618971523f83ec277ef8e
+- kind: project-relative
+  target: codex
+  value: .agents/skills/remotion-best-practices/remotion-markup/connected-compositions.md
+  runtime: null
+  scope: project
+  owners:
+  - remotion-dev/skills/skills/remotion-best-practices
+  active_owner: remotion-dev/skills/skills/remotion-best-practices
+  content_hash: sha256:3718327482077d3ea06022e56983b95c95f7d469a65c5800e96535e1c7eef3d7
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/cropping.md
@@ -12511,7 +12599,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:543ddf73e53bd750019b0283506d2cc30e9acb605c8628fa12fc9dd3edbc145c
+  content_hash: sha256:5f9265aa46039a8e6f26f733a6f0bf8070f25c9458e8c657a85bbff432433cdf
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/ffmpeg.md
@@ -12610,7 +12698,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:00d4c4cdd515b69cee84b2e274393aafd4060612372aa629712c320427e6bd37
+  content_hash: sha256:a00ecb7b961b1cfa702018e05faebc4655245b75e042138c9ab4b39da80e9b12
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/parameters.md
@@ -12628,7 +12716,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:99944b072b1d0ec540c261ec2fe085a9fee10ba10a4041d563f77958532a63b8
+  content_hash: sha256:7aba59fad33fc451b7ca8b92b57a67f1151b3b06f18a8c6085ecfd193773f47a
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-markup/remotion-maps/agents/openai.yaml
@@ -12988,7 +13076,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:134cddafebc79c7a83d412ad4e720ec643dfe20f943d7c190f3bf2ddea8a0272
+  content_hash: sha256:865b491e56dec79b1e1ad034de5cc56ae5215d82acab9f06c44ed73a489a37fc
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-multimedia/agents/openai.yaml
@@ -13042,7 +13130,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:d69ad4b96ea2613386853cf9964cf18d423d0ecf26476e29f241e9c0abdaa1c7
+  content_hash: sha256:dd013ab8e0db274d209c49183750fae94218424210833e1e1512f5cd18e4575a
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-render/agents/openai.yaml
@@ -13078,7 +13166,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:35a2300e96c31846e2a3dc97a9e89730f8b47526de9cbfd22265eccca7f09ced
+  content_hash: sha256:b5c279b300ae08be6dc5ec16022ae66f51f2dd9e7603b72b830396ba46805655
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-saas/agents/openai.yaml
@@ -13105,7 +13193,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:d1071a392f88fbafde3166547e1000b18a920e89ab8433cd1783edc8cfadc151
+  content_hash: sha256:5e35ca3306ac15ad1df189789642cefbc62c59f4929372ffc10a67165d7b04b5
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-saas/player.md
@@ -13132,7 +13220,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:93912a9e68192fbe1d3aa96f58952765b3876508961d17b44cc4a74595703914
+  content_hash: sha256:cf34d9705b140caac62af184321839e380daf436a947e96dacf155154724bddf
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-studio/agents/openai.yaml
@@ -13159,7 +13247,7 @@ deployments:
   owners:
   - remotion-dev/skills/skills/remotion-best-practices
   active_owner: remotion-dev/skills/skills/remotion-best-practices
-  content_hash: sha256:c8f6efe497b653a0e6dea69e73e8323768a64bfb7481c518384e48390847d0c3
+  content_hash: sha256:71e40216f86cbddd3e7527c85f85669abdc4d1592a31bc780f08b6a44ed87817
 - kind: project-relative
   target: codex
   value: .agents/skills/remotion-best-practices/remotion-upgrade/agents/openai.yaml
