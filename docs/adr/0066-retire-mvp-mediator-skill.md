@@ -1,3 +1,12 @@
+---
+type: decision
+title: MVP + Mediator スキルの配布を終了する
+description: 現行スキルへの追加投資を止め、責務分離の原則と固定評価資料を残して既存の退役経路で撤去する
+tags: [adr, skills, mvp, mediator, retirement]
+timestamp: 2026-09-24
+status: accepted
+---
+
 # MVP + Mediator スキルの配布を終了する
 
 2026-09-24。`mvp-mediator-architecture` の配布を終了する。mainの旧版はReactコンポーネント全般へ単一Root・イベント転送・connector等を一律に要求していた。prototypeで適用範囲を狭めたv17も検討したが、得られた利益に対して指示・検査・文書の負担が大きく、追加調整を続けず撤去する。短縮版や明示呼出し専用版は今回は作らない。
