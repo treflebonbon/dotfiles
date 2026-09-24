@@ -100,6 +100,19 @@ EOF
   assert_output --partial "cycle detected"
 }
 
+@test "循環より前に実装可能と分かったticketも同じchainならSKIPされる" {
+  run_compute_chains <<'EOF'
+C
+A	B
+B	A,C
+EOF
+  assert_failure
+  assert_output --partial $'SKIP\tC\tcycle'
+  assert_output --partial $'SKIP\tA\tcycle'
+  assert_output --partial $'SKIP\tB\tcycle'
+  refute_output --partial $'\t1\tC'
+}
+
 @test "openな外部blockerを持つticketはSKIPとして報告される" {
   run_compute_chains <<'EOF'
 40		999

@@ -29,12 +29,17 @@
 #   chain_id<TAB>order_in_chain<TAB>issue      (implementable, ordered blockers-first)
 #   SKIP<TAB>issue<TAB>reason                  (not implementable this run)
 # where reason is `external-open-blocker:<n>` (this ticket's own external
-# blocker) or `blocked-by-excluded:<n>` (an in-batch blocker was itself
-# excluded).
+# blocker), `blocked-by-excluded:<n>` (an in-batch blocker was itself
+# excluded), or `cycle` (this ticket's connected component has a cycle).
 #
-# A cycle among implementable tickets (should not happen for well-formed
-# tickets) is reported on stderr and that group's remaining, unorderable
-# tickets are omitted from stdout rather than emitted in an arbitrary order.
+# A component's chain lines are buffered and only flushed once the whole
+# component is proven acyclic. A cycle anywhere in a component (should not
+# happen for well-formed tickets) is reported on stderr, and every
+# non-excluded ticket in that component — including ones a naive topological
+# sort would have already placed before reaching the cycle — is reported as
+# `SKIP ... cycle` instead: a chain is one all-or-nothing worktree/PR unit,
+# so salvaging just the acyclic prefix would still leave an unimplementable
+# remainder in the same chain.
 set -euo pipefail
 
 find_root() {
@@ -195,7 +200,8 @@ compute_chains() {
     done
 
     local order_index=0
-    local -a remaining=()
+    local -a remaining=() chain_lines=()
+    local cycle_in_group=0
     for m in "${members[@]}"; do
       [ -n "${EXCLUDED[$m]+x}" ] || remaining+=("$m")
     done
@@ -213,10 +219,11 @@ compute_chains() {
       if [ -z "$next" ]; then
         echo "ERROR: cycle detected in chain rooted at issue $root, skipping remaining: ${remaining[*]}" >&2
         had_cycle=1
+        cycle_in_group=1
         break
       fi
       order_index=$((order_index + 1))
-      printf '%s\t%s\t%s\n' "$chain_id" "$order_index" "$next"
+      chain_lines+=("$(printf '%s\t%s\t%s' "$chain_id" "$order_index" "$next")")
       for dep in ${dependents[$next]}; do
         [ -n "${EXCLUDED[$dep]+x}" ] && continue
         indegree[$dep]=$((indegree[$dep] - 1))
@@ -224,6 +231,17 @@ compute_chains() {
       unset 'remaining[next_pos]'
       remaining=("${remaining[@]}")
     done
+
+    if [ "$cycle_in_group" -eq 1 ]; then
+      for m in "${members[@]}"; do
+        [ -n "${EXCLUDED[$m]+x}" ] && continue
+        printf 'SKIP\t%s\tcycle\n' "$m"
+      done
+    else
+      for line in "${chain_lines[@]}"; do
+        printf '%s\n' "$line"
+      done
+    fi
   done
 
   [ "$had_cycle" -eq 0 ]
