@@ -75,7 +75,7 @@ This handoff (steps 3-4 below) is **Herdr-only** for now: it needs a way to star
 
    ```bash
    herdr agent start <name> --kind <same kind as this session> --pane <pane-id>
-   herdr agent prompt <name> "/implement Implement tickets #<n1>, #<n2>, ... in this exact order (each blocks the next) under parent #<parent>. Read each ticket's own issue body for its Contract. When you run /to-pr, use #<n1> (this chain's first ticket) as the linked issue." --wait --until idle --until done --until blocked --timeout 3600000
+   herdr agent prompt <name> "/implement Implement tickets #<n1>, #<n2>, ... in this exact order (the script already put blockers before what they block) under parent #<parent>. Read each ticket's own issue body for its Contract. When you run /to-pr, use #<n1> (this chain's first ticket) as the linked issue." --wait --until idle --until done --until blocked --timeout 3600000
    ```
 
    `--timeout 3600000` (1 hour) is a starting point for `/implement`, which can cover several tickets' `tdd` cycles — tune it to how long these normally take in this repo. If the call itself reports `timeout`, treat it the same as `blocked` below (do not resend the prompt): report it as **needs human attention**, note it timed out, leave the pane open, and move to the next chain. If the child reaches `blocked` (needs human input it can't resolve on its own) rather than `idle`/`done`, do the same.
