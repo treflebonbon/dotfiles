@@ -23,9 +23,9 @@ dependencies:
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#3b9e6561dababf40a485772a7cd641268bb7c365
+    - remotion-dev/skills/skills/remotion-best-practices#41b22eec767aa77eb31df62ccb3bacf52ed771fb
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#bfd8c8dded770f3ba07a518e28991a32df40f902
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills v1.2.3 plugin collection — 公式 full set を一括管理。
@@ -36,8 +36,8 @@ dependencies:
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli#de0a91b99fc845c9510340786f807ea1c988859b
+    - stablyai/orca/skills/orca-cli#4a5afd70a3db16f1cd546458e070681a4eb0da18
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use
-    # Herdr 0.9.0 同梱スキルと同じ revision を APM で配布する。
-    - herdrdev/herdr/skills/herdr#b99002ac99b09e00b4ca692436cb15a6b0d676f1
+    # Herdr 0.9.1 同梱スキルと同じ revision を APM で配布する。
+    - herdrdev/herdr/skills/herdr#065ef9d6a531c49fb8bee7e818ef837065b21ee9

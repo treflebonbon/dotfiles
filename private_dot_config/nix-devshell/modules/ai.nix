@@ -23,8 +23,8 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; adoption history is in ADR-0047.
-  minClaudeCode = "2.1.280";
-  minCodex = "0.155.0";
+  minClaudeCode = "2.1.281";
+  minCodex = "0.156.0";
 
   requireQualityFloor =
     {
@@ -52,14 +52,14 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "Opus 5.5 (claude-opus-5-5) をデフォルト Opus モデルへ追加、symlink 経由の書込みが in-tree spelling で誤判定され auto mode が越境書込みを承認していた permission bypass の修正、auto mode の safety-filter retry/deny ループ修正、LSP plugin 有効時に background subagent が LSP tool を使えない不具合の修正、background subagent へのメッセージ消失と compaction 後の report 消失の修正、manifest.json 記載名と一致する skill が .claude/skills/.trash へ誤退避される不具合の修正。";
+    reason = "auto mode / --dangerously-skip-permissions で、削除対象がコマンド置換結果のみの再帰 rm（例: rm -rf \"$(pwd)\"）が Bash allow ルールに関わらず無承認実行されていた permission bypass の修正、NUL byte を含む permission rule がワイルドカード一致へ展開されていた不具合の修正、sandbox excludedCommands が git rev-parse --git-dir 等に一致しなかった不具合の修正。";
   };
 
   codex = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
-    reason = "restricted WSL sandbox からの Windows-process escape 遮断・shell snapshot の credential exposure 強化、Unix SIGTERM での app-server stdio shutdown の graceful化。";
+    reason = "sandbox isolation gap の修正（inbound Windows connections、privileged Linux/macOS sockets、read-only macOS file handle 経由の書込み）。";
   };
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
