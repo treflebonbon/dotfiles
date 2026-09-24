@@ -4,7 +4,7 @@
 
 ユーザーの `/implement ツールとスキル更新` に基づき、既存 AI tool snapshot と APM 全19依存の更新候補を確認する。ADR-0045 に従い、tool snapshot と通常 APM payload の2更新単位を別々に採否する（Impeccable、Matt Pocock managed set は対象外）。task worktree は main `8ed3db4` から作成した。
 
-受入条件は exact snapshot と lock の整合、3 system の評価、Linux build・CLI起動、関連テスト・型チェック・full suite、二軸レビューとコミット。品質 floor、モデル・権限、配布経路、新規ツール追加、private skill 改稿は対象外。live apply・push・PR は行わない。
+受入条件は exact snapshot と lock の整合、3 system の評価、Linux build・CLI起動、関連テスト・型チェック・full suite、二軸レビューとコミット。モデル・権限、配布経路、新規ツール追加、private skill 改稿は対象外。live apply・push・PR は行わない。
 
 ## Tool snapshot
 
