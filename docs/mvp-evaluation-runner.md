@@ -1,8 +1,30 @@
 # MVP評価専用の実行入口
 
+## v17接続（2026-09-24）
+
+現行CLIは[v17契約](evaluations/mvp-mediator-evaluation-v17/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v17/design.md)に従い、要件欄の実装説明と根拠表の検証証拠を分け、報告する検証主張に比較式の短い抜粋を必須とした。正確な統合行・共通参照・要約を許容し、必要な検査の追加・実行条件を維持する。
+
+抜粋の形式不足と検証範囲の過大報告は別判定。通常課題、v10 E/checker、runtime、採点アルゴリズムは維持する。旧runはstatus参照のみ可能で、新CLIでの書込み再開は拒否する。実LLM効果は未検証で、評価開始には別途明示的な依頼を要する。
+
+### v17接続の検証結果
+
+| 対象 | 検証 | 結果 |
+| --- | --- | --- |
+| 固定配布・旧版境界 | `bats tests/mvp-evaluation.bats` | v17未登録でred、接続後19/19成功。本文例・純粋性例・固定checker検査を含む |
+| 形式・型 | skill validator、`bunx tsc --noEmit`、固定SOURCES照合 | 成功 |
+| 本文の境界 | state/effects、helper、期待値変数、統合行、B提案、必要検査の文面レビュー | 合意した境界と一致。実LLM効果の検証ではない |
+| Standards / Spec | `323224a`を固定点としてコミット前の6ファイルを独立レビュー | 両軸0件 |
+| 全体回帰 | `PATH=/nix/store/m23g9jsxzhyph3xbwdim4v4xsslfqkxm-with-env/bin:$PATH bun run test` | 1回完走。760件、735成功・23skip・2失敗、exit1。検査中の実装変更なし |
+| 失敗の単独再確認 | 下記2テストをそれぞれfilter指定で実行 | コード変更なしで各1/1成功、exit0 |
+| 保全 | SHA-256・履歴検証・旧run status・CLI AST比較 | 旧1539ファイル不変、16runの履歴/status成功。CLI処理はdocstring/SOURCES以外不変 |
+
+全体runで失敗したのは `managed-chrome-owner.bats` の `Windows inspection distinguishes query failure from an absent browser`（期待エラー文言の照合）と、`raw-codex-integration.bats` の `raw return rejects a newly committed gitlink before publishing any result`（期待終了状態の照合）。いずれも今回未変更の処理で、単独再実行は成功した。失敗原因は未確定であり、全体runの失敗を取り消さず、一括実行での全件成功は未確認とする。
+
+ログ、文面レビュー、両軸レビュー、保全記録は `tmp/mvp-v17-implementation/` に保存。実LLM評価・配備は未実施。
+
 ## v16接続（2026-09-24）
 
-現行CLIは[v16契約](evaluations/mvp-mediator-evaluation-v16/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v16/design.md)に従い、抽象モデルを作らない提案は3列の状態説明表、説明対象がなければ一文で完了することを明記した。抽象モデル付きの成果物は従来の5列を維持する。
+v16実装時のCLIは[v16契約](evaluations/mvp-mediator-evaluation-v16/protocol.md)へ接続する。[確定設計](evaluations/mvp-mediator-evaluation-v16/design.md)に従い、抽象モデルを作らない提案は3列の状態説明表、説明対象がなければ一文で完了することを明記した。抽象モデル付きの成果物は従来の5列を維持する。
 
 提案への専用2欄省略の適用を明示・拡張する変更として比較上の制限を記録する。保持状態がある提案の表は引き続き必須。課題・v10 E/checker・runtime・採点アルゴリズム・旧runを維持する。状態なし境界の実LLM効果は既存B課題では測れず未検証。実LLM再評価は別途明示された依頼で行う。
 
