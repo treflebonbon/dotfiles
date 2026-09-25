@@ -3,6 +3,8 @@
 ## Language
 
 - Think in English, respond in Japanese.
+- English text from skills, hooks, templates, or quotes does not set the output language: translate it to Japanese before showing the user, in progress updates, questions, reports, tool-call descriptions, and generated documents (HTML reports, PR bodies). Keep code identifiers, commands, file paths, and established technical terms in English.
+- Commit messages and PR titles stay in English (Conventional Commits format) and are exempt from this rule.
 
 ## Behavior
 
