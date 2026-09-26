@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/8bec0ce1cbb0a39f8f08dc97a7635af847779f99' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "8bec0ce1cbb0a39f8f08dc97a7635af847779f99"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "8bec0ce1cbb0a39f8f08dc97a7635af847779f99"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/bbb0f9a24c3a5ce918f3d8103397ce08b20300e1' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "bbb0f9a24c3a5ce918f3d8103397ce08b20300e1"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "bbb0f9a24c3a5ce918f3d8103397ce08b20300e1"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
@@ -193,13 +193,13 @@ PS
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
-  local record="$PROJECT_ROOT/docs/research/llm-agents-and-apm-update-2026-09-24.md"
+  local record="$PROJECT_ROOT/docs/research/llm-agents-and-apm-update-2026-09-26.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '8bec0ce1cbb0a39f8f08dc97a7635af847779f99' "$record"
-  grep -Fq '8bec0ce1cbb0a39f8f08dc97a7635af847779f99' "$flake"
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e' "$manifest"
+  grep -Fq 'bbb0f9a24c3a5ce918f3d8103397ce08b20300e1' "$record"
+  grep -Fq 'bbb0f9a24c3a5ce918f3d8103397ce08b20300e1' "$flake"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#cf49eff5d4463b33966b6618c83f7295797dd028' "$manifest"
 }
 
 @test "nix-devshell has no retired Intel Darwin Claude Code package" {
