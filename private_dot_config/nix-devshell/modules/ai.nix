@@ -52,14 +52,14 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "auto mode / --dangerously-skip-permissions で、削除対象がコマンド置換結果のみの再帰 rm（例: rm -rf \"$(pwd)\"）が Bash allow ルールに関わらず無承認実行されていた permission bypass の修正、NUL byte を含む permission rule がワイルドカード一致へ展開されていた不具合の修正、sandbox excludedCommands が git rev-parse --git-dir 等に一致しなかった不具合の修正。";
+    reason = "managed sandbox settings のネストされた値が1つでも不正だとブロック全体が無視されていた fail-open な挙動を修正し、不正な値だけを fail closed（無効化）して残りのブロックは引き続き適用されるようにした修正。";
   };
 
   codex = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
-    reason = "sandbox isolation gap の修正（inbound Windows connections、privileged Linux/macOS sockets、read-only macOS file handle 経由の書込み）。";
+    reason = "redirect 追従中や実行中の HTTP/WebSocket 通信でネットワーク制限が徹底されておらず、ポリシー変更によるアクセス取消も反映されていなかった不具合の修正。";
   };
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
