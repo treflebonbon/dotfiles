@@ -23,8 +23,8 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; adoption history is in ADR-0047.
-  minClaudeCode = "2.1.281";
-  minCodex = "0.156.0";
+  minClaudeCode = "2.1.283";
+  minCodex = "0.157.0";
 
   requireQualityFloor =
     {

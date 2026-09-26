@@ -23,7 +23,7 @@ dependencies:
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#41b22eec767aa77eb31df62ccb3bacf52ed771fb
+    - remotion-dev/skills/skills/remotion-best-practices#cf49eff5d4463b33966b6618c83f7295797dd028
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e
     # mizchi/skills
