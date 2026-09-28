@@ -336,6 +336,7 @@ for path in sys.argv[1:]:
     assert "service_tier" not in config
     assert "developer_instructions" not in config
     assert config["features"]["network_proxy"] is True
+    assert config["features"]["daemon_auto_start"] is False
     assert "context_management" not in config["features"]
     assert config["apps"]["github"]["default_tools_approval_mode"] == "approve"
     assert config["apps"]["github"]["destructive_enabled"] is False
@@ -1485,6 +1486,7 @@ default_subagent_reasoning_effort = "xhigh"
 max_concurrent_threads_per_session = 3
 
 [features]
+daemon_auto_start = false
 network_proxy = true
 
 [apps.github]

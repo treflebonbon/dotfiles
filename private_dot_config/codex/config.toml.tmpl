@@ -17,6 +17,8 @@ default_tools_approval_mode = "approve"
 destructive_enabled = false
 
 [features]
+# Nix Codex lacks the complete package required to install its daemon.
+daemon_auto_start = false
 hooks = true
 goals = true
 network_proxy = true
