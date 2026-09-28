@@ -38,7 +38,7 @@ dependencies:
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli#4a5afd70a3db16f1cd546458e070681a4eb0da18
+    - stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use
     # Herdr 0.9.1 同梱スキルと同じ revision を APM で配布する。

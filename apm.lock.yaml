@@ -1244,7 +1244,7 @@ dependencies:
 - repo_url: mizchi/skills
   name: empirical-prompt-tuning
   host: github.com
-  resolved_commit: 0c7c1e606efa7e6cad8fadb8b22066b520d914ea
+  resolved_commit: f03585cd8a41aac91b46ba15456a56c291595de3
   version: unknown
   virtual_path: empirical-prompt-tuning
   is_virtual: true
@@ -2085,7 +2085,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 98a1fe67b439324ddc857f47fbdce056600a4329
+  resolved_commit: db2db460a26fa84fb65c8d903b213925fbdee9ed
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2158,7 +2158,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: f0a36109285e7bd90c0e8452c439de12a991a02a
+  resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2175,8 +2175,8 @@ dependencies:
 - repo_url: stablyai/orca
   name: orca-cli
   host: github.com
-  resolved_commit: 4a5afd70a3db16f1cd546458e070681a4eb0da18
-  resolved_ref: 4a5afd70a3db16f1cd546458e070681a4eb0da18
+  resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
+  resolved_ref: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
   version: unknown
   virtual_path: skills/orca-cli
   is_virtual: true
@@ -2187,13 +2187,13 @@ dependencies:
   - .claude/skills/orca-cli
   - .claude/skills/orca-cli/SKILL.md
   deployed_file_hashes:
-    .agents/skills/orca-cli/SKILL.md: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
-    .claude/skills/orca-cli/SKILL.md: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
-  content_hash: sha256:7ad2f1fd9217ab275ae73ffbaf119306e67841b4babc4341ed42fe63e25a4c1b
+    .agents/skills/orca-cli/SKILL.md: sha256:aa76f86505010096e8ea9edda1705a78aae7af45e54485f3fe0460664c1d9e4a
+    .claude/skills/orca-cli/SKILL.md: sha256:aa76f86505010096e8ea9edda1705a78aae7af45e54485f3fe0460664c1d9e4a
+  content_hash: sha256:ccd717aed7b9866a059b0b31d9a009641a28f6db3201749943fbbb797af4a317
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: f0a36109285e7bd90c0e8452c439de12a991a02a
+  resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2210,7 +2210,7 @@ dependencies:
 - repo_url: supabase/agent-skills
   name: supabase-postgres-best-practices
   host: github.com
-  resolved_commit: 551274ed2fe97c8fea1325f7ceb05803a542f8df
+  resolved_commit: 544bfc56c89afe2b87b20017a59b2c6e9502a1fb
   version: unknown
   virtual_path: skills/supabase-postgres-best-practices
   is_virtual: true
@@ -5308,7 +5308,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orca-cli
   active_owner: stablyai/orca/skills/orca-cli
-  content_hash: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
+  content_hash: sha256:aa76f86505010096e8ea9edda1705a78aae7af45e54485f3fe0460664c1d9e4a
 - kind: project-relative
   target: claude
   value: .claude/skills/orchestration
@@ -11347,7 +11347,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orca-cli
   active_owner: stablyai/orca/skills/orca-cli
-  content_hash: sha256:6522a3355993b377abe7d7a5c8f6a00f9726e1a6a6b9aa9c015651e8d0f5e6b8
+  content_hash: sha256:aa76f86505010096e8ea9edda1705a78aae7af45e54485f3fe0460664c1d9e4a
 - kind: project-relative
   target: codex
   value: .agents/skills/orchestration
