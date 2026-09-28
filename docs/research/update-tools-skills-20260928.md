@@ -32,4 +32,8 @@ Nix の `nix flake check --no-build --all-systems` は6 devShell と3 formatter�
 
 `LC_ALL=C FORCE_COLOR=0 bun run test` は752件中750件成功、2件失敗（exit 1）。失敗した `Codex config migration keeps dotenv denied and public examples readable without a raw read grant` は sandbox 内で公開 `.envrc` / `.env.example` を読む fixture が終了0にならず、`raw Codex edits and tests with public fixtures while a human runs a fixed revision outside its namespace` は `with-env` の実体が `/nix/store` 内にあるという assertion に失敗した。変更前の main `2826975` で両テストを個別実行して同じ失敗を再現したため、今回の更新による回帰ではない。
 
-二軸レビューの結果は完了後に追記する。
+## 二軸レビュー
+
+`git diff origin/main...HEAD`（review 時点の `30fea3a`）を Standards / Spec の独立したレビューで確認し、両軸とも指摘0件だった。Standards 側は当初、ADR-0045 の2026-09-01追記が2更新単位を別PRにすると定める点を指摘したが、後続で受け入れた [ADR-0067](../adr/0067-update-llm-agents-snapshot-and-apm-payload-20260924.md) と [ADR-0068](../adr/0068-update-llm-agents-snapshot-and-apm-payload-20260926.md) が、同じ依頼・同規模の変更を同一 worktree・commit にまとめると明記しているため、現在の違反との判断を撤回した。Spec 側は upstream の snapshot、Antigravity CLI の版、Orca CLI の配布内容と lock を照合し、欠落・範囲外・誤実装はなかった。
+
+live source への `chezmoi apply`、push、PR作成は実施していない。
