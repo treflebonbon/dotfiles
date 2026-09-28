@@ -445,3 +445,7 @@ Codex は公式 GitHub Release Notes（`rust-v0.157.0`）から "Enforced networ
 隔離 APM install で、既存の配備済みファイルが残った状態から `apm install`（non-frozen）を再実行すると増分解決になり `deployed_file_hashes` が19依存中1件しか記録されない不完全な lock が生成されることを確認した。隔離ディレクトリを完全に空にしてから実行し直すことで、19依存すべてに `deployed_file_hashes` を含む完全な lock（`apm_version: 0.32.0`）を得た。生成した lock は同じ隔離環境の `apm install --frozen --https` で SHA-256 一致・書き戻しなし、`apm audit --ci` 10/10 を確認した。
 
 採用判断と Verification Matrix は [ADR-0068](../docs/adr/0068-update-llm-agents-snapshot-and-apm-payload-20260926.md)、一次情報と全依存差分は[調査ノート](../docs/research/llm-agents-and-apm-update-2026-09-26.md)を参照する。
+
+2026-09-28 JST、`llm-agents.nix` を upstream default branch HEAD `e28ea84e78517e5d05ae0c399da00e848e207261` へ更新した。導入済みツールの差分は Antigravity CLI 1.2.11→1.2.12 のみ。Claude Code 2.1.283、Codex 0.157.1、Copilot CLI 1.0.88、RTK 0.50.0、APM 0.32.0、Herdr 0.9.1、code-review-graph 2.3.9 と quality floor は維持した。
+
+同日の通常 APM 更新では、`stablyai/orca/skills/orca-cli` を `aedb9305` へ進め、`runtime_access_denied` 時の案内を採用した。empirical-prompt-tuning、shadcn、Orca の computer-use / orchestration、supabase-postgres-best-practices は floating revision のみ前進し、selected content hash は不変。隔離 APM lock の frozen no-rewrite と audit 10/10 を確認した。採否と検証結果は[更新記録](../docs/research/update-tools-skills-20260928.md)を参照する。

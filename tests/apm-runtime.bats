@@ -112,7 +112,7 @@ assert_lock_entry() {
 
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e' "$manifest"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#cf49eff5d4463b33966b6618c83f7295797dd028' "$manifest"
-  grep -Fq 'stablyai/orca/skills/orca-cli#4a5afd70a3db16f1cd546458e070681a4eb0da18' "$manifest"
+  grep -Fq 'stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$manifest"
   grep -Fq 'herdrdev/herdr/skills/herdr#065ef9d6a531c49fb8bee7e818ef837065b21ee9' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
   ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
@@ -133,22 +133,21 @@ assert_lock_entry() {
     'cf49eff5d4463b33966b6618c83f7295797dd028' \
     'sha256:80046e0ea928cfec151970246160d17d647c87846ef04f2291897ee7d2313b46'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    '98a1fe67b439324ddc857f47fbdce056600a4329' \
+    'db2db460a26fa84fb65c8d903b213925fbdee9ed' \
     'sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    'f0a36109285e7bd90c0e8452c439de12a991a02a' \
+    'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
-    '4a5afd70a3db16f1cd546458e070681a4eb0da18' \
-    'sha256:7ad2f1fd9217ab275ae73ffbaf119306e67841b4babc4341ed42fe63e25a4c1b'
+    'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
+    'sha256:ccd717aed7b9866a059b0b31d9a009641a28f6db3201749943fbbb797af4a317'
   assert_lock_entry "$lock" 'herdrdev/herdr' 'herdr' \
     '065ef9d6a531c49fb8bee7e818ef837065b21ee9' \
     'sha256:c741134cc22372c08da2f469d49aac9f9bbddd4f5e1da0558cf1132836fa3287'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    'f0a36109285e7bd90c0e8452c439de12a991a02a' \
+    'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
-  [ "$(grep -Fc 'resolved_commit: f0a36109285e7bd90c0e8452c439de12a991a02a' "$lock")" -eq 2 ]
-  [ "$(grep -Fc 'resolved_commit: 4a5afd70a3db16f1cd546458e070681a4eb0da18' "$lock")" -eq 1 ]
+  [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 3 ]
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
       awk '{
