@@ -145,7 +145,7 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 **UI specialist skill（保持）**: `web-design-guidelines` は Web 実装規則、`modern-web-guidance` は最新 Web API、React 系 skill は React の構成・性能・View Transition、`shadcn` は shadcn/ui、`remotion-best-practices` は動画 UI を担当する。Impeccable はこれらを置き換えず、UI 全体の設計品質を扱う。
 
-**その他 apm skill（保持）**: find-skills, skill-creator, pdf, supabase-postgres-best-practices, empirical-prompt-tuning, effect-ts。
+**その他 apm skill（保持）**: find-skills, skill-creator, pdf, supabase-postgres-best-practices, empirical-prompt-tuning, effect-ts, security-audit。
 
 **Herdr**: [公式スキル](https://herdr.dev/ja/docs/agent-skill/)を `herdrdev/herdr/skills/herdr` から APM で配布する。導入時の CLI 0.9.0 と同じ commit `b99002ac99b09e00b4ca692436cb15a6b0d676f1` に固定し、`~/.agents/skills/herdr/` と `~/.claude/skills/herdr/` へ展開する。Herdr の操作を明示的に依頼された場合に使い、制御コマンドの前に `HERDR_ENV=1` を確認する。CLI バイナリは nix devshell が供給する。
 

@@ -22,6 +22,8 @@ dependencies:
     - anthropics/skills/skills/pdf
     # supabase/agent-skills
     - supabase/agent-skills/skills/supabase-postgres-best-practices
+    # cloudflare/security-audit-skill
+    - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
     - remotion-dev/skills/skills/remotion-best-practices#cf49eff5d4463b33966b6618c83f7295797dd028
     # GoogleChrome/modern-web-guidance
