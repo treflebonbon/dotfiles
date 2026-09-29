@@ -96,7 +96,7 @@
 2. WebFetch で <https://code.claude.com/docs/en/best-practices> を取得し、CLAUDE.md の書き方（含める/除外、強調、削除テスト、hook への置換）が §3〜§5 と §7a に矛盾しないか確認する。
 3. 対象モデル世代の公式 prompting ガイドを取得し（best-practices 末尾の関連リンク、または <https://code.claude.com/docs/llms.txt> から辿る）、§7b の各行の挙動が記載されているかを確認する。公開の migration ページ（例: <https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide>）は API の変更点が中心で、プロンプトの挙動の節は無いことがある。記載が見つからない行は、その旨を書いて暫定のままにする。無効または逆転している行は適用せず、レポートに「基準の更新提案」として記す。
 4. §7b の行は、この実行で `prompt-audit` により確認できた場合を除き「暫定（未検証）」と明記して提示し、確定した判定としては扱わない（「検証」欄の日付があっても、この実行で再確認していなければ暫定）。§7a は検証なしで適用してよい。使った経路は判定表の冒頭に、`prompt-audit` / `代替手順（取得した範囲を併記）` / `スキップ（理由）` のいずれかで書く。
-5. 基準そのものの更新は、ユーザーの確認後にこのファイルの該当行と「検証」行を編集して行う。
+5. 基準そのものの更新は、このファイルを直接編集せず、更新案（該当行と「検証」行の差分）をレポートに書いて提案する。実行時に読んでいるこのファイルは `~/.claude/skills` 配下の配備コピーで、次回の配備で上書きされ Git にも届かない。反映は、検証済みの dotfiles の source（`local-skills/md-claude-review/references/criteria.md`）を編集して行う。
 
 ### 7a. 世代に依存しない行（常に適用）
 
@@ -167,4 +167,4 @@
 
 ## 検証
 
-最終検証: 2026-09-29。Sonnet 5.5 セッションで best-practices ページと §3〜§5・§7a を突合し、§7b の Sonnet 5.5 由来行を Claude API skill 同梱の model-migration ガイドと突合した（公開の migration ページとは未突合）。Opus 5 由来の 4 行は Sonnet 5.5 では未検証（再テスト候補）。新しい世代が出たら最新化手順を実行し、この行を更新する。
+最終検証: 2026-09-29。Sonnet 5.5 セッションで best-practices ページと §3〜§5・§7a を突合し、§7b の Sonnet 5.5 由来行を Claude API skill 同梱の model-migration ガイドと突合した（公開の migration ページとは未突合）。Opus 5 由来の 4 行は Sonnet 5.5 では未検証（再テスト候補）。新しい世代が出たら最新化手順を実行し、この行の更新案を提案する（反映は dotfiles の source で行う）。
