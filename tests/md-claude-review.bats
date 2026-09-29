@@ -7,11 +7,13 @@ setup() {
   CRITERIA="$PROJECT_ROOT/local-skills/md-claude-review/references/criteria.md"
 }
 
-@test "criteria の Move-to 先 docs パスはこの repo に実在する" {
-  local path
-  for path in $(sed -n '/^## 6\./,/^## 7\./p' "$CRITERIA" | grep -o 'docs/[A-Za-z0-9_./-]*' | sort -u); do
+@test "criteria §6 の表の Move-to 先はすべてこの repo に実在する" {
+  local path found=0
+  for path in $(sed -n '/^## 6\./,/^## 7\./p' "$CRITERIA" | grep '^|' | grep -o '`[A-Za-z0-9_./-]*/[A-Za-z0-9_./-]*`' | tr -d '`' | sort -u); do
+    found=1
     [ -e "$PROJECT_ROOT/${path%/}" ]
   done
+  [ "$found" -eq 1 ]
 }
 
 @test "SKILL.md は特定のモデル世代を名指しせず、最新化手順を参照する" {

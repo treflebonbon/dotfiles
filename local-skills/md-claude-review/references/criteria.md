@@ -74,11 +74,9 @@
 | --- | --- |
 | アーキテクチャ詳細・hook 仕様・スキル frontmatter 仕様 | `docs/architecture.md` |
 | 規約・設計判断（ADR） | `docs/conventions.md` / `docs/adr/` |
-| Claude へのルール（trust posture, Bash 禁止事項等） | `.claude/rules/` |
 | 推測可能・標準的な情報 | （Move-to ではなく Delete） |
-| 長い tutorial / API 詳細 | 該当 lib の `docs/` 配下 |
 
-この表は例で、実在を前提にしない。Move-to 先は提示する前に `Glob` で実在を確認し、実在しなければ近い既存の場所を選ぶか Delete を提示する。新規作成を提案する場合は「新規作成」と明記する。
+この表の移動先は、この repo に実在するものだけを載せている。表にない場所（`.claude/rules/` など）を出す場合も、提示する前に `Glob` などで実在を確認し、実在しなければ近い既存の場所を選ぶか Delete を提示する。新規作成を提案する場合は「新規作成」と明記する。
 
 `@import` を使って CLAUDE.md から参照する形にすると、Claude のコンテキストを汚さず必要時のみロードできる（Progressive Disclosure）。
 
@@ -100,17 +98,17 @@
 4. §7b の行は、この実行で `prompt-audit` により確認できた場合を除き「暫定（未検証）」と明記して提示し、確定した判定としては扱わない（「検証」欄の日付があっても、この実行で再確認していなければ暫定）。§7a は検証なしで適用してよい。使った経路は判定表の冒頭に、`prompt-audit` / `代替手順（取得した範囲を併記）` / `スキップ（理由）` のいずれかで書く。
 5. 基準そのものの更新は、ユーザーの確認後にこのファイルの該当行と「検証」行を編集して行う。
 
-### 7a. 世代に依存しない行
+### 7a. 世代に依存しない行（常に適用）
 
 | アンチパターン | 検出の目印 | Reword 方針 | 根拠 |
 | --- | --- | --- | --- |
 | 過剰強調語 | `CRITICAL` / `MUST` / `ALWAYS` / `NEVER` / 全大文字が複数行にある | 従われていない 1 行だけに強調を残し、真の invariant（安全・必須）でなければ通常語へ。強調が多いと全体が埋もれる | best-practices "Write an effective CLAUDE.md" |
 | 否定指示 | "Do not 〜" / "〜しない" 中心の記述 | 望ましい行動を肯定形で記述（"Write in flowing prose"） | prompting best practices — Control the format of responses |
 | WHY 欠落 | 非自明なルールに理由がない | なぜそうするかを 1 文添える。Claude は説明から一般化できる | prompting best practices — Add context to improve performance |
-| 暗黙スコープ | 適用範囲を書かず全体適用を期待 | 範囲を明示（"apply to every section, not just the first"）。モデルは指示を文字通りに解釈し、暗黙の一般化をしない | prompting best practices — literal instruction following |
+| 暗黙スコープ | 適用範囲を書かず全体適用を期待 | 範囲を明示（"apply to every section, not just the first"）。適用範囲を書かないと、意図より狭く解釈されることがある | prompting best practices — Be clear and direct |
 | 検証手段の欠落 | 完了前に実行するテスト・型検査・ビルドなどが書かれていない | 実際に実行するテスト・型検査・ビルドのコマンドを明記し、実行してから完了を報告するよう書く（プロジェクト固有の検証コマンドは §3 のとおり維持する） | best-practices "Give Claude a way to verify its work" |
 
-### 7b. 世代別の再テスト候補（prompt-audit を使えない場合のみ）
+### 7b. 世代別の再テスト候補（世代依存。prompt-audit を使えない場合のみ）
 
 各行は、由来の世代で観測された挙動への補正。対象モデルが由来と異なる場合は、上の最新化手順 3 で有効性を確認するまで適用しない。
 
