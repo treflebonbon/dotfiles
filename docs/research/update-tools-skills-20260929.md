@@ -1,6 +1,6 @@
 # ツールとスキル更新（2026-09-29）
 
-`/implement ツールとスキルの更新` に基づき、main `b3f9c27` から task worktree を作成した。[ADR-0045](../adr/0045-separate-llm-agents-and-apm-update-units.md) の更新境界に従い、導入済み tool snapshot と通常の APM payload を確認した。Impeccable と Matt Pocock managed set は専用ゲートを要するため pin を維持した。モデル・権限設定と品質 floor は変更しない。
+`/implement ツールとスキルの更新` に基づき、main `b3f9c27` から task worktree を作成した。[ADR-0045](../adr/0045-separate-llm-agents-and-apm-update-units.md) の更新境界に従い、導入済み tool snapshot と通常の APM payload を確認した。Impeccable と Matt Pocock managed set は専用ゲートを要するため pin を維持した。AI ツールのモデル設定と品質 floor は変更しない。追加依頼の Bash 許可ルールは末尾に記録する。
 
 ## 採用内容
 
