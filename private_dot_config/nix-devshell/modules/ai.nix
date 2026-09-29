@@ -23,8 +23,8 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; adoption history is in ADR-0047.
-  minClaudeCode = "2.1.283";
-  minCodex = "0.157.0";
+  minClaudeCode = "2.1.284";
+  minCodex = "0.158.0";
 
   requireQualityFloor =
     {
@@ -52,14 +52,14 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "managed sandbox settings のネストされた値が1つでも不正だとブロック全体が無視されていた fail-open な挙動を修正し、不正な値だけを fail closed（無効化）して残りのブロックは引き続き適用されるようにした修正。";
+    reason = "Claude Sonnet 5.5 (`claude-sonnet-5-5`) がデフォルト Sonnet モデルとして追加された修正。";
   };
 
   codex = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
-    reason = "redirect 追従中や実行中の HTTP/WebSocket 通信でネットワーク制限が徹底されておらず、ポリシー変更によるアクセス取消も反映されていなかった不具合の修正。";
+    reason = "昇格権限付きコマンドの terminal input approval がデフォルト有効化され、runtime-only grant では不要な review が省略されるようになった修正、および exec-server の WebSocket 接続が bearer token で認証されるようになった修正。";
   };
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
