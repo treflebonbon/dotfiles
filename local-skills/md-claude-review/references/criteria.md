@@ -78,6 +78,8 @@
 | 推測可能・標準的な情報 | （Move-to ではなく Delete） |
 | 長い tutorial / API 詳細 | 該当 lib の `docs/` 配下 |
 
+この表は例で、実在を前提にしない。Move-to 先は提示する前に `Glob` で実在を確認し、実在しなければ近い既存の場所を選ぶか Delete を提示する。新規作成を提案する場合は「新規作成」と明記する。
+
 `@import` を使って CLAUDE.md から参照する形にすると、Claude のコンテキストを汚さず必要時のみロードできる（Progressive Disclosure）。
 
 ## 7. 文言品質（残す指示の言い回し）
@@ -94,8 +96,8 @@
 
 1. 対象モデルを特定する（実行中セッションのモデル ID）。
 2. WebFetch で <https://code.claude.com/docs/en/best-practices> を取得し、CLAUDE.md の書き方（含める/除外、強調、削除テスト、hook への置換）が §3〜§5 と §7a に矛盾しないか確認する。
-3. 対象モデル世代の公式 prompting / migration ガイドを取得し（best-practices 末尾の関連リンク、または <https://code.claude.com/docs/llms.txt> から辿る）、§7b の各行が対象モデルで有効かを確認する。無効または逆転している行は適用せず、レポートに「基準の更新提案」として記す。
-4. 取得できない場合は §7b を適用せず §7a のみで判定し、その旨をユーザーに伝える。
+3. 対象モデル世代の公式 prompting ガイドを取得し（best-practices 末尾の関連リンク、または <https://code.claude.com/docs/llms.txt> から辿る）、§7b の各行の挙動が記載されているかを確認する。公開の migration ページ（例: <https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide>）は API の変更点が中心で、プロンプトの挙動の節は無いことがある。記載が見つからない行は、その旨を書いて暫定のままにする。無効または逆転している行は適用せず、レポートに「基準の更新提案」として記す。
+4. §7b の行は、この実行で `prompt-audit` により確認できた場合を除き「暫定（未検証）」と明記して提示し、確定した判定としては扱わない（「検証」欄の日付があっても、この実行で再確認していなければ暫定）。§7a は検証なしで適用してよい。使った経路は判定表の冒頭に、`prompt-audit` / `代替手順（取得した範囲を併記）` / `スキップ（理由）` のいずれかで書く。
 5. 基準そのものの更新は、ユーザーの確認後にこのファイルの該当行と「検証」行を編集して行う。
 
 ### 7a. 世代に依存しない行
@@ -117,7 +119,7 @@
 | 応答の冗長化 | Opus 5 | 簡潔さの指示がなく、応答の長さを effort 設定だけで制御しようとしている | 簡潔さを定性的に指示する一文を追加する（"Keep responses focused, brief, and concise"）。語数などの数値上限は付けない |
 | 過剰検証・スコープ逸脱 | Opus 5 | "回答前に必ず自己検証する" のように、モデル自身の出力を一般的に再チェックさせる指示 | その一文だけを削除する候補。§7a の実行可能な検証手順と §3 のプロジェクト固有の検証コマンドは対象外で、削除しない |
 | subagent 委任過剰 | Opus 5 | 委任してよい場面・上限の基準が書かれていない | 委任が正当化される条件（大規模・独立・並列可能）を明示し、単純作業は自分で完結するよう指示する |
-| 進捗ナレーション過剰 | Opus 5 | 更新の頻度・粒度の指示がなく、実況が冗長になりやすい | いつ・どの粒度で報告するかを明示する（開始前に一文、要点のみ短く、完了時は結論を先に） |
+| 進捗ナレーション過剰 | Opus 5 | 更新の頻度・粒度の指示がない、または "every third tool call" のような固定間隔の指示がある | いつ・どの粒度で報告するかを明示する（開始前に一文、要点のみ短く、完了時は結論を先に） |
 | ツール使用抑制 | Sonnet 5.5 | "only use tools when strictly necessary" / "minimize tool calls" | 削除する。対象モデルは文字通りに従い、必要なツールまで使わなくなる |
 | 頑張らせる煽り | Sonnet 5.5 | "do not be lazy" / "be thorough" / "never give up" など、前世代の早期終了への補正 | 削除して再評価する。現行モデルは既定で積極的に取り組む |
 
@@ -149,7 +151,13 @@
 
 - 短縮と外出しの両方が必要なら、CLAUDE.md に何か残るなら **Trim**（残す部分を短縮し詳細は Move-to 先へ）、何も残らないなら **Move-to**。
 - §7 行が Keep ✓ と Reword ✓ の両方に印が付くのは「内容は残す（Keep）が言い回しは直す（Reword）」の意。headline の verb は **Reword** とする（Keep と並記しない）。
-- 1 セクション内に真の invariant（安全・必須）と非 invariant の過剰強調語が混在する場合は **Reword** を選び、Reword 方針の中で真の invariant の強調は残しつつ非 invariant のみ通常語へ。
+- 1 セクション内に真の invariant（安全・必須）と非 invariant の過剰強調語が混在する場合は **Reword** を選び、Reword 方針の中で真の invariant の強調は残しつつ非 invariant のみ通常語へ。強い強調が付いた真の invariant が 1 行だけのときも **Reword**（理由を添え、強調を弱める）とする。
+- 1 セクション内で行ごとに適用する行が異なるときは、行単位のサブ判定を表に並べてよく、セクション全体の headline verb を 1 つ添える。1 文だけの削除は「Reword（該当文を削除）」と表記して、ユニット全体の Delete と区別する。
+- **重複**（Delete）は、ユニットの全内容が他所で既に扱われている場合だけ。一部の重なりや、目的が異なる短い重なり（前文と Commands に同じコマンドが出る等）は Keep か Trim とする。
+- 標準的な慣用でも、理由付きでリポジトリ全体の要件として書かれていれば Keep を既定にする。判断に迷うときは Keep か Trim とし、Delete にしない（§5）。
+- §7b の複数行に当たるときは、主となる 1 行を引用し、他は補助として併記する。セクション全体が §7b の削除系の行（ツール使用抑制、頑張らせる煽り）だけで構成されるときは、そのセクションの headline verb を Delete とする。
+- 内容が推測でき、合う既存の移動先も無いとき（長い API 表など）は Delete を既定にし、新規作成の Move-to は「新規作成」と明記した代替として添える。
+- 全ユニットが同じ verb のときは、1 問にまとめて確認する。
 
 ## 出典
 
@@ -157,8 +165,8 @@
 - Claude Code best practices（§3〜§5、§7a の根拠）: https://code.claude.com/docs/en/best-practices
 - Claude 公式 prompting best practices（複数世代共通）: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
 - Claude 公式 Prompting Claude Opus 5（§7b の Opus 5 由来行）: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5
-- Claude API 公式 Migrating to Claude Sonnet 5.5 — Behavioral shifts（§7b の Sonnet 5.5 由来行、§7a の検証手段）
+- Claude API skill 同梱の model-migration ガイド「Migrating to Claude Sonnet 5.5 → Behavioral shifts」（§7b の Sonnet 5.5 由来行、§7a の検証手段）。この節は公開の migration ページには無く、`prompt-audit` が参照する
 
 ## 検証
 
-最終検証: 2026-09-29。Sonnet 5.5 セッションで best-practices ページと §3〜§5・§7a を突合し、§7b の Sonnet 5.5 由来行を migration ガイドと突合した。Opus 5 由来の 4 行は Sonnet 5.5 では未検証（再テスト候補）。新しい世代が出たら最新化手順を実行し、この行を更新する。
+最終検証: 2026-09-29。Sonnet 5.5 セッションで best-practices ページと §3〜§5・§7a を突合し、§7b の Sonnet 5.5 由来行を Claude API skill 同梱の model-migration ガイドと突合した（公開の migration ページとは未突合）。Opus 5 由来の 4 行は Sonnet 5.5 では未検証（再テスト候補）。新しい世代が出たら最新化手順を実行し、この行を更新する。
