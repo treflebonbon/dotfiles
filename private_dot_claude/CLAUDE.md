@@ -32,8 +32,6 @@
 - Question premises, not just facts: before acting on a stated assumption or "given," verify it holds in this environment rather than accepting it at face value.
 - When a claim's confidence matters to what the user does next, distinguish confirmed (verified this session), inferred (reasoned from partial evidence), and unconfirmed (not checked) rather than presenting all three in one assertive tone. </investigate_before_answering>
 
-## Parallel tool calls
-
 ## Destructive actions
 
 Confirm before executing hard-to-reverse or shared-system-affecting actions:
