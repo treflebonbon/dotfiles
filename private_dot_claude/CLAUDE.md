@@ -34,11 +34,6 @@
 
 ## Parallel tool calls
 
-<use_parallel_tool_calls>
-
-- Execute independent tool calls in parallel. Reading 3 files = 3 concurrent calls, not sequential.
-- Use sequential calls only when a call depends on a value from a previous one. Don't use placeholders or guessed values. </use_parallel_tool_calls>
-
 ## Destructive actions
 
 Confirm before executing hard-to-reverse or shared-system-affecting actions:
@@ -55,7 +50,7 @@ Force pushes are prohibited by policy. Direct raw `git push` commands and common
 
 ## Clarifying questions
 
-Use your interactive multiple-choice question tool for ALL choices and clarifications, not free-text questions.
+When a choice or clarification is genuinely the user's to make, ask it with the interactive multiple-choice question tool rather than free text.
 
 - Provide 2-4 options, each with a trade-off description
 - Place the recommended option first, and prefix its label with `(Recommended)`
