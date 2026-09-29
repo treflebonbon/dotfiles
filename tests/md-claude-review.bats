@@ -20,6 +20,13 @@ setup() {
   grep -Fq 'WebFetch(domain:code.claude.com)' "$SKILL"
 }
 
+@test "モデル固有の判定は prompt-audit に委譲し、同梱ファイルのパスを固定しない" {
+  grep -Fq 'Skill(claude-api)' "$SKILL"
+  grep -Fq 'argument `prompt-audit`' "$SKILL"
+  grep -Fq '第一手段: prompt-audit に委譲する' "$CRITERIA"
+  ! grep -Eq 'bundled-skills|shared/prompt-audit' "$SKILL"
+}
+
 @test "criteria §7 は最新化手順・世代別の由来・検証日を持つ" {
   grep -Fq '最新化手順' "$CRITERIA"
   grep -Fq 'https://code.claude.com/docs/en/best-practices' "$CRITERIA"
