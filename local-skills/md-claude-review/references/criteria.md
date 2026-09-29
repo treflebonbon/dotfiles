@@ -88,7 +88,7 @@
 
 ### 第一手段: prompt-audit に委譲する
 
-モデル固有の判定は、Anthropic が新世代ごとに更新する `prompt-audit` に委譲する。Skill tool で `claude-api` を引数 `prompt-audit` 付きで呼び、範囲は「レビュー中の CLAUDE.md 1 ファイルのみ」と明示する。このとき `shared/prompt-audit.md` のパスは書かない（同梱ディレクトリはセッションごとに変わる）。返ってきた所見のうち、確度が High または Medium の `rewrite` を Reword 候補に、`remove` を Trim / Delete 候補に取り込み、最終的な verb はこれまでどおりユーザーの確認で決める。`flag` と Low は参考として示すだけにする。`claude-api` が使えない、または呼び出しに失敗した場合は、次の最新化手順と 7a・7b で判定する。
+モデル固有の判定は、Anthropic が新世代ごとに更新する `prompt-audit` に委譲する。Skill tool で `claude-api` を引数 `prompt-audit` 付きで呼び、範囲は「レビュー中の CLAUDE.md 1 ファイルのみ」と明示する。このとき `shared/prompt-audit.md` のパスは書かない（同梱ディレクトリはセッションごとに変わる）。この呼び出しは所見を返さず、監査の手順を読み込むだけである。読み込まれた手順を、対象の 1 ファイルに対して自分で実行し（レポートと差分案のみで、何も適用しない）、その出力を所見として使う。所見のうち、確度が High または Medium の `rewrite` を Reword 候補に、`remove` を取り込む。文単位の `remove` は「Reword（該当文を削除）」、ユニット全体の `remove` は Trim / Delete とする。verb は §7b が優先し、監査は確度を供給する。監査が明示していない Opus 5 由来行への一致は、Sonnet 5.5 が対象なら Medium 止まりとする。最終的な verb はこれまでどおりユーザーの確認で決める。`flag` と Low は参考として示すだけにする。`claude-api` が使えない、または呼び出しに失敗した場合は、次の最新化手順と 7a・7b で判定する。
 
 ### 最新化手順（prompt-audit を使えない場合に毎回実行）
 
