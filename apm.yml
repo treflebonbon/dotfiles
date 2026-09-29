@@ -27,7 +27,7 @@ dependencies:
     # remotion-dev/skills
     - remotion-dev/skills/skills/remotion-best-practices#cf49eff5d4463b33966b6618c83f7295797dd028
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#22ab18dfb50a5d7e3bdcf471c14076a5534eae4e
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#84ae7251ee919239d5ea85aef25897983f26601e
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills v1.2.3 plugin collection — 公式 full set を一括管理。

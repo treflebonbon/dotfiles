@@ -460,3 +460,5 @@ Codex は公式 GitHub Release Notes（`rust-v0.158.0`）から "Terminal input 
 `settings.json.tmpl` の `"model": "sonnet"` は generic alias のため、この pin 更新だけで実行モデルが Sonnet 5.5 に追従する（advisor モデル経路の Opus 5.5 追従を確認した [ADR-0064](../docs/adr/0064-update-llm-agents-snapshot-for-opus-5-5.md) と同型の経路）。設定ファイル自体の変更は不要と判断した。
 
 採用判断と Verification Matrix は [ADR-0069](../docs/adr/0069-update-llm-agents-snapshot-for-sonnet-5-5.md)、一次情報と全依存差分は[調査ノート](../docs/research/llm-agents-and-apm-update-2026-09-29.md)を参照する。
+
+同日の定期的なツール・スキル更新では、`llm-agents.nix` を `a621acfa43a25731694a8ef64fcbd5a00241e085` へ進め、Antigravity CLI 1.2.13 を採用した。Claude Code 2.1.284、Codex 0.158.0、Copilot CLI 1.0.89、RTK 0.50.0、APM 0.32.0、Herdr 0.9.1 と品質 floor は維持する。通常 APM では Modern Web Guidance の選択済み payload の実差分を `84ae7251ee919239d5ea85aef25897983f26601e` で採用した。Anthropic の2スキル、Orca の2スキル、find-skills は選択済み内容が不変のまま floating revision のみ進んだ。採否と検証は[更新記録](../docs/research/update-tools-skills-20260929.md)を参照する。

@@ -970,6 +970,9 @@ assert data["hooks"]["Stop"] == [
 ]
 assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
 for rule in [
+    "Bash(git worktree remove:*)",
+    "Bash(herdr worktree remove:*)",
+    "Bash(orca worktree rm:*)",
     "Bash(gh pr create:*)",
     "Bash(gh pr edit:*)",
     "Bash(gh pr comment:*)",
