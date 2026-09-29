@@ -178,7 +178,7 @@ APM の変更検知には展開後の cleanup script の hash を含めるため
 - `harness-feedback` — Codex / Claude の transcript JSONL を分析し、skill/agent 指示と実際の実行の乖離パターンを検出して小さな指示修正を提案
 - `marp` — markdown を Marp CLI で PDF スライド化（marp-cli は nix devshell 配備済み）
 - `md-agents-review` — AGENTS.md / Codex rules の対話式レビュー（trim / progressive disclosure）
-- `md-claude-review` — プロジェクト CLAUDE.md の対話式レビュー（humanlayer ベストプラクティス基準）
+- `md-claude-review` — プロジェクト CLAUDE.md の対話式レビュー（humanlayer ベストプラクティス基準）。文言判定は実行モデルに合わせ、`claude-api` の `prompt-audit` に委譲し、使えない場合は best-practices ページを確認する代替手順に切り替える。評価用の `evals/`（シナリオとフィクスチャ）も他の同梱物と同じく rsync で配備される
 - `rop` — Railway Oriented Programming の two-track パターン強制（Elixir / Gleam / Rust / Effect-TS の言語別 references 同梱）
 - `worktree-gc` — 緊急時（fd/inotify 枯渇）の repo-local worktree 手動 GC。`scripts/worktree-gc.sh` 同梱。SessionStart 自動 GC hook は持ち込まない（手動起動のみ）
 
