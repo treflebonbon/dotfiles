@@ -23,7 +23,7 @@ evaluate_floor() {
   evaluate_floor codex '{ }'
   [ "$status" -ne 0 ]
   [[ "$output" == *'codex 不明'* ]]
-  [[ "$output" == *'0.158.0'* ]]
+  [[ "$output" == *'0.159.1'* ]]
 }
 
 @test "quality floor accepts the exact input packages at the approved floors" {
@@ -31,9 +31,9 @@ evaluate_floor() {
   [ "$status" -eq 0 ]
   jq -e '.version == "2.1.284" and .matchesInput' <<<"$output"
 
-  evaluate_floor codex '{ version = "0.158.0"; }'
+  evaluate_floor codex '{ version = "0.159.1"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.158.0" and .matchesInput' <<<"$output"
+  jq -e '.version == "0.159.1" and .matchesInput' <<<"$output"
 }
 
 @test "quality floor accepts the exact input packages above the approved floors" {
@@ -41,9 +41,9 @@ evaluate_floor() {
   [ "$status" -eq 0 ]
   jq -e '.version == "2.1.285" and .matchesInput' <<<"$output"
 
-  evaluate_floor codex '{ version = "0.158.1"; }'
+  evaluate_floor codex '{ version = "0.159.2"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.158.1" and .matchesInput' <<<"$output"
+  jq -e '.version == "0.159.2" and .matchesInput' <<<"$output"
 }
 
 @test "quality floor rejects null versions as unknown for each tool" {
@@ -55,21 +55,21 @@ evaluate_floor() {
 }
 
 @test "quality floor rejects versions below approved floors with concise actionable diagnostics" {
-  local tool candidate minimum diagnostic
-  while read -r tool candidate minimum; do
+  local tool candidate minimum record diagnostic
+  while read -r tool candidate minimum record; do
     evaluate_floor "$tool" "{ version = \"$candidate\"; }"
     [ "$status" -ne 0 ]
     diagnostic="${output##*error: }"
     [[ "$diagnostic" == *"$tool $candidate"* ]]
     [[ "$diagnostic" == *"$minimum"* ]]
     [[ "$diagnostic" == *'採用理由:'* ]]
-    [[ "$diagnostic" == *'docs/adr/'* ]]
+    [[ "$diagnostic" == *"$record"* ]]
     [[ "$diagnostic" == *'修復手順:'* ]]
     [[ "$diagnostic" == *'private_dot_config/nix-devshell/flake.nix'* ]]
     [ "$(wc -l <<<"$diagnostic")" -le 12 ]
   done <<'CASES'
-claude-code 2.1.276 2.1.284
-codex 0.154.9 0.158.0
+claude-code 2.1.276 2.1.284 docs/adr/0069-update-llm-agents-snapshot-for-sonnet-5-5.md
+codex 0.158.0 0.159.1 docs/adr/0070-adopt-gpt-6-1-sol.md
 CASES
 }
 

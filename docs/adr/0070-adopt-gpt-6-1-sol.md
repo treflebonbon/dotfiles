@@ -1,0 +1,24 @@
+---
+type: decision
+title: Codex 0.159.1 と GPT-6.1 Sol を採用する
+description: Codex の bundled catalog と managed model を GPT-6.1 Sol に揃える
+tags: [adr, codex, nix, model]
+timestamp: 2026-09-30
+status: accepted
+---
+
+# Codex 0.159.1 と GPT-6.1 Sol を採用する
+
+ユーザーの `/implement GPT-6.1 Sol を利用するために codex 更新` に基づく。OpenAI の[モデル資料](https://developers.openai.com/api/docs/models/gpt-6.1-sol)はモデル ID `gpt-6.1-sol` と `high` effort を明記し、[Codex 0.159.1 release](https://github.com/openai/codex/releases/tag/rust-v0.159.1) は同モデルを bundled catalog の既定へ追加した。
+
+## Decision
+
+- `llm-agents.nix` の immutable revision を `a621acfa43a25731694a8ef64fcbd5a00241e085` から `96f40e1e510d8cc7e895baae27f9cf37d2d94882` に進める。後者は [upstream PR #10071](https://github.com/numtide/llm-agents.nix/pull/10071) の Codex 0.159.1 更新コミット。2026-09-30 時点で PR は未 merge なので、main へ取り込まれた後に次回の snapshot 更新で upstream main の pin に戻す。
+- Codex quality floor を `0.159.1` に上げ、managed main model と親 agent 指示を `gpt-6.1-sol` / `high` にする。subagent の `gpt-6-luna` / `xhigh` は従来どおり。
+- parent の未コミット変更と live chezmoi source を保全し、task worktree の source だけを変更する。配備は受入後に live source から行う。
+
+## Verification
+
+`llm-agents.nix` の旧・新 revision を比較すると、devShell が選ぶ Claude Code 2.1.284、Copilot CLI 1.0.89、Antigravity CLI 1.2.13 は同じ版で、Codex のみ 0.158.0 から 0.159.1 へ変わる。Nix の 3 system 評価、Linux package 取得と CLI 起動、managed config の strict parse、Bats と型チェックを実行する。実アカウントで Codex 0.159.1 から `gpt-6.1-sol` / `high` を指定した短いリクエストは `GPT_61_HIGH_OK` を返した。
+
+全 Bats 756 件は exit 1。確認した失敗は、既存の dotenv 権限テストで `bwrap` が `Bad file descriptor` を返す件と、テストが要求する Nix store 版 `with-env` が通常の `PATH` にない件。後者は正式な `.#with-env` 出力を `PATH` に加えた単独再実行で通過した。変更対象の quality floor、Codex managed config、Nix snapshot の関連テストと型チェックは通過した。

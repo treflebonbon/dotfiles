@@ -22,9 +22,9 @@ let
     inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/markitdown/default.nix"
   ) { };
 
-  # Snapshot versions and quality floors are independent; adoption history is in ADR-0047.
+  # Snapshot versions and quality floors are independent; floor validation is in ADR-0047.
   minClaudeCode = "2.1.284";
-  minCodex = "0.158.0";
+  minCodex = "0.159.1";
 
   requireQualityFloor =
     {
@@ -32,6 +32,7 @@ let
       package,
       minimum,
       reason,
+      decision,
     }:
     let
       version = package.version or null;
@@ -40,7 +41,7 @@ let
     assert lib.assertMsg (version != null && lib.versionAtLeast version minimum) ''
       ${name} ${actual} は品質 floor ${minimum} を満たしていません。
       採用理由: ${reason}
-      判断経緯: dotfiles の docs/adr/0047-test-quality-floors-through-package-outputs.md
+      判断経緯: dotfiles の ${decision}
       修復手順:
         validated task worktree で private_dot_config/nix-devshell/flake.nix の llm-agents revision を確認・更新し、
         nix flake lock ./private_dot_config/nix-devshell を実行してください。
@@ -53,13 +54,15 @@ let
     package = llm.claude-code;
     minimum = minClaudeCode;
     reason = "Claude Sonnet 5.5 (`claude-sonnet-5-5`) がデフォルト Sonnet モデルとして追加された修正。";
+    decision = "docs/adr/0069-update-llm-agents-snapshot-for-sonnet-5-5.md";
   };
 
   codex = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
-    reason = "昇格権限付きコマンドの terminal input approval がデフォルト有効化され、runtime-only grant では不要な review が省略されるようになった修正、および exec-server の WebSocket 接続が bearer token で認証されるようになった修正。";
+    reason = "GPT-6.1 Sol が bundled model catalog の既定モデルとして追加された版。";
+    decision = "docs/adr/0070-adopt-gpt-6-1-sol.md";
   };
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
