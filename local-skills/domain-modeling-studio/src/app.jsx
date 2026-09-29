@@ -769,6 +769,9 @@ const App = ({ seed }) => {
             <span className="revision">
               {doc.repository.revision.slice(0, 12)}
             </span>
+            <span className="revision">
+              セッション: {doc.sessionId} · 版: {doc.revision}
+            </span>
           </p>
         </div>
         <div className="actions">

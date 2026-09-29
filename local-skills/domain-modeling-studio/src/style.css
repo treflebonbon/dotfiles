@@ -120,6 +120,7 @@ p {
   margin: 6px 0 0;
   color: #536b66;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .revision {
   padding-inline: 10px;

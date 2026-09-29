@@ -76,6 +76,12 @@ try {
   });
   page.on("dialog", (d) => d.accept());
   await page.goto(pathToFileURL(output).href);
+  const header = page.locator(".topbar p");
+  assert.equal(await header.isVisible(), true);
+  assert.match(
+    await header.textContent(),
+    /セッション: example-session · 版: r1/u
+  );
   await page
     .getByLabel("レビュー対象", { exact: true })
     .selectOption("node:request");
