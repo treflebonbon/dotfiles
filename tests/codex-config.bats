@@ -1666,6 +1666,34 @@ EOF
   grep -Fq '"**/.env*" = "deny"' "$home/.codex/config.toml"
 }
 
+@test "Codex sandbox keeps public files readable with two independent denied-file masks" {
+  local fixture_home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  mkdir -p "$fixture_home/.codex" "$workspace"
+  printf 'fixture\n' >"$workspace/.env.example"
+  printf 'dummy\n' >"$workspace/first.key"
+  printf 'dummy\n' >"$workspace/second.key"
+  cat >"$fixture_home/.codex/config.toml" <<'EOF'
+[permissions.test]
+extends = ":workspace"
+[permissions.test.filesystem.":workspace_roots"]
+"first.key" = "deny"
+"second.key" = "deny"
+EOF
+
+  run env HOME="$fixture_home" CODEX_HOME="$fixture_home/.codex" TMPDIR=/tmp \
+    codex sandbox -P test -C "$workspace" -- \
+    sh -c 'test "$(cat .env.example)" = fixture'
+  [ "$status" -eq 0 ]
+  local path
+  for path in first.key second.key; do
+    run env HOME="$fixture_home" CODEX_HOME="$fixture_home/.codex" TMPDIR=/tmp \
+      codex sandbox -P test -C "$workspace" -- cat "$path"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'Permission denied'* ]]
+  done
+}
+
 @test "Codex config migration keeps dotenv denied and public examples readable without a raw read grant" {
   local fixture_home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"

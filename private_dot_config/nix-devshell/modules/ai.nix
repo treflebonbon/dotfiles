@@ -57,13 +57,21 @@ let
     decision = "docs/adr/0069-update-llm-agents-snapshot-for-sonnet-5-5.md";
   };
 
-  codex = requireQualityFloor {
+  codexBase = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
     reason = "GPT-6.1 Sol が bundled model catalog の既定モデルとして追加された版。";
     decision = "docs/adr/0070-adopt-gpt-6-1-sol.md";
   };
+  codex =
+    if pkgs.stdenv.isLinux then
+      codexBase.overrideAttrs (old: {
+        inherit (codexBase) version src;
+        patches = (old.patches or [ ]) ++ [ ../packages/codex-distinct-mask-fds.patch ];
+      })
+    else
+      codexBase;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
