@@ -380,6 +380,7 @@ EOF
 }
 
 @test "managed Playwright refuses a Managed Dogfood Chrome owner" {
+  export PWCLI_TEST_WSL=1
   "$MANAGED_CHROME_OWNER" reserve --role dogfood --id dogfood-run-1 --pid "$$" \
     --mode headed --profile 'C:\Temp\aiakos-dogfood-dogfood-run-1' --endpoint http://127.0.0.1:49152
 
@@ -1221,6 +1222,7 @@ EOF
 }
 
 @test "two worktrees open independent browsers and closing A leaves B usable" {
+  export PWCLI_TEST_WSL=1
   mkdir -p "$BATS_TEST_TMPDIR/a" "$BATS_TEST_TMPDIR/b"
   cd "$BATS_TEST_TMPDIR/a"
   run bash "$WRAPPER" -s=alpha open http://localhost:3001
@@ -1272,6 +1274,7 @@ EOF
 }
 
 @test "same session name uses independent registries across worktrees and stable registry in subdirectories" {
+  export PWCLI_TEST_WSL=1
   mkdir -p "$BATS_TEST_TMPDIR/first/sub" "$BATS_TEST_TMPDIR/second"
   git -C "$BATS_TEST_TMPDIR/first" init -q
   git -C "$BATS_TEST_TMPDIR/second" init -q
