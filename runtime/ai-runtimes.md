@@ -349,7 +349,7 @@ Claude Code は 2.1.260 で `permissions.blockReadsOutsideWorkingDirectories` �
 以下は release 更新時の認識記録であり、現在の managed settings は上記「Claude Code / Codex マルチランタイム」を正とする。ワークフロー側ドキュメント（CLAUDE.md の設計→実装ワークフロー / [skill-harness](skill-harness.md)）からはここを参照する。
 
 - **subagent が既定で background 実行**（2.1.198）— 委譲中も本流が進み完了通知が来る。`teammateMode: auto` と整合。
-- **worktree 完了時に自動 commit / push / draft PR**（2.1.198）— `claude agents` 起動の background agent は worktree でのコード作業を終えると停止して尋ねず自動で draft PR を開く。native worktree での作業と `to-pr` の想定が重なるので二重 PR に注意。
+- **worktree 完了時に自動 commit / push / draft PR**（2.1.198）— `claude agents` 起動の background agent は worktree でのコード作業を終えると停止して尋ねず自動で draft PR を開く。native worktree での作業と `implement-spec` の draft PR 作成やユーザー依頼による PR 公開が重なるため、公開前に同じ topic branch の既存 PR を確認する。
 - **stacked slash-skill が先頭 5 個までロード**（2.1.199）— `/skill-a /skill-b ...` で先頭 skill だけでなく先頭 5 個を全ロード。user-invoked チェーンの連結起動に効く。
 - **subagent の error 伝搬修正**（2.1.199）— rate-limit / API error を「成功」と誤報せず親へ正確に伝える。多 agent 実行の信頼性が上がる。
 - **Explore agent が main model を継承**（opus cap, 2.1.198）／**`/agents` wizard 削除**（`.claude/agents/` 直接編集 or Claude に依頼）。

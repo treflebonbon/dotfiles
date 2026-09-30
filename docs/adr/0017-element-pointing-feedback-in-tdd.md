@@ -23,7 +23,7 @@ Claude Code にも同種の対話チャネルとして `claude-in-chrome`（Clau
 ## Decision
 
 - issue #31 が提起した「to-prのブラウザ選択」ではなく、**`tdd` の実装ループにおけるブラウザ選択**として扱う。`to-pr` の UI verification procedure（`playwright-cli` によるエージェント自律検証）は変更しない。
-- この対話チャネルを [CONTEXT.md](../../CONTEXT.md) に「要素指差しフィードバック」として命名し、`Verification Matrix` と混同されないよう `_Avoid_: UI verification, ブラウザ検証` を明記した。
+- この対話チャネルを [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) に「要素指差しフィードバック」として命名し、`Verification Matrix` と混同されないよう `_Avoid_: UI verification, ブラウザ検証` を明記した。
 - CLAUDE.md の「## ブラウザ操作ツール」節に、実行ランタイムごとの対応（Codex app（in-app browser）: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）を追記する。ランタイム検出ロジックは導入しない — 実行中のエージェントは自身のランタイムの機能を把握しているため、`to-worktree` の Orca 分岐（ADR-0011）のような明示的な検出手順は不要と判断した。
 - Antigravity 2.0 の対応は今回確認できなかったため明記せず、判明次第追記する。
 
@@ -33,4 +33,4 @@ Claude Code にも同種の対話チャネルとして `claude-in-chrome`（Clau
 - 将来 Antigravity 2.0 の同等機能が判明した場合、CLAUDE.md / CONTEXT.md の該当箇所に追記が必要。
 - 「要素指差しフィードバック」という語は、今後 `tdd` 実装時の会話で `playwright-cli` や `claude-in-chrome`（`to-pr` 文脈）と混同せず使う。
 
-関連: [issue #31](https://github.com/treflebonbon/dotfiles/issues/31) / [CONTEXT.md](../../CONTEXT.md) / [ADR-0011](0011-orca-skills-via-apm.md)
+関連: [issue #31](https://github.com/treflebonbon/dotfiles/issues/31) / [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) / [ADR-0011](0011-orca-skills-via-apm.md)

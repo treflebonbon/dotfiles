@@ -61,4 +61,4 @@ report の書込み途中の内容を完了状態として公開しない。repo
 
 [ADR-0038](0038-keep-wsl2-browser-free.md) の証跡収集対象と WSL2 の video-free 契約は維持し、収集に失敗した実行の報告・レビュー条件を本決定で明確にする。正常系の実機検証で取得成功を確認する責務は、警告付き完了の導入によって省略しない。Managed Chrome の所有権と復旧条件は [ADR-0047](0047-centralize-managed-chrome-ownership.md) を維持する。
 
-関連: [CONTEXT.md](../../CONTEXT.md) / [Dogfood runner](../../local-skills/dogfood/references/playwright-dogfood-runner.mjs) / [Report Parsing](../../local-skills/dogfood/references/report-parsing.md)
+関連: [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) / [Dogfood runner](../../local-skills/dogfood/references/playwright-dogfood-runner.mjs) / [Report Parsing](../../local-skills/dogfood/references/report-parsing.md)

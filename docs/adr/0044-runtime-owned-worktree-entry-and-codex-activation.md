@@ -73,16 +73,16 @@ root dotenv の書込み、別名・下位・別 repo の秘密、home 保護対
 
 ## Verification Matrix
 
-| Contract                                                        | Public seam                                                                                                      |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| linked worktree の working root と Active Git Metadata Boundary | `codex-worktree` が Codex へ渡す fixed profile / `-C` / exact `-c`、ambient profile 除去、sandboxed Git write    |
-| invalid context の fail-closed                                  | primary checkout / non-Git / unresolved・foreign-owned metadata で Codex stub が未起動、relative metadata は起動 |
-| Orca compatibility                                              | `codex-orca` の全 argv forwarding                                                                                |
-| managed profile の静的例外撤去と deny 維持                      | chezmoi rendered config と native / explicit `CODEX_HOME` の merge migration                                     |
-| runtime routing                                                 | `to-worktree`、`AGENTS.md`、`CLAUDE.md` の workflow contract tests                                               |
+| Contract | Public seam |
+| --- | --- |
+| linked worktree の working root と Active Git Metadata Boundary | `codex-worktree` が Codex へ渡す fixed profile / `-C` / exact `-c`、ambient profile 除去、sandboxed Git write |
+| invalid context の fail-closed | primary checkout / non-Git / unresolved・foreign-owned metadata で Codex stub が未起動、relative metadata は起動 |
+| Orca compatibility | `codex-orca` の全 argv forwarding |
+| managed profile の静的例外撤去と deny 維持 | chezmoi rendered config と native / explicit `CODEX_HOME` の merge migration |
+| runtime routing | `to-worktree`、`AGENTS.md`、`CLAUDE.md` の workflow contract tests |
 
 ## Consequences
 
 worktree isolation と technical sandbox を同一視せず、各 runtime の native ownership を維持したまま raw Codex / Orca だけに portable な narrow activation を与えられる。新規 raw CLI worktree は fresh session を一回必要とするが、session 中の権限拡大や primary checkout の変更を workflow の通常経路にしない。
 
-関連: [CONTEXT.md](../../CONTEXT.md) / [skill-harness](../../runtime/skill-harness.md) / [to-worktree](../../local-skills/to-worktree/SKILL.md) / [OpenAI Permissions](https://learn.chatgpt.com/docs/permissions) / [OpenAI Developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+関連: [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) / [skill-harness](../../runtime/skill-harness.md) / [to-worktree](../../local-skills/to-worktree/SKILL.md) / [OpenAI Permissions](https://learn.chatgpt.com/docs/permissions) / [OpenAI Developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli)

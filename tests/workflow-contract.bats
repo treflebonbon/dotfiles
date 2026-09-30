@@ -47,6 +47,8 @@ setup() {
     grep -Fq '`implement-spec`' "$instructions"
     grep -Fq '`pr`' "$instructions"
     grep -Fq '`retro`' "$instructions"
+    grep -Fq 'Integration Branch／PR' "$instructions"
+    grep -Fq '`GLOSSARY.md`' "$instructions"
     ! grep -Eq 'to-pr|batch-implement|harness-feedback' "$instructions"
   done
   grep -Fq '一つの Integration Branch' "$RUNTIME"
@@ -59,6 +61,7 @@ setup() {
   [ ! -e "$PROJECT_ROOT/CONTEXT.md" ]
   grep -Fxq 'GLOSSARY.md' "$PROJECT_ROOT/.chezmoiignore"
   grep -Fq '**Integration Branch**' "$PROJECT_ROOT/GLOSSARY.md"
+  ! grep -Eq 'to-pr|batch-implement|harness-feedback' "$PROJECT_ROOT/runtime/ai-runtimes.md"
 }
 
 @test "local workflow overrides preserve triage, review base, and Review Round authority" {

@@ -23,6 +23,8 @@ status: accepted
 
 APM manifest／native lock、managed set の保持・撤去、AGENTS.md／CLAUDE.md、runtime 文書、domain 設定、関連テストを同じ更新単位で整合させる。撤去する3スキルは同梱 script／reference を含めて source から取り除き、`localSkills.retired` へ登録する。廃止した機能の helper・テスト・現行文書の参照も整理し、過去の ADR／調査記録は履歴として保持する。旧名の互換 alias や代替ローカル skill は作らない。
 
+外部スキルの `resolving-merge-conflicts` は cleanup script の `retired_apm_skills` で管理し、共有ハブ・Claude・旧 Codex native／app からだけ撤去する。Gemini／Copilot の独立インストールは保持する。過去の ADR／調査記録の旧名称は当時の記述として保持し、改名前の用語集への相対リンクは移行前の commit に固定する。
+
 [既存の更新ゲート](0042-mattpocock-managed-set-update-gate.md)を27 skillと新しい標準契約に合わせて更新し、隔離環境の APM install／frozen no-rewrite／audit、両配布先の discovery、関連テスト・全 Bats、chezmoi dry-run を通す。導入先の live source／HOME への反映は受入・merge 後の配備境界で行う。
 
 本決定は ADR-0040／0041 の25-skill membership と旧実装フロー、ADR-0016／0027／0052 の独自 PR 出口契約、ADR-0023 の `harness-feedback` 評価手順を置き換える。各記録は当時の判断として保持する。

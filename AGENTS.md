@@ -27,6 +27,8 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。
 
+仕様全体の一括実装では `implement-spec` で一つの Integration Branch／PR に集約し、詳細は `runtime/skill-harness.md` の「一括実装」を読む。コード探索前に `GLOSSARY.md` と対象領域の ADR を読む。用語・domain 文書を編集するときは `docs/agents/domain.md` に従う。
+
 ## ブラウザ操作ツール
 
 Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright-cli` または CDP、外部 browser window や native app の OS/window-level 操作は `computer-use` を使う。Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、実行ランタイムの要素指差しフィードバック機能を追加チャネルとして使う。役割の違いは ADR-0017 を参照する。

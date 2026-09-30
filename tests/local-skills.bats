@@ -44,8 +44,12 @@ setup() {
 @test "standard workflow migration retires local skills and the removed upstream skill without redeployment" {
   setup_skill_apply
   mkdir -p "$SKILL_HOME/.codex-app/skills" "$SKILL_HOME/.agents/skills/user-owned"
-  local dir skill
+  local dir skill root
   local retired=(batch-implement to-pr harness-feedback resolving-merge-conflicts)
+  for root in "$SKILL_HOME/.gemini/skills" "$SKILL_HOME/.copilot/skills"; do
+    mkdir -p "$root/resolving-merge-conflicts"
+    printf 'independent skill\n' >"$root/resolving-merge-conflicts/SKILL.md"
+  done
   for dir in .agents .claude .codex .codex-app; do
     for skill in "${retired[@]}"; do
       mkdir -p "$SKILL_HOME/$dir/skills/$skill"
@@ -62,6 +66,9 @@ setup() {
     done
     [ -d "$SKILL_HOME/.agents/skills/user-owned" ]
     [ -f "$SKILL_HOME/.agents/skills/dogfood/SKILL.md" ]
+    for root in "$SKILL_HOME/.gemini/skills" "$SKILL_HOME/.copilot/skills"; do
+      grep -Fxq 'independent skill' "$root/resolving-merge-conflicts/SKILL.md"
+    done
   done
 }
 

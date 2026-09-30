@@ -41,15 +41,15 @@ timestamp: 2026-09-07
 
 以下の版はテスト入力であり、上位版の release が実在するという主張ではない。
 
-| 入力・変更                            | Claude Code  | Codex        | 期待結果                                                      |
-| ------------------------------------- | ------------ | ------------ | ------------------------------------------------------------- |
-| 承認済み floor の直前                 | 2.1.260      | 0.153.3      | 評価失敗。対象ツール・実際の版・必要な floor と修復情報を示す |
-| 承認済み floor と同値                 | 2.1.261      | 0.153.4      | 評価成功。入力の対象 package を採用する                       |
-| floor より上位の版                    | 2.1.262      | 0.153.5      | 評価成功。入力の対象 package を採用する                       |
-| version 属性なし／null                | 共通         | 共通         | 評価失敗。version が不明であることを示す                      |
-| 実装の floor だけを引き下げる         | 共通         | 共通         | 拒否されるべき直前の版が通るため、テスト失敗                  |
-| 対象 package の公開時に判定を迂回する | 共通         | 共通         | 拒否ケースのテスト失敗                                        |
-| 現行 snapshot の通常の配備入口        | 対応3 system | 対応3 system | default / wsl の devShell 評価成功                            |
+| 入力・変更 | Claude Code | Codex | 期待結果 |
+| --- | --- | --- | --- |
+| 承認済み floor の直前 | 2.1.260 | 0.153.3 | 評価失敗。対象ツール・実際の版・必要な floor と修復情報を示す |
+| 承認済み floor と同値 | 2.1.261 | 0.153.4 | 評価成功。入力の対象 package を採用する |
+| floor より上位の版 | 2.1.262 | 0.153.5 | 評価成功。入力の対象 package を採用する |
+| version 属性なし／null | 共通 | 共通 | 評価失敗。version が不明であることを示す |
+| 実装の floor だけを引き下げる | 共通 | 共通 | 拒否されるべき直前の版が通るため、テスト失敗 |
+| 対象 package の公開時に判定を迂回する | 共通 | 共通 | 拒否ケースのテスト失敗 |
+| 現行 snapshot の通常の配備入口 | 対応3 system | 対応3 system | default / wsl の devShell 評価成功 |
 
 拒否診断は必要な情報を検証し、長い履歴文の全文や内部の変数名を固定しない。差し替えた対象ツール以外は有効な入力にし、片方の拒否がもう片方の検証を隠さないようにする。文字列中心の floor テストは、この振舞いの検証へ置き換える。
 
@@ -59,7 +59,7 @@ timestamp: 2026-09-07
 
 `--no-build` の評価は CLI 機能の動作や実ビルド成功を証明しない。未キャッシュの Nix input は取得が必要になるため、評価のみであることとネットワーク不要であることも区別する。今回の判定テストは、ツール更新時に要求する [既存の検証境界](../adr/0045-separate-llm-agents-and-apm-update-units.md#verification-boundary) を代替しない。
 
-用語は [CONTEXT.md](../../CONTEXT.md) の「品質 floor」「品質 floor 判定」に従う。
+用語は [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) の「品質 floor」「品質 floor 判定」に従う。
 
 ## 実装結果（2026-09-07）
 
@@ -67,13 +67,13 @@ ai.nix 内の非公開関数が共通の判定と診断を持ち、Claude Code �
 
 `tests/ai-quality-floor.bats` は実際の flake input と nixpkgs の比較処理を使い、`packages` 出力を通して各条件を検証する。version metadata を変えた fixture は元と異なる derivation identity を持つため、入力の取り違えも検出する。旧 floor の値・変数名・履歴文に対する grep は置き換えた。
 
-| 検証                                                                                                             | 結果                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 検証 | 結果 |
+| --- | --- |
 | `env -u FORCE_COLOR LC_ALL=C bats --print-output-on-failure tests/ai-quality-floor.bats tests/nix-devshell.bats` | 37/37 成功。floor 専用7テスト、対応3 system の default / wsl 評価、既存 code-review-graph smoke を含む |
-| 一時コピーでの変更検出                                                                                           | Claude／Codex それぞれの floor 引き下げ・判定迂回の4件すべてで、拒否ケースのテスト失敗を確認           |
-| `bunx --no-install tsc --noEmit`                                                                                 | 成功                                                                                                   |
-| Nixfmt、ShellCheck、shfmt、Markdown 書式、差分・ローカルリンク                                                   | 成功                                                                                                   |
-| `env -u FORCE_COLOR LC_ALL=C bun run test`                                                                       | 414/414 成功                                                                                           |
+| 一時コピーでの変更検出 | Claude／Codex それぞれの floor 引き下げ・判定迂回の4件すべてで、拒否ケースのテスト失敗を確認 |
+| `bunx --no-install tsc --noEmit` | 成功 |
+| Nixfmt、ShellCheck、shfmt、Markdown 書式、差分・ローカルリンク | 成功 |
+| `env -u FORCE_COLOR LC_ALL=C bun run test` | 414/414 成功 |
 
 `code-review` は `1744012...47714f4` を対象に Standards／Spec の2軸で実施し、それぞれ指摘0件だった。
 

@@ -37,4 +37,4 @@ ADR-0031 は通常の Playwright 操作を Windows の Managed Playwright Chrome
 - browser-free outputへの移行後も、既にrealize済みのbrowser pathは通常のNix GCまでstoreに残り得る。本変更は自動GCを行わず、managed closureが参照も起動もしないことを保証する。
 - 本ADRは[ADR-0031](0031-managed-playwright-chrome-on-wsl2.md)のDecision 5にあるWSL明示override、WSL内browserを互換経路として配布するconsequence、dogfoodと競合する単一identity前提を置き換える。Managed Playwright Chromeのprofile分離、headless / headed mode、排他lease、認証境界、通常操作でのno-fallbackは維持する。
 
-関連: [CONTEXT](../../CONTEXT.md) / [skill-harness](../../runtime/skill-harness.md) / [architecture](../architecture.md) / [ADR-0031](0031-managed-playwright-chrome-on-wsl2.md)
+関連: [CONTEXT](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) / [skill-harness](../../runtime/skill-harness.md) / [architecture](../architecture.md) / [ADR-0031](0031-managed-playwright-chrome-on-wsl2.md)
