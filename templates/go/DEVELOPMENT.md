@@ -18,7 +18,9 @@ exit
 nix run .#with-env -- go version
 ```
 
-`flake.nix` と生成した `flake.lock` をコミットする。言語用 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
+`flake.nix` と生成した `flake.lock` をコミットする。共有 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統で、検証済み dotfiles revision に固定した共通 `with-env` と formatter に使う。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
+
+Go と周辺ツールは `nixpkgs-language-sources` の固定 revision から取得する。Go 1.27.1、Go 1.27.1 でビルドした `golangci-lint` 2.14.0 と `gopls` 0.23.0 を組み合わせ、compiler より古い Go でビルドされた lint / LSP が解析を拒否する問題を避ける。共通 `with-env` と formatter は共有チャンネルを使う。
 
 ## 人間向けコマンドごとの dotenv
 

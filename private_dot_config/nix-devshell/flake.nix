@@ -5,6 +5,12 @@
     # Keep the shared package set fixed while AI tools advance through pinned sources.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
+    # 共有チャンネルに未収録の安定版言語パッケージの取得元。
+    nixpkgs-language-sources = {
+      url = "github:NixOS/nixpkgs/7a0f122f5090cf4c2ade2a13a0e229d4e19ba71f";
+      flake = false;
+    };
+
     # Source only: backport selected package definitions onto 26.05 without
     # moving the shared package set (document converters and FastMCP for CRG).
     nixpkgs-ai-sources = {
