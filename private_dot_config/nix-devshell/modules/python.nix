@@ -3,7 +3,7 @@
 {
   packages = with pkgs; [
     # Toolchain
-    python3
+    python314
     uv
 
     # LSP / Linter
