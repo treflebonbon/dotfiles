@@ -2,17 +2,20 @@ name: Bats
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: bats-${{ github.event.pull_request.number }}
+  group: bats-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
-    name: Bats (Linux)
+    name: ${{ github.event_name == 'pull_request' && 'Bats (Linux)' || 'Nix cache (Linux)' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
@@ -25,7 +28,13 @@ jobs:
           extra_nix_config: |
             extra-substituters = https://nix-community.cachix.org https://cache.numtide.com
             extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
-      - name: Bats の実行
+      - name: Nix store のキャッシュ
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.nix', '**/flake.lock', 'private_dot_config/nix-devshell/**', 'private_dot_local/**', 'local-skills/dogfood/**') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+          gc-max-store-size-linux: 0
+      - name: devShell の準備と PR テスト
         shell: bash
         run: |
           export HOME="$RUNNER_TEMP/bats-home"
@@ -34,5 +43,10 @@ jobs:
           export XDG_CACHE_HOME="$HOME/.cache"
           unset CODEX_HOME CLAUDE_CONFIG_DIR
           mkdir -p "$HOME"
-          time nix develop ./private_dot_config/nix-devshell --command \
-            nix develop . --command bun run test
+          test_command=(true)
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            test_command=(bun run test)
+          fi
+          time nix develop ./private_dot_config/nix-devshell --profile "$RUNNER_TEMP/nix-user-profile" --command \
+            nix develop . --profile "$RUNNER_TEMP/nix-repo-profile" --command \
+              "${test_command[@]}"

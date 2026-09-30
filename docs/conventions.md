@@ -17,6 +17,8 @@ tags: [conventions, git, lint, lefthook]
 
 PR ごとに [Bats workflow](../.github/workflows/bats.yml) が Linux で通常の全 Bats を実行する。ユーザー devShell と repo devShell を重ね、実 Codex の sandbox 検証を含むツールを揃え、隔離 HOME で `bun run test` を実行する。認証・実モデル等の opt-in 検証は既定の skip を維持する。CI が失敗したら原因を直し、成功を確認してから merge する。GitHub の required check 設定による強制は行わない。
 
+Nix store は GitHub Actions cache で再利用する。main への push では devShell の準備だけを行い、別の PR でも復元できるキャッシュを保存する。Nix 定義・lock・ローカル package source の変更で key を更新し、以前のキャッシュも prefix で復元して不足分を build する。保存前の runner 内 GC では、二つの devShell の profile が実行用 closure を保護する。初回やキャッシュの失効時は通常の build が必要になる。ローカル lefthook は引き続き pre-commit の lint を担当する。
+
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。
 
 関連: [architecture](architecture.md)（本ファイルも repo ローカル専用、`.chezmoiignore` で `~/docs/` へは非配備）
