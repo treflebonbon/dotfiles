@@ -18,7 +18,9 @@ exit
 nix run .#with-env -- perl --version
 ```
 
-`flake.nix` と生成した `flake.lock` をコミットする。言語用 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
+`flake.nix` と生成した `flake.lock` をコミットする。共有 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
+
+Perl 5.42.3 と perlnavigator は `nixpkgs-language-sources` の固定 revision の package set から取得する。Perl は現行の 5.42 系列の保守版を使い、共通 `with-env` と formatter は共有 nixpkgs を使う。
 
 ## 人間向けコマンドごとの dotenv
 

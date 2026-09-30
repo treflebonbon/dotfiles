@@ -22,6 +22,8 @@ nix run .#with-env -- rustc --version
 
 `flake.nix` と生成した `flake.lock` をコミットする。言語用 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
 
+Rust 1.98.1 は rust-overlay の固定バージョンを使い、rust-analyzer は `nixpkgs-language-sources` の固定 revision から取得する。言語本体と LSP を別々に選び、古い共有チャンネルの LSP を持ち込まない。
+
 ## 人間向けコマンドごとの dotenv
 
 実値を使う場合は後述の別環境で固定コードを確認してから実行する。任意の root `.env` は `nix run .#with-env -- <command> [args...]` で指定したコマンドと子だけへ渡す。人間の明示実行に trust 登録は不要。サブディレクトリでは `nix run ..#with-env -- ...` など root の app を指定し、作業ディレクトリはそのまま保つ。

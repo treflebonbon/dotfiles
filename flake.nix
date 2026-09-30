@@ -3,10 +3,19 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-node-sources = {
+      url = "github:NixOS/nixpkgs/dc8993a5c130c05a8565579014968a112d416d76";
+      flake = false;
+    };
   };
 
   outputs =
-    { self, nixpkgs, ... }:
+    {
+      self,
+      nixpkgs,
+      nixpkgs-node-sources,
+      ...
+    }:
     let
       systems = [
         "x86_64-linux"
@@ -56,6 +65,7 @@
         system:
         let
           pkgs = pkgsFor.${system};
+          nodePkgs = import nixpkgs-node-sources { inherit system; };
           basePackages = with pkgs; [
             chezmoi
             lefthook
@@ -72,7 +82,7 @@
               p.bats-support
               p.bats-assert
             ]))
-            nodejs_24
+            nodePkgs.nodejs_24
             bun
             pythonFor.${system}
             self.packages.${system}.with-env
