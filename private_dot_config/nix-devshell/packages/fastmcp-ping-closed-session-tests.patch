@@ -1,0 +1,40 @@
+--- a/tests/server/middleware/test_ping.py
++++ b/tests/server/middleware/test_ping.py
+@@ -6,0 +7,2 @@
++from mcp.shared.exceptions import McpError
++from mcp.types import CONNECTION_CLOSED, ErrorData
+@@ -241,0 +244,34 @@
++
++
++class TestPingConnectionClose:
++    @pytest.mark.parametrize("error", [
++        anyio.ClosedResourceError(),
++        anyio.BrokenResourceError(),
++        McpError(ErrorData(code=CONNECTION_CLOSED, message="Connection closed")),
++    ])
++    async def test_stops_after_connection_close(self, error):
++        middleware = PingMiddleware(interval_ms=1)
++        session = MagicMock()
++        session.send_ping = AsyncMock(side_effect=error)
++        session_id = id(session)
++        middleware._active_sessions.add(session_id)
++
++        await middleware._ping_loop(session, session_id)
++
++        session.send_ping.assert_awaited_once()
++        assert session_id not in middleware._active_sessions
++
++    @pytest.mark.parametrize("code", [-32603, CONNECTION_CLOSED])
++    async def test_other_protocol_errors_propagate(self, code):
++        middleware = PingMiddleware(interval_ms=1)
++        session = MagicMock()
++        session.send_ping = AsyncMock(side_effect=McpError(
++            ErrorData(code=code, message="Unexpected protocol error")
++        ))
++        session_id = id(session)
++        middleware._active_sessions.add(session_id)
++
++        with pytest.raises(McpError, match="Unexpected protocol error"):
++            await middleware._ping_loop(session, session_id)
++
++        assert session_id not in middleware._active_sessions

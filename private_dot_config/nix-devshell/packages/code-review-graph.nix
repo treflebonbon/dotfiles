@@ -15,12 +15,23 @@ let
   python = python3.override {
     self = python;
     packageOverrides = final: _prev: {
-      fastmcp = final.callPackage (
-        inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/fastmcp/default.nix"
-      ) { };
-      fastmcp-slim = final.callPackage (
-        inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/fastmcp-slim/default.nix"
-      ) { };
+      fastmcp =
+        (final.callPackage (
+          inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/fastmcp/default.nix"
+        ) { }).overridePythonAttrs
+          (old: {
+            patches = (old.patches or [ ]) ++ [ ./fastmcp-ping-closed-session-tests.patch ];
+            postPatch = (old.postPatch or "") + ''
+              patch -d fastmcp_slim -p1 < ${./fastmcp-ping-closed-session.patch}
+            '';
+          });
+      fastmcp-slim =
+        (final.callPackage (
+          inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/fastmcp-slim/default.nix"
+        ) { }).overridePythonAttrs
+          (old: {
+            patches = (old.patches or [ ]) ++ [ ./fastmcp-ping-closed-session.patch ];
+          });
       tree-sitter-language-pack = final.callPackage ./tree-sitter-language-pack-0_13.nix { };
     };
   };

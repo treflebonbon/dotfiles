@@ -1,0 +1,15 @@
+--- a/fastmcp/server/middleware/ping.py
++++ b/fastmcp/server/middleware/ping.py
+@@ -5,0 +6,2 @@
++from mcp.shared.exceptions import McpError
++from mcp.types import CONNECTION_CLOSED
+@@ -70 +72,8 @@
+-                except anyio.ClosedResourceError:
++                except (anyio.ClosedResourceError, anyio.BrokenResourceError):
++                    return
++                except McpError as error:
++                    if (
++                        error.error.code != CONNECTION_CLOSED
++                        or error.error.message != "Connection closed"
++                    ):
++                        raise
