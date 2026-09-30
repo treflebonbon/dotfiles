@@ -489,6 +489,7 @@ else
 fi
 (
   cd -- "$SOURCE_DIR"
+  unset MATTPOCOCK_GATE_LOG
   bats "$SOURCE_DIR/tests"
 )
 export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"

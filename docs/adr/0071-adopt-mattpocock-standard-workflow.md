@@ -35,4 +35,10 @@ APM 0.32.0 の空の隔離 cwd／HOME で実 manifest から native lock を生�
 
 配布・撤去テストでは、旧3ローカルスキルと `resolving-merge-conflicts` が共有ハブ・Claude・旧 Codex native／app から撤去され、再実行でも戻らず、未知の共有ハブ entry と残すローカル skill が保持されることを確認した。新しい3スキルの契約を欠く候補は更新ゲートで reject する。
 
-live 配備は受入・merge 後に残す。
+実 APM ゲートでは lock generation／frozen install／audit／両配布先の46 skillの discovery／関連70テストが成功した。source 候補の native lock の SHA-256 は `dad04830676fa562bad12cc043027dda5308323cf0a55fdb412126b7a64704f9`。隔離 HOME の chezmoi dry-run は別途実行し、ファイル内容・symlink・path 集合が不変であることを確認した。
+
+全 Bats は repo の devShell から、隔離 HOME と source worktree の cwd で再実行し、721件中686件成功・34件 skip・1件失敗だった。失敗は `tests/codex-config.bats` の公開 dotenv fixture を読めることの検証で、Codex 0.159.1 の sandbox が `.env.local: Bad file descriptor` を返した。同じ検証を移行前の base `8ffc5653` の source でも実行し、同じ失敗を確認した。skip は materialized hook・配布 package・実環境への opt-in 等の既存条件による。
+
+全 Bats を隔離 runtime の cwd で起動していたゲートを source cwd へ戻した。また、入れ子のゲートテストが親の phase log を上書きしないよう、全 Bats へ渡す `MATTPOCOCK_GATE_LOG` を解除した。既存の ordered-seam テストで各不具合を red にしてから修正し、ゲートの14テスト・shfmt・shellcheck が成功した。型検査と通常の commit hook も成功し、実装差分と cwd 修正の規約／仕様レビューはそれぞれ指摘なしだった。
+
+実装は task branch `docs/mattpocock-standard-workflow` の候補として保持する。更新ゲート全体は既存 sandbox 検証の失敗により未通過であり、採用済みとは扱わない。live source の accepted manifest／lock pair を維持し、受入・merge・live 配備はゲート通過後に残す。
