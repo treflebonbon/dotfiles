@@ -712,6 +712,7 @@ EOF
   local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home="$home/.codex"
+  local proxy_denied='CONNECT tunnel failed, response 403|Received HTTP code 403 from proxy after CONNECT'
   mkdir -p "$workspace" "$codex_home"
   render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
   assert_codex_managed_values "$codex_home/config.toml"
@@ -730,11 +731,11 @@ EOF
     codex sandbox -P dotfiles-secure -C "$workspace" -- \
     curl --silent --show-error --output /dev/null --max-time 20 https://example.com/
 
-  if [[ "$output" != *"CONNECT tunnel failed, response 403"* ]]; then
+  if [[ ! "$output" =~ $proxy_denied ]]; then
     printf 'non-allowlisted command network request had an unexpected failure:\n%s\n' "$output" >&3
   fi
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"CONNECT tunnel failed, response 403"* ]]
+  [ "$status" -eq 56 ]
+  [[ "$output" =~ $proxy_denied ]]
 }
 
 @test "bun codex launches plain Codex from a primary checkout without overriding managed settings" {
