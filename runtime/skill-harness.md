@@ -222,7 +222,7 @@ WSL2 の通常の `playwright-cli open [URL]` は Windows 側の worktree 別 br
 
 profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。共有添付 profile は対象にできない。
 
-PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `browser-attachments auth` → 手動ログイン → `browser-attachments close`。添付 CLI の実行は headless のみ。標準の `pr` は本文作成を担当し、この CLI を自動起動しない。
+PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `browser-attachments close` の成功を確認 → `browser-attachments auth` → 手動ログイン → `browser-attachments close`。認証不足の添付失敗で残った headless ブラウザも、最初の close で終了してから headed の認証へ進む。添付 CLI の実行は headless のみ。標準の `pr` は本文作成を担当し、この CLI を自動起動しない。
 
 任意の画像補足は `pr-screenshots` を明示的に呼ぶ。`browser-attachments comment --repo OWNER/REPO --pr NUMBER --image PATH [--image PATH] --body-file PATH --request-id ID` が全画像を揃えて1コメントを投稿し、PR 本文は更新しない。原稿には画像順に `<!-- screenshot-1 -->` などを1回ずつ置く。同じ ID は画像・原稿も同じ内容で再利用し、投稿済みコメントのマーカーを照会して重複を防ぐ。途中失敗では画像・取得済み URL・理由を残し、送信結果不明なら状態を調べて再送を避ける。
 
