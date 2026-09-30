@@ -487,7 +487,10 @@ elif [[ -d "$ORIGINAL_HOME/.cache/ms-playwright" ]]; then
 else
   unset PLAYWRIGHT_BROWSERS_PATH
 fi
-bats "$SOURCE_DIR/tests"
+(
+  cd -- "$SOURCE_DIR"
+  bats "$SOURCE_DIR/tests"
+)
 export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
 unset CODEX_HOME CLAUDE_CONFIG_DIR
 
