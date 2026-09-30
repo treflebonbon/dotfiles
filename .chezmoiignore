@@ -71,12 +71,12 @@ templates/**
 local-skills
 local-skills/**
 
-# mattpocock engineering skill 向けの repo ローカル domain doc（CONTEXT.md / ADR /
+# mattpocock engineering skill 向けの repo ローカル domain doc（GLOSSARY.md / ADR /
 # setup-matt-pocock-skills が生成する docs/agents）。product repo の慣習に合わせ
-# この repo に閉じる（~/CONTEXT.md, ~/docs へ home-wide 配備しない — この repo 固有の
+# この repo に閉じる（~/GLOSSARY.md, ~/docs へ home-wide 配備しない — この repo 固有の
 # workflow 語彙が無関係な repo の ambient context に漏れるのを防ぐ）。
 # templates/local-skills と同様、非 prefix トップレベルエントリなので明示除外する。
-CONTEXT.md
+GLOSSARY.md
 docs
 docs/**
 

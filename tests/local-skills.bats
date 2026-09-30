@@ -41,6 +41,30 @@ setup() {
   done
 }
 
+@test "standard workflow migration retires local skills and the removed upstream skill without redeployment" {
+  setup_skill_apply
+  mkdir -p "$SKILL_HOME/.codex-app/skills" "$SKILL_HOME/.agents/skills/user-owned"
+  local dir skill
+  local retired=(batch-implement to-pr harness-feedback resolving-merge-conflicts)
+  for dir in .agents .claude .codex .codex-app; do
+    for skill in "${retired[@]}"; do
+      mkdir -p "$SKILL_HOME/$dir/skills/$skill"
+      printf 'old managed payload\n' >"$SKILL_HOME/$dir/skills/$skill/SKILL.md"
+    done
+  done
+  for _ in 1 2; do
+    run skill_chezmoi apply
+    [ "$status" -eq 0 ]
+    for dir in .agents .claude .codex .codex-app; do
+      for skill in "${retired[@]}"; do
+        [ ! -e "$SKILL_HOME/$dir/skills/$skill" ]
+      done
+    done
+    [ -d "$SKILL_HOME/.agents/skills/user-owned" ]
+    [ -f "$SKILL_HOME/.agents/skills/dogfood/SKILL.md" ]
+  done
+}
+
 @test "SKILL.md must resolve to a regular file before cleanup" {
   mkdir -p "$SKILL_SOURCE/local-skills/incomplete" "$SKILL_HOME/.claude/skills/orphan"
   mkfifo "$SKILL_SOURCE/local-skills/incomplete/SKILL.md"
@@ -231,7 +255,7 @@ EOF
 @test "invalid local retirement declarations cannot remove active, APM, or unrelated paths" {
   mkdir -p "$SKILL_HOME/.agents/outside" "$SKILL_HOME/.claude/skills/orphan"
   local name
-  for name in to-pr grilling ../outside; do
+  for name in dogfood grilling ../outside; do
     printf 'localSkills:\n  retired: [%s]\n' "$name" >"$SKILL_SOURCE/.chezmoidata/local-skills.yaml"
     run run_skill_phase before_remove-orphan-claude-skills
     [ "$status" -ne 0 ]
@@ -264,7 +288,7 @@ EOF
     [ "$status" -ne 0 ]
     [[ "$output" == *"SKILL.md"* ]]
     [ "$(cat "$SKILL_HOME/.claude/skills/orphan/SKILL.md")" = 'keep me' ]
-    [ ! -e "$SKILL_HOME/.agents/skills/to-pr" ]
+    [ ! -e "$SKILL_HOME/.agents/skills/dogfood" ]
   done
 }
 

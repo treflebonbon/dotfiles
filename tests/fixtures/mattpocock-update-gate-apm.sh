@@ -100,10 +100,23 @@ if [[ " $* " == *" --update "* ]]; then
       >>"$PWD/$target/grill-with-docs/SKILL.md"
     printf '%s\n' 'Call the Skill tool with "grilling".' >>"$PWD/$target/grill-me/SKILL.md"
     printf '%s\n' '---' >>"$PWD/$target/grilling/SKILL.md"
-    for skill in code-review to-spec to-tickets triage wayfinder; do
+    for skill in code-review to-spec to-tickets triage wayfinder implement-spec; do
       printf '%s\n' 'If setup is missing, tell the user to run /setup-matt-pocock-skills.' \
         >>"$PWD/$target/$skill/SKILL.md"
     done
+    printf '%s\n' 'GLOSSARY.md' >>"$PWD/$target/domain-modeling/SKILL.md"
+    if [[ "${MATT_GATE_MISSING_STANDARD_WORKFLOW:-}" != implement-spec ]]; then
+      printf '%s\n' 'single **integration branch**' 'each in its own worktree' \
+        "calls the Skill tool with \`tdd\`" "call the Skill tool with \`code-review\`" \
+        >>"$PWD/$target/implement-spec/SKILL.md"
+    fi
+    if [[ "${MATT_GATE_MISSING_STANDARD_WORKFLOW:-}" != pr ]]; then
+      printf '%s\n' '## Summary' '## Evidence' '## Merge Danger' >>"$PWD/$target/pr/SKILL.md"
+    fi
+    if [[ "${MATT_GATE_MISSING_STANDARD_WORKFLOW:-}" != retro ]]; then
+      printf '%s\n' 'default to the current one' "Call the Skill tool with \`writing-for-agents\`" \
+        >>"$PWD/$target/retro/SKILL.md"
+    fi
   done
   if [[ -n "${MATT_GATE_INVALID_FRONTMATTER:-}" ]]; then
     printf '%s\n' '---' 'name: ask-matt' '---' '# Body example' 'description: body-only' '---' \

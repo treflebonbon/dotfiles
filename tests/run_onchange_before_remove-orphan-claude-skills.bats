@@ -262,8 +262,8 @@ run_script() {
   HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
-  [ -d "$FAKE_HOME/.agents/skills/to-pr" ]
-  [ -d "$FAKE_HOME/.claude/skills/to-pr" ]
+  [ ! -e "$FAKE_HOME/.agents/skills/to-pr" ]
+  [ ! -e "$FAKE_HOME/.claude/skills/to-pr" ]
   [ -d "$FAKE_HOME/.agents/skills/ui-grill-with-docs" ]
   [ -d "$FAKE_HOME/.claude/skills/ui-grill-with-docs" ]
   [ ! -e "$FAKE_HOME/.codex/skills/to-pr" ]
@@ -339,7 +339,7 @@ run_script() {
   done
 }
 
-@test "preserves every Matt Pocock v1.2.3 skill across managed runtime directories" {
+@test "preserves every Matt Pocock skill across managed runtime directories" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   local matt_skills=(
     ask-matt
@@ -352,10 +352,12 @@ run_script() {
     grilling
     handoff
     implement
+    implement-spec
     improve-codebase-architecture
+    pr
     prototype
     research
-    resolving-merge-conflicts
+    retro
     setup-matt-pocock-skills
     tdd
     teach

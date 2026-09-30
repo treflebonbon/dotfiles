@@ -375,7 +375,7 @@ EOF
   grep -Fq '`gh-review-thread`' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq 'Review Round' "$PROJECT_ROOT/CLAUDE.md"
 
-  grep -Fq '**Review Round**' "$PROJECT_ROOT/CONTEXT.md"
+  grep -Fq '**Review Round**' "$PROJECT_ROOT/GLOSSARY.md"
   grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/runtime/skill-harness.md"
   grep -Fq '`gh-review-thread`' "$PROJECT_ROOT/runtime/skill-harness.md"
   grep -Fq '`--explanation-only`' "$PROJECT_ROOT/runtime/skill-harness.md"

@@ -674,7 +674,7 @@ EOF
   render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
 
   assert_dotfiles_permission_profile "$codex_home/config.toml"
-  grep -q '^\*\*Environment Contract File\*\*:' "$PROJECT_ROOT/CONTEXT.md"
+  grep -q '^\*\*Environment Contract File\*\*:' "$PROJECT_ROOT/GLOSSARY.md"
 
   for path in .envrc .env.example one/two/three/.envrc one/two/three/.env.example; do
     printf 'original\n' >"$workspace/$path"

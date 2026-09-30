@@ -20,12 +20,12 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
 
-- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`
-- 要件確定済み: `implement` → `to-pr`
+- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）
+- 要件確定済み: `implement`。PR 本文は `pr`、振り返りは `retro`
 - raw issue: `triage` で ready-for-agent 化してから `implement`
-- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review` → `to-pr`
+- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
 
-Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、Contract、Verification Matrix、Parent Reconciliation、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。
+Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。
 
 ## ブラウザ操作ツール
 

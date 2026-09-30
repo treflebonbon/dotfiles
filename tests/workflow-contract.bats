@@ -38,18 +38,27 @@ setup() {
   grep -Fq '新しい harness / directory / repo / colleague へ portability が必要な場合だけ `/handoff`' "$RUNTIME"
   grep -Fq '同じ harness / directory の relevant context を保ったまま要約する場合は `/compact`' "$RUNTIME"
   grep -Fq 'smart zone（目安 ~150k tokens）に収まるなら `Continue`' "$RUNTIME"
-  grep -Fq 'Continue → /clear → /handoff → Subagent → /compact' "$PROJECT_ROOT/CONTEXT.md"
+  grep -Fq 'Continue → /clear → /handoff → Subagent → /compact' "$PROJECT_ROOT/GLOSSARY.md"
 }
 
-@test "Builder-Evaluator keeps ticket crossing in one worktree and branch" {
-  grep -Fq '同じ worktree/branch' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '/compact' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '/handoff' "$PROJECT_ROOT/CLAUDE.md"
-
-  grep -Fq '同一 worktree/branch では ticket をまたいで' "$RUNTIME"
-  grep -Fq 'ticket 境界で relevant context が同じ harness / directory にあるなら `/compact`' "$RUNTIME"
-  grep -Fq '移植性が必要な場合だけ `/handoff`' "$RUNTIME"
-  grep -Fq '`tdd` の red-green、commit、`code-review`、full verification の境界' "$RUNTIME"
+@test "standard workflow uses one integration PR and preserves publication and destructive-action boundaries" {
+  local instructions
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq '`implement-spec`' "$instructions"
+    grep -Fq '`pr`' "$instructions"
+    grep -Fq '`retro`' "$instructions"
+    ! grep -Eq 'to-pr|batch-implement|harness-feedback' "$instructions"
+  done
+  grep -Fq '一つの Integration Branch' "$RUNTIME"
+  grep -Fq 'draft PR' "$RUNTIME"
+  grep -Fq 'ready 化' "$RUNTIME"
+  grep -Fq '上流の reset／cleanup 指示は破壊操作の承認ではない' "$RUNTIME"
+  grep -Fq '`git-push-topic`' "$RUNTIME"
+  grep -Fq 'gh pr create --base' "$RUNTIME"
+  [ -f "$PROJECT_ROOT/GLOSSARY.md" ]
+  [ ! -e "$PROJECT_ROOT/CONTEXT.md" ]
+  grep -Fxq 'GLOSSARY.md' "$PROJECT_ROOT/.chezmoiignore"
+  grep -Fq '**Integration Branch**' "$PROJECT_ROOT/GLOSSARY.md"
 }
 
 @test "local workflow overrides preserve triage, review base, and Review Round authority" {
@@ -128,7 +137,7 @@ setup() {
   grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq '別の user-invoked skill から自動実行せず' "$PROJECT_ROOT/CLAUDE.md"
 
-  grep -Fq '6654f6b60cd9d5be8b54c6fafe44346dabeb3b76' "$RUNTIME"
+  grep -Fq 'd81f3a183412e71a5b1e84ca21bc1a35eea03a60' "$RUNTIME"
   grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$RUNTIME"
   grep -Fq 'Skill tool と skill 名を明示する' "$RUNTIME"
   grep -Fq '`setup-matt-pocock-skills` を自動実行せず' "$RUNTIME"

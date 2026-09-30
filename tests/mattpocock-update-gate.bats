@@ -41,8 +41,8 @@ cleanup_managed_skills() {
   lock_skills="$(lock_managed_skills)"
   cleanup_skills="$(cleanup_managed_skills)"
 
-  [ "$(printf '%s\n' "$lock_skills" | sed '/^$/d' | wc -l)" -eq 25 ]
-  [ "$(printf '%s\n' "$cleanup_skills" | sed '/^$/d' | wc -l)" -eq 25 ]
+  [ "$(printf '%s\n' "$lock_skills" | sed '/^$/d' | wc -l)" -eq 27 ]
+  [ "$(printf '%s\n' "$cleanup_skills" | sed '/^$/d' | wc -l)" -eq 27 ]
   [ "$lock_skills" = "$cleanup_skills" ]
 }
 
@@ -55,7 +55,7 @@ cleanup_managed_skills() {
   [ -n "$pin_line" ]
   ! grep -Eq 'mattpocock/skills#(@latest|main|v[0-9])' "$MANIFEST"
   [ "$(grep -Fc "resolved_commit: $revision" "$LOCK")" -eq 1 ]
-  grep -Fq 'content_hash: sha256:22de78eb0eca8ad3f1830f955999ff588650e1f6bbb1f436236eff4fb0296eda' "$LOCK"
+  grep -Fq 'content_hash: sha256:3228058108c4d2b45044dc0cc2ac0823890dee5bf885e3114297685bb04592c2' "$LOCK"
   grep -Fq 'active_owner: mattpocock/skills' "$LOCK"
   ! grep -R -Eiq 'npx[[:space:]]+skills|enabledPlugins.*mattpocock|mattpocock.*enabledPlugins' \
     "$PROJECT_ROOT/private_dot_claude" "$PROJECT_ROOT/private_dot_config" 2>/dev/null
@@ -197,7 +197,7 @@ cleanup_managed_skills() {
     MATT_GATE_ALIAS_SKILL=1 \
     "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"exact official Matt Pocock v1.2.3 full set"* ]]
+  [[ "$output" == *"exact official Matt Pocock full set"* ]]
 }
 
 @test "managed-set update gate documents the cross-file contract" {
@@ -217,4 +217,15 @@ cleanup_managed_skills() {
   grep -Fq '検証用lock' "$ADR"
   grep -Fq '@latest' "$ADR"
   grep -Fq '0042-mattpocock-managed-set-update-gate' "$RUNTIME"
+}
+
+@test "managed-set update gate rejects incomplete implement-spec, pr, and retro contracts" {
+  local skill
+  for skill in implement-spec pr retro; do
+    run env PATH="$FAKE_BIN:$PATH" MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+      MATT_GATE_MISSING_STANDARD_WORKFLOW="$skill" \
+      "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"workflow payload violates the invocation contract"* ]]
+  done
 }

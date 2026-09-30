@@ -15,7 +15,7 @@ fi
 
 {{ includeTemplate "local-skills.sh.tmpl" . }}
 
-# APM が配備する mattpocock/skills v1.2.3 の公式 full set。
+# APM が配備する mattpocock/skills の公式 full set。
 # ~/.agents/skills と ~/.claude/skills の real-dir cleanup から除外し、APM の
 # install/prune に managed payload の所有権を委ねる。lock の plugin record と同期させること。
 managed_apm_skills=(
@@ -29,10 +29,12 @@ managed_apm_skills=(
   grilling
   handoff
   implement
+  implement-spec
   improve-codebase-architecture
+  pr
   prototype
   research
-  resolving-merge-conflicts
+  retro
   setup-matt-pocock-skills
   tdd
   teach
@@ -171,6 +173,7 @@ retired_apm_skills=(
   fixing-accessibility
   fixing-metadata
   fixing-motion-performance
+  resolving-merge-conflicts
   uxaudit
   webapp-testing
   writing-great-skills
