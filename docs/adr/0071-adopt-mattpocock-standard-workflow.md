@@ -41,4 +41,6 @@ APM 0.32.0 の空の隔離 cwd／HOME で実 manifest から native lock を生�
 
 全 Bats を隔離 runtime の cwd で起動していたゲートを source cwd へ戻した。また、入れ子のゲートテストが親の phase log を上書きしないよう、全 Bats へ渡す `MATTPOCOCK_GATE_LOG` を解除した。既存の ordered-seam テストで各不具合を red にしてから修正し、ゲートの14テスト・shfmt・shellcheck が成功した。型検査と通常の commit hook も成功し、実装差分と cwd 修正の規約／仕様レビューはそれぞれ指摘なしだった。
 
-実装は task branch `docs/mattpocock-standard-workflow` の候補として保持する。更新ゲート全体は既存 sandbox 検証の失敗により未通過であり、採用済みとは扱わない。live source の accepted manifest／lock pair を維持し、受入・merge・live 配備はゲート通過後に残す。
+その後、[ADR-0070 の Linux sandbox 修正](0070-adopt-gpt-6-1-sol.md)を加えた実 Codex package で更新ゲート全体を再実行し、成功した。全 Bats は722件中688件成功・34件 skip・失敗0件で、追加の FD 回帰テストと元の dotenv 権限テストも通過した。native lock generation／frozen install／audit／両配布先の discovery／関連70テスト／全 Bats／隔離 HOME の chezmoi dry-run が順に完了し、source の native lock SHA-256 は上記の値から変わらなかった。
+
+task branch `docs/mattpocock-standard-workflow` の source は受入条件を満たした。live source の accepted manifest／lock pair は維持し、配備は受入・merge 後に live source から行う。

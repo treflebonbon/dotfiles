@@ -28,3 +28,5 @@ status: accepted
 複数の denied file があると、Codex は同じ `/dev/null` の FD を複数の `--ro-bind-data` に渡す。bubblewrap は各 mount 後に FD を閉じるため、0.12.0 では2件目が `Bad file descriptor` で失敗する（[upstream issue #43929](https://github.com/openai/codex/issues/43929)）。0.158.0 と 0.159.1 の両方で再現し、公開ファイル1件と denied file 2件だけの fixture でも失敗を確認した。
 
 Linux の Codex package に、共有 helper が各 mask に独立した FD を保持するパッチを適用する。snapshot、source、Cargo dependencies、version、quality floor は維持し、[sandbox escape 修正](https://github.com/containers/bubblewrap/security/advisories/GHSA-pxhw-h44j-8pfx)を含む bubblewrap 0.12.0 と既存の deny を使う。この間は Linux の Codex が source build となる。upstream の修正版で公開ファイルの read と複数 denied file の拒否を確認したら、ローカルパッチを削除して direct package の cache 経路へ戻す。
+
+修正版の x86_64-linux package を実際に build し、CLI が `0.159.1` を返すこと、最小再現が3回とも成功することを確認した。追加した実 OS 回帰テストは修正前に2件目の mask で失敗し、修正後は公開ファイルの read と両 denied file の拒否に成功した。元の dotenv 権限テストも通過した。関連35テスト、3 system の Nix 評価、[ADR-0071 の更新ゲート](0071-adopt-mattpocock-standard-workflow.md)全体も成功した。ARM Linux／Darwin は評価のみで、実行検証は x86_64-linux で行った。
