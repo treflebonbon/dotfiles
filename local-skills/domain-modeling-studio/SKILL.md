@@ -61,7 +61,7 @@ The **JSONを保存** backup preserves the current document, including a comment
 
 ## Finish the modeling session
 
-Confirm the agreed model and remaining unknowns. Use `domain-modeling` to integrate only agreed vocabulary into the target repository's existing `CONTEXT.md` (or context-specific glossary); follow its ADR criteria. Create the four artifacts in a session-owned directory with the generator. Present scenarios as drafts with current/proposed and confirmed/draft status, and separate code-reading evidence from test execution results.
+Confirm the agreed model and remaining unknowns. Use `domain-modeling` to integrate only agreed vocabulary into the target repository's existing `GLOSSARY.md` (or context-specific glossary); follow its ADR criteria. Create the four artifacts in a session-owned directory with the generator. Present scenarios as drafts with current/proposed and confirmed/draft status, and separate code-reading evidence from test execution results.
 
 Report the source revision, resulting files, unresolved questions, and checks actually performed. Implementation candidates remain a separate implementation task. Retain the agreed records; clean up only session-owned temporary files with the user's authorization. No automatic code changes, issue creation, or deployment follow from a modeling review.
 

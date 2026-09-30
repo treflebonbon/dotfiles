@@ -9,7 +9,7 @@ status: accepted
 
 # blockReadsOutsideWorkingDirectories を無効化し、機密パスの deny を拡充する
 
-[ADR-0045](0045-separate-llm-agents-and-apm-update-units.md)（2026-09-05〜06）は Working-Directory Read Fence（[CONTEXT.md](../../CONTEXT.md)）を意図的に有効化した。その理由は「機密ファイルを `deny` する既存ルールに加えて、外部ファイルの accidental read を境界化する」ことであり、credential 保護に留まらない広いスコープの防御だった。[ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) の 2026-09-08 追記（issue #248）はこの fence が、静的解析できない Bash コマンド（`$VAR` のような simple expansion、command substitution、heredoc 経由 interpreter、`sed`/`awk`/`python3 -c` 等の programmable reader）に対しても working directory の内外を問わず human confirmation を要求することを実測済みだった。
+[ADR-0045](0045-separate-llm-agents-and-apm-update-units.md)（2026-09-05〜06）は Working-Directory Read Fence（[CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md)）を意図的に有効化した。その理由は「機密ファイルを `deny` する既存ルールに加えて、外部ファイルの accidental read を境界化する」ことであり、credential 保護に留まらない広いスコープの防御だった。[ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) の 2026-09-08 追記（issue #248）はこの fence が、静的解析できない Bash コマンド（`$VAR` のような simple expansion、command substitution、heredoc 経由 interpreter、`sed`/`awk`/`python3 -c` 等の programmable reader）に対しても working directory の内外を問わず human confirmation を要求することを実測済みだった。
 
 2026-09-09 の `grill-with-docs` セッションで、この既知の挙動が実際の開発体験として承認プロンプトの頻発を引き起こしていることを確認した。`additionalDirectories`（[ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md)）による部分的な緩和は既に実施済みだったが、trigger がパス非依存（unanalyzable なシェル構文そのもの）であるため効果がなかった。本セッションで `~/runtime` 配下（`additionalDirectories` に含まれる既知パス）への `simple_expansion` を含む単純なコマンド（`D=$HOME/runtime; ls "$D"`）が繰り返しプロンプトを発生させることをライブで再現し、project-local `blockReadsOutsideWorkingDirectories: false` に切り替えると同じコマンドが無音で成功することを実機検証した。
 
@@ -45,6 +45,6 @@ status: accepted
 
 `~/.npmrc` は意図的に deny 対象から外したため、`_authToken` を含む場合は `cat ~/.npmrc` を含む認識済みコマンドでも読み取り可能になる（この判断は変更しない）。
 
-Working-Directory Read Fence（[CONTEXT.md](../../CONTEXT.md)）は本 ADR により無効化され、現在この dotfiles では機能しない。[ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) と [ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) の記述は、fence が有効だった期間の設計判断・実測記録として残す。
+Working-Directory Read Fence（[CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md)）は本 ADR により無効化され、現在この dotfiles では機能しない。[ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) と [ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md) の記述は、fence が有効だった期間の設計判断・実測記録として残す。
 
 関連: [ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) / [ADR-0048](0048-extend-additional-directories-with-edit-deny-readonly.md)

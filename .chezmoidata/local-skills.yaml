@@ -1,3 +1,9 @@
 localSkills:
   retired:
-    [to-worktree, dogfood-to-issues, rop-visualizer, mvp-mediator-architecture]
+    - to-worktree
+    - dogfood-to-issues
+    - rop-visualizer
+    - mvp-mediator-architecture
+    - batch-implement
+    - to-pr
+    - harness-feedback

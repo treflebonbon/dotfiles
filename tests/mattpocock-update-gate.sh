@@ -179,9 +179,13 @@ normalize_lock() {
 validate_lock_refs() {
   awk '
     /^  resolved_commit: / { commit = $2; next }
-    /^  resolved_ref: / && $2 != commit {
-      printf "resolved_ref differs from resolved_commit: %s != %s\n", $2, commit > "/dev/stderr"
-      invalid = 1
+    /^  resolved_ref: / {
+      ref = $2
+      gsub(/\047/, "", ref)
+      if (ref != commit) {
+        printf "resolved_ref differs from resolved_commit: %s != %s\n", ref, commit > "/dev/stderr"
+        invalid = 1
+      }
     }
     END { exit invalid }
   ' "$1"
@@ -233,10 +237,12 @@ official_matt_skills() {
     grilling \
     handoff \
     implement \
+    implement-spec \
     improve-codebase-architecture \
+    pr \
     prototype \
     research \
-    resolving-merge-conflicts \
+    retro \
     setup-matt-pocock-skills \
     tdd \
     teach \
@@ -309,17 +315,27 @@ discover_skills() {
 }
 
 validate_workflow_payload() {
-  local root=$1 skill
+  local root=$1 skill section
 
   grep -Fxq 'Call the Skill tool twice, for "grilling" and "domain-modeling".' \
     "$root/grill-with-docs/SKILL.md" || return 1
   grep -Fxq 'Call the Skill tool with "grilling".' "$root/grill-me/SKILL.md" || return 1
   [[ $(grep -c '^---$' "$root/grilling/SKILL.md") -ge 3 ]] || return 1
 
-  for skill in code-review to-spec to-tickets triage wayfinder; do
+  for skill in code-review to-spec to-tickets triage wayfinder implement-spec; do
     grep -Fq 'tell the user to run' "$root/$skill/SKILL.md" || return 1
     grep -Fq '/setup-matt-pocock-skills' "$root/$skill/SKILL.md" || return 1
   done
+  grep -Fq 'GLOSSARY.md' "$root/domain-modeling/SKILL.md" || return 1
+  grep -Fq 'single **integration branch**' "$root/implement-spec/SKILL.md" || return 1
+  grep -Fq 'each in its own worktree' "$root/implement-spec/SKILL.md" || return 1
+  grep -Eq 'Skill tool with .tdd.' "$root/implement-spec/SKILL.md" || return 1
+  grep -Eq 'Skill tool with .code-review.' "$root/implement-spec/SKILL.md" || return 1
+  for section in '## Summary' '## Evidence' '## Merge Danger'; do
+    grep -Fxq "$section" "$root/pr/SKILL.md" || return 1
+  done
+  grep -Fq 'default to the current one' "$root/retro/SKILL.md" || return 1
+  grep -Eq 'Skill tool with .writing-for-agents.' "$root/retro/SKILL.md" || return 1
   ! grep -R -Fq 'Call the Skill tool with "setup-matt-pocock-skills"' "$root"
 }
 
@@ -408,7 +424,7 @@ lock_target_skills '.agents/skills' "$runtime/apm.lock.yaml" >"$expected_target_
 lock_target_skills '.claude/skills' "$runtime/apm.lock.yaml" >"$expected_target_claude"
 cmp "$expected_official_matt" "$expected_managed_agents" || {
   diff -u "$expected_official_matt" "$expected_managed_agents" >&2 || true
-  reject "candidate does not contain the exact official Matt Pocock v1.2.3 full set"
+  reject "candidate does not contain the exact official Matt Pocock full set"
 }
 cmp "$expected_official_matt" "$expected_managed_claude" ||
   reject "Claude lock target does not contain the exact official Matt full set"
@@ -455,6 +471,7 @@ cmp "$expected_managed_agents" "$cleanup_skills" || reject "orphan cleanup does 
 record_phase workflow-contract-tests
 bats \
   "$SOURCE_DIR/tests/apm-runtime.bats" \
+  "$SOURCE_DIR/tests/local-skills.bats" \
   "$SOURCE_DIR/tests/run_onchange_before_remove-orphan-claude-skills.bats" \
   "$SOURCE_DIR/tests/workflow-contract.bats"
 full_suite_home="$runtime/full-suite-home"
@@ -470,7 +487,11 @@ elif [[ -d "$ORIGINAL_HOME/.cache/ms-playwright" ]]; then
 else
   unset PLAYWRIGHT_BROWSERS_PATH
 fi
-bats "$SOURCE_DIR/tests"
+(
+  cd -- "$SOURCE_DIR"
+  unset MATTPOCOCK_GATE_LOG
+  bats "$SOURCE_DIR/tests"
+)
 export HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/config" XDG_DATA_HOME="$runtime/data"
 unset CODEX_HOME CLAUDE_CONFIG_DIR
 

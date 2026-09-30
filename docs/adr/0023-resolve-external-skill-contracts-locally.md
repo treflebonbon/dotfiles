@@ -32,4 +32,4 @@ status: accepted
 - `harness-feedback` の finding 数と critical severity は減るが、残る critical は利用者が即時対応すべき実害を表す。
 - Auto mode で分析対象が見つからないケースは増える。cross-project 分析には明示的な引数が必要になる。
 
-関連: [ADR-0022](0022-align-mattpocock-v1-1-workflow.md) / [skill-harness](../../runtime/skill-harness.md) / [CONTEXT.md](../../CONTEXT.md)
+関連: [ADR-0022](0022-align-mattpocock-v1-1-workflow.md) / [skill-harness](../../runtime/skill-harness.md) / [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md)

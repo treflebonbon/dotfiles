@@ -40,7 +40,7 @@ Accepted (2026-07-08)。[ADR-0022](0022-align-mattpocock-v1-1-workflow.md)（202
 
 ## Decision
 
-`to-issues` までの設計協働フェーズを **Planner**、`tdd`↔`code-review` の実装検証フェーズを **Builder-Evaluator** と呼ぶ（[CONTEXT.md](../../CONTEXT.md)）。
+`to-issues` までの設計協働フェーズを **Planner**、`tdd`↔`code-review` の実装検証フェーズを **Builder-Evaluator** と呼ぶ（[CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md)）。
 
 1. **`tdd` の各 green slice の commit は確認なしで自動的に行う**（ADR-0015 の該当規定を置き換え）。commit 後は通常運用どおり何を commit したか報告する。
 2. **`code-review` 完了後、ブロッキング指摘への修正の commit も確認なしで自動的に行う**（ADR-0015 の該当規定を置き換え。当初検討した非対称設計——ここだけ確認を残す——は撤回した。理由は Context 参照: commit 確認は permission mode 依存で安全機構として機能しない）。

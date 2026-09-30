@@ -68,4 +68,4 @@ status: accepted
 
 実 Nix での生成・読込み確認は一時領域で行い、task worktree から live source や HOME の配備を更新しない。実行済みの結果と確認範囲は #224／#225 の検証記録を参照する。
 
-関連: [実装仕様 #222](https://github.com/treflebonbon/dotfiles/issues/222) / [CONTEXT.md](../../CONTEXT.md) / [ADR-0001](0001-bash-over-zsh.md) / [ADR-0020](0020-macos-keeps-zsh-login-shell.md) / [ADR-0038](0038-keep-wsl2-browser-free.md)
+関連: [実装仕様 #222](https://github.com/treflebonbon/dotfiles/issues/222) / [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) / [ADR-0001](0001-bash-over-zsh.md) / [ADR-0020](0020-macos-keeps-zsh-login-shell.md) / [ADR-0038](0038-keep-wsl2-browser-free.md)

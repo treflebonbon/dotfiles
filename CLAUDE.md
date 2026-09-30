@@ -14,34 +14,34 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 - コミットと PR タイトルは Conventional Commits 形式にする。
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
-- ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。`to-pr` 呼出しまたは AFK 完了許可は、本文で宣言済みの missing native edge の追加だけを承認対象に含む。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
+- ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
 
 ## 設計→実装ワークフロー
 
 実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
 
-- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `to-pr`
-- 要件確定済み: `implement` → `to-pr`
+- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）
+- 要件確定済み: `implement`。PR 本文は `pr`、振り返りは `retro`
 - raw issue: `triage` で ready-for-agent 化してから `implement`
-- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review` → `to-pr`
+- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
 
 ## Matt Pocock workflow contract
 
 - `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round は人間の回答を待ってから次に進み、事実は環境から確認する。未回答の decision は推測して先へ進めない。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
 - cross-skill 呼出しは Skill tool と skill 名を明示する。setup 情報が未配備なら `setup-matt-pocock-skills` を別の user-invoked skill から自動実行せず、ユーザーへ明示起動を案内する。
 - phase boundary の公式5択は `Continue → /clear → /handoff → Subagent → /compact`。次 phase が現 phase を primary source として必要、または smart zone（目安 ~150k tokens）に収まるなら `Continue`。context が無関係なら `/clear`。portability が必要な場合だけ `/handoff`。AFK の scoped task は `Subagent`。同じ harness / directory の relevant context は `/compact` で引き継ぐ。
-- Builder-Evaluator は同じ worktree/branch で ticket をまたいで継続できる。ticket 境界でも同じ harness / directory なら `/compact`、portability が必要な場合だけ `/handoff` とし、既存の tdd / code-review / Verification Matrix / `to-pr` 一回の境界を維持する（レビュー粒度を ticket 単位に保ち、品質ゲートの意味を薄めないため）。
+- `implement-spec` は各 ticket を専用 worktree で並列実装し、仕様全体を一つの Integration Branch／PR に集約する。draft 作成・ready 化と、reset／worktree 削除の安全境界は `runtime/skill-harness.md` を読む。
 - model-invoked discipline は current repository の実装契約内で動く。外部書込みは親 Contract または明示的に起動した user-invoked skill の範囲に限り、機密情報・credential・CI secret を読み出し、出力、commit、無断変更しない。権限拡大や permission bypass は推測せず、runtime profile に従い必要ならユーザーへ戻す。
 - `prototype` の logic path は single self-contained HTML とし、build / server 不要で、inline pure logic、free-play、guided walkthroughs、操作後の全 state 表示を持つ。決定を本実装へ反映した後も prototype 全体を throwaway branch に primary source として残し、implementation issue から参照する。main branch には decision だけを残す。
 
-自律実行範囲、Contract、Verification Matrix、Parent Reconciliation、各 skill のローカル上書きは `runtime/skill-harness.md` と関連 ADR を正本とする。特に次を守る:
+自律実行範囲、PR 公開手順、各 skill のローカル上書きは `runtime/skill-harness.md` と関連 ADR を正本とする。特に次を守る:
 
 - `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、close/reopen/delete は確認する。
 - Builder-Evaluator 内の `code-review` は既知の base（通常 `origin/main`）を使う。standalone で base が不明な場合は確認する。
 - `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する（二重管理による thread 状態の不整合を防ぐため）。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
 - `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
 
-実装依頼の入口は `implement`。必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
+個別実装の入口は `implement`、仕様全体の一括実装は `implement-spec`。必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
 
 ## ブラウザ操作ツール
 
@@ -65,4 +65,4 @@ GitHub Issues（`gh` CLI）。外部 PR は triage 対象外。See `docs/agents/
 
 ### Domain docs
 
-Single-context（`CONTEXT.md` は必要になり次第 lazy に作成、`docs/adr/` は意思決定記録の唯一の置き場）。`runtime/` は別レイヤー（home-wide 配備の ambient 環境知識のみ、決定記録は持たない）。See `docs/agents/domain.md`.
+Single-context（`GLOSSARY.md` は必要になり次第 lazy に作成、`docs/adr/` は意思決定記録の唯一の置き場）。`runtime/` は別レイヤー（home-wide 配備の ambient 環境知識のみ、決定記録は持たない）。See `docs/agents/domain.md`.

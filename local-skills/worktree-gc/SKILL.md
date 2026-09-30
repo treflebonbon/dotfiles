@@ -36,8 +36,8 @@ description: 緊急時に repo-local worktree (.claude/worktrees / .worktrees / 
 3. 承認されたら同じオプションに `--apply` を付けて実行する。
 4. 実行後、`--herdr-root` / `--orca-root` 配下の残数や `fanout done removed=N` の行で結果を報告する。
 
-- `worktree-gc.sh` の既存の保護判定を使う。`~/.herdr/worktrees/<repo>` と `~/orca/workspaces/<repo>` を、各 ghq リポジトリ呼び出しの `--roots` に追加するだけで実削除対象にしている（信頼できる外部ルートの許可リスト、[CONTEXT.md](../../CONTEXT.md)）。
-- dangling worktree（親リポジトリ自体が消滅した worktree、[CONTEXT.md](../../CONTEXT.md)）も `--age-days` 閾値ゲート付きで検出・削除する。
+- `worktree-gc.sh` の既存の保護判定を使う。`~/.herdr/worktrees/<repo>` と `~/orca/workspaces/<repo>` を、各 ghq リポジトリ呼び出しの `--roots` に追加するだけで実削除対象にしている（信頼できる外部ルートの許可リスト、[GLOSSARY.md](../../GLOSSARY.md)）。
+- dangling worktree（親リポジトリ自体が消滅した worktree、[GLOSSARY.md](../../GLOSSARY.md)）も `--age-days` 閾値ゲート付きで検出・削除する。
 - 実削除前に稼働中プロセス（`/proc/*/cwd`）を検出し、該当する repo 呼び出し・dangling候補を丸ごと保護する（repo単位の粒度。同じ呼び出しに含まれる他の候補も道連れで保護される）。
 - `--max-removals`（既定50）は **実行全体** の上限。repo単位の上限ではない点が `worktree-gc.sh` 単体と異なる。
 - `~/ghq/` は削除対象ではなく列挙起点。実際に削除され得るのは各リポジトリの repo-local roots・`~/.herdr/worktrees/<repo>`・`~/orca/workspaces/<repo>`・dangling worktree のみ。

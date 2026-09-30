@@ -26,4 +26,4 @@ status: accepted
 
 全体の復旧処理を省くため、途中失敗時には skill 間や配備先間で新旧が混在し得る。事前検査で判明する入力不備は変更前に拒否し、実行中の失敗は配備先単位の保護と再実行で扱う。
 
-関連: [CONTEXT.md](../../CONTEXT.md) / [ADR-0040](0040-adopt-mattpocock-v1-2-3-full-set.md) / [ADR-0042](0042-mattpocock-managed-set-update-gate.md) / [skill-harness](../../runtime/skill-harness.md)
+関連: [CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md) / [ADR-0040](0040-adopt-mattpocock-v1-2-3-full-set.md) / [ADR-0042](0042-mattpocock-managed-set-update-gate.md) / [skill-harness](../../runtime/skill-harness.md)

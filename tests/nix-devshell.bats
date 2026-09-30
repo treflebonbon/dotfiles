@@ -398,16 +398,14 @@ PS
   grep -Fq '`ui-grill-with-docs`' "$runtime"
 }
 
-@test "pre-commit applies OXC to local skills without rewriting run-code examples" {
+@test "pre-commit applies OXC to local skills and the MV3 fixture" {
   local config="$PROJECT_ROOT/lefthook.yml"
-  local skill="$PROJECT_ROOT/local-skills/to-pr/SKILL.md"
   local fixture="$PROJECT_ROOT/local-skills/dogfood/references/fixtures/mv3-min"
 
   ! sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
   ! sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
   sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
   sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
-  [ "$(grep -Fc '<!-- prettier-ignore -->' "$skill")" -eq 2 ]
   [ -f "$fixture/service-worker.js" ]
   [ ! -e "$fixture/service_worker.js" ]
   grep -Fq '"service_worker": "service-worker.js"' "$fixture/manifest.json"

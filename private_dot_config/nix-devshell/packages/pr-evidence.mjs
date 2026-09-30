@@ -139,7 +139,7 @@ export const uploadEvidence = async (context, { repo, pr, image }) => {
   } catch (error) {
     throw new Error(
       error.message === "authentication-required"
-        ? "authentication-required: complete dedicated browser setup outside to-pr"
+        ? "authentication-required: complete dedicated browser setup before requesting an upload"
         : "upload-failed: verify PR edit access and connectivity; other requests were preserved",
       { cause: error }
     );

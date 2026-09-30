@@ -26,24 +26,24 @@ evaluate_floor() {
   [[ "$output" == *'0.159.1'* ]]
 }
 
-@test "quality floor accepts the exact input packages at the approved floors" {
+@test "quality floor accepts input packages at the approved floors" {
   evaluate_floor claude-code '{ version = "2.1.284"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.284" and .matchesInput' <<<"$output"
+  jq -e '.version == "2.1.284" and .matchesSource' <<<"$output"
 
   evaluate_floor codex '{ version = "0.159.1"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.159.1" and .matchesInput' <<<"$output"
+  jq -e '.version == "0.159.1" and .matchesSource' <<<"$output"
 }
 
-@test "quality floor accepts the exact input packages above the approved floors" {
+@test "quality floor accepts input packages above the approved floors" {
   evaluate_floor claude-code '{ version = "2.1.285"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.285" and .matchesInput' <<<"$output"
+  jq -e '.version == "2.1.285" and .matchesSource' <<<"$output"
 
   evaluate_floor codex '{ version = "0.159.2"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.159.2" and .matchesInput' <<<"$output"
+  jq -e '.version == "0.159.2" and .matchesSource' <<<"$output"
 }
 
 @test "quality floor rejects null versions as unknown for each tool" {
@@ -73,10 +73,10 @@ codex 0.158.0 0.159.1 docs/adr/0070-adopt-gpt-6-1-sol.md
 CASES
 }
 
-@test "quality floor preserves each package selected from the actual snapshot" {
+@test "quality floor preserves each snapshot source and dependencies through local patches" {
   for tool in claude-code codex; do
     evaluate_floor "$tool" null
     [ "$status" -eq 0 ]
-    jq -e '.matchesInput and (.version | type == "string")' <<<"$output"
+    jq -e '.matchesSource and (.version | type == "string")' <<<"$output"
   done
 }

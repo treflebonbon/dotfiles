@@ -51,5 +51,10 @@ in
 assert builtins.length selected == 1;
 {
   version = package.version;
-  matchesInput = package.drvPath == candidate.drvPath;
+  matchesSource =
+    if tool == "codex" && pkgs.stdenv.isLinux then
+      package.src.drvPath == candidate.src.drvPath
+      && package.cargoDeps.drvPath == candidate.cargoDeps.drvPath
+    else
+      package.drvPath == candidate.drvPath;
 }

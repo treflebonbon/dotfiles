@@ -63,12 +63,12 @@ Claude Code は、起動したディレクトリを session の primary working 
 
 その後の関連 version は次のとおりである。
 
-| release | 公式に確認できる変更                                                                                                                                                                                                              | この repo への意味                                                                                           |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 2.1.258 | macOS 12 の launch regression、再送された permission approval の content 欠落を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.258/CHANGELOG.md#21258)                                                      | floor の安定性には寄与するが、外部 read 境界固有の floor 根拠とはしにくい                                    |
-| 2.1.259 | hook-created worktree の検出、worktree-isolated session の Bash loop / xargs pipeline / launcher-wrapped command の false refusal を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.259/CHANGELOG.md#21259) | worktree + Bash read matrix を 2.1.259 でも再確認する根拠                                                    |
-| 2.1.260 | `blockReadsOutsideWorkingDirectories` が macOS の git config と worktree-isolated subagent 自身の checkout を隠す不具合を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.260/CHANGELOG.md#21260)            | この repo の linked worktree / subagent 運用に直撃。採用 floor は少なくとも 2.1.260、snapshot 候補は 2.1.261 |
-| 2.1.261 | `/add-dir` の `/net` automount false error、background agent resume の high CPU、Stop / Remote Control 等を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.261/CHANGELOG.md#21261)                          | 2.1.260 fix の後続候補。外部 read setting の新しい semantics 変更は CHANGELOG にない                         |
+| release | 公式に確認できる変更 | この repo への意味 |
+| --- | --- | --- |
+| 2.1.258 | macOS 12 の launch regression、再送された permission approval の content 欠落を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.258/CHANGELOG.md#21258) | floor の安定性には寄与するが、外部 read 境界固有の floor 根拠とはしにくい |
+| 2.1.259 | hook-created worktree の検出、worktree-isolated session の Bash loop / xargs pipeline / launcher-wrapped command の false refusal を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.259/CHANGELOG.md#21259) | worktree + Bash read matrix を 2.1.259 でも再確認する根拠 |
+| 2.1.260 | `blockReadsOutsideWorkingDirectories` が macOS の git config と worktree-isolated subagent 自身の checkout を隠す不具合を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.260/CHANGELOG.md#21260) | この repo の linked worktree / subagent 運用に直撃。採用 floor は少なくとも 2.1.260、snapshot 候補は 2.1.261 |
+| 2.1.261 | `/add-dir` の `/net` automount false error、background agent resume の high CPU、Stop / Remote Control 等を修正。[CHANGELOG](https://github.com/anthropics/claude-code/blob/v2.1.261/CHANGELOG.md#21261) | 2.1.260 fix の後続候補。外部 read setting の新しい semantics 変更は CHANGELOG にない |
 
 `2.1.253`–`2.1.256` は公式 CHANGELOG の version section として確認できないため、更新候補の版飛びを release と誤認しない。現行 upstream package が 2.1.261 を収録していることは、Claude Code stable release と `llm-agents.nix` metadata の双方で確認済みである。
 
@@ -76,15 +76,15 @@ Claude Code は、起動したディレクトリを session の primary working 
 
 調査時点で確認した local source は次の状態である。
 
-| 対象                                                                                                               | 現状                                                                                                               | 判断                                                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`private_dot_claude/settings.json.tmpl`](../../private_dot_claude/settings.json.tmpl#L8-L12)                      | `defaultMode: "auto"`、`additionalDirectories: ["~/.claude/jobs"]`。`blockReadsOutsideWorkingDirectories` は未設定 | `true` を追加候補にする。ただし `~/runtime` を追加してから導入する                                                                                                                  |
-| [`private_dot_config/nix-devshell/modules/ai.nix`](../../private_dot_config/nix-devshell/modules/ai.nix#L101-L140) | `minClaudeCode = "2.1.257"`、snapshot package は 2.1.258                                                           | 2.1.260 fix を floor 根拠にできるかを release gate で決め、少なくとも 2.1.260 を候補にする。snapshot を 2.1.261 へ追従する場合は `minClaudeCode` も同じ compatibility gate で決める |
-| [`private_dot_config/nix-devshell/flake.lock`](../../private_dot_config/nix-devshell/flake.lock#L58-L80)           | `llm-agents.nix` exact revision `7754055…`                                                                         | upstream [`896d09c…`](https://github.com/numtide/llm-agents.nix/commit/896d09ccef580902e01e716e6f4646421087c252) への tool snapshot 更新候補                                        |
-| `~/.claude/jobs`                                                                                                   | 実在し、`state.json` / `timeline.jsonl` 等を持つ。現行 settings で追加済み                                         | 維持。job read を block 設定で壊さないため必要                                                                                                                                      |
-| `~/runtime`                                                                                                        | 実在し、`index.md` / `ai-runtimes.md` / `skill-harness.md` 等を持つ。global `CLAUDE.md` が参照を要求               | `additionalDirectories` へ追加し、`Edit(~/runtime/**)` deny で read-only にする。validated source worktree を経由しない書込みは許可しない                                           |
-| `~/.agents/skills`                                                                                                 | 実在する共有 hub。Codex / Antigravity 向け。Claude 用 `~/.claude/skills` は別に配備済み                            | Claude の additional directory には追加しない。`Skill` discovery と file-tool read を混同しない                                                                                     |
-| `~/.gitconfig` / linked worktree の共通 `.git`                                                                     | 実在。worktree Git dir は共通 git dir を参照                                                                       | path を追加して境界を広げない。2.1.260 の git-config / subagent checkout fix を含む candidate で git smoke を行う                                                                   |
+| 対象 | 現状 | 判断 |
+| --- | --- | --- |
+| [`private_dot_claude/settings.json.tmpl`](../../private_dot_claude/settings.json.tmpl#L8-L12) | `defaultMode: "auto"`、`additionalDirectories: ["~/.claude/jobs"]`。`blockReadsOutsideWorkingDirectories` は未設定 | `true` を追加候補にする。ただし `~/runtime` を追加してから導入する |
+| [`private_dot_config/nix-devshell/modules/ai.nix`](../../private_dot_config/nix-devshell/modules/ai.nix#L101-L140) | `minClaudeCode = "2.1.257"`、snapshot package は 2.1.258 | 2.1.260 fix を floor 根拠にできるかを release gate で決め、少なくとも 2.1.260 を候補にする。snapshot を 2.1.261 へ追従する場合は `minClaudeCode` も同じ compatibility gate で決める |
+| [`private_dot_config/nix-devshell/flake.lock`](../../private_dot_config/nix-devshell/flake.lock#L58-L80) | `llm-agents.nix` exact revision `7754055…` | upstream [`896d09c…`](https://github.com/numtide/llm-agents.nix/commit/896d09ccef580902e01e716e6f4646421087c252) への tool snapshot 更新候補 |
+| `~/.claude/jobs` | 実在し、`state.json` / `timeline.jsonl` 等を持つ。現行 settings で追加済み | 維持。job read を block 設定で壊さないため必要 |
+| `~/runtime` | 実在し、`index.md` / `ai-runtimes.md` / `skill-harness.md` 等を持つ。global `CLAUDE.md` が参照を要求 | `additionalDirectories` へ追加し、`Edit(~/runtime/**)` deny で read-only にする。validated source worktree を経由しない書込みは許可しない |
+| `~/.agents/skills` | 実在する共有 hub。Codex / Antigravity 向け。Claude 用 `~/.claude/skills` は別に配備済み | Claude の additional directory には追加しない。`Skill` discovery と file-tool read を混同しない |
+| `~/.gitconfig` / linked worktree の共通 `.git` | 実在。worktree Git dir は共通 git dir を参照 | path を追加して境界を広げない。2.1.260 の git-config / subagent checkout fix を含む candidate で git smoke を行う |
 
 ### 採用を進める条件
 
@@ -112,20 +112,20 @@ fixture/
 
 ### matrix
 
-| axis                   | cases                                                                                       | 確認すること                                                                                                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| setting                | unset、`false`、`true`                                                                      | unset / false の auto one-time prompt と、true の persistent fence を区別する。user settings への自動書き戻しも確認                                                           |
-| permission mode        | `default`、`acceptEdits`、`plan`、`auto`、`dontAsk`、`bypassPermissions`                    | true で direct file read が全 mode で拒否されるか。`bypassPermissions` は candidate の隔離環境だけで試す                                                                      |
-| direct tools           | `Read`、`Grep`、`Glob`                                                                      | primary worktree は成功、`outside/` は true で拒否、`extra/` は追加 directory 設定時だけ成功、symlink は target 境界として評価されるか                                        |
-| Bash readers           | `cat`、`grep`、`find`、`head`、read-only `git`、`pwd` / `cd`                                | working-directory 内外で built-in read-only 扱いが変わるか。true の外部 path は prompt / deny の実際の結果を記録                                                              |
-| redirects              | `cat < outside/file`、`grep x < outside/file`、`cat > outside/file`                         | v2.1.257 の input redirect read check と output redirect edit checkを別々に確認。glob、`cd dir && cat file`、heredocも含める                                                  |
-| additional directories | `~/.claude/jobs`、`~/runtime`、fixture `extra/`                                             | settings の追加 path は direct tools / Bash / edit それぞれに効くか。追加 path の `.claude/skills` discovery と `CLAUDE.md` discovery（env var あり / なし）も別確認          |
-| user config            | `git config --global --get user.name`、read-only git from linked worktree                   | 2.1.260 で修正された global git config の hidden failure が再発しないか。credential value は出力しない                                                                        |
-| linked worktree        | current linked worktree、main checkout の common `.git`、`.git` pointer                     | current worktree 内の edit / read は成功し、main checkout file を直接読む操作は境界外として扱われるか。git commit 等の common metadata access が壊れないか                    |
-| subagent               | `Agent(isolation: "worktree")` の own checkout、親 worktree、main checkout                  | 2.1.260 fix のとおり own checkout が hidden にならず、親 / main checkout の file edit・read isolation が維持されるか                                                          |
-| jobs / background      | scheduled job の state read、background session、`-p`                                       | `~/.claude/jobs` は追加 path として継続利用できるか。background / noninteractive に interactive one-time prompt を期待しない                                                  |
-| skills                 | Claude の `~/.claude/skills`、shared `~/.agents/skills`、追加 directory 内 `.claude/skills` | `Skill` tool discovery が block 設定に不必要に依存しないことを確認。Claude が shared hub を直接 file-tool read する構成なら、それを別途明示して additional directory を再判断 |
-| version regression     | 2.1.258、2.1.259、2.1.260、2.1.261（可能なら）                                              | 2.1.257 setting introduction、2.1.259 worktree false refusal、2.1.260 git config / own checkout fix、2.1.261 current candidate を比較                                         |
+| axis | cases | 確認すること |
+| --- | --- | --- |
+| setting | unset、`false`、`true` | unset / false の auto one-time prompt と、true の persistent fence を区別する。user settings への自動書き戻しも確認 |
+| permission mode | `default`、`acceptEdits`、`plan`、`auto`、`dontAsk`、`bypassPermissions` | true で direct file read が全 mode で拒否されるか。`bypassPermissions` は candidate の隔離環境だけで試す |
+| direct tools | `Read`、`Grep`、`Glob` | primary worktree は成功、`outside/` は true で拒否、`extra/` は追加 directory 設定時だけ成功、symlink は target 境界として評価されるか |
+| Bash readers | `cat`、`grep`、`find`、`head`、read-only `git`、`pwd` / `cd` | working-directory 内外で built-in read-only 扱いが変わるか。true の外部 path は prompt / deny の実際の結果を記録 |
+| redirects | `cat < outside/file`、`grep x < outside/file`、`cat > outside/file` | v2.1.257 の input redirect read check と output redirect edit checkを別々に確認。glob、`cd dir && cat file`、heredocも含める |
+| additional directories | `~/.claude/jobs`、`~/runtime`、fixture `extra/` | settings の追加 path は direct tools / Bash / edit それぞれに効くか。追加 path の `.claude/skills` discovery と `CLAUDE.md` discovery（env var あり / なし）も別確認 |
+| user config | `git config --global --get user.name`、read-only git from linked worktree | 2.1.260 で修正された global git config の hidden failure が再発しないか。credential value は出力しない |
+| linked worktree | current linked worktree、main checkout の common `.git`、`.git` pointer | current worktree 内の edit / read は成功し、main checkout file を直接読む操作は境界外として扱われるか。git commit 等の common metadata access が壊れないか |
+| subagent | `Agent(isolation: "worktree")` の own checkout、親 worktree、main checkout | 2.1.260 fix のとおり own checkout が hidden にならず、親 / main checkout の file edit・read isolation が維持されるか |
+| jobs / background | scheduled job の state read、background session、`-p` | `~/.claude/jobs` は追加 path として継続利用できるか。background / noninteractive に interactive one-time prompt を期待しない |
+| skills | Claude の `~/.claude/skills`、shared `~/.agents/skills`、追加 directory 内 `.claude/skills` | `Skill` tool discovery が block 設定に不必要に依存しないことを確認。Claude が shared hub を直接 file-tool read する構成なら、それを別途明示して additional directory を再判断 |
+| version regression | 2.1.258、2.1.259、2.1.260、2.1.261（可能なら） | 2.1.257 setting introduction、2.1.259 worktree false refusal、2.1.260 git config / own checkout fix、2.1.261 current candidate を比較 |
 
 ### 判定基準
 
@@ -160,22 +160,22 @@ tool snapshotを`896d09ccef580902e01e716e6f4646421087c252`へ固定し、Claude 
 
 候補Claude Code 2.1.261を一時fixtureと明示settingsで`--print --no-session-persistence`実行し、stream JSONのtool event / denial reasonまで確認した。
 
-| case                                             | 結果                                                                                              |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| primary directoryのdirect `Read`                 | `PRIMARY_OK`を取得                                                                                |
-| 明示`additionalDirectories`のdirect `Read`       | `EXTRA_OK`を取得                                                                                  |
-| 明示`additionalDirectories`へのdirect `Write`    | `Edit(...)` denyを理由に実行前拒否し、fixtureにfileを作成しない                                   |
-| outside fileのdirect `Read`                      | `permissions.blockReadsOutsideWorkingDirectories`を理由に拒否                                     |
-| primary内symlinkからoutside targetへの`Read`     | 同じread fenceを理由に拒否                                                                        |
-| outside fileへのBash `cat` / input redirect      | `bypassPermissions` modeでも両方ともread fenceを理由に実行前拒否                                  |
-| global git configとlinked worktreeの`git status` | config値を出力せず`GIT_RUNTIME_OK`                                                                |
-| `Agent(isolation: "worktree")`のown checkout     | own checkoutで`pwd`と`Read AGENTS.md`が成功し`OWN_WORKTREE_OK`。一時worktreeは終了時に自動cleanup |
+| case | 結果 |
+| --- | --- |
+| primary directoryのdirect `Read` | `PRIMARY_OK`を取得 |
+| 明示`additionalDirectories`のdirect `Read` | `EXTRA_OK`を取得 |
+| 明示`additionalDirectories`へのdirect `Write` | `Edit(...)` denyを理由に実行前拒否し、fixtureにfileを作成しない |
+| outside fileのdirect `Read` | `permissions.blockReadsOutsideWorkingDirectories`を理由に拒否 |
+| primary内symlinkからoutside targetへの`Read` | 同じread fenceを理由に拒否 |
+| outside fileへのBash `cat` / input redirect | `bypassPermissions` modeでも両方ともread fenceを理由に実行前拒否 |
+| global git configとlinked worktreeの`git status` | config値を出力せず`GIT_RUNTIME_OK` |
+| `Agent(isolation: "worktree")`のown checkout | own checkoutで`pwd`と`Read AGENTS.md`が成功し`OWN_WORKTREE_OK`。一時worktreeは終了時に自動cleanup |
 
 これにより2.1.260の修正対象だったglobal git configとworktree-isolated subagent own checkoutを含む必須smokeは通過した。`nix flake check --no-build --all-systems`と3 systemのpackage metadata evaluationも成功している。task worktreeからlive HOMEへの`chezmoi apply`は行っていない。
 
 ## 2026-09-07 追記
 
-2026-09-07、実際の稼働環境における session transcript（`~/.claude/projects/**/*.jsonl`、550 ファイル）を、cwd と既存 `additionalDirectories`（`~/.claude/jobs`、`~/runtime`）の外側を指す (a) file tool 操作（Read/Grep/Glob/LSP/Edit/Write）と (b) Bash コマンド内の絶対パス参照で集計し、Working-Directory Read Fence（[CONTEXT.md](../../CONTEXT.md)）の追加候補を再評価した。集計では既知の session scratchpad carve-out（`[/\\]claude[^/\\]*[/\\](?:[^/\\]+[/\\])+scratchpad(?:[/\\]|$)` に一致するパス）を除外している。
+2026-09-07、実際の稼働環境における session transcript（`~/.claude/projects/**/*.jsonl`、550 ファイル）を、cwd と既存 `additionalDirectories`（`~/.claude/jobs`、`~/runtime`）の外側を指す (a) file tool 操作（Read/Grep/Glob/LSP/Edit/Write）と (b) Bash コマンド内の絶対パス参照で集計し、Working-Directory Read Fence（[CONTEXT.md](https://github.com/treflebonbon/dotfiles/blob/8ffc5653a35f345ed0f0c754ca66276b89987c42/CONTEXT.md)）の追加候補を再評価した。集計では既知の session scratchpad carve-out（`[/\\]claude[^/\\]*[/\\](?:[^/\\]+[/\\])+scratchpad(?:[/\\]|$)` に一致するパス）を除外している。
 
 ### 実測順位（企業固有の org/repo 名は除いた集計）
 
@@ -211,14 +211,14 @@ transcript 上で実際に deny まで到達した記録は3件のみ（通常�
 
 working directory **内側**のファイルに対する呼出しで6件、**外側**（working directory にも `additionalDirectories` にも属さないパス、例 `/etc/hostname`）に対する呼出しで1件（heredoc 経由 interpreter）を再現した。**同一の command class（heredoc）が内側・外側のどちらでも同じ denial テンプレートで再現しており、path の内外は分岐条件ではない。** プロンプト文言はすべて `permissions.blockReadsOutsideWorkingDirectories` を理由として明示的に引用する。
 
-| command class                                               | 内側での denial テンプレート（要旨）                                                                                                                                             | 外側での再現                                               |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| heredoc 経由の interpreter（`python3 - <<'PY' ... PY`）     | `code on stdin cannot be checked against the read block; ... a command the shell parser cannot analyze asks the person`                                                          | 確認済み（`/etc/hostname` 読み取りで同一テンプレート再現） |
-| `python3 -c` 相当の inline code                             | `python3 runs inline code, which cannot be checked against the read block; ...`                                                                                                  | 未実施                                                     |
-| command substitution（`$(...)` / backtick）                 | `Contains command_substitution; ...`                                                                                                                                             | 未実施                                                     |
-| 裸の `$VAR`（simple expansion）                             | `Contains simple_expansion; ...`                                                                                                                                                 | 未実施                                                     |
-| `sed`/`awk` 等 programmable reader（script 引数を取る）     | `This <command> script is not on the allowlist and can read or write any file, which cannot be checked against the read block (permissions.blockReadsOutsideWorkingDirectories)` | 未実施                                                     |
-| safe list 外の環境変数プレフィックス（`VAR=value cmd ...`） | `an environment variable prefix outside the safe list cannot be checked against the read block; ...`                                                                             | 未実施                                                     |
+| command class | 内側での denial テンプレート（要旨） | 外側での再現 |
+| --- | --- | --- |
+| heredoc 経由の interpreter（`python3 - <<'PY' ... PY`） | `code on stdin cannot be checked against the read block; ... a command the shell parser cannot analyze asks the person` | 確認済み（`/etc/hostname` 読み取りで同一テンプレート再現） |
+| `python3 -c` 相当の inline code | `python3 runs inline code, which cannot be checked against the read block; ...` | 未実施 |
+| command substitution（`$(...)` / backtick） | `Contains command_substitution; ...` | 未実施 |
+| 裸の `$VAR`（simple expansion） | `Contains simple_expansion; ...` | 未実施 |
+| `sed`/`awk` 等 programmable reader（script 引数を取る） | `This <command> script is not on the allowlist and can read or write any file, which cannot be checked against the read block (permissions.blockReadsOutsideWorkingDirectories)` | 未実施 |
+| safe list 外の環境変数プレフィックス（`VAR=value cmd ...`） | `an environment variable prefix outside the safe list cannot be checked against the read block; ...` | 未実施 |
 
 heredoc 以外の5 command class は内側でのみ実測した。同一 gate（同じ denial 文言テンプレート群、同じ `permissions.blockReadsOutsideWorkingDirectories` 根拠）が内外で分岐する理由は見当たらないため、path 非依存という結論は heredoc の実測から他 class へも妥当に一般化できると判断するが、個別の実測ではない点を明記する。
 
