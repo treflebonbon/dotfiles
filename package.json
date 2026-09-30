@@ -6,7 +6,7 @@
     "test": "bun install --frozen-lockfile && bats tests/"
   },
   "devDependencies": {
-    "bun-types": "1.3.13",
+    "bun-types": "1.4.2",
     "oxfmt": "^0.67.0",
     "oxlint": "^1.82.0",
     "typescript": "^7.0.2",
