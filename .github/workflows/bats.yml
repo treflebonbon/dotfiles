@@ -1,0 +1,38 @@
+name: Bats
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bats-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Bats (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: |
+            extra-substituters = https://nix-community.cachix.org https://cache.numtide.com
+            extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
+      - name: Bats の実行
+        shell: bash
+        run: |
+          export HOME="$RUNNER_TEMP/bats-home"
+          export XDG_CONFIG_HOME="$HOME/.config"
+          export XDG_DATA_HOME="$HOME/.local/share"
+          export XDG_CACHE_HOME="$HOME/.cache"
+          unset CODEX_HOME CLAUDE_CONFIG_DIR
+          mkdir -p "$HOME"
+          time nix develop ./private_dot_config/nix-devshell --command \
+            nix develop . --command bun run test
