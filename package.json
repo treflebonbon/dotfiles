@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun install --frozen-lockfile && bats tests/"
+    "test": "bun install --frozen-lockfile && bats --print-output-on-failure tests/"
   },
   "devDependencies": {
     "bun-types": "1.4.2",
