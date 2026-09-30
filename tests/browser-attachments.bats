@@ -47,3 +47,46 @@ upload() {
   ! grep -Eq 'release|run|reserve' "$OWNER_CALLS"
   [ -z "$(find "$BROWSER_OWNERSHIP_DIR" -name '*.json' -print)" ]
 }
+
+@test "comment command accepts two images and posts once without editing the PR body" {
+  export BROWSER_ATTACHMENTS_GH="$BATS_TEST_TMPDIR/github"
+  export COMMENT_FIXTURE="$BATS_TEST_TMPDIR/comments.json"
+  printf '[]\n' >"$COMMENT_FIXTURE"
+  cat >"$BROWSER_ATTACHMENTS_GH" <<'JS'
+#!/usr/bin/env node
+const fs=require('node:fs');const args=process.argv.slice(2);
+if(args[0]!=='api')throw new Error('PR body must not be edited');
+if(args.includes('user')){process.stdout.write('me');}
+else if(args.includes('--slurp')){process.stdout.write(JSON.stringify([JSON.parse(fs.readFileSync(process.env.COMMENT_FIXTURE,'utf8'))]));}
+else if(args.includes('--method')){
+ const payload=JSON.parse(fs.readFileSync(args.at(-1),'utf8'));
+ const comments=JSON.parse(fs.readFileSync(process.env.COMMENT_FIXTURE,'utf8'));
+ const comment={...payload,user:{login:'me'},html_url:'https://github.com/owner/repo/pull/42#issuecomment-1'};
+ comments.push(comment);fs.writeFileSync(process.env.COMMENT_FIXTURE,JSON.stringify(comments));process.stdout.write(JSON.stringify(comment));
+}else{process.stdout.write(JSON.stringify({number:42,base:{repo:{full_name:'owner/repo'}}}));}
+JS
+  chmod +x "$BROWSER_ATTACHMENTS_GH"
+  cat >"$BROWSER_ATTACHMENTS_PLAYWRIGHT" <<'JS'
+let number=0;
+export const chromium={connectOverCDP:async()=>({contexts:()=>[{newPage:async()=>{
+ let asset='';const form={locator:()=>({setInputFiles:async()=>{asset=`https://github.com/user-attachments/assets/${++number}`;}})};
+ const textarea={count:async()=>1,waitFor:async()=>{},locator:()=>form,inputValue:async()=>asset};
+ return {goto:async()=>{},url:()=> 'https://github.com/owner/repo/pull/42',locator:()=>textarea,close:async()=>{}};
+}}],close:async()=>{}})};
+JS
+  printf 'second image\n' >"$BATS_TEST_TMPDIR/after.png"
+  printf '変更前\n<!-- screenshot-1 -->\n変更後\n<!-- screenshot-2 -->\n' >"$BATS_TEST_TMPDIR/body.md"
+  for _ in 1 2; do
+    run node "$ATTACHMENTS" comment --repo owner/repo --pr 42 \
+      --image "$BATS_TEST_TMPDIR/image.png" --image "$BATS_TEST_TMPDIR/after.png" \
+      --body-file "$BATS_TEST_TMPDIR/body.md" --request-id retry
+    [ "$status" -eq 0 ]
+  done
+  [[ "$output" == *'"reused":true'* ]]
+  run node --input-type=module - "$COMMENT_FIXTURE" <<'JS'
+import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+const comments=JSON.parse(await readFile(process.argv[2],'utf8'));
+assert.equal(comments.length,1);assert.equal((comments[0].body.match(/!\[Evidence\]/g)||[]).length,2);
+JS
+  [ "$status" -eq 0 ]
+}
