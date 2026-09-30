@@ -5,6 +5,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
+export const digest = (value) =>
+  createHash("sha256").update(value).digest("hex");
+
 export const withBrowserLock = async (filename, action, shared = false) => {
   await fs.mkdir(path.dirname(filename), { mode: 0o700, recursive: true });
   const guard = spawn(
@@ -50,9 +53,7 @@ export const publishEvidence = ({
   directory,
   github,
 }) => {
-  const key = createHash("sha256")
-    .update(`${repo.toLowerCase()}#${pr}`)
-    .digest("hex");
+  const key = digest(`${repo.toLowerCase()}#${pr}`);
   return withBrowserLock(path.join(directory, `pr-${key}.lock`), async () => {
     const current = JSON.parse(
       await github(["pr", "view", String(pr), "--repo", repo, "--json", "body"])
@@ -171,8 +172,6 @@ export const uploadEvidence = async (
   }
 };
 
-const digest = (value) => createHash("sha256").update(value).digest("hex");
-
 export const commentEvidence = async ({
   repo,
   pr,
@@ -220,19 +219,16 @@ export const commentEvidence = async ({
         );
       }
       const login = await github(["api", "user", "--jq", ".login"]);
-      const existing = JSON.parse(
-        await github([
-          "api",
-          "--paginate",
-          "--slurp",
-          `repos/${repo}/issues/${pr}/comments?per_page=100`,
-        ])
-      )
-        .flat()
-        .find(
-          (comment) =>
-            comment.user?.login === login && comment.body?.includes(prefix)
-        );
+      const matches = await github([
+        "api",
+        "--paginate",
+        `repos/${repo}/issues/${pr}/comments?per_page=100`,
+        "--jq",
+        `.[] | select(.user.login == ${JSON.stringify(login)} and ((.body // "") | contains(${JSON.stringify(prefix)}))) | {body, html_url} | tojson`,
+      ]);
+      const existing = matches
+        ? JSON.parse(matches.split("\n", 1)[0])
+        : undefined;
       if (existing) {
         if (!existing.body.includes(marker)) {
           throw new Error(

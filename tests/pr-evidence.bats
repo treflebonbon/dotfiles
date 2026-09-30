@@ -54,6 +54,7 @@ import assert from 'node:assert/strict';
 import {writeFile, readFile, readdir, unlink} from 'node:fs/promises';
 import path from 'node:path';
 const {commentEvidence}=await import(process.argv[2]);
+const {execFileSync}=await import('node:child_process');
 const directory=process.argv[3];
 const images=['before.png','after.png'].map(name=>path.join(directory,name));
 await Promise.all(images.map((image,n)=>writeFile(image,String(n))));
@@ -66,7 +67,7 @@ const github=async args=>{
   const comment={...payload,user:{login:'me'},html_url:'https://github.com/owner/repo/pull/42#issuecomment-1'};
   comments.push(comment);posts++;return JSON.stringify(comment);
  }
- if(args.includes('--slurp')) return JSON.stringify([[],comments]);
+ if(args.includes('--paginate')) return execFileSync('jq',['-r',args.at(-1)],{input:JSON.stringify(comments)}).toString().trim();
  return JSON.stringify({number:42,base:{repo:{full_name:'owner/repo'}}});
 };
 const options={repo:'owner/repo',pr:42,images,body:'変更前\n<!-- screenshot-1 -->\n変更後\n<!-- screenshot-2 -->',requestId:'round-1',directory,github,upload:async()=>({asset:`https://github.com/user-attachments/assets/${++uploads}`})};
@@ -95,12 +96,13 @@ import assert from 'node:assert/strict';
 import {writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 const {commentEvidence}=await import(process.argv[2]);
+const {execFileSync}=await import('node:child_process');
 const directory=process.argv[3];const images=['a.png','b.png'].map(name=>path.join(directory,name));
 await Promise.all(images.map(image=>writeFile(image,image)));
 let posts=0;let failPost=false;let saveRemote=true;let failUpload=true;const comments=[];const uploaded=[];
 const github=async args=>{
  if(args.includes('user')) return 'me';
- if(args.includes('--slurp')) return JSON.stringify([comments]);
+ if(args.includes('--paginate')) return execFileSync('jq',['-r',args.at(-1)],{input:JSON.stringify(comments)}).toString().trim();
  if(args.includes('--method')) {
   posts++;const payload=JSON.parse(await readFile(args.at(-1),'utf8'));
   const comment={...payload,user:{login:'me'},html_url:`https://github.com/owner/repo/pull/42#issuecomment-${posts}`};

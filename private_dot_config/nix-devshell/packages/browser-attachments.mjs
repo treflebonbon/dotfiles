@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-await-in-loop -- Lifecycle readiness and confirmed-stop polling must be sequential. */
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -13,6 +12,7 @@ import {
   publishEvidence,
   uploadEvidence,
   commentEvidence,
+  digest,
 } from "./pr-evidence.mjs";
 
 const exec = promisify(execFile);
@@ -33,7 +33,6 @@ const root = path.resolve(
 const directory = path.join(root, "attachments");
 const owner = (...args) =>
   run(process.env.MANAGED_CHROME_OWNER || "managed-chrome-owner", args);
-const digest = (value) => createHash("sha256").update(value).digest("hex");
 const github = (args) => run(process.env.BROWSER_ATTACHMENTS_GH || "gh", args);
 const { positionals, values } = parseArgs({
   allowPositionals: true,
