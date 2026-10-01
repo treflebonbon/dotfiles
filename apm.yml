@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#cb56ed6c19a07329a9fa0cd4e657bee040156593
+    - pbakaus/impeccable/.agents/skills/impeccable#dc78b325e753a6971800e3bddc9089bf5954f608
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -25,7 +25,7 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#cf49eff5d4463b33966b6618c83f7295797dd028
+    - remotion-dev/skills/skills/remotion-best-practices#a9b199e165505267eda1ed3e0ef3dd3567c43411
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#84ae7251ee919239d5ea85aef25897983f26601e
     # mizchi/skills
@@ -41,5 +41,5 @@ dependencies:
     - stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use
-    # Herdr 0.9.1 同梱スキルと同じ revision を APM で配布する。
-    - herdrdev/herdr/skills/herdr#065ef9d6a531c49fb8bee7e818ef837065b21ee9
+    # Herdr 0.9.3 同梱スキルと同じ revision を APM で配布する。
+    - herdrdev/herdr/skills/herdr#7b116c05bfda646af39d2524c54e70c751f57ee8

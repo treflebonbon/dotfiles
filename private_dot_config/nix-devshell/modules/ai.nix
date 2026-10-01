@@ -23,7 +23,7 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; floor validation is in ADR-0047.
-  minClaudeCode = "2.1.284";
+  minClaudeCode = "2.1.286";
   minCodex = "0.159.1";
 
   requireQualityFloor =
@@ -53,8 +53,8 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "Claude Sonnet 5.5 (`claude-sonnet-5-5`) がデフォルト Sonnet モデルとして追加された修正。";
-    decision = "docs/adr/0069-update-llm-agents-snapshot-for-sonnet-5-5.md";
+    reason = "MCP エラーとログ・transcript の秘密値の伏字漏れを修正した版。";
+    decision = "docs/adr/0047-test-quality-floors-through-package-outputs.md";
   };
 
   codexBase = requireQualityFloor {
