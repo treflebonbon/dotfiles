@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun install --frozen-lockfile && bats tests/"
+    "test": "bun install --frozen-lockfile && bats --print-output-on-failure tests/"
   },
   "devDependencies": {
-    "bun-types": "1.3.13",
+    "bun-types": "1.4.2",
     "oxfmt": "^0.67.0",
     "oxlint": "^1.82.0",
     "typescript": "^7.0.2",

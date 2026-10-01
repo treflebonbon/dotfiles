@@ -1,0 +1,128 @@
+{
+  "status": "設定後の全再検証は成功・元の障害は非再現・設定の因果効果は未確定",
+  "completed": true,
+  "environment": {
+    "started": "2026-09-30T23:32:39.293656+00:00",
+    "boot_id": "df0a6e66-e109-4fd8-bdf1-d6dab73e9d48",
+    "commit": "c2c638de10219967a08e2591f2b888c18249ec0b",
+    "kernel": "6.18.40.1-microsoft-standard-WSL2",
+    "defrag_mode": 1,
+    "boot_argument_confirmed": true,
+    "fresh_boot_control_available": false,
+    "setting_added_and_restart_performed_by": "user",
+    "additional_shared_changes_performed_by_agent": false
+  },
+  "full_suite": {
+    "pass": 700,
+    "skip": 22,
+    "fail": 0,
+    "exit_code": 0
+  },
+  "probes": {
+    "node-idle": {
+      "result": "passed=64 vsock110=0 other=0 total=64 concurrency=64",
+      "exit_code": 0,
+      "pass": 64,
+      "vsock110": 0,
+      "other": 0,
+      "total": 64,
+      "concurrency": 64
+    },
+    "interop-loaded-1000": {
+      "result": "passed=1000 vsock110=0 other=0 total=1000 concurrency=32",
+      "exit_code": 0,
+      "pass": 1000,
+      "vsock110": 0,
+      "other": 0,
+      "total": 1000,
+      "concurrency": 32
+    },
+    "node-loaded-64": {
+      "result": "passed=64 vsock110=0 other=0 total=64 concurrency=64",
+      "exit_code": 0,
+      "pass": 64,
+      "vsock110": 0,
+      "other": 0,
+      "total": 64,
+      "concurrency": 64
+    },
+    "python-loaded-64": {
+      "result": "passed=64 vsock110=0 other=0 total=64 concurrency=64",
+      "exit_code": 0,
+      "pass": 64,
+      "vsock110": 0,
+      "other": 0,
+      "total": 64,
+      "concurrency": 64
+    },
+    "node-loaded-late-64": {
+      "result": "passed=64 vsock110=0 other=0 total=64 concurrency=64",
+      "exit_code": 0,
+      "pass": 64,
+      "vsock110": 0,
+      "other": 0,
+      "total": 64,
+      "concurrency": 64
+    },
+    "dogfood-sequential": {
+      "result": "passed=10 vsock110=0 other=0 total=10 concurrency=1",
+      "exit_code": 0,
+      "pass": 10,
+      "vsock110": 0,
+      "other": 0,
+      "total": 10,
+      "concurrency": 1
+    },
+    "dogfood-parallel": {
+      "result": "passed=40 vsock110=0 other=0 total=40 concurrency=4",
+      "exit_code": 0,
+      "pass": 40,
+      "vsock110": 0,
+      "other": 0,
+      "total": 40,
+      "concurrency": 4
+    }
+  },
+  "fix_effect_established": false,
+  "reason": "mode0 の fresh-boot 対照がなく、設定と再起動の効果は分離できない",
+  "pagetypeinfo_after_read_exit": 0,
+  "kernel_order7_warnings": {
+    "before": 0,
+    "after": 0
+  },
+  "templates": {
+    "exit_code": 0,
+    "checks": {
+      "rust": {
+        "three systems evaluated; devShell and with-env executed": true,
+        "human dotenv, worktree selection, failures and output selection passed": true,
+        "real raw entry, public app, dummy test, commit and restart passed": true,
+        "locked_inputs_match_prior": true
+      },
+      "elixir": {
+        "three systems evaluated; devShell and with-env executed": true,
+        "human dotenv, worktree selection, failures and output selection passed": true,
+        "real raw entry, public app, dummy test, commit and restart passed": true,
+        "locked_inputs_match_prior": true
+      },
+      "perl": {
+        "three systems evaluated; devShell and with-env executed": true,
+        "human dotenv, worktree selection, failures and output selection passed": true,
+        "real raw entry, public app, dummy test, commit and restart passed": true,
+        "locked_inputs_match_prior": true
+      }
+    }
+  },
+  "vm_counter_deltas": {
+    "allocstall_normal": 5468,
+    "compact_stall": 106682,
+    "compact_fail": 103199,
+    "compact_success": 3483,
+    "compact_daemon_wake": 15547
+  },
+  "vm_counter_scope": "共有 VM 全体の回数差分。所要時間や設定変更による増分ではない。",
+  "all_checks_passed": true,
+  "bug_reproduced_in_this_run": false,
+  "finished": "2026-10-01T00:11:49.378179+00:00",
+  "preserved_dogfood_runs": 50
+}

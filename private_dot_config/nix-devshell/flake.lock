@@ -111,13 +111,30 @@
         "type": "github"
       }
     },
-    "nixpkgs_2": {
+    "nixpkgs-language-sources": {
+      "flake": false,
       "locked": {
-        "lastModified": 1788966248,
-        "narHash": "sha256-F36C+08KdnP1gQ6bu9Ok+UKg50A5EVSZOeGqg+hjoO0=",
+        "lastModified": 1790578696,
+        "narHash": "sha256-ZoxIApko70jCdbH3l20HWXOBaT2HZd87orzd2yJ9dVE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "104a7c61006cd22d11c0379663afee90c62273ab",
+        "rev": "7a0f122f5090cf4c2ade2a13a0e229d4e19ba71f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "7a0f122f5090cf4c2ade2a13a0e229d4e19ba71f",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1790614890,
+        "narHash": "sha256-++Rits15TV+CJgOYmZX6ycHWZaS0FEJJA7DLZP8mF+k=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "dc8993a5c130c05a8565579014968a112d416d76",
         "type": "github"
       },
       "original": {
@@ -131,7 +148,8 @@
       "inputs": {
         "llm-agents": "llm-agents",
         "nixpkgs": "nixpkgs_2",
-        "nixpkgs-ai-sources": "nixpkgs-ai-sources"
+        "nixpkgs-ai-sources": "nixpkgs-ai-sources",
+        "nixpkgs-language-sources": "nixpkgs-language-sources"
       }
     },
     "systems": {

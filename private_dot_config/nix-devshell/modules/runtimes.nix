@@ -1,8 +1,8 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 {
-  packages = with pkgs; [
+  packages = [
     # Cross-language runtimes
-    bun
+    (pkgs.callPackage (inputs.nixpkgs-language-sources + "/pkgs/by-name/bu/bun/package.nix") { })
   ];
 }
