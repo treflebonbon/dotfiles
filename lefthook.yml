@@ -1,5 +1,10 @@
 glob_matcher: doublestar
 
+test:
+  jobs:
+    - name: bats
+      run: bun run test
+
 pre-commit:
   parallel: true
   jobs:
