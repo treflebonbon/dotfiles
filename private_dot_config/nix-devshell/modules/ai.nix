@@ -68,7 +68,10 @@ let
     if pkgs.stdenv.isLinux then
       codexBase.overrideAttrs (old: {
         inherit (codexBase) version src;
-        patches = (old.patches or [ ]) ++ [ ../packages/codex-distinct-mask-fds.patch ];
+        patches = (old.patches or [ ]) ++ [
+          ../packages/codex-distinct-mask-fds.patch
+          ../packages/codex-sandbox-cleanup.patch
+        ];
       })
     else
       codexBase;
