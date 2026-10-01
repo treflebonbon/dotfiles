@@ -13,13 +13,20 @@ tags: [conventions, git, lint, lefthook]
 
 ## テスト
 
-`bun run test` で `tests/` の bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。コマンド定義は `package.json` の `scripts.test` を参照する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、bats 非対象）。`.chezmoiignore` で home には非配備。
+`lefthook run test` で `tests/` の全 Bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。lefthook の `test` は既存の `bun run test` を呼び、依存関係の frozen install と Bats の実行を行う。コマンド定義は `lefthook.yml` と `package.json` の `scripts.test` を参照する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、Bats 非対象）。`.chezmoiignore` で home には非配備。
 
 テストは試行ごとにログを保存し、進捗はログ全体の TAP 結果行から集計する。成功はスキップ指定のない `ok` 行、失敗は `not ok` 行、スキップは `# skip` 指定付きの `ok` 行として数える。完了時は終了コードと、計画数（`1..N`）に対する結果行数も確認する。再実行の結果は初回の結果と分けて報告する。
 
-PR ごとに [Bats workflow](../.github/workflows/bats.yml) が Linux で通常の全 Bats を実行する。ユーザー devShell と repo devShell を重ね、実 Codex の sandbox 検証を含むツールを揃え、隔離 HOME で `bun run test` を実行する。認証・実モデル等の opt-in 検証は既定の skip を維持する。CI が失敗したら原因を直し、成功を確認してから merge する。GitHub の required check 設定による強制は行わない。
+topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
 
-Nix store は GitHub Actions cache で再利用する。main への push では devShell の準備だけを行い、別の PR でも復元できるキャッシュを保存する。Nix 定義・lock・ローカル package source の変更で key を更新し、以前のキャッシュも prefix で復元して不足分を build する。保存前の runner 内 GC では、二つの devShell の profile が実行用 closure を保護する。初回やキャッシュの失効時は通常の build が必要になる。ローカル lefthook は引き続き pre-commit の lint を担当する。
+ローカルのユーザー devShell のツールと repo devShell を使い、Nix の取得・build 成果物とブラウザ環境を再利用する。環境を明示的に準備する場合は、worktree root から次を実行する。WSL2 では両方の `#default` を `#wsl` に置き換え、Managed Playwright Chrome を利用する。
+
+```bash
+nix develop ./private_dot_config/nix-devshell#default --command \
+  nix develop .#default --command lefthook run test
+```
+
+GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。
 
