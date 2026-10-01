@@ -43,8 +43,17 @@
 
 - 空の隔離 cwd／HOME で APM 0.32.0 の native lock を生成し、全20依存が deployed files と hashes を持つことを確認。frozen install 前後の SHA-256 は `22d8728d76bc905c70f8ed98f8e4c940ee5a2759ba4592032009821c64853944` のまま不変。audit は10/10成功。隔離 cwd に remote がないため organization policy は warning 付き skip。
 - Claude／Codex 両配布先に46 skillを確認し、配布対象1,300ファイルの SHA-256 と source／隔離 native lock の一致を照合。payload が変わったのは Remotion、Herdr、Impeccable の3依存。
-- Nix の3 systemで上表の package metadata が一致。Linux の Codex 以外の7 CLIは起動成功。ARM Linux／Darwin は評価のみで実機起動は未確認。
+- Nix の3 systemで上表の package metadata が一致。Linux の8 CLIは起動成功し、パッチ付き Codex は `codex-cli 0.159.2` を返した。ARM Linux／Darwin は評価のみで実機起動は未確認。
 - engine 0.1.8 を固定 hash で Linux buildし、candidate launcher を通す Design Hook gate は13/13成功。quiet、per-edit／Stop、silent convergence、project 設定・cache、両 provider の正常出力を維持。
 - 型検査、品質 floor の7テストは成功。
 - ADR-0005 の floor bump 時の再確認として、Claude 2.1.286 の配布 binary に kill switch、experimental enable、`tengu_sage_compass2`、`advisorModel` が残ることを確認。取得した bundled code では kill switch を先に判定し、experimental enable が feature flag を迂回する順序を維持していた。advisor rank 判定には変更があるため、旧 binary との完全同一性は主張しない。モデル・env 設定は維持し、実モデルによる advisor 呼出しは未実施。
-- パッチ付き Codex の build、関連テスト・全 Bats・レビューは実行中。
+- パッチ付き Codex の Linux source build、関連 Bats 59/59、Herdr 単独テスト1/1は成功。全 Bats の初回では Herdr の独立期待値が旧版0.9.1のまま残る1件を検出したため、採用版0.9.3へ修正した。再実行は全727件中705成功・22 skip・失敗0、終了コード0。skip は外部認証・実 runtime・追加 package・Bash 3.2などの明示 opt-in 条件による。
+- 全 Bats では候補 Codex の2個の denied-file mask、dotenv／public example の設定移行、隔離環境での編集・テストの実動作も成功した。
+
+## 二軸レビュー
+
+`code-review` の fixed point は `8865369ca94ae7356d64d902c05b37fd8a93c29a`、対象は commit `bbcc53e` の差分。独立した両 reviewer が task checkout／Git 所属と非空 diff を確認した。
+
+- 規約: 違反0件、smell 0件。native APM lock と隔離更新、Impeccable skill／engine の一体検証、ADR-0047 の意図的な独立期待値を維持している。
+- 仕様: 指摘0件。source／lock／期待値が整合し、共有 nixpkgs、モデル・権限、local skill、live apply への範囲外変更はない。レビュー時点で実行中だった検証を成功と誤記していないことも確認した。その後、残る build／全 Bats が成功し、受入条件を満たした。
+- Herdr の独立期待値の修正と検証記録の追記も、両 reviewer が追加確認し指摘0件。採用版への追随であり、既存テストの意図・規約・仕様を維持している。
