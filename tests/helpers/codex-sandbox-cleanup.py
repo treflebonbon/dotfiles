@@ -56,14 +56,17 @@ def stop(process, sig):
 
 
 try:
-    if case == "tty":
+    if case in ("tty", "tty-denied"):
         pid, master = pty.fork()
         if pid == 0:
-            os.execvpe("codex", ["codex", "sandbox", "-P", ":read-only", "-C", str(workspace),
+            profile = "test" if case == "tty-denied" else ":read-only"
+            os.execvpe("codex", ["codex", "sandbox", "-P", profile, "-C", str(workspace),
                                "--", "sh", "-c", 'read data; test "$data" = fixture && printf tty-ok'], env)
         status = None
         output = b""
         try:
+            if case == "tty-denied":
+                wait_until(dotenv.is_file)
             os.write(master, b"fixture\n")
             deadline = time.monotonic() + 5
             while status is None and time.monotonic() < deadline:
@@ -75,7 +78,7 @@ try:
                 waited, value = os.waitpid(pid, os.WNOHANG)
                 if waited:
                     status = value
-            assert status is not None, "read-only sandbox could not read its controlling terminal"
+            assert status is not None, "sandbox could not read its terminal"
             while select.select([master], [], [], 0)[0]:
                 try:
                     chunk = os.read(master, 4096)
@@ -86,6 +89,7 @@ try:
                 output += chunk
             assert os.waitstatus_to_exitcode(status) == 0, output.decode(errors="replace")
             assert b"tty-ok" in output
+            assert not dotenv.exists()
         finally:
             if status is None:
                 os.killpg(pid, signal.SIGKILL)

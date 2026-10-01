@@ -32,3 +32,7 @@ setup() {
 @test "Codex read-only sandbox preserves input from its controlling terminal" {
   python3 "$PROJECT_ROOT/tests/helpers/codex-sandbox-cleanup.py" "$BATS_TEST_TMPDIR" tty
 }
+
+@test "Codex supervised sandbox preserves terminal input and removes its denied mount target" {
+  python3 "$PROJECT_ROOT/tests/helpers/codex-sandbox-cleanup.py" "$BATS_TEST_TMPDIR" tty-denied
+}
