@@ -1,0 +1,51 @@
+--- a/linux-sandbox/src/linux_run_main.rs
++++ b/linux-sandbox/src/linux_run_main.rs
+@@ -571,6 +571,39 @@
+     "true".to_string()
+ }
+ 
++// Keep the existing cleanup owner outside the caller's process group. A caller
++// killed with SIGKILL cannot clean up; parent death instead sends this supervisor
++// SIGTERM, which the existing bubblewrap signal forwarders handle before cleanup.
++fn supervise_bwrap_cleanup() -> ForwardedSignalMask {
++    let signal_mask = ForwardedSignalMask::block();
++    let parent_pid = unsafe { libc::getpid() };
++    let pid = unsafe { libc::fork() };
++    if pid < 0 {
++        panic!(
++            "failed to fork bubblewrap cleanup supervisor: {}",
++            std::io::Error::last_os_error()
++        );
++    }
++    if pid == 0 {
++        reset_forwarded_signal_handlers_to_default();
++        if unsafe { libc::setpgid(0, 0) } < 0 {
++            panic!(
++                "failed to isolate bubblewrap cleanup supervisor: {}",
++                std::io::Error::last_os_error()
++            );
++        }
++        terminate_with_parent(parent_pid);
++        // Keep forwarded signals blocked until the existing child setup installs
++        // its handlers. No synthetic mount target exists before that setup.
++        return signal_mask;
++    }
++    let signal_forwarders = install_bwrap_signal_forwarders(pid);
++    signal_mask.restore();
++    let status = wait_for_bwrap_child(pid);
++    signal_forwarders.restore();
++    exit_with_wait_status(status);
++}
++
+ fn run_or_exec_bwrap(bwrap_args: crate::bwrap::BwrapArgs) -> ! {
+     if bwrap_args.synthetic_mount_targets.is_empty()
+         && bwrap_args.protected_create_targets.is_empty()
+@@ -587,7 +620,7 @@
+         synthetic_mount_targets,
+         protected_create_targets,
+     } = bwrap_args;
+-    let setup_signal_mask = ForwardedSignalMask::block();
++    let setup_signal_mask = supervise_bwrap_cleanup();
+     let synthetic_mount_registrations = register_synthetic_mount_targets(&synthetic_mount_targets);
+     let protected_create_registrations =
+         register_protected_create_targets(&protected_create_targets);
