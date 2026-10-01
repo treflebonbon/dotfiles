@@ -34,7 +34,7 @@ timestamp: 2026-10-01
 
 固定した WSL kernel source の `vmbus_alloc_ring()` は、send と receive の合計サイズから order を計算し、物理ページを連続して取得する。ローカル kernel log の `order:7` は 4 KiB page × 2⁷ = **512 KiB の連続領域**が取れなかった記録と一致する。`MemAvailable` の大きさだけでは、特定 zone にそのサイズの割当可能な block があるか分からない。[WSL kernel source](https://github.com/microsoft/WSL2-Linux-Kernel/blob/14794180686c2fb6307fbe359c359bec765249f3/drivers/hv/channel.c#L167-L194)
 
-ローカル記録では WSL 2.7.14 / kernel 6.18.33.2 から WSL 3.0.1 / kernel 6.18.40.1 へ更新して再起動した後も、同じ `UtilAcceptVsock: accept4 failed 110` が発生した。全体負荷中の実 PowerShell 32並列1,000回で28回、負荷終了後の Dogfood 4並列40回で2回発生した。kernel log には `vmbus_alloc_ring` 経由の order-7 allocation failure が記録された。[再検証記録](../../tmp/wsl-recheck/README.md)
+ローカル記録では WSL 2.7.14 / kernel 6.18.33.2 から WSL 3.0.1 / kernel 6.18.40.1 へ更新して再起動した後も、同じ `UtilAcceptVsock: accept4 failed 110` が発生した。全体負荷中の実 PowerShell 32並列1,000回で28回、負荷終了後の Dogfood 4並列40回で2回発生した。kernel log には `vmbus_alloc_ring` 経由の order-7 allocation failure が記録された。再検証記録（ローカルの `tmp/wsl-recheck/README.md`、Git 管理外）
 
 今回承認済みで実施した compaction 1回の比較では、同一コマンドの64並列64回 probe の結果は以下だった。背景負荷は時間とともに変化しており、自然回復を含む時間変動が大きいため、40→18を効果とは扱わない。
 
@@ -44,9 +44,9 @@ timestamp: 2026-10-01
 | 無操作 control    |   60 |          4 |
 | 1回 compaction 後 |   46 |         18 |
 
-compaction 前後は `MemAvailable` が約10.7 GiB。page type の取得時点では Normal zone の通常 migrate type に order 7 の block がなく、HighAtomic 用 block は残り、DMA32 の大きな領域も増えていなかった。kernel order-7 warning は16→18→18→19件へ推移した。この証拠は高次割当失敗と整合する一方、全ての zone allocator 状態を原子的に示すものではない。[compaction summary](../../tmp/wsl-kernel-debug/compact-summary.json)・[実測の説明](../../tmp/wsl-recheck/README.md)
+compaction 前後は `MemAvailable` が約10.7 GiB。page type の取得時点では Normal zone の通常 migrate type に order 7 の block がなく、HighAtomic 用 block は残り、DMA32 の大きな領域も増えていなかった。kernel order-7 warning は16→18→18→19件へ推移した。この証拠は高次割当失敗と整合する一方、全ての zone allocator 状態を原子的に示すものではない。compaction summary（ローカルの `tmp/wsl-kernel-debug/compact-summary.json`、Git 管理外）・実測の説明（ローカルの `tmp/wsl-recheck/README.md`、Git 管理外）
 
-また、8 GiB sparse file の読み込み後、その file cache 約2.8 GBだけを `POSIX_FADV_DONTNEED` で解放する比較は前後とも64回成功だった。したがって cache 量だけで再現を説明できず、この結果は `autoMemoryReclaim` の効果を示すものでもない。[実測記録](../../tmp/wsl-recheck/README.md)
+また、8 GiB sparse file の読み込み後、その file cache 約2.8 GBだけを `POSIX_FADV_DONTNEED` で解放する比較は前後とも64回成功だった。したがって cache 量だけで再現を説明できず、この結果は `autoMemoryReclaim` の効果を示すものでもない。実測記録（ローカルの `tmp/wsl-recheck/README.md`、Git 管理外）
 
 ## 設定だけで変えられる範囲
 
@@ -115,14 +115,14 @@ WSL kernel の `hvs_open_connection()` は host から来た接続では bound l
 | --- | --- |
 | 全 Bats suite（plan 722） | 700成功・22スキップ・失敗0、exit 0 |
 | Rust・Elixir・Perl の実テンプレート | 各3システム評価、devShell、with-env、環境変数の隔離、実 raw entry 内の実行・テスト・コミット・再起動まで成功、exit 0 |
-| 無負荷 Node、実 PowerShell 64並列64回 | 64成功・vsock110 0・その他0 |
-| 全テスト・テンプレートの負荷中、実 PowerShell 32並列1,000回 | 1,000成功・vsock110 0・その他0 |
-| 負荷中、Node / Python 各64並列64回 | 各64成功・vsock110 0・その他0 |
-| 空きメモリが減った段階、Node 64並列64回 | 64成功・vsock110 0・その他0 |
+| 無負荷、Node から実 PowerShell 64並列64回 | 64成功・vsock110 0・その他0 |
+| 全テスト・テンプレートの負荷中、Node から実 PowerShell 32並列1,000回 | 1,000成功・vsock110 0・その他0 |
+| 負荷中、Node / Python から実 PowerShell 各64並列64回 | 各64成功・vsock110 0・その他0 |
+| 空きメモリが減った段階、Node から実 PowerShell 64並列64回 | 64成功・vsock110 0・その他0 |
 | 負荷終了後、実 Dogfood 直列10回・4並列40回 | 計50成功・vsock110 0・その他0、Chrome 起動・CDP 接続・終了処理を含む |
 | kernel の order-7 allocation warning | 開始前0件・終了後0件 |
 
-実 PowerShell は合計1,256回すべて成功。前回 vsock タイムアウトで失敗した Bats の annotation / Windows inspection の2ケースも成功した。結果と各終了コード、kernel / memory 記録は [再検証の summary](../../tmp/wsl-defrag-recheck/summary.json)、説明は [再検証記録](../../tmp/wsl-defrag-recheck/README.md) に保存した。Dogfood 50試行の evidence も作業用ディレクトリへ退避した。これらの `tmp/` 資料は Git 管理対象外である。
+Node / Python は起動元であり、表の実 PowerShell 5試行は `64 + 1,000 + 64 + 64 + 64 = 1,256` 回すべて成功。前回 vsock タイムアウトで失敗した Bats の annotation / Windows inspection の2ケースも成功した。各試行の集計・終了コード、kernel warning 数と VM counter 差分は追跡対象の [再検証の summary](wsl-defrag-recheck/summary.json)、試行の内訳と説明は [再検証記録](wsl-defrag-recheck/README.md) に保存した。生のログ、kernel / memory 記録、Dogfood 50試行の evidence は元の `tmp/wsl-defrag-recheck/` に保存しており、Git 管理対象外である。
 
 検証中の共有 VM 全体では `allocstall_normal` が5,468、`compact_stall` が106,682、`compact_fail` が103,199、`compact_success` が3,483増えた。これらは direct reclaim / compaction の活動回数で、待機時間ではない。[ALLOCSTALL の計数](https://github.com/microsoft/WSL2-Linux-Kernel/blob/14794180686c2fb6307fbe359c359bec765249f3/mm/vmscan.c#L6404)・[COMPACTSTALL の計数](https://github.com/microsoft/WSL2-Linux-Kernel/blob/14794180686c2fb6307fbe359c359bec765249f3/mm/page_alloc.c#L4156)。同じ時間幅・負荷の mode0 対照がないため、この増加を設定変更の効果量や性能劣化の証拠とは扱わない。
 
