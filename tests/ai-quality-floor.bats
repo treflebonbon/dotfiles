@@ -16,7 +16,7 @@ evaluate_floor() {
   evaluate_floor claude-code '{ }'
   [ "$status" -ne 0 ]
   [[ "$output" == *'claude-code 不明'* ]]
-  [[ "$output" == *'2.1.284'* ]]
+  [[ "$output" == *'2.1.286'* ]]
 }
 
 @test "quality floor rejects Codex with missing version metadata and identifies it as unknown" {
@@ -27,9 +27,9 @@ evaluate_floor() {
 }
 
 @test "quality floor accepts input packages at the approved floors" {
-  evaluate_floor claude-code '{ version = "2.1.284"; }'
+  evaluate_floor claude-code '{ version = "2.1.286"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.284" and .matchesSource' <<<"$output"
+  jq -e '.version == "2.1.286" and .matchesSource' <<<"$output"
 
   evaluate_floor codex '{ version = "0.159.1"; }'
   [ "$status" -eq 0 ]
@@ -37,9 +37,9 @@ evaluate_floor() {
 }
 
 @test "quality floor accepts input packages above the approved floors" {
-  evaluate_floor claude-code '{ version = "2.1.285"; }'
+  evaluate_floor claude-code '{ version = "2.1.287"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.285" and .matchesSource' <<<"$output"
+  jq -e '.version == "2.1.287" and .matchesSource' <<<"$output"
 
   evaluate_floor codex '{ version = "0.159.2"; }'
   [ "$status" -eq 0 ]
@@ -68,7 +68,7 @@ evaluate_floor() {
     [[ "$diagnostic" == *'private_dot_config/nix-devshell/flake.nix'* ]]
     [ "$(wc -l <<<"$diagnostic")" -le 12 ]
   done <<'CASES'
-claude-code 2.1.276 2.1.284 docs/adr/0069-update-llm-agents-snapshot-for-sonnet-5-5.md
+claude-code 2.1.285 2.1.286 docs/adr/0047-test-quality-floors-through-package-outputs.md
 codex 0.158.0 0.159.1 docs/adr/0070-adopt-gpt-6-1-sol.md
 CASES
 }
