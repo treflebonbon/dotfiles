@@ -31,6 +31,22 @@ APM manifest／native lock、managed set の保持・撤去、AGENTS.md／CLAUDE
 
 上流の根拠: [implement-spec](https://github.com/mattpocock/skills/blob/d81f3a183412e71a5b1e84ca21bc1a35eea03a60/skills/engineering/implement-spec/SKILL.md)、[pr](https://github.com/mattpocock/skills/blob/d81f3a183412e71a5b1e84ca21bc1a35eea03a60/skills/engineering/pr/SKILL.md)、[retro](https://github.com/mattpocock/skills/blob/d81f3a183412e71a5b1e84ca21bc1a35eea03a60/skills/engineering/retro/SKILL.md)、[domain-modeling](https://github.com/mattpocock/skills/blob/d81f3a183412e71a5b1e84ca21bc1a35eea03a60/skills/engineering/domain-modeling/SKILL.md)。
 
+## 画像添付の補助スキル（2026-10-01 追記）
+
+`grill-with-docs` で、ユーザーは `to-pr` のラッパーを復活させる案より、画像を添付したいときだけ明示的に呼ぶ独立したローカル skill を選択した。`pr` の標準本文と既存の PR 公開手順は維持し、補助スキルは撮影と既存画像の添付に対応する。比較できる場合は変更前後を撮影し、添付できない場合は取得画像と理由を残して手動添付へ引き継ぐ。自動ログインは行わない。
+
+対象は既存 PR のみとする。番号・URL の指定があればそれを使い、指定がなければ現在のブランチの PR を調べる。見つからなければ画像を残して PR 作成後の再実行を案内し、このスキルでは push・PR 作成を行わない。
+
+変更前の撮影には既存の比較 URL・環境・画像を使い、比較のためだけに別 worktree や起動環境を構築しない。利用できる変更前の証拠がなければ、変更後の画像と未比較理由を残す。
+
+掲載先は PR コメントとし、修正箇所の短い説明と変更前後の画像、または変更後の画像と未比較理由をまとめる。`pr` の生成する本文構成に依存せず、PR 本文は更新しない。新しい添付依頼ごとにコメントを追加して過去の画像を残し、同じ添付依頼の再実行では投稿済みコメントを確認して重複投稿を避ける。
+
+Claude による設計レビューで、複数画像は依頼単位で揃えてから1コメントを投稿し、途中失敗では部分的なコメントを投稿せず取得済みの添付 URL・画像・理由を残すことを補足した。投稿結果が不明な場合も、再実行では投稿済みコメントを照会してから判断する。コメント経路の追加で既存の本文添付 CLI の契約を変更せず、対象 repo／PR の検証、再実行・並行呼出し・途中失敗の回帰検証を行う。コメント入力欄からの headless アップロードは実装時の実機確認対象とする。
+
+これは上記の自動画像添付廃止・代替ローカル skill 非導入に対する、明示呼出しによる画像添付だけの例外とする。旧 `to-pr` の独自本文・検証表・階層修復は復活させない。ユーザーは設計全体に合意し、`pr-screenshots` と CLI のコメント経路を実装する。
+
+実装の関連 Bats 44件、lint・format・型検査、Nix package build が成功した。Herdr の Claude による設計・実装レビューの指摘は解消した。実際の `gh api --paginate --slurp` でコメントを取得できることを確認したが、共有添付ブラウザは GitHub 未認証だったため、認証済みコメント入力欄からのアップロードは未検証である。live source／HOME への配備は受入・merge 後に行う。
+
 ## 検証記録
 
 APM 0.32.0 の空の隔離 cwd／HOME で実 manifest から native lock を生成し、frozen install 前後の SHA-256 不変と audit 10/10 を確認した。Matt の selected content hash は `sha256:3228058108c4d2b45044dc0cc2ac0823890dee5bf885e3114297685bb04592c2`。他19依存の selected content hash はすべて不変で、shadcn `db2db460` → `08ab84f7`、Orca `computer-use`／`orchestration` `31012aeb` → `59b746ff` だけが revision-only で進んだ。APM の organization policy は隔離 cwd に Git remote がないため warning 付きで skip し、baseline の10項目は成功した。

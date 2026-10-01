@@ -6,6 +6,21 @@ setup() {
   setup_local_skills_fixture
 }
 
+@test "PR screenshots deploys to both hubs while to-pr stays retired" {
+  for _ in 1 2; do
+    run run_skill_phase before_remove-orphan-claude-skills
+    [ "$status" -eq 0 ]
+    run run_skill_phase after_deploy-local-skills
+    [ "$status" -eq 0 ]
+  done
+  local dir
+  for dir in .agents .claude; do
+    cmp "$SKILL_SOURCE/local-skills/pr-screenshots/SKILL.md" "$SKILL_HOME/$dir/skills/pr-screenshots/SKILL.md"
+    [ ! -e "$SKILL_HOME/$dir/skills/to-pr" ]
+  done
+  [ ! -e "$SKILL_HOME/.codex/skills/pr-screenshots" ]
+}
+
 @test "dogfood replaces the retired issue-only skill in both deployment hubs" {
   local dir
   for dir in .agents .claude .codex; do

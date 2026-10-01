@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-await-in-loop -- Lifecycle readiness and confirmed-stop polling must be sequential. */
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -12,6 +11,8 @@ import {
   withBrowserLock,
   publishEvidence,
   uploadEvidence,
+  commentEvidence,
+  digest,
 } from "./pr-evidence.mjs";
 
 const exec = promisify(execFile);
@@ -32,33 +33,37 @@ const root = path.resolve(
 const directory = path.join(root, "attachments");
 const owner = (...args) =>
   run(process.env.MANAGED_CHROME_OWNER || "managed-chrome-owner", args);
-const digest = (value) => createHash("sha256").update(value).digest("hex");
 const github = (args) => run(process.env.BROWSER_ATTACHMENTS_GH || "gh", args);
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: Object.fromEntries(
-    ["repo", "pr", "image", "placeholder", "request-id"].map((key) => [
-      key,
-      { type: "string" },
-    ])
-  ),
+  options: {
+    ...Object.fromEntries(
+      ["repo", "pr", "placeholder", "request-id", "body-file"].map((key) => [
+        key,
+        { type: "string" },
+      ])
+    ),
+    image: { multiple: true, type: "string" },
+  },
 });
 const [command] = positionals;
-if (!["upload", "auth", "close"].includes(command)) {
+if (!["upload", "comment", "auth", "close"].includes(command)) {
   throw new Error(
-    "Usage: browser-attachments upload --repo owner/repo --pr NUMBER --image PATH --placeholder TEXT --request-id ID | auth | close"
+    "Usage: browser-attachments upload --repo owner/repo --pr NUMBER --image PATH --placeholder TEXT --request-id ID | comment --repo owner/repo --pr NUMBER --image PATH [--image PATH] --body-file PATH --request-id ID | auth | close"
   );
 }
 if (
-  command === "upload" &&
+  ["upload", "comment"].includes(command) &&
   (!/^[\w.-]+\/[\w.-]+$/u.test(values.repo || "") ||
     !/^[1-9][0-9]*$/u.test(values.pr || "") ||
-    !values.image ||
-    !values.placeholder ||
+    !values.image?.length ||
+    (command === "upload" &&
+      (values.image.length !== 1 || !values.placeholder)) ||
+    (command === "comment" && !values["body-file"]) ||
     !values["request-id"])
 ) {
   throw new Error(
-    "upload requires repo, pr, image, placeholder and request-id"
+    "upload requires repo, pr, one image, placeholder and request-id; comment requires repo, pr, images, body-file and request-id"
   );
 }
 const modulePath =
@@ -208,6 +213,42 @@ try {
           "close-unconfirmed: attachment browser ownership was preserved"
         );
       }
+      if (command === "comment") {
+        const result = await commentEvidence({
+          body: await fs.readFile(values["body-file"], "utf-8"),
+          directory,
+          github,
+          images: values.image,
+          pr: values.pr,
+          repo: values.repo,
+          requestId: values["request-id"],
+          upload: async (image) => {
+            const existing = await ensure("headless");
+            if (
+              existing &&
+              (await run(powershell(), await ps("Inspect"))) !==
+                `managed:headless:${existing.browserPid}`
+            ) {
+              throw new Error(
+                "ownership-conflict: attachment browser identity changed"
+              );
+            }
+            const browser = await connect();
+            try {
+              return await uploadEvidence(browser.contexts()[0], {
+                comment: true,
+                image,
+                pr: values.pr,
+                repo: values.repo,
+              });
+            } finally {
+              await browser.close();
+            }
+          },
+        });
+        console.log(JSON.stringify(result));
+        return;
+      }
       const mode = command === "auth" ? "headed" : "headless";
       const existing = await ensure(mode);
       if (existing) {
@@ -231,7 +272,7 @@ try {
         );
         return;
       }
-      const image = await fs.readFile(values.image);
+      const image = await fs.readFile(values.image[0]);
       const key = digest(
         `${values.repo.toLowerCase()}#${values.pr}:${values["request-id"]}`
       );
@@ -266,7 +307,7 @@ try {
           await save(filename, receipt);
           try {
             const result = await uploadEvidence(browser.contexts()[0], {
-              image: values.image,
+              image: values.image[0],
               pr: values.pr,
               repo: values.repo,
             });
@@ -303,7 +344,7 @@ try {
         );
       });
     },
-    command === "upload"
+    ["upload", "comment"].includes(command)
   );
 } catch (error) {
   console.error(`browser-attachments: ${error.message}`);

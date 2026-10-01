@@ -186,6 +186,7 @@ APM の変更検知には展開後の cleanup script の hash を含めるため
 現行のローカル skill:
 
 - `ui-grill-with-docs` — UI/UX 比重が高い Planner 向けの `grill-with-docs` 派生。各 frontier round の全質問・推奨・必要な比較モック・回答欄を `tmp/ui-grill-<topic>.html` にまとめ、次の round で同じファイルを更新する。同梱テンプレートは選択肢と自由記述、未回答を明記するMarkdown一括コピー、同じ質問への入力復元を提供し、外部通信なしで動く。保存・コピーが使えない場合も手動コピーでき、貼り付けた回答を待って確定事項を `GLOSSARY.md` / ADR に残す
+- `pr-screenshots` — 必要なときだけ明示的に呼び、修正箇所の撮影または既存画像を既存 PR のコメントへ添付する。本文は上流 `pr` に任せ、新しい依頼ごとにコメントを追加し、同じ依頼の再実行では重複投稿を避ける。変更前は既存の比較環境・画像を使い、用意できなければ変更後と未比較理由を残す（[ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md)）
 - `dogfood` — 同梱の Playwright dogfood runner で web アプリ / Chrome MV3 拡張を local HEAD 由来の隔離 worktree で検査し、既定はレポートで完了する。GitHub 操作は `--issues` 時だけ行い、採用確認済みの finding を Issue 化する。`--annotate` 指定時は自動検査後、runner 所有 Chromium に Playwright CLI で CDP attach し、矩形注釈と全体 feedback を同じ候補・承認フローへ加える（`--resume` とは併用不可）。`--resume <path>` は URL 不要の既存結果レビューで、`--issues` と併用可能。レポートまたは Issue 作成で完了し、修正実装は別 phase（triage → model-invoked フローへ）。`scripts/runtime-preflight.sh` は `--issues` 時だけ実行する
 - `domain-modeling-studio` — 業務フロー層・アーキテクチャ層・関数フロー層の3層を1つのオフライン単一HTMLで往復し、根拠付きの現状/改善案とレビュー指摘をクリックのドリルダウン（アーキテクチャ→関数フロー→業務フロー）で辿れる。アーキテクチャ層は選んだ業務フローの近傍1ホップに限定した言語非依存のimport/require軽量解析（既定 `origin: inference`。リポジトリ全体俯瞰ではなく近傍スコープを選んだ判断は[ADR-0062](../docs/adr/0062-scope-architecture-layer-to-neighborhood.md)）。関数フロー層はROP意味論（成功/失敗/回復/バイパス/終端/型外の異常）で、TypeScript Effectはast-grep抽出ヘルパー（`status: ok/unavailable/failed`を区別しフォールバックはソース読解）、Rust等はソース読解のみ（旧`rop-visualizer`を統合退役し継承、[ADR-0061](../docs/adr/0061-retire-rop-visualizer-into-domain-modeling-studio.md)）。生成物(HTML)の閲覧はランタイム依存なし、生成自体はNode、TypeScript関数フロー層の根拠収集だけPython + ast-grep（既存devShell配備済み）を要する
 - `marp` — markdown を Marp CLI で PDF スライド化（marp-cli は nix devshell 配備済み）
@@ -222,7 +223,9 @@ WSL2 の通常の `playwright-cli open [URL]` は Windows 側の worktree 別 br
 
 profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。共有添付 profile は対象にできない。
 
-PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `browser-attachments auth` → 手動ログイン → `browser-attachments close`。添付 CLI の実行は headless のみ。標準の `pr` は本文作成を担当し、この CLI を自動起動しない。
+PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `browser-attachments close` の成功を確認 → `browser-attachments auth` → 手動ログイン → `browser-attachments close`。認証不足の添付失敗で残った headless ブラウザも、最初の close で終了してから headed の認証へ進む。添付 CLI の実行は headless のみ。標準の `pr` は本文作成を担当し、この CLI を自動起動しない。
+
+任意の画像補足は `pr-screenshots` を明示的に呼ぶ。`browser-attachments comment --repo OWNER/REPO --pr NUMBER --image PATH [--image PATH] --body-file PATH --request-id ID` が全画像を揃えて1コメントを投稿し、PR 本文は更新しない。原稿には画像順に `<!-- screenshot-1 -->` などを1回ずつ置く。同じ ID は画像・原稿も同じ内容で再利用し、投稿済みコメントのマーカーを照会して重複を防ぐ。途中失敗では画像・取得済み URL・理由を残し、送信結果不明なら状態を調べて再送を避ける。
 
 CLI session の保存先・Dashboard の session 一覧・制御 socket も物理 worktree root ごとに分離する。同じ session 名を別 worktree で使っても相互操作しない。切替前に旧 package で既存 CLI / Dashboard を終了する。Dogfood の自動 CDP port は所有権の予約と同じ lock 内で割り当て、保持中の予約を避ける。明示 port の競合は拒否する。Windows の状態確認が重なる場合、共有の登録 lock は最大30秒待機し、期限超過は状態を保持して失敗する。
 
