@@ -28,5 +28,15 @@ APM 0.33.0 は merge済み snapshot の package を使う。旧一括候補の l
 - 空runtimeの20依存・1,304ファイルのSHA-256と、Claude／Codex各46スキルの一致を確認した。
 - audit baselineは10/10成功。Git remoteのない隔離環境で organization policy enforcementはwarning付きskipとなり、その適合は未検証。
 - 関連 `tests/apm-runtime.bats`／`tests/nix-devshell.bats` は43/43成功。型検査 `bunx tsc --noEmit` と隔離chezmoi dry-runも成功し、dry-run前後の一時HOMEは不変。非Remotionのdeployment ledgerは全項目不変。
-- 標準全件テストと二軸レビューは本単位の最終sourceで実施する。過去の一括候補の成功を本単位の成功として流用しない。
+- 本単位の最終sourceで標準 `lefthook run test` が735件中713成功・22 skip・失敗0、終了コード0で完了した。過去の一括候補の結果とは別の実行ログに記録した。
 - HOMEへの配備は受入・merge後のlive sourceで行う。
+
+## 規約軸レビュー
+
+実装 commit `6786197` の差分を merge済み base `a76f19b` から確認し、指摘0件。隔離 native lock生成・frozen no-rewrite と Tool Snapshot merge後の独立した通常APM更新境界を守り、採否・未検証事項・配備時期を記録している。Fowler smellの指摘もなし。pin／hashの反復は成果物の整合と独立した期待値の確認に必要な重複と判断された。
+
+## 要件軸レビュー
+
+同じ差分の指摘0件。欠落・部分実装、未依頼のscope増大、誤った実装はなし。Remotionだけをpayload変更として固定し、内容不変のfloating6依存はrevisionのみ更新する。Impeccable／Mattなど別単位を維持し、manifest／native lock／期待値の更新範囲が一致する。
+
+両担当はread-onlyでレビューし、標準全件が親で実行中である前提を維持した。標準全件の完了結果は親が上記へ追記し、後続コミットは検証記録のみとする。規約軸0件、要件軸0件。
