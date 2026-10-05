@@ -34,7 +34,7 @@ ambient persona（`full` mode、毎応答、全リポジトリ、全 subagent）
 
 [Issue #308](https://github.com/treflebonbon/dotfiles/issues/308) により、ponytail を Codex にも導入する。ponytail は Codex 向けにも `.codex-plugin/plugin.json` + 共有 `hooks/claude-codex-hooks.json` による正式な native plugin adapter を提供しており、apm ではなく Codex 自身の native plugin 機構（`codex plugin marketplace add` / `codex plugin add`）を使う。Claude Code 版と同じ「native plugin 機構で配線する」という判断を Codex にも一貫して適用する（apm を使わない正確な理由は後述の訂正 amendment を参照）。
 
-- marketplace `dietrichgebert/ponytail` を `v4.9.0` に明示 pin して登録する（`--ref` は実際に該当タグへ確定 pin することを実機確認済み）。Claude Code 側の `enabledPlugins` にはこの pin 機構が無いため、Codex 側の方がより厳格な固定になる。
+- marketplace `dietrichgebert/ponytail` の catalogue を `v4.9.0` に明示 pin して登録する。`--ref` の固定範囲は catalogue の取得元であり、plugin 本体の revision は catalogue 内の source 指定に従う。本体まで固定されるという当初の説明は、下記の2026-10-05 amendmentで訂正する。
 - `private_dot_config/codex/config.toml.tmpl` の `[plugins]` に `"ponytail@ponytail" = { enabled = true }` を追加し、既存の `github@openai-curated` / `chrome@openai-bundled` と同じ宣言パターンで有効化する。
 - marketplace 登録・plugin install という命令的な新規ステップは、既存の `sync-codex-managed-config`（`codex_home` 列挙・`run_onchange` トリガーを既に持つ）を拡張して行う。新規スクリプトは作らない。
 - marketplace 登録・install は `codex` バイナリが `PATH` に無い場合、および対象 `codex_home` の既存設定が `codex` 自身のロードに失敗する場合（無関係な理由によるものを含む）に fail-open とする。ファイルの静的マージ（既存の責務）を、この新規の命令的ステップの失敗で巻き込まないためである。
@@ -47,6 +47,12 @@ ambient persona（`full` mode、毎応答、全リポジトリ、全 subagent）
 上記 Codex amendment は当初「apm.yml（hooks を持たない外部 skill-only の経路）ではなく」という理由づけで native plugin 機構を選んだと記していたが、apm CLI (v0.30.0) のソースと Codex CLI の実バイナリを調査した結果、この理由づけが不正確だったため訂正する（上記本文はすでに訂正済み）。Decision（apm ではなく `config.toml` の `[plugins]` を直接配線する）自体は変更しない。
 
 - apm は一般論としては hooks を含む executable primitives（hooks/MCP/LSP/bin/canvas）を `apm approve`/`apm deny` で明示的に承認管理できる汎用機構を持ち、`apm_cli/integration/hook_integrator.py` には Claude（`.claude/settings.json`）・Codex（`.codex/hooks.json`）・Cursor（`.cursor/hooks.json`）向けの汎用 hook マージ実装が実在する。Codex 自身にも `.codex/hooks.json` を読む本物の hooks エンジンが存在し、本リポジトリの `private_dot_config/codex/hooks.json`（devshell-env / impeccable / rtk の hook、Claude の `settings.json.tmpl` の hooks 相当）が実際にこの経路で動いていることを `~/.codex/config.toml` の `[hooks.state]` の trusted_hash で確認した。つまり「apm = hooks を持たない経路」という一般化はそもそも誤り。
-- 一方 ponytail の Codex 側 hooks は、この生 `.codex/hooks.json` 経路ではなく、plugin バンドル内の相対パス hooks（`hooks/claude-codex-hooks.json`）であり、`codex plugin marketplace add` / `codex plugin add` で登録した plugin としてのみロードされる別経路である。`codex plugin list --json` で `ponytail@ponytail` が marketplace `ponytail` から `installed, enabled` (v4.9.0) であること、`[hooks.state]` に `ponytail@ponytail:hooks/claude-codex-hooks.json:...` の trusted_hash が別途記録されていることを確認しており、この plugin 経由の hooks は実際に機能している。
+- 一方 ponytail の Codex 側 hooks は、この生 `.codex/hooks.json` 経路ではなく、plugin バンドル内の相対パス hooks（`hooks/claude-codex-hooks.json`）であり、`codex plugin marketplace add` / `codex plugin add` で登録した plugin としてロードされる別経路である。`codex plugin list --json` で `ponytail@ponytail` が marketplace `ponytail` から `installed, enabled` であること、`[hooks.state]` に `ponytail@ponytail:hooks/claude-codex-hooks.json:...` の trusted_hash が別途記録されていることを確認した。この記録はpluginの導入・有効化・trust登録の確認であり、本体のv4.9.0固定や対話セッションでのhook発火の証拠とは扱わない。
 - apm のソースを検索した範囲では、GitHub Copilot 向け native plugin marketplace registrar（`copilot_plugins/registrar.py`）に相当する Codex 版は見つからず、`codex plugin marketplace add` / `codex plugin add` を呼び出すコードも見つからなかった。つまり apm は ponytail が実際に使っている「plugin バンドルとして登録し、バンドル内 hooks をロードさせる」経路を再現できない。
-- 正確な理由は「apm は hooks を扱えないから」ではなく「apm に Codex native plugin marketplace registrar が無く、ponytail 公式が提供する `.codex-plugin/plugin.json` 経由の配布・pin（v4.9.0）を再現できないから」である。apm 自身の汎用 `.codex/hooks.json` マージ primitive でフックの中身だけを生ファイルとして流し込む代替経路は技術的にはあり得るが、vendor 提供の pin 済み plugin bundle（v4.9.0）を使わない独自再実装になるため採用しない。
+- 正確な理由は「apm は hooks を扱えないから」ではなく「apm に Codex native plugin marketplace registrar が無く、ponytail 公式が提供する `.codex-plugin/plugin.json` 経由の配布を再現できないから」である。apm 自身の汎用 `.codex/hooks.json` マージ primitive でフックの中身だけを生ファイルとして流し込む代替経路は技術的にはあり得るが、vendor 提供の native plugin bundle を使わない独自再実装になるため採用しない。
+
+## 2026-10-05 amendment: catalogue と plugin 本体の固定範囲
+
+上流の [v4.9.0 catalogue](https://github.com/DietrichGebert/ponytail/blob/v4.9.0/.agents/plugins/marketplace.json) と [v4.11.0 catalogue](https://github.com/DietrichGebert/ponytail/blob/6d6317716fb15eb1bafb898f74498bd9331b31c8/.agents/plugins/marketplace.json) は、plugin 本体の source を `ref: main` と指定している。両tagを個別に登録したCodex 0.159.2の隔離検証では、本体4.12.0が取得され、tagと同じ本体versionの期待値は失敗した（[調査記録](../research/update-tools-skills-20261005.md#native-plugin-の候補却下)）。catalogueのtagを変更するだけでは本体の固定版更新にならない。
+
+既存のcatalogue `v4.9.0`、native配布、`full` mode、subagent scope、fail-open／再登録の運用は維持する。本体まで固定する経路の設計やvendor manifestの改稿は今回の変更範囲に含めない。
