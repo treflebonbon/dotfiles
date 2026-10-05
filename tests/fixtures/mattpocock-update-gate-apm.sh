@@ -5,6 +5,11 @@ command_log=${MATTPOCOCK_GATE_COMMAND_LOG:-$HOME/apm-command.log}
 mkdir -p "$(dirname "$command_log")"
 printf 'apm %s\n' "$*" >>"$command_log"
 
+if [[ "$*" == --version ]]; then
+  printf 'Agent Package Manager (APM) CLI version %s\n' "${MATT_GATE_CLI_VERSION:-0.33.0}"
+  exit 0
+fi
+
 [[ "$PWD" != "$MATTPOCOCK_GATE_SOURCE_DIR" ]] || exit 20
 [[ "$HOME" != "$MATTPOCOCK_GATE_SOURCE_DIR" ]] || exit 21
 
@@ -25,6 +30,11 @@ if [[ " $* " == *" --update "* ]]; then
     { print }
   ' apm.lock.yaml >apm.lock.yaml.rewritten
   mv apm.lock.yaml.rewritten apm.lock.yaml
+
+  if [[ -n "${MATT_GATE_LOCK_VERSION:-}" ]]; then
+    sed "s/^apm_version:.*/apm_version: $MATT_GATE_LOCK_VERSION/" apm.lock.yaml >apm.lock.yaml.rewritten
+    mv apm.lock.yaml.rewritten apm.lock.yaml
+  fi
 
   if [[ -n "${MATT_GATE_ALIAS_SKILL:-}" ]]; then
     awk '

@@ -14,6 +14,11 @@ setup() {
   ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-apm.sh" "$FAKE_BIN/apm"
   ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-bats.sh" "$FAKE_BIN/bats"
   ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-chezmoi.sh" "$FAKE_BIN/chezmoi"
+  cat >"$FAKE_BIN/nix" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' "${MATT_GATE_SNAPSHOT_VERSION:-0.33.0}"
+EOF
+  chmod +x "$FAKE_BIN/nix"
 }
 
 lock_managed_skills() {
@@ -44,6 +49,47 @@ cleanup_managed_skills() {
   [ "$(printf '%s\n' "$lock_skills" | sed '/^$/d' | wc -l)" -eq 27 ]
   [ "$(printf '%s\n' "$cleanup_skills" | sed '/^$/d' | wc -l)" -eq 27 ]
   [ "$lock_skills" = "$cleanup_skills" ]
+}
+
+@test "managed-set update gate rejects the wrong APM CLI before lock generation" {
+  run env PATH="$FAKE_BIN:$PATH" MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_CLI_VERSION=0.32.0 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"APM CLI"* ]]
+  ! grep -q '^apm install' "$COMMAND_LOG"
+}
+
+@test "managed-set update gate rejects the wrong generated APM version before frozen install" {
+  run env PATH="$FAKE_BIN:$PATH" MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_LOCK_VERSION=0.32.0 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"生成lockのAPM版"* ]]
+  grep -q '^apm install --update' "$COMMAND_LOG"
+  ! grep -q '^apm install --frozen\|^apm audit' "$COMMAND_LOG"
+  [[ "$output" == *"Runtime retained at"* ]]
+}
+
+@test "managed-set update gate uses the generator from the selected source" {
+  local source="$BATS_TEST_TMPDIR/selected-source"
+  mkdir -p "$source/scripts"
+  cp "$MANIFEST" "$LOCK" "$CLEANUP" "$source/"
+  cat >"$source/scripts/generate-apm-lock.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'REJECT: selected source generator\n' >&2
+exit 1
+EOF
+  chmod +x "$source/scripts/generate-apm-lock.sh"
+
+  run env PATH="$FAKE_BIN:$PATH" MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    "$GATE" --source "$source"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"REJECT: selected source generator"* ]]
+  [ ! -e "$COMMAND_LOG" ]
 }
 
 @test "Matt managed set remains an exact commit pin with one APM owner" {
