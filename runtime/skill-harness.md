@@ -13,7 +13,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 `apm.yml` / `apm.lock.yaml` が外部 skill を `~/.claude/skills/` へ展開する。lockfile の再生成は下記「apm lock は runtime layout を再現した隔離ディレクトリで再生成する」の手順に従う（`apm lock` 単体では不十分）。配備は `apm install --frozen` が `run_onchange_after_apm-install.sh.tmpl` から冪等に走る。
 
-**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `d81f3a183412e71a5b1e84ca21bc1a35eea03a60` から APM で配備する。上流 plugin manifest の version は `1.2.3` のままだが、採用対象は3スキルが正式追加された commit の内容で固定する（[ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md)）。
+**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `24fe0ef7737efae15c87225755e9f6f5965e4888`（上流 plugin manifest version `1.3.1`）から APM で配備する。公式セットと標準workflowは [ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md) に従い、今回の `ask-matt` のバグ修正後の案内更新は [検証記録](../docs/research/update-mattpocock-20261005.md) を参照する。
 
 _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本 + on-ramp 2つで構成する — 詳細は [ADR-0014](../docs/adr/0014-triage-not-after-to-issues.md)、上流 `ask-matt` の main-flow/on-ramp 構造に整合）:
 
