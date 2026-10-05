@@ -31,6 +31,11 @@ if [[ " $* " == *" --update "* ]]; then
   ' apm.lock.yaml >apm.lock.yaml.rewritten
   mv apm.lock.yaml.rewritten apm.lock.yaml
 
+  if [[ -n "${MATT_GATE_LOCK_VERSION:-}" ]]; then
+    sed "s/^apm_version:.*/apm_version: $MATT_GATE_LOCK_VERSION/" apm.lock.yaml >apm.lock.yaml.rewritten
+    mv apm.lock.yaml.rewritten apm.lock.yaml
+  fi
+
   if [[ -n "${MATT_GATE_ALIAS_SKILL:-}" ]]; then
     awk '
       /^- repo_url: mattpocock\/skills$/ { active = 1 }

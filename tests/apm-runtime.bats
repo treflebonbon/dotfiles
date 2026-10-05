@@ -292,3 +292,106 @@ assert_lock_entry() {
 
   [ ! -e "$target" ]
 }
+
+prepare_lock_generation() {
+  GENERATOR="$PROJECT_ROOT/scripts/generate-apm-lock.sh"
+  GENERATION_LOG="$BATS_TEST_TMPDIR/generation.log"
+  GENERATION_BIN="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$GENERATION_BIN" "$BATS_TEST_TMPDIR/runtime"
+  if [[ ${1:-} != real-nix ]]; then
+    cat >"$GENERATION_BIN/nix" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' "${APM_TEST_SNAPSHOT_VERSION-0.33.0}"
+exit "${APM_TEST_NIX_STATUS:-0}"
+EOF
+  fi
+  cat >"$GENERATION_BIN/apm" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == --version ]]; then
+  printf '%s\n' "${APM_TEST_CLI_OUTPUT-Agent Package Manager (APM) CLI version 0.33.0}"
+  exit "${APM_TEST_CLI_STATUS:-0}"
+fi
+printf '%s\n' "$*" >>"$APM_TEST_LOG"
+printf '%s\n' "${APM_TEST_LOCK-apm_version: 0.33.0}" >apm.lock.yaml
+EOF
+  chmod +x "$GENERATION_BIN"/*
+  cd "$BATS_TEST_TMPDIR/runtime"
+  printf 'name: candidate\n' >apm.yml
+  export APM_TEST_LOG="$GENERATION_LOG"
+  export PATH="$GENERATION_BIN:$PATH"
+}
+
+@test "APM candidate generation validates a new lock independently of the old lock version" {
+  prepare_lock_generation
+  printf 'apm_version: 0.32.0\n' >apm.lock.yaml
+
+  run "$GENERATOR" "$PROJECT_ROOT"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat apm.lock.yaml)" = 'apm_version: 0.33.0' ]
+  [ "$(cat "$GENERATION_LOG")" = 'install --target claude,codex --https' ]
+}
+
+@test "APM candidate generation rejects missing, malformed, and incorrect CLI versions before install" {
+  prepare_lock_generation
+  local banner
+  for banner in '' '0.33.0' 'Agent Package Manager (APM) CLI version 0.32.0'; do
+    run env APM_TEST_CLI_OUTPUT="$banner" "$GENERATOR" "$PROJECT_ROOT"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'APM CLI'* ]]
+    [ ! -e "$GENERATION_LOG" ]
+  done
+
+  run env APM_TEST_CLI_STATUS=1 "$GENERATOR" "$PROJECT_ROOT"
+  [ "$status" -ne 0 ]
+  [ ! -e "$GENERATION_LOG" ]
+}
+
+@test "APM candidate generation rejects unknown snapshot metadata before install" {
+  prepare_lock_generation
+  local version
+  for version in '' unknown; do
+    run env APM_TEST_SNAPSHOT_VERSION="$version" "$GENERATOR" "$PROJECT_ROOT"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'Nix snapshot'* ]]
+    [ ! -e "$GENERATION_LOG" ]
+  done
+
+  run env APM_TEST_NIX_STATUS=1 "$GENERATOR" "$PROJECT_ROOT"
+  [ "$status" -ne 0 ]
+  [ ! -e "$GENERATION_LOG" ]
+}
+
+@test "APM candidate generation rejects missing, malformed, duplicate, and incorrect lock versions" {
+  prepare_lock_generation
+  local lock
+  for lock in 'lockfile_version: 1' 'apm_version: unknown' 'apm_version: 0.32.0' \
+    $'apm_version: 0.33.0\napm_version: 0.33.0'; do
+    run env APM_TEST_LOCK="$lock" "$GENERATOR" "$PROJECT_ROOT"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'生成lockのAPM版'* ]]
+    [ "$(cat apm.lock.yaml)" = "$lock" ]
+  done
+}
+
+@test "APM candidate generation obtains the expected version from the selected Nix package" {
+  prepare_lock_generation real-nix
+
+  run "$GENERATOR" "$PROJECT_ROOT"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$GENERATION_LOG")" = 'install --target claude,codex --https' ]
+}
+
+@test "APM candidate generation rejects a runtime inside the source before install" {
+  prepare_lock_generation
+  local source="$BATS_TEST_TMPDIR/source"
+  mkdir -p "$source/runtime"
+  cd "$source/runtime"
+  printf 'name: candidate\n' >apm.yml
+
+  run "$GENERATOR" "$source"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$GENERATION_LOG" ]
+}

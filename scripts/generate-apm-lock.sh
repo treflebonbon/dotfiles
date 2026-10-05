@@ -12,7 +12,10 @@ reject() {
 }
 
 source_dir=$(cd -- "$1" && pwd -P)
-[[ $(pwd -P) != "$source_dir" ]] || reject 'APM lockはsourceの外の隔離runtimeで生成してください'
+runtime=$(pwd -P)
+case "$runtime" in
+"$source_dir" | "$source_dir"/*) reject 'APM lockはsourceの外の隔離runtimeで生成してください' ;;
+esac
 [[ -f apm.yml ]] || reject '候補のapm.ymlがありません'
 
 expected=$(APM_SOURCE_DIR="$source_dir" nix eval --impure --raw --no-write-lock-file --expr '
@@ -41,4 +44,4 @@ case "$lock_version" in
 "$expected" | "'$expected'" | "\"$expected\"") ;;
 *) reject "生成lockのAPM版が不一致または不明です: 期待=$expected 実際=$lock_version" ;;
 esac
-printf 'PASS: APM %sで生成した候補lockを確認しました（%s）\n' "$expected" "$(pwd -P)"
+printf 'PASS: 候補lockのAPM版は%sと一致しました（%s）\n' "$expected" "$runtime"

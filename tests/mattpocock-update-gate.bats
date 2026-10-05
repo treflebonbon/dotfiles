@@ -61,6 +61,18 @@ cleanup_managed_skills() {
   ! grep -q '^apm install' "$COMMAND_LOG"
 }
 
+@test "managed-set update gate rejects the wrong generated APM version before frozen install" {
+  run env PATH="$FAKE_BIN:$PATH" MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    MATT_GATE_LOCK_VERSION=0.32.0 \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"生成lockのAPM版"* ]]
+  grep -q '^apm install --update' "$COMMAND_LOG"
+  ! grep -q '^apm install --frozen\|^apm audit' "$COMMAND_LOG"
+  [[ "$output" == *"Runtime retained at"* ]]
+}
+
 @test "Matt managed set remains an exact commit pin with one APM owner" {
   local pin_line revision
 
