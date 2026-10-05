@@ -23,7 +23,7 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; floor validation is in ADR-0047.
-  minClaudeCode = "2.1.286";
+  minClaudeCode = "2.1.289";
   minCodex = "0.159.1";
 
   requireQualityFloor =
@@ -53,7 +53,7 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "MCP エラーとログ・transcript の秘密値の伏字漏れを修正した版。";
+    reason = "秘密値の伏字漏れに加え、symlink 経由の Read deny と複合 Bash command の deny / ask を修正した版。";
     decision = "docs/adr/0047-test-quality-floors-through-package-outputs.md";
   };
 
