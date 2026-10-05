@@ -78,5 +78,17 @@ Matt gate の初回全件テストでは、複数 Chromium を含む user cache 
 - ARM Linux／Darwin は評価のみで、実機起動は未検証。
 - Matt専用ゲートは関連71/71、全件735結果（成功713、skip22、失敗0）、隔離chezmoi dry-run／HOME不変まで通過し、終了コード0を確認した。非Matt lock fieldを維持する比較も成功した。
 - auditのbaselineは10/10成功したが、Git remoteのない隔離環境ではorganization policy enforcementはwarning付きskipであり、組織ポリシーの適合を保証しない。
-- 最終sourceでの標準 `lefthook run test` 初回は735結果（成功712、skip22、失敗1）、終了コード1だった。失敗は `tests/mattpocock-update-gate.bats` の独立期待hashを更新し忘れた1件で、採用済みMatt payloadのhashへ更新した。該当テストと標準全件テストを再実行する。
-- 残作業: 修正後の標準全件テスト、二軸レビュー、コミット。
+- 最終sourceでの標準 `lefthook run test` 初回は735結果（成功712、skip22、失敗1）、終了コード1だった。失敗は `tests/mattpocock-update-gate.bats` の独立期待hashを更新し忘れた1件で、採用済みMatt payloadのhashへ更新した。修正後の該当14/14が成功した。標準全件の2回目は735結果（成功713、skip22、失敗0）、終了コード0で完了した。初回失敗を含む試行ごとのログを保持した。
+- `742904f` に実装をコミットし、既知base `d7c30bf1f5a4d4d203f43e8ff7adaf258e2bd23d` からの差分を規約・要件の二軸でレビューした。両軸とも指摘0件。後続コミットはこの検証記録の追記のみとする。
+- 最終native lockのSHA-256は `ff66e373e078fed47af34b5925fddcc6e061704f4058f640232fb068d2bf40c2`。空runtimeのfrozen install後、採用時、コミット後も同一である。
+- source実装と必要な検証は完了。live sourceへの受入・merge・HOME配備は後続の境界に残る。
+
+## Standards
+
+規約軸レビューは指摘なし。文書化された規約違反とFowler smellの両方で問題は見つからなかった。task worktree source、既存APM/Nix/native plugin配布経路、APM native lock形式、独立したfloor・pin・hash期待値、Linux Codexの既存2パッチを確認した。テスト実行は親が担当し、修正後の標準全件結果はレビュー時点で未完了として扱った。
+
+## Spec
+
+要件軸レビューは指摘なし。欠落・部分対応、未依頼のscope増大、誤った実装はいずれもなし。ツール／skill更新と停止理由の切り分けが差分に反映され、別設計が必要なPonytail本体固定は追加していない。今回のモデル容量エラーと過去の因果関係を区別している。未完了の標準全件テストを成功扱いしていない。
+
+Standards: 0件（最重大の指摘なし）、Spec: 0件（最重大の指摘なし）。
