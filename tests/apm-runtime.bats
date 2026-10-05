@@ -44,7 +44,7 @@ assert_lock_entry() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#dc78b325e753a6971800e3bddc9089bf5954f608' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -58,8 +58,8 @@ assert_lock_entry() {
 
   grep -Fq 'apm_version: 0.33.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: dc78b325e753a6971800e3bddc9089bf5954f608' "$lock"
-  grep -Fq 'content_hash: sha256:97645bceeba930f74633c9f8113b787e685c550f189cd100e218084b4aa8a60b' "$lock"
+  grep -Fq 'resolved_commit: 6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e' "$lock"
+  grep -Fq 'content_hash: sha256:c9ab9faf1852606e1fdbf21eba87e294eae632cad530785460caf05bf0b0b83a' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/impeccable' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/impeccable' "$lock"
