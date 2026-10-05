@@ -41,6 +41,7 @@ done
   exit 2
 }
 SOURCE_DIR=$(cd -- "$SOURCE_DIR" && pwd)
+GATE_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 CANDIDATE_MANIFEST=${CANDIDATE_MANIFEST:-$SOURCE_DIR/apm.yml}
 ORIGINAL_HOME=${HOME:-}
 ORIGINAL_PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-}
@@ -365,7 +366,8 @@ mkdir -p "$(dirname "$phase_log")"
 : >"$phase_log"
 
 cleanup_runtime() {
-  if [[ -n "${MATTPOCOCK_GATE_KEEP_RUNTIME:-}" ]]; then
+  local result=$?
+  if [[ $result -ne 0 || -n "${MATTPOCOCK_GATE_KEEP_RUNTIME:-}" ]]; then
     printf 'Runtime retained at %s\n' "$runtime" >&2
   else
     rm -rf "$runtime"
@@ -389,7 +391,7 @@ record_phase() {
 }
 
 record_phase lock-generation
-apm install --update --target claude,codex --https
+"$GATE_ROOT/scripts/generate-apm-lock.sh" "$SOURCE_DIR" --update
 validate_lock_refs "$runtime/apm.lock.yaml" || reject "generated lock contains a ref different from its resolved commit"
 cmp <(normalize_lock "$SOURCE_LOCK") <(normalize_lock "$runtime/apm.lock.yaml") ||
   reject "lock generation changed non-Matt dependency fields"
