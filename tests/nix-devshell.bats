@@ -199,7 +199,7 @@ PS
 
   grep -Fq '59d0417c2017794f8872b5556f133c8b0b413734' "$record"
   grep -Fq '59d0417c2017794f8872b5556f133c8b0b413734' "$flake"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#0b5db9daae40f42c73544d1cc0a8c733bd530eaa' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#a9b199e165505267eda1ed3e0ef3dd3567c43411' "$manifest"
 }
 
 @test "nix-devshell has no retired Intel Darwin Claude Code package" {

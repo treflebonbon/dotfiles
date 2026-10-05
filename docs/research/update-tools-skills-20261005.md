@@ -1,6 +1,16 @@
-# ツールとスキル更新（2026-10-05）
+# ツール更新とスキル候補の検証記録（2026-10-05）
 
-## 要件と作業範囲
+## PR #378 の採用範囲（レビュー対応後）
+
+[指定レビュー](https://github.com/treflebonbon/dotfiles/pull/378#pullrequestreview-5412613191)の指摘を採用する。個別ゲートの成功だけでは rollback 境界の独立性を満たさず、初回の一括コミットは [ADR-0045](../adr/0045-separate-llm-agents-and-apm-update-units.md) の直列 PR 契約に違反していた。以下の旧一括候補の記録は調査・検証履歴であり、現在の PR の採用範囲を示さない。
+
+PR #378 は Tool Snapshot のみを採用する。`apm.yml`／`apm.lock.yaml`、Impeccable engine 0.1.8、通常 APM payload、Matt Pocock managed set と関連する期待値・runtime 文書を base `d7c30bf` の採用済み内容へ戻し、APM 0.33.0 との互換性を確認する。通常 APM、Impeccable、Matt Pocock はそれぞれ別の PR と検証・rollback 境界で扱い、通常 APM は Tool Snapshot の main への merge を待つ。候補の exact revision と過去の証拠は本記録と元コミット `21f43fc` に保持し、後続の採用時にはその単位の最終 source で再検証する。公開済み履歴は書き換えず、スキル更新を取り除く一つの Review Round commit を追加する。
+
+分割後の標準 `lefthook run test` は735件中713成功・22 skip・失敗0、終了コード0で完了した。対応3 system の root／user devShell 評価も成功した。テスト環境の package 出力は旧一括候補の検証環境と照合し、Impeccable engine を0.1.11から採用済み0.1.8へ戻した差分のみだった。
+
+APM 0.33.0で base の manifest／lock を空の隔離 runtime へ frozen installし、lock SHA-256 `22d8728d76bc905c70f8ed98f8e4c940ee5a2759ba4592032009821c64853944` の不変性、audit 10/10、20依存・1,300ファイルの hash、Claude／Codex 各46スキルの一致を確認した。組織ポリシーの enforcement は Git remote のない隔離環境で warning 付き skipであり、その適合は未検証。分割後の結果は旧一括候補の実行結果とは別のログに記録した。
+
+## 初回の要件と作業範囲
 
 ユーザーの `$implement ツールとスキルの更新` に基づき、導入済み AI ツール、APM 20依存、管理済み Ponytail native plugin pin を確認する。Codex の native `--worktree` で作成した `/home/ubuntu/.codex/worktrees/f037/dotfiles` を使用し、main `d7c30bf1f5a4d4d203f43e8ff7adaf258e2bd23d` から `chore/update-tools-skills-20261005` を開始した。親の実行環境から physical root、HEAD、status、worktree 固有 Git dir、common dir と back-pointer を検証した。作成確認セッションでは Git metadata を参照できなかったが、親では同じ checkout を検証できたため、親が実装を担当する。
 
@@ -66,7 +76,7 @@ Matt gate の初回全件テストでは、複数 Chromium を含む user cache 
 
 配布済み Codex 0.160.0 は Numtide cache から取得できたが、既存の複数 denied-file mask と process-group SIGKILL cleanup の回帰テストがともに失敗した。このため2件のローカルパッチは維持する。ビルドは同じ derivation を `--cores 1 --max-jobs 1 --keep-failed` で実行し、8並列だった Cargo が `-j 1` になることを確認した。パッケージ内容と最適化は変えず、全件テストはビルド完了後に実行する。`/proc/meminfo` と `/proc/pressure/memory` の時系列を ignored artifact へ記録する。WSL の global 設定と他のプロセスは変更しない。 1並列ビルドは同じboot内で完了し、Cargoのリリースコンパイルは136分29秒だった。15秒ごとの551観測では最小空きメモリ約6.8GiB、最大スワップ使用増加約42MiBだった。リンク前のメモリ圧迫指標は時間平均0.00で、終盤のリンク時にsome/full avg10が最大2.23%となった。短い圧迫は残るが、中断なく完走した。今回のビルド開始後、モデル一覧／TUIのタイムアウトを同じログ条件で再検索した結果は0件だった。これはビルド負荷の観測であり、ユーザーが確認したサーバー側のモデル容量エラーを解消する変更ではない。
 
-## 確認済み結果と残作業
+## 旧一括候補の確認済み結果と残作業
 
 - Nix metadata は対応3 systemで候補版が一致する。root／ユーザー devShell の全 system評価は成功し、共有 nixpkgs と言語ソースは維持する。
 - Linux では8 CLIの version／help による起動が成功。Codex 0.160.0の修正版は source build が終了コード0で完了し、独立 FD と sandbox cleanup の回帰テスト9/9も成功した。配布版0.160.0の失敗2件に対し、修正版では同じケースが成功することを確認した。
@@ -83,11 +93,11 @@ Matt gate の初回全件テストでは、複数 Chromium を含む user cache 
 - 最終native lockのSHA-256は `ff66e373e078fed47af34b5925fddcc6e061704f4058f640232fb068d2bf40c2`。空runtimeのfrozen install後、採用時、コミット後も同一である。
 - source実装と必要な検証は完了。live sourceへの受入・merge・HOME配備は後続の境界に残る。
 
-## Standards
+## 初回 Standards
 
 規約軸レビューは指摘なし。文書化された規約違反とFowler smellの両方で問題は見つからなかった。task worktree source、既存APM/Nix/native plugin配布経路、APM native lock形式、独立したfloor・pin・hash期待値、Linux Codexの既存2パッチを確認した。テスト実行は親が担当し、修正後の標準全件結果はレビュー時点で未完了として扱った。
 
-## Spec
+## 初回 Spec
 
 要件軸レビューは指摘なし。欠落・部分対応、未依頼のscope増大、誤った実装はいずれもなし。ツール／skill更新と停止理由の切り分けが差分に反映され、別設計が必要なPonytail本体固定は追加していない。今回のモデル容量エラーと過去の因果関係を区別している。未完了の標準全件テストを成功扱いしていない。
 

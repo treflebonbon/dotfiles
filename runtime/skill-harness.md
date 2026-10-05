@@ -13,7 +13,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 `apm.yml` / `apm.lock.yaml` が外部 skill を `~/.claude/skills/` へ展開する。lockfile の再生成は下記「apm lock は runtime layout を再現した隔離ディレクトリで再生成する」の手順に従う（`apm lock` 単体では不十分）。配備は `apm install --frozen` が `run_onchange_after_apm-install.sh.tmpl` から冪等に走る。
 
-**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `24fe0ef7737efae15c87225755e9f6f5965e4888`（上流 plugin manifest version `1.3.1`）から APM で配備する。27-skill membership と既存のworkflow契約を維持し、専用update gateを通過した内容で固定する（[ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md)、[2026-10-05更新記録](../docs/research/update-tools-skills-20261005.md)）。
+**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `d81f3a183412e71a5b1e84ca21bc1a35eea03a60` から APM で配備する。上流 plugin manifest の version は `1.2.3` のままだが、採用対象は3スキルが正式追加された commit の内容で固定する（[ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md)）。
 
 _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本 + on-ramp 2つで構成する — 詳細は [ADR-0014](../docs/adr/0014-triage-not-after-to-issues.md)、上流 `ask-matt` の main-flow/on-ramp 構造に整合）:
 
@@ -108,8 +108,6 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 
 **Matt Pocock managed full set の update gate**: candidate revision は [ADR-0042](../docs/adr/0042-mattpocock-managed-set-update-gate.md) の順序で [実行可能な gate](../tests/mattpocock-update-gate.sh) に通す。隔離 runtime 内だけで accepted lock の非 candidate dependency を一時的に exact pin し、lock generation → `apm install --frozen`（SHA-256 no-rewrite）→ `apm audit --ci` → full-set discovery / workflow payload contract → related workflow contract tests → full `bats tests/` → `chezmoi --source "$SOURCE_DIR" apply --dry-run` を一つの検証境界とする。candidate package と Matt 単独所有の deployment ledger record だけを比較対象から外し、共有 owner を持つ record を含む非 Matt lock field の drift、candidate 外の manifest 差分、full-set / cleanup mismatch、native route、`@latest` / `main` / native Claude plugin / universal installer は reject する。全て通過した exact commit だけを採用し、失敗時は accepted manifest / lock pair を保持して partial adoption を commit しない。
 
-検証用 `TMPDIR` は Git 管理外かつ cache 扱いされない一時領域（例: `/var/tmp` 下）に置く。APM の候補版を検証するときは継承した `PYTHONPATH`／`PYTHONHOME` を除き、複数 Chromium がある環境では `PLAYWRIGHT_BROWSERS_PATH` に単一の browser bundle を指定する（[環境による失敗と再実行](../docs/research/update-tools-skills-20261005.md#検証環境と再実行)）。
-
 ### 過去の更新記録
 
 以下は各時点の記録であり、現行の採用内容は上記 revision と ADR-0071 に従う。
@@ -152,9 +150,9 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 
 **Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の `scripts/impeccable hook` を `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。Nix が `IMPECCABLE_BIN` に固定 engine の絶対 path を渡し、管理 command は実行可能な engine と launcher の存在を確認してから呼ぶ。engine がなければ launcher の自動取得へ進まず無言で終了する。runtime 側は stdin の `hook_event_name` でイベントを、`turn_id` で Codex を判別する。Claude Stop は従来の `hookSpecificOutput.additionalContext`、Codex Stop は native の top-level `decision` / `reason` を返し、managed command は両方を fail-open でそのまま通す。
 
-標準 hook の対象ルールは二層で、**両方を配線して初めて両 tier が届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier を編集箇所へ返し、その他の対象ルールは `Stop` へ先送りする。Stop はセッション中に触れた UI ファイルを再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。4.5.0 / engine 0.1.11 は上流既定の advisory 除外を使い、従来の deferred fixture `overused-font` は対象外となるため、`side-tab` で遅延検出を検証する。`Stop` は `stop_hook_active` を見て再入時は即座に抜ける。
+標準 hook の対象ルールは二層で、**両方を配線して初めて両 tier が届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier を編集箇所へ返し、その他の対象ルールは `Stop` へ先送りする。Stop はセッション中に触れた UI ファイルを再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。4.4.0 / engine 0.1.8 は上流既定の advisory 除外を使い、従来の deferred fixture `overused-font` は対象外となるため、`side-tab` で遅延検出を検証する。`Stop` は `stop_hook_active` を見て再入時は即座に抜ける。
 
-Impeccable 4.1.2 は Stop scan 後に fresh finding だけでなく live finding 全体を cache へ同期する。immediate / deferred の両 tier を持つファイルでも初回 deep pass 後の次回の `Stop` は無言になり、新しい finding が現れるまで再報告しない。4.1.1 までの交互再報告は解消済みで、4.5.0 / engine 0.1.11でもこの動作を維持し、`tests/design-hook.bats` は実際の管理 commandからこの silent convergence を検証する。
+Impeccable 4.1.2 は Stop scan 後に fresh finding だけでなく live finding 全体を cache へ同期する。immediate / deferred の両 tier を持つファイルでも初回 deep pass 後の次回の `Stop` は無言になり、新しい finding が現れるまで再報告しない。4.1.1 までの交互再報告は解消済みで、4.4.0 / engine 0.1.8でもこの動作を維持し、`tests/design-hook.bats` は実際の管理 commandからこの silent convergence を検証する。
 
 finding footerはsession内の初回だけfull policyを出し、以後はshort footerにする。full policyが許容する自己修復の境界はfinding単位の`ignore-value`までで、agentは確信のあるfalse positiveまたはユーザーが許容済みの例外に限って使い、理由をユーザーへ示す。file / rule全体を抑制する`ignore-file` / `ignore-rule`はユーザーの明示承認が必要である。
 
@@ -253,8 +251,6 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 `~/.claude/plugins/` 配下の `known_marketplaces.json` / `installed_plugins.json` / `cache/` は Claude Code の runtime state なので git/chezmoi では管理しない。
 
 ## Codex plugin marketplace 管理
-
-Ponytail の Codex marketplace catalogue は既定の `v4.9.0` を維持する。`--ref` は catalogue の固定であり、上流 `.agents/plugins/marketplace.json` が指定する plugin 本体の `main` までは固定しない（[ADR-0058 の検証訂正](../docs/adr/0058-adopt-ponytail-plugin.md)、[2026-10-05 更新記録](../docs/research/update-tools-skills-20261005.md)）。
 
 Codex には Claude Code の `enabledPlugins`/`extraKnownMarketplaces` に相当する、未登録の marketplace を先に宣言するだけで済む仕組みが `config.toml` に無い。marketplace を新規に使えるようにするには `codex plugin marketplace add` を実行して実際に fetch させる必要があり、これは常に命令的な CLI 操作である（一度 fetch 済みの marketplace の情報は `codex` 自身が `[marketplaces.<name>]` として `config.toml` に書き戻すが、書き戻された内容をこちらが事前に書いても `codex` は再 fetch してくれない）。marketplace 登録（`codex plugin marketplace add`）・plugin install（`codex plugin add`）は `private_dot_local/bin/executable_sync-codex-managed-config`（既存の `codex_home` 列挙・`run_onchange` トリガーを持つ）が冪等に行う。`config.toml.tmpl` の `[plugins."<name>@<marketplace>"]` `enabled = true` は、既に登録・install 済みの plugin を有効化するだけの宣言である（[ADR-0058](../docs/adr/0058-adopt-ponytail-plugin.md) 2026-09-11 amendment）。この命令的ステップは `codex` バイナリ不在・対象 `codex_home` の設定不備に対して fail-open にし、`PONYTAIL_MARKETPLACE_SOURCE` を明示的に空にすることで丸ごと無効化できる（`config.toml` への書き戻しが既存の merge/cmp 前提を崩すテストのための逃げ道）。
 

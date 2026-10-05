@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e
+    - pbakaus/impeccable/.agents/skills/impeccable#dc78b325e753a6971800e3bddc9089bf5954f608
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -25,14 +25,14 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#0b5db9daae40f42c73544d1cc0a8c733bd530eaa
+    - remotion-dev/skills/skills/remotion-best-practices#a9b199e165505267eda1ed3e0ef3dd3567c43411
     # GoogleChrome/modern-web-guidance
     - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#84ae7251ee919239d5ea85aef25897983f26601e
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills 公式27-skill collection — 公式 full set を一括管理。
     # 検証済み default-branch revision を pin し、APM の lock / frozen install で同期する。
-    - mattpocock/skills#24fe0ef7737efae15c87225755e9f6f5965e4888
+    - mattpocock/skills#d81f3a183412e71a5b1e84ca21bc1a35eea03a60
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
