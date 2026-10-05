@@ -35,7 +35,7 @@ Q1〜Q3の判断、手順、完了条件を含む設計全体について、ユ�
 
 | 予定した変更 | 採否・理由 | 対応先 | 反映・検証 |
 | --- | --- | --- | --- |
-| 更新単位・文書訂正・分割時の除外を追跡し、レビューと最終照合へ渡す | 採用：Q1・Q3の合意 | [conventions](../conventions.md#ツールスキル更新の追跡とレビュー)、[skill-harness](../../runtime/skill-harness.md) | 規約へ反映。Standards／Specレビューで本設計と照合する |
+| 更新単位・文書訂正・分割時の除外を追跡し、レビューと最終照合へ渡す | 採用：Q1・Q3の合意 | [conventions](../conventions.md#ツールスキル更新の追跡とレビュー)、[skill-harness](../../runtime/skill-harness.md)、[ADR-0045の更新単位の分離](../adr/0045-separate-llm-agents-and-apm-update-units.md#decision) | 規約へ反映。Standards／Specレビューで本設計と照合する |
 | 候補生成前後のAPM版照合を通常生成手順とMatt gateで共用する | 採用：Q2の合意 | [共通コマンド](../../scripts/generate-apm-lock.sh)、[Matt gate](../../tests/mattpocock-update-gate.sh)、[ADR-0042](../adr/0042-mattpocock-managed-set-update-gate.md) | CLI不一致で生成前に拒否するred→greenを確認。生成版の欠落・不一致・重複、CLI／Nix判定失敗、旧lockと新CLIの正常生成、実Nix版評価を回帰テストで確認 |
 
 候補の検証は[apm-runtime](../../tests/apm-runtime.bats)と[Matt gate契約](../../tests/mattpocock-update-gate.bats)で行う。source配下のruntimeも生成前に拒否する。HOME配備時の検査は追加せず、既存のfrozen・audit・payload検証を維持した。実装commitと全件テストの結果は実装報告で提示し、merge後の成果物照合まで更新全体の完了とは扱わない。
