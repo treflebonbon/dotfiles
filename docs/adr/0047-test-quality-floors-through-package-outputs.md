@@ -47,3 +47,7 @@ floor と短い採用理由、判定、診断は ai.nix 内で扱い、公開 in
 ## 2026-10-01: Claude Code の秘密値の伏字修正を最低版に含める
 
 [公式 CHANGELOG](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21286) で、MCP エラー中の Bearer／Basic credential、percent-encoded token、不可視文字を含む key、特殊文字を含む URL password の伏字漏れ修正を確認した。秘密値を保護する運用上の最低条件として `minClaudeCode` を `2.1.284` から `2.1.286` へ引き上げ、独立したテスト期待値も更新する。Codex 0.159.2 の修正は Windows の console 表示であり、`minCodex = "0.159.1"` と Linux の FD パッチは維持する。採否と実行検証は[更新記録](../research/update-tools-skills-20261001.md)へ残す。
+
+## 2026-10-05: Claude Code の権限判定修正を最低版に含める
+
+[公式 CHANGELOG](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21289) で、IDE から symlink 経由で参照したファイルの Read deny、複合 Bash command の内側、展開を含む環境変数 prefix、変数代入後の command の deny / ask 判定修正を確認した。既存の秘密値の伏字修正を含む運用上の最低条件として `minClaudeCode` を `2.1.289` へ上げ、独立したテスト期待値も更新する。Codex の品質 floor `0.159.1` は維持する。採否と実行検証は[更新記録](../research/update-tools-skills-20261005.md)へ残す。

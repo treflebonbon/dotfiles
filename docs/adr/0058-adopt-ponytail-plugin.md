@@ -50,3 +50,9 @@ ambient persona（`full` mode、毎応答、全リポジトリ、全 subagent）
 - 一方 ponytail の Codex 側 hooks は、この生 `.codex/hooks.json` 経路ではなく、plugin バンドル内の相対パス hooks（`hooks/claude-codex-hooks.json`）であり、`codex plugin marketplace add` / `codex plugin add` で登録した plugin としてのみロードされる別経路である。`codex plugin list --json` で `ponytail@ponytail` が marketplace `ponytail` から `installed, enabled` (v4.9.0) であること、`[hooks.state]` に `ponytail@ponytail:hooks/claude-codex-hooks.json:...` の trusted_hash が別途記録されていることを確認しており、この plugin 経由の hooks は実際に機能している。
 - apm のソースを検索した範囲では、GitHub Copilot 向け native plugin marketplace registrar（`copilot_plugins/registrar.py`）に相当する Codex 版は見つからず、`codex plugin marketplace add` / `codex plugin add` を呼び出すコードも見つからなかった。つまり apm は ponytail が実際に使っている「plugin バンドルとして登録し、バンドル内 hooks をロードさせる」経路を再現できない。
 - 正確な理由は「apm は hooks を扱えないから」ではなく「apm に Codex native plugin marketplace registrar が無く、ponytail 公式が提供する `.codex-plugin/plugin.json` 経由の配布・pin（v4.9.0）を再現できないから」である。apm 自身の汎用 `.codex/hooks.json` マージ primitive でフックの中身だけを生ファイルとして流し込む代替経路は技術的にはあり得るが、vendor 提供の pin 済み plugin bundle（v4.9.0）を使わない独自再実装になるため採用しない。
+
+## 2026-10-05 amendment: catalogue pin と plugin 本体の区別
+
+隔離 HOME の Codex 0.159.2で `codex plugin marketplace add dietrichgebert/ponytail --ref v4.9.0`／`v4.11.0` と `codex plugin add ponytail@ponytail` を検証した。marketplace checkout は指定 tagだが、両tagに含まれる `.agents/plugins/marketplace.json` は plugin 本体の取得元を `ref: main` としており、どちらも実際には4.12.0をinstallした。Codex 0.160.0のsourceでも、このmanifestが `.claude-plugin/marketplace.json` より優先される。
+
+上記の「より厳格な固定」「pin済みplugin bundle」という記述は、catalogueの固定を本体の固定と同一視していたため訂正する。既存のnative配布経路とcatalogue既定tagは維持し、v4.11.0への単純なpin変更は本体の更新・固定を保証しないため採用しない。本体まで固定する配布方法は別途検証が必要で、今回独自installerやvendor manifestの改稿は追加しない。実行結果は[更新記録](../research/update-tools-skills-20261005.md)を参照する。

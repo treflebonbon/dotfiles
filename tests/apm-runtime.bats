@@ -44,7 +44,7 @@ assert_lock_entry() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#dc78b325e753a6971800e3bddc9089bf5954f608' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -56,10 +56,10 @@ assert_lock_entry() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
-  grep -Fq 'apm_version: 0.32.0' "$lock"
+  grep -Fq 'apm_version: 0.33.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: dc78b325e753a6971800e3bddc9089bf5954f608' "$lock"
-  grep -Fq 'content_hash: sha256:97645bceeba930f74633c9f8113b787e685c550f189cd100e218084b4aa8a60b' "$lock"
+  grep -Fq 'resolved_commit: 6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e' "$lock"
+  grep -Fq 'content_hash: sha256:c9ab9faf1852606e1fdbf21eba87e294eae632cad530785460caf05bf0b0b83a' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/impeccable' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/impeccable' "$lock"
@@ -81,7 +81,7 @@ assert_lock_entry() {
 @test "APM pins the official Matt Pocock full set" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local revision="d81f3a183412e71a5b1e84ca21bc1a35eea03a60"
+  local revision="24fe0ef7737efae15c87225755e9f6f5965e4888"
   local skill
 
   grep -Fq "mattpocock/skills#$revision" "$manifest"
@@ -91,7 +91,7 @@ assert_lock_entry() {
   grep -Fq 'name: mattpocock-skills' "$lock"
   assert_lock_entry "$lock" 'mattpocock/skills' 'mattpocock-skills' \
     "$revision" \
-    'sha256:3228058108c4d2b45044dc0cc2ac0823890dee5bf885e3114297685bb04592c2'
+    'sha256:127ccf2bbbf1442907b12581be5aba13ed034344e290714172f0a4a1b72942f8'
   for skill in \
     ask-matt diagnosing-bugs grill-with-docs triage improve-codebase-architecture \
     setup-matt-pocock-skills tdd to-spec to-tickets wayfinder implement implement-spec pr retro prototype \
@@ -112,7 +112,7 @@ assert_lock_entry() {
   local lock_refs
 
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#84ae7251ee919239d5ea85aef25897983f26601e' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#a9b199e165505267eda1ed3e0ef3dd3567c43411' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#0b5db9daae40f42c73544d1cc0a8c733bd530eaa' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$manifest"
   grep -Fq 'herdrdev/herdr/skills/herdr#7b116c05bfda646af39d2524c54e70c751f57ee8' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
@@ -131,13 +131,13 @@ assert_lock_entry() {
     '8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    'a9b199e165505267eda1ed3e0ef3dd3567c43411' \
-    'sha256:464579b6b7ebf16761d7c80cf8424781c6d267c92d1fe3a0de294f187e4406fd'
+    '0b5db9daae40f42c73544d1cc0a8c733bd530eaa' \
+    'sha256:388cfb613be8f0af31c501327f77dd6a16bce51ac1bb583d5e652278900b63d8'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    'b0fcb58a6e7c4df1a88f7f6327b083592c2dfd9c' \
+    '295a1f114a138f23b5dfee0e0c6812394dfeb90c' \
     'sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '3ab3c9239fba5eaa36c3c4ce10aab4cf346ee812' \
+    'd9846e64feaed910b058c4128eb4d46ed8e2c4c8' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
@@ -146,7 +146,7 @@ assert_lock_entry() {
     '7b116c05bfda646af39d2524c54e70c751f57ee8' \
     'sha256:66715d76e5947497431ec0db32f2693b9c916ad799c3f32b99e6174b4b9c607f'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '3ab3c9239fba5eaa36c3c4ce10aab4cf346ee812' \
+    'd9846e64feaed910b058c4128eb4d46ed8e2c4c8' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
   [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 1 ]
   manifest_pins="$(
