@@ -54,7 +54,7 @@ Ponytail v4.11.0（`6d6317716fb15eb1bafb898f74498bd9331b31c8`）も確認した�
 
 ただし隔離 HOME のCodex 0.159.2でcatalogueを `--ref v4.11.0` に固定しても、plugin 本体は `main` から4.12.0を取得し、4.11.0の独立期待値は失敗した。既存 `v4.9.0` でも同じ挙動を再現した。両tagの `.agents/plugins/marketplace.json` が本体の `ref: main` を明示しており、Codex 0.160.0の[manifest選択順](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/core-plugins/src/marketplace.rs#L20)でも `.claude-plugin/marketplace.json` より優先される。
 
-既存catalogue tagは維持し、単純なpin変更を本体の固定版更新として採用しない。[ADR-0058](../adr/0058-adopt-ponytail-plugin.md)の過去の固定範囲の説明を訂正し、native配布、full mode、subagent scope、fail-open／再登録は維持する。本体まで固定する経路の設計やvendor manifest改稿は追加しない。live plugin directoryは変更していない。
+既存catalogue tagは維持し、単純なpin変更を本体の固定版更新として採用しない。4単位の更新PRのmerge後、[ADR-0058](../adr/0058-adopt-ponytail-plugin.md#2026-10-05-amendment-catalogue-と-plugin-本体の固定範囲)に残っていた過去の固定範囲の説明を文書訂正として反映した。native配布、full mode、subagent scope、fail-open／再登録は維持する。本体まで固定する経路の設計やvendor manifest改稿は追加しない。live plugin directoryは変更していない。
 
 ## 検証環境と再実行
 
