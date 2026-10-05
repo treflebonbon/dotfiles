@@ -73,6 +73,25 @@ cleanup_managed_skills() {
   [[ "$output" == *"Runtime retained at"* ]]
 }
 
+@test "managed-set update gate uses the generator from the selected source" {
+  local source="$BATS_TEST_TMPDIR/selected-source"
+  mkdir -p "$source/scripts"
+  cp "$MANIFEST" "$LOCK" "$CLEANUP" "$source/"
+  cat >"$source/scripts/generate-apm-lock.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'REJECT: selected source generator\n' >&2
+exit 1
+EOF
+  chmod +x "$source/scripts/generate-apm-lock.sh"
+
+  run env PATH="$FAKE_BIN:$PATH" MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    "$GATE" --source "$source"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"REJECT: selected source generator"* ]]
+  [ ! -e "$COMMAND_LOG" ]
+}
+
 @test "Matt managed set remains an exact commit pin with one APM owner" {
   local pin_line revision
 

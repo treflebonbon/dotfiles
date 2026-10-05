@@ -41,7 +41,6 @@ done
   exit 2
 }
 SOURCE_DIR=$(cd -- "$SOURCE_DIR" && pwd)
-GATE_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 CANDIDATE_MANIFEST=${CANDIDATE_MANIFEST:-$SOURCE_DIR/apm.yml}
 ORIGINAL_HOME=${HOME:-}
 ORIGINAL_PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-}
@@ -391,7 +390,7 @@ record_phase() {
 }
 
 record_phase lock-generation
-"$GATE_ROOT/scripts/generate-apm-lock.sh" "$SOURCE_DIR" --update
+"$SOURCE_DIR/scripts/generate-apm-lock.sh" "$SOURCE_DIR" --update
 validate_lock_refs "$runtime/apm.lock.yaml" || reject "generated lock contains a ref different from its resolved commit"
 cmp <(normalize_lock "$SOURCE_LOCK") <(normalize_lock "$runtime/apm.lock.yaml") ||
   reject "lock generation changed non-Matt dependency fields"
