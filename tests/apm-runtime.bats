@@ -81,7 +81,7 @@ assert_lock_entry() {
 @test "APM pins the official Matt Pocock full set" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local revision="d81f3a183412e71a5b1e84ca21bc1a35eea03a60"
+  local revision="24fe0ef7737efae15c87225755e9f6f5965e4888"
   local skill
 
   grep -Fq "mattpocock/skills#$revision" "$manifest"
@@ -91,7 +91,7 @@ assert_lock_entry() {
   grep -Fq 'name: mattpocock-skills' "$lock"
   assert_lock_entry "$lock" 'mattpocock/skills' 'mattpocock-skills' \
     "$revision" \
-    'sha256:3228058108c4d2b45044dc0cc2ac0823890dee5bf885e3114297685bb04592c2'
+    'sha256:127ccf2bbbf1442907b12581be5aba13ed034344e290714172f0a4a1b72942f8'
   for skill in \
     ask-matt diagnosing-bugs grill-with-docs triage improve-codebase-architecture \
     setup-matt-pocock-skills tdd to-spec to-tickets wayfinder implement implement-spec pr retro prototype \
