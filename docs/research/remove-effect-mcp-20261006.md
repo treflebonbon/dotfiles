@@ -14,4 +14,8 @@ context7 と serena、Effect 用 skill・reference・fixture は維持する。�
 
 JSON の変更前後比較で Effect MCP だけが削除され、他の MCP 設定が保持されることを確認した。`chezmoi cat ~/.mcp.json` の task source 出力も既存の `.mcp.json` と一致する。型チェック（`bunx tsc --noEmit`）、oxfmt、`git diff --check`、commit hook は成功した。
 
+`lefthook run test` の初回は744件中716成功・6失敗・22スキップ、終了コード1。lefthook が TTY 出力を捕捉したため、TAP ではなく最終進捗 `744/744` と集計を照合した。ログは `/tmp/dotfiles-remove-effect-mcp-tests.log`。
+
+失敗6件は設定を変更せず単体で再確認した。`human-validation.bats` の1件は repo devShell の `with-env` がない環境前提の失敗で、`nix develop .#default --command bats --formatter tap tests/human-validation.bats` では成功。TTY 捕捉下で停止・タイムアウトしたシェル関連5件は、`bats --formatter tap tests/user-environment-startup.bats` の4件と、`bats --formatter tap --filter 'gcd は ghq list' tests/dot_zshrc.bats` の1件として直接再実行し、すべて成功した。初回に停止した zsh 1プロセスと bash 2プロセスは手動で終了し、失敗として記録した。全スイートは再実行していない。
+
 この記録は [conventions のツール・スキル更新の追跡とレビュー](../conventions.md#ツールスキル更新の追跡とレビュー) に基づく規約レビューの指摘を受けて補完した。撤去だけなので新しい更新候補や ADR の採用判断はない。変更は task branch にコミットし、merge と live 配備はまだ行っていない。
