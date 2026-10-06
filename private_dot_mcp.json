@@ -14,10 +14,6 @@
         "--enable-web-dashboard",
         "false"
       ]
-    },
-    "effect-docs": {
-      "command": "bunx",
-      "args": ["-y", "effect-mcp@latest"]
     }
   }
 }
