@@ -51,6 +51,7 @@ in
 assert builtins.length selected == 1;
 {
   version = package.version;
+  preBuild = package.preBuild or "";
   matchesSource =
     if tool == "codex" && pkgs.stdenv.isLinux then
       package.src.drvPath == candidate.src.drvPath

@@ -80,3 +80,20 @@ CASES
     jq -e '.matchesSource and (.version | type == "string")' <<<"$output"
   done
 }
+
+@test "Codex Rust build caps jobs at four and preserves a lower Nix limit" {
+  evaluate_floor codex null
+  [ "$status" -eq 0 ]
+  jq -r '.preBuild' <<<"$output" >"$BATS_TEST_TMPDIR/pre-build.sh"
+  local cores expected
+  for cores in 1 2 4 8 16; do
+    expected="$cores"
+    if [ "$expected" -gt 4 ]; then expected=4; fi
+    run env NIX_BUILD_CORES="$cores" bash -eu -c '
+      substituteInPlace() { :; }
+      source "$1"
+      test "$NIX_BUILD_CORES" -eq "$2"
+    ' -- "$BATS_TEST_TMPDIR/pre-build.sh" "$expected"
+    [ "$status" -eq 0 ]
+  done
+}
