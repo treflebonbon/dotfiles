@@ -43,6 +43,10 @@ sudo tee "$CUSTOM_CONF" >/dev/null <<EOF
 
 trusted-users = root $USER_NAME
 
+# Rust 等のビルドで CPU・メモリを使い切らないよう並列数を抑える
+max-jobs = 1
+cores = 4
+
 # rust-overlay のバイナリキャッシュ
 extra-substituters = https://nix-community.cachix.org
 extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
