@@ -73,7 +73,7 @@ let
           ../packages/codex-sandbox-cleanup.patch
         ];
         preBuild = (old.preBuild or "") + ''
-          export NIX_BUILD_CORES=$((NIX_BUILD_CORES < 4 ? NIX_BUILD_CORES : 4))
+          export NIX_BUILD_CORES=1
         '';
       })
     else
