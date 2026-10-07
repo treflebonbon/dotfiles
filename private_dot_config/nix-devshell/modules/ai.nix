@@ -72,6 +72,9 @@ let
           ../packages/codex-distinct-mask-fds.patch
           ../packages/codex-sandbox-cleanup.patch
         ];
+        preBuild = (old.preBuild or "") + ''
+          export NIX_BUILD_CORES=1
+        '';
       })
     else
       codexBase;

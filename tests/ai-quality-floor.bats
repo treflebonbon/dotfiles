@@ -80,3 +80,18 @@ CASES
     jq -e '.matchesSource and (.version | type == "string")' <<<"$output"
   done
 }
+
+@test "Codex Rust build runs one job regardless of the Nix limit" {
+  evaluate_floor codex null
+  [ "$status" -eq 0 ]
+  jq -r '.preBuild' <<<"$output" >"$BATS_TEST_TMPDIR/pre-build.sh"
+  local cores
+  for cores in 0 1 2 4 8 16; do
+    run env NIX_BUILD_CORES="$cores" bash -eu -c '
+      substituteInPlace() { :; }
+      source "$1"
+      test "$NIX_BUILD_CORES" -eq 1
+    ' -- "$BATS_TEST_TMPDIR/pre-build.sh"
+    [ "$status" -eq 0 ]
+  done
+}

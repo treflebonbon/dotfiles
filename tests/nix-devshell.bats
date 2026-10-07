@@ -232,6 +232,18 @@ PS
   grep -q 'code-review-graph install.*実行しない' "$runtime"
 }
 
+@test "code-review-graph test environment excludes Codex without building packages" {
+  run nix eval --raw --file "$PROJECT_ROOT/tests/helpers/code-review-graph-shell.nix" --apply 'shell: shell.drvPath'
+  [ "$status" -eq 0 ]
+  local drv="${output##*$'\n'}"
+
+  run nix-store --query --requisites "$drv"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *-code-review-graph-* ]]
+  [[ "$output" == *-fastmcp-* ]]
+  [[ "$output" != *-codex-* ]]
+}
+
 @test "code-review-graph package meets its FastMCP floor on all supported systems (issue #136)" {
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/code-review-graph.nix"
   local language_pack="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/tree-sitter-language-pack-0_13.nix"
@@ -254,10 +266,7 @@ PS
 
   if [ "$(uname -s)" = "Linux" ]; then
     local probe="$BATS_TEST_TMPDIR/code-review-graph-probe"
-    local shell="path:$flake#default"
-    if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -Eqi 'microsoft|wsl' /proc/sys/kernel/osrelease; then
-      shell="path:$flake#wsl"
-    fi
+    local shell="$PROJECT_ROOT/tests/helpers/code-review-graph-shell.nix"
     export HOME="$BATS_TEST_TMPDIR/home"
     export XDG_CONFIG_HOME="$HOME/.config"
     export XDG_DATA_HOME="$HOME/.local/share"
@@ -267,14 +276,14 @@ PS
     printf 'def answer():\n    return 42\n' >"$probe/sample.py"
     git -C "$probe" add sample.py
 
-    run nix develop "$shell" --command code-review-graph --help
+    run nix develop --file "$shell" --command code-review-graph --help
     [ "$status" -eq 0 ]
 
-    run nix develop "$shell" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
+    run nix develop --file "$shell" --command bash -c 'cd "$1" && code-review-graph build' _ "$probe"
     [ "$status" -eq 0 ]
     [ -f "$probe/.code-review-graph/graph.db" ]
 
-    run nix develop "$shell" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
+    run nix develop --file "$shell" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
     [ "$status" -eq 0 ]
     [[ "$output" == *'"is_error": false'* ]]
     [[ "$output" == *'"total_nodes": 2'* ]]

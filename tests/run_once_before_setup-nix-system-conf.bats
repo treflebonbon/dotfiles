@@ -105,6 +105,7 @@ run_sut() {
   grep -q 'trusted-users = root' "$FAKE_ETC/nix.custom.conf"
   grep -q 'download-buffer-size = 134217728' "$FAKE_ETC/nix.custom.conf"
   grep -q 'extra-experimental-features = nix-command flakes' "$FAKE_ETC/nix.custom.conf"
+  ! grep -Eq '^(max-jobs|cores)[[:space:]]*=' "$FAKE_ETC/nix.custom.conf"
 }
 
 @test "rewrite は idempotent (2 回実行しても結果同一)" {
