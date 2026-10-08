@@ -185,4 +185,4 @@ Iteration 1 の Codex は、最初に `/tmp` 配下の入力を読めず未実�
 
 終了判定は **qualitative plateau; quantitative convergence unverified**。Iteration 3 で新しい不明点が出たので、連続クリアは0回で、収束は成立していない。ホールドアウト g は100%で、過学習の兆候はない。Claude 側の `duration_ms` は e で +19% の変動があり、入力を変えた反復を含むため、純粋な比較にならない。
 
-固定した少数のシナリオでの結果であり、一般的な成功率を推定しない。ブラウザの描画・保存・コピーの実動作は、`tests/helpers/ui-grill-browser-check.py` で別に検査した。実行者は、人間の回答を待つ手前で止まる評価条件で動かした。入力と成果物は `tmp/tuning/`（Git対象外）にある。
+固定した少数のシナリオでの結果であり、一般的な成功率を推定しない。ブラウザの描画・保存・コピーの実動作は、`tests/helpers/ui-grill-browser-check.py` で別に検査した。実行者は、人間の回答を待つ手前で止まる評価条件で動かした。入力と成果物は `tmp/tuning/`（Git対象外）にあるが、各実行の項目別得点・指標・成果物のSHA-256・対象版のハッシュは [results-v3.json](../../local-skills/ui-grill-with-docs/evals/results-v3.json) に残した。Iteration 1 の Codex 2件の成果物は、採点後に誤って削除したため、ハッシュを記録できず、再監査できない。
