@@ -114,6 +114,15 @@ code = r"""async page => {
     check(await unanswered() === 3, 'changed questions restored stale answers');
     checks.push('round, session, and question-change isolation');
 
+    html = original.replace('{ "id": "list",', '{ "id": "__proto__",');
+    check(html !== original, '__proto__ choice fixture not applied');
+    await tab.reload();
+    await tab.locator('details.comment > summary').first().click();
+    await tab.locator('details.comment textarea').first().fill('prototype名でも保持する');
+    check((await output()).includes('> prototype名でも保持する'), '__proto__ choice comment lost');
+    check(await unanswered() === 3, '__proto__ choice comment counted as an answer');
+    checks.push('choice ID __proto__ is handled as data');
+
     html = original;
     await tab.evaluate(key => localStorage.setItem(key, '{broken'), key);
     await tab.reload();

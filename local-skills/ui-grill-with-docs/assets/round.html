@@ -160,7 +160,7 @@
         if (visual) fieldset.append(visual.content.cloneNode(true));
 
         const choices = element("div", undefined, "choices");
-        const choiceComments = {};
+        const choiceComments = Object.create(null);
         const inputs = question.choices.map((choice) => {
           const label = element("label", undefined, "choice");
           const input = element("input");
