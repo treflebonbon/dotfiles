@@ -25,9 +25,9 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#0b5db9daae40f42c73544d1cc0a8c733bd530eaa
+    - remotion-dev/skills/skills/remotion-best-practices#32b241b97f4e0e4ab61fe9a41b05e6e64503f8c5
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#84ae7251ee919239d5ea85aef25897983f26601e
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#a97286845f2baba38988f9e5fe2b2a1351021e50
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills 公式27-skill collection — 公式 full set を一括管理。
