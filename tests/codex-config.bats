@@ -949,10 +949,16 @@ assert "Edit(~/.cache/nix-devshell-tmp/**)" not in data["permissions"]["deny"]
 assert not any(
     rule.startswith("Write(") for rule in data["permissions"]["deny"]
 )
-assert data["hooks"]["PreToolUse"][1:] == [
+assert data["hooks"]["PreToolUse"] == [
     {
         "matcher": "Bash",
-        "hooks": [{"type": "command", "command": "rtk hook claude"}],
+        "hooks": [
+            {
+                "type": "command",
+                "command": "\"$HOME/.local/bin/devshell-env\" claude-hook",
+                "timeout": 120,
+            }
+        ],
     }
 ]
 command = data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]

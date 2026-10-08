@@ -4,10 +4,12 @@ title: rtk の PreToolUse hook から git を除外し、EnterWorktree 隔離中
 description: rtk hook claude が git コマンドを自動的に rtk 経由へ書き換えるため、Claude Code の worktree 隔離境界チェックが launcher (rtk) を透過できず git status のような read-only コマンドまで一律拒否していた。rtk config で git を書き換え対象から除外する。
 tags: [adr, claude-code, rtk, worktree, git]
 timestamp: 2026-09-15
-status: accepted
+status: superseded
 ---
 
 # rtk の PreToolUse hook から git を除外し、EnterWorktree 隔離中の git 封鎖を解消する
+
+> 2026-10-08 に [ADR-0072](0072-remove-rtk.md) が rtk 自体を撤去したため、本決定は superseded。以下は当時の判断記録として保持する。
 
 `EnterWorktree`（Claude Code 2.1.270）で隔離した task worktree 内では、`git status` のような最も単純な read-only コマンドすら次のエラーで一律拒否されることを `diagnosing-bugs` で確認した:「this command runs rtk with a git command among its operands: ... so what it runs cannot be shown not to be git」。`dangerouslyDisableSandbox: true` の有無やコマンドの単純さに関わらず再現し、`EnterWorktree` を使わないセッションでは発生しなかった。
 

@@ -201,7 +201,7 @@ flake を編集したら、Claude の Bash で `devshell-env reload` を実行�
 
 session 状態は `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/.devshell-env/<session-id の hash>/` に置く。初期化結果だけを session 内で再利用し、`SessionStart` で再評価するため、session をまたいだプロジェクト環境キャッシュにはしない。Nix／shellHook へ渡すのは HOME と解決済み bootstrap ツールの PATH だけで、任意の継承値やその加工結果を新しい保存先へ残さない。元の変数値を復元するための情報は非exportの shell 変数に保持し、ファイルへ保存しない。dotenv と秘密取得は追加せず、shellHook 自身にも秘密取得を書かない。これは信頼した flake の外部副作用を封じる sandbox ではない。
 
-Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS sandbox 変更は対象外。既存 permission と RTK／Design Hook を維持する。未 merge の task source は実配備しない。[#256 の実 lifecycle・品質検証記録](../docs/research/devshell-env-256.md)を参照。
+Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS sandbox 変更は対象外。既存 permission と Design Hook を維持する。未 merge の task source は実配備しない。[#256 の実 lifecycle・品質検証記録](../docs/research/devshell-env-256.md)を参照。
 
 ## 既存 repo の移行
 
