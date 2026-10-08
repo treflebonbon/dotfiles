@@ -10,10 +10,10 @@
 | --- | --- |
 | Tool Snapshot（本 PR） | 実装・検証済み。live apply と merge は受入後 |
 | 通常 APM payload | 採用（別 PR）。Remotion `32b241b9`・Modern Web Guidance `a9728684` を採用し、floating 6件を revision のみ反映。記録は [update-apm-skills-20261009.md](update-apm-skills-20261009.md)。merge・live apply は受入後 |
-| Impeccable | 保留。同上（確認時点の upstream HEAD `778c8a7b71ccd5bfe3ca6ac68c15d9d872d0f87d`、未比較） |
+| Impeccable | 採用（別 PR）。skill 4.5.1 `9dad388a`・engine 0.1.12。記録は [update-impeccable-20261009.md](update-impeccable-20261009.md)。merge・live apply は受入後 |
 | Matt Pocock managed set | 保留。同上（確認時点の upstream HEAD `b0618bc436ad893b3c5e84e55fba86586d34a404`、未比較） |
 
-分割で外した変更は次の3件で（通常 APM payload は別 PR で実装済み、Impeccable と Matt Pocock は残る）、対応先 PR／commit は未定のため保留とし、反映・検証は未実施。
+分割で外した変更は次の3件で（通常 APM payload と Impeccable は別 PR で実装済み、Matt Pocock は残る）、対応先 PR／commit は未定のため保留とし、反映・検証は未実施。
 
 保留した単位の候補は未検証であり、採否は後続 PR で決める。今回の対象に採用しなかったものではなく、更新全体としては未完了。
 
