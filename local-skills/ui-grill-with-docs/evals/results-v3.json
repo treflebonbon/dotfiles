@@ -2,6 +2,7 @@
   "date": "2026-10-08",
   "timezone": "Asia/Tokyo",
   "scoring": "full=1, partial=0.5, failed=0; success needs every [critical] item at 1. Scores come from the parent session reading each artifact, not the executor's self-report.",
+  "pass_summary": "Iteration 1 ran on the pre-correction input and is excluded from the pass summary. Iterations 2 and 3 (7 Claude and Codex runs) all passed.",
   "metrics_note": "tool_uses and duration_ms come from the Claude Agent tool usage meta. Codex runs through herdr expose neither, so they are null and excluded from convergence.",
   "target": {
     "revision": "edfee96",
@@ -40,6 +41,11 @@
       "artifact_sha256": {
         "round.html": "5ecc20ab930f093331d205b04b35d626dbc95ab125451c7c3b40c3752cf8c149",
         "response.md": "cdf0f9760a5cf089e4d77a454eb8dab0f3eab2f7ed8958d4b0f3e31fbb822db5"
+      },
+      "input_version": "pre-correction",
+      "counts_toward_pass_summary": false,
+      "requirement_notes": {
+        "2": "Scored 1 against the corrected definition: layout's question ID, prompt (recovered from the pasted Markdown) and choice IDs and labels (given in the scenario text) match it. The Q2 prompt was absent at the time, so Q2 carry-forward cannot be established from this run."
       }
     },
     {
@@ -60,7 +66,9 @@
       "artifact_sha256": {
         "round.html": "5a9ba5542bb690d36be3de1f2a48a566ff5f37e8c4b1bc6c947b49dc0640a392",
         "response.md": "45039eda9c8188b6fd2adb5c0d80f22b6e779c216d7bb5ed5f3975a654086e85"
-      }
+      },
+      "input_version": "pre-correction",
+      "counts_toward_pass_summary": false
     },
     {
       "iteration": 1,
@@ -79,6 +87,8 @@
       "duration_ms": null,
       "new_unclear_points": "not captured",
       "artifact_sha256": null,
+      "input_version": "pre-correction",
+      "counts_toward_pass_summary": false,
       "note": "Artifacts were deleted before this manifest was written; scores come from the parent's reading at the time and cannot be re-audited."
     },
     {
@@ -97,6 +107,8 @@
       "duration_ms": null,
       "new_unclear_points": "not captured",
       "artifact_sha256": null,
+      "input_version": "pre-correction",
+      "counts_toward_pass_summary": false,
       "note": "Artifacts were deleted before this manifest was written; scores come from the parent's reading at the time and cannot be re-audited."
     },
     {
