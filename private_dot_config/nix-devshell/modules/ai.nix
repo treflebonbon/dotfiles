@@ -130,7 +130,8 @@ in
     waza
 
     # --- Agent Package Manager ---
-    llm.apm
+    # The shared overlay can't supply upstream's installAgentSkills hook on stable nixpkgs.
+    inputs.llm-agents.packages.${system}.apm
   ];
 
   shellHook = ''
