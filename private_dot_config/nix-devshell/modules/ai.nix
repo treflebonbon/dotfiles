@@ -109,9 +109,6 @@ in
     # Keep the derivation aligned with the pinned Numtide binary cache.
     inputs.llm-agents.packages.${system}.herdr
 
-    # --- Token Optimization ---
-    llm.rtk
-
     # --- Code Review Context ---
     # CLI only. Each repository decides whether to build a graph and add a
     # project-scoped MCP entry; never run the upstream global installer here.

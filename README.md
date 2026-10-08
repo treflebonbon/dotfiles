@@ -30,7 +30,7 @@
 | Linter/Formatter | shellcheck, shfmt, oxfmt, oxlint |
 | エディタ | neovim, tmux |
 | Git | gh, lazygit, delta |
-| AI | claude-code, codex, copilot-cli, antigravity, rtk, playwright-cli, apm |
+| AI | claude-code, codex, copilot-cli, antigravity, playwright-cli, apm |
 
 ## セットアップ
 
