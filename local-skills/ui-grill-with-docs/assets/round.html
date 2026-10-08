@@ -167,7 +167,7 @@
           input.type = question.type === "multiple" ? "checkbox" : "radio";
           input.name = `question-${index}`;
           input.value = choice.id;
-          label.append(input, element("span", `${choice.label}${choice.recommended ? " (Recommended)" : ""}`));
+          label.append(input, element("span", `${choice.label}${choice.recommended ? " (推奨)" : ""}`));
           const row = element("div", undefined, "choice-row");
           const details = element("details", undefined, "comment");
           const area = element("textarea");
