@@ -9,7 +9,7 @@
 | 単位 | 状態 |
 | --- | --- |
 | Tool Snapshot（本 PR） | 実装・検証済み。live apply と merge は受入後 |
-| 通常 APM payload | 保留。本 PR の main への merge 後に別 PR で selected subtree の差分を比較する |
+| 通常 APM payload | 保留。本 PR の main への merge 後に別 PR で selected subtree の差分を比較する（確認時点の upstream HEAD: Remotion `32b241b97f4e0e4ab61fe9a41b05e6e64503f8c5`、Modern Web Guidance `a97286845f2baba38988f9e5fe2b2a1351021e50`、未比較） |
 | Impeccable | 保留。同上（確認時点の upstream HEAD `778c8a7b71ccd5bfe3ca6ac68c15d9d872d0f87d`、未比較） |
 | Matt Pocock managed set | 保留。同上（確認時点の upstream HEAD `b0618bc436ad893b3c5e84e55fba86586d34a404`、未比較） |
 
