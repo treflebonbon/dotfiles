@@ -30,4 +30,4 @@ lock の `deployments` の差分は Modern Web Guidance 240 件と Remotion 62 �
 - 採用 lock の SHA-256 は `7058c17bbafc3ed65284bc4a674643497fd463547b3cd0b9d73d43ae423d20e6`。別の空 runtime で `apm install --frozen` した前後で不変。`apm audit --ci` は 10/10 成功。Claude／Codex 各46 skill の payload が一致。
 - `tests/apm-runtime.bats`・`tests/nix-devshell.bats` の独立期待値を新しい pin／hash／revision に更新し、50件が成功。
 - 未検証: organization policy enforcement は Git remote のない隔離環境のため判定対象外。live skill directory と `chezmoi apply` には触れていない（受入後に live source で配備する）。
-- 標準 `lefthook run test` は746件中729成功・22 skip・17失敗。失敗の内訳と番号は Tool Snapshot PR（#391）と同一で、dogfood 9件、`local-skills` 1件、managed-set gate 7件。gate 7件と `local-skills` 1件は変更前の main でも失敗する。dogfood 9件は環境要因と推定するが未確認。この変更は `apm.yml`／lock と期待値のみで、テストの例外化・削除はしていない。
+- 標準 `lefthook run test` は746件中707成功・22 skip・17失敗。失敗の内訳と番号は Tool Snapshot PR（#391）と同一で、dogfood 9件、`local-skills` 1件、managed-set gate 7件。gate 7件と `local-skills` 1件は変更前の main でも失敗する。dogfood 9件は環境要因と推定するが未確認。この変更は `apm.yml`／lock と期待値のみで、テストの例外化・削除はしていない。

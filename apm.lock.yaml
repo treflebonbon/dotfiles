@@ -1417,8 +1417,8 @@ dependencies:
 - repo_url: pbakaus/impeccable
   name: impeccable
   host: github.com
-  resolved_commit: 6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e
-  resolved_ref: 6b9d0ffa3a9a884fc95928d2d2d896b0befa5d3e
+  resolved_commit: 9dad388a41944a0d2b8d1fb547c8556d2ecb49e7
+  resolved_ref: 9dad388a41944a0d2b8d1fb547c8556d2ecb49e7
   version: unknown
   virtual_path: .agents/skills/impeccable
   is_virtual: true
@@ -1551,8 +1551,8 @@ dependencies:
   - .claude/skills/impeccable/scripts/live-browser.js
   - .claude/skills/impeccable/scripts/modern-screenshot.umd.js
   deployed_file_hashes:
-    .agents/skills/impeccable/SKILL.md: sha256:e1a965737ca8255934bad358d5cfb8788ce013867910efd97d1daac68375e941
-    .agents/skills/impeccable/agents/impeccable_asset_producer.toml: sha256:d6a51f4df6d76f16b95ab81268a689f4c5936d505c5bb25c80ad7423f927bbc6
+    .agents/skills/impeccable/SKILL.md: sha256:3147b3cbd19f0549f9b21646d183509d86e863839a0b87ab71872dd4dbb050fd
+    .agents/skills/impeccable/agents/impeccable_asset_producer.toml: sha256:4dbdb0cfdc2466961da6b22d200f3ec7bf8bb47c27448a2e6e3c03cdbf589831
     .agents/skills/impeccable/agents/impeccable_documenter.toml: sha256:2feb3768125ba6469c92a50d516727e6d42f44579165ddfd33409948e2a3803d
     .agents/skills/impeccable/agents/impeccable_finish_reviewer.toml: sha256:d57c3e0453f601ad688911fca4471057c7b46b561fcd42a1e12a581101c5186c
     .agents/skills/impeccable/agents/impeccable_manual_edit_applier.toml: sha256:6c9ce3e27ec4520ead001da3aad2a2ebba481c4e5cd22873db8890259ee579fe
@@ -1561,16 +1561,16 @@ dependencies:
     .agents/skills/impeccable/reference/adapt.native.md: sha256:6acc0bf221a4ddc6e5c6438348920b2ca2393b29c4314dbde2cdc23f2b1a9639
     .agents/skills/impeccable/reference/android.md: sha256:058f81f256134841875fd3183e06b37a023de0c877fd2b9eecd97011640791fe
     .agents/skills/impeccable/reference/animate.md: sha256:d658c48ffbe0031e8e3b318996cad6ceafe29e40aa50d5bb25e4bf1d6839dc7c
-    .agents/skills/impeccable/reference/audit.md: sha256:d5f83912eda93d42f93522bb74aeff0ea04d9c559577ec52fcccc130dd03166d
+    .agents/skills/impeccable/reference/audit.md: sha256:41764be7bf974b95ee469f11c496714b4b3cf2ba594c0b8f838a0742680229a9
     .agents/skills/impeccable/reference/audit.native.md: sha256:960cb922bc934adbf9192e9428ff6bec1f382038166f02a785939c93b7391067
     .agents/skills/impeccable/reference/bolder.md: sha256:f964506c0fae87b3c2c1db7016ddc9be9ef970bbcf5548d684b997b5d5991586
     .agents/skills/impeccable/reference/clarify.md: sha256:173dd66abe65633910dcb04a51f40d6ff2a793f87088f022a02fc4cad24dd133
     .agents/skills/impeccable/reference/colorize.md: sha256:bc5f71f1129d0f2c310d913d07c8dc609a1d25644121bd78c308f42d52a0b9e9
-    .agents/skills/impeccable/reference/component-review.md: sha256:0ceea468b6e8cc3b0dbd8b2b6b22488337a396c34d8f716b34d54b52393b4733
+    .agents/skills/impeccable/reference/component-review.md: sha256:10489e5265e49a4ef2737cd0e674c149ed41e1f703efe922e53ea3c91e833427
     .agents/skills/impeccable/reference/craft-floor.md: sha256:e802e4f7bdc89050a9c0f2ca506e1d493a2316e6e810c0336c57aa073717ef3e
     .agents/skills/impeccable/reference/craft.md: sha256:9205e222bc6565b37fb504ceec93233c2d2a456802b69d16e6b1c44723907c4c
     .agents/skills/impeccable/reference/critique.md: sha256:cb8caddbb3919e5bf7f252143b519fb16db28a244642d937b186cb89962d9201
-    .agents/skills/impeccable/reference/degraded/asset-producer.md: sha256:754e9f0aa2101245a83cb17d8cc5bc49cf87997b29a83dedbfff283dbd0a8c4f
+    .agents/skills/impeccable/reference/degraded/asset-producer.md: sha256:877d274f41500c780bad25b2bca7fa95eff1a32a7b95397dd388c72848e86a6c
     .agents/skills/impeccable/reference/degraded/documenter.md: sha256:bcc05ea92faebb5c74037a9d4263a5ce9a56f5ab07c8ab3c59ee704d8cade745
     .agents/skills/impeccable/reference/degraded/finish-reviewer.md: sha256:275dd1b6e63bbd30d2713227c4f79b880a8bc4e01cc48d392068bb86939d3afa
     .agents/skills/impeccable/reference/degraded/manual-edit-applier.md: sha256:5fae7f8a2fc3ddd49ad0a413446dc44daedef5b6b7de5eb935bd2fbfad646d58
@@ -1581,16 +1581,16 @@ dependencies:
     .agents/skills/impeccable/reference/extract.md: sha256:31b90048c0b540daec46762a10c2b6b6434737a89af005054d8b848d829d003b
     .agents/skills/impeccable/reference/generate.md: sha256:53628d05b7eff0d4f48b95e48fad40266452fe1b42f398bd88dd9328353e0dd8
     .agents/skills/impeccable/reference/harden.md: sha256:16ba7fca1973c5faf53dd2ca523559129c0fe9e5f8d50b645f527afa78186cd2
-    .agents/skills/impeccable/reference/hooks.md: sha256:56cc1bba51e6805de370160ce4a9399fef3740571204f13c3c751725870305e5
+    .agents/skills/impeccable/reference/hooks.md: sha256:3e3209e6b45497c7aee8234f5be880399ed6d99db442dcf3e024f061cd2027ba
     .agents/skills/impeccable/reference/init.md: sha256:bb069b43c09109d7031b0374e31955749fec657b252d39782f11e8985aca2b51
     .agents/skills/impeccable/reference/ios.md: sha256:40c87038b5f75147a5952a96237acf312a327bf70c1bcd8e0a5f064625ae9668
     .agents/skills/impeccable/reference/layout.md: sha256:0bc7d7971b3edf2acd0580e847458dc6d84129d90715b452799ace3bed815c7c
     .agents/skills/impeccable/reference/live-setup.md: sha256:2b5b2fbf5f658f34ea1997fb1aeebe01604d05187f75c6a4f1f55a5bc78520a4
     .agents/skills/impeccable/reference/live.md: sha256:68c5636a7858dd0b5137a9229c15e25fdc2ee40a0f8a4e9d809f78e809256262
-    .agents/skills/impeccable/reference/mode-operate.md: sha256:385a0efe833bd4afe4a257e7159590de0cf1b7fd8f7b213b732f1e537c62dab7
+    .agents/skills/impeccable/reference/mode-operate.md: sha256:7a52dd7a94ee75f6ae89542c86a1b6e1d306812b16e0d9dbf12d4acad44d148b
     .agents/skills/impeccable/reference/mode-persuade.md: sha256:21e78c8a77badb3f83290cd4577ed3b24bd4dd3b57136d7da75733d4f3ee9ac0
     .agents/skills/impeccable/reference/mode-read.md: sha256:a569989e6a3d6453b4c45e9474e162a15cc54e11732ac6baa7990a6e7cccc0b5
-    .agents/skills/impeccable/reference/new-work.md: sha256:d5e4536f0dedd3b7ec2e6bb09307ba1e96d813821671eb9cede13dce854e1a85
+    .agents/skills/impeccable/reference/new-work.md: sha256:723d3985d079fa7a3c4140a072b6d6937ffc109eb462f9be5b1f97027b3fb714
     .agents/skills/impeccable/reference/onboard.md: sha256:ef2dde00030580ed2765cbf7be9b2ea4a6f64cb915b804fd6f6abcf38051c7b9
     .agents/skills/impeccable/reference/operate.md: sha256:a9d2203acd45ca33a13d5c68b02b23ed512425ac15f0e8438318ed124b43729d
     .agents/skills/impeccable/reference/optimize.md: sha256:f672ef8251a3ed4051a053d30819664951b17540b2899acd27d20e500c234abc
@@ -1601,20 +1601,20 @@ dependencies:
     .agents/skills/impeccable/reference/routing.md: sha256:77ae09542fbc10aa4e8b119d6fd19359908a47c13c30068d6a150bfdb50e3e10
     .agents/skills/impeccable/reference/shape.md: sha256:a55f016c046cb6a27c55bd7f346375aeb506a755c4fbca19a5f92dbd42309c23
     .agents/skills/impeccable/reference/typeset.md: sha256:442749aed338f51c1a3ccfb182c6ade9b74b90590b67984062ac94a5b100e914
-    .agents/skills/impeccable/reference/visualize.md: sha256:88549c11ea55d5dfc9f551db9a9c270d7362a9d42aa83db7747c9a7f020e1255
-    .agents/skills/impeccable/scripts/VERSION: sha256:66d60356172ccafdd334fca9bf33243c8409216a733dcde0d66a24fd70ee8132
+    .agents/skills/impeccable/reference/visualize.md: sha256:2bcec5b8d22e9f87799529a41b984d27b4379ab1b70e1dd4f63b6d6390275730
+    .agents/skills/impeccable/scripts/VERSION: sha256:0a6c8dc4148eed841498d2c2be544947a62f8f50c381b2e64bcd7ce40461cf34
     .agents/skills/impeccable/scripts/command-metadata.json: sha256:e8720f3aa41135211cc58cc299a39eeda86c75651f4279cc1ede8db10dcc0584
     .agents/skills/impeccable/scripts/data/font-index-failures.json: sha256:835f19a0a3812f3652dd6979a2ce5597f654fd01f26e1b420b92d5f42b997ce4
     .agents/skills/impeccable/scripts/data/font-index.json: sha256:47edbdfaf27073c47033d1ac7dfee881be49e2dcbda7671d1157300481dde6da
     .agents/skills/impeccable/scripts/impeccable: sha256:39d9600489073e227e4f4d55c451ce4252a6632ed7ae37923efbbcbc91f16d07
     .agents/skills/impeccable/scripts/impeccable.cmd: sha256:69cad1ae7355825ef320ac9638a1c9675ba9fda01c9a0fa12244cc4a1973e550
-    .agents/skills/impeccable/scripts/live-browser-dom.js: sha256:7faadaf5200225e6e4e71430292679c57ca5ebc5e3593a348428220baf6080da
+    .agents/skills/impeccable/scripts/live-browser-dom.js: sha256:24f09f2597b9b55a1e2c4acd2ae5c95db5c8615cfc20aa07d1a3950538ad5c4a
     .agents/skills/impeccable/scripts/live-browser-ignores.js: sha256:c1cb6877ca99a0c1b38ba0c7d59f32702d3022f6821d8045f7133f7c40b6362f
     .agents/skills/impeccable/scripts/live-browser-session.js: sha256:42831c3cd874346d8e7f120808d91e6ed3cda5c3eca6eefd76b126659536bc87
-    .agents/skills/impeccable/scripts/live-browser.js: sha256:38813f05507091d6ff1a786970202882c2b2691ba8fe780361f79040ef812440
+    .agents/skills/impeccable/scripts/live-browser.js: sha256:d7f1ee3fdfc423e90268e9c666dce61b2180b62431dbb6ecfc48bca65398a1f8
     .agents/skills/impeccable/scripts/modern-screenshot.umd.js: sha256:bb36665889124a0b6e15f16045265737449c3bdcf2712cdb08af3cfa01563e2b
-    .claude/skills/impeccable/SKILL.md: sha256:e1a965737ca8255934bad358d5cfb8788ce013867910efd97d1daac68375e941
-    .claude/skills/impeccable/agents/impeccable_asset_producer.toml: sha256:d6a51f4df6d76f16b95ab81268a689f4c5936d505c5bb25c80ad7423f927bbc6
+    .claude/skills/impeccable/SKILL.md: sha256:3147b3cbd19f0549f9b21646d183509d86e863839a0b87ab71872dd4dbb050fd
+    .claude/skills/impeccable/agents/impeccable_asset_producer.toml: sha256:4dbdb0cfdc2466961da6b22d200f3ec7bf8bb47c27448a2e6e3c03cdbf589831
     .claude/skills/impeccable/agents/impeccable_documenter.toml: sha256:2feb3768125ba6469c92a50d516727e6d42f44579165ddfd33409948e2a3803d
     .claude/skills/impeccable/agents/impeccable_finish_reviewer.toml: sha256:d57c3e0453f601ad688911fca4471057c7b46b561fcd42a1e12a581101c5186c
     .claude/skills/impeccable/agents/impeccable_manual_edit_applier.toml: sha256:6c9ce3e27ec4520ead001da3aad2a2ebba481c4e5cd22873db8890259ee579fe
@@ -1623,16 +1623,16 @@ dependencies:
     .claude/skills/impeccable/reference/adapt.native.md: sha256:6acc0bf221a4ddc6e5c6438348920b2ca2393b29c4314dbde2cdc23f2b1a9639
     .claude/skills/impeccable/reference/android.md: sha256:058f81f256134841875fd3183e06b37a023de0c877fd2b9eecd97011640791fe
     .claude/skills/impeccable/reference/animate.md: sha256:d658c48ffbe0031e8e3b318996cad6ceafe29e40aa50d5bb25e4bf1d6839dc7c
-    .claude/skills/impeccable/reference/audit.md: sha256:d5f83912eda93d42f93522bb74aeff0ea04d9c559577ec52fcccc130dd03166d
+    .claude/skills/impeccable/reference/audit.md: sha256:41764be7bf974b95ee469f11c496714b4b3cf2ba594c0b8f838a0742680229a9
     .claude/skills/impeccable/reference/audit.native.md: sha256:960cb922bc934adbf9192e9428ff6bec1f382038166f02a785939c93b7391067
     .claude/skills/impeccable/reference/bolder.md: sha256:f964506c0fae87b3c2c1db7016ddc9be9ef970bbcf5548d684b997b5d5991586
     .claude/skills/impeccable/reference/clarify.md: sha256:173dd66abe65633910dcb04a51f40d6ff2a793f87088f022a02fc4cad24dd133
     .claude/skills/impeccable/reference/colorize.md: sha256:bc5f71f1129d0f2c310d913d07c8dc609a1d25644121bd78c308f42d52a0b9e9
-    .claude/skills/impeccable/reference/component-review.md: sha256:0ceea468b6e8cc3b0dbd8b2b6b22488337a396c34d8f716b34d54b52393b4733
+    .claude/skills/impeccable/reference/component-review.md: sha256:10489e5265e49a4ef2737cd0e674c149ed41e1f703efe922e53ea3c91e833427
     .claude/skills/impeccable/reference/craft-floor.md: sha256:e802e4f7bdc89050a9c0f2ca506e1d493a2316e6e810c0336c57aa073717ef3e
     .claude/skills/impeccable/reference/craft.md: sha256:9205e222bc6565b37fb504ceec93233c2d2a456802b69d16e6b1c44723907c4c
     .claude/skills/impeccable/reference/critique.md: sha256:cb8caddbb3919e5bf7f252143b519fb16db28a244642d937b186cb89962d9201
-    .claude/skills/impeccable/reference/degraded/asset-producer.md: sha256:754e9f0aa2101245a83cb17d8cc5bc49cf87997b29a83dedbfff283dbd0a8c4f
+    .claude/skills/impeccable/reference/degraded/asset-producer.md: sha256:877d274f41500c780bad25b2bca7fa95eff1a32a7b95397dd388c72848e86a6c
     .claude/skills/impeccable/reference/degraded/documenter.md: sha256:bcc05ea92faebb5c74037a9d4263a5ce9a56f5ab07c8ab3c59ee704d8cade745
     .claude/skills/impeccable/reference/degraded/finish-reviewer.md: sha256:275dd1b6e63bbd30d2713227c4f79b880a8bc4e01cc48d392068bb86939d3afa
     .claude/skills/impeccable/reference/degraded/manual-edit-applier.md: sha256:5fae7f8a2fc3ddd49ad0a413446dc44daedef5b6b7de5eb935bd2fbfad646d58
@@ -1643,16 +1643,16 @@ dependencies:
     .claude/skills/impeccable/reference/extract.md: sha256:31b90048c0b540daec46762a10c2b6b6434737a89af005054d8b848d829d003b
     .claude/skills/impeccable/reference/generate.md: sha256:53628d05b7eff0d4f48b95e48fad40266452fe1b42f398bd88dd9328353e0dd8
     .claude/skills/impeccable/reference/harden.md: sha256:16ba7fca1973c5faf53dd2ca523559129c0fe9e5f8d50b645f527afa78186cd2
-    .claude/skills/impeccable/reference/hooks.md: sha256:56cc1bba51e6805de370160ce4a9399fef3740571204f13c3c751725870305e5
+    .claude/skills/impeccable/reference/hooks.md: sha256:3e3209e6b45497c7aee8234f5be880399ed6d99db442dcf3e024f061cd2027ba
     .claude/skills/impeccable/reference/init.md: sha256:bb069b43c09109d7031b0374e31955749fec657b252d39782f11e8985aca2b51
     .claude/skills/impeccable/reference/ios.md: sha256:40c87038b5f75147a5952a96237acf312a327bf70c1bcd8e0a5f064625ae9668
     .claude/skills/impeccable/reference/layout.md: sha256:0bc7d7971b3edf2acd0580e847458dc6d84129d90715b452799ace3bed815c7c
     .claude/skills/impeccable/reference/live-setup.md: sha256:2b5b2fbf5f658f34ea1997fb1aeebe01604d05187f75c6a4f1f55a5bc78520a4
     .claude/skills/impeccable/reference/live.md: sha256:68c5636a7858dd0b5137a9229c15e25fdc2ee40a0f8a4e9d809f78e809256262
-    .claude/skills/impeccable/reference/mode-operate.md: sha256:385a0efe833bd4afe4a257e7159590de0cf1b7fd8f7b213b732f1e537c62dab7
+    .claude/skills/impeccable/reference/mode-operate.md: sha256:7a52dd7a94ee75f6ae89542c86a1b6e1d306812b16e0d9dbf12d4acad44d148b
     .claude/skills/impeccable/reference/mode-persuade.md: sha256:21e78c8a77badb3f83290cd4577ed3b24bd4dd3b57136d7da75733d4f3ee9ac0
     .claude/skills/impeccable/reference/mode-read.md: sha256:a569989e6a3d6453b4c45e9474e162a15cc54e11732ac6baa7990a6e7cccc0b5
-    .claude/skills/impeccable/reference/new-work.md: sha256:d5e4536f0dedd3b7ec2e6bb09307ba1e96d813821671eb9cede13dce854e1a85
+    .claude/skills/impeccable/reference/new-work.md: sha256:723d3985d079fa7a3c4140a072b6d6937ffc109eb462f9be5b1f97027b3fb714
     .claude/skills/impeccable/reference/onboard.md: sha256:ef2dde00030580ed2765cbf7be9b2ea4a6f64cb915b804fd6f6abcf38051c7b9
     .claude/skills/impeccable/reference/operate.md: sha256:a9d2203acd45ca33a13d5c68b02b23ed512425ac15f0e8438318ed124b43729d
     .claude/skills/impeccable/reference/optimize.md: sha256:f672ef8251a3ed4051a053d30819664951b17540b2899acd27d20e500c234abc
@@ -1663,19 +1663,19 @@ dependencies:
     .claude/skills/impeccable/reference/routing.md: sha256:77ae09542fbc10aa4e8b119d6fd19359908a47c13c30068d6a150bfdb50e3e10
     .claude/skills/impeccable/reference/shape.md: sha256:a55f016c046cb6a27c55bd7f346375aeb506a755c4fbca19a5f92dbd42309c23
     .claude/skills/impeccable/reference/typeset.md: sha256:442749aed338f51c1a3ccfb182c6ade9b74b90590b67984062ac94a5b100e914
-    .claude/skills/impeccable/reference/visualize.md: sha256:88549c11ea55d5dfc9f551db9a9c270d7362a9d42aa83db7747c9a7f020e1255
-    .claude/skills/impeccable/scripts/VERSION: sha256:66d60356172ccafdd334fca9bf33243c8409216a733dcde0d66a24fd70ee8132
+    .claude/skills/impeccable/reference/visualize.md: sha256:2bcec5b8d22e9f87799529a41b984d27b4379ab1b70e1dd4f63b6d6390275730
+    .claude/skills/impeccable/scripts/VERSION: sha256:0a6c8dc4148eed841498d2c2be544947a62f8f50c381b2e64bcd7ce40461cf34
     .claude/skills/impeccable/scripts/command-metadata.json: sha256:e8720f3aa41135211cc58cc299a39eeda86c75651f4279cc1ede8db10dcc0584
     .claude/skills/impeccable/scripts/data/font-index-failures.json: sha256:835f19a0a3812f3652dd6979a2ce5597f654fd01f26e1b420b92d5f42b997ce4
     .claude/skills/impeccable/scripts/data/font-index.json: sha256:47edbdfaf27073c47033d1ac7dfee881be49e2dcbda7671d1157300481dde6da
     .claude/skills/impeccable/scripts/impeccable: sha256:39d9600489073e227e4f4d55c451ce4252a6632ed7ae37923efbbcbc91f16d07
     .claude/skills/impeccable/scripts/impeccable.cmd: sha256:69cad1ae7355825ef320ac9638a1c9675ba9fda01c9a0fa12244cc4a1973e550
-    .claude/skills/impeccable/scripts/live-browser-dom.js: sha256:7faadaf5200225e6e4e71430292679c57ca5ebc5e3593a348428220baf6080da
+    .claude/skills/impeccable/scripts/live-browser-dom.js: sha256:24f09f2597b9b55a1e2c4acd2ae5c95db5c8615cfc20aa07d1a3950538ad5c4a
     .claude/skills/impeccable/scripts/live-browser-ignores.js: sha256:c1cb6877ca99a0c1b38ba0c7d59f32702d3022f6821d8045f7133f7c40b6362f
     .claude/skills/impeccable/scripts/live-browser-session.js: sha256:42831c3cd874346d8e7f120808d91e6ed3cda5c3eca6eefd76b126659536bc87
-    .claude/skills/impeccable/scripts/live-browser.js: sha256:38813f05507091d6ff1a786970202882c2b2691ba8fe780361f79040ef812440
+    .claude/skills/impeccable/scripts/live-browser.js: sha256:d7f1ee3fdfc423e90268e9c666dce61b2180b62431dbb6ecfc48bca65398a1f8
     .claude/skills/impeccable/scripts/modern-screenshot.umd.js: sha256:bb36665889124a0b6e15f16045265737449c3bdcf2712cdb08af3cfa01563e2b
-  content_hash: sha256:c9ab9faf1852606e1fdbf21eba87e294eae632cad530785460caf05bf0b0b83a
+  content_hash: sha256:e4204e4067f404ec156a9d32e77a28850eebdafa1f5eb3e50181de6dd841243b
 - repo_url: remotion-dev/skills
   name: remotion-best-practices
   host: github.com
@@ -3571,7 +3571,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:e1a965737ca8255934bad358d5cfb8788ce013867910efd97d1daac68375e941
+  content_hash: sha256:3147b3cbd19f0549f9b21646d183509d86e863839a0b87ab71872dd4dbb050fd
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/agents/impeccable_asset_producer.toml
@@ -3580,7 +3580,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:d6a51f4df6d76f16b95ab81268a689f4c5936d505c5bb25c80ad7423f927bbc6
+  content_hash: sha256:4dbdb0cfdc2466961da6b22d200f3ec7bf8bb47c27448a2e6e3c03cdbf589831
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/agents/impeccable_documenter.toml
@@ -3661,7 +3661,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:d5f83912eda93d42f93522bb74aeff0ea04d9c559577ec52fcccc130dd03166d
+  content_hash: sha256:41764be7bf974b95ee469f11c496714b4b3cf2ba594c0b8f838a0742680229a9
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/reference/audit.native.md
@@ -3706,7 +3706,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:0ceea468b6e8cc3b0dbd8b2b6b22488337a396c34d8f716b34d54b52393b4733
+  content_hash: sha256:10489e5265e49a4ef2737cd0e674c149ed41e1f703efe922e53ea3c91e833427
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/reference/craft-floor.md
@@ -3742,7 +3742,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:754e9f0aa2101245a83cb17d8cc5bc49cf87997b29a83dedbfff283dbd0a8c4f
+  content_hash: sha256:877d274f41500c780bad25b2bca7fa95eff1a32a7b95397dd388c72848e86a6c
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/reference/degraded/documenter.md
@@ -3841,7 +3841,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:56cc1bba51e6805de370160ce4a9399fef3740571204f13c3c751725870305e5
+  content_hash: sha256:3e3209e6b45497c7aee8234f5be880399ed6d99db442dcf3e024f061cd2027ba
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/reference/init.md
@@ -3895,7 +3895,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:385a0efe833bd4afe4a257e7159590de0cf1b7fd8f7b213b732f1e537c62dab7
+  content_hash: sha256:7a52dd7a94ee75f6ae89542c86a1b6e1d306812b16e0d9dbf12d4acad44d148b
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/reference/mode-persuade.md
@@ -3922,7 +3922,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:d5e4536f0dedd3b7ec2e6bb09307ba1e96d813821671eb9cede13dce854e1a85
+  content_hash: sha256:723d3985d079fa7a3c4140a072b6d6937ffc109eb462f9be5b1f97027b3fb714
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/reference/onboard.md
@@ -4021,7 +4021,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:88549c11ea55d5dfc9f551db9a9c270d7362a9d42aa83db7747c9a7f020e1255
+  content_hash: sha256:2bcec5b8d22e9f87799529a41b984d27b4379ab1b70e1dd4f63b6d6390275730
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/scripts/VERSION
@@ -4030,7 +4030,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:66d60356172ccafdd334fca9bf33243c8409216a733dcde0d66a24fd70ee8132
+  content_hash: sha256:0a6c8dc4148eed841498d2c2be544947a62f8f50c381b2e64bcd7ce40461cf34
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/scripts/command-metadata.json
@@ -4084,7 +4084,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:7faadaf5200225e6e4e71430292679c57ca5ebc5e3593a348428220baf6080da
+  content_hash: sha256:24f09f2597b9b55a1e2c4acd2ae5c95db5c8615cfc20aa07d1a3950538ad5c4a
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/scripts/live-browser-ignores.js
@@ -4111,7 +4111,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:38813f05507091d6ff1a786970202882c2b2691ba8fe780361f79040ef812440
+  content_hash: sha256:d7f1ee3fdfc423e90268e9c666dce61b2180b62431dbb6ecfc48bca65398a1f8
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable/scripts/modern-screenshot.umd.js
@@ -10024,7 +10024,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:e1a965737ca8255934bad358d5cfb8788ce013867910efd97d1daac68375e941
+  content_hash: sha256:3147b3cbd19f0549f9b21646d183509d86e863839a0b87ab71872dd4dbb050fd
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/agents/impeccable_asset_producer.toml
@@ -10033,7 +10033,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:d6a51f4df6d76f16b95ab81268a689f4c5936d505c5bb25c80ad7423f927bbc6
+  content_hash: sha256:4dbdb0cfdc2466961da6b22d200f3ec7bf8bb47c27448a2e6e3c03cdbf589831
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/agents/impeccable_documenter.toml
@@ -10114,7 +10114,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:d5f83912eda93d42f93522bb74aeff0ea04d9c559577ec52fcccc130dd03166d
+  content_hash: sha256:41764be7bf974b95ee469f11c496714b4b3cf2ba594c0b8f838a0742680229a9
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/reference/audit.native.md
@@ -10159,7 +10159,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:0ceea468b6e8cc3b0dbd8b2b6b22488337a396c34d8f716b34d54b52393b4733
+  content_hash: sha256:10489e5265e49a4ef2737cd0e674c149ed41e1f703efe922e53ea3c91e833427
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/reference/craft-floor.md
@@ -10195,7 +10195,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:754e9f0aa2101245a83cb17d8cc5bc49cf87997b29a83dedbfff283dbd0a8c4f
+  content_hash: sha256:877d274f41500c780bad25b2bca7fa95eff1a32a7b95397dd388c72848e86a6c
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/reference/degraded/documenter.md
@@ -10294,7 +10294,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:56cc1bba51e6805de370160ce4a9399fef3740571204f13c3c751725870305e5
+  content_hash: sha256:3e3209e6b45497c7aee8234f5be880399ed6d99db442dcf3e024f061cd2027ba
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/reference/init.md
@@ -10348,7 +10348,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:385a0efe833bd4afe4a257e7159590de0cf1b7fd8f7b213b732f1e537c62dab7
+  content_hash: sha256:7a52dd7a94ee75f6ae89542c86a1b6e1d306812b16e0d9dbf12d4acad44d148b
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/reference/mode-persuade.md
@@ -10375,7 +10375,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:d5e4536f0dedd3b7ec2e6bb09307ba1e96d813821671eb9cede13dce854e1a85
+  content_hash: sha256:723d3985d079fa7a3c4140a072b6d6937ffc109eb462f9be5b1f97027b3fb714
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/reference/onboard.md
@@ -10474,7 +10474,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:88549c11ea55d5dfc9f551db9a9c270d7362a9d42aa83db7747c9a7f020e1255
+  content_hash: sha256:2bcec5b8d22e9f87799529a41b984d27b4379ab1b70e1dd4f63b6d6390275730
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/scripts/VERSION
@@ -10483,7 +10483,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:66d60356172ccafdd334fca9bf33243c8409216a733dcde0d66a24fd70ee8132
+  content_hash: sha256:0a6c8dc4148eed841498d2c2be544947a62f8f50c381b2e64bcd7ce40461cf34
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/scripts/command-metadata.json
@@ -10537,7 +10537,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:7faadaf5200225e6e4e71430292679c57ca5ebc5e3593a348428220baf6080da
+  content_hash: sha256:24f09f2597b9b55a1e2c4acd2ae5c95db5c8615cfc20aa07d1a3950538ad5c4a
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/scripts/live-browser-ignores.js
@@ -10564,7 +10564,7 @@ deployments:
   owners:
   - pbakaus/impeccable/.agents/skills/impeccable
   active_owner: pbakaus/impeccable/.agents/skills/impeccable
-  content_hash: sha256:38813f05507091d6ff1a786970202882c2b2691ba8fe780361f79040ef812440
+  content_hash: sha256:d7f1ee3fdfc423e90268e9c666dce61b2180b62431dbb6ecfc48bca65398a1f8
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable/scripts/modern-screenshot.umd.js

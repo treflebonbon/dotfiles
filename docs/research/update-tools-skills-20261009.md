@@ -10,10 +10,10 @@
 | --- | --- |
 | Tool Snapshot（本 PR） | 実装・検証済み。live apply と merge は受入後 |
 | 通常 APM payload | 採用（別 PR）。Remotion `32b241b9`・Modern Web Guidance `a9728684` を採用し、floating 6件を revision のみ反映。記録は [update-apm-skills-20261009.md](update-apm-skills-20261009.md)。merge・live apply は受入後 |
-| Impeccable | 保留。同上（確認時点の upstream HEAD `778c8a7b71ccd5bfe3ca6ac68c15d9d872d0f87d`、未比較） |
+| Impeccable | 採用（別 PR）。skill 4.5.1 `9dad388a`・engine 0.1.12。記録は [update-impeccable-20261009.md](update-impeccable-20261009.md)。merge・live apply は受入後 |
 | Matt Pocock managed set | 保留。同上（確認時点の upstream HEAD `b0618bc436ad893b3c5e84e55fba86586d34a404`、未比較） |
 
-分割で外した変更は次の3件で（通常 APM payload は別 PR で実装済み、Impeccable と Matt Pocock は残る）、対応先 PR／commit は未定のため保留とし、反映・検証は未実施。
+分割で外した変更は次の3件。通常 APM payload（[#392](https://github.com/treflebonbon/dotfiles/pull/392)）と Impeccable（別 PR）は実装済みで、Matt Pocock のみ対応先 PR が未定のため保留とし、反映・検証は未実施。
 
 保留した単位の候補は未検証であり、採否は後続 PR で決める。今回の対象に採用しなかったものではなく、更新全体としては未完了。
 
@@ -40,4 +40,4 @@
 
 - x86_64-linux の user devShell は `--cores 1 --max-jobs 1` の source build が終了コード0で完了した。Codex 0.161.0 には既存2パッチが問題なく適用され、`tests/codex-sandbox-cleanup.bats` を含む `nix-devshell`／`ai-quality-floor`／`codex-sandbox-cleanup` の45件が成功した。
 - `nix flake check --no-build --all-systems` は成功した（aarch64-linux／aarch64-darwin は評価のみで、実機起動は未検証）。
-- 標準 `lefthook run test` は746件中729成功・22 skip・17失敗。失敗は dogfood 9件（Chromium 環境）、`local-skills` 1件（`/run/user/1000` への mkdir 拒否）、managed-set gate 7件（期待リストのソート順差）。このうち gate 7件と `local-skills` 1件は、変更のない main でも同じ8件が失敗することを確認した。dogfood 9件は main で未再実行で、前回記録の Chromium 環境要因と同種と推定する（未確認）。いずれも APM／skill に触れない本変更とは無関係の見込みだが、テストの例外化・削除はしていない。
+- 標準 `lefthook run test` は746件中707成功・22 skip・17失敗。失敗は dogfood 9件（Chromium 環境）、`local-skills` 1件（`/run/user/1000` への mkdir 拒否）、managed-set gate 7件（期待リストのソート順差）。このうち gate 7件と `local-skills` 1件は、変更のない main でも同じ8件が失敗することを確認した。dogfood 9件は main で未再実行で、前回記録の Chromium 環境要因と同種と推定する（未確認）。いずれも APM／skill に触れない本変更とは無関係の見込みだが、テストの例外化・削除はしていない。
