@@ -17,9 +17,11 @@
 | security-audit、Orca CLI、Herdr | selected subtree 不変のため exact pin を維持 |
 | anthropics `pdf`・`skill-creator`、shadcn、Orca `computer-use`・`orchestration`、find-skills | floating。content hash 不変で revision のみ lock へ自然反映 |
 | Effect-TS、empirical-prompt-tuning、Vercel 5 skill、supabase | revision・payload とも不変 |
-| Impeccable（HEAD `778c8a7b`）、Matt Pocock（HEAD `b0618bc4`） | 別更新単位。本 PR では pin・lock field とも不変 |
+| Impeccable（HEAD `778c8a7b`）、Matt Pocock（HEAD `b0618bc4`） | 保留。別更新単位で、対応先 PR は未定、未比較・未検証。本 PR では pin・lock field とも不変 |
 
 lock の `deployments` の差分は Modern Web Guidance 240 件と Remotion 62 件のみで、他の owner は不変。
+
+更新全体は Impeccable と Matt Pocock が残るため未完了。追跡は親記録 [update-tools-skills-20261009.md](update-tools-skills-20261009.md) に置く。
 
 ## 検証
 
