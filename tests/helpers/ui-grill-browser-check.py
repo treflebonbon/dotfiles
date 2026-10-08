@@ -124,6 +124,21 @@ code = r"""async page => {
     check(await tab.locator('#note-2').inputValue() === '入力し直す', 'corrupt draft cannot recover');
     checks.push('corrupt draft recovery');
 
+    check((await tab.locator('#jump').textContent()).includes('未回答 2 件'), 'jump button count mismatch');
+    await tab.locator('#comment-0').fill('迷い中\n2行目');
+    await tab.locator('details.comment > summary').first().click();
+    await tab.locator('details.comment textarea').first().fill('この案は幅が不安');
+    const commented = await output();
+    check(await unanswered() === 2, 'comments counted as answers');
+    check(!commented.includes('選択:'), 'choice comment exported as a selection');
+    check(commented.includes('質問コメント（回答ではありません）:\n> 迷い中\n> 2行目'), 'question comment not quoted');
+    check(commented.includes('選択肢コメント（選択ではありません）:') && commented.includes('  > この案は幅が不安'), 'choice comment not exported');
+    await tab.locator('#jump').click();
+    check(await tab.evaluate(() => document.querySelector('fieldset').contains(document.activeElement)), 'jump did not focus first unanswered question');
+    await tab.reload();
+    check(await output() === commented, 'comments not restored after reload');
+    checks.push('comments stay out of answers, quoted export, jump to unanswered, comment restoration');
+
     await tab.addInitScript(() => {
       Storage.prototype.getItem = () => {throw new DOMException('Denied', 'SecurityError');};
       Storage.prototype.setItem = () => {throw new DOMException('Full', 'QuotaExceededError');};

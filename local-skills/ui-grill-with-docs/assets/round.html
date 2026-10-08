@@ -26,6 +26,11 @@
       fieldset { min-width: 0; margin: 36px 0; padding: 20px 0 0; border: 0; border-top: 1px solid var(--line); }
       legend { max-width: 100%; padding: 0 12px 0 0; }
       .recommendation { color: var(--accent); }
+      .choice-row { display: grid; }
+      details.comment { margin: 0 0 8px 28px; }
+      details.comment > summary { color: var(--muted); cursor: pointer; }
+      details.comment textarea { margin-top: 8px; }
+      #jump { margin-block: 12px; }
       .choices { display: grid; gap: 4px; margin: 16px 0; }
       .choice { display: flex; align-items: baseline; gap: 10px; padding-block: 10px; cursor: pointer; }
       input { flex-shrink: 0; accent-color: var(--accent); }
@@ -53,8 +58,9 @@
     <main>
       <h1 id="title">ラウンド質問シート</h1>
       <p class="meta" id="round-label"></p>
-      <p>各質問に回答し、末尾の「回答をコピー」からチャットへ貼り付けてください。独自案は自由記述欄に書けます。空欄は「未回答」としてコピーされます。</p>
+      <p>各質問に回答し、末尾の「回答をコピー」からチャットへ貼り付けてください。独自案は自由記述欄に書けます。空欄は「未回答」としてコピーされます。質問・選択肢へのコメントは判断材料として渡されますが、回答には数えません。</p>
       <p class="hint" id="save-status" role="status"></p>
+      <button id="jump" type="button"></button>
       <noscript>回答の入力・保存・コピーにはJavaScriptを有効にしてください。</noscript>
       <form id="questions"></form>
       <section class="export" aria-labelledby="export-title">
@@ -154,6 +160,7 @@
         if (visual) fieldset.append(visual.content.cloneNode(true));
 
         const choices = element("div", undefined, "choices");
+        const choiceComments = {};
         const inputs = question.choices.map((choice) => {
           const label = element("label", undefined, "choice");
           const input = element("input");
@@ -161,7 +168,15 @@
           input.name = `question-${index}`;
           input.value = choice.id;
           label.append(input, element("span", `${choice.label}${choice.recommended ? " (Recommended)" : ""}`));
-          choices.append(label);
+          const row = element("div", undefined, "choice-row");
+          const details = element("details", undefined, "comment");
+          const area = element("textarea");
+          area.rows = 2;
+          area.setAttribute("aria-label", `Q${index + 1}「${choice.label}」へのコメント`);
+          details.append(element("summary", "この案へのコメント"), area);
+          row.append(label, details);
+          choices.append(row);
+          choiceComments[choice.id] = area;
           return input;
         });
         fieldset.append(choices);
@@ -180,18 +195,29 @@
         note.id = `note-${index}`;
         note.rows = 3;
         label.htmlFor = note.id;
-        fieldset.append(label, note);
+        const commentLabel = element("label", "質問へのコメント（判断材料・懸念。回答には数えません）");
+        const comment = element("textarea");
+        comment.id = `comment-${index}`;
+        comment.rows = 2;
+        commentLabel.htmlFor = comment.id;
+        fieldset.append(label, note, commentLabel, comment);
         form.append(fieldset);
-        controls.push({ question, inputs, note });
+        controls.push({ question, inputs, note, comment, choiceComments, fieldset });
       });
 
       function answers() {
-        return controls.map(({ question, inputs, note }) => ({
+        return controls.map(({ question, inputs, note, comment, choiceComments }) => ({
           id: question.id,
           selected: inputs.filter((input) => input.checked).map((input) => input.value),
           note: note.value,
+          comment: comment.value,
+          choiceComments: Object.fromEntries(Object.entries(choiceComments).map(([id, area]) => [id, area.value])),
         }));
       }
+
+      // Comments are context for the decision, never an answer.
+      const isAnswered = (answer) => answer.selected.length > 0 || answer.note.trim() !== "";
+      const quote = (text) => text.split(/\r?\n/).map((line) => `> ${markdownText(line)}`);
 
       const markdownText = (value) => String(value).replace(/[\\`*_{}[\]()#+\-.!|>~<]/g, "\\$&");
 
@@ -212,12 +238,35 @@
           if (answer.note.trim()) {
             lines.push("", "自由記述:", ...answer.note.split(/\r?\n/).map((line) => `> ${markdownText(line)}`));
           }
-          if (!selected.length && !answer.note.trim()) lines.push("回答: 未回答");
+          if (!isAnswered(answer)) lines.push("回答: 未回答");
+          if (answer.comment.trim()) lines.push("", "質問コメント（回答ではありません）:", ...quote(answer.comment));
+          const commented = question.choices.filter((choice) => (answer.choiceComments[choice.id] || "").trim());
+          if (commented.length) {
+            lines.push("", "選択肢コメント（選択ではありません）:");
+            for (const choice of commented) lines.push(`- ${markdownText(choice.label)}`, ...quote(answer.choiceComments[choice.id]).map((line) => `  ${line}`));
+          }
         });
         output.value = `${lines.join("\n")}\n`;
-        const answered = current.filter((answer) => answer.selected.length || answer.note.trim()).length;
+        const answered = current.filter(isAnswered).length;
         document.getElementById("progress").textContent = `${current.length}問中${answered}問に回答済み`;
+        jump.textContent = answered === current.length ? "すべて回答済み" : `未回答 ${current.length - answered} 件 — 次の未回答へ`;
+        jump.disabled = answered === current.length;
       }
+
+      const jump = document.getElementById("jump");
+      let jumpFrom = -1;
+      jump.addEventListener("click", () => {
+        const current = answers();
+        for (let step = 1; step <= current.length; step += 1) {
+          const index = (jumpFrom + step) % current.length;
+          if (isAnswered(current[index])) continue;
+          jumpFrom = index;
+          const { fieldset, inputs, note } = controls[index];
+          fieldset.scrollIntoView({ block: "start" });
+          (inputs[0] || note).focus({ preventScroll: true });
+          return;
+        }
+      });
 
       function saveDraft() {
         try {
@@ -240,7 +289,7 @@
             return;
           }
           if (!Array.isArray(saved.answers)) throw new Error("Invalid draft");
-          for (const { question, inputs, note } of controls) {
+          for (const { question, inputs, note, comment, choiceComments } of controls) {
             const answer = saved.answers.find((entry) => entry && entry.id === question.id);
             if (!answer) continue;
             if (!Array.isArray(answer.selected) || typeof answer.note !== "string") throw new Error("Invalid answer");
@@ -248,6 +297,9 @@
             if (question.type !== "multiple") selected = selected.slice(0, 1);
             for (const input of inputs) input.checked = selected.includes(input);
             note.value = answer.note;
+            comment.value = typeof answer.comment === "string" ? answer.comment : "";
+            const savedChoice = answer.choiceComments && typeof answer.choiceComments === "object" ? answer.choiceComments : {};
+            for (const [id, area] of Object.entries(choiceComments)) area.value = typeof savedChoice[id] === "string" ? savedChoice[id] : "";
           }
           saveStatus.textContent = "このラウンドの入力を復元しました。";
         } catch {
