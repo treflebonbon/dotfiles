@@ -40,4 +40,4 @@
 
 - x86_64-linux の user devShell は `--cores 1 --max-jobs 1` の source build が終了コード0で完了した。Codex 0.161.0 には既存2パッチが問題なく適用され、`tests/codex-sandbox-cleanup.bats` を含む `nix-devshell`／`ai-quality-floor`／`codex-sandbox-cleanup` の45件が成功した。
 - `nix flake check --no-build --all-systems` は成功した（aarch64-linux／aarch64-darwin は評価のみで、実機起動は未検証）。
-- 標準 `lefthook run test` は746件中729成功・22 skip・17失敗。失敗は dogfood 9件（Chromium 環境）、`local-skills` 1件（`/run/user/1000` への mkdir 拒否）、managed-set gate 7件（期待リストのソート順差）。このうち gate 7件と `local-skills` 1件は、変更のない main でも同じ8件が失敗することを確認した。dogfood 9件は main で未再実行で、前回記録の Chromium 環境要因と同種と推定する（未確認）。いずれも APM／skill に触れない本変更とは無関係の見込みだが、テストの例外化・削除はしていない。
+- 標準 `lefthook run test` は746件中707成功・22 skip・17失敗。失敗は dogfood 9件（Chromium 環境）、`local-skills` 1件（`/run/user/1000` への mkdir 拒否）、managed-set gate 7件（期待リストのソート順差）。このうち gate 7件と `local-skills` 1件は、変更のない main でも同じ8件が失敗することを確認した。dogfood 9件は main で未再実行で、前回記録の Chromium 環境要因と同種と推定する（未確認）。いずれも APM／skill に触れない本変更とは無関係の見込みだが、テストの例外化・削除はしていない。

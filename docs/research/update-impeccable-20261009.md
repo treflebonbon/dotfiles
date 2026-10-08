@@ -18,5 +18,5 @@ upstream HEAD `778c8a7b`（434 commit 先）は未 release の変更を含むた
 - APM 0.33.0 で、空の隔離 runtime に採用済み manifest／lock を複製し、Impeccable の exact pin だけを変えて `scripts/generate-apm-lock.sh` を実行した（native lock 再利用）。19 非 Impeccable 依存の lock 項目と、非 Impeccable の `deployments` はすべて base と同一。
 - 採用 lock の SHA-256 は `2aa26e72518f332b729d38cbee92e563e18fb62f706fd9ff37b3e76b363ccdd8`。別の空 runtime の `apm install --frozen` 前後で不変、`apm audit --ci` 10/10、Claude／Codex 各46 skill が一致。組織ポリシー enforcement は Git remote のない隔離環境のため未検証。
 - `tests/apm-runtime.bats`・`tests/impeccable-engine.bats`・`tests/design-hook.bats` が candidate launcher／engine で成功した。
-- 標準 `lefthook run test` は746件中729成功・22 skip・17失敗。失敗番号は #391／#392 と同一で、dogfood 9件、`local-skills` 1件、managed-set gate 7件。gate 7件と `local-skills` 1件は変更前の main でも失敗する。dogfood 9件は環境要因と推定するが未確認。テストの例外化・削除はしていない。
+- 標準 `lefthook run test` は746件中707成功・22 skip・17失敗。失敗番号は #391／#392 と同一で、dogfood 9件、`local-skills` 1件、managed-set gate 7件。gate 7件と `local-skills` 1件は変更前の main でも失敗する。dogfood 9件は環境要因と推定するが未確認。テストの例外化・削除はしていない。
 - 未完了: Matt Pocock managed set は別単位として残る（親記録で追跡）。live apply は受入後。
