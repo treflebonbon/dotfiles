@@ -2,14 +2,18 @@
 
 ## 更新単位と適用 ADR
 
+予定した変更: llm-agents snapshot の pin／lock 更新、品質 floor の要否判断、snapshot 更新で生じる互換性修正、関連 test の期待値・runtime 文書・本記録の更新。文書訂正は不要と判断した。
+
 [ADR-0045](../adr/0045-separate-llm-agents-and-apm-update-units.md) に従い、更新を直列の単位に分ける。この PR は **Tool Snapshot のみ**を扱う。APM manifest／lock、Impeccable、Matt Pocock managed set は変更しない。
 
 | 単位 | 状態 |
 | --- | --- |
-| Tool Snapshot（本 PR） | 実装・検証中 |
+| Tool Snapshot（本 PR） | 実装・検証済み。live apply と merge は受入後 |
 | 通常 APM payload | 保留。本 PR の main への merge 後に別 PR で selected subtree の差分を比較する |
 | Impeccable | 保留。同上（確認時点の upstream HEAD `778c8a7b71ccd5bfe3ca6ac68c15d9d872d0f87d`、未比較） |
 | Matt Pocock managed set | 保留。同上（確認時点の upstream HEAD `b0618bc436ad893b3c5e84e55fba86586d34a404`、未比較） |
+
+分割で外した変更は次の3件で、対応先 PR／commit は未定のため保留とし、反映・検証は未実施。
 
 保留した単位の候補は未検証であり、採否は後続 PR で決める。今回の対象に採用しなかったものではなく、更新全体としては未完了。
 
@@ -33,8 +37,6 @@
 新 snapshot の upstream `apm` package は nixpkgs の `installAgentSkills` hook を必須引数に持つ。shared overlay は stable nixpkgs 上で package を再評価するため、devShell の評価が `Function called without required argument "installAgentSkills"` で失敗した。Codex・Herdr と同じく、同じ immutable input の direct package `inputs.llm-agents.packages.${system}.apm` を使う。APM 0.33.0 自体は不変。
 
 ## 検証
-
-実行結果は次の節に追記する。
 
 - x86_64-linux の user devShell は `--cores 1 --max-jobs 1` の source build が終了コード0で完了した。Codex 0.161.0 には既存2パッチが問題なく適用され、`tests/codex-sandbox-cleanup.bats` を含む `nix-devshell`／`ai-quality-floor`／`codex-sandbox-cleanup` の45件が成功した。
 - `nix flake check --no-build --all-systems` は成功した（aarch64-linux／aarch64-darwin は評価のみで、実機起動は未検証）。
