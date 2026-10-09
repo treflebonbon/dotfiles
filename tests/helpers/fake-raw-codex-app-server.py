@@ -94,6 +94,8 @@ for line in sys.stdin:
     elif method == "turn/start":
         turn_id = "readiness-turn" if request["id"] == 4 else "task-turn"
         add_turn_context(request["params"]["threadId"])
+        item("other-thread", turn_id, "OTHER_THREAD_MESSAGE")
+        item("target-thread", "old-turn", "OLD_TURN_MESSAGE")
         if turn_id == "readiness-turn":
             git_values = []
             for arguments in (
@@ -104,21 +106,14 @@ for line in sys.stdin:
                 git_values.extend(subprocess.check_output(
                     ["git", *arguments], cwd=work, text=True,
                 ).splitlines())
-            item("other-thread", "other-turn", "OTHER_THREAD_MESSAGE")
-            completed("other-thread", "other-turn")
-            item("target-thread", "old-turn", "OLD_TURN_MESSAGE")
-            completed("target-thread", "old-turn")
             item("target-thread", turn_id, f"READY {work} task plus fixture {' '.join(git_values)}")
-            completed("target-thread", turn_id)
-            reply(request, {"turn": {
-                "id": turn_id, "items": [], "itemsView": "full", "status": "inProgress",
-            }})
-            completed("target-thread", turn_id)
         else:
             item("target-thread", turn_id, "HOSTED_RAW_OK")
-            completed("target-thread", turn_id)
-            reply(request, {"turn": {
-                "id": turn_id, "items": [], "itemsView": "full", "status": "inProgress",
-            }})
+        completed("target-thread", turn_id)
+        completed("other-thread", turn_id)
+        completed("target-thread", "old-turn")
+        reply(request, {"turn": {
+            "id": turn_id, "items": [], "itemsView": "full", "status": "inProgress",
+        }})
     elif method is None:
         continue

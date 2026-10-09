@@ -18,8 +18,12 @@ exec python3 "$RAW_HANDOFF_FAKE_SERVER" "$@"
 SH
   chmod +x "$base/bin/codex-worktree"
 
-  run python3 "$PROJECT_ROOT/tests/helpers/raw-codex-handoff.py" "$base"
+  local helper="$PROJECT_ROOT/tests/helpers/raw-codex-handoff.py"
+  run python3 -c 'import runpy,sys; helper=sys.argv.pop(1); print("RAW_HANDOFF_FINAL_ANSWER=" + runpy.run_path(helper)["answer"])' "$helper" "$base"
 
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [[ "$output" == *'HOSTED_RAW_TASK_OK HOSTED_RAW_OK'* ]]
+  [[ "$output" == *'RAW_HANDOFF_FINAL_ANSWER=HOSTED_RAW_OK'* ]]
+  [[ "$output" != *'OTHER_THREAD_MESSAGE'* ]]
+  [[ "$output" != *'OLD_TURN_MESSAGE'* ]]
 }

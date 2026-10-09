@@ -35,9 +35,41 @@ write_stalling_stub() {
 trap '' TERM
 printf '%s\n' "$0 $*" >> "$TEST_LOG"
 printf '%s\n' "$FIXTURE_OUTPUT"
-printf '%s\n' "$$" > "$FIXTURE_CHILD_PID"
+: > "$FIXTURE_CHILD_PID"
 python3 -c 'import os, signal, sys, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); os.setsid(); open(sys.argv[1], "w").write(str(os.getpid())); time.sleep(30)' "$FIXTURE_GRANDCHILD_MARKER" &
 printf '%s\n' "$!" > "$FIXTURE_GRANDCHILD_PID"
+if [[ -n ${FIXTURE_DELAY_CHILD_PID:-} ]]; then
+  sleep "$FIXTURE_DELAY_CHILD_PID"
+fi
+printf '%s\n' "$$" > "$FIXTURE_CHILD_PID"
+wait
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/$name"
+}
+
+write_interrupting_stub() {
+  local name=$1
+  cat >"$TEST_BIN_DIR/$name" <<'STUB_EOF'
+#!/bin/bash
+trap '' TERM
+trap 'printf "%s\n" shell-int >> "$FIXTURE_CLEANUP_MARKER"; exit 0' INT
+printf '%s\n' "$0 $*" >> "$TEST_LOG"
+printf '%s\n' "$FIXTURE_OUTPUT"
+: > "$FIXTURE_CHILD_PID"
+python3 -c '
+import os, signal, sys, time
+def interrupted(*_):
+    with open(sys.argv[2], "a", encoding="utf-8") as marker:
+        marker.write("grandchild-int\n")
+    raise SystemExit(0)
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+signal.signal(signal.SIGINT, interrupted)
+os.setsid()
+open(sys.argv[1], "w").write(str(os.getpid()))
+time.sleep(30)
+' "$FIXTURE_GRANDCHILD_MARKER" "$FIXTURE_CLEANUP_MARKER" &
+printf '%s\n' "$!" > "$FIXTURE_GRANDCHILD_PID"
+printf '%s\n' "$$" > "$FIXTURE_CHILD_PID"
 wait
 STUB_EOF
   chmod +x "$TEST_BIN_DIR/$name"
@@ -80,24 +112,40 @@ def stop_fixture(pid_file, marker):
     if fixture_running(pid_file, marker):
         os.kill(int(pid_file.read_text()), signal.SIGKILL)
 
+def stop_entry():
+    if entry.poll() is not None:
+        return
+    try:
+        os.kill(entry.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        entry.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        entry.kill()
+        entry.wait()
+
 output = (root / "entry-output.log").open("wb")
 entry = subprocess.Popen(
     ["/bin/bash", str(script)], cwd=root, env=env,
     stdout=output, stderr=subprocess.STDOUT,
 )
-ready_deadline = time.monotonic() + 2
+ready_deadline = time.monotonic() + 10
+fixtures_ready = False
 while time.monotonic() < ready_deadline:
-    if child_pid_file.exists() and grandchild_pid_file.exists() and grandchild_ready_file.exists():
-        break
     if entry.poll() is not None:
         break
+    if child_pid_file.exists() and grandchild_pid_file.exists() and grandchild_ready_file.exists():
+        fixtures_ready = fixture_running(child_pid_file, child_marker) and fixture_running(grandchild_pid_file, grandchild_marker)
+        if fixtures_ready:
+            break
     time.sleep(0.01)
 
-if not (fixture_running(child_pid_file, child_marker) and fixture_running(grandchild_pid_file, grandchild_marker)):
-    entry.kill()
-    entry.wait()
+if not fixtures_ready:
+    stop_entry()
     stop_fixture(child_pid_file, child_marker)
     stop_fixture(grandchild_pid_file, grandchild_marker)
+    output.close()
     raise SystemExit("signal fixture did not start its child and grandchild")
 
 started = time.monotonic()
@@ -105,13 +153,9 @@ os.kill(entry.pid, signal_number)
 try:
     status = entry.wait(timeout=3)
 except subprocess.TimeoutExpired:
+    stop_entry()
     stop_fixture(child_pid_file, child_marker)
     stop_fixture(grandchild_pid_file, grandchild_marker)
-    try:
-        entry.wait(timeout=1)
-    except subprocess.TimeoutExpired:
-        entry.kill()
-        entry.wait()
     output.close()
     raise SystemExit(f"{signal_name} did not stop test.sh within 3 seconds")
 elapsed = time.monotonic() - started
@@ -348,6 +392,7 @@ STUB_EOF
   export FIXTURE_GRANDCHILD_MARKER="$RUN_ROOT/term-install-grandchild"
   export FIXTURE_TARGET="$TEST_BIN_DIR/bun"
   export FIXTURE_OUTPUT='install started'
+  export FIXTURE_DELAY_CHILD_PID=0.25
   write_stalling_stub bun
   python3 -I - "$RUN_ROOT/scripts/test.sh" <<'PY'
 import sys
@@ -390,12 +435,16 @@ PY
   export FIXTURE_CHILD_PID="$RUN_ROOT/int-install-child.pid"
   export FIXTURE_GRANDCHILD_PID="$RUN_ROOT/int-install-grandchild.pid"
   export FIXTURE_GRANDCHILD_MARKER="$RUN_ROOT/int-install-grandchild"
+  export FIXTURE_CLEANUP_MARKER="$RUN_ROOT/int-cleanup.marker"
   export FIXTURE_TARGET="$TEST_BIN_DIR/bun"
   export FIXTURE_OUTPUT='install started'
-  write_stalling_stub bun
+  write_interrupting_stub bun
   run_entry_after_signal INT
   assert_success
   assert_output --partial "entry_status=130"
+  assert_log_contains "bun install --frozen-lockfile"
+  grep -q '^shell-int$' "$FIXTURE_CLEANUP_MARKER"
+  grep -q '^grandchild-int$' "$FIXTURE_CLEANUP_MARKER"
   local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
   [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 130 ]
 }

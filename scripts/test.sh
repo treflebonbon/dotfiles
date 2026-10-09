@@ -7,10 +7,14 @@ active_runner_pid=
 trap 'printf "%s\n" "$?" >"$log_dir/exit-code"' EXIT
 stop() {
   local status=$1
+  local signal_name=TERM
+  if ((status == 130)); then
+    signal_name=INT
+  fi
   trap - INT TERM
   if [[ -n "$active_runner_pid" ]]; then
     case " $(jobs -pr) " in
-    *" $active_runner_pid "*) kill -TERM "$active_runner_pid" 2>/dev/null || : ;;
+    *" $active_runner_pid "*) kill -s "$signal_name" "$active_runner_pid" 2>/dev/null || : ;;
     esac
     wait "$active_runner_pid" 2>/dev/null || :
   fi
@@ -25,10 +29,10 @@ run_logged() {
   local log_file=$1
   local tee_mode=$2
   shift 2
-  local signal_status=
+  local signal_status='' signal_name=''
 
-  trap 'signal_status=130' INT
-  trap 'signal_status=143' TERM
+  trap 'signal_status=130; signal_name=INT' INT
+  trap 'signal_status=143; signal_name=TERM' TERM
   python3 -I - "$log_file" "$tee_mode" "$@" 3<&0 <<'PY' &
 import os
 import signal
@@ -96,9 +100,9 @@ def process_tree(root):
         if pid in processes
     }
 
-def signal_process(pid, identity, signum):
+def signal_process(pid, identity, signum, detached_only=False):
     info = process_info(pid)
-    if info is not None and info[3] == identity and not info[0].startswith("Z"):
+    if info is not None and info[3] == identity and not info[0].startswith("Z") and (not detached_only or info[2] != process.pid):
         try:
             os.kill(pid, signum)
         except ProcessLookupError:
@@ -111,14 +115,14 @@ def stop_process_group(signum):
         current = process_tree(process.pid)
         for pid, identity in current.items():
             if pid != process.pid and (not new_only or known.get(pid) != identity):
-                signal_process(pid, identity, signal.SIGTERM)
+                signal_process(pid, identity, signum)
             known[pid] = identity
 
     for pid, identity in known.items():
         if pid != process.pid:
-            signal_process(pid, identity, signal.SIGTERM)
+            signal_process(pid, identity, signum, detached_only=True)
     try:
-        os.killpg(process.pid, signal.SIGTERM)
+        os.killpg(process.pid, signum)
     except ProcessLookupError:
         pass
     deadline = time.monotonic() + 0.25
@@ -183,13 +187,13 @@ PY
     stop "$signal_status"
   fi
 
-  trap 'if [[ -z "$signal_status" ]]; then signal_status=130; fi' INT
-  trap 'if [[ -z "$signal_status" ]]; then signal_status=143; fi' TERM
+  trap 'if [[ -z "$signal_status" ]]; then signal_status=130; signal_name=INT; fi' INT
+  trap 'if [[ -z "$signal_status" ]]; then signal_status=143; signal_name=TERM; fi' TERM
   local status
   while :; do
     if [[ -n "$signal_status" ]]; then
       case " $(jobs -pr) " in
-      *" $active_runner_pid "*) kill -TERM "$active_runner_pid" 2>/dev/null || : ;;
+      *" $active_runner_pid "*) kill -s "$signal_name" "$active_runner_pid" 2>/dev/null || : ;;
       *) break ;;
       esac
     fi
