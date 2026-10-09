@@ -231,7 +231,7 @@ STUB_EOF
   chmod +x "$TEST_BIN_DIR/fzf"
   mkdir -p "$FAKE_HOME/repo-root/github.com/example/repo"
 
-  run python3 "$BATS_TEST_DIRNAME/helpers/zshrc-pty.py" /usr/bin/env -i \
+  run python3 "$BATS_TEST_DIRNAME/helpers/shell-startup-pty.py" /usr/bin/env -i \
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
