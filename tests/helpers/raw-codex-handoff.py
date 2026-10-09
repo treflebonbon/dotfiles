@@ -34,6 +34,8 @@ with (base / "handoff.stderr").open("w") as log:
         inbox.put(None)
 
     threading.Thread(target=read_messages, daemon=True).start()
+    # shortcut: unmatched events last until exit, bound them if this helper becomes long-lived.
+    turn_notifications = []
 
     def send(message):
         process.stdin.write(json.dumps(message) + "\n")
@@ -52,6 +54,8 @@ with (base / "handoff.stderr").open("w") as log:
             message = receive()
             if message.get("id") == identifier:
                 return message["result"]
+            if message.get("method") in ("item/completed", "turn/completed"):
+                turn_notifications.append(message)
 
     def verify_ready(started):
         actual = tuple(started[key] for key in ("model", "reasoningEffort", "modelProvider", "cwd"))
@@ -80,12 +84,25 @@ with (base / "handoff.stderr").open("w") as log:
         else:
             raise AssertionError("未確認の thread を受理した")
 
+    def next_turn_message(thread_id, turn_id):
+        while True:
+            for index, message in enumerate(turn_notifications):
+                params = message["params"]
+                notification_turn_id = params.get("turnId")
+                if notification_turn_id is None:
+                    notification_turn_id = params["turn"]["id"]
+                if params["threadId"] == thread_id and notification_turn_id == turn_id:
+                    return turn_notifications.pop(index)
+            message = receive()
+            if message.get("method") in ("item/completed", "turn/completed"):
+                turn_notifications.append(message)
+
     def turn(identifier, started, prompt):
         result = rpc(identifier, "turn/start", {"threadId": started["thread"]["id"],
                      "input": [{"type": "text", "text": prompt}]})
         answers = []
         while True:
-            message = receive()
+            message = next_turn_message(started["thread"]["id"], result["turn"]["id"])
             if message.get("method") == "item/completed":
                 item = message["params"]["item"]
                 if item.get("type") == "agentMessage":
