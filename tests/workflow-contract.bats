@@ -140,7 +140,7 @@ setup() {
   grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq '別の user-invoked skill から自動実行せず' "$PROJECT_ROOT/CLAUDE.md"
 
-  grep -Fq '24fe0ef7737efae15c87225755e9f6f5965e4888' "$RUNTIME"
+  grep -Fq 'b0618bc436ad893b3c5e84e55fba86586d34a404' "$RUNTIME"
   grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$RUNTIME"
   grep -Fq 'Skill tool と skill 名を明示する' "$RUNTIME"
   grep -Fq '`setup-matt-pocock-skills` を自動実行せず' "$RUNTIME"
