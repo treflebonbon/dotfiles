@@ -1,6 +1,6 @@
 # 隔離 Codex の model／effort 指定と有効値確認
 
-2026-10-09。状態: 設計合意済み、実装検証中。以下の現状・合意記録は設計時点のもの。実装結果は末尾へ追記する。
+2026-10-09。状態: task worktree で実装・検証済み、未配備。以下の現状・合意記録は設計時点のもの。実装結果は末尾を参照する。
 
 `grill-with-docs` の `grilling`／`domain-modeling` を適用した。ユーザーの「質問は Herdr pane Codex と協働、human out the loop」という委任に従い、初回は Herdr workspace `w1Z` の pane `w1Z:p1` に起動した Codex と3ラウンドで合意した。その後の Claude レビューで出た入力解釈と引継ぎ手順の2点を、同じ pane の新しい隔離 Codex で readiness 確認後に2ラウンドで詰め、本書へ反映した。
 
@@ -127,3 +127,15 @@ Claude レビュー後の追補では、次を確認した。
 既存の hosted model opt-in 試験を、同じ process/thread の readiness と記録確認後に本タスクを送る手順へ更新した。試験用 stdio client は `tests/helpers/raw-codex-handoff.py` に置き、production runtime には配布しない。不一致、readiness 記録なし、別 thread の古い証拠では確認を通さず、本タスクの出力がまだ存在しないことを確かめる。正常時は実モデルが公開 `task.sh` を実行し、編集・テスト・commit・host への返却まで確認する。
 
 運用の正本は [開始と復旧](../../runtime/skill-harness.md#worktree-の開始と復旧)。gate は親の手順であり、自動 enforcement や CLI 自動引継ぎを追加したものではない。承認設定の別修正、公開・merge・`chezmoi apply` は対象外のまま維持する。
+
+### 検証結果
+
+- 最初の受入試験は現行 validator の `-c` 拒否で失敗し、共用 validator の修正後に成功した。試験では認証を要求しない `--version` を先頭に置く。引数先頭から gateway の起動要否を判断する既存仕様は変更していない。
+- 関連2ファイルは計画72件と全結果行が一致し、70成功・2 skip・失敗0、終了コード0。4形式、TOML string、危険入力拒否、caller 転送、実 Codex の設定・隔離境界を確認した。
+- hosted model opt-in は `SECRET_ISOLATION_REAL_MODEL=1` で実行し、1件成功、終了コード0。Git 所属の全項目を照合した最終版も成功した。同じ thread の readiness と本タスク双方で `gpt-6-luna/xhigh` の記録を確認し、編集・テスト・commit の host 返却まで通った。
+- 全体試験の `lefthook run test` は既存 zsh 試験の `fzf` ダミーが初期化時に TTY 入力を待つため中断した。`--no-tty` でも job の入出力が TTY となることを確認し、その試行も中断した。両試行は終了コード143であり、成功した全体試験として数えない。
+- lefthook と同じ定義の `bun run test < /dev/null` を直接実行した全体試行は、TAP 計画748件と結果748行が一致。716成功・22 skip・10失敗、終了コード1。前述の zsh 試験は通過した。
+- 全体試行の10失敗は、host PATH の `with-env` が Nix store の package でない1件と、選ばれた Python に `python-dotenv` がない9件。該当コード・試験は今回変更していない。`nix build .#with-env --no-link --print-out-paths` で得た package と、同じ flake が使う依存込み Python を PATH に加え、`human-validation.bats` は1成功、`with-env.bats` は18成功・2 skip、双方終了コード0。失敗10件を含む両ファイルの再検証で失敗は残らなかった。全体試行と再実行は別の結果として扱い、環境を整えた全748件の一括再実行は省略した。
+- `tsc --noEmit`、変更 Python の構文検査、`git diff --check`、Markdown format、通常の commit hook が成功した。secret scan は検出0。`code-review` の独立した Standards／Spec 両軸は、基点 `05f78b1` から実装 commit `f2b1de2` までを確認して各0件だった。
+
+試行ログは Git 管理外の `tmp/implement-model-effort/` に分離して保存した。opt-in の未実行項目は skip のままであり、実行済みとして数えていない。
