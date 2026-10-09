@@ -135,7 +135,7 @@ TOML
   [ ! -e "$RAW_BASE/work/launched" ]
 }
 
-@test "Codex can save first-start trust inside the session while the required policy remains fixed" {
+@test "explicit model and decoded effort reach isolated Codex while trust and required policy remain fixed" {
   raw_fixture
   # No model request is made: exercise the same real config RPC as TUI onboarding.
   printf '{"tokens":{"access_token":"dummy-unused","account_id":"dummy-unused"}}\n' > "$RAW_BASE/home/.codex/auth.json"
@@ -147,7 +147,7 @@ base = Path(sys.argv[1])
 host_config = (base / 'home/.codex/config.toml').read_bytes()
 environment = os.environ | {'HOME': str(base / 'home'), 'CODEX_HOME': str(base / 'home/.codex'), 'XDG_STATE_HOME': str(base / 'state')}
 with (base / 'config-rpc.log').open('w') as log:
-    process = subprocess.Popen([str(base / 'bin/codex-worktree'), 'app-server'], cwd=base / 'work', env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log)
+    process = subprocess.Popen([str(base / 'bin/codex-worktree'), '--config=model_reasoning_effort="xh\\u0069gh"', 'app-server'], cwd=base / 'work', env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log)
     pending = bytearray()
     def rpc(identifier, method, params):
         process.stdin.write((json.dumps({'id': identifier, 'method': method, 'params': params}) + '\n').encode())
@@ -158,7 +158,7 @@ with (base / 'config-rpc.log').open('w') as log:
                 if not select.select([process.stdout], [], [], 1)[0]:
                     continue
                 chunk = os.read(process.stdout.fileno(), 65536)
-                assert chunk, 'raw app-server exited before its response'
+                assert chunk, (base / 'config-rpc.log').read_text()
                 pending.extend(chunk)
             while b'\n' in pending:
                 line, _, remaining = pending.partition(b'\n')
@@ -177,11 +177,25 @@ with (base / 'config-rpc.log').open('w') as log:
         response = rpc(3, 'config/read', {'includeLayers': False})
         config = response['result']['config']
         assert config['projects'][str(base / 'repo')]['trust_level'] == 'trusted'
+        assert config['model_reasoning_effort'] == 'xhigh'
+        assert config['default_permissions'] == 'dotfiles-secure'
+        assert config['model_provider'] == 'isolated'
+        assert config['model_providers']['isolated']['base_url'] == 'http://127.0.0.1:8123/v1'
+        assert config['features']['network_proxy'] is True
+        assert config['approval_policy'] == 'on-request'
+        assert config['approvals_reviewer'] == 'auto_review'
+        started = rpc(6, 'thread/start', {'cwd': str(base / 'work'), 'model': 'gpt-6-luna'})['result']
+        assert (started['model'], started['reasoningEffort'], started['modelProvider'], started['cwd']) == ('gpt-6-luna', 'xhigh', 'isolated', str(base / 'work'))
         response = rpc(4, 'config/batchWrite', {'edits': [{'keyPath': 'permissions.dotfiles-secure', 'value': {'extends': ':workspace', 'filesystem': {':root': 'write'}}, 'mergeStrategy': 'replace'}], 'reloadUserConfig': True})
         assert 'result' in response, response
         checked = rpc(5, 'config/read', {'includeLayers': False})
         assert 'conflicts with a config-defined profile' in checked.get('error', {}).get('message', ''), 'onboarding config write replaced the required profile'
         assert (base / 'home/.codex/config.toml').read_bytes() == host_config
+        log.flush()
+        session = Path(next(line.split('isolated session ', 1)[1].strip() for line in (base / 'config-rpc.log').read_text().splitlines() if 'isolated session ' in line))
+        assert session.is_relative_to(base / 'state/devshell-env/sessions')
+        assert not (session / 'config/auth.json').exists()
+        assert not (session / 'root' / str(base / 'work').lstrip('/') / '.env').exists()
         print('SESSION_TRUST_SAVED_POLICY_FIXED')
     finally:
         process.stdin.close()
@@ -277,7 +291,7 @@ printf HOSTED_RAW_TASK_OK
 TASK
   raw_admit flake.nix task.sh
   export RAW_DUMMY_SECRET=dummy-inherited-secret
-  run raw_run exec --strict-config --ephemeral --json 'Run bash task.sh in this working directory. Do not edit the fixture or weaken permissions. If it succeeds, reply exactly HOSTED_RAW_OK. Otherwise report the error.'
+  run python3 "$PROJECT_ROOT/tests/helpers/raw-codex-handoff.py" "$RAW_BASE"
   raw_assert_status 0
   [[ "$output" == *HOSTED_RAW_TASK_OK* && "$output" == *HOSTED_RAW_OK* ]]
   [ -f "$RAW_BASE/work/calculator.py" ]

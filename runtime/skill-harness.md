@@ -71,6 +71,17 @@ Herdr 0.9.0 では adapter 内の対話 Codex が入力可能でも `agent list`
 
 起動しただけでは引継ぎ完了としない。対話 agent の認識・入力可能状態と、子からの checkout / Git 検証を別々に確認する。`codex-worktree sandbox` の成功は対話 agent 起動の代用にならない。配備済み公開入力・trust・接続前提が不足している場合も、通常環境の秘密値や権限を変更して代用しない。
 
+raw adapter の model 指定は既存の `--model`／`-m`、effort 指定は `-c 'model_reasoning_effort="xhigh"'` を使う。effort は `-c VALUE`／`--config VALUE`／`--config=VALUE`／`-cVALUE` の一回だけを許可する。VALUE は裸キー `model_reasoning_effort` と空でない TOML string の代入に限る。引用キー、別キー・追加キー、未引用の値、重複指定、`-c=VALUE` は起動前に拒否する。省略時は既存 managed config に従う。文字列の復号・境界例は [入力契約](../docs/research/codex-model-effort-contract-20261009.md#cli-入力) を参照する。
+
+app-server で実タスクを引き継ぐ親は、同じ隔離 process/thread で次の gate を満たす。これは親の workflow 手順であり、adapter が自動強制する機能ではない。
+
+1. 対象 checkout の Git 所属を検証し、`thread/start` の model と `config.model_reasoning_effort` を指定する。応答の thread ID、model、reasoningEffort、modelProvider、cwd を記録し、指定値・対象 root・隔離 provider と照合する。
+2. 同じ thread へ読み取りだけの readiness turn を送り、root／branch／HEAD／Git dir／common dir の一致、実応答、`turn/completed` の成功を確認する。
+3. 起動 stderr の隔離 session directory の `config/sessions/` から、その thread ID の rollout を選び、`turn_context` の model／effort／cwd だけを抽出して照合する。effort は TOML の復号値で比較する。hidden reasoning・認証情報は抽出しない。
+4. 一致後に同じ process/thread へ実タスクを送る。`turn/start` の model／effort は省略または readiness と同じ値とする。不一致・観測不能・未対応なら送らず、設定を黙って下げない。設定変更、thread／process の変更・resume 後は readiness と記録確認をやり直す。
+
+CLI の model／effort 指定は利用できるが、CLI 自動引継ぎは未対応。同じ TUI process の有効値観測・readiness からの継続・Herdr の agent 認識を確認するまで対応済みとしない。別 raw 起動の `exec resume` は過去の rollout を持ち込まないため、この gate の継続経路に使わない。確認は runtime 設定とモデル応答までで、バックエンドの実際の推論計算量は保証しない。
+
 - wayfinding: 巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作り、frontier が明確になってから Planner / Builder-Evaluator へ合流する
 
 `ready-for-agent` ラベルを付与する際は、`triage` 経由・`to-tickets` 経由のいずれでも次の6項目を最低条件とする: 目的 / AC / 非目標 / 検証方法 / 関連ファイル・入口 / 判断済み tradeoff（[GLOSSARY.md](../GLOSSARY.md) の Contract 参照）。`triage` / `to-tickets` はいずれも apm 経由の vendored skill であり、この最低条件を skill 自体に組み込んで機械的にゲートすることはできない——ラベルを付与する運用者（実行エージェント自身）が確認する doc-level discipline とする。2つの経路でチェックポイントの位置は異なる: `triage` は「Apply the outcome」というラベル付与前の明示的な判断点を持つため、そこで6項目の充足を確認してから `ready-for-agent` を付与する。`to-tickets` は ticket の生成とラベル付与を同一ステップ（Publish the tickets）で完結させ、付与前に立ち止まる地点が無いため、事前ゲートではなく**生成直後**に各 ticket 本文を確認し、6項目のうち ticket 本文から読み取れないものがあればその場で本文に追記する（[ADR-0015](../docs/adr/0015-add-tdd-commit-confirmation.md) の commit 確認ステップと同型のタイミング配慮）。
