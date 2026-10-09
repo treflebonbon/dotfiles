@@ -224,13 +224,14 @@ STUB_EOF
   cat >"$TEST_BIN_DIR/fzf" <<'STUB_EOF'
 #!/bin/bash
 echo "$0 $*" >> "$TEST_LOG"
+[ "${1:-}" = --zsh ] && exit 0
 IFS= read -r line
 echo "$line"
 STUB_EOF
   chmod +x "$TEST_BIN_DIR/fzf"
   mkdir -p "$FAKE_HOME/repo-root/github.com/example/repo"
 
-  run /usr/bin/env -i \
+  run python3 "$BATS_TEST_DIRNAME/helpers/zshrc-pty.py" /usr/bin/env -i \
     PATH="$TEST_BIN_DIR" \
     HOME="$FAKE_HOME" \
     TEST_LOG="$TEST_LOG" \
