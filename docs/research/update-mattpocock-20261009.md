@@ -13,7 +13,7 @@ Impeccable の [PR #393](https://github.com/treflebonbon/dotfiles/pull/393) が 
 - `code-review`: standards file の探索、sub-agent の foreground 実行
 - `grilling`: yes で推奨を受け入れる質問文、`wayfinder`／`teach`／`setup-matt-pocock-skills`／`handoff`／`ask-matt`／`wizard`／`diagnosing-bugs`／`tdd` の修正
 
-公式27 skill の membership は不変。新規の `skills/in-progress/chief-of-staff` は plugin manifest に含まれず、導入しない。release は v1.3.1 が最新で、今回の HEAD は未 release の修正を含む。default branch の検証済み revision を exact pin する既存方針（`apm.yml` の注記）に従い、gate の結果で採否を決めた。
+公式27 skill の membership は不変。新規の `skills/in-progress/chief-of-staff` は plugin manifest に含まれず、導入しない。release は v1.3.1 が最新で、今回の HEAD は未 release の修正を含む。`apm.yml` の注記（「検証済み default-branch revision を pin し、APM の lock / frozen install で同期する」）と、`runtime/skill-harness.md` 2026-09 の更新が default branch HEAD を pin した先例に従い、release tag に限らず gate の結果で採否を決めた。manifest 版が 1.3.1 のまま HEAD が進むため、release tag を待つ利点は無いと判断した。
 
 ## 隔離ゲートとnative lock
 
