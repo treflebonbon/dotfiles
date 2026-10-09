@@ -38,7 +38,7 @@ check_startup() {
     touch -t 202001010000 "$cache"
   fi
 
-  run timeout 15 /usr/bin/env -i PATH="$TEST_BIN_DIR:/usr/bin:/bin" HOME="$FAKE_HOME" \
+  run timeout --foreground --kill-after=2 15 /usr/bin/env -i PATH="$TEST_BIN_DIR:/usr/bin:/bin" HOME="$FAKE_HOME" \
     NIX_PROFILES=test SHELL="$shell_bin" XDG_RUNTIME_DIR="$FAKE_HOME/runtime" \
     TERM=xterm TEST_LOG="$TEST_LOG" "$shell_bin" -i -c '
       . "$1"
@@ -85,4 +85,13 @@ check_startup() {
   local zsh_bin
   zsh_bin="$(command -v zsh)" || skip 'zsh not installed in this environment'
   check_startup "$zsh_bin" zshrc 0
+}
+
+@test "対話 bash 起動テストは入力なしの PTY でも完了する" {
+  run python3 "$BATS_TEST_DIRNAME/helpers/shell-startup-pty.py" \
+    "$(command -v bats)" --tap --print-output-on-failure \
+    --filter '^bash は旧キャッシュを利用し背景更新の失敗後も起動を続ける$' \
+    "$BATS_TEST_FILENAME"
+  assert_success
+  assert_output --partial 'ok 1 bash は旧キャッシュを利用し背景更新の失敗後も起動を続ける'
 }

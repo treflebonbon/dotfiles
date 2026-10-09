@@ -13,9 +13,9 @@ tags: [conventions, git, lint, lefthook]
 
 ## テスト
 
-`lefthook run test` で `tests/` の全 Bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。lefthook の `test` は既存の `bun run test` を呼び、依存関係の frozen install と Bats の実行を行う。コマンド定義は `lefthook.yml` と `package.json` の `scripts.test` を参照する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、Bats 非対象）。`.chezmoiignore` で home には非配備。
+`lefthook run test` で `tests/` の全 Bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。lefthook の `test` は `bun run test` → `scripts/test.sh` を呼ぶ。入口で実際の `python3 -I` が `dotenv.parser` を import でき、`with-env` が Nix store 内へ解決されることを確認してから、依存関係の frozen install と Bats の実行を行う。不足時は devShell を準備して再実行する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、Bats 非対象）。`.chezmoiignore` で home には非配備。
 
-テストは試行ごとにログを保存し、進捗はログ全体の TAP 結果行から集計する。成功はスキップ指定のない `ok` 行、失敗は `not ok` 行、スキップは `# skip` 指定付きの `ok` 行として数える。完了時は終了コードと、計画数（`1..N`）に対する結果行数も確認する。再実行の結果は初回の結果と分けて報告する。
+テスト入口は明示的に TAP 形式を使い、試行ごとに `tmp/test-run.*/` へ `tap.log`、環境確認・install のログ（`setup.log`）、選択された Python・with-env の実体パス（`environment`）、終了コード（`exit-code`）を保存する。環境確認や install が失敗した場合も記録し、Bats 未実行なら TAP ログは空になる。lefthook が出力をまとめて表示する場合も、このログで実行中の進捗を確認できる。進捗はログ全体の TAP 結果行から集計する。成功はスキップ指定のない `ok` 行、失敗は `not ok` 行、スキップは `# skip` 指定付きの `ok` 行として数える。入口は Bats が正常終了した後も、計画が1つで結果件数と一致し、結果番号が1から連続し、失敗結果や中断宣言がないことを確認する。不整合な TAP は終了コード1で拒否し、元のログを残す。Bats が正常終了する空 suite（`--allow-empty-suite` の `1..0`）は受け入れる。完了時は保存された終了コードも確認する。再実行の結果は初回の結果と分けて報告する。
 
 topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
 

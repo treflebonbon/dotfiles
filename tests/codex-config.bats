@@ -291,6 +291,64 @@ PYTHON
     sandbox --sandbox-state-json '{}' -- true
 }
 
+@test "codex-worktree accepts explicit effort forms and TOML strings without broadening config access" {
+  raw_fixture
+  raw_admit flake.nix task.sh
+  local value
+  for value in 'model_reasoning_effort="xhigh"' \
+    "model_reasoning_effort = 'xhigh'" \
+    'model_reasoning_effort="xh\u0069gh" # comment' \
+    $'model_reasoning_effort="""xh\\\n  igh"""' \
+    "model_reasoning_effort='''xhigh'''" \
+    $'model_reasoning_effort="""line one\nline two"""'; do
+    run raw_run --version --model gpt-6-luna -c "$value"
+    raw_assert_status 0
+    [[ "$output" == *codex-cli* ]]
+  done
+  for value in --config --config= -c; do
+    if [ "$value" = --config ]; then
+      run raw_run --version -m gpt-6-luna "$value" 'model_reasoning_effort="xhigh"'
+    else
+      run raw_run --version -m gpt-6-luna "${value}model_reasoning_effort=\"xhigh\""
+    fi
+    raw_assert_status 0
+    [[ "$output" == *codex-cli* ]]
+  done
+  run raw_run sandbox -c 'model_reasoning_effort="xhigh"' -- \
+    printf 'arg=<%s>\n' '-c sandbox_mode="danger-full-access"' '' 'prompt with space'
+  raw_assert_status 0
+  [[ "$output" == *$'arg=<-c sandbox_mode="danger-full-access">\narg=<>\narg=<prompt with space>'* ]]
+}
+
+@test "codex-worktree rejects malformed, disguised and duplicate effort before initialization" {
+  local repo="$BATS_TEST_TMPDIR/repo" worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin" launched="$BATS_TEST_TMPDIR/codex-launched" value
+  create_linked_worktree "$repo" "$worktree"
+  install_codex_launch_sentinel "$bin"
+  for value in '' -- --model 'model_reasoning_effort=xhigh' \
+    'model_reasoning_effort=""' 'model_reasoning_effort=1' 'model_reasoning_effort=true' \
+    'model_reasoning_effort=["xhigh"]' 'model_reasoning_effort={value="xhigh"}' \
+    'model_reasoning_effort="unterminated' \
+    '"model_reasoning_effort"="xhigh"' "'model_reasoning_effort'=\"xhigh\"" \
+    'model_reasoning_effort.value="xhigh"' \
+    $'model_reasoning_effort="xhigh"\nother="value"' \
+    $'model_reasoning_effort="xhigh"\n[permissions.dotfiles-secure.filesystem]\n"/"="write"' \
+    'model_provider="other"' 'features.network_proxy=false' \
+    'approval_policy="never"' 'projects."/tmp".trust_level="trusted"'; do
+    assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" -c "$value"
+    [[ "$output" == *'codex-worktree:'* ]]
+    [[ "$output" != *'isolated session'* ]]
+  done
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" -c
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" --config
+  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" '-c=model_reasoning_effort="xhigh"'
+  for value in 'model_reasoning_effort="xhigh"' 'model_reasoning_effort="high"' 'sandbox_mode="danger-full-access"'; do
+    assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
+      -c 'model_reasoning_effort="xhigh"' --config="$value"
+  done
+  [ ! -e "$XDG_STATE_HOME/devshell-env/sessions" ]
+}
+
 @test "codex-orca preserves every argument when forwarding to codex-worktree" {
   local bin="$BATS_TEST_TMPDIR/bin"
   mkdir -p "$bin"
@@ -304,14 +362,16 @@ printf 'wrong-entrypoint\n'
 EOF
   chmod +x "$bin/codex-worktree" "$bin/codex"
 
-  run env PATH="$bin:$PATH" "$CODEX_ORCA" --model "model with space" "" "prompt with space"
+  run env PATH="$bin:$PATH" "$CODEX_ORCA" --model "model with space" -c 'model_reasoning_effort="xhigh"' "" "prompt with space"
 
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "forwarded=<--model>" ]
   [ "${lines[1]}" = "forwarded=<model with space>" ]
-  [ "${lines[2]}" = "forwarded=<>" ]
-  [ "${lines[3]}" = "forwarded=<prompt with space>" ]
-  [ "${#lines[@]}" -eq 4 ]
+  [ "${lines[2]}" = "forwarded=<-c>" ]
+  [ "${lines[3]}" = 'forwarded=<model_reasoning_effort="xhigh">' ]
+  [ "${lines[4]}" = "forwarded=<>" ]
+  [ "${lines[5]}" = "forwarded=<prompt with space>" ]
+  [ "${#lines[@]}" -eq 6 ]
 }
 
 assert_codex_managed_values() {
@@ -795,7 +855,7 @@ EOF
   ln -s "$CODEX_CONTEXT" "$RAW_BASE/bin/codex-context"
   raw_admit flake.nix task.sh codex package.json
   run env HOME="$RAW_BASE/home" CODEX_HOME="$RAW_BASE/home/.codex" XDG_STATE_HOME="$RAW_BASE/state" \
-    PATH="$RAW_BASE/bin:$PATH" bash -c 'cd "$1"; exec bun --silent codex sandbox -- printf "arg=<%s>\n" "model with space" "" "prompt with space"' _ "$RAW_BASE/work"
+    PATH="$RAW_BASE/bin:$PATH" bash -c 'cd "$1"; exec bun --silent codex sandbox -c '\''model_reasoning_effort="xhigh"'\'' -- printf "arg=<%s>\n" "model with space" "" "prompt with space"' _ "$RAW_BASE/work"
   raw_assert_status 0
   [[ "$output" == *'arg=<model with space>'* && "$output" == *'arg=<>'* && "$output" == *'arg=<prompt with space>'* ]]
 }

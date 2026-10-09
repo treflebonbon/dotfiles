@@ -142,6 +142,18 @@ EOF
   [[ "$output" == *"discovery target contains an invalid skill payload"* ]]
 }
 
+@test "managed-set update gate compares skill sets under UTF-8 collation" {
+  locale -a | grep -Ei '^en_US\.utf-?8$' >/dev/null || skip "en_US UTF-8 locale が未導入"
+  run env \
+    LC_ALL=en_US.UTF-8 \
+    PATH="$FAKE_BIN:$PATH" \
+    MATTPOCOCK_GATE_COMMAND_LOG="$COMMAND_LOG" \
+    "$GATE" --source "$PROJECT_ROOT" --candidate-manifest "$MANIFEST"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PASS: Matt Pocock managed-set update gate completed"* ]]
+}
+
 @test "managed-set update gate rejects chezmoi dry-run content or symlink changes" {
   run env \
     PATH="$FAKE_BIN:$PATH" \

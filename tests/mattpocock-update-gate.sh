@@ -253,7 +253,7 @@ official_matt_skills() {
     wait-what \
     wayfinder \
     wizard \
-    writing-for-agents
+    writing-for-agents | sort
 }
 
 sha256_file() {
