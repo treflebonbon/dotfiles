@@ -38,6 +38,10 @@ run_entry() {
   assert_log_contains "python3 -I -"
   refute_log_contains "bun install"
   refute_log_contains "/bats "
+  local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
+  [ -f "${logs[0]}" ]
+  [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 1 ]
+  [ -s "${logs[0]%/tap.log}/setup.log" ]
 }
 
 @test "テスト入口は Nix store 外の with-env を install より前に拒否する" {
@@ -75,4 +79,20 @@ run_entry() {
   run_entry
   assert_failure 7
   refute_log_contains "/bats "
+  local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
+  [ -f "${logs[0]}" ]
+  [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 7 ]
+  [ -s "${logs[0]%/tap.log}/environment" ]
+}
+
+@test "テスト入口は停止シグナルを成功として記録しない" {
+  cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
+#!/bin/bash
+printf '1..1\n'
+kill -TERM "$PPID"
+STUB_EOF
+  run_entry
+  assert_failure 143
+  local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
+  [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 143 ]
 }
