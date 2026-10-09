@@ -17,7 +17,7 @@ setup() {
   cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
 #!/bin/bash
 echo "$0 $*" >> "$TEST_LOG"
-printf '1..1\nok 1 fixture\n'
+printf '%s\n' "${BATS_STUB_TAP-$'1..1\nok 1 fixture'}"
 exit "${BATS_STUB_STATUS:-0}"
 STUB_EOF
   chmod +x "$TEST_BIN_DIR/bats"
@@ -72,6 +72,52 @@ run_entry() {
   local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
   [ -f "${logs[0]}" ]
   [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 9 ]
+}
+
+@test "テスト入口は Bats が正常終了しても未完了の TAP を拒否する" {
+  export BATS_STUB_TAP=$'1..2\nok 1 fixture'
+  run_entry
+  assert_failure 1
+  assert_output --partial "TAP が未完了または不正"
+  local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
+  [ "$(cat "${logs[0]}")" = "$BATS_STUB_TAP" ]
+  [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 1 ]
+}
+
+@test "テスト入口は計画と結果番号が不整合な TAP を拒否する" {
+  local tap
+  for tap in \
+    '' \
+    $'ok 1 fixture' \
+    $'1..1\n1..1\nok 1 fixture' \
+    $'1..1\nok 1 fixture\nok 2 extra' \
+    $'1..2\nok 1 fixture\nok 1 duplicate' \
+    $'1..2\nok 1 fixture\nok 3 gap' \
+    $'1..2\nok 2 reordered\nok 1 fixture'; do
+    export BATS_STUB_TAP="$tap"
+    run_entry
+    assert_failure 1
+    assert_output --partial "TAP が未完了または不正"
+  done
+}
+
+@test "テスト入口は正常終了でも TAP の失敗と中断宣言を拒否する" {
+  local tap
+  for tap in $'1..1\nnot ok 1 failed' $'1..1\nok 1 fixture\nBail out! interrupted'; do
+    export BATS_STUB_TAP="$tap"
+    run_entry
+    assert_failure 1
+    assert_output --partial "TAP が未完了または不正"
+  done
+}
+
+@test "テスト入口はスキップと診断を含む完了 TAP と対象ゼロ件を受け入れる" {
+  local tap
+  for tap in $'1..2\nok 1 fixture\n# ok 999 diagnostic\nok 2 optional # skip 未設定' '1..0'; do
+    export BATS_STUB_TAP="$tap"
+    run_entry
+    assert_success
+  done
 }
 
 @test "テスト入口は frozen install の失敗後に Bats を実行しない" {
