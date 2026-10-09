@@ -13,7 +13,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 `apm.yml` / `apm.lock.yaml` が外部 skill を `~/.claude/skills/` へ展開する。lockfile の再生成は下記「apm lock は runtime layout を再現した隔離ディレクトリで再生成する」の手順に従う（`apm lock` 単体では不十分）。配備は `apm install --frozen` が `run_onchange_after_apm-install.sh.tmpl` から冪等に走る。
 
-**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `24fe0ef7737efae15c87225755e9f6f5965e4888`（上流 plugin manifest version `1.3.1`）から APM で配備する。公式セットと標準workflowは [ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md) に従い、今回の `ask-matt` のバグ修正後の案内更新は [検証記録](../docs/research/update-mattpocock-20261005.md) を参照する。
+**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `b0618bc436ad893b3c5e84e55fba86586d34a404`（上流 plugin manifest version `1.3.1`）から APM で配備する。公式セットと標準workflowは [ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md) に従い、`ask-matt` の案内更新は [検証記録](../docs/research/update-mattpocock-20261005.md)、default branch HEAD への更新は [検証記録](../docs/research/update-mattpocock-20261009.md) を参照する。Matt の `package_type` は APM の native 出力に従い、lock の更新経路によって `apm_package` と `marketplace_plugin` の間で変わる（2026-10-09 の native lock は `marketplace_plugin`）。どちらも pin・selected payload・配備 ledger は同じで、手で書き換えない。
 
 _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本 + on-ramp 2つで構成する — 詳細は [ADR-0014](../docs/adr/0014-triage-not-after-to-issues.md)、上流 `ask-matt` の main-flow/on-ramp 構造に整合）:
 

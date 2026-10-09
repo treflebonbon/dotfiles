@@ -32,7 +32,7 @@ dependencies:
     - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills 公式27-skill collection — 公式 full set を一括管理。
     # 検証済み default-branch revision を pin し、APM の lock / frozen install で同期する。
-    - mattpocock/skills#24fe0ef7737efae15c87225755e9f6f5965e4888
+    - mattpocock/skills#b0618bc436ad893b3c5e84e55fba86586d34a404
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
