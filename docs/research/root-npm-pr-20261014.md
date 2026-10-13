@@ -14,7 +14,7 @@
 
 | 対象 | 採否・理由・対応先・状態 |
 | --- | --- |
-| root `package.json`／`bun.lock` | 三つのdirect更新を採用候補とする。参考lockのmirror URLは採用せず、今回native生成で公式registry／SRI／7日待機を検証。今回PR公開前・未配備。 |
+| root `package.json`／`bun.lock` | 三つのdirect更新と公式source-map-js修正を採用。参考lockのmirror URLは採用せず、今回native生成で公式registry／SRI／7日待機を検証。[通常PR #404](https://github.com/treflebonbon/dotfiles/pull/404)、未merge・未配備。 |
 | #397のAI snapshot／floors／Codex direct output・cleanup、#398–400のAPM／Impeccable／Matt、#401のモデル設定、#402の固定CLI／Playwright公式registry lock | main採用済みsourceを維持。保留成果への巻戻しは却下。今回の検証で過去成功を代用しない。 |
 | #403の一般Nix pins／6言語template／architecture | merge済みbaseを維持。今回未変更の全3system／6言語gateは反復しない。配備全体の完了は断定しない。 |
 | studio `package.json`／`package-lock.json`／`dist/studio.html`／`dist/THIRD-PARTY-LICENSES.txt` | 別単位として保留。対応先PR未定・未配備。 |
@@ -75,3 +75,5 @@ base／最初のcandidateの `bun audit --json` は両方exit 1で、bracesに�
 21 skipは実Herdr／Bash 3.2、認証・実モデル／MCP、専用隔離runtime／dependency gateway、6言語独立生成、public Nix appの既定opt-in。ARM／Darwin実機やPoC／動的到達性も今回未確認。未変更の6言語gateを実行済みとは扱わない。
 
 今回TAPは `tmp/test-run.Yg07Ud/tap.log`。同directoryにsetup／environment／exit-codeを保存し、`tmp/root-npm-20261014/{full-result,canonical-source-before,canonical-source-check,canonical-environment,canonical-ai-version-check,canonical-required-fixtures}.json`、`canonical{,-launch}.exit`、`canonical-output.log`、`current-tap-path` に試行根拠を保存した。成功後は結果・対応先文書だけを追記し、実行source／test／lock／依存／環境を維持するため全suiteを反復しない。実remote defaultは `main` と確認済み。承認済みtopicを `git-push-topic` で非force公開し通常PRを作成する。merge／applyは行わない。
+
+公開結果: [root npm独立PR #404](https://github.com/treflebonbon/dotfiles/pull/404) を `main` 向けOPEN・非draftの通常PRとして作成した。実装 `7e855f1` と結果記録 `40534d6` を `git-push-topic` で非force公開し、作成時local／PR HEAD `40534d684af147212e2d7950b2fa0227f23325f1` と英語Conventional title／確定日本語3節本文の一致を確認した。公開先の最小追記だけを同topicへ追加commit／pushする。CIは初回PR作成時点では未観測として本文に明記し、最新HEADの実結果とcode-scanningの判定制限を観測後にPR本文とGit管理外evidenceへ反映する。merge／applyは未実施で、studio／汎用helper等の保留による更新全体の未完了状態を維持する。

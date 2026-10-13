@@ -31,7 +31,7 @@ root／userの全packageと6言語のbase／candidate metadata、3 system評価�
 | `private_dot_config/nix-devshell/packages/gwq.nix` | PR #402の採用hashを維持。referenceのhashへの巻戻しは採用しない。一般Nix変更で実buildに修正が必要なら取得根拠とともに最小修正する。 |
 | `private_dot_config/nix-devshell/packages/playwright-cli-agent/package-lock.json`、`private_dot_config/nix-devshell/packages/playwright-cli.nix` | PR #402 Review Roundの公式registry URL3件／npmDepsHashを維持。referenceのmirrorには戻さず、今回入力で実build／配布fixtureを検証する。 |
 | `tests/nix-devshell.bats` | PR #397のsnapshot記録参照を維持。referenceの統合記録参照への置換は採用しない。 |
-| `package.json`、`bun.lock` | root npm依存の別単位として保留していた。2026-10-14に独立更新を開始し、[今回の記録](root-npm-pr-20261014.md)へ移管。branch `dev/update-root-npm-20261014`、PR公開前・未配備。 |
+| `package.json`、`bun.lock` | root npm依存の別単位として保留していた。2026-10-14に独立更新し、[今回の記録](root-npm-pr-20261014.md)へ移管。[通常PR #404](https://github.com/treflebonbon/dotfiles/pull/404)、branch `dev/update-root-npm-20261014`、未merge・未配備。 |
 | `local-skills/domain-modeling-studio/package.json`、`local-skills/domain-modeling-studio/package-lock.json`、`local-skills/domain-modeling-studio/dist/studio.html`、`local-skills/domain-modeling-studio/dist/THIRD-PARTY-LICENSES.txt` | studio依存・生成物の別単位として保留。対応先PR未定・未配備。 |
 | `scripts/verify-ai-tools.py`、`scripts/verify-apm-deployment.mjs`、`tests/verify-ai-tools.bats`、`tests/verify-apm-deployment.bats` | 汎用検証helper配布・testsは別単位として保留。必要な補助だけGit管理外へ読み取り取得し、今回PRへ追加しない。 |
 | `docs/architecture.md` のCodex説明・参照変更、`docs/conventions.md`、`runtime/skill-harness.md` | 現在baseの採用済みcleanup記録／規約を維持。helper案内はhelper単位へ保留。Gleam説明だけ今回採用。 |
