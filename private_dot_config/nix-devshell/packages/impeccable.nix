@@ -9,22 +9,22 @@ let
   releases = {
     x86_64-linux = {
       asset = "impeccable-linux-x64";
-      hash = "sha256-JSgtr1R/9mkW1f9YdYhZxax2lOg79f9sxpnnOsiZwzA=";
+      hash = "sha256-PTHsGmZKw1yBXqHXwQq60RVc42TQ9GEVfrg3o0No77Y=";
     };
     aarch64-linux = {
       asset = "impeccable-linux-arm64";
-      hash = "sha256-I5itzoSIiKdyvXzTUfHRLkCKPv/B2WBonMTcbVLJy9w=";
+      hash = "sha256-OWJj7mlHgNuUJIP8gJM6AS7wi/mB9fJrDaXha2IIyUg=";
     };
     aarch64-darwin = {
       asset = "impeccable-darwin-arm64";
-      hash = "sha256-EzdP+upm6f6/2V5OzyTRQ1+4luSBiLRrSUckhCstgNQ=";
+      hash = "sha256-q71p1UBTK5HpWZxB06YSffuquuXiS6/XT/fi+xj0+Hw=";
     };
   };
   release = releases.${system} or (throw "impeccable is not packaged for ${system}");
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "impeccable";
-  version = "0.1.12";
+  version = "0.1.14";
 
   src = fetchurl {
     url = "https://github.com/pbakaus/impeccable/releases/download/engine-v${finalAttrs.version}/${release.asset}";
