@@ -10,15 +10,15 @@ let
   releases = {
     x86_64-linux = {
       asset = "waza-linux-amd64";
-      hash = "sha256-4ifNiEFz3nlrwoxssYKEmPJQKX4OYGpORQTRRGX/h58=";
+      hash = "sha256-+uRprzsgymO3ia1k6PLAB6Bp0IQ8yI2eg9Ik3k9wd7M=";
     };
     aarch64-linux = {
       asset = "waza-linux-arm64";
-      hash = "sha256-FC6oNrvIMkFU9S0yeMt8mp+k4b50gLRNOEEwm1b3sDk=";
+      hash = "sha256-A3Hn0x2kqp1d30VY6jzUFJDHpMp9FMpPE/hC6Zdw6Ck=";
     };
     aarch64-darwin = {
       asset = "waza-darwin-arm64";
-      hash = "sha256-gqT0TH2VsT5UYHqwu52mGLsTTFHJSmS+c77b97zU53g=";
+      hash = "sha256-ynCGMIDnMuuRV8CqHWkvRB4RWmoHQLgFyihFj0M6twY=";
     };
   };
 
@@ -26,7 +26,7 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "waza";
-  version = "0.38.7";
+  version = "0.38.10";
 
   src = fetchurl {
     url = "https://github.com/microsoft/waza/releases/download/v${finalAttrs.version}/${release.asset}";

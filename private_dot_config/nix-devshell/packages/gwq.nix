@@ -1,14 +1,22 @@
-{ buildGoModule, fetchFromGitHub, git, installShellFiles, lib, makeWrapper, tmux }:
+{
+  buildGoModule,
+  fetchFromGitHub,
+  git,
+  installShellFiles,
+  lib,
+  makeWrapper,
+  tmux,
+}:
 
 buildGoModule rec {
   pname = "gwq";
-  version = "0.1.1";
+  version = "0.1.2";
 
   src = fetchFromGitHub {
     owner = "d-kuro";
     repo = "gwq";
     rev = "v${version}";
-    hash = "sha256-MfCYFbODWnfPxx+6sLlcMT6tqghgILHB13+ccYqVjBA=";
+    hash = "sha256-X1qkQUEhBqhMvdStN2YMj7nmqHWpO//y6afrBdAmVUI=";
   };
 
   vendorHash = "sha256-4K01Xf1EXl/NVX1loQ76l1bW8QglBAQdvlZSo7J4NPI=";
@@ -20,11 +28,19 @@ buildGoModule rec {
     "-X github.com/d-kuro/gwq/internal/cmd.version=v${version}"
   ];
 
-  nativeBuildInputs = [ installShellFiles makeWrapper ];
+  nativeBuildInputs = [
+    installShellFiles
+    makeWrapper
+  ];
 
   postInstall = ''
     wrapProgram $out/bin/gwq \
-      --prefix PATH : ${lib.makeBinPath [ git tmux ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          git
+          tmux
+        ]
+      }
 
     export HOME=$TMPDIR
     $out/bin/gwq completion bash > gwq.bash

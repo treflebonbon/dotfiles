@@ -97,3 +97,11 @@ Impeccableの実装・隔離検証・レビュー・PR公開を今回の完了�
 Mattの対応実装commitは `4e6f129`。採用後個別53件は全通過、2軸レビューの未解決指摘0件、このbranch自身のcanonical全suiteは769件（747通過・22 skip・失敗0、exit 0）で、実Design Hook 13件も全suite内で通過した。最終記録／PR草稿を確認して公開へ進む。検証境界と残保留は [Matt後続記録](mattpocock-pr-20261013.md) に追跡し、Mattのmerge／live配備と更新全体は未完了のまま。
 
 Mattの対応先は [後続PR #400](https://github.com/treflebonbon/dotfiles/pull/400)。実装 `4e6f129`／検証記録 `c6c2d7e` の同topicを `git-push-topic` で公開し、PR作成時のlocal／upstream／PR HEAD一致と英語Conventional title・日本語本文を確認した。Matt PR公開まで完了し、merge／live配備と一般Nix・言語・npm・固定CLI・汎用helper等の残保留は未完了である。
+
+## 固定CLI後続単位（2026-10-13）
+
+先行PR #397–400は開始HEAD `31969aa` へmerge済み。配備済みはユーザー／親の引継ぎに基づく。固定CLI4件（flyline 1.9.0／gwq 0.1.2／waza 0.38.10／Playwright CLI 0.1.22）を `dev/update-fixed-clis-20261013` の [独立記録](fixed-cli-pr-20261013.md) に対応付ける。この単位で分割・実build／起動・関連検証・レビュー・canonical全suite・commit・topic公開・PR作成を行う。固定CLIは未merge・未配備。一般Nix／言語／root npm／studio／汎用helper等は統合成果 `864880c` に保留し、更新全体は未完了。過去の検証は今回の結果へ転記しない。
+
+固定CLIの対応実装commitは `33727ba`。今回branchの関連40件・4CLI実build／起動・2軸レビューが成功し、canonical全suiteも769件（748通過・21 skip・失敗0、runner／ランチャーexit 0）、578 tracked fileの前後不変を確認した。実Design Hook13件と候補Playwright配布fixtureを全suite内で実行した。詳細と残保留は [固定CLI記録](fixed-cli-pr-20261013.md) を参照。最終記録・公開へ進み、merge／live配備と更新全体は未完了のまま。
+
+固定CLIの対応先は [後続PR #402](https://github.com/treflebonbon/dotfiles/pull/402)。実装 `33727ba`／検証記録 `f01c38a` の同topicを `git-push-topic` で公開し、PR作成時のlocal／upstream／PR HEAD一致と指定日本語本文・英語Conventional title・OPEN状態を確認した。固定CLI4件の実装・検証・レビュー・PR公開まで完了。公開先の追記だけを追加commitし、merge／live配備と残る別単位の保留は未完了のまま維持する。

@@ -93,3 +93,11 @@ Matt Pocockのsource採用・検証・レビュー・PR公開を今回の完了�
 最終記録／日本語PR草稿の追加レビューもStandardsの規約違反・重要smell 0件、Specの欠落・依頼外追加・誤実装0件で、未解決指摘はない。計画の時制を明示し、TAPと記載件数・未確認範囲が一致することを両軸が確認した。PR titleは実装commitと同じ `chore(mattpocock): update validated skill set` とし、Conventional形式はcommit-msg hookで検証済み。結果追記対象4 fileを除く573 tracked file、source-selected 6 CLI metadata／output、native lock bytesは全suite時から不変（`tmp/matt-final-output-check.json`）。この結果と追跡をcommitし、clean確認後に公開する。
 
 公開結果: [Matt Pocock後続PR #400](https://github.com/treflebonbon/dotfiles/pull/400) を `main` 向けに作成した。実装 `4e6f129`、検証記録 `c6c2d7e`、branch `dev/update-mattpocock-20261013`。`git-push-topic` が成功し、PR作成時のlocal／upstream／PR HEAD `c6c2d7e42f28656432e238b94013fa89a375dee4` の一致、英語Conventional title／日本語本文／OPEN・ready状態を照合した（`tmp/matt-pr-created.json`）。公開後の変更はこの対応先と既存3記録の追跡だけで、採用source・依存・検証環境は不変。今回のMatt PR公開まで完了、merge／live配備と残る別単位は未完了である。
+
+## 固定CLI後続単位（2026-10-13）
+
+先行PR #397–400は開始HEAD `31969aa` へmerge済み。配備済みはユーザー／親の引継ぎに基づく。固定CLI4件（flyline 1.9.0／gwq 0.1.2／waza 0.38.10／Playwright CLI 0.1.22）を `dev/update-fixed-clis-20261013` の [独立記録](fixed-cli-pr-20261013.md) に対応付ける。この単位で分割・実build／起動・関連検証・レビュー・canonical全suite・commit・topic公開・PR作成を行う。固定CLIは未merge・未配備。一般Nix／言語／root npm／studio／汎用helper等は統合成果 `864880c` に保留し、更新全体は未完了。過去の検証は今回の結果へ転記しない。
+
+固定CLIの対応実装commitは `33727ba`。今回branchの関連40件・4CLI実build／起動・2軸レビューが成功し、canonical全suiteも769件（748通過・21 skip・失敗0、runner／ランチャーexit 0）、578 tracked fileの前後不変を確認した。実Design Hook13件と候補Playwright配布fixtureを全suite内で実行した。詳細と残保留は [固定CLI記録](fixed-cli-pr-20261013.md) を参照。最終記録・公開へ進み、merge／live配備と更新全体は未完了のまま。
+
+固定CLIの対応先は [後続PR #402](https://github.com/treflebonbon/dotfiles/pull/402)。実装 `33727ba`／検証記録 `f01c38a` の同topicを `git-push-topic` で公開し、PR作成時のlocal／upstream／PR HEAD一致と指定日本語本文・英語Conventional title・OPEN状態を確認した。固定CLI4件の実装・検証・レビュー・PR公開まで完了。公開先の追記だけを追加commitし、merge／live配備と残る別単位の保留は未完了のまま維持する。
