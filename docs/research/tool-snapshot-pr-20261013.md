@@ -129,3 +129,7 @@ PR [#397](https://github.com/treflebonbon/dotfiles/pull/397) は `ef64dd3b6a2787
 通常APM後続の対応実装commitは `d8adb3a12125dd23f7186ff9a0dccb5e152c5211`、公開branchは `dev/refresh-ordinary-apm-20261013`。同branch自身のcanonical全suiteは769件（735通過・34 skip・失敗0、exit 0）で、詳細と保留一覧は上記の通常APM分割記録を参照する。通常APMのmerge／live配備はこの承認範囲に含めない。
 
 通常APMの対応先は [後続PR #398](https://github.com/treflebonbon/dotfiles/pull/398)。通常APMの分割・検証・レビュー・commit・topic push・PR作成は完了し、merge／live配備とImpeccable／Matt／一般Nix／言語／npm／汎用helper等の保留は残る。
+
+## Impeccable後続単位の追跡（2026-10-13）
+
+上記は各PR公開時点の履歴。現在はPR #397／#398がmain `7af6a0a` へmerge済みで、ユーザーは両方を配備済みと報告し、親がlive source／lock一致を確認した。保留Impeccableのskill 4.5.2／engine 0.1.14は `dev/update-impeccable-20261013` の [独立分割記録](impeccable-pr-20261013.md) に対応付ける。ADR-0045 Decision 3とADR-0053の一体検証で、Impeccableのmanifest／native lock／Nix package／tests／runtime版表記だけを採用予定とする。Matt等の残差分は統合成果 `864880c` に保持し、後続PR未作成・未配備のまま。更新全体は未完了。

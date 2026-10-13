@@ -149,3 +149,7 @@ root `bun install --frozen-lockfile`／`bunx tsc --noEmit`、変更文書とmani
 最終記録とPR草稿のStandards／Specレビューも指摘0件。追跡済み575fileのうち、結果追記対象2fileを除く573fileは全suite前と同じhashで、source-selected 6 CLI metadata／outputとcanonical `with-env` outputも不変と確認した（`tmp/ordinary-apm-final-output-check.log`）。検証条件は不変のため全suiteを繰り返さず、最終結果と追跡をcommitして公開する。
 
 公開結果: [通常APM後続PR #398](https://github.com/treflebonbon/dotfiles/pull/398) を `main` 向けに作成した。`git-push-topic` の公開、作成時のlocal／upstream／PR HEAD `34b946c` の一致、日本語本文と英語Conventional titleを確認済み。今回の通常APM PR作業は公開まで完了し、merge／live配備と他の保留単位は未完了のまま。
+
+## 後続Impeccableへの対応（2026-10-13）
+
+公開時の履歴を保持する。現在はPR #398がmain `7af6a0a` へmerge済みとGitHubで確認し、配備済みのユーザー報告・親のlive source／lock一致確認を引き継いだ。保留Impeccableのmanifest／native lock／Nix package／関連tests／runtime版表記は `dev/update-impeccable-20261013` の [独立分割記録](impeccable-pr-20261013.md) で実装・隔離検証・レビュー・公開する。今回の通常18依存は不変として照合する。Matt／一般Nix／言語／npm／fixed CLI／helper等は統合成果 `864880c` に保持し、後続PR未作成・未配備。Impeccable公開を更新全体やlive配備の完了とは扱わない。
