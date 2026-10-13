@@ -82,8 +82,10 @@ root frozen npm install／`bunx tsc --noEmit`、変更文書・manifestのOXC fo
 
 ## 最終記録と公開の境界
 
-全suite後の差分は本記録の結果追記と既存2記録への対応commit／状態追記だけ。manifest／lock／tests／Nix／依存／検証環境は変更せず、不要な全suite反復はしない。最終記録と日本語PR草稿を両軸で確認し、結果をcommitしてclean／fullsuite成功を照合後、`git-push-topic` で公開する。remote defaultは `main`、同branchの既存PRはなかった。英語Conventional titleと新しい一時bodyfileからPRを作成し、公開結果を追跡へ反映する。
+PR公開前の計画: 全suite後の差分は本記録の結果追記と既存2記録への対応commit／状態追記だけ。manifest／lock／tests／Nix／依存／検証環境は変更せず、不要な全suite反復はしない。最終記録と日本語PR草稿を両軸で確認し、結果をcommitしてclean／fullsuite成功を照合後、`git-push-topic` で公開する。remote defaultは `main`、同branchの既存PRはなかった。英語Conventional titleと新しい一時bodyfileからPRを作成し、公開結果を追跡へ反映する。
 
 Impeccableの実装・隔離検証・レビュー・PR公開を今回の完了境界とする。merge／live applyは実施せず、Matt／一般Nix／言語／npm／fixed CLI／汎用helperの後続PR未作成・未配備の保留を維持する。更新全体は未完了である。
 
-最終記録／日本語PR草稿のSpecレビューは指摘0件。Standardsは計画の時制が曖昧な1文を指摘し、採用commit前の計画と明示して再確認で解消した。追加指摘・未解決指摘はない。結果追記対象3 file以外の573 tracked file、source-selected 6 CLI output／version、候補engine、canonical `with-env` outputは全suite時から不変（`tmp/impeccable-final-output-check.json`）。PR titleは `chore(impeccable): update validated skill and engine` とし、公開後にも照合する。
+最終記録／日本語PR草稿のSpecレビューは指摘0件。Standardsは計画の時制が曖昧な1文を指摘し、採用commit前の計画と明示して再確認で解消した。追加指摘・未解決指摘はない。結果追記対象3 file以外の573 tracked file、source-selected 6 CLI output／version、候補engine、canonical `with-env` outputは全suite時から不変（`tmp/impeccable-final-output-check.json`）。PR titleは `chore(impeccable): update validated skill and engine` で、公開後のGitHub titleも照合済み。
+
+公開結果: [Impeccable後続PR #399](https://github.com/treflebonbon/dotfiles/pull/399) を `main` 向けに作成した。採用実装commitは `83a8f38`、検証記録commitは `e7b0d7b`、branchは `dev/update-impeccable-20261013`。`git-push-topic` の公開、PR作成時のlocal／upstream／PR HEAD `e7b0d7b682fddb292727ab52cd1de7e3cb0b1f63` の一致、英語Conventional title／日本語本文／OPEN状態を確認済み（`tmp/impeccable-pr-created.json`）。公開後はこの結果と既存追跡への対応先だけを追記し、採用source・依存・検証環境は不変。今回のImpeccable PR公開まで完了し、merge／live配備と残る別単位は未完了である。

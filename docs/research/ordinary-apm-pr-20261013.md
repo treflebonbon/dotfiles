@@ -155,3 +155,5 @@ root `bun install --frozen-lockfile`／`bunx tsc --noEmit`、変更文書とmani
 公開時の履歴を保持する。現在はPR #398がmain `7af6a0a` へmerge済みとGitHubで確認し、配備済みのユーザー報告・親のlive source／lock一致確認を引き継いだ。保留Impeccableのmanifest／native lock／Nix package／関連tests／runtime版表記は `dev/update-impeccable-20261013` の [独立分割記録](impeccable-pr-20261013.md) で実装・隔離検証・レビュー・公開する。今回の通常18依存は不変として照合する。Matt／一般Nix／言語／npm／fixed CLI／helper等は統合成果 `864880c` に保持し、後続PR未作成・未配備。Impeccable公開を更新全体やlive配備の完了とは扱わない。
 
 Impeccable対応実装commit `83a8f38` の非candidate19 dependencyと共有ownerを含むledgerは全field不変。candidate実Design Hookを含む同branchのcanonical全suiteは769件（747通過・22 skip・失敗0、exit 0）、事前Standards／Specレビューは指摘0件。最終記録／PR草稿の確認後にtopic／PR公開へ進む。今回のImpeccable live配備、Matt等の後続保留は残る。
+
+Impeccableの対応先は [後続PR #399](https://github.com/treflebonbon/dotfiles/pull/399)。採用実装 `83a8f38`／検証記録 `e7b0d7b` を同topicから公開し、PR作成時のHEAD一致と日本語本文・英語Conventional titleを確認した。最終レビューの時制1文の指摘も修正・再確認済み。通常APMはmerge・配備済み、ImpeccableはPR公開済み・merge／配備未実施、Matt等は引き続き後続PR未作成・未配備と区別する。
