@@ -125,3 +125,5 @@ source-selected APM 0.33.0とsource-selected Impeccable engineを用い、新し
 ## 通常APM後続単位の追跡（2026-10-13）
 
 PR [#397](https://github.com/treflebonbon/dotfiles/pull/397) は `ef64dd3b6a2787a8b4b46d53d88649a9270dfa9f` へmerge済み。ユーザーは配備済みと報告し、親がlive source一致を確認した。上記の分割時点の履歴を保持し、保留だった通常APM18 dependencyのmanifest／native lockと関連期待値は [通常APMの分割記録](ordinary-apm-pr-20261013.md) に対応付ける。Impeccable／Matt部分、一般Nix／言語／npm／汎用helper等の後続PRは未作成・保留。通常APMの公開を更新全体やlive配備の完了として扱わない。
+
+通常APM後続の対応実装commitは `d8adb3a12125dd23f7186ff9a0dccb5e152c5211`、公開branchは `dev/refresh-ordinary-apm-20261013`。同branch自身のcanonical全suiteは769件（735通過・34 skip・失敗0、exit 0）で、詳細と保留一覧は上記の通常APM分割記録を参照する。通常APMのmerge／live配備はこの承認範囲に含めない。

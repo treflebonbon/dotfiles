@@ -105,7 +105,7 @@ source外の隔離cwd／HOME／全XDGでsource-selected APM 0.33.0を照合し�
 | `vercel-labs/agent-skills/skills/web-design-guidelines` | `063bee94` → `063bee94` | `sha256:a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a` | 全field不変 |
 | `vercel-labs/skills/skills/find-skills` | `05bf9387` → `13e4063a` | `sha256:913b9d37d0d54047dd65222bb8c67b2bf04e3cb87dcad1729068d7a8b2c8c396` | revision-only |
 
-両target discoveryは各46 skill。全1,372 file hashを実bytesと照合し、SKILL frontmatter、runtime内の配布先、余剰／不足skillを確認した。追加はModern Webの9 guide×2 target＝18 fileとshadcnの6 file×2＝12 file、削除0。owner ledgerは1,464 record、追加30、candidateだけのhash更新112。既存owners／active_ownerは全て不変で、候補外全recordと全metadataは不変。ImpeccableとMattはpackage_typeを含む全dependency field、pin／payload／fullset／単独・共有owner ledgerが不変。native package_type変化は今回はなかった。比較に成功したnative lockだけをsourceへコピーし、手編集・oxfmtはしていない。
+両target discoveryは各46 skill。全1,372 file hashを実bytesと照合し、SKILL frontmatter、runtime内の配布先、余剰／不足skillを確認した。追加はModern Webの9 guide×2 target＝18 fileとshadcnの6 file×2＝12 file、削除0。owner ledgerは1,464 record、追加30、candidateだけのhash更新112。既存owners／active_ownerは全て不変で、候補外全recordとfloatingのresolved_commitを除く全metadataは不変。ImpeccableとMattはpackage_typeを含む全dependency field、pin／payload／fullset／単独・共有owner ledgerが不変。native package_type変化は今回はなかった。比較に成功したnative lockだけをsourceへコピーし、手編集・oxfmtはしていない。
 
 証拠はGit管理外の `/tmp/nix-shell.eQp2pY/ordinary-apm-20261013-unow0x9a/{generation.log,frozen.log,audit.log,deployment.log,comparison.json,ledger-result.json,plan.json,lock-sha256}`、このcheckoutの `tmp/ordinary-apm-comparison.log`。補助helperは `tmp/reference-verify-apm-deployment.mjs` へ読み取り取得した参照版で、PRへ追加しない。
 
@@ -129,3 +129,21 @@ source-selected Impeccable engine 0.1.12とこの候補runtimeの旧pin launcher
 root `bun install --frozen-lockfile`／`bunx tsc --noEmit`、変更文書とmanifestのOXC format、`git diff --check`は成功。配布shadcnのshowcase TSX 2fileもBunの構文変換がexit 0（同APM runtimeの `showcase-syntax.log`）。source変更はmanifest／native lock／対象期待値／分割追跡の6fileだけで、元差分43fileの採否・保留を追跡している（`tmp/ordinary-apm-scope-check.log`）。新logicはないためTDD用の新seam／配布helperは追加していない。
 
 この差分をcommitし、fixed point `ef64dd3b6a2787a8b4b46d53d88649a9270dfa9f` からStandards／Specをgpt-6-luna／xhighの2軸subagentでレビューする。現在の承認要件、適用ADRの箇所、予定変更と分割追跡、過去統合成果を区別して渡す。指摘修正後の同じsource-selected環境でcanonical `lefthook run test`を一度実行し、最終結果をここへ追記する。
+
+## 事前レビューと最終全suite
+
+実装commit `d8adb3a12125dd23f7186ff9a0dccb5e152c5211` をfixed point `ef64dd3b6a2787a8b4b46d53d88649a9270dfa9f`からStandards／Specの2軸subagent（gpt-6-luna／xhigh）で確認した。Standardsは規約違反0件・smell 0件、Specは欠落／部分実装0件・依頼外追加0件・誤実装0件。両軸へ現在の承認要件、ADR適用箇所、予定変更と元差分43fileの分割追跡、過去統合成果の参考扱いを渡し、指摘修正は不要だった。
+
+同commitのsource・test・依存・検証環境を固定し、隔離HOME／全XDGのsource-selected user／repo devShellで6 CLI output／実起動を再照合した後、このbranch自身でcanonical `lefthook run test`を一度実行した。全769件（735通過・34 skip・失敗0）、runner／helperともexit 0。TAP planは1つで件数と一致し、1から769の全連続番号、bailoutなしを確認した。全tracked sourceのSHA-256も実行前後で不変だった。証拠は `tmp/test-run.vGNrq0/{tap.log,setup.log,environment,exit-code}`、`tmp/ai-tools-wk8mvus9/{metadata.json,startup.log,exit-code}`、集計は `tmp/ordinary-apm-full-result.json`。PythonはNix storeのpython3.14環境、`with-env`は `/nix/store/q3xwg3rk7s8l92a92rmaiqpmh3rmnp1m-with-env/bin/with-env` に解決されている。過去の統合成果の769／787件を代用していない。
+
+34 skipはDesign Hook未materializeの12件、`TEST_PLAYWRIGHT_PACKAGE`未指定の実配布fixture 1件、実モデル／認証／Herdr／隔離runtime／全6言語生成／public Nix app等の既定opt-in 21件。Design Hookは上記別gateで13/13成功したが、全suiteの735通過へ合算しない。組織policy enforcement、ARM Linux／Darwin実機、変更していないPlaywright実配布fixtureと既定opt-inは未確認として残す。
+
+追加の一次資料確認では、[RemotionのInteractive.withSchema公式docs](https://www.remotion.dev/docs/interactive-with-schema) の `layout: 'absolute-fill'`（4.0.535）とwrapperのstyle／dimension契約がcandidateと一致した。[npm公式dist-tags](https://registry.npmjs.org/-/package/effect/dist-tags) のEffect latestは4.0.4でpre-release表記なし（同APM runtimeの `effect-dist-tags.json`）。Modern Web新規security guideは [WICG仕様](https://wicg.github.io/webcrypto-modern-algos/) とalgorithm名／static support detectionを照合した。全ブラウザでの各新APIの実行を完了したとは扱わない。これらは候補の再解決やsourceの追加変更を伴わない。
+
+## 最終記録と公開の境界
+
+全suite後の変更は本記録の結果追記・metadata不変の表現の明確化、既存Snapshot記録への対応commitの追跡だけ。manifest／lock／tests／依存／Nix source／検証環境を変更せず、全suiteは繰り返さない。最終記録と日本語PR草稿を両軸で確認し、未解決指摘がなければ結果をcommitする。clean状態と成功full-suite、source-selected output不変を照合して `git-push-topic` でこのtopicを公開し、remote defaultを確認してPRを作成する。
+
+通常APMの対応実装commitは `d8adb3a`、公開branchは `dev/refresh-ordinary-apm-20261013`。Impeccable／Matt／一般Nix／言語／npm／汎用helper等の後続PRは未作成・保留。通常APM後続PRの公開までが今回の完了境界であり、更新全体の完了とは区別する。merge／live apply／今回の通常APM live配備は行わない。
+
+最終記録とPR草稿のStandards／Specレビューも指摘0件。追跡済み575fileのうち、結果追記対象2fileを除く573fileは全suite前と同じhashで、source-selected 6 CLI metadata／outputとcanonical `with-env` outputも不変と確認した（`tmp/ordinary-apm-final-output-check.log`）。検証条件は不変のため全suiteを繰り返さず、最終結果と追跡をcommitして公開する。
