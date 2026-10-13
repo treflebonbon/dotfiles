@@ -3,6 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+    nixpkgs-language-sources = {
+      url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
+      flake = false;
+    };
     dotfiles = {
       url = "github:treflebonbon/dotfiles/63e47ffc471ff5e01f58a8a268ea553b0c9ab976";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -10,7 +14,12 @@
   };
 
   outputs =
-    { nixpkgs, dotfiles, ... }:
+    {
+      nixpkgs,
+      nixpkgs-language-sources,
+      dotfiles,
+      ...
+    }:
     let
       systems = [
         "x86_64-linux"
@@ -29,12 +38,13 @@
         system:
         let
           pkgs = pkgsFor.${system};
+          languagePkgs = import nixpkgs-language-sources { inherit system; };
         in
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
               dotfiles.packages.${system}.with-env
-              gleam
+              languagePkgs.gleam
               # Standalone repo: gleam の erlang target 実行に erlang が要る
               # (旧グローバル env では elixir module の beam が供給していた)。
               beam29Packages.erlang

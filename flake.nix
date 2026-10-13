@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-node-sources = {
-      url = "github:NixOS/nixpkgs/dc8993a5c130c05a8565579014968a112d416d76";
+      url = "github:NixOS/nixpkgs/240fddad86d7a0520319f21d8be1b43db426b18d";
       flake = false;
     };
   };
