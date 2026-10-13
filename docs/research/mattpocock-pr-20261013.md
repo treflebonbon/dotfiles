@@ -72,4 +72,22 @@ frozen前後のnative lock SHA-256は `df0f5c410d795058a44fcdf5fdc59462881753df6
 
 `tests/apm-runtime.bats`／`tests/mattpocock-update-gate.bats`／`tests/workflow-contract.bats` はsource-selected user／repo devShellの隔離HOME／全XDGで53件（53通過・skip 0・失敗0）、exit 0。TAP planと1から53の連続番号を照合した（`tmp/matt-individual.log`／同 `.exit`、`tmp/matt-individual-result.json`）。root `bunx tsc --noEmit`、変更manifest／MarkdownのOXC format、`git diff --check`は成功。source manifest／native lockのbytesはDecision 8の生成物と一致する。新しい配布logic／helperは追加せず、pin・期待値の更新には既存fixtureを使った。
 
-採用差分10 fileをcommitし、fixed point `e333f8a74dc467447e2e4e33aa8ddd531e61ed26` のcommit済み差分をStandards／Specへ渡す。現在の承認要件、適用ADR、予定変更、外した全差分と対応先、過去統合成果の参考扱いを区別する。指摘を閉じた後に採用後canonical全suiteを実行し、以下へ結果を追記する。
+採用commit前の計画: 採用差分10 fileをcommitし、fixed point `e333f8a74dc467447e2e4e33aa8ddd531e61ed26` のcommit済み差分をStandards／Specへ渡す。現在の承認要件、適用ADR、予定変更、外した全差分と対応先、過去統合成果の参考扱いを区別する。指摘を閉じた後に採用後canonical全suiteを実行し、以下へ結果を追記する。
+
+## 2軸レビューと採用後canonical全suite
+
+実装commit `4e6f12924a2d736fa6b88c8cc82c4a32603fdbd0` をfixed point `e333f8a74dc467447e2e4e33aa8ddd531e61ed26` からStandards／Specの2軸subagent（gpt-6-luna／xhigh）で確認した。Standardsは規約違反0件・重要smell 0件、Specは欠落／部分実装0件・依頼外追加0件・誤実装0件。現在要件、ADR適用箇所、予定変更と除外34 fileの扱い、参考統合成果を区別して渡し、未解決指摘はない（`tmp/matt-review-result.json`）。
+
+同commitのsource・test・依存を固定し、新しい隔離HOME／全XDG `canonical-env/` のsource-selected user／repo devShellで6 CLIのoutput・version／実起動を照合してから、このbranch自身でcanonical `lefthook run test` を一度実行した。Claude 2.1.296／Codex 0.162.1（cleanup patch付き）／Copilot 1.0.96／Antigravity 1.3.3／APM 0.33.0／Herdr 0.9.3で一致。全769件（747通過・22 skip・失敗0）、runner／ランチャーともexit 0。TAP planは1つで結果件数と一致し、1から769の連続番号・bailoutなしを確認した。577 tracked fileのSHA-256も実行前後で不変だった。
+
+全suite開始前から `IMPECCABLE_HOOK_RUNTIME` をnative runtimeの `.agents/skills/impeccable/scripts/impeccable`、`IMPECCABLE_BIN` をsource-selected engine `/nix/store/jdlsfn13dv4y82vk67x1fanrn67jyj7m-impeccable-0.1.14/bin/impeccable` に固定し、Design Hook 13件は全て実行・通過した。未materialize skipは0件。22 skipは `TEST_PLAYWRIGHT_PACKAGE` 未指定の実配布fixture 1件と、実Herdr・認証・モデル・MCP・隔離runtime・Bash 3.2・全6言語生成・public Nix app等の既定opt-in 21件である。skipを通過へ合算せず、採用前gateや過去769／787件も採用後の成功へ転記していない。
+
+証拠は `tmp/test-run.JdDz4U/{tap.log,setup.log,environment,exit-code}`、`tmp/matt-canonical.log`／同 `.exit`、`tmp/matt-full-result.json`、`tmp/matt-full-source-{before,check}.json`、`tmp/matt-final-metadata.json`。Pythonは `/nix/store/c717105hk6ppc20pi88g0n1ad5nr5s8m-python3-3.14.7-env/bin/python3.14`、`with-env` は `/nix/store/q3xwg3rk7s8l92a92rmaiqpmh3rmnp1m-with-env/bin/with-env` を使用した。型・formatの明示的なexit 0も `tmp/matt-{typecheck,format}.exit` に保存した。
+
+## 最終記録と公開の境界
+
+全suite後の変更は本記録の結果追記・計画の時制明示と、既存3分割記録への対応commit／状態追記だけ。manifest／lock／tests／Nix／依存／検証環境は変更せず、全suiteは反復しない。最終記録と日本語PR草稿を両軸で確認し、commit・clean・検証sourceの不変を照合後、`git-push-topic` でcurrent topicを公開する。remote defaultを再確認し、新しい一時bodyfileから英語Conventional titleでPRを作成する。既存current branch PRがあればeditする。
+
+Matt Pocockのsource採用・検証・レビュー・PR公開を今回の完了境界とする。merge／live apply／上流書込み／他単位公開は行わない。一般Nix／言語／npm／固定CLI／汎用helper等の残差分、実サービスへのwizard操作、組織policy enforcement、既定opt-inの確認は残る。更新全体は未完了である。
+
+最終記録／日本語PR草稿の追加レビューもStandardsの規約違反・重要smell 0件、Specの欠落・依頼外追加・誤実装0件で、未解決指摘はない。計画の時制を明示し、TAPと記載件数・未確認範囲が一致することを両軸が確認した。PR titleは実装commitと同じ `chore(mattpocock): update validated skill set` とし、Conventional形式はcommit-msg hookで検証済み。結果追記対象4 fileを除く573 tracked file、source-selected 6 CLI metadata／output、native lock bytesは全suite時から不変（`tmp/matt-final-output-check.json`）。この結果と追跡をcommitし、clean確認後に公開する。
