@@ -147,3 +147,5 @@ root `bun install --frozen-lockfile`／`bunx tsc --noEmit`、変更文書とmani
 通常APMの対応実装commitは `d8adb3a`、公開branchは `dev/refresh-ordinary-apm-20261013`。Impeccable／Matt／一般Nix／言語／npm／汎用helper等の後続PRは未作成・保留。通常APM後続PRの公開までが今回の完了境界であり、更新全体の完了とは区別する。merge／live apply／今回の通常APM live配備は行わない。
 
 最終記録とPR草稿のStandards／Specレビューも指摘0件。追跡済み575fileのうち、結果追記対象2fileを除く573fileは全suite前と同じhashで、source-selected 6 CLI metadata／outputとcanonical `with-env` outputも不変と確認した（`tmp/ordinary-apm-final-output-check.log`）。検証条件は不変のため全suiteを繰り返さず、最終結果と追跡をcommitして公開する。
+
+公開結果: [通常APM後続PR #398](https://github.com/treflebonbon/dotfiles/pull/398) を `main` 向けに作成した。`git-push-topic` の公開、作成時のlocal／upstream／PR HEAD `34b946c` の一致、日本語本文と英語Conventional titleを確認済み。今回の通常APM PR作業は公開まで完了し、merge／live配備と他の保留単位は未完了のまま。
