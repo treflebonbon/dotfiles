@@ -109,3 +109,7 @@ Goの実test／gopls check／golangci-lint、Rustのvtable／offline Cargo test�
 環境間の既存版差も全package metadataに保存した。repo／userのlefthookは2.1.15／2.1.5、pinactは5.0.0／3.9.2、oxfmtは0.68.0／0.45.0で、リポジトリ編集用と汎用環境の取得元を区別する。root npm lockのoxfmt 0.67.0等は別の保留単位として維持した。今回必要なNode.js 24.21.0は両環境で取得元・版・outputを一致させ、既存callerのpinact検証はrepo側5.0.0で行った。
 
 成功後の変更は今回結果・対応先の文書だけ。実行source／test／Nix・lock／依存／検証環境を維持し、結果文書の追記だけでは全suiteを反復しない。最終記録と日本語3節のPR本文を確認し、commit／clean後に `git-push-topic` で同topicを非force公開して、実remote default `main` 向けの通常PRを作成する。Codexのsource build不要は今回の既存output再利用に限り、未キャッシュ環境のsource build要件は残る。merge／live applyはユーザー担当。root npm／studio／汎用helper等の残保留があるため、更新全体は未完了である。
+
+公開結果: [一般Nix／6言語後続PR #403](https://github.com/treflebonbon/dotfiles/pull/403) を `main` 向けのOPEN・非draft通常PRとして作成した。実装commit `dd7cf20`、検証記録commit `c8cb1bc` を同topic `dev/update-nix-languages-20261013` から `git-push-topic` で非force公開し、作成時のlocal／upstream／PR HEAD `c8cb1bc6db5d9a4298667976e9af08404b54bb26` と英語Conventional title／確定日本語本文の一致を確認した。親もPR状態／本文／CIを独立照合した。公開対応先の追記だけを文書commitとして公開し、実行sourceは維持する。
+
+CIの `scan-pr / osv-scan` はSUCCESS、`osv-scanner` はNEUTRAL。check-run `115366083329` のsummaryはmainの `osv-scanner-full.yml` 構成がPR側で見つからず、新規alertsを判定できないという警告で、annotationsは0件。前者の実行成功と後者の判定制限を区別し、新規alertsなしと報告しない。親はPR #402でも同じSUCCESS＋NEUTRALを確認している。今回workflowは変更しておらず、CI設定修正は範囲へ追加しない（`osv-check-run-initial.json`、`pr-created.json`）。merge／live applyはユーザー担当で未実施、残保留と更新全体の未完了状態は維持する。

@@ -157,3 +157,5 @@ Mattの対応先は [後続PR #400](https://github.com/treflebonbon/dotfiles/pul
 一般Nix入力と6言語テンプレートは承認済みの別単位として実装・検証を開始した。対応先と元差分の採否・残保留は [一般Nix／言語記録](nix-languages-pr-20261013.md) に追跡する。先行PR #397–402の採用済みsourceは維持し、merge／live applyは今回行わない。
 
 一般Nix／6言語単位の実装commitは `dd7cf20`。今回branchの関連89/89、全6言語独立gateと追加compile／test、固定CLI／flyline実TTY、独立レビューStandards 0件／Spec 0件が成功した。同commitのcanonical全suiteは769件（748 pass／21 skip／0 fail、runner／launcher exit 0、579 tracked file不変、942.5秒）。親の独立照合も完了し、[今回記録](nix-languages-pr-20261013.md) と日本語本文を確定してtopic公開・PR作成へ進む。旧成果や別gateの件数は合算せず、merge／live applyとroot npm／studio／汎用helper等の保留は未完了のまま維持する。
+
+一般Nix／6言語の対応先は [後続PR #403](https://github.com/treflebonbon/dotfiles/pull/403)。実装 `dd7cf20`／検証記録 `c8cb1bc` を非force公開し、通常PR・main・確定本文・HEAD一致を照合した。CIはscan-pr / osv-scanのSUCCESSと、osv-scannerの新規alerts判定不可によるNEUTRALを区別する。詳細は [公開記録](nix-languages-pr-20261013.md) を参照。workflow修正は今回追加せず、merge／live apply・残保留・更新全体の完了は未実施のまま維持する。
