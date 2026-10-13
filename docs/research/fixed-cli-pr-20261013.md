@@ -108,3 +108,9 @@ source-selected user／repoの両wsl devShellを、shellHookより先にHOME／�
 開始前から `TEST_PLAYWRIGHT_PACKAGE=/nix/store/5ifpr6jvz2rj8m8vwz79iddsh3ag2li7-playwright-cli-0.1.22`、採用中Impeccableの既存frozen launcherとsource-selected engineを固定した。APM manifest／lockはそのfrozen runtimeとbyte一致しており、APM再解決・配備先変更は行わない。証拠は `tmp/review-round-5503105919/{full-result,source-before,source-check,environment}.json`、`canonical{,-launch}.exit`、`canonical-output.log`、`current-tap-path`、今回のTAP `tmp/test-run.AQaUjf/{tap.log,environment,exit-code}`、6AI CLI起動runtime `tmp/ai-tools-ut6i4gw8/`。前の `tmp/fixed-*`／`tmp/test-run.LtpUUO/` は保持した。ARM／Darwin実機・認証／モデル等の既定opt-in・APM組織policyの未確認境界は変わらない。
 
 親が追加指定したReview Roundの順序は、canonical成功→結果文書追記→一つの `fix: address PR review feedback` commit→固定点 `2893284` からcommit済み差分の `code-review`→`git-push-topic`。この順で進め、公開前の必要修正だけを未公開commitへまとめ直す。published amend／force pushは行わない。今回の結果追記だけでは成功済み全suiteを反復せず、実行source／test／依存／検証環境が変わる場合は再実行する。公開後のshort／full SHA・検証結果・evidence path・HEAD一致を親へ報告し、thread返信／resolveは親へ委ねる。PR本文には公式URL修正と今回の結果を反映する。
+
+一般Nix入力と6言語テンプレートは承認済みの別単位として実装・検証を開始した。対応先と元差分の採否・残保留は [一般Nix／言語記録](nix-languages-pr-20261013.md) に追跡する。先行PR #397–402の採用済みsourceは維持し、merge／live applyは今回行わない。
+
+一般Nix／6言語単位の実装commitは `dd7cf20`。今回branchの関連89/89、全6言語独立gateと追加compile／test、固定CLI／flyline実TTY、独立レビューStandards 0件／Spec 0件が成功した。同commitのcanonical全suiteは769件（748 pass／21 skip／0 fail、runner／launcher exit 0、579 tracked file不変、942.5秒）。親の独立照合も完了し、[今回記録](nix-languages-pr-20261013.md) と日本語本文を確定してtopic公開・PR作成へ進む。旧成果や別gateの件数は合算せず、merge／live applyとroot npm／studio／汎用helper等の保留は未完了のまま維持する。
+
+一般Nix／6言語の対応先は [後続PR #403](https://github.com/treflebonbon/dotfiles/pull/403)。実装 `dd7cf20`／検証記録 `c8cb1bc` を非force公開し、通常PR・main・確定本文・HEAD一致を照合した。CIはscan-pr / osv-scanのSUCCESSと、osv-scannerの新規alerts判定不可によるNEUTRALを区別する。詳細は [公開記録](nix-languages-pr-20261013.md) を参照。workflow修正は今回追加せず、merge／live apply・残保留・更新全体の完了は未実施のまま維持する。

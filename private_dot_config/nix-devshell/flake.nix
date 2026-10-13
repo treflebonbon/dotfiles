@@ -7,7 +7,7 @@
 
     # 共有チャンネルに未収録の安定版言語パッケージの取得元。
     nixpkgs-language-sources = {
-      url = "github:NixOS/nixpkgs/7a0f122f5090cf4c2ade2a13a0e229d4e19ba71f";
+      url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
       flake = false;
     };
 
