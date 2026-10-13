@@ -133,3 +133,5 @@ PR [#397](https://github.com/treflebonbon/dotfiles/pull/397) は `ef64dd3b6a2787
 ## Impeccable後続単位の追跡（2026-10-13）
 
 上記は各PR公開時点の履歴。現在はPR #397／#398がmain `7af6a0a` へmerge済みで、ユーザーは両方を配備済みと報告し、親がlive source／lock一致を確認した。保留Impeccableのskill 4.5.2／engine 0.1.14は `dev/update-impeccable-20261013` の [独立分割記録](impeccable-pr-20261013.md) に対応付ける。ADR-0045 Decision 3とADR-0053の一体検証で、Impeccableのmanifest／native lock／Nix package／tests／runtime版表記だけを採用予定とする。Matt等の残差分は統合成果 `864880c` に保持し、後続PR未作成・未配備のまま。更新全体は未完了。
+
+Impeccable対応実装commitは `83a8f38`。このbranch自身のcanonical全suiteは769件（747通過・22 skip・失敗0、exit 0）、候補の実Design Hook 13件を全suite内で実行し、2軸事前レビューも指摘0件。最終記録／PR草稿を確認してtopic公開へ進む。今回のImpeccable live配備と、残る別単位の保留は未完了。

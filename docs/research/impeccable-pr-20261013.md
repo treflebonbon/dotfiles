@@ -68,4 +68,22 @@ root frozen npm install／`bunx tsc --noEmit`、変更文書・manifestのOXC fo
 
 証拠はAPM runtimeの `generation.log`／`frozen.log`／`audit.log`／`lock-sha256.json`／`comparison.json`／`deployment.log`／各 `.tap`／`related-result.json` と、このcheckoutの `tmp/ai-tools-4lel5pz4/{metadata.json,startup.log,exit-code}`、`tmp/impeccable-{root,user}-check.log`／engine build記録。補助helperは参照checkoutから `tmp/reference-*` へ読み取り取得しただけでPRへ追加しない。最初のtmp ledger比較はowner IDをrepo URLと誤認してexit 1になり、正式なvirtual-path付きowner IDへcheckerを訂正して再比較に成功した。source lockの補正や候補外driftの除外ではない。
 
-この採用差分をcommitして、fixed point `7af6a0ace1f3f2692c59068d2898c6595dcb020a` からStandards／Specへ現在の承認要件・適用ADR箇所・予定変更・外した差分の追跡・過去参考の区別を渡す。指摘修正後にcanonical全suiteを実行し、その結果を追記する。
+採用commit前の計画は、この採用差分をcommitして、fixed point `7af6a0ace1f3f2692c59068d2898c6595dcb020a` からStandards／Specへ現在の承認要件・適用ADR箇所・予定変更・外した差分の追跡・過去参考の区別を渡し、指摘修正後にcanonical全suiteを実行することだった。実施結果は以下に記録する。
+
+## 2軸レビューとcanonical全suite
+
+採用commit `83a8f38` をfixed point `7af6a0a` からStandards／Specのgpt-6-luna／xhighでレビューした。Standardsは規約違反0件・smell 0件、Specは欠落／部分実装0件・依頼外追加0件・誤実装0件。予定9 fileと実差分、外した全変更の対応、適用ADR、過去の参考と今回の証拠の区別を両軸へ渡した。指摘修正は不要だった。
+
+同commitのsource・依存・環境を固定し、隔離HOME／全XDGのsource-selected user／repo devShellで6 CLI output／実起動と候補engine／launcher pathを再照合した後、このbranch自身でcanonical `lefthook run test` を一度実行した。全769件（747通過・22 skip・失敗0）、runner／helperともexit 0。TAP planは1つで件数と一致し、1から769の連続番号・bailoutなしを確認した。全tracked 576 fileのSHA-256も実行前後で不変。過去の769／787件は代用せず、別gateの46件も全suiteへ加算していない。
+
+全suite開始前から `IMPECCABLE_HOOK_RUNTIME=/tmp/impeccable-20261013-a3c3gvew/.agents/skills/impeccable/scripts/impeccable` とNixの候補 `IMPECCABLE_BIN` を固定し、全suite内のDesign Hook 13件も全て実行・通過した。未materializeの12 skipは発生していない。残る22 skipは、`TEST_PLAYWRIGHT_PACKAGE` 未指定の実配布fixture 1件と、実Herdr・認証・モデル・MCP・隔離runtime・Bash 3.2・全6言語生成・public Nix app等の既定opt-in 21件。これらとARM実機・組織policy enforcementは未確認のまま残す。
+
+証拠は `tmp/test-run.q0029w/{tap.log,setup.log,environment,exit-code}`、`tmp/ai-tools-gyfiz5j8/{metadata.json,startup.log,exit-code}`、集計 `tmp/impeccable-full-result.json`、source照合 `tmp/impeccable-full-source-{before,check}.json`。選択されたPythonは `/nix/store/c717105hk6ppc20pi88g0n1ad5nr5s8m-python3-3.14.7-env/bin/python3.14`、`with-env` は `/nix/store/q3xwg3rk7s8l92a92rmaiqpmh3rmnp1m-with-env/bin/with-env`。
+
+## 最終記録と公開の境界
+
+全suite後の差分は本記録の結果追記と既存2記録への対応commit／状態追記だけ。manifest／lock／tests／Nix／依存／検証環境は変更せず、不要な全suite反復はしない。最終記録と日本語PR草稿を両軸で確認し、結果をcommitしてclean／fullsuite成功を照合後、`git-push-topic` で公開する。remote defaultは `main`、同branchの既存PRはなかった。英語Conventional titleと新しい一時bodyfileからPRを作成し、公開結果を追跡へ反映する。
+
+Impeccableの実装・隔離検証・レビュー・PR公開を今回の完了境界とする。merge／live applyは実施せず、Matt／一般Nix／言語／npm／fixed CLI／汎用helperの後続PR未作成・未配備の保留を維持する。更新全体は未完了である。
+
+最終記録／日本語PR草稿のSpecレビューは指摘0件。Standardsは計画の時制が曖昧な1文を指摘し、採用commit前の計画と明示して再確認で解消した。追加指摘・未解決指摘はない。結果追記対象3 file以外の573 tracked file、source-selected 6 CLI output／version、候補engine、canonical `with-env` outputは全suite時から不変（`tmp/impeccable-final-output-check.json`）。PR titleは `chore(impeccable): update validated skill and engine` とし、公開後にも照合する。
