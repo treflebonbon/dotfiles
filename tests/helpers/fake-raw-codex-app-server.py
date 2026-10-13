@@ -5,6 +5,8 @@ import subprocess
 import sys
 
 
+assert sys.argv[1:] == ["-c", 'model_reasoning_effort="low"', "app-server"]
+
 work = Path.cwd()
 base = work.parent
 session = base / "state/devshell-env/sessions/fake-session"
@@ -21,7 +23,7 @@ def reply(request, result):
     send({"id": request["id"], "result": result})
 
 
-def started(thread_id, effort="xhigh"):
+def started(thread_id, effort="low"):
     return {
         "thread": {
             "cliVersion": "fixture",
@@ -68,7 +70,7 @@ def add_turn_context(thread_id):
     path = session_dir / f"rollout-{thread_id}.jsonl"
     with path.open("a", encoding="utf-8") as rollout:
         rollout.write(json.dumps({"type": "turn_context", "payload": {
-            "model": "gpt-6-luna", "effort": "xhigh", "cwd": str(work),
+            "model": "gpt-6-luna", "effort": "low", "cwd": str(work),
         }}) + "\n")
 
 

@@ -384,7 +384,7 @@ for path in sys.argv[1:]:
         config = tomllib.load(f)
 
     assert config["model"] == "gpt-6.1-sol"
-    assert config["model_reasoning_effort"] == "high"
+    assert config["model_reasoning_effort"] == "xhigh"
     assert config["model_reasoning_summary"] == "concise"
     assert config["model_verbosity"] == "medium"
     assert config["personality"] == "pragmatic"
@@ -1420,7 +1420,7 @@ EOF
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
 model = "gpt-6.1-sol"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
 personality = "pragmatic"
@@ -1449,7 +1449,7 @@ EOF
 
   cat >"$home/.codex/config.toml" <<'EOF'
 model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "high"
 
 [projects."/home/ubuntu/workspace/example"]
 trust_level = "trusted"
@@ -1464,7 +1464,7 @@ EOF
   env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   grep -q '^model = "gpt-6.1-sol"$' "$home/.codex/config.toml"
-  grep -q '^model_reasoning_effort = "high"$' "$home/.codex/config.toml"
+  grep -q '^model_reasoning_effort = "xhigh"$' "$home/.codex/config.toml"
   grep -q '^personality = "pragmatic"$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
   grep -q '^enabled = true$' "$home/.codex/config.toml"
@@ -1545,7 +1545,7 @@ EOF
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
 model = "gpt-6.1-sol"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
 personality = "pragmatic"
