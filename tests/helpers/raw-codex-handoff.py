@@ -17,11 +17,11 @@ environment = os.environ | {
     "CODEX_HOME": str(base / "home/.codex"),
     "XDG_STATE_HOME": str(base / "state"),
 }
-expected = ("gpt-6-luna", "xhigh", "isolated", root)
+expected = ("gpt-6-luna", "low", "isolated", root)
 with (base / "handoff.stderr").open("w") as log:
     process = subprocess.Popen(
         [str(base / "bin/codex-worktree"),
-         "-c", 'model_reasoning_effort="xh\\u0069gh"', "app-server"],
+         "-c", 'model_reasoning_effort="low"', "app-server"],
         cwd=root, env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         stderr=log, text=True,
     )

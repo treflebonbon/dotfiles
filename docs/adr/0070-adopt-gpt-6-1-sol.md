@@ -11,6 +11,8 @@ status: accepted
 
 ユーザーの `/implement GPT-6.1 Sol を利用するために codex 更新` に基づく。OpenAI の[モデル資料](https://developers.openai.com/api/docs/models/gpt-6.1-sol)はモデル ID `gpt-6.1-sol` と `high` effort を明記し、[Codex 0.159.1 release](https://github.com/openai/codex/releases/tag/rust-v0.159.1) は同モデルを bundled catalog の既定へ追加した。
 
+親エージェントの現在の既定 effort は、末尾の 2026-10-13 の決定により `xhigh` とする。以下の `high` の採用・実接続の検証は、2026-09-30 時点の記録として保持する。
+
 ## Decision
 
 - `llm-agents.nix` の immutable revision を `a621acfa43a25731694a8ef64fcbd5a00241e085` から `96f40e1e510d8cc7e895baae27f9cf37d2d94882` に進める。後者は [upstream PR #10071](https://github.com/numtide/llm-agents.nix/pull/10071) の Codex 0.159.1 更新コミット。2026-09-30 時点で PR は未 merge なので、main へ取り込まれた後に次回の snapshot 更新で upstream main の pin に戻す。
@@ -30,3 +32,9 @@ status: accepted
 Linux の Codex package に、共有 helper が各 mask に独立した FD を保持するパッチを適用する。snapshot、source、Cargo dependencies、version、quality floor は維持し、[sandbox escape 修正](https://github.com/containers/bubblewrap/security/advisories/GHSA-pxhw-h44j-8pfx)を含む bubblewrap 0.12.0 と既存の deny を使う。この間は Linux の Codex が source build となる。upstream の修正版で公開ファイルの read と複数 denied file の拒否を確認したら、ローカルパッチを削除して direct package の cache 経路へ戻す。
 
 修正版の x86_64-linux package を実際に build し、CLI が `0.159.1` を返すこと、最小再現が3回とも成功することを確認した。追加した実 OS 回帰テストは修正前に2件目の mask で失敗し、修正後は公開ファイルの read と両 denied file の拒否に成功した。元の dotenv 権限テストも通過した。関連35テスト、3 system の Nix 評価、[ADR-0071 の更新ゲート](0071-adopt-mattpocock-standard-workflow.md)全体も成功した。ARM Linux／Darwin は評価のみで、実行検証は x86_64-linux で行った。
+
+## 2026-10-13: 親エージェントの既定 effort を xhigh に変更する
+
+ユーザーの `$implement codex 6.1 sol を high から xhigh に変更` に基づき、Codex 管理設定と親エージェント向け指示を `gpt-6.1-sol` / `xhigh` に揃える。通常作業・設計・レビューに適用し、2026-09-30 の親の `high` 採用と、通常作業へ戻る際に `high` を提案する運用を上書きする。
+
+`xhigh` の厳密な設定解析と管理設定の同期は検証済み。実モデル接続と応答時間・利用量の変化は未検証であり、上記の `high` の実応答を `xhigh` の検証結果として扱わない。
