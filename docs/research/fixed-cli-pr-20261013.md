@@ -72,3 +72,21 @@ source-selected user／repoの両wsl devShellを、shellHookより先にHOME／�
 関連Bats初回は40件中39通過・1失敗、exit 1。実Playwright packageのstore path転記ミスによるfixture入口の失敗であり、候補buildの失敗ではない（`tmp/fixed-related-initial.tap`）。候補pathを `tmp/fixed-paths.json` の実build結果から読む形へ直し、同じ関連40件を再実行する。結果は以下へ追記し、初回と区別する。新しい配布logic／test seamは追加しない。
 
 関連再実行は `tests/nix-devshell.bats`／`tests/playwright-runtime.bats`／`tests/dot_bashrc.bats` の40件が全通過・skip 0・失敗0、Bats exit 0。候補Nix outputを指定した実配布fixtureには共有FD／lock・直接CLI保護の検証を含む。plan 40・1–40の連続番号・bailoutなしを照合した（`tmp/fixed-related-final.tap`／`fixed-related-result.json`）。同じ隔離devShellのroot frozen install／`bunx tsc --noEmit`もexit 0。ランチャーのexit 1は後続Markdown format checkで本記録1 fileの未整形を検出した結果で、Batsの失敗とは区別する。記録を整形して変更fileのformatを再確認し、テストを不要に反復しない。
+
+## 2軸レビューとcanonical全suite
+
+実装commit `33727ba5ec255666daa4e05124538286bee50bc4` をfixed point `31969aa1dca1e7b45be7992083ca8570a5ea2dd2` から `code-review` の2軸subagent（gpt-6-luna／xhigh）で確認した。Standardsは規約違反0件・重要smell 0件、Specは欠落／部分実装0件・依頼外追加0件・誤実装0件。現在要件・ADR箇所・予定12 file・全除外34 file・過去参考と今回の実証の区別を両軸へ渡し、指摘修正は不要だった。ユーザーの追加引継ぎによれば、親の独立Standards／Specも同commitで各0件。親の結果とこの担当のレビューは区別する（`tmp/fixed-review-result.json`）。
+
+親の最終確認後、同commitのsource・test・依存・検証環境を固定し、source-selected user／repo両wsl devShellを隔離HOME／全XDGで起動した。6AI CLIのoutput／実版一致を確認してから、このbranch自身のcanonical `lefthook run test` を一度実行した。全769件（748通過・21 skip・失敗0）、runner／ランチャーともexit 0、1323.89秒。TAP planは1つで件数と一致し、1から769の連続番号・bailoutなしを確認した。実行前後の全578 tracked fileのSHA-256も不変だった。
+
+開始前から `TEST_PLAYWRIGHT_PACKAGE=/nix/store/a625fgzxq8qdhqynb86rffwbvy2q4i0f-playwright-cli-0.1.22`、`IMPECCABLE_HOOK_RUNTIME=/tmp/fixed-clis-apm.mHuaBN/.agents/skills/impeccable/scripts/impeccable`、source-selected `IMPECCABLE_BIN=/nix/store/jdlsfn13dv4y82vk67x1fanrn67jyj7m-impeccable-0.1.14/bin/impeccable` を固定した。全suite内の実Design Hook13件と候補Playwright実配布保護／共有FD・lock fixtureは通過し、未materialize／package未指定skipはなかった。21 skipは実Herdr、Bash 3.2、実モデル／認証付きGitHub／MCP、専用隔離runtime／public dependency gateway、6言語生成、public Nix appの既定opt-in。関連40件や別CLI／browser smoke、先行branchの769／787件を全suiteの通過数へ合算していない。
+
+証拠は `tmp/test-run.LtpUUO/{tap.log,setup.log,environment,exit-code}`、`tmp/fixed-canonical.{log,exit}`、`tmp/fixed-full-result.json`、`tmp/fixed-canonical-{environment,source-before,source-check}.json`、`tmp/ai-tools-5z7e14yx/{metadata.json,startup.log,exit-code}`。canonicalのPythonは `/nix/store/c717105hk6ppc20pi88g0n1ad5nr5s8m-python3-3.14.7-env/bin/python3.14`、`with-env` は `/nix/store/q3xwg3rk7s8l92a92rmaiqpmh3rmnp1m-with-env/bin/with-env` を使用した。
+
+## 最終記録と公開の境界
+
+全suite後の変更は本記録と既存4分割記録への結果・対応先の追記だけ。実行source・test・Nix／lock・依存・検証環境を変更せず、全suiteを不要に再実行しない。ユーザーが再度 `pr` を明示し、親のレビュー済み本文 `/tmp/nix-shell.BKnozE/dotfiles-fixed-cli-pr-reviewed-iusvfi1m.md` の採用を指定したため、新しい一時bodyfileへコピーし全suite行だけを実際の結果へ置き換える。
+
+最終記録・review・commit・clean・fullsuite成功を照合してから、同じtopicを `git-push-topic` で公開し、remote default `main` 向けに英語Conventional title `chore(tools): update pinned fixed CLIs` でPRを作成する。既存current branch PRは入口確認時になかった。固定CLIのPR公開までを今回の完了境界とし、merge／live applyは行わない。一般Nix／言語／root npm／studio／汎用helper等は統合成果 `864880c` に保留し、更新全体の完了とは扱わない。
+
+最終記録と指定PR本文のbounded reviewもStandards／Spec各0件。記録5 file以外の573 tracked file、6AI CLI／4固定CLI／Impeccable engine／canonical `with-env` outputが全suite時から不変であることを確認した（`tmp/fixed-final-{source-check,output-check,outputs}.json`）。ユーザー指定の公開本文との差は全suite行だけで、成功・skip・失敗・exit・source前後一致を実測値へ置換した。結果をcommitしてcleanを確認後、topic公開へ進む。

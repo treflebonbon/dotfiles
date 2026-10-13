@@ -169,3 +169,5 @@ Mattの対応先は [後続PR #400](https://github.com/treflebonbon/dotfiles/pul
 ## 固定CLI後続単位（2026-10-13）
 
 先行PR #397–400は開始HEAD `31969aa` へmerge済み。配備済みはユーザー／親の引継ぎに基づく。固定CLI4件（flyline 1.9.0／gwq 0.1.2／waza 0.38.10／Playwright CLI 0.1.22）を `dev/update-fixed-clis-20261013` の [独立記録](fixed-cli-pr-20261013.md) に対応付ける。この単位で分割・実build／起動・関連検証・レビュー・canonical全suite・commit・topic公開・PR作成を行う。固定CLIは未merge・未配備。一般Nix／言語／root npm／studio／汎用helper等は統合成果 `864880c` に保留し、更新全体は未完了。過去の検証は今回の結果へ転記しない。
+
+固定CLIの対応実装commitは `33727ba`。今回branchの関連40件・4CLI実build／起動・2軸レビューが成功し、canonical全suiteも769件（748通過・21 skip・失敗0、runner／ランチャーexit 0）、578 tracked fileの前後不変を確認した。実Design Hook13件と候補Playwright配布fixtureを全suite内で実行した。詳細と残保留は [固定CLI記録](fixed-cli-pr-20261013.md) を参照。最終記録・公開へ進み、merge／live配備と更新全体は未完了のまま。
