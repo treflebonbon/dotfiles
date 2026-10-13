@@ -137,3 +137,11 @@ PR [#397](https://github.com/treflebonbon/dotfiles/pull/397) は `ef64dd3b6a2787
 Impeccable対応実装commitは `83a8f38`。このbranch自身のcanonical全suiteは769件（747通過・22 skip・失敗0、exit 0）、候補の実Design Hook 13件を全suite内で実行し、2軸事前レビューも指摘0件。最終記録／PR草稿を確認してtopic公開へ進む。今回のImpeccable live配備と、残る別単位の保留は未完了。
 
 Impeccableの対応先は [後続PR #399](https://github.com/treflebonbon/dotfiles/pull/399)。実装 `83a8f38`／検証記録 `e7b0d7b` の同topicを `git-push-topic` で公開し、PR作成時のlocal／upstream／PR HEAD一致を確認した。最終記録の時制1文の指摘は修正・再確認済みで、未解決レビュー指摘はない。ImpeccableのPR公開まで完了、merge／live配備とMatt等の残保留は未完了。
+
+## Matt Pocock後続単位（2026-10-13）
+
+先行PR #397／#398／#399はmerge・配備済みという引継ぎを受け、sourceでは開始HEAD `e333f8a` と一致する。Matt候補 `49dd158d1076134a641b33efb035946536778336` は今回の独立branchで実ordered gate Decision 1–7と別runtimeのnative生成・frozen・audit・bytes／ledger比較を通過し、sourceへ採用した。19 non-Matt dependencyは全field不変。詳細と今回の実検証境界は [Matt後続記録](mattpocock-pr-20261013.md) を参照する。採用直後の計画では、採用後の個別検証・2軸レビュー・canonical全suite・PR公開を後続phaseとした。Mattは未merge・未配備、一般Nix／言語／npm／固定CLI／汎用helper等の残差分は引き続き保留で、更新全体は未完了。過去の検証結果を今回の成功へ転記しない。
+
+Mattの対応実装commitは `4e6f129`。採用後個別53件は全通過、2軸レビューの未解決指摘0件、このbranch自身のcanonical全suiteは769件（747通過・22 skip・失敗0、exit 0）で、実Design Hook 13件も全suite内で通過した。最終記録／PR草稿を確認して公開へ進む。検証境界と残保留は [Matt後続記録](mattpocock-pr-20261013.md) に追跡し、Mattのmerge／live配備と更新全体は未完了のまま。
+
+Mattの対応先は [後続PR #400](https://github.com/treflebonbon/dotfiles/pull/400)。実装 `4e6f129`／検証記録 `c6c2d7e` の同topicを `git-push-topic` で公開し、PR作成時のlocal／upstream／PR HEAD一致と英語Conventional title・日本語本文を確認した。Matt PR公開まで完了し、merge／live配備と一般Nix・言語・npm・固定CLI・汎用helper等の残保留は未完了である。
