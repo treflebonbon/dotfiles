@@ -66,4 +66,12 @@ base／最初のcandidateの `bun audit --json` は両方exit 1で、bracesに�
 
 ## レビュー・canonical・公開
 
-変更JSON／Markdownだけのcandidate formatter確認、独立Standards／Specレビュー、親の最終read-only確認後にcanonical `lefthook run test` を一度実施する。試行独自のTAP／exit／全tracked source前後SHA-256を保存し、過去件数や関連gateを合算しない。実認証／モデル／実機opt-inは既定skipを維持する。成功後に結果文書だけ追記し、承認済みtopicを `git-push-topic` で公開、実remote default向け通常PRを作成する。merge／applyは行わない。
+実装commitは `7e855f1e8604177a576d055ffb95cbc1a0d4829b`。同commitをbase `33c826c` から独立Standards／Specの並列subagent（指定gpt-6-luna／xhigh）でレビューし、両軸0件。親もGit HEAD／clean、4file scope、現在要件・台帳・検証・bundle制限をread-only照合して確認した（`review-result.json`、`parent-confirmation.json`）。pre-commitのOxfmt／gitleaksとcommit-msgのcogを通過した。隔離HOMEで作者情報が見えない初回exit 128と、作者変数だけではcogが設定を取得できない再試行はcommit前に停止した。通常環境で読み取った既存公開identityをprocessへ渡し、隔離HOMEだけへ同じidentityを補って回復した。通常のglobal／shared configは変更せず、hookを省略していない。
+
+同source／test／依存／環境でcanonical `lefthook run test` を一度実行し、769件（748 pass／21 skip／0 fail）、runner／canonical／launcher exit 0、983.15秒で完走した。TAP planは1つ、1–769の連続番号、bailoutなし。全580 tracked fileの実行前後SHA-256は一致した。過去769／787件や今回関連29件をこの通過数へ合算していない。
+
+開始前からsource-selected Playwright browser-free output `/nix/store/r1mia04ilacqdfh4blbgb3hibpjsclap-playwright-cli-0.1.22`、照合済みImpeccable 4.5.2のfrozen runtimeとengine 0.1.14を固定し、同隔離devShell環境の6AI CLI output／実版を再照合した。実Design Hook13件とPlaywright runtime／配布保護・共有FD2件は全suite内で通過し、runtime不足によるskipはない。
+
+21 skipは実Herdr／Bash 3.2、認証・実モデル／MCP、専用隔離runtime／dependency gateway、6言語独立生成、public Nix appの既定opt-in。ARM／Darwin実機やPoC／動的到達性も今回未確認。未変更の6言語gateを実行済みとは扱わない。
+
+今回TAPは `tmp/test-run.Yg07Ud/tap.log`。同directoryにsetup／environment／exit-codeを保存し、`tmp/root-npm-20261014/{full-result,canonical-source-before,canonical-source-check,canonical-environment,canonical-ai-version-check,canonical-required-fixtures}.json`、`canonical{,-launch}.exit`、`canonical-output.log`、`current-tap-path` に試行根拠を保存した。成功後は結果・対応先文書だけを追記し、実行source／test／lock／依存／環境を維持するため全suiteを反復しない。実remote defaultは `main` と確認済み。承認済みtopicを `git-push-topic` で非force公開し通常PRを作成する。merge／applyは行わない。
