@@ -121,3 +121,7 @@ source-selected APM 0.33.0とsource-selected Impeccable engineを用い、新し
 全suite後の変更は本記録の検証結果とレビュー状態だけで、実行source・test・依存・検証環境を変更していない。最終記録もStandards／Specで確認し、commit後にclean状態と公開対象のdiffを確認して`git-push-topic`／dotfiles自身のPR作成へ進める。後続単位のPRは未作成・保留のまま。merge／live applyは今回の完了境界に含めない。Tool Snapshotの公開を更新全体やlive配備の完了とは扱わない。
 
 最終記録とPR草稿のレビューもStandards／Specとも未解決指摘0件。追記後の6 CLI metadata／outputとcanonical `with-env` outputが全suite時と同一であることを確認した（`tmp/snapshot-final-output-check.log`）。実行source・test・依存・検証環境は不変のため全suiteを繰り返さず、検証結果と保留状態をcommitして公開する。
+
+## 通常APM後続単位の追跡（2026-10-13）
+
+PR [#397](https://github.com/treflebonbon/dotfiles/pull/397) は `ef64dd3b6a2787a8b4b46d53d88649a9270dfa9f` へmerge済み。ユーザーは配備済みと報告し、親がlive source一致を確認した。上記の分割時点の履歴を保持し、保留だった通常APM18 dependencyのmanifest／native lockと関連期待値は [通常APMの分割記録](ordinary-apm-pr-20261013.md) に対応付ける。Impeccable／Matt部分、一般Nix／言語／npm／汎用helper等の後続PRは未作成・保留。通常APMの公開を更新全体やlive配備の完了として扱わない。
