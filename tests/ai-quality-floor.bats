@@ -16,34 +16,34 @@ evaluate_floor() {
   evaluate_floor claude-code '{ }'
   [ "$status" -ne 0 ]
   [[ "$output" == *'claude-code 不明'* ]]
-  [[ "$output" == *'2.1.289'* ]]
+  [[ "$output" == *'2.1.296'* ]]
 }
 
 @test "quality floor rejects Codex with missing version metadata and identifies it as unknown" {
   evaluate_floor codex '{ }'
   [ "$status" -ne 0 ]
   [[ "$output" == *'codex 不明'* ]]
-  [[ "$output" == *'0.159.1'* ]]
+  [[ "$output" == *'0.162.0'* ]]
 }
 
 @test "quality floor accepts input packages at the approved floors" {
-  evaluate_floor claude-code '{ version = "2.1.289"; }'
+  evaluate_floor claude-code '{ version = "2.1.296"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.289" and .matchesSource' <<<"$output"
+  jq -e '.version == "2.1.296" and .matchesSource' <<<"$output"
 
-  evaluate_floor codex '{ version = "0.159.1"; }'
+  evaluate_floor codex '{ version = "0.162.0"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.159.1" and .matchesSource' <<<"$output"
+  jq -e '.version == "0.162.0" and .matchesSource' <<<"$output"
 }
 
 @test "quality floor accepts input packages above the approved floors" {
-  evaluate_floor claude-code '{ version = "2.1.290"; }'
+  evaluate_floor claude-code '{ version = "2.1.297"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "2.1.290" and .matchesSource' <<<"$output"
+  jq -e '.version == "2.1.297" and .matchesSource' <<<"$output"
 
-  evaluate_floor codex '{ version = "0.159.2"; }'
+  evaluate_floor codex '{ version = "0.162.1"; }'
   [ "$status" -eq 0 ]
-  jq -e '.version == "0.159.2" and .matchesSource' <<<"$output"
+  jq -e '.version == "0.162.1" and .matchesSource' <<<"$output"
 }
 
 @test "quality floor rejects null versions as unknown for each tool" {
@@ -68,8 +68,8 @@ evaluate_floor() {
     [[ "$diagnostic" == *'private_dot_config/nix-devshell/flake.nix'* ]]
     [ "$(wc -l <<<"$diagnostic")" -le 12 ]
   done <<'CASES'
-claude-code 2.1.288 2.1.289 docs/adr/0047-test-quality-floors-through-package-outputs.md
-codex 0.158.0 0.159.1 docs/adr/0070-adopt-gpt-6-1-sol.md
+claude-code 2.1.295 2.1.296 docs/adr/0045-separate-llm-agents-and-apm-update-units.md
+codex 0.161.0 0.162.0 docs/adr/0045-separate-llm-agents-and-apm-update-units.md
 CASES
 }
 

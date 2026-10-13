@@ -38,19 +38,19 @@ Issue #204 の実装入口で `numtide/llm-agents.nix` の default branch HEAD �
 
 #### Verification Matrix（Issue #204）
 
-| AC                                            | 種別              | 検証                                                                                                    | 結果      | 未確認理由                                     |
-| --------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
-| stable/default HEADを一度だけ固定             | infra             | 実装入口でdefault branchを一度だけ再確認し`ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6`を固定              | 確認済み  | —                                              |
-| source / lock / metadataの整合                | infra             | `flake.nix`とlockの`original.rev` / `locked.rev`、3-system metadata evalを照合                          | 確認済み  | —                                              |
-| 導入済み5 CLIとAPMを更新                      | CLI / infra       | Claude 2.1.252、Codex 0.151.0、Copilot 1.0.82、`agy` 1.1.22、APM 0.29.0。RTK 0.46.0も同じsnapshotで確認 | 確認済み  | version固有機能のinteractive再現は未実施       |
-| Codex 0.152の収録待ちをしない                 | policy            | 一度の再確認で未収録を確認し0.151.0を採用                                                               | 確認済み  | —                                              |
-| `update_plan`を強制opt-inしない               | config / workflow | repository configに設定なし、workflow contract 14/14、candidate Codexで`tdd`の開始と`resume --last`継続 | 確認済み  | —                                              |
-| OpenCodeを新規配備しない                      | config            | `modules/ai.nix`に`llm.opencode`なし                                                                    | 確認済み  | —                                              |
-| supported systemsのNix evaluation             | infra             | `nix flake check --no-build --all-systems`と3-system metadata eval                                      | 確認済み  | aarch64-linux / aarch64-darwin実機実行は未実施 |
-| Linux devShell build/startupとCLI smoke/floor | CLI / infra       | cacheable direct Codex、2.00秒build、隔離HOME startup、6 CLI version/help、floor tests                  | 確認済み  | fresh hostでのdownload時間は未計測             |
-| PR #202 workflow regression                   | workflow          | `tests/workflow-contract.bats` 14/14                                                                    | 確認済み  | —                                              |
-| APM payload不変・live applyなし               | safety            | `git diff --quiet -- apm.yml apm.lock.yaml`、`chezmoi source-path`を確認                                | 確認済み  | —                                              |
-| Verification Matrix                           | docs              | source側の本表を作成                                                                                    | 後続phase | PR本文への転記は`/to-pr`で行う                 |
+| AC | 種別 | 検証 | 結果 | 未確認理由 |
+| --- | --- | --- | --- | --- |
+| stable/default HEADを一度だけ固定 | infra | 実装入口でdefault branchを一度だけ再確認し`ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6`を固定 | 確認済み | — |
+| source / lock / metadataの整合 | infra | `flake.nix`とlockの`original.rev` / `locked.rev`、3-system metadata evalを照合 | 確認済み | — |
+| 導入済み5 CLIとAPMを更新 | CLI / infra | Claude 2.1.252、Codex 0.151.0、Copilot 1.0.82、`agy` 1.1.22、APM 0.29.0。RTK 0.46.0も同じsnapshotで確認 | 確認済み | version固有機能のinteractive再現は未実施 |
+| Codex 0.152の収録待ちをしない | policy | 一度の再確認で未収録を確認し0.151.0を採用 | 確認済み | — |
+| `update_plan`を強制opt-inしない | config / workflow | repository configに設定なし、workflow contract 14/14、candidate Codexで`tdd`の開始と`resume --last`継続 | 確認済み | — |
+| OpenCodeを新規配備しない | config | `modules/ai.nix`に`llm.opencode`なし | 確認済み | — |
+| supported systemsのNix evaluation | infra | `nix flake check --no-build --all-systems`と3-system metadata eval | 確認済み | aarch64-linux / aarch64-darwin実機実行は未実施 |
+| Linux devShell build/startupとCLI smoke/floor | CLI / infra | cacheable direct Codex、2.00秒build、隔離HOME startup、6 CLI version/help、floor tests | 確認済み | fresh hostでのdownload時間は未計測 |
+| PR #202 workflow regression | workflow | `tests/workflow-contract.bats` 14/14 | 確認済み | — |
+| APM payload不変・live applyなし | safety | `git diff --quiet -- apm.yml apm.lock.yaml`、`chezmoi source-path`を確認 | 確認済み | — |
+| Verification Matrix | docs | source側の本表を作成 | 後続phase | PR本文への転記は`/to-pr`で行う |
 
 ### llm-agents snapshot（2026-09-02 follow-up、v2.1.257 release note トリガー）
 
@@ -119,26 +119,26 @@ Issue #184 の実装入口では、upstream stable/default branch HEAD を一度
 
 APM 0.28.0 の隔離 cwd / HOME で全18 dependencyを再materializeし、accepted lockとcandidateのselected subtreeを`resolved_commit` / `content_hash`で比較した。payloadが変わるのはModern Web GuidanceとRemotionの2件、revision-onlyはShadcnとOrcaの`computer-use` / `orchestration`の3件、残り13件はcommit/hashとも不変だった。
 
-| selected dependency                               | accepted → candidate    | content hash            | 分類・採否                    |
-| ------------------------------------------------- | ----------------------- | ----------------------- | ----------------------------- |
-| `anthropics/skills/pdf`                           | `3b3fad96` → `3b3fad96` | `69e2ac9e` → same       | 不変                          |
-| `anthropics/skills/skill-creator`                 | `3b3fad96` → `3b3fad96` | `b2bfe91d` → same       | 不変                          |
-| `Effect-TS/skills/effect-ts`                      | `28822c9e` → `28822c9e` | `261b9f3f` → same       | 不変                          |
-| `GoogleChrome/modern-web-guidance`                | `460e5536` → `457c381d` | `8951bdfc` → `07775fbf` | payload変更、exact pin採用    |
-| `mattpocock/skills`                               | `6acc160e` → `6acc160e` | `7c5f630f` → same       | 不変、別更新単位のpin維持     |
-| `mizchi/skills/empirical-prompt-tuning`           | `7a0d7286` → `7a0d7286` | `20e7fba9` → same       | 不変                          |
-| `pbakaus/impeccable`                              | `c39b6425` → `c39b6425` | `d79bd3df` → same       | 不変、別更新単位のpin維持     |
-| `remotion-dev/skills/remotion-best-practices`     | `7fc6dea3` → `7a3d0ca4` | `7e361522` → `2493dc60` | payload変更、exact pin採用    |
-| `shadcn-ui/ui/shadcn`                             | `ac60ef5c` → `683a5a9b` | `8b8c1296` → same       | revision-only、floating再解決 |
-| `stablyai/orca/computer-use`                      | `5bcbafff` → `9c01e09e` | `afe48be6` → same       | revision-only、floating再解決 |
-| `stablyai/orca/orca-cli`                          | `5ca747da` → `5ca747da` | `cca6a909` → same       | 不変、exact pin維持           |
-| `stablyai/orca/orchestration`                     | `5bcbafff` → `9c01e09e` | `b5c36487` → same       | revision-only、floating再解決 |
-| `supabase/agent-skills`                           | `8331f910` → `8331f910` | `5766a8e9` → same       | 不変                          |
-| `vercel-labs/agent-skills/composition-patterns`   | `dd089a8c` → `dd089a8c` | `5b3564ca` → same       | 不変                          |
-| `vercel-labs/agent-skills/react-best-practices`   | `dd089a8c` → `dd089a8c` | `74f142d2` → same       | 不変                          |
-| `vercel-labs/agent-skills/react-view-transitions` | `dd089a8c` → `dd089a8c` | `aa4cf8be` → same       | 不変                          |
-| `vercel-labs/agent-skills/web-design-guidelines`  | `dd089a8c` → `dd089a8c` | `a6a44d54` → same       | 不変                          |
-| `vercel-labs/skills/find-skills`                  | `435076e7` → `435076e7` | `913b9d37` → same       | 不変                          |
+| selected dependency | accepted → candidate | content hash | 分類・採否 |
+| --- | --- | --- | --- |
+| `anthropics/skills/pdf` | `3b3fad96` → `3b3fad96` | `69e2ac9e` → same | 不変 |
+| `anthropics/skills/skill-creator` | `3b3fad96` → `3b3fad96` | `b2bfe91d` → same | 不変 |
+| `Effect-TS/skills/effect-ts` | `28822c9e` → `28822c9e` | `261b9f3f` → same | 不変 |
+| `GoogleChrome/modern-web-guidance` | `460e5536` → `457c381d` | `8951bdfc` → `07775fbf` | payload変更、exact pin採用 |
+| `mattpocock/skills` | `6acc160e` → `6acc160e` | `7c5f630f` → same | 不変、別更新単位のpin維持 |
+| `mizchi/skills/empirical-prompt-tuning` | `7a0d7286` → `7a0d7286` | `20e7fba9` → same | 不変 |
+| `pbakaus/impeccable` | `c39b6425` → `c39b6425` | `d79bd3df` → same | 不変、別更新単位のpin維持 |
+| `remotion-dev/skills/remotion-best-practices` | `7fc6dea3` → `7a3d0ca4` | `7e361522` → `2493dc60` | payload変更、exact pin採用 |
+| `shadcn-ui/ui/shadcn` | `ac60ef5c` → `683a5a9b` | `8b8c1296` → same | revision-only、floating再解決 |
+| `stablyai/orca/computer-use` | `5bcbafff` → `9c01e09e` | `afe48be6` → same | revision-only、floating再解決 |
+| `stablyai/orca/orca-cli` | `5ca747da` → `5ca747da` | `cca6a909` → same | 不変、exact pin維持 |
+| `stablyai/orca/orchestration` | `5bcbafff` → `9c01e09e` | `b5c36487` → same | revision-only、floating再解決 |
+| `supabase/agent-skills` | `8331f910` → `8331f910` | `5766a8e9` → same | 不変 |
+| `vercel-labs/agent-skills/composition-patterns` | `dd089a8c` → `dd089a8c` | `5b3564ca` → same | 不変 |
+| `vercel-labs/agent-skills/react-best-practices` | `dd089a8c` → `dd089a8c` | `74f142d2` → same | 不変 |
+| `vercel-labs/agent-skills/react-view-transitions` | `dd089a8c` → `dd089a8c` | `aa4cf8be` → same | 不変 |
+| `vercel-labs/agent-skills/web-design-guidelines` | `dd089a8c` → `dd089a8c` | `a6a44d54` → same | 不変 |
+| `vercel-labs/skills/find-skills` | `435076e7` → `435076e7` | `913b9d37` → same | 不変 |
 
 revision-onlyのfloating解決はShadcn `683a5a9b370acdb7785a0529434e6a3b8c7e0441`、Orca `computer-use` / `orchestration` `9c01e09ecc9d3c1203968ace9945d16edfb35dd2`である。selected content hashはそれぞれaccepted lockの`sha256:8b8c1296ad947a237b32c21857837357f29197c53722131758777c80d26ed1ad`、`sha256:afe48be623c1f6190ade7dacc4c1d334d4150b503ed00b28dda23a499e5bdc30`、`sha256:b5c364878fb07d21a369f091f2e96b823da94308b15b39636f2585d8b5621b51`と一致するためmanifestへpinを追加していない。
 
@@ -190,23 +190,23 @@ Codex native hooksは配備済みで、materialized runtimeへのJSON eventで�
 
 #### Final Verification Matrix（親Issue #183）
 
-| AC                                                | 種別              | 実行コマンドまたは理由                                                                                                                                                                                                                                                                  | 結果     | 未確認理由                                                                  |
-| ------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------- |
-| #183-1 stable/default HEADを一度だけ固定          | infra             | Issue #184で`4a9441120caf6c6aff273af68995267a35c20fcd`を固定し、flake source / lockの`original.rev` / `locked.rev`を照合                                                                                                                                                                | 確認済み | —                                                                           |
-| #183-2 snapshot metadataと品質floor               | CLI / infra       | 3-system metadata evalとlive version smoke。Claude 2.1.247、Codex 0.150.0、Copilot 1.0.80、`agy` 1.1.21、RTK 0.46.0、APM 0.28.0、CRG 2.3.8                                                                                                                                              | 確認済み | version根拠機能のinteractive再現とAntigravityのversion固有changelogは未確認 |
-| #183-3 CRG 2.3.8 adaptation / build / MCP         | CLI / API / infra | 3-system Nix check、Linux graph build、read-only allowlistの`fastmcp call ... list_graph_stats_tool`                                                                                                                                                                                    | 確認済み | aarch64実機実行は未確認                                                     |
-| #183-4 selected subtree比較とexact pin境界        | infra             | Issue #185の18 dependency比較。payload pinはModern Web Guidance `457c381def89ce6213a171238f92eea63e9eaeb2` / Remotion `7a3d0ca45d2f6a00bf35cb3c525734a36d55a834`、Orca `9c01e09ecc9d3c1203968ace9945d16edfb35dd2` → `026389a3bc03da03ca2d65295e805493712b0774`はhash不変のrevision-only | 確認済み | —                                                                           |
-| #183-5 native lock / frozen no-rewrite / audit    | CLI / infra       | 新しい隔離cwd/HOMEでnon-frozen生成し、同じ環境のfrozen前後SHA-256 `29186c40a47bf6c25d9fbf73d15ebba4dc9575be7242f381ddaeac82ed24e6c4`、audit 10/10を確認してsourceへ採用                                                                                                                 | 確認済み | organization policy enforcementは隔離cwdにGit remoteがなくwarning付きskip   |
-| #183-6 Modern Web Guidance / Remotion discovery   | CLI               | 両targetの`SKILL.md` checksum一致、global `Translator` guidanceとcaption `pageBreakAfter`をlive payloadで確認                                                                                                                                                                           | 確認済み | —                                                                           |
-| #183-7 Impeccable 4.1.2とCodex native Stop        | API / infra       | exact pin `63b04e2530f5c7b41ea83c133daab24f34912456`、managed pass-through wiring、materialized runtimeへの`turn_id`付きStop event                                                                                                                                                      | 確認済み | 実Codex sessionからのhook発火は初回trust approval待ち                       |
-| #183-8 Design Hook behavior / fail-open           | API               | live Design Hook 10/10、managed wiring / output / runtime failure fixture 3/3                                                                                                                                                                                                           | 確認済み | 実Codex sessionからのhook発火は初回trust approval待ち                       |
-| #183-9 Matt 25-skill managed set                  | CLI / infra       | exact pin `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76`、両target25/25、explicit invocation / separator / setup pointerをlive payloadで確認                                                                                                                                                | 確認済み | —                                                                           |
-| #183-10 ordered gateと既知failure非例外化         | infra             | Issue #187のordered gate、関連contract 48/48、full suite 396/396、isolated dry-run。#188でnative lock regressionを追加                                                                                                                                                                  | 確認済み | —                                                                           |
-| #183-11 repo固有workflow safety contract          | infra             | AGENTS / CLAUDE / runtimeと`tests/workflow-contract.bats`をfull suiteで検証                                                                                                                                                                                                             | 確認済み | —                                                                           |
-| #183-12 atomic adoption / fallback                | infra             | 上記exact revisionの四単位を全て採用。下記fallback ledgerの旧sourceは全て未発動で、partial adoptionなし                                                                                                                                                                                 | 確認済み | —                                                                           |
-| #183-13 full tests / 3-system Nix / Linux smoke   | CLI / infra       | `bun run test` 396/396、`nix flake check --no-build --all-systems`、live 7 CLI version/help、Linux CRG build/MCP                                                                                                                                                                        | 確認済み | aarch64実機実行は未確認                                                     |
-| #183-14 source→live apply / discovery             | CLI / infra       | scoped `chezmoi apply`、source/live lock checksum一致、status empty、APM audit、両targetpayload discovery、managed hook discovery                                                                                                                                                       | 確認済み | Codex hookのactual session発火はtrust approval待ち                          |
-| #183-15 正本文書 / decision / Verification Matrix | infra             | 本ADR、`runtime/ai-runtimes.md`、`runtime/skill-harness.md`をactual adoptionと未確認事項へ同期                                                                                                                                                                                          | 確認済み | —                                                                           |
+| AC | 種別 | 実行コマンドまたは理由 | 結果 | 未確認理由 |
+| --- | --- | --- | --- | --- |
+| #183-1 stable/default HEADを一度だけ固定 | infra | Issue #184で`4a9441120caf6c6aff273af68995267a35c20fcd`を固定し、flake source / lockの`original.rev` / `locked.rev`を照合 | 確認済み | — |
+| #183-2 snapshot metadataと品質floor | CLI / infra | 3-system metadata evalとlive version smoke。Claude 2.1.247、Codex 0.150.0、Copilot 1.0.80、`agy` 1.1.21、RTK 0.46.0、APM 0.28.0、CRG 2.3.8 | 確認済み | version根拠機能のinteractive再現とAntigravityのversion固有changelogは未確認 |
+| #183-3 CRG 2.3.8 adaptation / build / MCP | CLI / API / infra | 3-system Nix check、Linux graph build、read-only allowlistの`fastmcp call ... list_graph_stats_tool` | 確認済み | aarch64実機実行は未確認 |
+| #183-4 selected subtree比較とexact pin境界 | infra | Issue #185の18 dependency比較。payload pinはModern Web Guidance `457c381def89ce6213a171238f92eea63e9eaeb2` / Remotion `7a3d0ca45d2f6a00bf35cb3c525734a36d55a834`、Orca `9c01e09ecc9d3c1203968ace9945d16edfb35dd2` → `026389a3bc03da03ca2d65295e805493712b0774`はhash不変のrevision-only | 確認済み | — |
+| #183-5 native lock / frozen no-rewrite / audit | CLI / infra | 新しい隔離cwd/HOMEでnon-frozen生成し、同じ環境のfrozen前後SHA-256 `29186c40a47bf6c25d9fbf73d15ebba4dc9575be7242f381ddaeac82ed24e6c4`、audit 10/10を確認してsourceへ採用 | 確認済み | organization policy enforcementは隔離cwdにGit remoteがなくwarning付きskip |
+| #183-6 Modern Web Guidance / Remotion discovery | CLI | 両targetの`SKILL.md` checksum一致、global `Translator` guidanceとcaption `pageBreakAfter`をlive payloadで確認 | 確認済み | — |
+| #183-7 Impeccable 4.1.2とCodex native Stop | API / infra | exact pin `63b04e2530f5c7b41ea83c133daab24f34912456`、managed pass-through wiring、materialized runtimeへの`turn_id`付きStop event | 確認済み | 実Codex sessionからのhook発火は初回trust approval待ち |
+| #183-8 Design Hook behavior / fail-open | API | live Design Hook 10/10、managed wiring / output / runtime failure fixture 3/3 | 確認済み | 実Codex sessionからのhook発火は初回trust approval待ち |
+| #183-9 Matt 25-skill managed set | CLI / infra | exact pin `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76`、両target25/25、explicit invocation / separator / setup pointerをlive payloadで確認 | 確認済み | — |
+| #183-10 ordered gateと既知failure非例外化 | infra | Issue #187のordered gate、関連contract 48/48、full suite 396/396、isolated dry-run。#188でnative lock regressionを追加 | 確認済み | — |
+| #183-11 repo固有workflow safety contract | infra | AGENTS / CLAUDE / runtimeと`tests/workflow-contract.bats`をfull suiteで検証 | 確認済み | — |
+| #183-12 atomic adoption / fallback | infra | 上記exact revisionの四単位を全て採用。下記fallback ledgerの旧sourceは全て未発動で、partial adoptionなし | 確認済み | — |
+| #183-13 full tests / 3-system Nix / Linux smoke | CLI / infra | `bun run test` 396/396、`nix flake check --no-build --all-systems`、live 7 CLI version/help、Linux CRG build/MCP | 確認済み | aarch64実機実行は未確認 |
+| #183-14 source→live apply / discovery | CLI / infra | scoped `chezmoi apply`、source/live lock checksum一致、status empty、APM audit、両targetpayload discovery、managed hook discovery | 確認済み | Codex hookのactual session発火はtrust approval待ち |
+| #183-15 正本文書 / decision / Verification Matrix | infra | 本ADR、`runtime/ai-runtimes.md`、`runtime/skill-harness.md`をactual adoptionと未確認事項へ同期 | 確認済み | — |
 
 Fallback ledger（AC12、全て未発動）:
 
@@ -216,6 +216,14 @@ Fallback ledger（AC12、全て未発動）:
 - Matt Pocock: pin `6acc160e4e0cd062dbbbd7a1b26ae92855edf07e`を持つ`0b4ec94aeaaa27ebcd4c24722bf216c5e7ad9f8e`のmanifestと、lock SHA-256 `fed402d5e258b8a7347b8995d0396d5be72da39856157a16f8554ea5feb1d451`。
 
 四つの更新単位がそれぞれの互換性ゲートを通過したため、本ADRをacceptedとする。
+
+## llm-agents snapshot の更新（2026-10-13、PR分割）
+
+Tool Snapshotを exact revision `998b9f267c671917a0b9a88b01e287c3168f3c24` に進め、Claude Code 2.1.296、Codex 0.162.1、Copilot CLI 1.0.96、Antigravity CLI 1.3.3をsourceへ採用する。通常APM、Impeccable、Matt Pocock、一般ツールの検証・commitは別単位とし、詳細は [今回の調査・検証記録](../research/tool-snapshot-pr-20261013.md)を参照する。
+
+品質floorはClaude Code 2.1.296、Codex 0.162.0とする。[Claudeの変更履歴](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21296)はBASH_ARGV0のpermission bypassと共有transcript／debug logの秘密値の伏字漏れを修正し、[Codex 0.162.0](https://github.com/openai/codex/releases/tag/rust-v0.162.0)は複数denied fileのsandbox起動、書込み可能なsandbox構築用executable、ripgrep設定によるdeny-globの弱体化を修正した。これらをfloorを上げる根拠とする。Codex 0.162.1の追加修正は採用snapshotに含めるが、floorはセキュリティ修正版の0.162.0に留める。
+
+複数denied fileのFD保持修正はupstreamに統合されたため、local `codex-distinct-mask-fds.patch` の適用を終了する。SIGKILL時のmissing dotenv cleanupを維持する `codex-sandbox-cleanup.patch` とsingle-job source buildは継続する。公式0.162.1 musl packageとNumtideのパッチなしcache outputはcleanup回帰8件中3件で失敗したため採用しない。既存outputがあれば再利用するが、未キャッシュLinux環境ではsource buildが必要となる。sourceの採用とlive配備を区別し、受入・merge後にlive sourceからapplyする。
 
 ## Verification boundary
 
