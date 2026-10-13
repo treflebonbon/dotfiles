@@ -111,8 +111,8 @@ assert_lock_entry() {
   local manifest_pins
   local lock_refs
 
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#a97286845f2baba38988f9e5fe2b2a1351021e50' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#32b241b97f4e0e4ab61fe9a41b05e6e64503f8c5' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#b31dc0a43ff5d19bcf386a3476a216f3b39a6f55' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#7ba4dcf8ebe1626b00baa41e1f2478113719b60b' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$manifest"
   grep -Fq 'herdrdev/herdr/skills/herdr#7b116c05bfda646af39d2524c54e70c751f57ee8' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
@@ -122,22 +122,22 @@ assert_lock_entry() {
   ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
   assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
-    'a97286845f2baba38988f9e5fe2b2a1351021e50' \
-    'sha256:2af94f3526ad9874164903407e30c0355bdf6a415d021ecd2336fc05fb0c0cae'
+    'b31dc0a43ff5d19bcf386a3476a216f3b39a6f55' \
+    'sha256:2bdf613c1efa013eb28bbc1ade3d6542f6864694cb344221b06d6754b183322c'
   assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
-    '683bc88e56f3e09ba94f7055977f3d3aa499f202' \
+    'dbd4588f9e1033efb41dad4bef2f7947c8993d44' \
     'sha256:69e2ac9eb2bbe2881df26acc53b46b39a15cfda206f5357e5f9c83feb0fadcc7'
   assert_lock_entry "$lock" 'anthropics/skills' 'skill-creator' \
-    '683bc88e56f3e09ba94f7055977f3d3aa499f202' \
+    'dbd4588f9e1033efb41dad4bef2f7947c8993d44' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    '32b241b97f4e0e4ab61fe9a41b05e6e64503f8c5' \
-    'sha256:201c2a905622cf3270bffd900f9f697d751d1b27f4a6cdec463bc75fc7688f36'
+    '7ba4dcf8ebe1626b00baa41e1f2478113719b60b' \
+    'sha256:3b165350181cefb1c8459f1d615fe7230f4d20a62e56a2508dbebff8a071f6d8'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    '6ea090075cd537d3b792c6c1a625e2448b6ede26' \
-    'sha256:bfc2cdcbe8ca341e90d398f9f65eed5e7cd9d147c376554cfcb0d703e7872c41'
+    '30a58d4498f270af1c1e981a7d78a15cf5740841' \
+    'sha256:0598e176aa87bd0276b8972169d7b058ffeed643e75ca0abb59f10d97748db65'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '55eb48c1371c12e615c4148e0b519e3d54da51b6' \
+    '1b9a408b8c0f7de5125f4bad8d89eb8419a29a88' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
@@ -146,7 +146,7 @@ assert_lock_entry() {
     '7b116c05bfda646af39d2524c54e70c751f57ee8' \
     'sha256:66715d76e5947497431ec0db32f2693b9c916ad799c3f32b99e6174b4b9c607f'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '55eb48c1371c12e615c4148e0b519e3d54da51b6' \
+    '1b9a408b8c0f7de5125f4bad8d89eb8419a29a88' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
   [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 1 ]
   manifest_pins="$(
@@ -187,7 +187,7 @@ assert_lock_entry() {
   # candidate and is not asserted against here.
 }
 
-@test "APM locks Effect RC and React View Transition compatibility payloads" {
+@test "APM locks stable Effect and React View Transition compatibility payloads" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
   local effect_entry
   local view_transition_entry
@@ -195,10 +195,10 @@ assert_lock_entry() {
   effect_entry="$(extract_lock_entry "$lock" 'effect-ts/skills' 'effect-ts')"
   view_transition_entry="$(extract_lock_entry "$lock" 'vercel-labs/agent-skills' 'vercel-react-view-transitions')"
 
-  grep -Fq 'resolved_commit: 2309e6f27d9955b434c0e3f394b945c136e89fd2' <<<"$effect_entry"
-  grep -Fq '.agents/skills/effect-ts/SKILL.md: sha256:509ed4e10def32dc3f6b20854c9ae50a56b7dc525a14a02ab9871eef53a2052e' <<<"$effect_entry"
-  grep -Fq '.claude/skills/effect-ts/SKILL.md: sha256:509ed4e10def32dc3f6b20854c9ae50a56b7dc525a14a02ab9871eef53a2052e' <<<"$effect_entry"
-  grep -Fq 'content_hash: sha256:6bdb9b95aa83071eca2f67ae947b7d398a22e9e6e08f6cfa35de9516b03efa6e' <<<"$effect_entry"
+  grep -Fq 'resolved_commit: 155c50c911f9c99c294ef8a4461981c5bbe6453e' <<<"$effect_entry"
+  grep -Fq '.agents/skills/effect-ts/SKILL.md: sha256:30acc24da779cb4e530732bc74cca172adb372f24f42f2d1af18370c27938bff' <<<"$effect_entry"
+  grep -Fq '.claude/skills/effect-ts/SKILL.md: sha256:30acc24da779cb4e530732bc74cca172adb372f24f42f2d1af18370c27938bff' <<<"$effect_entry"
+  grep -Fq 'content_hash: sha256:cb225ba5dda169883dfee680fba6c570c89245ba19242a9bc5c3f2ac8218a55f' <<<"$effect_entry"
 
   grep -Fq 'resolved_commit: 063bee94c3f4df8453406c830b0a7df0f2860278' <<<"$view_transition_entry"
   grep -Fq '.agents/skills/react-view-transitions/references/nextjs.md' <<<"$view_transition_entry"
