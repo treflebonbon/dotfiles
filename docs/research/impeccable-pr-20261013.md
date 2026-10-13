@@ -89,3 +89,7 @@ Impeccableの実装・隔離検証・レビュー・PR公開を今回の完了�
 最終記録／日本語PR草稿のSpecレビューは指摘0件。Standardsは計画の時制が曖昧な1文を指摘し、採用commit前の計画と明示して再確認で解消した。追加指摘・未解決指摘はない。結果追記対象3 file以外の573 tracked file、source-selected 6 CLI output／version、候補engine、canonical `with-env` outputは全suite時から不変（`tmp/impeccable-final-output-check.json`）。PR titleは `chore(impeccable): update validated skill and engine` で、公開後のGitHub titleも照合済み。
 
 公開結果: [Impeccable後続PR #399](https://github.com/treflebonbon/dotfiles/pull/399) を `main` 向けに作成した。採用実装commitは `83a8f38`、検証記録commitは `e7b0d7b`、branchは `dev/update-impeccable-20261013`。`git-push-topic` の公開、PR作成時のlocal／upstream／PR HEAD `e7b0d7b682fddb292727ab52cd1de7e3cb0b1f63` の一致、英語Conventional title／日本語本文／OPEN状態を確認済み（`tmp/impeccable-pr-created.json`）。公開後はこの結果と既存追跡への対応先だけを追記し、採用source・依存・検証環境は不変。今回のImpeccable PR公開まで完了し、merge／live配備と残る別単位は未完了である。
+
+## Matt Pocock後続単位（2026-10-13）
+
+先行PR #397／#398／#399はmerge・配備済みという引継ぎを受け、sourceでは開始HEAD `e333f8a` と一致する。Matt候補 `49dd158d1076134a641b33efb035946536778336` は今回の独立branchで実ordered gate Decision 1–7と別runtimeのnative生成・frozen・audit・bytes／ledger比較を通過し、sourceへ採用した。19 non-Matt dependencyは全field不変。詳細と今回の実検証境界は [Matt後続記録](mattpocock-pr-20261013.md) を参照する。採用後の個別検証・2軸レビュー・canonical全suite・PR公開はこの後に行う。Mattは未merge・未配備、一般Nix／言語／npm／固定CLI／汎用helper等の残差分は引き続き保留で、更新全体は未完了。過去の検証結果を今回の成功へ転記しない。

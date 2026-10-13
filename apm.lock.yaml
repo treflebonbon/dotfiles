@@ -1047,8 +1047,8 @@ dependencies:
 - repo_url: mattpocock/skills
   name: mattpocock-skills
   host: github.com
-  resolved_commit: b0618bc436ad893b3c5e84e55fba86586d34a404
-  resolved_ref: b0618bc436ad893b3c5e84e55fba86586d34a404
+  resolved_commit: 49dd158d1076134a641b33efb035946536778336
+  resolved_ref: 49dd158d1076134a641b33efb035946536778336
   version: 1.3.1
   package_type: marketplace_plugin
   deployed_files:
@@ -1340,7 +1340,7 @@ dependencies:
     .agents/skills/wayfinder/agents/openai.yaml: sha256:88bc81a11a6d52ac67aeaa76b8b619e387020d47c5133a4dd4927fd15c4ad073
     .agents/skills/wizard/SKILL.md: sha256:bdf31d48211ea559878f95a4f344aeabf8d85897488ba564382bab0b000daac1
     .agents/skills/wizard/agents/openai.yaml: sha256:98f44d682d58e262f160dc59a8befc365e0aa65820dd0261864af26aa8e59d83
-    .agents/skills/wizard/template.sh: sha256:7c70da7da1b0cab497c469411aa92b5650d43ef24e6b88728eb3a19a63ee8be7
+    .agents/skills/wizard/template.sh: sha256:6566f147299bc6f1d941e64591ed04385416d543e11f96f564c7228f5018d0ed
     .agents/skills/writing-for-agents/SKILL-MECHANICS.md: sha256:c768e6307c7c10728c401c213f2c4ba71c542127eeb7ad2956aabd15a0fa0059
     .agents/skills/writing-for-agents/SKILL.md: sha256:551adca942227b44192edba88acd4e8db911f0121ce58ad16944ccf6a896a74a
     .agents/skills/writing-for-agents/agents/openai.yaml: sha256:eacb24b2a618cfb81dacb0416f4fdd75ddf3a8060f8ddb99aae1b1e301907e4b
@@ -1419,11 +1419,11 @@ dependencies:
     .claude/skills/wayfinder/agents/openai.yaml: sha256:88bc81a11a6d52ac67aeaa76b8b619e387020d47c5133a4dd4927fd15c4ad073
     .claude/skills/wizard/SKILL.md: sha256:bdf31d48211ea559878f95a4f344aeabf8d85897488ba564382bab0b000daac1
     .claude/skills/wizard/agents/openai.yaml: sha256:98f44d682d58e262f160dc59a8befc365e0aa65820dd0261864af26aa8e59d83
-    .claude/skills/wizard/template.sh: sha256:7c70da7da1b0cab497c469411aa92b5650d43ef24e6b88728eb3a19a63ee8be7
+    .claude/skills/wizard/template.sh: sha256:6566f147299bc6f1d941e64591ed04385416d543e11f96f564c7228f5018d0ed
     .claude/skills/writing-for-agents/SKILL-MECHANICS.md: sha256:c768e6307c7c10728c401c213f2c4ba71c542127eeb7ad2956aabd15a0fa0059
     .claude/skills/writing-for-agents/SKILL.md: sha256:551adca942227b44192edba88acd4e8db911f0121ce58ad16944ccf6a896a74a
     .claude/skills/writing-for-agents/agents/openai.yaml: sha256:eacb24b2a618cfb81dacb0416f4fdd75ddf3a8060f8ddb99aae1b1e301907e4b
-  content_hash: sha256:10f083ac2b0207d326f52883a862e9d50c607a887932a906decfbd12e995b6ab
+  content_hash: sha256:049d4dfaaf2d783feedaf677626385d0dee10a47734f7d86cd006b7258c79aa3
   declared_license: MIT
 - repo_url: mizchi/skills
   name: empirical-prompt-tuning
@@ -9625,7 +9625,7 @@ deployments:
   owners:
   - mattpocock/skills
   active_owner: mattpocock/skills
-  content_hash: sha256:7c70da7da1b0cab497c469411aa92b5650d43ef24e6b88728eb3a19a63ee8be7
+  content_hash: sha256:6566f147299bc6f1d941e64591ed04385416d543e11f96f564c7228f5018d0ed
 - kind: project-relative
   target: claude
   value: .claude/skills/writing-for-agents
@@ -16213,7 +16213,7 @@ deployments:
   owners:
   - mattpocock/skills
   active_owner: mattpocock/skills
-  content_hash: sha256:7c70da7da1b0cab497c469411aa92b5650d43ef24e6b88728eb3a19a63ee8be7
+  content_hash: sha256:6566f147299bc6f1d941e64591ed04385416d543e11f96f564c7228f5018d0ed
 - kind: project-relative
   target: codex
   value: .agents/skills/writing-for-agents
