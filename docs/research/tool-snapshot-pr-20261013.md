@@ -109,3 +109,15 @@ source-selected APM 0.33.0とsource-selected Impeccable engineを用い、新し
 ## 事前レビューと全suite
 
 この差分をcommitし、fixed point `6a5a7a6a176d34e2510e732f1fb8c9045e8a9043` のcommit済み差分をStandards／Specで確認する。現在要件・適用ADR・分割で外した変更の対応・統合成果の参考証拠を区別して渡す。全suiteはレビューの指摘修正後にcanonical入口`lefthook run test`でこのbranch自身から実行し、結果を以下へ記録する。統合版787件は代用しない。
+
+## 最終全suiteと完了境界
+
+実装commit `4dcf299189cca903e9332ee41614e1015fb66938` の事前2軸レビューは、Standardsの規約違反0件／smell 0件、Specの欠落・部分実装0件／依頼外追加0件／誤実装0件。指摘修正は不要だった。両軸へ現在要件、適用ADR、保留一覧、統合成果の参考扱いを渡し、親もsource／lock／個別検証証拠を照合した。
+
+同commitの実行source・test・依存・検証環境を固定し、隔離HOME／XDGでsource-selected 6 CLI output／実起動を再照合してから、canonical入口`lefthook run test`をこのbranch自身で一度実行した。全769件（735通過・34 skip・失敗0）、runner／helperともexit 0。TAP planが1つで結果件数と一致し、結果番号が1から769まで連続、bailoutなしを確認した。証拠は`tmp/test-run.bvMpqO/{tap.log,setup.log,environment,exit-code}`、`tmp/ai-tools-vetbtf8s/`、集計は`tmp/snapshot-full-result.json`。統合branchの787件を転記していない。
+
+34 skipはDesign Hook未materializeの12件、既定opt-inの21件、`TEST_PLAYWRIGHT_PACKAGE`未指定の実Playwright配布fixture 1件。Design Hookは上記のsource-selected隔離frozen配布gateで13/13成功しているが、全suiteの735通過には合算しない。認証・実モデル、実Herdr／隔離依存、6言語devShell生成等のopt-inと、変更していないPlaywright配布fixtureは今回実行しない。APM auditの組織policy enforcement、ARM Linux／Darwinの実機実行も未確認として残す。
+
+全suite後の変更は本記録の検証結果とレビュー状態だけで、実行source・test・依存・検証環境を変更していない。最終記録もStandards／Specで確認し、commit後にclean状態と公開対象のdiffを確認して`git-push-topic`／dotfiles自身のPR作成へ進める。後続単位のPRは未作成・保留のまま。merge／live applyは今回の完了境界に含めない。Tool Snapshotの公開を更新全体やlive配備の完了とは扱わない。
+
+最終記録とPR草稿のレビューもStandards／Specとも未解決指摘0件。追記後の6 CLI metadata／outputとcanonical `with-env` outputが全suite時と同一であることを確認した（`tmp/snapshot-final-output-check.log`）。実行source・test・依存・検証環境は不変のため全suiteを繰り返さず、検証結果と保留状態をcommitして公開する。
