@@ -23,8 +23,8 @@ let
   ) { };
 
   # Snapshot versions and quality floors are independent; floor validation is in ADR-0047.
-  minClaudeCode = "2.1.289";
-  minCodex = "0.159.1";
+  minClaudeCode = "2.1.296";
+  minCodex = "0.162.0";
 
   requireQualityFloor =
     {
@@ -53,23 +53,22 @@ let
     name = "claude-code";
     package = llm.claude-code;
     minimum = minClaudeCode;
-    reason = "秘密値の伏字漏れに加え、symlink 経由の Read deny と複合 Bash command の deny / ask を修正した版。";
-    decision = "docs/adr/0047-test-quality-floors-through-package-outputs.md";
+    reason = "BASH_ARGV0 を使う Bash permission bypass と共有 transcript／debug log の秘密値の伏字漏れを修正した版。";
+    decision = "docs/adr/0045-separate-llm-agents-and-apm-update-units.md";
   };
 
   codexBase = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
-    reason = "GPT-6.1 Sol が bundled model catalog の既定モデルとして追加された版。";
-    decision = "docs/adr/0070-adopt-gpt-6-1-sol.md";
+    reason = "複数 denied file の Linux sandbox 起動、書込み可能な sandbox 構築用 executable、ripgrep 設定による deny-glob の弱体化を修正した版。";
+    decision = "docs/adr/0045-separate-llm-agents-and-apm-update-units.md";
   };
   codex =
     if pkgs.stdenv.isLinux then
       codexBase.overrideAttrs (old: {
         inherit (codexBase) version src;
         patches = (old.patches or [ ]) ++ [
-          ../packages/codex-distinct-mask-fds.patch
           ../packages/codex-sandbox-cleanup.patch
         ];
         preBuild = (old.preBuild or "") + ''
