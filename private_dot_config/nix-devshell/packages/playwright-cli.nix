@@ -16,7 +16,7 @@ buildNpmPackage {
 
   src = ./playwright-cli-agent;
 
-  npmDepsHash = "sha256-JrqEzup8H1XYx3EViWHqj4P53a9sBXdot586PkT0knQ=";
+  npmDepsHash = "sha256-Jiy7hSv23PenWcQcX5rd6oyEiMV0nW7FatfhAxj5Sdw=";
   dontNpmBuild = true;
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
