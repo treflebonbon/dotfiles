@@ -93,3 +93,19 @@ root／user両flakeの3 system `flake check --no-build --all-systems` が成功�
 Goの実test／gopls check／golangci-lint、Rustのvtable／offline Cargo test／nextest／clippy／fmt、GleamとOTP29の実compile／runが成功した。lintのbuild versionとgoplsの `go version -m` はともにGo 1.27.2で、compilerの版と一致した（`go-lsp-build-info.log`）。Expertのhelp、PerlNavigatorの診断なしEOF exit 1、BunのLSP versionも確認した。LSP全機能のprotocol検査を実施したとは扱わない。
 
 同じ生成repoを使い、Elixirの実elixirc／ExUnit、Perlの構文検査／Test::More、Bunのtest／build／生成JS実行も隔離HOME／全XDGで成功し、各lockは不変だった（`language-extra-smoke-result.json`、`{elixir,perl,bun}-compile-test.log`）。独立ゲートや追加smokeの件数は後段のcanonical全suiteへ合算しない。
+
+## レビュー・canonical全suite・公開境界
+
+実装commitは `dd7cf2010b3d45dc855df6cd99b7af205d9d8a00`。同commitの独立code-reviewはStandards 0件／Spec 0件。初回Specの除外台帳指摘は、参照成果への三点比較で古いmerge-baseを使ったことが原因で撤回された。元差分の二点比較46 fileと指摘10 pathの同一blobを親・Spec reviewerが独立照合し、source修正はなかった（`review-result.json`、`reference-diff-audit.json`）。レビュー子にはユーザー指定のgpt-6-luna／xhighを指定した。親は同commitのsource差分・Node整合・追跡・今回実検証を読み取り照合し、両軸の未解決0件とsource／test／依存維持を条件に最終確認を完了した（`parent-confirmation.json`）。
+
+同commitのcanonical `lefthook run test` は一度実行し、769件（748 pass／21 skip／0 fail）、runner／canonical／launcher exit 0、942.5秒で成功した。TAP planは1つ、1–769の連続番号・bailoutなしを照合し、579 tracked fileの実行前後SHA-256も全て一致した。親もTAP・exit・source不変・時間を独立照合した。旧成果の769／787件や、今回の関連89件／6言語gate／追加smokeをこの通過数へ合算していない。
+
+開始前から `TEST_PLAYWRIGHT_PACKAGE=/nix/store/r1mia04ilacqdfh4blbgb3hibpjsclap-playwright-cli-0.1.22` と `IMPECCABLE_HOOK_RUNTIME=/tmp/fixed-clis-apm.mHuaBN/.agents/skills/impeccable/scripts/impeccable`、source-selected engineを固定した。user／repo両wsl devShellのshellHookより前からHOME／全XDGを隔離し、6AI CLIの候補output／実版を照合した。実Design Hook13件と候補Playwrightの実配布保護／共有FD・lock fixtureは全suite内で通過し、runtime／package未指定によるskipはない。
+
+21 skipは実Herdr、Bash 3.2、実モデル／認証付きGitHub／MCP、専用隔離runtime／public dependency gateway、6言語独立生成、public Nix appの既定opt-in。6言語は上記の独立gateだけを実行済みと扱う。ARM Linux／Darwin実機とLSP全機能のprotocol検査、認証／実モデル等は今回未実施である。
+
+証拠は `tmp/test-run.uqvfEW/{tap.log,setup.log,environment,exit-code}`、`tmp/nix-languages-20261013/{full-result,canonical-source-before,canonical-source-check,canonical-environment,canonical-ai-version-check}.json`、`canonical{,-launch}.exit`、`canonical-output.log`、`current-tap-path`、隔離AI runtime `tmp/ai-tools-k0g3zhdc/`。前の成果logsと参照checkout `864880c` は保持した。
+
+環境間の既存版差も全package metadataに保存した。repo／userのlefthookは2.1.15／2.1.5、pinactは5.0.0／3.9.2、oxfmtは0.68.0／0.45.0で、リポジトリ編集用と汎用環境の取得元を区別する。root npm lockのoxfmt 0.67.0等は別の保留単位として維持した。今回必要なNode.js 24.21.0は両環境で取得元・版・outputを一致させ、既存callerのpinact検証はrepo側5.0.0で行った。
+
+成功後の変更は今回結果・対応先の文書だけ。実行source／test／Nix・lock／依存／検証環境を維持し、結果文書の追記だけでは全suiteを反復しない。最終記録と日本語3節のPR本文を確認し、commit／clean後に `git-push-topic` で同topicを非force公開して、実remote default `main` 向けの通常PRを作成する。Codexのsource build不要は今回の既存output再利用に限り、未キャッシュ環境のsource build要件は残る。merge／live applyはユーザー担当。root npm／studio／汎用helper等の残保留があるため、更新全体は未完了である。

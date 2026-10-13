@@ -107,3 +107,5 @@ Mattの対応先は [後続PR #400](https://github.com/treflebonbon/dotfiles/pul
 固定CLIの対応先は [後続PR #402](https://github.com/treflebonbon/dotfiles/pull/402)。実装 `33727ba`／検証記録 `f01c38a` の同topicを `git-push-topic` で公開し、PR作成時のlocal／upstream／PR HEAD一致と指定日本語本文・英語Conventional title・OPEN状態を確認した。固定CLI4件の実装・検証・レビュー・PR公開まで完了。公開先の追記だけを追加commitし、merge／live配備と残る別単位の保留は未完了のまま維持する。
 
 一般Nix入力と6言語テンプレートは承認済みの別単位として実装・検証を開始した。対応先と元差分の採否・残保留は [一般Nix／言語記録](nix-languages-pr-20261013.md) に追跡する。先行PR #397–402の採用済みsourceは維持し、merge／live applyは今回行わない。
+
+一般Nix／6言語単位の実装commitは `dd7cf20`。今回branchの関連89/89、全6言語独立gateと追加compile／test、固定CLI／flyline実TTY、独立レビューStandards 0件／Spec 0件が成功した。同commitのcanonical全suiteは769件（748 pass／21 skip／0 fail、runner／launcher exit 0、579 tracked file不変、942.5秒）。親の独立照合も完了し、[今回記録](nix-languages-pr-20261013.md) と日本語本文を確定してtopic公開・PR作成へ進む。旧成果や別gateの件数は合算せず、merge／live applyとroot npm／studio／汎用helper等の保留は未完了のまま維持する。
