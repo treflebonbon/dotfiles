@@ -20,6 +20,9 @@ if sys.argv[1] == 'eval':
     if mode == 'eval-failure':
         print('fixture evaluation failed', file=sys.stderr)
         sys.exit(17)
+    if mode == 'eval-signal':
+        print('fixture evaluation signal', file=sys.stderr, flush=True)
+        os.kill(os.getpid(), 15)
     if mode == 'invalid-json':
         print('invalid-json')
         sys.exit(0)
@@ -31,6 +34,9 @@ if sys.argv[1] == 'eval':
     if mode == 'missing-path': del metadata[0]['path']
     print(json.dumps(metadata))
 else:
+    if os.environ.get('AI_FIXTURE_MODE') == 'startup-signal':
+        print('fixture startup signal', file=sys.stderr, flush=True)
+        os.kill(os.getpid(), 15)
     Path(os.environ['HOME'], '.agents').mkdir(exist_ok=True)
     Path(os.environ['HOME'], '.agents', 'hook').write_text('isolated')
     command = sys.argv[sys.argv.index('--command') + 1:]
@@ -142,4 +148,19 @@ PY
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
   [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 19 ]
   grep -q 'fixture version failed' "$SOURCE"/tmp/ai-tools-*/startup.log
+}
+
+@test "AI candidate verification reports signal termination consistently in its exit status and evidence" {
+  local mode case_source
+  for mode in eval-signal startup-signal; do
+    case_source="$SOURCE/$mode"
+    mkdir -p "$case_source"
+    run env PATH="$BIN:$PATH" AI_FIXTURE_MODE="$mode" \
+      python3 "$PROBE" "$case_source" -- bash -c 'touch "$1"' -- "$BATS_TEST_TMPDIR/should-not-run"
+
+    [ "$status" -eq 143 ]
+    [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
+    [ "$(cat "$case_source"/tmp/ai-tools-*/exit-code)" -eq 143 ]
+    grep -q 'fixture .* signal' "$case_source"/tmp/ai-tools-*/*.log
+  done
 }

@@ -19,7 +19,7 @@ read-only の `decision.json` を親が照合し、`parent-decision-confirmation
 
 変更前は両 helper と tests が source に存在せず、分割 PR で参照版を Git 管理外へコピーしていた。#397／#399／#400／#402 に AI probe の利用記録があり、#398 の APM plan・配備 log、#404／#405 の参照コピーと実行 evidence を読み取り確認した。#405 の一時 AI helper にだけある output 不在停止 guard は、未キャッシュ環境の利用まで一律に拒否するため常設版へ移植しない。#401 のモデル設定単位での helper 実利用は未確認で、全 PR が同じ版を実行したとは断定しない。
 
-AI helper は不正 JSON、欠落／重複 metadata、型・path 欠損でも原文・診断・exit 1 を保存して shell と後続コマンドを開始しない。評価失敗・version 失敗・後続コマンドの非0終了も evidence に保持する。同じ版の旧 output 拒否、shellHook 前の HOME／全 XDG 分離、6 CLI 照合、`--` 以降の引数は参照版の契約を維持する。
+AI helper は不正 JSON、欠落／重複 metadata、型・path 欠損でも原文・診断・exit 1 を保存して shell と後続コマンドを開始しない。評価失敗・version 失敗・後続コマンドの非0終了も evidence に保持する。評価／起動 subprocess のシグナル終了は `128 + signal` の shell 終了コードへ揃え、呼出元と保存した終了コードを一致させる。同じ版の旧 output 拒否、shellHook 前の HOME／全 XDG 分離、6 CLI 照合、`--` 以降の引数は参照版の契約を維持する。
 
 APM helper は読取り処理を維持し、`{"candidates":[]}` を含む object 形式を案内する。directory を含む `deployed_files` の追加／削除は事前計画と完全一致を要求する。候補外 dependency の変更は、更新前に `ref`／`resolved_ref` を持たない floating dependency の `resolved_commit` だけを許容する。通常 guide に SKILL 用 frontmatter は要求せず、`SKILL.md` の name／description、実 bytes／hash、runtime 外 path／symlink、両 hub discovery を検査する。
 
@@ -27,7 +27,7 @@ root lock metadata と owner／active_owner／共有 owner ledger の前後比�
 
 ## 今回の検証
 
-AI の不正 JSON に関する新テストは参照版で exit-code 欠落を検出して red となり、診断・原文・終了コード保存の最小修正後に green となった。helper 関連は25件（25 pass／0 fail／0 skip）。この件数は既存参考版18件と別の今回結果であり、後段 canonical の件数へ合算しない。既存 APM／floor／devShell 契約を含む関連検証は83件（83 pass／0 fail／0 skip）、exit 0、96.779秒で成功した。TAP plan は1つで、1–83の連続番号、bailout なしを確認した。
+AI の不正 JSON に関する新テストは参照版で exit-code 欠落を検出して red となり、診断・原文・終了コード保存の最小修正後に green となった。初回 helper 関連は25件（25 pass／0 fail／0 skip）。この件数は既存参考版18件と別の今回結果であり、後段 canonical の件数へ合算しない。既存 APM／floor／devShell 契約を含む関連検証は83件（83 pass／0 fail／0 skip）、exit 0、96.779秒で成功した。TAP plan は1つで、1–83の連続番号、bailout なしを確認した。
 
 採用した AI helper から現 source の user／repo 両 wsl devShell を shellHook 前から HOME／全 XDG で隔離し、6 CLI の絶対 output と実版を照合した。Claude 2.1.296、Codex 0.162.1、Copilot 1.0.96、Antigravity 1.3.3、APM 0.33.0、Herdr 0.9.3が一致し、helper／後続 probe は exit 0。既存の cleanup patch 付き Codex output `/nix/store/lhczzl4166l2aps8bcl1zi9kbqbbqy3w-codex-0.162.1` を再利用し、Rust 再 build を開始していない。
 
@@ -35,7 +35,9 @@ AI の不正 JSON に関する新テストは参照版で exit-code 欠落を検
 
 実起動後の初回一時 probe は、Copilot の正式 version 出力末尾の句点を版番号の続きと誤判定して exit 1 となった。helper の6 CLI 照合と起動は成功していた。probe のみ訂正し、初回 log／result と runtime を保持して再確認した。source の変更や test assertion の緩和による回避はしていない。
 
-証拠は Git 管理外 `tmp/verification-helpers-20261014/` の `decision.json`／`parent-decision-confirmation.json`、`red-metadata.tap`／`green-metadata.tap`、`helper-related-result.json`／`related-tests-result.json`、`implementation-runtime-result.json`／`implementation-runtime-launch-result.json` と各 log に保持する。実装 commit 後の完全 HEAD、関連／format／runtime／独立レビュー結果は同 directory へ保存して親へ返す。
+証拠は Git 管理外 `tmp/verification-helpers-20261014/` の `decision.json`／`parent-decision-confirmation.json`、`red-metadata.tap`／`green-metadata.tap`、`helper-related-result.json`／`related-tests-result.json`、`implementation-runtime-result.json`／`implementation-runtime-launch-result.json` と各 log に保持する。修正後の `helper-related-after-signal-result.json`／`red-signal.tap`／`green-signal.tap` も同 directory に保存する。初回実装 HEAD の evidence は `implementation-round-1/` に分けて保持し、修正後の結果と混同しない。実装 commit 後の完全 HEAD、関連／format／runtime／独立レビュー結果は同 directory へ保存して親へ返す。
+
+初回実装 `63a245e` の独立レビューは Standards 0件／Spec 1件だった。Spec は subprocess のシグナル終了時に evidence が `-15`、呼出元の終了コードが241となる不一致を指摘した。CLI 回帰テストで red を確認し、既存 runner と同じ `128 + signal` への変換を評価・起動両経路へ加えて green にした。修正後の helper は26件（26 pass／0 fail／0 skip）、exit 0、5.698秒で成功した。評価と起動の signal 終了は両方143となり、後続 command は抑止された。実 source runtime の再照合も exit 0、27.866秒で成功し、6 CLI・Playwright・Impeccable・既存 APM 配備と lock 不変を再確認した。同じ修正後 HEAD を両軸で再レビューする。未変更の APM／floor／devShell 契約の初回83件は履歴として保持し、修正後 helper の件数へ合算しない。
 
 ## 次の gate と残る境界
 

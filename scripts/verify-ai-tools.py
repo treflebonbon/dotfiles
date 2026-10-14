@@ -98,12 +98,15 @@ def main():
             text=True,
         )
     if result.returncode:
-        (runtime / "exit-code").write_text(f"{result.returncode}\n")
+        status = (
+            result.returncode if result.returncode >= 0 else 128 - result.returncode
+        )
+        (runtime / "exit-code").write_text(f"{status}\n")
         print(
-            f"REJECT: Nix評価exit {result.returncode}（{runtime / 'evaluation.log'}）",
+            f"REJECT: Nix評価exit {status}（{runtime / 'evaluation.log'}）",
             file=sys.stderr,
         )
-        return result.returncode
+        return status
     (runtime / "metadata.json").write_text(result.stdout)
     paths = runtime / "paths.tsv"
     try:
@@ -148,6 +151,7 @@ def main():
         status = subprocess.run(
             invocation, cwd=source, env=environment, stdout=log, stderr=log
         ).returncode
+    status = status if status >= 0 else 128 - status
     (runtime / "exit-code").write_text(f"{status}\n")
     if status:
         print(
