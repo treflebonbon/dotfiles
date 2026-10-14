@@ -1,4 +1,4 @@
-react@19.2.8
+react@19.3.0
 MIT License
 
 Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -213,7 +213,7 @@ THIS SOFTWARE.
 
 ---
 
-@xyflow/system@0.0.82
+@xyflow/system@0.0.83
 MIT License
 
 Copyright (c) 2019-2025 webkid GmbH
@@ -239,7 +239,7 @@ SOFTWARE.
 
 ---
 
-use-sync-external-store@1.6.0
+use-sync-external-store@1.7.0
 MIT License
 
 Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -291,7 +291,7 @@ SOFTWARE.
 
 ---
 
-react-dom@19.2.8
+react-dom@19.3.0
 MIT License
 
 Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -317,7 +317,7 @@ SOFTWARE.
 
 ---
 
-@xyflow/react@12.11.6
+@xyflow/react@12.12.0
 MIT License
 
 Copyright (c) 2019-2025 webkid GmbH
@@ -343,7 +343,7 @@ SOFTWARE.
 
 ---
 
-scheduler@0.27.0
+scheduler@0.28.0
 MIT License
 
 Copyright (c) Meta Platforms, Inc. and affiliates.
