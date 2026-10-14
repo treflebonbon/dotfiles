@@ -14,15 +14,15 @@
 
 | 対象 | 採否・理由・対応先・状態 |
 | --- | --- |
-| root `package.json`／`bun.lock` | 三つのdirect更新と公式source-map-js修正を採用。参考lockのmirror URLは採用せず、今回native生成で公式registry／SRI／7日待機を検証。[通常PR #404](https://github.com/treflebonbon/dotfiles/pull/404)、未merge・未配備。 |
+| root `package.json`／`bun.lock` | 三つのdirect更新と公式source-map-js修正を採用。参考lockのmirror URLは採用せず、今回native生成で公式registry／SRI／7日待機を検証。[通常PR #404](https://github.com/treflebonbon/dotfiles/pull/404) は2026-10-14にmerge済み（`681e6c5`）。親がmainでBun 1.4.2 frozen install、Oxfmt 0.72.0／Oxlint 1.87.0／Ultracite 7.12.4／source-map-js 1.2.2、pair hash不変・cleanを照合。root npmの反映根拠であり、chezmoi配備全体の完了ではない。 |
 | #397のAI snapshot／floors／Codex direct output・cleanup、#398–400のAPM／Impeccable／Matt、#401のモデル設定、#402の固定CLI／Playwright公式registry lock | main採用済みsourceを維持。保留成果への巻戻しは却下。今回の検証で過去成功を代用しない。 |
 | #403の一般Nix pins／6言語template／architecture | merge済みbaseを維持。今回未変更の全3system／6言語gateは反復しない。配備全体の完了は断定しない。 |
-| studio `package.json`／`package-lock.json`／`dist/studio.html`／`dist/THIRD-PARTY-LICENSES.txt` | 別単位として保留。対応先PR未定・未配備。 |
+| studio `package.json`／`package-lock.json`／`dist/studio.html`／`dist/THIRD-PARTY-LICENSES.txt` | 別単位として保留していた。2026-10-14に[studio独立更新記録](studio-npm-pr-20261014.md)へ移管し、branch `dev/update-studio-deps-20261014` で実装・検証中。対応先PRは公開後に追記。未merge・未配備。 |
 | `scripts/verify-ai-tools.py`／`scripts/verify-apm-deployment.mjs`、対応tests、helper案内 | 汎用helper配布の別単位として保留。対応先PR未定。必要な検証補助だけGit管理外へ読み取り取得し、今回sourceへ追加しない。 |
 | 参考 `docs/research/update-tools-skills-20261011.md`／`braces-response-20261013.md` | 過去履歴として保留checkoutに保持。今回の要件・実測とは区別し、現在braces依存／入力経路／公式修正状態／auditは本記録で再確認する。 |
 | 既存5分割記録／conventions／skill-harness／ADR | 採用済み規約・対応先を維持。古い記録への巻戻しや同じ全文の重複追記は却下。 |
 
-更新全体はstudio／汎用helper等の保留が残るため未完了。今回PRの完了と区別する。
+2026-10-14現在、root npmは#404のmergeと親のmain frozen install照合まで完了。studioは別branchで実装・検証中、汎用helperは保留のため更新全体は未完了。以下の実装・公開・Review Roundは当時の履歴として保持する。
 
 ## 公式候補・native生成・lock検証
 
