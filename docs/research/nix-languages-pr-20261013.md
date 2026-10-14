@@ -113,3 +113,9 @@ Goの実test／gopls check／golangci-lint、Rustのvtable／offline Cargo test�
 公開結果: [一般Nix／6言語後続PR #403](https://github.com/treflebonbon/dotfiles/pull/403) を `main` 向けのOPEN・非draft通常PRとして作成した。実装commit `dd7cf20`、検証記録commit `c8cb1bc` を同topic `dev/update-nix-languages-20261013` から `git-push-topic` で非force公開し、作成時のlocal／upstream／PR HEAD `c8cb1bc6db5d9a4298667976e9af08404b54bb26` と英語Conventional title／確定日本語本文の一致を確認した。親もPR状態／本文／CIを独立照合した。公開対応先の追記だけを文書commitとして公開し、実行sourceは維持する。
 
 CIの `scan-pr / osv-scan` はSUCCESS、`osv-scanner` はNEUTRAL。check-run `115366083329` のsummaryはmainの `osv-scanner-full.yml` 構成がPR側で見つからず、新規alertsを判定できないという警告で、annotationsは0件。前者の実行成功と後者の判定制限を区別し、新規alertsなしと報告しない。親はPR #402でも同じSUCCESS＋NEUTRALを確認している。今回workflowは変更しておらず、CI設定修正は範囲へ追加しない（`osv-check-run-initial.json`、`pr-created.json`）。merge／live applyはユーザー担当で未実施、残保留と更新全体の未完了状態は維持する。
+
+## 汎用検証 helper の採否と現在の追跡（2026-10-14）
+
+分割時に保留した2 helper と対応 tests／案内は、[独立した採否・検証記録](verification-helpers-pr-20261014.md)へ移管し、branch `dev/decide-verification-helpers-20261014` で限定した手動入口として採用する。対応先 PR は実装・検証後に確定する。上記の分割・公開・保留は各 phase 当時の履歴として保持する。
+
+現在の base `1813c865897e0b8977a12a7b698977e6eafb00b2` は #397–405 の source 採用を含み、#405 は merge 済みである。親の merge 照合時に両 live hub の studio4files は旧版で、今回子からの配備照合・apply はしていない。helper 採用・canonical・公開と live 配備を区別し、更新全体を完了扱いにしない。未キャッシュ Linux の Codex source build 要件、root braces audit exit 1 と magicast 内の旧 bundle 残存は未解消のまま維持する。

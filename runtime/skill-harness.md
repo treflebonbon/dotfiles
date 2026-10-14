@@ -120,6 +120,35 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 
 installが新規配備時にdeployed_files / deployed_file_hashesをlockへ追記するため、`apm lock`だけのlockを採用するとmaterialization情報が欠落する。共通コマンドが成功したら同じ隔離環境で`apm install --frozen --target claude,codex --https`前後のlock SHA-256不変と`apm audit --ci`を確認し、対象payloadの検証も終えてからlockをsourceへ戻す。非candidate dependencyを一時pinするupdate gateの作業用lockをそのままsourceに採用せず、最終source lockは実際のunpinned manifestから生成されたnative形式（`resolved_ref`はmanifestのexact pinだけ、single-quote）にする。`~/.agents/skills` / `~/.claude/skills`は直接変更せず、lockはoxfmtで再整形しない（`lefthook.yml`で除外済み。再整形するとapmがruntimeで書き戻してchezmoiと永続driftする）。
 
+**通常 APM 更新・既存 runtime 再利用の配備比較**: 上記の生成・frozen no-rewrite・audit を通過した隔離 runtime で、validated source 内の手動 helper `scripts/verify-apm-deployment.mjs` を使う。`SOURCE_DIR` はその checkout、`BASE_LOCK` は更新前の accepted lock、`CANDIDATE_RUNTIME` は候補 lock と両 target の配備先を持つ directory とする。
+
+```bash
+bun "$SOURCE_DIR/scripts/verify-apm-deployment.mjs" \
+  "$BASE_LOCK" "$CANDIDATE_RUNTIME" "$PLAN_JSON"
+```
+
+`PLAN_JSON` は配列そのものではなく、次の形式の object にする。これは形式例であり、`repo_url`／`virtual_path` は native lock と一致させ、directory を含む `deployed_files` の追加・削除を事前に列挙する。
+
+```json
+{
+  "candidates": [
+    {
+      "repo_url": "googlechrome/modern-web-guidance",
+      "virtual_path": "skills/modern-web-guidance",
+      "added": [
+        ".agents/skills/modern-web-guidance/guides/forms/slider.md",
+        ".claude/skills/modern-web-guidance/guides/forms/slider.md"
+      ],
+      "removed": []
+    }
+  ]
+}
+```
+
+helper は dependency 構成の一致、候補の追加・削除の完全一致、全配備 file の実 bytes／hash、runtime 外への path／symlink の拒否、両 target の skill discovery、`SKILL.md` の `name`／`description` frontmatter を検査する。guide Markdown には SKILL 用 frontmatter を要求しない。候補外 dependency は全 metadata を不変とし、更新前に `ref`／`resolved_ref` がない floating dependency の `resolved_commit` だけの変更を許容する。計画に含めた候補の revision／content／その他 metadata の更新は比較から外れるため、期待する pin／版／package type は manifest・native 生成・audit と当該更新 gate で別途照合する。
+
+root lock metadata、`deployments` の owner／active_owner／共有 owner ledger の前後比較、payload の意味、未記録 file 全体の列挙、対話 loader は helper の検査範囲外とする。既存の生成・frozen・audit と候補外／共有 owner ledger の独立比較を継続し、helper の PASS だけで全 lock 不変や配備完了とは判定しない。既存 frozen runtime の再利用では source の manifest／lock との byte 一致を先に確認し、`{"candidates":[]}` で追加・削除0を照合する。helper は native lock を読み取るだけで、HOME へ配備せず、既存 runner／hook／下記 Matt 専用 gate へ自動配線しない。
+
 **Matt Pocock managed full set の update gate**: candidate revision は [ADR-0042](../docs/adr/0042-mattpocock-managed-set-update-gate.md) の順序で [実行可能な gate](../tests/mattpocock-update-gate.sh) に通す。隔離 runtime 内だけで accepted lock の非 candidate dependency を一時的に exact pin し、lock generation → `apm install --frozen`（SHA-256 no-rewrite）→ `apm audit --ci` → full-set discovery / workflow payload contract → related workflow contract tests → full `bats tests/` → `chezmoi --source "$SOURCE_DIR" apply --dry-run` を一つの検証境界とする。candidate package と Matt 単独所有の deployment ledger record だけを比較対象から外し、共有 owner を持つ record を含む非 Matt lock field の drift、candidate 外の manifest 差分、full-set / cleanup mismatch、native route、`@latest` / `main` / native Claude plugin / universal installer は reject する。全て通過した exact commit だけを採用し、失敗時は accepted manifest / lock pair を保持して partial adoption を commit しない。
 
 ### 過去の更新記録
