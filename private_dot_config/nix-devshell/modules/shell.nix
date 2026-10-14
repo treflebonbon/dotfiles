@@ -34,6 +34,7 @@
       shellcheck
       bash-completion
       direnv
+      nh
       zsh
       zsh-autosuggestions
       zsh-syntax-highlighting
