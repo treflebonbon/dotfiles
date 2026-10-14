@@ -119,3 +119,7 @@ CIの `scan-pr / osv-scan` はSUCCESS、`osv-scanner` はNEUTRAL。check-run `11
 分割時に保留した2 helper と対応 tests／案内は、[独立した採否・検証記録](verification-helpers-pr-20261014.md)へ移管し、branch `dev/decide-verification-helpers-20261014` で限定した手動入口として採用する。対応先 PR は実装・検証後に確定する。上記の分割・公開・保留は各 phase 当時の履歴として保持する。
 
 現在の base `1813c865897e0b8977a12a7b698977e6eafb00b2` は #397–405 の source 採用を含み、#405 は merge 済みである。親の merge 照合時に両 live hub の studio4files は旧版で、今回子からの配備照合・apply はしていない。helper 採用・canonical・公開と live 配備を区別し、更新全体を完了扱いにしない。未キャッシュ Linux の Codex source build 要件、root braces audit exit 1 と magicast 内の旧 bundle 残存は未解消のまま維持する。
+
+### helper 実装・検証の完了（2026-10-14）
+
+[helper 独立記録](verification-helpers-pr-20261014.md)の実装 `6346cd8` は、同 HEAD の独立 Standards／Spec 各0・親照合後に canonical 全795件（774 pass／21 skip／0 fail、全 exit 0、985.622秒）を完了した。実 Design Hook13＋Playwright2件は skip0、全586 tracked hash は不変。初回83関連／現 helper26件／過去 suite は別結果として保持する。結果文書だけを確定して topic 公開・通常 PR 作成へ進み、対応先を追記する。現在は helper 未 merge・未配備で、#405 source 採用と両 live hub の旧 studio 配備状態を区別する。

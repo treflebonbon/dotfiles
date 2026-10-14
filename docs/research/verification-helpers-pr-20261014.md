@@ -48,3 +48,15 @@ AI の不正 JSON に関する新テストは参照版で exit-code 欠落を検
 canonical は実装 HEAD の `parent-confirmation.json` に `confirmed:true` が保存された後に開始する。現 phase では未実施で、過去の769件等を固定期待や今回成功へ使わない。全 suite では新 tests 分も含め plan／pass／skip／fail、各 exit／duration／hash、全 tracked 前後不変、実 Design Hook13件＋Playwright runtime2件の skip0 を実測する。既定 opt-in skip を維持し、成功後は結果文書だけを追記する。topic 公開・通常 PR はその後で、現在の対応先 PR は未確定である。
 
 #397–405 は base へ source 採用済みだが、親の #405 merge 照合時に両 live hub の studio4files は旧版だった。子による live 配備照合・apply は未実施。未キャッシュ Linux の Codex single-job source build、root braces audit exit 1 と magicast 内旧 bundle は未解消のまま維持する。ARM／Darwin 実機、認証／実モデル、APM 組織 policy、GitHub 最新 CI も今回未確認で、更新全体を完了扱いにしない。
+
+## 最終レビュー・親照合・canonical 全 Bats（2026-10-14）
+
+最終実装 HEAD は `6346cd8c714dd659c1581e648cb4a974ac5c3ed1`。同 HEAD を独立並列の Standards／Spec（両方 `gpt-6-luna`／`xhigh`）で再レビューし、両軸0件を確認した。親は scope10 file・clean・現 source byte・helper26件・quality／runtime／APM pair を独立照合し、同 HEAD の `parent-confirmation.json` に `confirmed:true` を保存した。
+
+同 source／test／依存／環境を固定して canonical `lefthook run test` を一度実行し、実測795件（774 pass／21 skip／0 fail）、runner／canonical／launcher exit 0 で成功した。TAP plan は1つ、1–795の連続番号、bailout なし。canonical 本体は985.622秒、環境準備・probe を含む launcher は1013.468秒で、計測境界を区別する。初回83関連は signal 修正前、現 helper26件は修正後の別試行として保持し、過去769件等も含め今回の件数へ合算していない。
+
+開始前に現 source の user／repo 両 wsl devShell を shellHook 前から HOME／全 XDG で隔離し、6 AI output／実版、source-selected Playwright browser-free／Impeccable engine と source pair に一致する既存 frozen APM runtime を照合した。実 Design Hook13件＋Playwright runtime2件は全 suite 内で通過・skip0。全586 tracked file の前後 SHA-256 が一致し、HEAD／clean も不変だった。Nix／npm／APM の再解決や live 配備は行っていない。
+
+21 skip は実 Herdr／Bash 3.2、認証・実モデル／MCP、専用隔離 runtime／dependency gateway、6言語独立生成、public Nix app の既定 opt-in。ARM／Darwin 実機と live studio 配備も未確認で、skip を成功へ含めない。未キャッシュ Linux の Codex source build 要件、root braces audit exit 1、magicast 内旧 bundle と APM 組織 policy／OSV 判定制限を維持する。
+
+TAP は `tmp/test-run.ZwVj2h/tap.log`、SHA-256 は `06e218f24c8f39bc2732636c321bf74f2171a668bda65e1bd7e93b24dd004630`。同 directory に setup／environment／exit-code、今回 evidence に `full-result.json`／`canonical-source-before.json`／`canonical-source-check.json`／`canonical-required-fixtures.json`／`canonical-environment.json`／`canonical-runtime-result.json`／`canonical{,-launch}.exit` と各 log を保持する。成功後は今回の結果・対応先文書だけを確定し、実行 source／test／deps／環境の不変を照合して canonical を反復しない。通常 PR の対応先と公開時 HEAD／CI は次の公開記録へ追記する。merge／apply は行わない。
