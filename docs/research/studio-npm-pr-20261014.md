@@ -78,3 +78,19 @@ browser QAは導入済みPlaywright CLIの正規Managed Windows Chrome identity�
 ## 親の最終read-only gate
 
 関連検証済みsourceをhookを通してcommitし、base `681e6c5dd610cbbe195ebc5dd412736c216e7021` から同commit済みHEADを独立Standards／Spec（両方gpt-6-luna／xhigh）でレビューする。未解決指摘を解消して同HEADの `review-result.json` を保存し、clean状態の完全HEAD／evidenceを親へ返す。canonicalは同HEADの `parent-confirmation.json` にconfirmed:trueがあることを確認してから開始する。これは追加ユーザー承認ではなく正式briefのread-only照合gateである。
+
+## 独立レビュー・親確認・canonical全Bats
+
+実装commitは `171685cb249a996f291934e8d658586b4725223b`。同commitをbase `681e6c5dd610cbbe195ebc5dd412736c216e7021` からgpt-6-luna／xhighの独立並列Standards／Specでレビューし、両軸0件、未解決0件だった。親も同完全HEAD／clean／7file scope、全50公式SRI／8版待機、生成物hash／license／browser実ファイル、現在追跡をread-onlyで照合してconfirmed:trueを保存した（`review-result.json`、`parent-confirmation.json`）。pre-commitのOxfmt／gitleaksとcommit-msgのcogを通過した。
+
+同source／test／deps／環境のcanonical `lefthook run test` は一度実行し、769件（748 pass／21 skip／0 fail）、runner／canonical／launcher exit 0、989.12秒で成功した。TAP plan1つ、1–769の連続番号、bailoutなし、全581 tracked fileの前後SHA-256が一致した。今回のunit15／関連23／browser assertや、過去の769／787件等はこの件数へ合算していない。TAPは `tmp/test-run.k9zc0y/tap.log`、同directoryにsetup／environment／exit-code、今回evidence内に `canonical-source-before.json`／`canonical-source-check.json`／`canonical-output.log`／`canonical{,-launch}.exit`／`current-tap-path`／`full-result.json` を保存した。
+
+source-selected user／repo両wsl devShellはshellHookより前からHOME／全XDGを隔離した。6AI output／実版はCodex 0.162.1、Claude 2.1.296、Copilot 1.0.96、Antigravity 1.3.3、APM 0.33.0、Herdr 0.9.3で一致。既存patched Codex outputを再利用し、不要なRust再buildを開始していない。採用Playwright browser-free outputは `/nix/store/r1mia04ilacqdfh4blbgb3hibpjsclap-playwright-cli-0.1.22`、engineは `/nix/store/8d2qywl01wrwpvykrgxg5r9jg7gxw981-impeccable-0.1.14`。frozen APM runtime `/tmp/fixed-clis-apm.mHuaBN` のsource pair／全20 dependency metadata・payload／両target各46 skill・追加0削除0を今回再照合し、固定source commitの公式package version 4.5.2、両launcher／scripts VERSION 0.1.14と実engine-probeを確認した。実Design Hook13件＋Playwright runtime2件の15必須fixtureはcanonical内で通過し、runtime不足skipはない。
+
+初回の環境検証補助はplanを配列として渡したため形式検証でexit 1になり、Bats開始前に停止した。正しい `candidates: []` へ直し、source／test／deps／準備済み隔離環境不変を確認して続行した。初回は `environment-attempt-1/` と `canonical-launch-first-preparation.exit` に保持し、全suiteの一回と区別する。環境根拠は `tmp/ai-tools-1z2qiybm/`、`canonical-package-metadata.json`／`canonical-ai-version-check.json`／`canonical-environment.json`／`apm-runtime-verification.log`／`impeccable-runtime.json`。
+
+21 skipは実Herdr／Bash 3.2、認証・実モデル／MCP、専用隔離runtime／dependency gateway、6言語独立生成、public Nix appの既定opt-in。未変更の6言語gateを今回実行済みとは扱わない。実file://／cross-browser／ARM・Darwin、live配備も未確認。成功後は結果と対応先の3文書だけを追記し、実行source／test／lock／deps／検証環境を維持するためcanonicalを反復しない。
+
+## 公開境界
+
+実remote defaultはmain。親の日本語3節草稿を実測値で確定し、英語Conventional Commits title `chore(deps): update domain modeling studio` で通常PRを公開する。topic pushは `git-push-topic` に限定し、force／default push／merge／applyを行わない。公開後に対応先を3文書へ追記し、最新HEADのCI／PR本文byte一致／local・upstream・actual remote・PR HEAD／cleanまで照合する。studio個別PRの完了と、汎用helper保留／未キャッシュCodex source build要件を含む更新全体の完了は区別する。
