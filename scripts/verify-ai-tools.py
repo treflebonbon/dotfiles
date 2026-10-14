@@ -49,6 +49,10 @@ if [ "$#" -gt 0 ]; then exec "$@"; fi
 """
 
 
+def shell_exit_code(returncode):
+    return returncode if returncode >= 0 else 128 - returncode
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
@@ -98,9 +102,7 @@ def main():
             text=True,
         )
     if result.returncode:
-        status = (
-            result.returncode if result.returncode >= 0 else 128 - result.returncode
-        )
+        status = shell_exit_code(result.returncode)
         (runtime / "exit-code").write_text(f"{status}\n")
         print(
             f"REJECT: Nix評価exit {status}（{runtime / 'evaluation.log'}）",
@@ -151,7 +153,7 @@ def main():
         status = subprocess.run(
             invocation, cwd=source, env=environment, stdout=log, stderr=log
         ).returncode
-    status = status if status >= 0 else 128 - status
+    status = shell_exit_code(status)
     (runtime / "exit-code").write_text(f"{status}\n")
     if status:
         print(

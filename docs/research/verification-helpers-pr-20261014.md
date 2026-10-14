@@ -39,6 +39,8 @@ AI の不正 JSON に関する新テストは参照版で exit-code 欠落を検
 
 初回実装 `63a245e` の独立レビューは Standards 0件／Spec 1件だった。Spec は subprocess のシグナル終了時に evidence が `-15`、呼出元の終了コードが241となる不一致を指摘した。CLI 回帰テストで red を確認し、既存 runner と同じ `128 + signal` への変換を評価・起動両経路へ加えて green にした。修正後の helper は26件（26 pass／0 fail／0 skip）、exit 0、5.698秒で成功した。評価と起動の signal 終了は両方143となり、後続 command は抑止された。実 source runtime の再照合も exit 0、27.866秒で成功し、6 CLI・Playwright・Impeccable・既存 APM 配備と lock 不変を再確認した。同じ修正後 HEAD を両軸で再レビューする。未変更の APM／floor／devShell 契約の初回83件は履歴として保持し、修正後 helper の件数へ合算しない。
 
+2回目の `a3adf31` レビューは Standards 1件／Spec 0件。Standards の重複指摘に従い、終了コード変換を同じ script 内の小さな関数へまとめた。共通化後の helper26件（26 pass／0 fail／0 skip、exit 0、5.742秒）と実 source runtime（exit 0、27.189秒）が成功し、正常終了・評価／起動 signal・保存された終了コード・後続 command 抑止を維持した。2回目の evidence は `implementation-round-2/`、最終 helper 結果は `helper-related-final-result.json`／`helper-related-final.tap` に保存する。
+
 ## 次の gate と残る境界
 
 関連検証と commit hook を通した同じ実装 HEAD を、Standards／Spec の独立並列 subagent（両方 `gpt-6-luna`／`xhigh`）でレビューする。現在要件・今回採否・適用 ADR と過去参考を区別し、指摘修正後の同 HEAD で両軸0件を確認する。
