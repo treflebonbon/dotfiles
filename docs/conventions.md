@@ -26,6 +26,14 @@ nix develop ./private_dot_config/nix-devshell#default --command \
   nix develop .#default --command lefthook run test
 ```
 
+ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。
+
+```bash
+python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test
+```
+
+評価・起動ログ、Nix の metadata 出力、終了コードは `tmp/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。HOME／XDG の分離は秘密分離や OS sandbox の保証ではなく、品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
+
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。

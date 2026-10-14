@@ -79,3 +79,15 @@ base／最初のcandidateの `bun audit --json` は両方exit 1で、bracesに�
 公開結果: [root npm独立PR #404](https://github.com/treflebonbon/dotfiles/pull/404) を `main` 向けOPEN・非draftの通常PRとして作成した。実装 `7e855f1` と結果記録 `40534d6` を `git-push-topic` で非force公開し、作成時local／PR HEAD `40534d684af147212e2d7950b2fa0227f23325f1` と英語Conventional title／確定日本語3節本文の一致を確認した。公開先の最小追記だけを同topicへ追加commit／pushする。CIは初回PR作成時点では未観測として本文に明記し、最新HEADの実結果とcode-scanningの判定制限を観測後にPR本文とGit管理外evidenceへ反映する。merge／applyは未実施で、studio／汎用helper等の保留による更新全体の未完了状態を維持する。
 
 Review Round（[review 5508107296](https://github.com/treflebonbon/dotfiles/pull/404#pullrequestreview-5508107296)）: thread `PRRT_kwDOTMg6A86sAIVU` の指摘に従い、一般Nix記録の現在要約を表と同じPR #404公開済み・未merge／未配備へ修正した。studio／helperは保留成果864880cに残り対応先未定、更新全体未完了を維持し、過去phase記録は変更しない。変更文書のcandidate formatter／再整形不変／内容・リンク／diff／commit hookを検証し、一つの `fix: address PR review feedback` commitで非force公開する。実行source／test／依存／環境の一致を照合して上記canonical 769件の結果を再利用し、全suiteは反復しない。証拠は `tmp/review-5508107296/`。threadの返信／resolveは親が担当する。
+
+## 汎用検証 helper の採否と現在の追跡（2026-10-14）
+
+分割時に保留した2 helper と対応 tests／案内は、[独立した採否・検証記録](verification-helpers-pr-20261014.md)へ移管し、branch `dev/decide-verification-helpers-20261014` で限定した手動入口として採用する。対応先 PR は実装・検証後に確定する。上記の分割・公開・保留は各 phase 当時の履歴として保持する。
+
+現在の base `1813c865897e0b8977a12a7b698977e6eafb00b2` は #397–405 の source 採用を含み、#405 は merge 済みである。親の merge 照合時に両 live hub の studio4files は旧版で、今回子からの配備照合・apply はしていない。helper 採用・canonical・公開と live 配備を区別し、更新全体を完了扱いにしない。未キャッシュ Linux の Codex source build 要件、root braces audit exit 1 と magicast 内の旧 bundle 残存は未解消のまま維持する。
+
+### helper 実装・検証の完了（2026-10-14）
+
+[helper 独立記録](verification-helpers-pr-20261014.md)の実装 `6346cd8` は、同 HEAD の独立 Standards／Spec 各0・親照合後に canonical 全795件（774 pass／21 skip／0 fail、全 exit 0、985.622秒）を完了した。実 Design Hook13＋Playwright2件は skip0、全586 tracked hash は不変。初回83関連／現 helper26件／過去 suite は別結果として保持する。結果文書だけを確定して topic 公開・通常 PR 作成へ進み、対応先を追記する。現在は helper 未 merge・未配備で、#405 source 採用と両 live hub の旧 studio 配備状態を区別する。
+
+helper の対応先は [通常 PR #406](https://github.com/treflebonbon/dotfiles/pull/406)（`main` 向け OPEN・非 draft）。実装 `6346cd8` と canonical 795件の結果記録を公開し、作成時 HEAD `213231d` と日本語本文 byte を照合した。初回 CI は scan-pr / osv-scan が SUCCESS、osv-scanner は main の full scan configuration 不一致により新規 alerts を判定できない NEUTRAL で、脆弱性なしとは扱わない。詳細・最終公開照合は [helper 記録](verification-helpers-pr-20261014.md) を参照。helper 未 merge／未配備、live studio 未照合、未キャッシュ Codex／root依存の残制限は維持する。

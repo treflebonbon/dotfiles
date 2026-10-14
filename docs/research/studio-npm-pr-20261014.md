@@ -98,3 +98,15 @@ source-selected user／repo両wsl devShellはshellHookより前からHOME／全X
 公開結果: [通常PR #405](https://github.com/treflebonbon/dotfiles/pull/405) を実remote default main向けOPEN・非draftとして作成した。実装 `171685c` と結果記録 `a955058` を `git-push-topic` で非force公開し、作成時local／upstream／actual remote／PR HEAD `a955058e68d235d9ec6b85a570745a241eb236b5`、英語Conventional title、日本語3節本文のbyte一致を確認した。親も今回のTAP／各exit／連番／15必須fixture／全581 tracked不変を独立照合した（`parent-canonical-check.json`）。計測は本体 `canonical-seconds` が989.12秒、TAP・hash照合込み `full-result.seconds` が989.23秒で、境界を区別する。
 
 作成時HEAD `a955058` のCIは [scan-pr / osv-scan](https://github.com/treflebonbon/dotfiles/actions/runs/38508122185/job/115670191966) がSUCCESS、[osv-scanner](https://github.com/treflebonbon/dotfiles/runs/115670308890) がNEUTRAL。code-scanningのsummaryはmainの `osv-scanner-full.yml` 構成がPR側で見つからないため新規alertsを判定できないという警告で、同checkのannotationsは0件。実行成功と判定制限を区別し、脆弱性なしとは扱わない。対応先追記後の最新HEADについてもCIを観測し、本文とGit管理外evidenceへ確定する。PR本文の3研究文書リンクは最終公開HEADのGitHub blob絶対URLに揃える。workflow変更はscopeへ追加しない。merge／applyは未実施、helper保留と未キャッシュCodexのsource build要件を含む更新全体は未完了である。
+
+## 汎用検証 helper の採否と現在の追跡（2026-10-14）
+
+分割時に保留した2 helper と対応 tests／案内は、[独立した採否・検証記録](verification-helpers-pr-20261014.md)へ移管し、branch `dev/decide-verification-helpers-20261014` で限定した手動入口として採用する。対応先 PR は実装・検証後に確定する。上記の分割・公開・保留は各 phase 当時の履歴として保持する。
+
+現在の base `1813c865897e0b8977a12a7b698977e6eafb00b2` は #397–405 の source 採用を含み、#405 は merge 済みである。親の merge 照合時に両 live hub の studio4files は旧版で、今回子からの配備照合・apply はしていない。helper 採用・canonical・公開と live 配備を区別し、更新全体を完了扱いにしない。未キャッシュ Linux の Codex source build 要件、root braces audit exit 1 と magicast 内の旧 bundle 残存は未解消のまま維持する。
+
+### helper 実装・検証の完了（2026-10-14）
+
+[helper 独立記録](verification-helpers-pr-20261014.md)の実装 `6346cd8` は、同 HEAD の独立 Standards／Spec 各0・親照合後に canonical 全795件（774 pass／21 skip／0 fail、全 exit 0、985.622秒）を完了した。実 Design Hook13＋Playwright2件は skip0、全586 tracked hash は不変。初回83関連／現 helper26件／過去 suite は別結果として保持する。結果文書だけを確定して topic 公開・通常 PR 作成へ進み、対応先を追記する。現在は helper 未 merge・未配備で、#405 source 採用と両 live hub の旧 studio 配備状態を区別する。
+
+helper の対応先は [通常 PR #406](https://github.com/treflebonbon/dotfiles/pull/406)（`main` 向け OPEN・非 draft）。実装 `6346cd8` と canonical 795件の結果記録を公開し、作成時 HEAD `213231d` と日本語本文 byte を照合した。初回 CI は scan-pr / osv-scan が SUCCESS、osv-scanner は main の full scan configuration 不一致により新規 alerts を判定できない NEUTRAL で、脆弱性なしとは扱わない。詳細・最終公開照合は [helper 記録](verification-helpers-pr-20261014.md) を参照。helper 未 merge／未配備、live studio 未照合、未キャッシュ Codex／root依存の残制限は維持する。
