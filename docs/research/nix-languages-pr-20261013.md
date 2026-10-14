@@ -32,12 +32,12 @@ root／userの全packageと6言語のbase／candidate metadata、3 system評価�
 | `private_dot_config/nix-devshell/packages/playwright-cli-agent/package-lock.json`、`private_dot_config/nix-devshell/packages/playwright-cli.nix` | PR #402 Review Roundの公式registry URL3件／npmDepsHashを維持。referenceのmirrorには戻さず、今回入力で実build／配布fixtureを検証する。 |
 | `tests/nix-devshell.bats` | PR #397のsnapshot記録参照を維持。referenceの統合記録参照への置換は採用しない。 |
 | `package.json`、`bun.lock` | root npm依存の別単位として保留していた。2026-10-14に独立更新し、[今回の記録](root-npm-pr-20261014.md)へ移管。[通常PR #404](https://github.com/treflebonbon/dotfiles/pull/404)、2026-10-14にmerge済み（`681e6c5`）。親がmainのroot npm frozen install・実版・pair hash不変／cleanを照合。詳細は同記録へ追記し、chezmoi配備全体とは区別する。 |
-| `local-skills/domain-modeling-studio/package.json`、`local-skills/domain-modeling-studio/package-lock.json`、`local-skills/domain-modeling-studio/dist/studio.html`、`local-skills/domain-modeling-studio/dist/THIRD-PARTY-LICENSES.txt` | studio依存・生成物の別単位として保留していた。2026-10-14に[studio独立更新記録](studio-npm-pr-20261014.md)へ移管し、branch `dev/update-studio-deps-20261014` で実装・関連検証・独立2軸レビュー・canonical全Batsを完了。通常PR公開準備中、対応先PRは公開後に追記。未merge・未配備。 |
+| `local-skills/domain-modeling-studio/package.json`、`local-skills/domain-modeling-studio/package-lock.json`、`local-skills/domain-modeling-studio/dist/studio.html`、`local-skills/domain-modeling-studio/dist/THIRD-PARTY-LICENSES.txt` | studio依存・生成物の別単位として保留していた。2026-10-14に[studio独立更新記録](studio-npm-pr-20261014.md)へ移管し、branch `dev/update-studio-deps-20261014` で実装・関連検証・独立2軸レビュー・canonical全Batsを完了。[通常PR #405](https://github.com/treflebonbon/dotfiles/pull/405) をOPEN・非draftで公開済み。未merge・未配備。 |
 | `scripts/verify-ai-tools.py`、`scripts/verify-apm-deployment.mjs`、`tests/verify-ai-tools.bats`、`tests/verify-apm-deployment.bats` | 汎用検証helper配布・testsは別単位として保留。必要な補助だけGit管理外へ読み取り取得し、今回PRへ追加しない。 |
 | `docs/architecture.md` のCodex説明・参照変更、`docs/conventions.md`、`runtime/skill-harness.md` | 現在baseの採用済みcleanup記録／規約を維持。helper案内はhelper単位へ保留。Gleam説明だけ今回採用。 |
 | `docs/research/braces-response-20261013.md`、`docs/research/update-tools-skills-20261011.md` | 保留成果内の参考履歴を読み取り専用で保持。braces advisory判断は別単位へ保留、今回は変更しない。今回実測は本記録へ保存する。 |
 
-2026-10-14現在、root npmは[PR #404](https://github.com/treflebonbon/dotfiles/pull/404)でmerge済み（`681e6c5`）となり、親がmainでのfrozen install・実版・pair hash不変／cleanを照合した。studioは[独立更新記録](studio-npm-pr-20261014.md)のbranchで検証完了・通常PR公開準備中。汎用helper等は保留成果 `864880c` に残り対応先未定のため、更新全体は未完了である。root npmの反映とchezmoi配備全体を区別し、以下の各phaseの当時記録は保持する。
+2026-10-14現在、root npmは[PR #404](https://github.com/treflebonbon/dotfiles/pull/404)でmerge済み（`681e6c5`）となり、親がmainでのfrozen install・実版・pair hash不変／cleanを照合した。studioは[独立更新記録](studio-npm-pr-20261014.md)の[通常PR #405](https://github.com/treflebonbon/dotfiles/pull/405)で公開済み（未merge・未配備）。汎用helper等は保留成果 `864880c` に残り対応先未定のため、更新全体は未完了である。root npmの反映とchezmoi配備全体を区別し、以下の各phaseの当時記録は保持する。
 
 ## このbranch自身の採用確認と実検証
 

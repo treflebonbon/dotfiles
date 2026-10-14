@@ -22,7 +22,7 @@ base lockはrootを含む51 entry、全50 packageのresolved hostが `npm.flatt.
 
 | 対象 | 採否・理由・対応先・状態 |
 | --- | --- |
-| studio direct3／lock／dist／license | 今回採用。公式registryのnative生成と現在のbuild／検証で独立PRへ移管する。対応先PRは公開後に追記。未merge・未配備。 |
+| studio direct3／lock／dist／license | 今回採用。公式registryのnative生成と現在のbuild／検証で独立PRへ移管する。[通常PR #405](https://github.com/treflebonbon/dotfiles/pull/405) をOPEN・非draftで公開済み。未merge・未配備。 |
 | #397–402のAI／APM／Impeccable／Matt／モデル／固定CLI、#403の一般Nix／6言語 | main採用済みsourceを維持。referenceへの巻戻しや未変更gateの成功転記はしない。 |
 | root npm #404 | merge済み、merge SHA `681e6c5`。親がmainでBun 1.4.2 frozen install、Oxfmt 0.72.0／Oxlint 1.87.0／Ultracite 7.12.4／source-map-js 1.2.2とpair hash不変／cleanを確認。root npmの反映根拠であり、chezmoi配備全体の完了とは扱わない。 |
 | 汎用helper／対応tests／helper案内 | 別単位として保留、対応先未定。必要な検証補助だけGit管理外へ読み取り取得し、sourceへ追加しない。 |
@@ -83,7 +83,7 @@ browser QAは導入済みPlaywright CLIの正規Managed Windows Chrome identity�
 
 実装commitは `171685cb249a996f291934e8d658586b4725223b`。同commitをbase `681e6c5dd610cbbe195ebc5dd412736c216e7021` からgpt-6-luna／xhighの独立並列Standards／Specでレビューし、両軸0件、未解決0件だった。親も同完全HEAD／clean／7file scope、全50公式SRI／8版待機、生成物hash／license／browser実ファイル、現在追跡をread-onlyで照合してconfirmed:trueを保存した（`review-result.json`、`parent-confirmation.json`）。pre-commitのOxfmt／gitleaksとcommit-msgのcogを通過した。
 
-同source／test／deps／環境のcanonical `lefthook run test` は一度実行し、769件（748 pass／21 skip／0 fail）、runner／canonical／launcher exit 0、989.12秒で成功した。TAP plan1つ、1–769の連続番号、bailoutなし、全581 tracked fileの前後SHA-256が一致した。今回のunit15／関連23／browser assertや、過去の769／787件等はこの件数へ合算していない。TAPは `tmp/test-run.k9zc0y/tap.log`、同directoryにsetup／environment／exit-code、今回evidence内に `canonical-source-before.json`／`canonical-source-check.json`／`canonical-output.log`／`canonical{,-launch}.exit`／`current-tap-path`／`full-result.json` を保存した。
+同source／test／deps／環境のcanonical `lefthook run test` は一度実行し、769件（748 pass／21 skip／0 fail）、runner／canonical／launcher exit 0、canonical本体989.12秒／TAP・hash照合込み989.23秒で成功した。TAP plan1つ、1–769の連続番号、bailoutなし、全581 tracked fileの前後SHA-256が一致した。今回のunit15／関連23／browser assertや、過去の769／787件等はこの件数へ合算していない。TAPは `tmp/test-run.k9zc0y/tap.log`、同directoryにsetup／environment／exit-code、今回evidence内に `canonical-source-before.json`／`canonical-source-check.json`／`canonical-output.log`／`canonical{,-launch}.exit`／`current-tap-path`／`full-result.json` を保存した。
 
 source-selected user／repo両wsl devShellはshellHookより前からHOME／全XDGを隔離した。6AI output／実版はCodex 0.162.1、Claude 2.1.296、Copilot 1.0.96、Antigravity 1.3.3、APM 0.33.0、Herdr 0.9.3で一致。既存patched Codex outputを再利用し、不要なRust再buildを開始していない。採用Playwright browser-free outputは `/nix/store/r1mia04ilacqdfh4blbgb3hibpjsclap-playwright-cli-0.1.22`、engineは `/nix/store/8d2qywl01wrwpvykrgxg5r9jg7gxw981-impeccable-0.1.14`。frozen APM runtime `/tmp/fixed-clis-apm.mHuaBN` のsource pair／全20 dependency metadata・payload／両target各46 skill・追加0削除0を今回再照合し、固定source commitの公式package version 4.5.2、両launcher／scripts VERSION 0.1.14と実engine-probeを確認した。実Design Hook13件＋Playwright runtime2件の15必須fixtureはcanonical内で通過し、runtime不足skipはない。
 
@@ -94,3 +94,7 @@ source-selected user／repo両wsl devShellはshellHookより前からHOME／全X
 ## 公開境界
 
 実remote defaultはmain。親の日本語3節草稿を実測値で確定し、英語Conventional Commits title `chore(deps): update domain modeling studio` で通常PRを公開する。topic pushは `git-push-topic` に限定し、force／default push／merge／applyを行わない。公開後に対応先を3文書へ追記し、最新HEADのCI／PR本文byte一致／local・upstream・actual remote・PR HEAD／cleanまで照合する。studio個別PRの完了と、汎用helper保留／未キャッシュCodex source build要件を含む更新全体の完了は区別する。
+
+公開結果: [通常PR #405](https://github.com/treflebonbon/dotfiles/pull/405) を実remote default main向けOPEN・非draftとして作成した。実装 `171685c` と結果記録 `a955058` を `git-push-topic` で非force公開し、作成時local／upstream／actual remote／PR HEAD `a955058e68d235d9ec6b85a570745a241eb236b5`、英語Conventional title、日本語3節本文のbyte一致を確認した。親も今回のTAP／各exit／連番／15必須fixture／全581 tracked不変を独立照合した（`parent-canonical-check.json`）。計測は本体 `canonical-seconds` が989.12秒、TAP・hash照合込み `full-result.seconds` が989.23秒で、境界を区別する。
+
+作成時HEAD `a955058` のCIは [scan-pr / osv-scan](https://github.com/treflebonbon/dotfiles/actions/runs/38508122185/job/115670191966) がSUCCESS、[osv-scanner](https://github.com/treflebonbon/dotfiles/runs/115670308890) がNEUTRAL。code-scanningのsummaryはmainの `osv-scanner-full.yml` 構成がPR側で見つからないため新規alertsを判定できないという警告で、同checkのannotationsは0件。実行成功と判定制限を区別し、脆弱性なしとは扱わない。対応先追記後の最新HEADについてもCIを観測し、本文とGit管理外evidenceへ確定する。PR本文の3研究文書リンクは最終公開HEADのGitHub blob絶対URLに揃える。workflow変更はscopeへ追加しない。merge／applyは未実施、helper保留と未キャッシュCodexのsource build要件を含む更新全体は未完了である。
