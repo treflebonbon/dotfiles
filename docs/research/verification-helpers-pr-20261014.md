@@ -60,3 +60,11 @@ canonical は実装 HEAD の `parent-confirmation.json` に `confirmed:true` が
 21 skip は実 Herdr／Bash 3.2、認証・実モデル／MCP、専用隔離 runtime／dependency gateway、6言語独立生成、public Nix app の既定 opt-in。ARM／Darwin 実機と live studio 配備も未確認で、skip を成功へ含めない。未キャッシュ Linux の Codex source build 要件、root braces audit exit 1、magicast 内旧 bundle と APM 組織 policy／OSV 判定制限を維持する。
 
 TAP は `tmp/test-run.ZwVj2h/tap.log`、SHA-256 は `06e218f24c8f39bc2732636c321bf74f2171a668bda65e1bd7e93b24dd004630`。同 directory に setup／environment／exit-code、今回 evidence に `full-result.json`／`canonical-source-before.json`／`canonical-source-check.json`／`canonical-required-fixtures.json`／`canonical-environment.json`／`canonical-runtime-result.json`／`canonical{,-launch}.exit` と各 log を保持する。成功後は今回の結果・対応先文書だけを確定し、実行 source／test／deps／環境の不変を照合して canonical を反復しない。通常 PR の対応先と公開時 HEAD／CI は次の公開記録へ追記する。merge／apply は行わない。
+
+## 通常 PR の公開結果（2026-10-14）
+
+[通常 PR #406](https://github.com/treflebonbon/dotfiles/pull/406) を実 remote default `main` 向け OPEN・非 draft で作成した。実装・修正・結果記録を `git-push-topic` で非 force 公開し、作成時の local／upstream／actual remote／PR HEAD `213231d3a1f9e2a67d0bf12cc8ca4f0ddbd797f6`、英語 Conventional title `feat: add manual verification helpers`、確定した日本語3節本文の byte 一致を確認した。必須の4研究リンクは公開 HEAD の GitHub blob URL として本文へ設定した。
+
+作成時 HEAD の [scan-pr / osv-scan](https://github.com/treflebonbon/dotfiles/actions/runs/38560910821/job/115841445231) は SUCCESS、[osv-scanner](https://github.com/treflebonbon/dotfiles/runs/115841570111) は NEUTRAL。code-scanning は main の `osv-scanner-full.yml` configuration が PR 側に見つからず、新規 alerts を判定できない警告で、同 check の annotations は0件だった。scan 実行成功と判定制限を区別し、脆弱性なしとは扱わない。workflow の変更は追加しない。
+
+この対応先追記は結果文書だけの変更として同 topic へ commit／push する。最新公開 HEAD の CI と local／upstream／actual remote／PR HEAD、clean、本文 byte／研究 blob byte を最後に照合し、本文の必須研究リンクをその最終 HEAD へ揃える。今回の canonical は一度だけで、582非結果 tracked file・実行 source／test／deps／環境の不変を確認して再利用する。merge／apply は未実施で、helper は未 merge・未配備のまま。更新全体の完了や既報の root／Codex 制限解消とは区別する。

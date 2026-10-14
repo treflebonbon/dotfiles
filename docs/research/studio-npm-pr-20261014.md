@@ -108,3 +108,5 @@ source-selected user／repo両wsl devShellはshellHookより前からHOME／全X
 ### helper 実装・検証の完了（2026-10-14）
 
 [helper 独立記録](verification-helpers-pr-20261014.md)の実装 `6346cd8` は、同 HEAD の独立 Standards／Spec 各0・親照合後に canonical 全795件（774 pass／21 skip／0 fail、全 exit 0、985.622秒）を完了した。実 Design Hook13＋Playwright2件は skip0、全586 tracked hash は不変。初回83関連／現 helper26件／過去 suite は別結果として保持する。結果文書だけを確定して topic 公開・通常 PR 作成へ進み、対応先を追記する。現在は helper 未 merge・未配備で、#405 source 採用と両 live hub の旧 studio 配備状態を区別する。
+
+helper の対応先は [通常 PR #406](https://github.com/treflebonbon/dotfiles/pull/406)（`main` 向け OPEN・非 draft）。実装 `6346cd8` と canonical 795件の結果記録を公開し、作成時 HEAD `213231d` と日本語本文 byte を照合した。初回 CI は scan-pr / osv-scan が SUCCESS、osv-scanner は main の full scan configuration 不一致により新規 alerts を判定できない NEUTRAL で、脆弱性なしとは扱わない。詳細・最終公開照合は [helper 記録](verification-helpers-pr-20261014.md) を参照。helper 未 merge／未配備、live studio 未照合、未キャッシュ Codex／root依存の残制限は維持する。
