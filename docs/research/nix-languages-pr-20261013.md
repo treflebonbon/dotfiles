@@ -37,7 +37,7 @@ root／userの全packageと6言語のbase／candidate metadata、3 system評価�
 | `docs/architecture.md` のCodex説明・参照変更、`docs/conventions.md`、`runtime/skill-harness.md` | 現在baseの採用済みcleanup記録／規約を維持。helper案内はhelper単位へ保留。Gleam説明だけ今回採用。 |
 | `docs/research/braces-response-20261013.md`、`docs/research/update-tools-skills-20261011.md` | 保留成果内の参考履歴を読み取り専用で保持。braces advisory判断は別単位へ保留、今回は変更しない。今回実測は本記録へ保存する。 |
 
-今回のPR公開と更新全体の完了は区別する。root npm／studio／汎用helper等は保留成果 `864880c` に残り、対応先未定のため更新全体は未完了である。
+今回のPR公開と更新全体の完了は区別する。root npmは[PR #404](https://github.com/treflebonbon/dotfiles/pull/404)で公開済みだが未merge・未配備であり、studio／汎用helper等は保留成果 `864880c` に残り対応先未定のため、更新全体は未完了である。
 
 ## このbranch自身の採用確認と実検証
 
