@@ -141,3 +141,48 @@ PYMODE
   [[ "$output" == *'"continue":false'* ]]
   [ "$(cat "$shared")" = kept ]
 }
+
+@test "Codex SessionStart rejects a raced symlink without changing its target" {
+  local shared="$BATS_TEST_TMPDIR/shared"
+  local target="$BATS_TEST_TMPDIR/target"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  local command
+  mkdir "$target" "$bin"
+  chmod 755 "$target"
+  printf '#!%s\n' "$(command -v python3)" >"$bin/mkdir"
+  cat >>"$bin/mkdir" <<'PYRACE'
+import os
+from pathlib import Path
+import sys
+
+def inject_symlink():
+    os.symlink(os.environ["RACE_TARGET"], os.environ["RACE_SHARED"])
+    Path(os.environ["RACE_HIT"]).touch()
+
+if Path(sys.argv[0]).name == "mkdir":
+    inject_symlink()
+    os.execv(os.environ["REAL_MKDIR"], ["mkdir", *sys.argv[1:]])
+else:
+    original_mkdir = os.mkdir
+    def raced_mkdir(path, *args, **kwargs):
+        inject_symlink()
+        return original_mkdir(path, *args, **kwargs)
+    os.mkdir = raced_mkdir
+    exec(sys.argv[-1])
+PYRACE
+  chmod +x "$bin/mkdir"
+  cp "$bin/mkdir" "$bin/python3"
+  command="$(session_start_command "$shared")"
+  run env PATH="$bin:$PATH" RACE_SHARED="$shared" RACE_TARGET="$target" \
+    RACE_HIT="$BATS_TEST_TMPDIR/race-hit" REAL_MKDIR="$(command -v mkdir)" sh -c "$command"
+
+  [ "$status" -eq 0 ]
+  [ -f "$BATS_TEST_TMPDIR/race-hit" ]
+  [[ "$output" == *'"continue":false'* ]]
+  python3 - "$target" <<'PYMODE'
+import stat
+import sys
+from pathlib import Path
+assert stat.S_IMODE(Path(sys.argv[1]).stat().st_mode) == 0o755
+PYMODE
+}
