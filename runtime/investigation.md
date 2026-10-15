@@ -23,6 +23,15 @@ gcloud-inspect projects get-iam-policy PROJECT_ID
 
 初期対応は projects、Logging の logs/sinks/metrics/buckets、Monitoring の dashboards/policies、Cloud Run の services/revisions、GKE の clusters、Compute Engine の instances/networks/firewall-rules、IAM の service-accounts/roles の一覧・設定参照。projects、Cloud Run services、IAM service-accounts の IAM policy 参照と `config list` も扱う。正確なコマンド一覧は `gcloud-inspect --help` で確認する。
 
+初期対応外の読み取りは、対象・コマンド・必要な理由をユーザーへ示して回答を待つ。確認後は、先頭に `--reviewed` を付けた同じ入口を使う。`list`・`describe`・`get-iam-policy`・`read` に限り、CLI の help の `NAME` で正式なコマンドであることを検証してから実行する。引数の検証と機密項目の除外は同じ処理を通る。help を確認できない CLI 版や、未対応の引数構造では実行しない。
+
+```bash
+# この操作についてユーザーの確認を得た後に実行する。
+gcloud-inspect --reviewed compute disks describe DISK --project PROJECT_ID --zone asia-northeast1-a
+```
+
+`--reviewed` を付けること自体をユーザーの承認の代わりにしない。Codex の prompt、Claude Code の ask にも登録する。通常の `gcloud` は引数の並べ方による秘密取得や出力制限の迂回を防ぐため、一括禁止を維持する。
+
 一覧とログは既定で最大100件。`--limit` は1〜1000を指定できる。`--project`、`--region`、`--zone`、`--location`、`--bucket`、`--service`、`--filter`、`--sort-by`、`--freshness`、`--order` を受理するが、実際に使えるオプションは各 gcloud 操作の仕様に従う。出力形式の変更、flags file、認証切替、HTTP ログの出力などは自動許可しない。API の自動有効化も無効にする。
 
 時系列データは固定した Monitoring API の GET を使う。認証トークンは内部で取得し、コマンド引数・結果・エラーへ出力しない。別の宛先への redirect は追跡しない。

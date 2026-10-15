@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": ["Skill", "Bash(gcloud-inspect:*)"],
-    "ask": ["Bash(gcloud:*)", "Bash(gh api:*)"],
+    "ask": ["Bash(gcloud-inspect --reviewed:*)", "Bash(gh api:*)"],
     "deny": [
       "Read(**/.env*)",
       "Read(**/*.pem)",
@@ -32,12 +32,7 @@
       "Bash(git push --force:*)",
       "Bash(git push --force-with-lease:*)",
       "Bash(git reset --hard:*)",
-      "Bash(gcloud auth:*)",
-      "Bash(gcloud secrets:*)",
-      "Bash(gcloud alpha auth:*)",
-      "Bash(gcloud alpha secrets:*)",
-      "Bash(gcloud beta auth:*)",
-      "Bash(gcloud beta secrets:*)",
+      "Bash(gcloud:*)",
       "Bash(aws:*)",
       "Bash(terraform apply:*)",
       "Bash(terraform destroy:*)",

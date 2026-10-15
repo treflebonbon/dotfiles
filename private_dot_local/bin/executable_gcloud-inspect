@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
-COMMANDS = {("logging", "read"): True, ("config", "list"): False}
+ACCEPTS_RESOURCE = {("logging", "read"): True, ("config", "list"): False}
 for group in (
     ("projects",),
     ("logging", "logs"),
@@ -30,11 +30,11 @@ for group in (
     ("iam", "service-accounts"),
     ("iam", "roles"),
 ):
-    COMMANDS[(*group, "list")] = False
+    ACCEPTS_RESOURCE[(*group, "list")] = False
     if group != ("logging", "logs"):
-        COMMANDS[(*group, "describe")] = True
+        ACCEPTS_RESOURCE[(*group, "describe")] = True
 for group in (("projects",), ("run", "services"), ("iam", "service-accounts")):
-    COMMANDS[(*group, "get-iam-policy")] = True
+    ACCEPTS_RESOURCE[(*group, "get-iam-policy")] = True
 
 OPTIONS = (
     "project", "limit", "filter", "sort-by", "freshness", "order",
@@ -63,18 +63,23 @@ def redact(value):
     return value
 
 
-def read_gcloud(arguments):
+def gcloud_output(arguments):
     result = subprocess.run(
-        ["gcloud", *arguments, "--format=json", "--quiet"],
+        ["gcloud", *arguments, "--quiet"],
         capture_output=True,
         text=True,
         timeout=120,
-        env={**os.environ, "CLOUDSDK_CORE_SHOULD_PROMPT_TO_ENABLE_API": "false"},
+        env={**os.environ, "CLOUDSDK_CORE_SHOULD_PROMPT_TO_ENABLE_API": "false", "PAGER": "cat"},
     )
     if result.returncode:
         raise ValueError("gcloud が失敗しました。認証・対象・API の有効化状態を確認してください。")
+    return result.stdout
+
+
+def read_gcloud(arguments):
+    output = gcloud_output([*arguments, "--format=json"])
     try:
-        return json.loads(result.stdout)
+        return json.loads(output)
     except ValueError:
         raise ValueError("gcloud の出力が JSON ではありません。") from None
 
@@ -127,9 +132,13 @@ def read_time_series(arguments):
 
 
 def main(arguments):
+    reviewed = arguments[:1] == ["--reviewed"]
+    if reviewed:
+        arguments = arguments[1:]
     if not arguments or arguments == ["--help"]:
         print("使い方: gcloud-inspect <gcloud の参照操作> [引数]\n"
-              "対応操作:\n" + "\n".join("  " + " ".join(command) for command in sorted(COMMANDS)) +
+              "対応操作:\n" + "\n".join("  " + " ".join(command) for command in sorted(ACCEPTS_RESOURCE)) +
+              "\n確認後の追加参照: gcloud-inspect --reviewed <list/describe/get-iam-policy/read 操作> [引数]" +
               "\n  monitoring time-series list --project ID --filter FILTER --start RFC3339 --end RFC3339 [--limit N] [--page-token TOKEN]")
         return 0
     if arguments[:3] == ["monitoring", "time-series", "list"]:
@@ -138,12 +147,24 @@ def main(arguments):
     root = arguments[1:2] if arguments[:1] in (["alpha"], ["beta"]) else arguments[:1]
     if root in (["auth"], ["secrets"]):
         raise ValueError("認証値・秘密値の取得は禁止されています。")
-    command = next((key for key in COMMANDS if arguments[: len(key)] == list(key)), None)
+    command = next((key for key in ACCEPTS_RESOURCE if arguments[: len(key)] == list(key)), None)
     if command is None:
-        print("自動許可対象外です。実行前にユーザーへ操作内容を示して確認してください。", file=sys.stderr)
-        return 2
+        if not reviewed:
+            print("自動許可対象外です。実行前にユーザーへ操作内容を示して確認してください。", file=sys.stderr)
+            return 2
+        for index, value in enumerate(arguments):
+            if value in {"list", "describe", "get-iam-policy", "read"}:
+                command = tuple(arguments[: index + 1])
+                break
+        if command is None or not all(re.fullmatch(r"[a-z][a-z0-9-]*", part) for part in command):
+            raise ValueError("確認後も読み取り操作と通常のコマンド順序だけを受理します。")
+        help_text = gcloud_output([*command, "--help"])
+        help_text = re.sub(r"\x1b\[[0-9;]*m|.\x08", "", help_text)
+        name = re.search(r"(?m)^\s*NAME\s*\n\s*(gcloud[^\n]+)", help_text)
+        if name is None or name[1].split(" - ")[0].split() != ["gcloud", *command]:
+            raise ValueError("CLI の正式な読み取りコマンドを確認できないため実行しません。")
     parser = argparse.ArgumentParser(prog="gcloud-inspect", allow_abbrev=False)
-    if COMMANDS[command]:
+    if ACCEPTS_RESOURCE.get(command, command[-1] != "list"):
         parser.add_argument("resource", nargs="?" if command == ("logging", "read") else None)
     for option in OPTIONS:
         parser.add_argument("--" + option, type=int if option == "limit" else str)

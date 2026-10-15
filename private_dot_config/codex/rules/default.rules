@@ -46,23 +46,16 @@ prefix_rule(
 
 prefix_rule(
     pattern = ["gcloud"],
+    decision = "forbidden",
+    justification = "秘密取得や出力制限の迂回を防ぐ。調査は gcloud-inspect、確認済みの追加参照はその --reviewed を使う。",
+    match = ["gcloud projects list", "gcloud --project=example secrets versions access latest", "gcloud --configuration=example auth print-access-token"],
+)
+
+prefix_rule(
+    pattern = ["gcloud-inspect", "--reviewed"],
     decision = "prompt",
-    justification = "通常の調査は gcloud-inspect を使う。未対応の操作はユーザーへ内容を示して確認する。",
-    match = ["gcloud projects list", "gcloud run services describe example"],
-)
-
-prefix_rule(
-    pattern = ["gcloud", ["auth", "secrets"]],
-    decision = "forbidden",
-    justification = "認証値・秘密値の取得は調査許可に含めない。既存認証は gcloud-inspect 内部でのみ利用する。",
-    match = ["gcloud auth print-access-token", "gcloud secrets versions access latest"],
-)
-
-prefix_rule(
-    pattern = ["gcloud", ["alpha", "beta"], ["auth", "secrets"]],
-    decision = "forbidden",
-    justification = "alpha/beta でも認証値・秘密値の取得は許可しない。",
-    match = ["gcloud beta secrets versions access latest", "gcloud alpha auth print-access-token"],
+    justification = "自動許可対象外の読み取りは実行前にユーザーへ操作内容を示して確認する。",
+    match = ["gcloud-inspect --reviewed compute disks describe data-disk"],
 )
 
 # Block destructive infrastructure and publishing commands.

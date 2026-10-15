@@ -35,11 +35,11 @@ Secret Manager の秘密値や認証トークンをエージェントへ表示�
 
 コマンド名の先頭だけで判定するルールでは、後続のオプションやレスポンスの機密項目を制限できない。Cloud Run の `services describe` は環境変数も返すため、設定参照に必要な出力制限を、任意オプションで解除できる形にしない。既存の許可機構を利用できる操作はそれを使い、追加の実行入口が必要な場合は対応する調査操作だけを扱う。
 
-実装は `gcloud-inspect` を限定入口とし、操作・引数の検証、設定の機密項目の除外、Monitoring 時系列 API の固定 GET を担当させる。対応する `gh` の参照コマンドは各 runtime の許可ルールを使う。通常の `gcloud` と `gh api`（既存の `rate_limit` を含む）は個別確認に回す。使い方と初期対応範囲は [runtime/investigation.md](../../runtime/investigation.md) に記載する。
+実装は `gcloud-inspect` を限定入口とし、操作・引数の検証、設定の機密項目の除外、Monitoring 時系列 API の固定 GET を担当させる。初期対応外の読み取りはユーザーの確認後に `gcloud-inspect --reviewed` を使い、CLI の help で正式な読み取りコマンドか検証する。対応する `gh` の参照コマンドは各 runtime の許可ルールを使う。`gh api`（既存の `rate_limit` を含む）は個別確認に回す。使い方と初期対応範囲は [runtime/investigation.md](../../runtime/investigation.md) に記載する。
 
 Monitoring の時系列データは、導入版 CLI の対応を確認したうえで必要なら公式の `projects.timeSeries.list` を利用する。認証値をエージェントへ表示する手順は採用しない。任意の `gh api` や GraphQL は初期の自動許可対象に加えず、必要な GitHub 調査は専用の参照コマンドで提供する。
 
-既存の `gcloud` 一括禁止に許可ルールを追記するだけでは、禁止の優先により目的を満たさない。Codex の command rules・必要な通信／認証経路と、Claude Code の共通設定・repo 設定の重複する禁止を揃えて確認する。raw 隔離版の独立した認証・通信境界は変更しない。
+通常の `gcloud` は一括禁止を維持する。グローバルオプションを先に置くと秘密取得を狭い prefix ルールで識別できないため、単に個別確認へ緩和する設計は採用しない。別名の限定入口を許可し、Codex の command rules と Claude Code の共通設定・repo 設定を揃える。Codex の allow で限定入口を既存の承認経路から実行し、秘密ファイルや network domain の許可範囲は広げない。raw 隔離版の独立した認証・通信境界は変更しない。
 
 Claude Code の auto 判定だけでは、未対応の調査操作について人間への確認を保証しない。対象外の操作を自動実行せず、実行前にユーザーへ確認する経路も検証する。
 

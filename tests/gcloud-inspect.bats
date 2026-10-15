@@ -17,6 +17,15 @@ import os
 from pathlib import Path
 import sys
 
+if "--help" in sys.argv:
+    if sys.argv[1:4] == ["compute", "disks", "describe"]:
+        print("NAME\n    gcloud compute disks describe - describe a disk\n\nSYNOPSIS")
+    elif sys.argv[1:4] == ["config", "configurations", "activate"]:
+        print("NAME\n    gcloud config configurations activate - activate a configuration\n\nSYNOPSIS")
+    else:
+        raise SystemExit(2)
+    raise SystemExit(0)
+
 with open(os.environ["MOCK_GCLOUD_LOG"], "a") as log:
     log.write(json.dumps(sys.argv[1:]) + "\n")
 if os.environ.get("MOCK_GCLOUD_FAIL"):
@@ -219,13 +228,20 @@ PY
 		[ "$status" -eq 0 ]
 		[ "$(jq -r .decision <<<"$output")" = allow ]
 	done
-	for command in 'gcloud run services describe example' 'gcloud unknown read' 'gh api repos/owner/repo' 'gh api graphql'; do
+	for command in 'gcloud-inspect --reviewed compute disks list' 'gh api repos/owner/repo' 'gh api graphql'; do
 		read -r -a arguments <<<"$command"
 		run --separate-stderr codex execpolicy check --rules "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" -- "${arguments[@]}"
 		[ "$status" -eq 0 ]
 		[ "$(jq -r .decision <<<"$output")" = prompt ]
 	done
-	for command in 'gcloud secrets versions access latest' 'gcloud auth print-access-token' 'gcloud beta secrets versions access latest'; do
+	for command in \
+		'gcloud run services describe example' \
+		'gcloud unknown read' \
+		'gcloud secrets versions access latest' \
+		'gcloud auth print-access-token' \
+		'gcloud beta secrets versions access latest' \
+		'gcloud --project=example-project secrets versions access latest' \
+		'gcloud --configuration=example auth print-access-token'; do
 		read -r -a arguments <<<"$command"
 		run --separate-stderr codex execpolicy check --rules "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" -- "${arguments[@]}"
 		[ "$status" -eq 0 ]
@@ -233,16 +249,42 @@ PY
 	done
 }
 
-@test "Claude permits investigation without the old gcloud deny overriding the safe entrypoint" {
+@test "Claude permits safe investigation and retains the raw gcloud boundary" {
 	for settings in "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" "$PROJECT_ROOT/.claude/settings.json"; do
 		run jq -e '
       (.permissions.allow | index("Bash(gcloud-inspect:*)") != null)
-      and (.permissions.deny | index("Bash(gcloud:*)") == null)
-      and (.permissions.deny | index("Bash(gcloud auth:*)") != null)
-      and (.permissions.deny | index("Bash(gcloud secrets:*)") != null)
-      and (.permissions.ask | index("Bash(gcloud:*)") != null)
+      and (.permissions.deny | index("Bash(gcloud:*)") != null)
+      and (.permissions.ask | index("Bash(gcloud-inspect --reviewed:*)") != null)
       and (.permissions.ask | index("Bash(gh api:*)") != null)
     ' "$settings"
 		[ "$status" -eq 0 ]
+	done
+}
+
+@test "reviewed investigation supports additional read operations while still filtering configuration" {
+	cat >"$MOCK_GCLOUD_RESPONSE" <<'JSON'
+{"name":"data-disk","diskEncryptionKey":{"rawKey":"DUMMY_SECRET"}}
+JSON
+	run python3 -I "$SCRIPT" compute disks describe data-disk
+	[ "$status" -eq 2 ]
+	[ ! -e "$MOCK_GCLOUD_LOG" ]
+	run python3 -I "$SCRIPT" --reviewed compute disks describe data-disk --project example-project --zone asia-northeast1-a
+	[ "$status" -eq 0 ]
+	[ "$(jq -r .name <<<"$output")" = data-disk ]
+	[[ "$output" != *DUMMY_SECRET* ]]
+}
+
+@test "reviewed investigation rejects authentication, hidden global options, and mutations" {
+	for command in \
+		'auth print-access-token' \
+		'beta secrets versions access latest' \
+		'--project=example-project secrets versions access latest' \
+		'compute disks delete data-disk' \
+		'config configurations activate list' \
+		'run services describe example --reviewed'; do
+		read -r -a arguments <<<"$command"
+		run python3 -I "$SCRIPT" --reviewed "${arguments[@]}"
+		[ "$status" -ne 0 ]
+		[ ! -e "$MOCK_GCLOUD_LOG" ]
 	done
 }
