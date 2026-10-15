@@ -18,6 +18,7 @@ import struct
 import subprocess
 import sys
 import threading
+import time
 from urllib.parse import urlsplit
 
 
@@ -57,11 +58,21 @@ def relay(left, right):
                 target.shutdown(socket.SHUT_WR)
 
 
-def checked_client_hello(stream, host):
-    """Buffer a bounded TLS ClientHello before forwarding any tunnel bytes."""
+def checked_client_hello(stream, host, connection=None, timeout=10):
+    """Buffer a bounded TLS ClientHello before forwarding any tunnel bytes.
+
+    With a connection, the whole read shares one deadline instead of a per-read timeout.
+    """
+    deadline = time.monotonic() + timeout
+
     def read_exact(size):
         data = bytearray()
         while len(data) < size:
+            if connection is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ValueError("TLS ClientHello timed out")
+                connection.settimeout(remaining)
             chunk = stream.read(size - len(data))
             if not chunk:
                 raise ValueError("truncated TLS ClientHello")
@@ -266,6 +277,16 @@ class Gateway(BaseHTTPRequestHandler):
     # Tunnel handoff must not strand prefetched TLS bytes in rfile.
     rbufsize = 0
 
+    def read_body(self, length):
+        # An unbuffered rfile may return fewer bytes than requested.
+        body = bytearray()
+        while len(body) < length:
+            chunk = self.rfile.read(length - len(body))
+            if not chunk:
+                raise ValueError("truncated request body")
+            body.extend(chunk)
+        return bytes(body)
+
     def log_message(self, *args):
         pass
 
@@ -333,8 +354,7 @@ class Gateway(BaseHTTPRequestHandler):
                     self.send_response(200, "Connection established")
                     self.end_headers()
                     connected = True
-                    self.connection.settimeout(10)
-                    hello = checked_client_hello(self.rfile, host)
+                    hello = checked_client_hello(self.rfile, host, self.connection)
                     self.connection.settimeout(120)
                     upstream.sendall(hello)
                     self.server.requests += 1
@@ -412,7 +432,7 @@ class Gateway(BaseHTTPRequestHandler):
         connection = None
         started = False
         try:
-            payload = json.loads(self.rfile.read(int(length)))
+            payload = json.loads(self.read_body(int(length)))
             # Permit client-executed functions, never authenticated remote tools.
             if not local_request(payload):
                 return self.reject()
@@ -465,7 +485,7 @@ class Gateway(BaseHTTPRequestHandler):
         ):
             return self.reject()
         try:
-            request = json.loads(self.rfile.read(int(length)))
+            request = json.loads(self.read_body(int(length)))
             if set(request) != {"host", "type"} or request["type"] not in (1, 28):
                 return self.reject()
             if (

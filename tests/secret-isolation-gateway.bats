@@ -233,6 +233,68 @@ PY
   [ "$status" -eq 0 ]
 }
 
+@test "request bodies delivered in fragments are read completely" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PYTEST'
+import json, runpy, socket, sys, time
+from pathlib import Path
+from unittest.mock import patch
+module = runpy.run_path(sys.argv[1])
+server = module['start_gateway'](Path(sys.argv[2]), 'dependencies', domains=['cache.nixos.org'])
+body = json.dumps({'host': 'cache.nixos.org', 'type': 1}).encode()
+try:
+    with patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443))]):
+        client = socket.socket(socket.AF_UNIX)
+        client.settimeout(5)
+        client.connect(server.server_address)
+        client.sendall(b'POST /resolve HTTP/1.1\r\nHost: resolver\r\nContent-Length: %d\r\n\r\n' % len(body))
+        for start in range(0, len(body), 7):
+            client.sendall(body[start:start + 7])
+            time.sleep(0.05)
+        response = client.recv(4096)
+        client.close()
+    assert response.startswith(b'HTTP/1.0 200') or response.startswith(b'HTTP/1.1 200'), response
+    assert response.endswith(b'["8.8.8.8"]'), response
+finally:
+    server.shutdown()
+    server.server_close()
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "a trickled TLS ClientHello is rejected by one overall deadline" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" <<'PYTEST'
+import runpy, socket, sys, threading, time
+check = runpy.run_path(sys.argv[1])['checked_client_hello']
+reader, writer = socket.socketpair()
+stop = threading.Event()
+def trickle():
+    try:
+        while not stop.is_set():
+            writer.sendall(b'\x16')
+            time.sleep(0.2)
+    except OSError:
+        pass
+thread = threading.Thread(target=trickle)
+thread.start()
+started = time.monotonic()
+try:
+    check(reader.makefile('rb', 0), 'allowed.example', reader, timeout=1)
+except ValueError:
+    pass
+else:
+    raise AssertionError('a trickled hello must be rejected')
+finally:
+    stop.set()
+    reader.close()
+    writer.close()
+    thread.join()
+assert time.monotonic() - started < 3, 'deadline was not enforced for the whole hello'
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "CONNECT refuses a different TLS virtual host on the same permitted IP" {
   run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PYTEST'
 import http.client, runpy, socket, socketserver, ssl, sys, threading
