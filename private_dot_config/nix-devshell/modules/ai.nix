@@ -70,6 +70,7 @@ let
         inherit (codexBase) version src;
         patches = (old.patches or [ ]) ++ [
           ../packages/codex-sandbox-cleanup.patch
+          ../packages/codex-unreadable-glob-directories.patch
         ];
         preBuild = (old.preBuild or "") + ''
           export NIX_BUILD_CORES=1

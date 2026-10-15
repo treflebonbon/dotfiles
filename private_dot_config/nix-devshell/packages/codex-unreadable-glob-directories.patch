@@ -1,0 +1,42 @@
+--- a/linux-sandbox/src/bwrap.rs
++++ b/linux-sandbox/src/bwrap.rs
+@@ -1038,8 +1038,9 @@
+      * dotfiles, ignore ignore files, and do not recurse through symlinked
+      * directories. If the selected `rg` is unavailable at execution time, fall
+      * back to the internal globset walker so sandbox construction still masks
+-     * matching paths. Other ripgrep failures stay fatal so deny-read does not
+-     * silently weaken.
++     * matching paths. Retry status 2 with that walker as well: it masks entire
++     * directories it cannot read. Other scan errors stay fatal so deny-read
++     * does not silently weaken.
+      */
+     let output = match command.output() {
+         Ok(output) => output,
+@@ -1053,6 +1054,9 @@
+             return Ok(Vec::new());
+         }
+ 
++        if output.status.code() == Some(2) {
++            return glob_files(search_root, globs, max_depth);
++        }
+         let stderr = String::from_utf8_lossy(&output.stderr);
+         return Err(CodexErr::Fatal(format!(
+             "ripgrep unreadable glob scan failed for {}: {stderr}",
+@@ -1115,7 +1119,16 @@
+     remaining_depth: Option<usize>,
+     paths: &mut Vec<AbsolutePathBuf>,
+ ) -> Result<()> {
+-    for entry in fs::read_dir(dir)? {
++    let entries = match fs::read_dir(dir) {
++        Ok(entries) => entries,
++        Err(err) if err.kind() == io::ErrorKind::PermissionDenied => {
++            // Keep unknown contents unavailable even if their permissions change.
++            paths.push(AbsolutePathBuf::from_absolute_path_checked(dir)?);
++            return Ok(());
++        }
++        Err(err) => return Err(err.into()),
++    };
++    for entry in entries {
+         let entry = entry?;
+         let path = entry.path();
+         let file_type = entry.file_type()?;

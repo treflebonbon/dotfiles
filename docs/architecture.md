@@ -24,7 +24,9 @@ CLAUDE.md / AGENTS.md / `runtime/` バンドルは chezmoi が `~/` へ配備す
 
 Linux の Codex には `codex-sandbox-cleanup.patch` も適用する。存在しない denied path の mount target は実行中だけ作られるが、CLI の process group を `SIGKILL` すると従来の後処理も失われ、空の `.env` が残る。後処理対象がある command だけ supervisor を別の process group に置き、親終了通知の `SIGTERM` を既存の signal forwarding と cleanup に通す。deny の設定と既存ファイルの保持判定は維持する。[回帰テスト](../tests/codex-sandbox-cleanup.bats)で通常終了・強制終了・並行実行・既存ファイルの保持・終了コード・出力・後処理対象のある command と read-only command の端末入力を確認し、upstream 版で同じ検証が通ったらこの一時パッチを撤去する。
 
-公式releaseバイナリやnpm／Homebrewへ取得元を変える場合も、同じcleanup回帰を通過することを採用条件とする。0.162.1の公式バイナリとNumtideのパッチなしoutputは強制終了時に回帰するため、現行Linux packageはパッチを維持する。既存outputを再利用できれば再buildは不要だが、未キャッシュ環境ではsingle-job source buildが必要となる。比較と撤去条件は[分割記録](research/tool-snapshot-pr-20261013.md#codexの取得経路と残制限)を参照する。
+`codex-unreadable-glob-directories.patch` は `/tmp` の機密ファイル名の走査に必要な Linux 修正である。Codex 0.162.1 は `systemd-private-*` などの読めないディレクトリで ripgrep が終了コード 2 を返すと、sandbox 全体の起動を中止する。既存の内部 walker で再走査し、読めないディレクトリは全体を拒否対象にする。その他の走査エラーは引き続き起動を中止する。[回帰テスト](../tests/codex-tmp.bats)で公開ファイルの読み書き、機密ファイル名の拒否、読めないディレクトリの再許可の拒否を確認し、upstream で同じ検証が通ったら撤去する。[ADR-0074](adr/0074-allow-codex-tmp-workspace.md) を参照する。
+
+公式releaseバイナリやnpm／Homebrewへ取得元を変える場合も、cleanup と `/tmp` の回帰検証を通過することを採用条件とする。0.162.1の公式バイナリとNumtideのパッチなしoutputは強制終了時に回帰するため、現行Linux packageはパッチを維持する。既存outputを再利用できれば再buildは不要だが、未キャッシュ環境ではsingle-job source buildが必要となる。比較と撤去条件は[分割記録](research/tool-snapshot-pr-20261013.md#codexの取得経路と残制限)を参照する。
 
 ## per-repo 言語テンプレート
 

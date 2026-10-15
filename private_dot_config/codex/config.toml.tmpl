@@ -45,15 +45,20 @@ extends = ":workspace"
 glob_scan_max_depth = 4
 ":root" = "deny"
 ":minimal" = "read"
-":slash_tmp" = "deny"
+":slash_tmp" = "write"
 "/nix" = "read"
 "~/.gitconfig" = "read"
 
-{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" }}
+{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp" }}
 [permissions."dotfiles-secure".filesystem."{{ $root }}"]
-"." = "{{ if eq $root ":workspace_roots" }}write{{ else }}read{{ end }}"
+"." = "{{ if or (eq $root ":workspace_roots") (eq $root "/tmp") }}write{{ else }}read{{ end }}"
+{{ if eq $root "/tmp" }}
+{{/* A glob avoids creating a literal /tmp/.env mask when the file is absent. */}}
+"**/.env" = "deny"
+{{ else }}
 ".env" = "deny"
 "*/**/.env" = "deny"
+{{ end }}
 "**/.env[!.r]*" = "deny"
 "**/.envr" = "deny"
 "**/.envr[!c]*" = "deny"
