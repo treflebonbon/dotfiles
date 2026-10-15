@@ -69,6 +69,8 @@ elif [[ ${CANONICAL_FIXTURE_MODE:-} == foreign-receipt ]]; then
   printf '%s\n' "$directory" > "$DOTFILES_TEST_RUN_RECEIPT"
 elif [[ ${CANONICAL_FIXTURE_MODE:-} == missing-receipt ]]; then
   mv "$DOTFILES_TEST_RUN_RECEIPT" "$DOTFILES_TEST_RUN_RECEIPT.saved"
+elif [[ ${CANONICAL_FIXTURE_MODE:-} == exit-mismatch ]]; then
+  exit 2
 fi
 exit "$status"
 SH
@@ -79,6 +81,7 @@ case ${CANONICAL_FIXTURE_MODE:-} in
   source-change) printf 'changed\n' > "$SOURCE/tracked-file" ;;
   head-change) git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit --quiet --allow-empty -m changed ;;
   runtime-change) printf '# changed\n' >> "$IMPECCABLE_BIN" ;;
+  exit-mismatch) exit 1 ;;
 esac
 SH
   chmod +x "$TEST_BIN_DIR/lefthook" "$TEST_BIN_DIR/bats"
@@ -135,6 +138,24 @@ PY
 
   assert_failure 1
   assert_output --partial "実行runtime"
+}
+
+@test "canonical検証は異なる失敗終了コードを証拠の不一致として記録する" {
+  export CANONICAL_FIXTURE_MODE=exit-mismatch
+
+  run_canonical
+
+  assert_failure 2
+  assert_output --partial "終了コードが不一致"
+  python3 -I - "$SOURCE" <<'PY'
+import json, sys
+from pathlib import Path
+attempt = next((Path(sys.argv[1]) / "tmp").glob("canonical-run.*"))
+result = json.loads((attempt / "result.json").read_text())
+assert result["runner_exit"] == 1 and result["command_exit"] == 2
+assert result["exit_code"] == 2
+assert result["errors"]
+PY
 }
 
 @test "canonical検証は名前で必須fixtureの欠落・重複・skipを拒否する" {

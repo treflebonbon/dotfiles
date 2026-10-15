@@ -77,3 +77,5 @@ sourceの照合は前後のHEAD・追跡対象・内容に対するもので、�
 ログ受渡し不在と実行runtime記録の空欄、中断の未伝達、中断時の実コマンド終了コードの取り違え、helpによる意図しない全suite開始を、回帰テストで失敗させてから修正した。手動入口のfixtureは実Git linked worktreeと実runnerを使い、外部のlefthook・Bun・Batsだけを置換する。source/HEAD/runtimeの変更、必須名の欠落・重複・skip、異なる実行の参照、非Gitの通常入口も検査する。
 
 source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImpeccableのoutputと実行パスを照合した。既存frozen runtimeのmanifest/lockはsourceとbyte一致している。関連検証は準備済みdevShellで29件（29 pass／0 skip／0 fail、exit 0、18.627秒）を確認した。ここまで全suiteは未実行で、独立レビューと固定HEADでのcanonicalを後続に残す。証拠は `tmp/canonical-implementation-20261015/` の `related-prepared-result.json`、`related-prepared.tap`、`preparation-result.json`、`prepared.json`。
+
+独立レビューでは、明文化規約違反0件、命名提案1件、仕様指摘1件だった。JSON保存関数の命名を具体化し、コマンドとrunnerの異なる失敗終了コードも証拠不一致として記録するよう修正した。終了コードの回帰テストは修正前の失敗を確認してから追加した。

@@ -35,7 +35,7 @@ REQUIRED_TESTS = (
 )
 
 
-def save(path, value):
+def save_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
 
@@ -281,7 +281,7 @@ def main():
         attempt = Path(tempfile.mkdtemp(prefix="canonical-run.", dir=temporary))
         print(f"検証記録: {attempt}", flush=True)
         before = {"source": before_source, "runtime": runtime_record(environment)}
-        save(attempt / "before.json", before)
+        save_json(attempt / "before.json", before)
         receipt = attempt / "runner-path"
         environment["DOTFILES_TEST_RUN_RECEIPT"] = str(receipt)
         with (attempt / "command.log").open("wb") as output:
@@ -293,7 +293,7 @@ def main():
                 "source": source_record(source, environment),
                 "runtime": runtime_record(environment),
             }
-            save(attempt / "after.json", after)
+            save_json(attempt / "after.json", after)
             if before["source"] != after["source"]:
                 errors.append("source/HEADの前後記録が不一致です")
             if before["runtime"] != after["runtime"]:
@@ -305,8 +305,8 @@ def main():
         if not re.fullmatch(r"[0-9]+\n?", runner_exit) or int(runner_exit) > 255:
             raise ValueError("runnerの終了コード記録が不正です")
         result["runner_exit"] = int(runner_exit)
-        if bool(result["runner_exit"]) != bool(result["command_exit"]):
-            errors.append("コマンドとrunnerの成否が不一致です")
+        if result["runner_exit"] != result["command_exit"]:
+            errors.append("コマンドとrunnerの終了コードが不一致です")
         observed = read_record(directory / "environment")
         runtimes = {}
         for line in observed.splitlines():
@@ -333,7 +333,7 @@ def main():
         or (1 if errors or result["tap"] is None or result["tap"]["fail"] else 0)
     )
     if attempt is not None:
-        save(attempt / "result.json", result)
+        save_json(attempt / "result.json", result)
     outcome = "PASS" if result["exit_code"] == 0 else "REJECT"
     command_exit = (
         result["command_exit"] if result["command_exit"] is not None else "未実行"
