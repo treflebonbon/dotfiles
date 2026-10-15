@@ -216,11 +216,19 @@ skip_summary_and_header() {
 }
 
 # Refuse deletion when this runtime cannot inspect Linux process cwd links.
+# A procfs that exposes /proc/self but hides other processes (hidepid, or no
+# visible PID 1) is as blind as a missing one, so the current process alone is
+# not proof. Limit: a procfs mounted inside a nested PID namespace still shows
+# its own PID 1, so processes outside that namespace cannot be detected here.
+# WORKTREE_GC_PROC_ROOT only exists so tests can supply a fixture.
 process_inspection_available() {
+  local root="${WORKTREE_GC_PROC_ROOT:-/proc}"
   [ "$(uname -s)" = Linux ] &&
-    [ -r /proc ] && [ -x /proc ] &&
-    [ -r /proc/self/stat ] &&
-    readlink -f /proc/self/cwd >/dev/null 2>&1
+    [ -r "$root" ] && [ -x "$root" ] &&
+    [ -r "$root/self/stat" ] &&
+    readlink -f "$root/self/cwd" >/dev/null 2>&1 &&
+    [ -d "$root/1" ] &&
+    ! grep -Eq 'hidepid=(1|2|noaccess|invisible)' "$root/self/mountinfo" 2>/dev/null
 }
 
 # Success iff a live process has $1 (or a path under it) as its cwd.
@@ -232,7 +240,7 @@ is_busy_dir() {
   # process) whenever $1's path has a symlink component. Fall back to the
   # literal argument if it can't be resolved (e.g. it no longer exists).
   dir=$(readlink -f "$1" 2>/dev/null) || dir="$1"
-  for cwd_link in /proc/[0-9]*/cwd; do
+  for cwd_link in "${WORKTREE_GC_PROC_ROOT:-/proc}"/[0-9]*/cwd; do
     [ -e "$cwd_link" ] || continue
     resolved=$(readlink -f "$cwd_link" 2>/dev/null) || continue
     case "$resolved" in

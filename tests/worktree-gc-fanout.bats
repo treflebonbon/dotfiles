@@ -559,6 +559,34 @@ EOF
   done
 }
 
+@test "apply refuses a procfs that hides other processes and accepts a fully visible one" {
+  local bin="$BATS_TEST_TMPDIR/bin" proc="$BATS_TEST_TMPDIR/proc" mode
+  mkdir -p "$bin" "$BATS_TEST_TMPDIR/herdr" "$BATS_TEST_TMPDIR/orca"
+  make_ghq_repo "$BATS_TEST_TMPDIR/ghq/repo"
+  printf '#!/bin/sh\necho invoked >>"$ENGINE_LOG"\necho "done removed=0"\n' >"$bin/engine"
+  chmod +x "$bin/engine"
+  for mode in hidepid no-init visible; do
+    rm -rf "$proc"
+    mkdir -p "$proc/self" "$proc/1"
+    : >"$proc/self/stat"
+    ln -s / "$proc/self/cwd"
+    printf '1 0 0:1 / /proc rw - proc proc rw\n' >"$proc/self/mountinfo"
+    [ "$mode" != hidepid ] || printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=2\n' >"$proc/self/mountinfo"
+    [ "$mode" != no-init ] || rmdir "$proc/1"
+    run env WORKTREE_GC_PROC_ROOT="$proc" WORKTREE_GC_ENGINE="$bin/engine" ENGINE_LOG="$BATS_TEST_TMPDIR/$mode.log" \
+      bash "$SRC" --apply --ghq-root "$BATS_TEST_TMPDIR/ghq" \
+      --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
+    if [ "$mode" = visible ]; then
+      assert_success
+      [ -e "$BATS_TEST_TMPDIR/$mode.log" ]
+    else
+      assert_failure
+      assert_output --partial 'process inspection unavailable; refusing --apply'
+      [ ! -e "$BATS_TEST_TMPDIR/$mode.log" ]
+    fi
+  done
+}
+
 @test "統合: 単体とfan-outの既定は3日で、danglingにも適用する" {
   local ghq_root="$BATS_TEST_TMPDIR/ghq"
   local repo="$ghq_root/host/org/myrepo"
