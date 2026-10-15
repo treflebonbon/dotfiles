@@ -48,6 +48,10 @@ Force pushes are prohibited by policy. Direct raw `git push` commands and common
 
 - PR titles must use Conventional Commits because squash merge uses the PR title as the commit title. Do not add agent prefixes such as `[codex]`.
 
+## Google Cloud / GitHub の調査
+
+Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可された `gh` の参照コマンドを使う。未対応の調査操作は、ユーザーへ内容を示して実行前に確認し、auto 判定や別の実行方法で代用しない。秘密値・認証値の取得と機密項目の除外解除は禁止。操作一覧と手順は `~/runtime/investigation.md` を読む。
+
 ## Clarifying questions
 
 Use the interactive question tool when it is available and a material choice or clarification is required. Otherwise ask one concise direct question. When presenting choices:
