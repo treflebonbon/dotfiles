@@ -57,6 +57,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("--shell", choices=("default", "wsl"), default="default")
+    parser.add_argument(
+        "--no-codex-build",
+        action="store_true",
+        help="Codex の既存 output または binary cache を使い、新規ビルドが必要なら停止する",
+    )
     cli = sys.argv[1:]
     separator = cli.index("--") if "--" in cli else len(cli)
     arguments = parser.parse_args(cli[:separator])
@@ -127,6 +132,39 @@ def main():
         (runtime / "exit-code").write_text("1\n")
         print(diagnostic, file=sys.stderr, end="")
         return 1
+    if arguments.no_codex_build:
+        codex_output = next(
+            Path(entry["path"]).parent.parent
+            for entry in metadata
+            if entry["name"] == "codex"
+        )
+        # output path を直接指定し、derivation のビルドへフォールバックさせない。
+        with (runtime / "codex-cache.log").open("w") as log:
+            result = subprocess.run(
+                [
+                    "nix",
+                    "build",
+                    "--out-link",
+                    str(runtime / "codex"),
+                    "--max-jobs",
+                    "0",
+                    "--builders",
+                    "",
+                    str(codex_output),
+                ],
+                cwd=source,
+                env=environment,
+                stdout=log,
+                stderr=log,
+            )
+        if result.returncode:
+            status = shell_exit_code(result.returncode)
+            (runtime / "exit-code").write_text(f"{status}\n")
+            print(
+                f"REJECT: Codex をビルドせず確保できません（{runtime / 'codex-cache.log'}）",
+                file=sys.stderr,
+            )
+            return status
     invocation = [
         "nix",
         "develop",

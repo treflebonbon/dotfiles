@@ -19,6 +19,13 @@ pre-commit:
         - ".agents/skills/**"
         - "private_dot_config/bash/bash-preexec.sh" # vendored third-party
       stage_fixed: true
+    - name: shell-extensionless
+      run: shfmt -w {staged_files} && shellcheck {staged_files}
+      glob: "private_dot_local/bin/executable_*"
+      file_types:
+        - text/x-shellscript
+        - text/x-sh
+      stage_fixed: true
     - name: oxfmt
       run: bunx oxfmt --write {staged_files}
       glob:
