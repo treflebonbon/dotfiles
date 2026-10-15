@@ -30,7 +30,7 @@ gcloud-inspect projects get-iam-policy PROJECT_ID
 gcloud-inspect --reviewed compute disks describe DISK --project PROJECT_ID --zone asia-northeast1-a
 ```
 
-`--reviewed` を付けること自体をユーザーの承認の代わりにしない。Codex の prompt、Claude Code の ask にも登録する。通常の `gcloud` は引数の並べ方による秘密取得や出力制限の迂回を防ぐため、一括禁止を維持する。
+`--reviewed` を付けること自体をユーザーの承認の代わりにしない。Codex の prompt、Claude Code の ask にも登録する。通常の `gcloud` は引数の並べ方による秘密取得や出力制限の迂回を防ぐため、一括禁止を維持する。`command gcloud`、`env gcloud`、`/bin/gcloud`、`/usr/bin/gcloud` も禁止する。
 
 一覧とログは既定で最大100件。`--limit` は1〜1000を指定できる。`--project`、`--region`、`--zone`、`--location`、`--bucket`、`--service`、`--filter`、`--sort-by`、`--freshness`、`--order` を受理するが、実際に使えるオプションは各 gcloud 操作の仕様に従う。出力形式の変更、flags file、認証切替、HTTP ログの出力などは自動許可しない。API の自動有効化も無効にする。
 
@@ -66,6 +66,8 @@ gh run view RUN_ID --repo OWNER/REPO --log-failed
 ## 未対応操作と機密情報
 
 自動許可対象外の調査操作は、対象・コマンド・必要な理由をユーザーへ示し、実行前に回答を待つ。CLI の引数や実行方法を変えて拒否を迂回しない。Claude Code の auto 判定を、人間による個別確認の代わりにしない。`gcloud-inspect` が未対応を返した場合も、直接の `gcloud` へ自動で切り替えない。
+
+これらのコマンドルールは、任意のプログラム経由の実行まで遮断する技術的な隔離ではない。認識できないラッパーや interpreter を使った迂回も禁止する。この既存の制約は [ADR-0055](../docs/adr/0055-disable-block-reads-outside-working-directories.md) と同じで、通常の runtime の filesystem・network 境界は変更しない。
 
 Secret Manager の秘密値や認証トークン自体の取得は禁止。credential ファイルの直接参照も既存の保護に従う。設定の環境変数、password/token/private key/credential 類、GKE の masterAuth、Compute Engine の metadata items、過去の適用設定などの既知の機密項目を除外する。
 

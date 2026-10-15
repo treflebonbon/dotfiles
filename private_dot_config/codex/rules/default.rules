@@ -45,10 +45,17 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["gcloud"],
+    pattern = [["gcloud", "/bin/gcloud", "/usr/bin/gcloud"]],
     decision = "forbidden",
     justification = "秘密取得や出力制限の迂回を防ぐ。調査は gcloud-inspect、確認済みの追加参照はその --reviewed を使う。",
     match = ["gcloud projects list", "gcloud --project=example secrets versions access latest", "gcloud --configuration=example auth print-access-token"],
+)
+
+prefix_rule(
+    pattern = [["command", "env"], "gcloud"],
+    decision = "forbidden",
+    justification = "ラッパーで gcloud の出力制限を迂回せず、gcloud-inspect を直接呼び出す。",
+    match = ["command gcloud auth print-access-token", "env gcloud secrets versions access latest"],
 )
 
 prefix_rule(

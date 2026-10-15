@@ -41,6 +41,8 @@ Monitoring の時系列データは、導入版 CLI の対応を確認したう�
 
 通常の `gcloud` は一括禁止を維持する。グローバルオプションを先に置くと秘密取得を狭い prefix ルールで識別できないため、単に個別確認へ緩和する設計は採用しない。別名の限定入口を許可し、Codex の command rules と Claude Code の共通設定・repo 設定を揃える。Codex の allow で限定入口を既存の承認経路から実行し、秘密ファイルや network domain の許可範囲は広げない。raw 隔離版の独立した認証・通信境界は変更しない。
 
+既存の Git 保護と同様に、`command gcloud`・`env gcloud` と `/bin/gcloud`・`/usr/bin/gcloud` も禁止する。任意のラッパーや interpreter の実行をコマンドルールだけで完全に遮断する設計ではなく、[ADR-0055](0055-disable-block-reads-outside-working-directories.md) の既存の限界を引き継ぐ。拒否された操作を別経路で実行しない行動契約も維持する。
+
 Claude Code の auto 判定だけでは、未対応の調査操作について人間への確認を保証しない。対象外の操作を自動実行せず、実行前にユーザーへ確認する経路も検証する。
 
 検証は、許可する参照操作、拒否・確認する操作、秘密値取得、出力制限を変えるオプション、ダミーの機密項目の除外を含める。実 credential や実サービスを使わない検証と、受入後の接続確認は区別する。配備は受入後に live source から行い、未 merge の task worktree から `chezmoi apply` しない。
