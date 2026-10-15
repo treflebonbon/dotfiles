@@ -197,6 +197,7 @@ result = json.loads((attempt / "result.json").read_text())
 assert result["command_exit"] == 0 and result["exit_code"] == 1
 assert result["tap"]["pass"] == 15
 assert (attempt / "before.json").read_bytes() != (attempt / "after.json").read_bytes()
+assert json.loads((attempt / "after.json").read_text())["source"]["head_mismatches"] == ["tracked-file"]
 PY
 }
 
@@ -226,6 +227,44 @@ PY
   assert_failure 1
   assert_output --partial "IMPECCABLE_BIN"
   [ ! -s "$TEST_LOG" ]
+}
+
+@test "canonical検証はGitの省略flagで隠れた内容・mode・symlink変更を実行前に拒否する" {
+  local flag change name
+  for flag in --assume-unchanged --skip-worktree; do
+    for change in content mode symlink; do
+      name=tracked-file
+      if [[ "$change" == symlink ]]; then name=tracked-link; fi
+      git -C "$SOURCE" update-index "$flag" -- "$name"
+      case "$change" in
+      content) printf 'hidden change\n' >"$SOURCE/$name" ;;
+      mode) chmod u+x "$SOURCE/$name" ;;
+      symlink) ln -sfn changed-target "$SOURCE/$name" ;;
+      esac
+      [ -z "$(git -C "$SOURCE" status --porcelain=v1)" ]
+
+      run_canonical
+
+      assert_failure 1
+      assert_output --partial "HEADと不一致"
+      [ ! -s "$TEST_LOG" ]
+      git -C "$SOURCE" update-index "--no-${flag#--}" -- "$name"
+      git -C "$SOURCE" restore --source=HEAD --worktree -- "$name"
+    done
+  done
+}
+
+@test "canonical検証はGitの省略flagが付いてもHEADと一致するsourceを受け入れる" {
+  local flag
+  for flag in --assume-unchanged --skip-worktree; do
+    git -C "$SOURCE" update-index "$flag" -- tracked-file tracked-link
+
+    run_canonical
+
+    assert_success
+    git -C "$SOURCE" update-index "--no-${flag#--}" -- tracked-file tracked-link
+  done
+  [ "$(grep -c '^lefthook run test$' "$TEST_LOG")" -eq 2 ]
 }
 
 @test "canonical検証はprimary checkoutでBatsを開始しない" {

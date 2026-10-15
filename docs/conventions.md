@@ -21,6 +21,8 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 更新時のcanonical検証には、repo内の手動入口 `python3 scripts/verify-canonical.py` を使える。入口自身が置かれたlinked task worktreeを対象にするため、検証する変更をcommitしてcleanにし、既存手順で両devShellとruntimeを準備してから起動する。`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` には準備済みの絶対パスを渡す。入口は `lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。
 
+開始前は `git status` に加えて、全tracked内容とGit modeをHEADのtree/blobへ直接照合する。`assume-unchanged`／`skip-worktree` に隠れた未commitの変更もBats開始前に拒否し、flag自体は変更しない。実行後にHEADの内容・Git modeと異なるfileは `after.json` の `head_mismatches` に記録し、前後記録とTAPを保持する。
+
 記録は `tmp/canonical-run.*/` の `before.json`／`after.json`、`command.log`、`runner-path`、`result.json` に残る。runnerが作成した `tmp/test-run.*/` と相互参照し、最新directory探索やconsoleの表示文言には依存しない。通常のテスト入口は維持し、受渡し情報をテスト内の別runnerへ引き継がない。Bats自体の結果と証拠照合の問題を区別し、不足・不一致・中断は非0終了する。全Batsコマンドの所要時間は実測し、環境準備の時間は含めない。自動再実行やNix build／APM再生成、PR／CIの照合は行わない。これは実行時点の証拠であり、後続のPR HEADや配備との一致確認は別に行う。
 
 ローカルのユーザー devShell のツールと repo devShell を使い、Nix の取得・build 成果物とブラウザ環境を再利用する。環境を明示的に準備する場合は、worktree root から次を実行する。WSL2 では両方の `#default` を `#wsl` に置き換え、Managed Playwright Chrome を利用する。

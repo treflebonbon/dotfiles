@@ -67,18 +67,33 @@ def source_record(source, environment):
     )
     if root.resolve() != source or directory.resolve() == common.resolve():
         raise ValueError("対象はlinked task worktreeである必要があります")
+    head = git("rev-parse", "HEAD").decode().strip()
+    expected = {}
+    for entry in git("ls-tree", "-r", "-z", "--full-tree", head).split(b"\0"):
+        if entry:
+            metadata, name = entry.split(b"\t", 1)
+            mode, _kind, object_id = metadata.split()
+            expected[name] = (mode, object_id)
+    names = [name for name in git("ls-files", "-z").split(b"\0") if name]
+    mismatches = set(names) ^ expected.keys()
     files = {}
-    for name in git("ls-files", "-z").split(b"\0"):
-        if not name:
-            continue
+    for name in names:
         path = source / os.fsdecode(name)
         mode = path.lstat().st_mode
         if stat.S_ISLNK(mode):
             kind, content = "symlink", os.fsencode(os.readlink(path))
+            git_mode = b"120000"
         elif stat.S_ISREG(mode):
             kind, content = "file", path.read_bytes()
+            git_mode = b"100755" if mode & stat.S_IXUSR else b"100644"
         else:
             raise ValueError(f"記録できないtracked fileです: {path}")
+        if name in expected:
+            head_mode, object_id = expected[name]
+            if git_mode != head_mode or content != git(
+                "cat-file", "blob", object_id.decode()
+            ):
+                mismatches.add(name)
         files[os.fsdecode(name)] = {
             "kind": kind,
             "mode": stat.S_IMODE(mode),
@@ -88,7 +103,8 @@ def source_record(source, environment):
         "root": str(source),
         "git_dir": str(directory),
         "common_dir": str(common),
-        "head": git("rev-parse", "HEAD").decode().strip(),
+        "head": head,
+        "head_mismatches": sorted(os.fsdecode(name) for name in mismatches),
         "status": os.fsdecode(git("status", "--porcelain=v1", "-z")),
         "files": files,
     }
@@ -274,6 +290,11 @@ def main():
         before_source = source_record(source, environment)
         if before_source["status"]:
             raise ValueError("開始時の作業ツリーがcleanではありません")
+        if before_source["head_mismatches"]:
+            raise ValueError(
+                "tracked内容・Git modeがHEADと不一致です: "
+                + ", ".join(before_source["head_mismatches"])
+            )
         temporary = source / "tmp"
         if temporary.is_symlink():
             raise ValueError("tmpをsymlinkとして利用できません")
