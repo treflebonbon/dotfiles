@@ -70,6 +70,16 @@ def main():
     (source / "tmp").mkdir(exist_ok=True)
     runtime = Path(tempfile.mkdtemp(prefix="ai-tools-", dir=source / "tmp"))
     environment = os.environ.copy()
+    # 同じWindows資源の予約を共有するため、XDG隔離前の記録先を保つ。
+    if not environment.get("BROWSER_OWNERSHIP_DIR"):
+        environment["BROWSER_OWNERSHIP_DIR"] = str(
+            Path(
+                environment.get("XDG_RUNTIME_DIR")
+                or environment.get("TMPDIR")
+                or "/tmp"
+            )
+            / "browser-ownership"
+        )
     for key, directory in (
         ("HOME", "home"),
         ("XDG_CONFIG_HOME", "config"),

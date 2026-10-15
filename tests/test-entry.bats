@@ -216,6 +216,52 @@ PY
   [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 0 ]
 }
 
+@test "テスト入口は呼出元へログ先を返し入れ子の runner に受渡しを継承しない" {
+  mkdir -p "$RUN_ROOT/tmp/canonical-run.fixture"
+  export DOTFILES_TEST_RUN_RECEIPT="$RUN_ROOT/tmp/canonical-run.fixture/runner-path"
+  cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
+#!/bin/bash
+printf 'receipt=%s\n' "${DOTFILES_TEST_RUN_RECEIPT-unset}" >> "$TEST_LOG"
+if [[ -z ${NESTED_TEST_ENTRY:-} ]]; then
+  NESTED_TEST_ENTRY=1 bash scripts/test.sh > "$RUN_ROOT/nested.log" 2>&1 || exit $?
+fi
+printf '1..1\nok 1 fixture\n'
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/bats"
+
+  run_entry
+
+  assert_success
+  [ -f "$DOTFILES_TEST_RUN_RECEIPT" ]
+  local log_dir
+  log_dir=$(cat "$DOTFILES_TEST_RUN_RECEIPT")
+  [ -f "$log_dir/tap.log" ]
+  [ "$(cat "$log_dir/canonical-receipt")" = "$DOTFILES_TEST_RUN_RECEIPT" ]
+  local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
+  local receipts=("$RUN_ROOT"/tmp/test-run.*/canonical-receipt)
+  [ "${#logs[@]}" -eq 2 ]
+  [ "${#receipts[@]}" -eq 1 ]
+  [ "$(grep -c '^receipt=unset$' "$TEST_LOG")" -eq 2 ]
+}
+
+@test "テスト入口はログ受渡しの範囲外パスと既存fileを上書きしない" {
+  local outside="$BATS_TEST_TMPDIR/outside"
+  printf 'preserved\n' >"$outside"
+  export DOTFILES_TEST_RUN_RECEIPT="$outside"
+  run_entry
+  assert_failure
+  assert_output --partial "受渡しを拒否"
+  [ "$(cat "$outside")" = preserved ]
+  mkdir -p "$RUN_ROOT/tmp/canonical-run.existing"
+  export DOTFILES_TEST_RUN_RECEIPT="$RUN_ROOT/tmp/canonical-run.existing/runner-path"
+  printf 'preserved\n' >"$DOTFILES_TEST_RUN_RECEIPT"
+  run_entry
+  assert_failure
+  [ "$(cat "$DOTFILES_TEST_RUN_RECEIPT")" = preserved ]
+  refute_log_contains "bun install"
+  refute_log_contains "/bats "
+}
+
 @test "テスト入口は Bats の失敗をログ保存で成功に変えない" {
   export BATS_STUB_STATUS=9
   run_entry
@@ -300,7 +346,7 @@ if read -r input; then
 fi
 STUB_EOF
   chmod +x "$TEST_BIN_DIR/bun"
-  run_entry <<< 'stdin-preserved'
+  run_entry <<<'stdin-preserved'
   assert_success
   assert_log_contains "stdin=stdin-preserved"
 }

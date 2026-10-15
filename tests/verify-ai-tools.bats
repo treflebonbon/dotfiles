@@ -15,7 +15,7 @@ import json, os, sys
 from pathlib import Path
 with open(os.environ['AI_FIXTURE_LOG'], 'a') as log:
     row = {key: os.environ.get(key) for key in
-        ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'FORCE_COLOR']}
+        ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'BROWSER_OWNERSHIP_DIR', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'FORCE_COLOR']}
     row['argv'] = sys.argv[1:]
     log.write(json.dumps(row) + '\n')
 if sys.argv[1] == 'eval':
@@ -132,6 +132,59 @@ for row in rows:
     assert row['XDG_CACHE_HOME']==str(home.parent/'cache')
     assert row['XDG_STATE_HOME']==str(home.parent/'state')
     assert row['XDG_RUNTIME_DIR']==str(home.parent/'runtime')
+PY
+}
+
+@test "AI candidate verification keeps the shared browser ownership root before isolating XDG" {
+  local shared="$BATS_TEST_TMPDIR/shared-ownership"
+  run env PATH="$BIN:$PATH" BROWSER_OWNERSHIP_DIR="$shared" \
+    XDG_RUNTIME_DIR="$BATS_TEST_TMPDIR/original-runtime" \
+    python3 "$PROBE" "$SOURCE" -- bash -c 'test "$BROWSER_OWNERSHIP_DIR" = "$1"' -- "$shared"
+
+  [ "$status" -eq 0 ]
+  python3 - "$AI_FIXTURE_LOG" "$shared" <<'PY'
+import json, sys
+from pathlib import Path
+rows=[json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
+assert len(rows)==3
+assert all(row['BROWSER_OWNERSHIP_DIR']==sys.argv[2] for row in rows)
+assert all(row['XDG_RUNTIME_DIR']!=str(Path(sys.argv[2]).parent/'original-runtime') for row in rows)
+PY
+}
+
+@test "AI candidate verification resolves browser ownership from the original runtime fallback" {
+  local mode expected case_source
+  for mode in xdg tmp default; do
+    case_source="$SOURCE/$mode"
+    mkdir -p "$case_source"
+    case "$mode" in
+    xdg)
+      expected="$BATS_TEST_TMPDIR/original-runtime/browser-ownership"
+      run env -u BROWSER_OWNERSHIP_DIR PATH="$BIN:$PATH" XDG_RUNTIME_DIR="$BATS_TEST_TMPDIR/original-runtime" \
+        python3 "$PROBE" "$case_source" -- bash -c 'test "$BROWSER_OWNERSHIP_DIR" = "$1"' -- "$expected"
+      ;;
+    tmp)
+      expected="$BATS_TEST_TMPDIR/browser-ownership"
+      run env -u BROWSER_OWNERSHIP_DIR -u XDG_RUNTIME_DIR PATH="$BIN:$PATH" TMPDIR="$BATS_TEST_TMPDIR" \
+        python3 "$PROBE" "$case_source" -- bash -c 'test "$BROWSER_OWNERSHIP_DIR" = "$1"' -- "$expected"
+      ;;
+    default)
+      expected=/tmp/browser-ownership
+      run env -u BROWSER_OWNERSHIP_DIR -u XDG_RUNTIME_DIR -u TMPDIR PATH="$BIN:$PATH" \
+        python3 "$PROBE" "$case_source" -- bash -c 'test "$BROWSER_OWNERSHIP_DIR" = "$1"' -- "$expected"
+      ;;
+    esac
+    [ "$status" -eq 0 ]
+  done
+  python3 - "$AI_FIXTURE_LOG" "$BATS_TEST_TMPDIR" <<'PY'
+import json, sys
+from pathlib import Path
+rows=[json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
+assert len(rows)==9
+expected=[str(Path(sys.argv[2])/'original-runtime/browser-ownership'),
+          str(Path(sys.argv[2])/'browser-ownership'), '/tmp/browser-ownership']
+for start, value in zip((0,3,6), expected):
+    assert all(row['BROWSER_OWNERSHIP_DIR']==value for row in rows[start:start+3])
 PY
 }
 

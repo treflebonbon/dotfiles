@@ -473,6 +473,7 @@ def bridge(unix_socket, port):
                     pass
 
     with socketserver.ThreadingTCPServer(("127.0.0.1", port), Forward) as server:
+        print("ready", flush=True)
         server.serve_forever()
 
 
