@@ -94,3 +94,13 @@ source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImp
 失敗は既存の `dogfood without annotation preserves the existing report path`（TAP 222）で、Managed Dogfood Chromeの起動前に `port-conflict:8620` を検出した。後続のread-only確認では、WindowsのChrome PID 8620が `127.0.0.1:19385` を使用していた。失敗メッセージの数値はPIDであり、失敗時の予約portを直接記録した値ではない。競合相手の停止やsource/test/deps/envの追加変更はせず、この試行は検証不成立として保持した。自動再実行は行っていない。
 
 記録先は `tmp/canonical-run.zllf56i2/`、runnerログは `tmp/test-run.LsIZKz/tap.log`。独立照合の結果と失敗箇所は `tmp/canonical-implementation-20261015/` の `full-result.json`、`canonical-failure.log`、`dogfood-conflict.json` に保持する。結果文書の追記後に全Batsは再実行していない。全suiteの成功確認は、競合のない環境で別の新規試行を行うまで未成立である。
+
+## ポート競合の診断と修正
+
+後続の `$diagnosing-bugs` で、同じtask branchへmainの#409をmergeした（`3e6687ceb4863095f7d2e7bf7ea067100f930cf3`）。通常の失敗テスト単体は36.383秒でpassしたため、run IDを `dogfood-port-repro-3` に固定し、公開された `acquireManagedDogfoodChrome` を直接呼ぶ再現コマンドへ縮小した。Playwright接続・レポート生成・npm installを外しても、ポートの明示指定なしで同じ `port-conflict:8620` を2回連続、2.540秒／2.391秒で再現した。
+
+仮説は、所有権記録先の分断、共通記録にも存在しない外部listener、起動・終了タイミングの競合、の順に提示した。呼出元の共通記録先には19385の予約があり、HOME/XDGを隔離した記録先にはその予約がなかった。同じrun ID・runtimeのまま記録先だけを共通の値へ変えると、19385を避けて19386で起動し、10.683秒で正常終了した。根本原因は、隔離した `XDG_RUNTIME_DIR` によって所有権記録の参照先まで分断したことだった。自動割当とlock自体は、ADR-0059の同じ記録先を共有する前提どおりに動作している。
+
+同じ問題を持つ既存の `scripts/verify-ai-tools.py` を修正した。HOME/XDGの分離前に `BROWSER_OWNERSHIP_DIR` を確定し、明示値を維持するか、元の `XDG_RUNTIME_DIR` → `TMPDIR` → `/tmp` から導く。回帰テストは実際のCLIからNix境界と後続コマンドまで値を確認し、修正前の省略時の失敗と、修正後の成功を確認した。関連40件はすべてpass、skip・failなし。既存のroot解決・自動割当・外部競合の拒否契約は変更しない。
+
+実6 CLIを照合する公開helperから同じ再現コマンドを呼ぶ対照実験も行った。修正前は6 CLI照合成功後に同じ競合でexit 1（30.187秒）、修正後は6 CLI照合成功後に19386で起動・終了しexit 0（36.090秒）。既存Chromeの停止や予約の削除はしていない。証拠と一時的な診断スクリプトは `tmp/dogfood-port-diagnosis-20261015/` に分離して保持する。修正後の独立レビューと全Batsは、固定したcleanなHEADで別の新規試行として行う。
