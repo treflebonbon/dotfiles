@@ -81,6 +81,11 @@ JSON
     'run services describe example --impersonate-service-account example' \
     'run services describe example --access-token-file /tmp/token' \
     'run services describe example --log-http' \
+    'run services describe -- --flags-file=/tmp/flags.yaml' \
+    'run services describe -- --impersonate-service-account=example' \
+    'logging read -- --access-token-file=/tmp/token' \
+    'logging read -- --format=yaml' \
+    '--reviewed compute disks describe -- --access-token-file=/tmp/token' \
     'logging read --limit 1001' \
     'logging read --limit -1'; do
     # These fixed cases contain no shell quoting or expansions.
@@ -115,7 +120,7 @@ class Response:
     def __exit__(self, *args):
         return False
     def read(self):
-        return b'{"timeSeries":[{"metric":{"type":"compute.googleapis.com/instance/cpu/utilization"},"points":[{"value":{"doubleValue":0.5}}]}]}'
+        return b'{"timeSeries":[{"metric":{"type":"compute.googleapis.com/instance/cpu/utilization"},"points":[{"value":{"doubleValue":0.5}}]}],"nextPageToken":"FOLLOWING_PAGE"}'
 
 def open_request(opener, request, **kwargs):
     assert request.get_method() == 'GET'
@@ -140,6 +145,7 @@ PY
   [ "$status" -eq 0 ]
   [[ "$output" != *DUMMY_ACCESS_TOKEN* ]]
   [ "$(jq -r '.timeSeries[0].points[0].value.doubleValue' <<<"$output")" = '0.5' ]
+  [ "$(jq -r '.nextPageToken' <<<"$output")" = FOLLOWING_PAGE ]
 }
 
 @test "gcloud-inspect does not forward its token on Monitoring redirects" {
