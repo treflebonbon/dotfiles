@@ -10,6 +10,10 @@ chezmoi dotfiles repo。ログインシェルは bash。
 
 flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ランタイム・横断ツール用の `private_dot_config/nix-devshell/flake.nix` を分けている。ツールの追加先は `docs/architecture.md` で判断する。
 
+## Google Cloud / GitHub の調査
+
+Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可された `gh` の参照コマンドを使う。未対応の調査操作は、ユーザーへ内容を示して実行前に確認し、auto 判定や別の実行方法で代用しない。秘密値・認証値の取得と機密項目の除外解除は禁止。操作一覧と手順は `runtime/investigation.md`（他 repo では `~/runtime/investigation.md`）を読む。
+
 ## Conventions
 
 - コミットと PR タイトルは Conventional Commits 形式にし、PR タイトルへ `[codex]` などの prefix を付けない。
