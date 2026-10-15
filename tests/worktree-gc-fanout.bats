@@ -28,6 +28,7 @@ run_pure_function() {
   local deps=("$fn")
   case "$fn" in
   is_dangling_worktree) deps+=(gitdir_target) ;;
+  is_busy_dir) deps+=(process_inspection_available) ;;
   esac
   local quoted_args=() a
   for a in "$@"; do
@@ -526,6 +527,36 @@ EOF
   assert_success
   [ -d "$herdr/myrepo/feature-x" ]
   [ -d "$herdr/myrepo/feature-y" ]
+}
+
+@test "apply refuses unsupported or inaccessible process inspection before invoking the engine" {
+  local bin="$BATS_TEST_TMPDIR/bin" mode
+  mkdir -p "$bin" "$BATS_TEST_TMPDIR/herdr/deleted/old"
+  printf 'gitdir: /missing/parent/worktrees/old\n' >"$BATS_TEST_TMPDIR/herdr/deleted/old/.git"
+  age_dir "$BATS_TEST_TMPDIR/herdr/deleted/old"
+  make_ghq_repo "$BATS_TEST_TMPDIR/ghq/repo"
+  printf '#!/bin/sh\necho invoked >>"$ENGINE_LOG"\necho "done removed=0"\n' >"$bin/engine"
+  for mode in unsupported inaccessible; do
+    if [ "$mode" = unsupported ]; then
+      printf '#!/bin/sh\necho Darwin\n' >"$bin/uname"
+      printf '#!/bin/sh\nexec /usr/bin/readlink "$@"\n' >"$bin/readlink"
+    else
+      printf '#!/bin/sh\necho Linux\n' >"$bin/uname"
+      printf '#!/bin/sh\nexit 1\n' >"$bin/readlink"
+    fi
+    chmod +x "$bin/uname" "$bin/readlink"
+    run env PATH="$bin:$PATH" WORKTREE_GC_ENGINE="$bin/engine" ENGINE_LOG="$BATS_TEST_TMPDIR/$mode.log" bash "$SRC" --apply \
+      --ghq-root "$BATS_TEST_TMPDIR/ghq" \
+      --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
+    assert_failure
+    assert_output --partial 'process inspection unavailable; refusing --apply'
+    [ ! -e "$BATS_TEST_TMPDIR/$mode.log" ]
+    [ -d "$BATS_TEST_TMPDIR/herdr/deleted/old" ]
+    run env PATH="$bin:$PATH" bash "$SRC" --dry-run \
+      --ghq-root "$BATS_TEST_TMPDIR/empty" \
+      --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
+    assert_success
+  done
 }
 
 @test "統合: 単体とfan-outの既定は3日で、danglingにも適用する" {

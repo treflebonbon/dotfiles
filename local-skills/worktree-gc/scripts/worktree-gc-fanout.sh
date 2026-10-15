@@ -31,7 +31,8 @@
 #
 # Dry-run by default (mirrors worktree-gc.sh). --diagnose prints an
 # aggregate, structured candidate report across every repo + the dangling
-# scan. --apply performs real removal.
+# scan. --apply requires readable Linux /proc cwd inspection; unsupported
+# platforms retain dry-run and diagnose support.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -214,9 +215,18 @@ skip_summary_and_header() {
   done
 }
 
+# Refuse deletion when this runtime cannot inspect Linux process cwd links.
+process_inspection_available() {
+  [ "$(uname -s)" = Linux ] &&
+    [ -r /proc ] && [ -x /proc ] &&
+    [ -r /proc/self/stat ] &&
+    readlink -f /proc/self/cwd >/dev/null 2>&1
+}
+
 # Success iff a live process has $1 (or a path under it) as its cwd.
 is_busy_dir() {
   local dir cwd_link resolved
+  process_inspection_available || return 0
   # Canonicalize $1 too: /proc/<pid>/cwd always resolves to a canonical path,
   # so comparing it against an unresolved $1 would fail-open (miss a busy
   # process) whenever $1's path has a symlink component. Fall back to the
@@ -425,6 +435,10 @@ cmd_sweep() {
   local global_used=0 repo roots remaining out removed root dir
   local engine_flags=()
   if [ "$APPLY" = true ]; then
+    if ! process_inspection_available; then
+      echo "process inspection unavailable; refusing --apply" >&2
+      return 1
+    fi
     engine_flags=(--apply)
   fi
 
