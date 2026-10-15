@@ -17,6 +17,7 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - [human-validation](human-validation.md) — 秘密なしの AI 開発と、人間による固定版の別環境検証
 - [skill-harness](skill-harness.md) — apm 経由の skill 群、mattpocock ワークフロー、playwright-cli
 - [ai-runtimes](ai-runtimes.md) — nix-devshell の AI ツールと Claude/Codex マルチランタイム、更新経路
+- [investigation](investigation.md) — Google Cloud / GitHub の調査コマンド、機密項目の除外、未対応操作の実行前確認
 
 dotfiles repo 自身の構造・規約は [docs/architecture.md](../docs/architecture.md) / [docs/conventions.md](../docs/conventions.md)（repo ローカル）を参照。
 

@@ -1,0 +1,196 @@
+#!/usr/bin/env -S python3 -I
+
+import argparse
+from datetime import datetime
+import json
+import os
+import re
+import subprocess
+import sys
+from urllib.error import URLError
+from urllib.parse import urlencode
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+
+ACCEPTS_RESOURCE = {("logging", "read"): True, ("config", "list"): False}
+for group in (
+    ("projects",),
+    ("logging", "logs"),
+    ("logging", "sinks"),
+    ("logging", "metrics"),
+    ("logging", "buckets"),
+    ("monitoring", "dashboards"),
+    ("monitoring", "policies"),
+    ("run", "services"),
+    ("run", "revisions"),
+    ("container", "clusters"),
+    ("compute", "instances"),
+    ("compute", "networks"),
+    ("compute", "firewall-rules"),
+    ("iam", "service-accounts"),
+    ("iam", "roles"),
+):
+    ACCEPTS_RESOURCE[(*group, "list")] = False
+    if group != ("logging", "logs"):
+        ACCEPTS_RESOURCE[(*group, "describe")] = True
+for group in (("projects",), ("run", "services"), ("iam", "service-accounts")):
+    ACCEPTS_RESOURCE[(*group, "get-iam-policy")] = True
+
+OPTIONS = (
+    "project", "limit", "filter", "sort-by", "freshness", "order",
+    "region", "zone", "location", "bucket", "service",
+)
+
+
+def redact(value):
+    # shortcut: ログ本文と未知の項目の秘密値は判別しない, 対象 API の機密項目が増えたら更新する。
+    if isinstance(value, list):
+        return [redact(item) for item in value]
+    if isinstance(value, dict):
+        result = {}
+        for key, item in value.items():
+            name = re.sub(r"[^a-z0-9]", "", key.lower())
+            sensitive = name in {
+                "env", "environment", "environmentvariables", "secrets", "secretenv",
+                "availablesecrets", "masterauth", "authorization", "startupscript",
+                "connectionstring", "connectionstrings", "privatekeydata", "sshkeys",
+                "diskencryptionkey", "customerencryptionkey", "encryptionkey",
+            } or (name != "nextpagetoken" and name.endswith(("password", "passwd", "token", "privatekey", "credentials", "credential", "secret", "apikey", "lastappliedconfiguration")))
+            result[key] = "[非表示]" if sensitive else redact(item)
+            if name == "metadata" and isinstance(item, dict) and "items" in item:
+                result[key]["items"] = "[非表示]"
+        return result
+    return value
+
+
+def gcloud_output(arguments):
+    result = subprocess.run(
+        ["gcloud", *arguments, "--quiet"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**os.environ, "CLOUDSDK_CORE_SHOULD_PROMPT_TO_ENABLE_API": "false", "PAGER": "cat"},
+    )
+    if result.returncode:
+        raise ValueError("gcloud が失敗しました。認証・対象・API の有効化状態を確認してください。")
+    return result.stdout
+
+
+def read_gcloud(arguments):
+    output = gcloud_output([*arguments, "--format=json"])
+    try:
+        return json.loads(output)
+    except ValueError:
+        raise ValueError("gcloud の出力が JSON ではありません。") from None
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def read_time_series(arguments):
+    parser = argparse.ArgumentParser(prog="gcloud-inspect monitoring time-series list", allow_abbrev=False)
+    for option in ("project", "filter", "start", "end"):
+        parser.add_argument("--" + option, required=True)
+    parser.add_argument("--limit", type=int, default=100)
+    parser.add_argument("--page-token")
+    parsed = parser.parse_args(arguments)
+    if not re.fullmatch(r"[a-z][a-z0-9-]{4,61}[a-z0-9]|[0-9]+", parsed.project):
+        raise ValueError("--project にはプロジェクト ID または番号を指定してください。")
+    start, end = (datetime.fromisoformat(value.replace("Z", "+00:00")) for value in (parsed.start, parsed.end))
+    if start.tzinfo is None or end.tzinfo is None or start >= end:
+        raise ValueError("--start と --end にはタイムゾーン付きの日時を昇順で指定してください。")
+    if not 1 <= parsed.limit <= 1000:
+        raise ValueError("--limit は 1〜1000 を指定してください。")
+    token = subprocess.run(
+        ["gcloud", "auth", "print-access-token", "--quiet"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if token.returncode or not token.stdout.strip():
+        raise ValueError("gcloud の既存認証を利用できません。ホスト側の認証状態を確認してください。")
+    query = {
+        "filter": parsed.filter,
+        "interval.startTime": start.isoformat(),
+        "interval.endTime": end.isoformat(),
+        "pageSize": parsed.limit,
+    }
+    if parsed.page_token:
+        query["pageToken"] = parsed.page_token
+    request = Request(
+        f"https://monitoring.googleapis.com/v3/projects/{parsed.project}/timeSeries?{urlencode(query)}",
+        headers={"Authorization": f"Bearer {token.stdout.strip()}"},
+        method="GET",
+    )
+    try:
+        with build_opener(NoRedirect).open(request, timeout=60) as response:
+            return json.load(response)
+    except (URLError, ValueError):
+        raise ValueError("Monitoring API の参照に失敗しました。権限・対象・filter を確認してください。") from None
+
+
+def main(arguments):
+    reviewed = arguments[:1] == ["--reviewed"]
+    if reviewed:
+        arguments = arguments[1:]
+    if not arguments or arguments == ["--help"]:
+        print("使い方: gcloud-inspect <gcloud の参照操作> [引数]\n"
+              "対応操作:\n" + "\n".join("  " + " ".join(command) for command in sorted(ACCEPTS_RESOURCE)) +
+              "\n確認後の追加参照: gcloud-inspect --reviewed <list/describe/get-iam-policy/read 操作> [引数]" +
+              "\n  monitoring time-series list --project ID --filter FILTER --start RFC3339 --end RFC3339 [--limit N] [--page-token TOKEN]")
+        return 0
+    if arguments[:3] == ["monitoring", "time-series", "list"]:
+        print(json.dumps(redact(read_time_series(arguments[3:])), ensure_ascii=False))
+        return 0
+    root = arguments[1:2] if arguments[:1] in (["alpha"], ["beta"]) else arguments[:1]
+    if root in (["auth"], ["secrets"]):
+        raise ValueError("認証値・秘密値の取得は禁止されています。")
+    command = next((key for key in ACCEPTS_RESOURCE if arguments[: len(key)] == list(key)), None)
+    if command is None:
+        if not reviewed:
+            print("自動許可対象外です。実行前にユーザーへ操作内容を示して確認してください。", file=sys.stderr)
+            return 2
+        for index, value in enumerate(arguments):
+            if value in {"list", "describe", "get-iam-policy", "read"}:
+                command = tuple(arguments[: index + 1])
+                break
+        if command is None or not all(re.fullmatch(r"[a-z][a-z0-9-]*", part) for part in command):
+            raise ValueError("確認後も読み取り操作と通常のコマンド順序だけを受理します。")
+        help_text = gcloud_output([*command, "--help"])
+        help_text = re.sub(r"\x1b\[[0-9;]*m|.\x08", "", help_text)
+        name = re.search(r"(?m)^\s*NAME\s*\n\s*(gcloud[^\n]+)", help_text)
+        if name is None or name[1].split(" - ")[0].split() != ["gcloud", *command]:
+            raise ValueError("CLI の正式な読み取りコマンドを確認できないため実行しません。")
+    parser = argparse.ArgumentParser(prog="gcloud-inspect", allow_abbrev=False)
+    if ACCEPTS_RESOURCE.get(command, command[-1] != "list"):
+        parser.add_argument("resource", nargs="?" if command == ("logging", "read") else None)
+    for option in OPTIONS:
+        parser.add_argument("--" + option, type=int if option == "limit" else str)
+    parsed, unknown = parser.parse_known_args(arguments[len(command) :])
+    if unknown:
+        print("自動許可対象外の引数です。実行前にユーザーへ操作内容を示して確認してください。", file=sys.stderr)
+        return 2
+    if parsed.limit is not None and not 1 <= parsed.limit <= 1000:
+        raise ValueError("--limit は 1〜1000 を指定してください。")
+    arguments = list(command)
+    if resource := getattr(parsed, "resource", None):
+        if resource.startswith("-"):
+            raise ValueError("位置引数には gcloud のオプションを指定できません。")
+        arguments.append(resource)
+    if parsed.limit is None and ((command[-1] == "list" and command != ("config", "list")) or command == ("logging", "read")):
+        parsed.limit = 100
+    for option in OPTIONS:
+        if (value := getattr(parsed, option.replace("-", "_"))) is not None:
+            arguments.append(f"--{option}={value}")
+    print(json.dumps(redact(read_gcloud(arguments)), ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main(sys.argv[1:]))
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1) from None
