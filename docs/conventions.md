@@ -19,6 +19,12 @@ tags: [conventions, git, lint, lefthook]
 
 topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
 
+更新時のcanonical検証には、repo内の手動入口 `python3 scripts/verify-canonical.py` を使える。入口自身が置かれたlinked task worktreeを対象にするため、検証する変更をcommitしてcleanにし、既存手順で両devShellとruntimeを準備してから起動する。`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` には準備済みの絶対パスを渡す。入口は `lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。
+
+開始前は `git status` に加えて、全tracked内容とGit modeをHEADのtree/blobへ直接照合する。`assume-unchanged`／`skip-worktree` に隠れた未commitの変更もBats開始前に拒否し、flag自体は変更しない。実行後にHEADの内容・Git modeと異なるfileは `after.json` の `head_mismatches` に記録し、前後記録とTAPを保持する。
+
+記録は `tmp/canonical-run.*/` の `before.json`／`after.json`、`command.log`、`runner-path`、`result.json` に残る。runnerが作成した `tmp/test-run.*/` と相互参照し、最新directory探索やconsoleの表示文言には依存しない。通常のテスト入口は維持し、受渡し情報をテスト内の別runnerへ引き継がない。Bats自体の結果と証拠照合の問題を区別し、不足・不一致・中断は非0終了する。全Batsコマンドの所要時間は実測し、環境準備の時間は含めない。自動再実行やNix build／APM再生成、PR／CIの照合は行わない。これは実行時点の証拠であり、後続のPR HEADや配備との一致確認は別に行う。
+
 ローカルのユーザー devShell のツールと repo devShell を使い、Nix の取得・build 成果物とブラウザ環境を再利用する。環境を明示的に準備する場合は、worktree root から次を実行する。WSL2 では両方の `#default` を `#wsl` に置き換え、Managed Playwright Chrome を利用する。
 
 ```bash
@@ -27,6 +33,8 @@ nix develop ./private_dot_config/nix-devshell#default --command \
 ```
 
 ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。
+
+Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。
 
 ```bash
 python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test

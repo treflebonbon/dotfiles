@@ -34,6 +34,8 @@
 
 **更新単位**: 同じ互換性ゲート、検証結果、配備境界、rollback 境界を共有して一緒に採用する導入済み AI ツールセットまたは Agent Skill セットの変更群。payload や workflow 契約が大きく異なる変更は、同じ upstream 更新でも別の更新単位に分ける。 _Avoid_: 一括更新, 全部入り update, upstream の更新
 
+**canonical検証**: dotfilesの変更を公開する前に、確定したsourceと準備済み環境で全テストスイートを一度実行し、その条件と結果の対応を確かめる検証。個別の関連検証や環境構築・配備とは区別し、テストの成否と証拠の充足をそれぞれ確認する。 _Avoid_: 全検証, 関連テスト, 配備確認
+
 **Codex 管理設定**: dotfiles が内容の正本を持ち、Codex の各利用環境へまとめて同期する設定の集合。利用環境に固有の信頼設定や実行状態とは区別する。 _Avoid_: Codex の全設定, Codex home, 更新単位
 
 **Managed Playwright Chrome**: WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。worktree ごとの検証状態を、その identity の排他的な CLI session と Dashboard が再利用する。GitHub 添付認証とは別に保持する。 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
