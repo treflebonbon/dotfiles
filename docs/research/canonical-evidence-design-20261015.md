@@ -76,6 +76,21 @@ sourceの照合は前後のHEAD・追跡対象・内容に対するもので、�
 
 ログ受渡し不在と実行runtime記録の空欄、中断の未伝達、中断時の実コマンド終了コードの取り違え、helpによる意図しない全suite開始を、回帰テストで失敗させてから修正した。手動入口のfixtureは実Git linked worktreeと実runnerを使い、外部のlefthook・Bun・Batsだけを置換する。source/HEAD/runtimeの変更、必須名の欠落・重複・skip、異なる実行の参照、非Gitの通常入口も検査する。
 
-source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImpeccableのoutputと実行パスを照合した。既存frozen runtimeのmanifest/lockはsourceとbyte一致している。関連検証は準備済みdevShellで29件（29 pass／0 skip／0 fail、exit 0、18.627秒）を確認した。ここまで全suiteは未実行で、独立レビューと固定HEADでのcanonicalを後続に残す。証拠は `tmp/canonical-implementation-20261015/` の `related-prepared-result.json`、`related-prepared.tap`、`preparation-result.json`、`prepared.json`。
+source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImpeccableのoutputと実行パスを照合した。既存frozen runtimeのmanifest/lockはsourceとbyte一致している。関連検証は準備済みdevShellで29件（29 pass／0 skip／0 fail、exit 0、18.627秒）を確認した。証拠は `tmp/canonical-implementation-20261015/` の `related-prepared-result.json`、`related-prepared.tap`、`preparation-result.json`、`prepared.json`。
 
 独立レビューでは、明文化規約違反0件、命名提案1件、仕様指摘1件だった。JSON保存関数の命名を具体化し、コマンドとrunnerの異なる失敗終了コードも証拠不一致として記録するよう修正した。終了コードの回帰テストは修正前の失敗を確認してから追加した。
+
+修正後の関連検証は30件すべてpass、skip・failは0件。`ruff`、`shfmt`、`shellcheck`、TypeScriptの型検査、formatter、commit hooksも通過した。実装HEAD `943a81fc6e05a29e170565d9ed9eff698a974321` の独立再レビューは `gpt-6-luna` / `xhigh` で実施し、Standardsの規約違反・設計上の懸念とSpecの未解消指摘はいずれも0件だった。証拠は `review-result.json`。
+
+## 全Batsの実測結果
+
+同じHEADのcleanなworktreeで、source-selected user/repo両wsl devShellから手動入口を一度実行した。全Batsコマンドの実測は985.404秒、外側のlauncherは1000.964秒。別途実施した環境準備は30.124秒で、全Batsの時間には含めない。
+
+- TAPはplan 809、787 pass／21既定skip／1 fail。連番1–809は完全で、bailoutなし。
+- Design Hook 13件とPlaywright runtime 2件の必須15名称は、各1回・pass・skipなし。
+- 589 trackedファイルと13のruntime記録は前後一致。独立照合時の内容も一致し、HEAD変更やdirty化はなかった。
+- runner・lefthook・手動入口・launcherはいずれもexit 1。原始TAPのSHA-256は記録値と一致し、証拠照合エラーは0件。
+
+失敗は既存の `dogfood without annotation preserves the existing report path`（TAP 222）で、Managed Dogfood Chromeの起動前に `port-conflict:8620` を検出した。後続のread-only確認では、WindowsのChrome PID 8620が `127.0.0.1:19385` を使用していた。失敗メッセージの数値はPIDであり、失敗時の予約portを直接記録した値ではない。競合相手の停止やsource/test/deps/envの追加変更はせず、この試行は検証不成立として保持した。自動再実行は行っていない。
+
+記録先は `tmp/canonical-run.zllf56i2/`、runnerログは `tmp/test-run.LsIZKz/tap.log`。独立照合の結果と失敗箇所は `tmp/canonical-implementation-20261015/` の `full-result.json`、`canonical-failure.log`、`dogfood-conflict.json` に保持する。結果文書の追記後に全Batsは再実行していない。全suiteの成功確認は、競合のない環境で別の新規試行を行うまで未成立である。
