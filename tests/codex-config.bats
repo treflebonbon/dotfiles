@@ -2,7 +2,6 @@
 
 bats_require_minimum_version 1.5.0
 load helpers/raw-codex
-load helpers/codex-home
 
 teardown() { raw_cleanup; }
 
@@ -449,11 +448,11 @@ for path in sys.argv[1:]:
     assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
     assert filesystem[":root"] == "deny"
     assert filesystem[":minimal"] == "read"
-    assert filesystem[":slash_tmp"] == "write"
-    assert filesystem["/tmp"]["."] == "write"
-    assert filesystem["/tmp"]["**/.env"] == "deny"
-    assert filesystem["/tmp"]["**/*.key"] == "deny"
-    assert filesystem["/tmp"]["**/credentials.json"] == "deny"
+    assert filesystem[":slash_tmp"] == "deny"
+    assert filesystem["/tmp/codex"]["."] == "write"
+    assert filesystem["/tmp/codex"]["**/.env"] == "deny"
+    assert filesystem["/tmp/codex"]["**/*.key"] == "deny"
+    assert filesystem["/tmp/codex"]["**/credentials.json"] == "deny"
     assert filesystem[":workspace_roots"][".env"] == "deny"
     assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
     assert filesystem[":workspace_roots"]["**/.env[!.r]*"] == "deny"
@@ -554,7 +553,7 @@ assert_codex_strict_config() {
   grep -q '^"\*\*/\*\.pem" = "deny"$' "$config"
   grep -q '^":root" = "deny"$' "$config"
   grep -q '^":minimal" = "read"$' "$config"
-  grep -q '^":slash_tmp" = "write"$' "$config"
+  grep -q '^":slash_tmp" = "deny"$' "$config"
   ! grep -q '^codex_hooks = ' "$config"
   grep -q '^\[plugins\."github@openai-curated"\]' "$config"
   ! grep -q '^\[plugins\."superpowers@openai-curated"\]' "$config"
@@ -694,7 +693,7 @@ EOF
 }
 
 @test "dotfiles-secure sandbox starts without expanding protected home trees" {
-  local home="$CODEX_TEST_HOME_ROOT/$BATS_TEST_NUMBER/home"
+  local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home="$home/.codex"
   mkdir -p "$workspace" "$codex_home" "$home/.ssh"
@@ -715,7 +714,7 @@ EOF
 }
 
 @test "dotfiles-secure denies files outside the workspace while Nix store tools remain executable" {
-  local home="$CODEX_TEST_HOME_ROOT/$BATS_TEST_NUMBER/home"
+  local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$home/.codex"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   mkdir -p "$codex_home" "$workspace" "$home/other-repo"
@@ -731,7 +730,7 @@ EOF
 }
 
 @test "dotfiles-secure permits Environment Contract Files while preserving secret denies" {
-  local home="$CODEX_TEST_HOME_ROOT/$BATS_TEST_NUMBER/home"
+  local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home="$home/.codex"
   local path
@@ -774,7 +773,7 @@ EOF
 }
 
 @test "dotfiles-secure command network proxy enforces the managed domain allowlist" {
-  local home="$CODEX_TEST_HOME_ROOT/$BATS_TEST_NUMBER/home"
+  local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home="$home/.codex"
   local proxy_denied='CONNECT tunnel failed, response 403|Received HTTP code 403 from proxy after CONNECT'
@@ -968,6 +967,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
+assert data["hooks"].pop("SessionStart")
 command = data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
 assert isinstance(command, str) and command
 
@@ -1680,7 +1680,7 @@ EOF
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.config/protected"]
 "**/credentials.json" = "deny"
 
-[permissions.dotfiles-secure.filesystem."/tmp"]
+[permissions.dotfiles-secure.filesystem."/tmp/codex"]
 "." = "write"
 "**/private-fixture.txt" = "deny"
 EOF
@@ -1709,8 +1709,8 @@ for path in sys.argv[1:]:
     assert filesystem["/home/ubuntu/.config/protected"] == {
         "**/credentials.json": "deny"
     }
-    assert filesystem["/tmp"]["."] == "write"
-    assert filesystem["/tmp"]["**/private-fixture.txt"] == "deny"
+    assert filesystem["/tmp/codex"]["."] == "write"
+    assert filesystem["/tmp/codex"]["**/private-fixture.txt"] == "deny"
     assert ".git" not in filesystem[":workspace_roots"]
     assert "**/.env*" not in filesystem[":workspace_roots"]
     assert "**/.env" not in filesystem[":workspace_roots"]
@@ -1718,7 +1718,6 @@ for path in sys.argv[1:]:
     assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
     assert filesystem[":root"] == "deny"
 PY
-
   cp "$home/.codex/config.toml" "$home/first-sync.toml"
   HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
   cmp "$home/first-sync.toml" "$home/.codex/config.toml"
@@ -1778,7 +1777,7 @@ EOF
 }
 
 @test "Codex config migration keeps dotenv denied and public examples readable without a raw read grant" {
-  local fixture_home="$CODEX_TEST_HOME_ROOT/$BATS_TEST_NUMBER/home"
+  local fixture_home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home path
   mkdir -p "$fixture_home/.codex" "$fixture_home/.codex-app" "$workspace/nested" "$fixture_home/other-repo"

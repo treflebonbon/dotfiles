@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if test ! -L /tmp/codex && (umask 077; mkdir -p /tmp/codex) && test -O /tmp/codex && chmod 700 /tmp/codex; then :; else printf '%s\\n' '{\"continue\":false,\"stopReason\":\"/tmp/codex を安全に準備できませんでした。所有者と種類を確認してください。\"}'; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|apply_patch",

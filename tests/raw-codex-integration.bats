@@ -11,7 +11,9 @@ teardown() {
 
 @test "raw Codex keeps host /tmp private while its isolated TMPDIR remains writable" {
   raw_fixture
-  RAW_HOST_TMP="$(mktemp -d /tmp/codex-host.XXXXXX)"
+  if [ ! -e /tmp/codex ] && [ ! -L /tmp/codex ]; then mkdir -m 700 /tmp/codex; fi
+  [ -d /tmp/codex ] && [ ! -L /tmp/codex ] && [ -O /tmp/codex ]
+  RAW_HOST_TMP="$(mktemp -d /tmp/codex/raw-host.XXXXXX)"
   printf 'host-only\n' >"$RAW_HOST_TMP/public.txt"
   cat >"$RAW_BASE/work/task.sh" <<'TASK'
 set -eu

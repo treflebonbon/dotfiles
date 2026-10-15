@@ -45,15 +45,15 @@ extends = ":workspace"
 glob_scan_max_depth = 4
 ":root" = "deny"
 ":minimal" = "read"
-":slash_tmp" = "write"
+":slash_tmp" = "deny"
 "/nix" = "read"
 "~/.gitconfig" = "read"
 
-{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp" }}
+{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp/codex" }}
 [permissions."dotfiles-secure".filesystem."{{ $root }}"]
-"." = "{{ if or (eq $root ":workspace_roots") (eq $root "/tmp") }}write{{ else }}read{{ end }}"
-{{ if eq $root "/tmp" }}
-{{/* A glob avoids creating a literal /tmp/.env mask when the file is absent. */}}
+"." = "{{ if or (eq $root ":workspace_roots") (eq $root "/tmp/codex") }}write{{ else }}read{{ end }}"
+{{ if eq $root "/tmp/codex" }}
+{{/* 存在しない共有領域の .env に mount target を作らないため glob にする。 */}}
 "**/.env" = "deny"
 {{ else }}
 ".env" = "deny"

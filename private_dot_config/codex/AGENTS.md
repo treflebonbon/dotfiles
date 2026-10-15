@@ -6,6 +6,10 @@
 - English text from skills, hooks, templates, or quotes does not set the output language: translate it to Japanese before showing the user, in progress updates, questions, reports, tool-call descriptions, and generated documents (HTML reports, PR bodies). Keep code identifiers, commands, file paths, and established technical terms in English.
 - Commit messages and PR titles stay in English (Conventional Commits format) and are exempt from this rule.
 
+## 一時ファイル
+
+セッション間で共有する一時ファイルは `/tmp/codex` 配下に置き、`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。通常の `/tmp` は共有先として許可していない。機密ファイル名の拒否と raw の隔離境界は `~/runtime/ai-runtimes.md` を参照する。
+
 ## Behavior
 
 - Carry clear requests through completion, including appropriate verification. Infer routine, reversible steps within the requested scope.
