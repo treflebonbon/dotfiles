@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+test_run_receipt=${DOTFILES_TEST_RUN_RECEIPT:-}
+unset DOTFILES_TEST_RUN_RECEIPT
 mkdir -p tmp
 log_dir=$(mktemp -d tmp/test-run.XXXXXX)
 active_runner_pid=
@@ -24,6 +26,31 @@ trap 'stop 130' INT
 trap 'stop 143' TERM
 : >"$log_dir/tap.log"
 printf 'テストログ: %s/tap.log\n' "$log_dir" >&2
+
+if [[ -n "$test_run_receipt" ]]; then
+  python3 -I - "$test_run_receipt" "$log_dir" <<'PY'
+import sys
+from pathlib import Path
+
+receipt = Path(sys.argv[1])
+temporary = Path.cwd().resolve() / "tmp"
+try:
+    if (
+        not receipt.is_absolute()
+        or receipt.name != "runner-path"
+        or receipt.parent.parent != temporary
+        or not receipt.parent.name.startswith("canonical-run.")
+        or receipt.parent.resolve(strict=True) != receipt.parent
+    ):
+        raise ValueError("呼出元の専用directoryではありません")
+    directory = Path(sys.argv[2]).resolve(strict=True)
+    with receipt.open("x") as output:
+        (directory / "canonical-receipt").write_text(str(receipt) + "\n")
+        output.write(str(directory) + "\n")
+except (OSError, ValueError) as error:
+    raise SystemExit(f"ログ先の受渡しを拒否しました: {error}") from None
+PY
+fi
 
 run_logged() {
   local log_file=$1
@@ -213,7 +240,7 @@ PY
   return "$status"
 }
 
-if ! python3 -I - >"$log_dir/environment" 2>"$log_dir/setup.log" <<'PY'
+if ! python3 -I - >"$log_dir/environment" 2>"$log_dir/setup.log" <<'PY'; then
 import shutil
 import sys
 from pathlib import Path
@@ -228,7 +255,6 @@ except ImportError as error:
 if not with_env or not Path(with_env).resolve().is_relative_to("/nix/store"):
     raise SystemExit("with-env が Nix store の実行ファイルに解決されない")
 PY
-then
   cat "$log_dir/setup.log" >&2
   printf '%s\n' 'テスト環境が不完全です。docs/conventions.md の devShell 手順で再実行してください。' | tee -a "$log_dir/setup.log" >&2
   exit 1
