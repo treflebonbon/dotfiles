@@ -157,6 +157,7 @@ def strip_stale_managed_filesystem_rules(
                 isinstance(value, dict)
                 and key.startswith("/")
                 and managed_root_mode is not None
+                and key not in managed_filesystem
                 and value.get(".") == managed_root_mode
             ):
                 del filesystem[key]

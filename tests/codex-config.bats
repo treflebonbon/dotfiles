@@ -449,6 +449,10 @@ for path in sys.argv[1:]:
     assert filesystem[":root"] == "deny"
     assert filesystem[":minimal"] == "read"
     assert filesystem[":slash_tmp"] == "deny"
+    assert filesystem["/tmp/codex"]["."] == "write"
+    assert filesystem["/tmp/codex"]["**/.env"] == "deny"
+    assert filesystem["/tmp/codex"]["**/*.key"] == "deny"
+    assert filesystem["/tmp/codex"]["**/credentials.json"] == "deny"
     assert filesystem[":workspace_roots"][".env"] == "deny"
     assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
     assert filesystem[":workspace_roots"]["**/.env[!.r]*"] == "deny"
@@ -963,6 +967,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 
+assert data["hooks"].pop("SessionStart")
 command = data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
 assert isinstance(command, str) and command
 
@@ -1674,6 +1679,10 @@ EOF
 
 [permissions.dotfiles-secure.filesystem."/home/ubuntu/.config/protected"]
 "**/credentials.json" = "deny"
+
+[permissions.dotfiles-secure.filesystem."/tmp/codex"]
+"." = "write"
+"**/private-fixture.txt" = "deny"
 EOF
   cp "$home/.codex/config.toml" "$codex_home/config.toml"
 
@@ -1700,6 +1709,8 @@ for path in sys.argv[1:]:
     assert filesystem["/home/ubuntu/.config/protected"] == {
         "**/credentials.json": "deny"
     }
+    assert filesystem["/tmp/codex"]["."] == "write"
+    assert filesystem["/tmp/codex"]["**/private-fixture.txt"] == "deny"
     assert ".git" not in filesystem[":workspace_roots"]
     assert "**/.env*" not in filesystem[":workspace_roots"]
     assert "**/.env" not in filesystem[":workspace_roots"]
@@ -1707,6 +1718,10 @@ for path in sys.argv[1:]:
     assert filesystem[":workspace_roots"]["*/**/.env"] == "deny"
     assert filesystem[":root"] == "deny"
 PY
+  cp "$home/.codex/config.toml" "$home/first-sync.toml"
+  HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  cmp "$home/first-sync.toml" "$home/.codex/config.toml"
+  cmp "$home/first-sync.toml" "$codex_home/config.toml"
 }
 
 @test "Codex config merge script keeps path rules in user-defined profiles" {

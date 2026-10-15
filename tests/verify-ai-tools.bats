@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
+  bats_require_minimum_version 1.5.0
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   PROBE="$PROJECT_ROOT/scripts/verify-ai-tools.py"
   SOURCE="$BATS_TEST_TMPDIR/source"
@@ -13,8 +14,10 @@ setup() {
 import json, os, sys
 from pathlib import Path
 with open(os.environ['AI_FIXTURE_LOG'], 'a') as log:
-    log.write(json.dumps({key: os.environ.get(key) for key in
-        ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'BROWSER_OWNERSHIP_DIR', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'FORCE_COLOR']}) + '\n')
+    row = {key: os.environ.get(key) for key in
+        ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'BROWSER_OWNERSHIP_DIR', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'FORCE_COLOR']}
+    row['argv'] = sys.argv[1:]
+    log.write(json.dumps(row) + '\n')
 if sys.argv[1] == 'eval':
     mode = os.environ.get('AI_FIXTURE_MODE')
     if mode == 'eval-failure':
@@ -33,6 +36,17 @@ if sys.argv[1] == 'eval':
     if mode == 'wrong-type': metadata = None
     if mode == 'missing-path': del metadata[0]['path']
     print(json.dumps(metadata))
+elif sys.argv[1] == 'build':
+    assert sys.argv[sys.argv.index('--max-jobs') + 1] == '0'
+    assert sys.argv[sys.argv.index('--builders') + 1] == ''
+    assert sys.argv[-1] == str(Path(os.environ['AI_FIXTURE_BIN']).parent)
+    if os.environ.get('AI_FIXTURE_MODE') == 'codex-unavailable':
+        print('fixture Codex output unavailable without building', file=sys.stderr)
+        sys.exit(29)
+    if os.environ.get('AI_FIXTURE_MODE') == 'codex-signal':
+        print('fixture Codex cache signal', file=sys.stderr, flush=True)
+        os.kill(os.getpid(), 15)
+    print('fixture Codex output available')
 else:
     if os.environ.get('AI_FIXTURE_MODE') == 'startup-signal':
         print('fixture startup signal', file=sys.stderr, flush=True)
@@ -47,6 +61,49 @@ PY
     printf '#!/usr/bin/env bash\nprintf "fixture 0.162.1\\n"\n' >"$BIN/$tool"
   done
   chmod +x "$BIN"/*
+}
+
+@test "AI candidate verification can require a prebuilt Codex before starting either shell" {
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE" --no-codex-build \
+    -- bash -c 'printf "verified-command\n"'
+
+  [ "$status" -eq 0 ]
+  python3 - "$AI_FIXTURE_LOG" "$SOURCE" <<'PY'
+import json, sys
+from pathlib import Path
+rows=[json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
+assert [row['argv'][0] for row in rows]==['eval', 'build', 'develop', 'develop']
+home=Path(rows[1]['HOME'])
+assert home.is_relative_to(Path(sys.argv[2])/'tmp')
+assert rows[0]['HOME']==rows[1]['HOME']==rows[2]['HOME']
+assert (home.parent/'codex-cache.log').read_text().strip()=='fixture Codex output available'
+assert 'verified-command' in (home.parent/'startup.log').read_text()
+PY
+}
+
+@test "AI candidate verification stops before shell hooks when Codex needs a source build" {
+  run env PATH="$BIN:$PATH" AI_FIXTURE_MODE=codex-unavailable \
+    python3 "$PROBE" "$SOURCE" --no-codex-build \
+    -- bash -c 'touch "$1"' -- "$BATS_TEST_TMPDIR/should-not-run"
+
+  [ "$status" -eq 29 ]
+  [[ "$output" == *'Codex'*'ビルド'* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
+  run ! compgen -G "$SOURCE/tmp/ai-tools-*/startup.log"
+  run ! compgen -G "$SOURCE/tmp/ai-tools-*/home/.agents"
+  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 29 ]
+  grep -q 'output unavailable' "$SOURCE"/tmp/ai-tools-*/codex-cache.log
+  [ "$(wc -l <"$AI_FIXTURE_LOG")" -eq 2 ]
+}
+
+@test "AI candidate verification records a signal while checking the Codex cache" {
+  run env PATH="$BIN:$PATH" AI_FIXTURE_MODE=codex-signal \
+    python3 "$PROBE" "$SOURCE" --no-codex-build
+
+  [ "$status" -eq 143 ]
+  run ! compgen -G "$SOURCE/tmp/ai-tools-*/startup.log"
+  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 143 ]
+  grep -q 'fixture Codex cache signal' "$SOURCE"/tmp/ai-tools-*/codex-cache.log
 }
 
 @test "AI candidate verification isolates shell hooks and runs the requested command after output checks" {
@@ -172,7 +229,7 @@ PY
 
     [ "$status" -eq 1 ]
     [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-    [ ! -e "$case_source"/tmp/ai-tools-*/startup.log ]
+    run ! compgen -G "$case_source/tmp/ai-tools-*/startup.log"
     [ "$(cat "$case_source"/tmp/ai-tools-*/exit-code)" -eq 1 ]
     grep -q 'metadata不正' "$case_source"/tmp/ai-tools-*/evaluation.log
   done
@@ -185,7 +242,7 @@ PY
 
   [ "$status" -eq 17 ]
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-  [ ! -e "$SOURCE"/tmp/ai-tools-*/startup.log ]
+  run ! compgen -G "$SOURCE/tmp/ai-tools-*/startup.log"
   [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 17 ]
   grep -q 'fixture evaluation failed' "$SOURCE"/tmp/ai-tools-*/evaluation.log
   [ "$(wc -l <"$AI_FIXTURE_LOG")" -eq 1 ]

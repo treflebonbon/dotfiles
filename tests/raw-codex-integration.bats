@@ -4,7 +4,38 @@ bats_require_minimum_version 1.5.0
 load helpers/raw-codex
 
 setup() { PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"; }
-teardown() { raw_cleanup; }
+teardown() {
+  raw_cleanup
+  if [ -n "${RAW_HOST_TMP:-}" ]; then rm -rf -- "$RAW_HOST_TMP"; fi
+}
+
+@test "raw Codex keeps host /tmp private while its isolated TMPDIR remains writable" {
+  raw_fixture
+  if [ ! -e /tmp/codex ] && [ ! -L /tmp/codex ]; then mkdir -m 700 /tmp/codex; fi
+  [ -d /tmp/codex ] && [ ! -L /tmp/codex ] && [ -O /tmp/codex ]
+  RAW_HOST_TMP="$(mktemp -d /tmp/codex/raw-host.XXXXXX)"
+  printf 'host-only\n' >"$RAW_HOST_TMP/public.txt"
+  cat >"$RAW_BASE/work/task.sh" <<'TASK'
+set -eu
+test ! -e "$1/public.txt"
+case "$TMPDIR" in /tmp/codex-worktree-*) ;; *) exit 1 ;; esac
+file="$(mktemp "$TMPDIR/public.XXXXXX")"
+printf 'created\n' >"$file"
+test "$(cat "$file")" = created
+printf 'updated\n' >"$file"
+test "$(cat "$file")" = updated
+rm "$file"
+test ! -e "$file"
+printf 'RAW_TMP_OK\n'
+TASK
+  raw_admit flake.nix task.sh
+
+  run raw_run sandbox -- bash task.sh "$RAW_HOST_TMP"
+
+  raw_assert_status 0
+  [[ "$output" == *RAW_TMP_OK* ]]
+  [ "$(cat "$RAW_HOST_TMP/public.txt")" = host-only ]
+}
 
 @test "raw return preserves unchanged tracked symlinks and gitlinks without exposing their host contents" {
   raw_fixture

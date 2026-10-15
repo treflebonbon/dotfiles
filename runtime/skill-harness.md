@@ -255,7 +255,7 @@ raw adapter は Linux／WSL2 で `devshell-env trust` と worktree ごとの公�
 
 終了時に commit・index・通常ファイルを元の worktree へ返す。実行中の host 並行編集、未登録入力との衝突、初期化／隔離の失敗では非0終了して結果を保持する。無保護な fallback は使わない。入力登録・導入条件・再起動・復旧は [利用方法](shell-environment.md#raw-codex-のプロジェクト開発環境) を読む。人間の明示 `with-env` は従来の dotenv 注入を保持し、raw の `with-env --prepared` は秘密なしの環境だけを再利用する。管理 Context7・Serena は明示選択して同じ隔離内で起動し、GitHub は人間が確認した公開 repo・topic・CI/外部連携の方針を登録して限定 gateway へ接続する。必要な認証は host に保持する。[対応 CLI と確認条件](shell-environment.md#隔離内の管理-mcp-と-github) を参照する。Orca／Herdr の native 起動、既存セッションには遡及適用しない。
 
-`sync-codex-managed-config` は native Codex home と explicit `CODEX_HOME` の managed `dotfiles-secure` から、旧 absolute `…/.git = "write"` と `:workspace_roots` の `".git" = "write"` を除去する。Codex self-expanded concrete map は absolute root と managed workspace の `"."` mode が一致する場合だけ除去し、managed profile の独立 nested deny、`:minimal` など他の scalar baseline、user-defined profile の path rule は保持する。
+`sync-codex-managed-config` は native Codex home と explicit `CODEX_HOME` の managed `dotfiles-secure` から、旧 absolute `…/.git = "write"` と `:workspace_roots` の `".git" = "write"` を除去する。Codex self-expanded concrete map は、管理設定に明示されていない absolute root と managed workspace の `"."` mode が一致する場合だけ除去する。明示的に管理する `/tmp/codex` の追加拒否ルール、managed profile の独立 nested deny、`:minimal` など他の scalar baseline、user-defined profile の path rule は保持する。
 
 移植元スキルの `eval.yaml` / `tasks/`（skill 評価ハーネス）は持ち込まない。
 

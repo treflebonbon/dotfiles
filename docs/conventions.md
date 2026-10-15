@@ -40,6 +40,8 @@ Managed Chromeの所有権記録は同じWindows資源を共有するため、`B
 python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test
 ```
 
+既存バイナリを使う方針の検証では `--no-codex-build` を指定する。最初の devShell 起動前に、選択された Codex output を既存の store または binary cache から確保し、取得できなければ後続の shellHook・コマンドを実行せず停止する。取得ログは `codex-cache.log`、検証中の GC を防ぐ output へのリンクは `codex` に残す。この指定は Codex に適用し、devShell や他の依存関係のビルドは従来どおり許可する。
+
 評価・起動ログ、Nix の metadata 出力、終了コードは `tmp/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。HOME／XDG の分離は秘密分離や OS sandbox の保証ではなく、品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
 
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
@@ -53,6 +55,8 @@ GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない
 候補を固定してから言語本体と必要な周辺ツールを検証し、評価のみの対象環境と実行確認した環境を区別して報告する。取得元の構造は [architecture](architecture.md#per-repo-言語テンプレート)、独立展開の検証は `tests/helpers/template-with-env.py` を参照する。
 
 ## ツール・スキル更新の追跡とレビュー
+
+設定変更でも、本体パッチの追加や package の取得経路を変える場合はツール更新として扱う。既存バイナリで可能な代替案を先に確認し、新しいソースビルドや独自パッチ保守が必要になる時点で、予想ビルド時間と継続保守の負担を提示してユーザーと方針を合わせる。レビューでは、この範囲拡大の判断と根拠も確認する。
 
 更新開始時に既存の調査記録へ、更新単位、適用するADRの箇所、予定する変更（文書訂正を含む）を記録する。更新単位の分離は [ADR-0045](adr/0045-separate-llm-agents-and-apm-update-units.md) に従う。PRを分割したときは、元の差分から外した変更を一件ずつ記録し、採用・却下・保留の扱い、理由、対応先のPR／commit、反映・検証の状態を追跡する。対応先が未定の必要変更は保留とする。
 

@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I -c 'import os\nos.umask(0o077)\ntry:\n    try:\n        os.mkdir(\"/tmp/codex\", 0o700)\n    except FileExistsError:\n        pass\n    fd = os.open(\"/tmp/codex\", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)\n    try:\n        if os.fstat(fd).st_uid != os.geteuid():\n            raise PermissionError\n        os.fchmod(fd, 0o700)\n    finally:\n        os.close(fd)\nexcept OSError:\n    raise SystemExit(1)\n' || printf '%s\\n' '{\"continue\":false,\"stopReason\":\"/tmp/codex を安全に準備できませんでした。所有者と種類を確認してください。\"}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|apply_patch",
