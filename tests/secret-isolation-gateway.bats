@@ -217,3 +217,60 @@ PY
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
+
+@test "isolated bridge startup waits for readiness and rejects failed or stalled bridges" {
+  [ "$(uname -s)" = Linux ] || skip "raw bridge startup requires Linux namespaces"
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation" "$BATS_TEST_TMPDIR" <<'PY'
+import runpy, shutil, subprocess, sys, tempfile
+from pathlib import Path
+source, fixture = map(Path, sys.argv[1:])
+startup = runpy.run_path(str(source / 'secret-isolation-worktree.py'))['bridge_startup']
+gateway = runpy.run_path(str(source / 'secret-isolation-gateway.py'))
+python = Path(sys.executable).resolve()
+bash = Path(shutil.which('bash')).resolve()
+with tempfile.TemporaryDirectory(prefix='cxi-ready-', dir='/tmp') as temporary:
+    server = gateway['start_gateway'](Path(temporary) / 'dependencies', 'dependencies', domains=[])
+    try:
+        for mode, expected in [('slow', 0), ('failed', 1), ('stalled', 1), ('invalid', 1)]:
+            wrapper = fixture / f'{mode}.py'
+            wrapper.write_text('import runpy, time\n' + {
+                'slow': 'time.sleep(1.5)\n',
+                'failed': 'raise SystemExit(17)\n',
+                'stalled': 'time.sleep(20)\n',
+                'invalid': 'print("unexpected", flush=True)\ntime.sleep(20)\n',
+            }[mode] + 'runpy.run_path("/gateway-source.py", run_name="__main__")\n')
+            script = fixture / f'{mode}.sh'
+            script.write_text('set -eu\n' + startup('dependencies', 8124) + '''
+python3 - <<'CLIENT'
+import http.client
+client = http.client.HTTPConnection('127.0.0.1', 8124, timeout=2)
+client.request('GET', '/forbidden')
+response = client.getresponse()
+assert response.status == 403
+assert response.read() == b''
+print('BRIDGE_COMMAND_STARTED')
+CLIENT
+''')
+            result = subprocess.run([
+                'bwrap', '--unshare-all', '--die-with-parent', '--new-session',
+                '--ro-bind', '/nix/store', '/nix/store', '--proc', '/proc', '--dev', '/dev',
+                '--tmpfs', '/tmp', '--ro-bind', temporary, '/gateway',
+                '--ro-bind', str(source / 'secret-isolation-gateway.py'), '/gateway-source.py',
+                '--ro-bind', str(wrapper), '/gateway-bridge.py', '--ro-bind', str(script), '/startup.sh',
+                '--clearenv', '--setenv', 'PATH', f'{bash.parent}:{python.parent}',
+                str(bash), '/startup.sh',
+            ], text=True, capture_output=True, timeout=15)
+            assert result.returncode == expected, (mode, result.returncode, result.stdout, result.stderr)
+            if expected == 0:
+                assert result.stdout.strip() == 'BRIDGE_COMMAND_STARTED', result.stdout
+            else:
+                assert 'gateway bridge did not start' in result.stderr, (mode, result.stderr)
+                assert 'BRIDGE_COMMAND_STARTED' not in result.stdout, mode
+            print(f'{mode}: exit={result.returncode}', flush=True)
+    finally:
+        server.shutdown()
+        server.server_close()
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}

@@ -535,6 +535,16 @@ def prepare(repo, policy, output):
     print("public worktree snapshot prepared; host files are not mounted")
 
 
+def bridge_startup(service, port):
+    return f"""if ! IFS= read -r -t 10 bridge_ready < <(
+    python3 /gateway-bridge.py /gateway/{service}/service.sock {port} </dev/null
+) || [ "$bridge_ready" != ready ]; then
+    printf '%s\\n' 'gateway bridge did not start' >&2
+    exit 1
+fi
+"""
+
+
 def run_isolated(repo, policy, output, command, services, ca_bundle=None, runtime=None):
     if "dependencies" in services and ca_bundle is None:
         raise ValueError(
@@ -657,22 +667,7 @@ def run_isolated(repo, policy, output, command, services, ca_bundle=None, runtim
         for service, port in (("model", 8123), ("dependencies", 8124)):
             if service not in services:
                 continue
-            startup += f"python3 /gateway-bridge.py /gateway/{service}/service.sock {port} </dev/null &\n"
-            startup += (
-                f"python3 - {port} <<'PY'\n"
-                + """
-import socket, sys, time
-for attempt in range(100):
-    try:
-        with socket.create_connection(('127.0.0.1', int(sys.argv[1])), timeout=1):
-            break
-    except OSError:
-        time.sleep(0.01)
-else:
-    raise SystemExit('gateway bridge did not start')
-PY
-"""
-            )
+            startup += bridge_startup(service, port)
     if "dependencies" in services:
         ca = output / "ca-bundle.crt"
         resolved_ca = ca_bundle.resolve(strict=True)
