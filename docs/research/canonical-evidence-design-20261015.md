@@ -82,7 +82,7 @@ source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImp
 
 修正後の関連検証は30件すべてpass、skip・failは0件。`ruff`、`shfmt`、`shellcheck`、TypeScriptの型検査、formatter、commit hooksも通過した。実装HEAD `943a81fc6e05a29e170565d9ed9eff698a974321` の独立再レビューは `gpt-6-luna` / `xhigh` で実施し、Standardsの規約違反・設計上の懸念とSpecの未解消指摘はいずれも0件だった。証拠は `review-result.json`。
 
-## 全Batsの実測結果
+## 初回の全Bats実測結果
 
 同じHEADのcleanなworktreeで、source-selected user/repo両wsl devShellから手動入口を一度実行した。全Batsコマンドの実測は985.404秒、外側のlauncherは1000.964秒。別途実施した環境準備は30.124秒で、全Batsの時間には含めない。
 
@@ -93,7 +93,7 @@ source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImp
 
 失敗は既存の `dogfood without annotation preserves the existing report path`（TAP 222）で、Managed Dogfood Chromeの起動前に `port-conflict:8620` を検出した。後続のread-only確認では、WindowsのChrome PID 8620が `127.0.0.1:19385` を使用していた。失敗メッセージの数値はPIDであり、失敗時の予約portを直接記録した値ではない。競合相手の停止やsource/test/deps/envの追加変更はせず、この試行は検証不成立として保持した。自動再実行は行っていない。
 
-記録先は `tmp/canonical-run.zllf56i2/`、runnerログは `tmp/test-run.LsIZKz/tap.log`。独立照合の結果と失敗箇所は `tmp/canonical-implementation-20261015/` の `full-result.json`、`canonical-failure.log`、`dogfood-conflict.json` に保持する。結果文書の追記後に全Batsは再実行していない。全suiteの成功確認は、競合のない環境で別の新規試行を行うまで未成立である。
+記録先は `tmp/canonical-run.zllf56i2/`、runnerログは `tmp/test-run.LsIZKz/tap.log`。独立照合の結果と失敗箇所は `tmp/canonical-implementation-20261015/` の `full-result.json`、`canonical-failure.log`、`dogfood-conflict.json` に保持する。この初回の結果を確定した時点では全suite成功は未成立で、後続の診断と新規試行へ引き継いだ。
 
 ## ポート競合の診断と修正
 
@@ -103,4 +103,19 @@ source-selected user/repo両wsl devShellの準備は成功し、PlaywrightとImp
 
 同じ問題を持つ既存の `scripts/verify-ai-tools.py` を修正した。HOME/XDGの分離前に `BROWSER_OWNERSHIP_DIR` を確定し、明示値を維持するか、元の `XDG_RUNTIME_DIR` → `TMPDIR` → `/tmp` から導く。回帰テストは実際のCLIからNix境界と後続コマンドまで値を確認し、修正前の省略時の失敗と、修正後の成功を確認した。関連40件はすべてpass、skip・failなし。既存のroot解決・自動割当・外部競合の拒否契約は変更しない。
 
-実6 CLIを照合する公開helperから同じ再現コマンドを呼ぶ対照実験も行った。修正前は6 CLI照合成功後に同じ競合でexit 1（30.187秒）、修正後は6 CLI照合成功後に19386で起動・終了しexit 0（36.090秒）。既存Chromeの停止や予約の削除はしていない。証拠と一時的な診断スクリプトは `tmp/dogfood-port-diagnosis-20261015/` に分離して保持する。修正後の独立レビューと全Batsは、固定したcleanなHEADで別の新規試行として行う。
+実6 CLIを照合する公開helperから同じ再現コマンドを呼ぶ対照実験も行った。修正前は6 CLI照合成功後に同じ競合でexit 1（30.187秒）、修正後は6 CLI照合成功後に19386で起動・終了しexit 0（36.090秒）。既存Chromeの停止や予約の削除はしていない。証拠と一時的な診断スクリプトは `tmp/dogfood-port-diagnosis-20261015/` に分離して保持する。修正HEAD `bd34733e28b72c752d8a02f0f5d02eddb11f0e5a` の独立レビューは `gpt-6-luna` / `xhigh` で実施し、Standardsの規約違反・設計上の懸念とSpecの未解消指摘はいずれも0件だった。
+
+## 修正後の全Batsと最終照合
+
+修正HEADのcleanなworktreeで公開helperを使い、実6 CLIのsource-selected outputと版を照合してからcanonical入口を一度実行した。Playwright／Impeccableのoutputとfrozen runtimeのmanifest/lockも開始前に照合した。共通 `BROWSER_OWNERSHIP_DIR` はNix評価・両devShell・後続のcanonical実行まで引き継がれた。初回の失敗試行とは記録先を分けた、新規の実行である。
+
+- TAPはplan 824、803 pass／21既定skip／0 fail。連番1–824は完全で、bailoutなし。main #409のテストと今回の回帰テストを含む。
+- 必須15名称は各1回・pass・skipなし。初回に失敗したdogfoodテストもTAP 222でpassした。
+- 593 trackedファイルと13のruntime記録は前後一致。独立照合時の内容も一致し、実行中にsourceやHEADを変更していない。
+- runner・lefthook・canonical入口・AI helper・launcherはすべてexit 0。原始TAPのSHA-256と記録値は一致し、証拠照合エラーは0件。
+- 全Batsコマンドの実測は1097.750秒。環境準備・6 CLI照合等を含む外側のlauncher全体は1121.947秒で、別の計測境界として扱う。
+- 既存19385予約の内容hashは診断前後で一致した。全TAP出力後のread-only観測でも、Chrome PID 8620は同portを使用していた。
+
+canonical記録は `tmp/canonical-run.ms8c9z_f/`、TAPは `tmp/test-run.vQk5tY/tap.log`、AI照合は `tmp/ai-tools-vyxy_367/`。独立照合の `full-result.json`、レビューの `review-result.json`、原因対照の `diagnosis-result.json` は `tmp/dogfood-port-diagnosis-20261015/` に保持する。sourceへのdebug instrumentationは残さず、一時的な診断スクリプトは同directoryだけに分離した。
+
+全Bats後はこの結果文書だけを追記し、実装・tests・依存関係・検証環境の追加変更や全Batsの再実行は行わない。push・PR公開・PRのmerge・applyは今回の診断では実施していない。21件のopt-in検証は未実行のままである。
