@@ -134,10 +134,10 @@ assert_lock_entry() {
     '7ba4dcf8ebe1626b00baa41e1f2478113719b60b' \
     'sha256:3b165350181cefb1c8459f1d615fe7230f4d20a62e56a2508dbebff8a071f6d8'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    '30a58d4498f270af1c1e981a7d78a15cf5740841' \
-    'sha256:0598e176aa87bd0276b8972169d7b058ffeed643e75ca0abb59f10d97748db65'
+    'c2477f311c19982ef6e246085438e6cfec3e35ea' \
+    'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '1b9a408b8c0f7de5125f4bad8d89eb8419a29a88' \
+    '9c863a6f830f8729bf9c7ae94cb534d29995c7ab' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
@@ -146,7 +146,7 @@ assert_lock_entry() {
     '7b116c05bfda646af39d2524c54e70c751f57ee8' \
     'sha256:66715d76e5947497431ec0db32f2693b9c916ad799c3f32b99e6174b4b9c607f'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '1b9a408b8c0f7de5125f4bad8d89eb8419a29a88' \
+    '9c863a6f830f8729bf9c7ae94cb534d29995c7ab' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
   [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 1 ]
   manifest_pins="$(

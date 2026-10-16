@@ -2301,7 +2301,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 30a58d4498f270af1c1e981a7d78a15cf5740841
+  resolved_commit: c2477f311c19982ef6e246085438e6cfec3e35ea
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2352,7 +2352,7 @@ dependencies:
   - .claude/skills/shadcn/rules/styling.md
   - .claude/skills/shadcn/scripts/showcase-coverage.mjs
   deployed_file_hashes:
-    .agents/skills/shadcn/SKILL.md: sha256:0185f715bc985deca4223be426f898aa17f7d1a297a9857dfa79055e473bc34d
+    .agents/skills/shadcn/SKILL.md: sha256:93951e5e83f616a3e046491c00d770bd54c0a64164706cd1191822a233d27592
     .agents/skills/shadcn/agents/openai.yml: sha256:35db91b1eef58b2abe01da9b88577de5a44e233b740cd93d692ddeeadd2afe4d
     .agents/skills/shadcn/assets/shadcn-small.png: sha256:0ecc62d682727f68fc4937eed19960c706714fa084d44f63028d611ae02bf3d7
     .agents/skills/shadcn/assets/shadcn.png: sha256:7d60ad6fec4d89a0d44ba5a3c9283d2fea0047af5467f9227040e20d927d39b7
@@ -2367,13 +2367,13 @@ dependencies:
     .agents/skills/shadcn/mcp.md: sha256:8d696b4e45b7d0e337367248513bd9acebe8f3bcfd7b748c775e5a337c8f38c8
     .agents/skills/shadcn/registry.md: sha256:4f239be36bd2b58e17047db1ca80ab7da00e15a8b73242e5e4d50d113c4caa05
     .agents/skills/shadcn/rules/base-vs-radix.md: sha256:2b2deb47d004285220c1fc6b38bb2edc2d0ccbcdafd031b0b189d5d8ed0d1ba8
-    .agents/skills/shadcn/rules/chat.md: sha256:de29c12524a27578a59ecf8c95ea939278c1a3572a3706bfc99f6f92cb770b7b
+    .agents/skills/shadcn/rules/chat.md: sha256:4b4610d487ddc9751f3cfe0c554a06560ac723fcc2460abad77a1d3c7c9a4b95
     .agents/skills/shadcn/rules/composition.md: sha256:f282df828d83a91132a846ddb62eea149a7c7c94822e9ca88cfddf85af01aa41
     .agents/skills/shadcn/rules/forms.md: sha256:29593e14381e34626f8e0e9c15c59f3394b92a0623af6a6ec94585400123853c
     .agents/skills/shadcn/rules/icons.md: sha256:d4a58266648872d9ee07d0c2368843a1cb88b8253b7f528dd7bda9d68b6c2535
     .agents/skills/shadcn/rules/styling.md: sha256:f88fbd72dff862805b786dc7d7e4c74c83030fc278c5b97c993e4e665001798c
     .agents/skills/shadcn/scripts/showcase-coverage.mjs: sha256:fb593e0806414d23b51354a46881f0b2873afc226bda0926a22f83cbd60af2fa
-    .claude/skills/shadcn/SKILL.md: sha256:0185f715bc985deca4223be426f898aa17f7d1a297a9857dfa79055e473bc34d
+    .claude/skills/shadcn/SKILL.md: sha256:93951e5e83f616a3e046491c00d770bd54c0a64164706cd1191822a233d27592
     .claude/skills/shadcn/agents/openai.yml: sha256:35db91b1eef58b2abe01da9b88577de5a44e233b740cd93d692ddeeadd2afe4d
     .claude/skills/shadcn/assets/shadcn-small.png: sha256:0ecc62d682727f68fc4937eed19960c706714fa084d44f63028d611ae02bf3d7
     .claude/skills/shadcn/assets/shadcn.png: sha256:7d60ad6fec4d89a0d44ba5a3c9283d2fea0047af5467f9227040e20d927d39b7
@@ -2388,17 +2388,17 @@ dependencies:
     .claude/skills/shadcn/mcp.md: sha256:8d696b4e45b7d0e337367248513bd9acebe8f3bcfd7b748c775e5a337c8f38c8
     .claude/skills/shadcn/registry.md: sha256:4f239be36bd2b58e17047db1ca80ab7da00e15a8b73242e5e4d50d113c4caa05
     .claude/skills/shadcn/rules/base-vs-radix.md: sha256:2b2deb47d004285220c1fc6b38bb2edc2d0ccbcdafd031b0b189d5d8ed0d1ba8
-    .claude/skills/shadcn/rules/chat.md: sha256:de29c12524a27578a59ecf8c95ea939278c1a3572a3706bfc99f6f92cb770b7b
+    .claude/skills/shadcn/rules/chat.md: sha256:4b4610d487ddc9751f3cfe0c554a06560ac723fcc2460abad77a1d3c7c9a4b95
     .claude/skills/shadcn/rules/composition.md: sha256:f282df828d83a91132a846ddb62eea149a7c7c94822e9ca88cfddf85af01aa41
     .claude/skills/shadcn/rules/forms.md: sha256:29593e14381e34626f8e0e9c15c59f3394b92a0623af6a6ec94585400123853c
     .claude/skills/shadcn/rules/icons.md: sha256:d4a58266648872d9ee07d0c2368843a1cb88b8253b7f528dd7bda9d68b6c2535
     .claude/skills/shadcn/rules/styling.md: sha256:f88fbd72dff862805b786dc7d7e4c74c83030fc278c5b97c993e4e665001798c
     .claude/skills/shadcn/scripts/showcase-coverage.mjs: sha256:fb593e0806414d23b51354a46881f0b2873afc226bda0926a22f83cbd60af2fa
-  content_hash: sha256:0598e176aa87bd0276b8972169d7b058ffeed643e75ca0abb59f10d97748db65
+  content_hash: sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: 1b9a408b8c0f7de5125f4bad8d89eb8419a29a88
+  resolved_commit: 9c863a6f830f8729bf9c7ae94cb534d29995c7ab
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2433,7 +2433,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: 1b9a408b8c0f7de5125f4bad8d89eb8419a29a88
+  resolved_commit: 9c863a6f830f8729bf9c7ae94cb534d29995c7ab
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -8599,7 +8599,7 @@ deployments:
   owners:
   - shadcn-ui/ui/skills/shadcn
   active_owner: shadcn-ui/ui/skills/shadcn
-  content_hash: sha256:0185f715bc985deca4223be426f898aa17f7d1a297a9857dfa79055e473bc34d
+  content_hash: sha256:93951e5e83f616a3e046491c00d770bd54c0a64164706cd1191822a233d27592
 - kind: project-relative
   target: claude
   value: .claude/skills/shadcn/agents/openai.yml
@@ -8734,7 +8734,7 @@ deployments:
   owners:
   - shadcn-ui/ui/skills/shadcn
   active_owner: shadcn-ui/ui/skills/shadcn
-  content_hash: sha256:de29c12524a27578a59ecf8c95ea939278c1a3572a3706bfc99f6f92cb770b7b
+  content_hash: sha256:4b4610d487ddc9751f3cfe0c554a06560ac723fcc2460abad77a1d3c7c9a4b95
 - kind: project-relative
   target: claude
   value: .claude/skills/shadcn/rules/composition.md
@@ -15187,7 +15187,7 @@ deployments:
   owners:
   - shadcn-ui/ui/skills/shadcn
   active_owner: shadcn-ui/ui/skills/shadcn
-  content_hash: sha256:0185f715bc985deca4223be426f898aa17f7d1a297a9857dfa79055e473bc34d
+  content_hash: sha256:93951e5e83f616a3e046491c00d770bd54c0a64164706cd1191822a233d27592
 - kind: project-relative
   target: codex
   value: .agents/skills/shadcn/agents/openai.yml
@@ -15322,7 +15322,7 @@ deployments:
   owners:
   - shadcn-ui/ui/skills/shadcn
   active_owner: shadcn-ui/ui/skills/shadcn
-  content_hash: sha256:de29c12524a27578a59ecf8c95ea939278c1a3572a3706bfc99f6f92cb770b7b
+  content_hash: sha256:4b4610d487ddc9751f3cfe0c554a06560ac723fcc2460abad77a1d3c7c9a4b95
 - kind: project-relative
   target: codex
   value: .agents/skills/shadcn/rules/composition.md
