@@ -332,6 +332,36 @@ EOF
   [ "$(cat "$GENERATION_LOG")" = 'install --target claude,codex --https' ]
 }
 
+@test "APM candidate generation rejects existing deployment paths without changing the lock" {
+  prepare_lock_generation
+  local runtime="$PWD" path kind
+  for path in .agents/skills .claude/skills; do
+    for kind in populated empty file symlink; do
+      mkdir -p "$runtime/$path-$kind"
+      cd "$runtime/$path-$kind"
+      printf 'name: candidate\n' >apm.yml
+      printf 'apm_version: 0.32.0\n' >apm.lock.yaml
+      mkdir -p "$(dirname "$path")"
+      case "$kind" in
+      populated)
+        mkdir -p "$path"
+        printf 'retained skill\n' >"$path/SKILL.md"
+        ;;
+      empty) mkdir -p "$path" ;;
+      file) printf 'retained path\n' >"$path" ;;
+      symlink) ln -s missing-deployment "$path" ;;
+      esac
+
+      run "$GENERATOR" "$PROJECT_ROOT"
+
+      [ "$status" -ne 0 ]
+      [[ "$output" == *"$path"* ]]
+      [ ! -e "$GENERATION_LOG" ]
+      [ "$(cat apm.lock.yaml)" = 'apm_version: 0.32.0' ]
+    done
+  done
+}
+
 @test "APM candidate generation rejects missing, malformed, and incorrect CLI versions before install" {
   prepare_lock_generation
   local banner
