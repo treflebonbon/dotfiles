@@ -34,6 +34,10 @@ Linux の Codex には `codex-sandbox-cleanup.patch` も適用する。存在し
 
 共有チャンネルより新しい Bun・Go・Perl・Gleam・Rust/Elixir の LSP は、汎用環境と対象テンプレートの `nixpkgs-language-sources` に同じ immutable revision を固定する。Bun はパッケージ定義だけを共有 nixpkgs へ取り込み、Go と Perl は compiler/interpreter と周辺ツールをその revision の package set からまとめて取得する。Gleam は compiler、Rust と Elixir は LSP だけをその package set から選ぶ。共通 `with-env` と formatter は既存チャンネルを使う。repo 用 devShell の Node.js 24 は `nixpkgs-node-sources` に汎用環境と同じ stable revision を固定し、両環境の版を揃える。
 
+## raw Codex の gateway 実行資源
+
+gateway 実行資源は `secret-isolation-gateway.py` の `gateway_scope` が所有する。呼び出し側には mount 用 directory を返し、部分起動・後続準備・隔離実行の失敗や Ctrl-C でも gateway と一時 directory の解放を試みる。一つの解放に失敗しても残りを試み、元の失敗を保持しながら解放失敗も診断に残す。解放だけが失敗した場合も非0終了し、復旧用 session は保持する。SIGTERM への追加対応と、処理中の通信の停止制御は含めない。資源所有の interface を通した回帰は `tests/gateway-lifecycle.bats` で検証する。
+
 ## プロジェクト環境準備
 
 `private_dot_local/share/devshell-env/devshell_environment.py` が Repository・trust・環境準備を共有する。`prepare_environment` は準備前後の Git 所属と flake の対応を確認してから環境を返し、`reuse_environment` は Nix を再評価せず準備済み環境を照合する。CLI・Claude・raw Codex は同じ module を読み、CLI の再実行で内部定義を取得しない。dotenv、Claude session、Codex の隔離・固定設定・起動・結果返却は各 adapter に残す。

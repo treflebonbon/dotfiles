@@ -2,6 +2,7 @@
 """Single-service, fixed-endpoint gateways for the #270 runtime experiment."""
 
 import argparse
+from contextlib import ExitStack, contextmanager
 import http.client
 from http.server import BaseHTTPRequestHandler
 import ipaddress
@@ -17,6 +18,7 @@ import ssl
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 from urllib.parse import urlsplit
 
@@ -153,6 +155,15 @@ def local_request(payload):
     return True
 
 
+def _cleanup(operation, *arguments):
+    try:
+        operation(*arguments)
+    except Exception as error:
+        message = f"gateway cleanup failed ({operation.__name__}): {error}"
+        print(message, file=sys.stderr)
+        return message
+
+
 class UnixServer(socketserver.ThreadingUnixStreamServer):
     daemon_threads = True
 
@@ -169,7 +180,7 @@ class UnixServer(socketserver.ThreadingUnixStreamServer):
         try:
             super().__init__(address, handler)
         except BaseException:
-            self.server_close()
+            _cleanup(self.server_close)
             raise
 
     def server_close(self):
@@ -457,9 +468,44 @@ def start_gateway(
                 raise ValueError("host ChatGPT login is unavailable")
         threading.Thread(target=server.serve_forever, daemon=True).start()
     except BaseException:
-        server.server_close()
+        _cleanup(server.server_close)
         raise
     return server
+
+
+class GatewayCleanupError(ValueError):
+    pass
+
+
+@contextmanager
+def gateway_scope():
+    errors = []
+
+    def cleanup(operation, *arguments):
+        if message := _cleanup(operation, *arguments):
+            errors.append(message)
+
+    with ExitStack() as resources:
+        root = Path(tempfile.mkdtemp(prefix="cxi-"))
+        resources.callback(cleanup, shutil.rmtree, root)
+
+        def start(service, **options):
+            directory = root / service
+            server = start_gateway(directory, service, **options)
+            resources.callback(cleanup, server.server_close)
+            resources.callback(cleanup, server.shutdown)
+            return directory
+
+        failed = False
+        try:
+            yield start
+        except BaseException:
+            failed = True
+            raise
+        finally:
+            resources.close()
+            if errors and not failed:
+                raise GatewayCleanupError("; ".join(errors))
 
 
 def bridge(unix_socket, port):

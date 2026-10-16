@@ -607,174 +607,172 @@ def run_isolated(repo, policy, output, command, services, ca_bundle=None, runtim
     ).splitlines()
     result = output / "result"
     result.mkdir()
-    gateways = []
     mounts = []
-    gateway_root = Path(tempfile.mkdtemp(prefix="cxi-"))
     for name in closure:
         path = Path(name)
         if path.parent != Path("/nix/store"):
             raise ValueError("invalid runtime closure path")
         mounts.extend(["--ro-bind", str(store / name.lstrip("/")), name])
+    gateway_module = runpy.run_path(
+        str(Path(__file__).with_name("secret-isolation-gateway.py"))
+    )
+    status = 0
     try:
-        gateway_module = runpy.run_path(
-            str(Path(__file__).with_name("secret-isolation-gateway.py"))
-        )
-        for service in services:
-            directory = gateway_root / service
-            options = {}
-            if runtime:
-                options = {
-                    "domains": runtime["domains"],
-                    "denied_domains": runtime.get("denied_domains", []),
-                    "codex_home": Path(runtime["codex_home"]),
-                }
-                if service == "dependencies" and runtime.get("github"):
-                    common = output / "root" / str(repo.common_dir).lstrip("/")
-                    head = json.loads((output / "session.json").read_text())["git_head"]
-                    options.update(
-                        github_policy=runtime["github"],
-                        github_seed={
-                            "pack": git(
-                                common,
-                                "pack-objects",
-                                "--stdout",
-                                "--revs",
-                                git_dir=common,
-                                input=(head + "\n").encode(),
-                            ),
-                            "push_helper": runtime["push_helper"],
-                        },
+        with gateway_module["gateway_scope"]() as start_gateway:
+            try:
+                for service in services:
+                    options = {}
+                    if runtime:
+                        options = {
+                            "domains": runtime["domains"],
+                            "denied_domains": runtime.get("denied_domains", []),
+                            "codex_home": Path(runtime["codex_home"]),
+                        }
+                        if service == "dependencies" and runtime.get("github"):
+                            common = output / "root" / str(repo.common_dir).lstrip("/")
+                            head = json.loads((output / "session.json").read_text())["git_head"]
+                            options.update(
+                                github_policy=runtime["github"],
+                                github_seed={
+                                    "pack": git(
+                                        common,
+                                        "pack-objects",
+                                        "--stdout",
+                                        "--revs",
+                                        git_dir=common,
+                                        input=(head + "\n").encode(),
+                                    ),
+                                    "push_helper": runtime["push_helper"],
+                                },
+                            )
+                    directory = start_gateway(service, **options)
+                    mounts.extend(["--ro-bind", str(directory), f"/gateway/{service}"])
+            except ValueError as error:
+                raise ValueError(
+                    f"service setup failed: {error}; no isolated command was started"
+                ) from None
+            except (KeyError, OSError):
+                raise ValueError(
+                    "host tool login is unavailable; no isolated command was started"
+                ) from None
+            script = output / "inside.sh"
+            startup = ""
+            if "model" in services or "dependencies" in services:
+                bridge_script = (
+                    Path(__file__).with_name("secret-isolation-gateway.py").resolve()
+                )
+                mounts.extend(["--ro-bind", str(bridge_script), "/gateway-bridge.py"])
+                for service, port in (("model", 8123), ("dependencies", 8124)):
+                    if service not in services:
+                        continue
+                    startup += bridge_startup(service, port)
+            if "dependencies" in services:
+                ca = output / "ca-bundle.crt"
+                resolved_ca = ca_bundle.resolve(strict=True)
+                if not resolved_ca.is_relative_to("/nix/store"):
+                    raise ValueError(
+                        "select the public CA bundle from a trusted Nix tool closure"
                     )
-            gateways.append(
-                gateway_module["start_gateway"](directory, service, **options)
-            )
-            mounts.extend(["--ro-bind", str(directory), f"/gateway/{service}"])
-    except ValueError as error:
-        raise ValueError(
-            f"service setup failed: {error}; no isolated command was started"
-        ) from None
-    except (KeyError, OSError):
-        raise ValueError(
-            "host tool login is unavailable; no isolated command was started"
-        ) from None
-    script = output / "inside.sh"
-    startup = ""
-    if "model" in services or "dependencies" in services:
-        bridge_script = (
-            Path(__file__).with_name("secret-isolation-gateway.py").resolve()
-        )
-        mounts.extend(["--ro-bind", str(bridge_script), "/gateway-bridge.py"])
-        for service, port in (("model", 8123), ("dependencies", 8124)):
-            if service not in services:
-                continue
-            startup += bridge_startup(service, port)
-    if "dependencies" in services:
-        ca = output / "ca-bundle.crt"
-        resolved_ca = ca_bundle.resolve(strict=True)
-        if not resolved_ca.is_relative_to("/nix/store"):
-            raise ValueError(
-                "select the public CA bundle from a trusted Nix tool closure"
-            )
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.load_verify_locations(cafile=str(resolved_ca))
-        ca.write_text(
-            "".join(
-                ssl.DER_cert_to_PEM_cert(cert)
-                for cert in context.get_ca_certs(binary_form=True)
-            )
-        )
-        certificate_path = "/nix/codex-ca-bundle.crt" if runtime else "/ca-bundle.crt"
-        mounts.extend(["--ro-bind", str(ca), certificate_path])
-        startup += """export HTTPS_PROXY=http://127.0.0.1:8124 HTTP_PROXY=http://127.0.0.1:8124
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                context.load_verify_locations(cafile=str(resolved_ca))
+                ca.write_text(
+                    "".join(
+                        ssl.DER_cert_to_PEM_cert(cert)
+                        for cert in context.get_ca_certs(binary_form=True)
+                    )
+                )
+                certificate_path = "/nix/codex-ca-bundle.crt" if runtime else "/ca-bundle.crt"
+                mounts.extend(["--ro-bind", str(ca), certificate_path])
+                startup += """export HTTPS_PROXY=http://127.0.0.1:8124 HTTP_PROXY=http://127.0.0.1:8124
 export https_proxy=$HTTPS_PROXY http_proxy=$HTTP_PROXY
 export NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1
 """
-        startup += f"export NIX_SSL_CERT_FILE={certificate_path} SSL_CERT_FILE={certificate_path}\n"
-        if runtime:
-            resolver = output / "resolv.conf"
-            resolver.write_text("nameserver 127.0.0.1\noptions timeout:2 attempts:2\n")
-            mounts.extend(["--ro-bind", str(resolver), "/etc/resolv.conf"])
-            startup += "python3 /gateway-bridge.py --dns /gateway/dependencies/service.sock </dev/null &\n"
-    if runtime:
-        runtime_source = Path(__file__).resolve().parent
-        runtime_copy = output / "runtime"
-        (runtime_copy / "bin").mkdir(parents=True)
-        shutil.copyfile(HELPER, runtime_copy / "bin/devshell-env")
-        (runtime_copy / "share/devshell-env").mkdir(parents=True)
-        (runtime_copy / "share/codex-isolation").mkdir(parents=True)
-        shutil.copyfile(
-            devshell_environment.__file__,
-            runtime_copy / "share/devshell-env/devshell_environment.py",
-        )
-        shutil.copyfile(
-            runtime_source / "codex-inner.py",
-            runtime_copy / "share/codex-isolation/codex-inner.py",
-        )
-        if runtime.get("github"):
-            shutil.copyfile(
-                runtime_source / "github-client.py", runtime_copy / "github-client.py"
-            )
-            publisher = runtime_copy / "bin/git-push-topic"
-            publisher.write_text(
-                f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/github-client.py "$@"\n'
-            )
-            publisher.chmod(0o755)
-            github_cli = runtime_copy / "bin/gh"
-            github_cli.write_text(
-                f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/github-client.py gh "$@"\n'
-            )
-            github_cli.chmod(0o755)
-        with_env = runtime_copy / "bin/with-env"
-        with_env.write_text(
-            f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/bin/devshell-env with-env "$@"\n'
-        )
-        with_env.chmod(0o755)
-        mounts.extend(["--ro-bind", str(runtime_copy), "/nix/codex-isolation"])
-        (output / "config").mkdir()
-        # Codex atomically replaces its session config when saving TUI trust.
-        # Permissions remain in the separate, immutable requirements layer.
-        mounts.extend(["--bind", str(output / "config"), "/home/agent/.codex"])
-        for name, content in runtime["config_files"].items():
-            public = output / "config" / name
-            public.parent.mkdir(parents=True, exist_ok=True)
-            public.write_text(content)
-            if name != "config.toml":
-                mounts.extend(["--ro-bind", str(public), "/home/agent/.codex/" + name])
-        specification = runtime_copy / "launch.json"
-        specification.write_text(
-            json.dumps(
-                {
-                    "root": str(repo.root),
-                    "output": runtime["output"],
-                    "git_dir": str(repo.git_dir),
-                    "common_dir": str(repo.common_dir),
-                    "github": runtime.get("github"),
-                }
-            )
-        )
-        requirements = output / "requirements.toml"
-        requirements.write_text(runtime["requirements"])
-        mounts.extend(["--ro-bind", str(requirements), "/etc/codex/requirements.toml"])
-        common = output / "root" / str(repo.common_dir).lstrip("/")
-        (common / "hooks").mkdir(exist_ok=True)
-        for name, contents in runtime["hooks"].items():
-            hook = common / "hooks" / name
-            hook.write_text(contents)
-            hook.chmod(0o755)
-        for name, value in runtime["git_identity"].items():
-            git(common, "config", name, value)
-        # Signing credentials are absent, including for previously admitted inputs.
-        git(common, "config", "commit.gpgsign", "false")
-        startup += (
-            "export CODEX_HOME=/home/agent/.codex\nexport PATH=/nix/codex-isolation/bin:$PATH\nexport DEVSHELL_ENV_OUTPUT="
-            + shlex.quote(runtime["output"])
-            + "\n"
-        )
-    script.write_text(
-        """set -eu
+                startup += f"export NIX_SSL_CERT_FILE={certificate_path} SSL_CERT_FILE={certificate_path}\n"
+                if runtime:
+                    resolver = output / "resolv.conf"
+                    resolver.write_text("nameserver 127.0.0.1\noptions timeout:2 attempts:2\n")
+                    mounts.extend(["--ro-bind", str(resolver), "/etc/resolv.conf"])
+                    startup += "python3 /gateway-bridge.py --dns /gateway/dependencies/service.sock </dev/null &\n"
+            if runtime:
+                runtime_source = Path(__file__).resolve().parent
+                runtime_copy = output / "runtime"
+                (runtime_copy / "bin").mkdir(parents=True)
+                shutil.copyfile(HELPER, runtime_copy / "bin/devshell-env")
+                (runtime_copy / "share/devshell-env").mkdir(parents=True)
+                (runtime_copy / "share/codex-isolation").mkdir(parents=True)
+                shutil.copyfile(
+                    devshell_environment.__file__,
+                    runtime_copy / "share/devshell-env/devshell_environment.py",
+                )
+                shutil.copyfile(
+                    runtime_source / "codex-inner.py",
+                    runtime_copy / "share/codex-isolation/codex-inner.py",
+                )
+                if runtime.get("github"):
+                    shutil.copyfile(
+                        runtime_source / "github-client.py", runtime_copy / "github-client.py"
+                    )
+                    publisher = runtime_copy / "bin/git-push-topic"
+                    publisher.write_text(
+                        f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/github-client.py "$@"\n'
+                    )
+                    publisher.chmod(0o755)
+                    github_cli = runtime_copy / "bin/gh"
+                    github_cli.write_text(
+                        f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/github-client.py gh "$@"\n'
+                    )
+                    github_cli.chmod(0o755)
+                with_env = runtime_copy / "bin/with-env"
+                with_env.write_text(
+                    f'#!{paths["bash"]}/bin/bash\nexec {paths["python3"]}/bin/python3 -I /nix/codex-isolation/bin/devshell-env with-env "$@"\n'
+                )
+                with_env.chmod(0o755)
+                mounts.extend(["--ro-bind", str(runtime_copy), "/nix/codex-isolation"])
+                (output / "config").mkdir()
+                # Codex atomically replaces its session config when saving TUI trust.
+                # Permissions remain in the separate, immutable requirements layer.
+                mounts.extend(["--bind", str(output / "config"), "/home/agent/.codex"])
+                for name, content in runtime["config_files"].items():
+                    public = output / "config" / name
+                    public.parent.mkdir(parents=True, exist_ok=True)
+                    public.write_text(content)
+                    if name != "config.toml":
+                        mounts.extend(["--ro-bind", str(public), "/home/agent/.codex/" + name])
+                specification = runtime_copy / "launch.json"
+                specification.write_text(
+                    json.dumps(
+                        {
+                            "root": str(repo.root),
+                            "output": runtime["output"],
+                            "git_dir": str(repo.git_dir),
+                            "common_dir": str(repo.common_dir),
+                            "github": runtime.get("github"),
+                        }
+                    )
+                )
+                requirements = output / "requirements.toml"
+                requirements.write_text(runtime["requirements"])
+                mounts.extend(["--ro-bind", str(requirements), "/etc/codex/requirements.toml"])
+                common = output / "root" / str(repo.common_dir).lstrip("/")
+                (common / "hooks").mkdir(exist_ok=True)
+                for name, contents in runtime["hooks"].items():
+                    hook = common / "hooks" / name
+                    hook.write_text(contents)
+                    hook.chmod(0o755)
+                for name, value in runtime["git_identity"].items():
+                    git(common, "config", name, value)
+                # Signing credentials are absent, including for previously admitted inputs.
+                git(common, "config", "commit.gpgsign", "false")
+                startup += (
+                    "export CODEX_HOME=/home/agent/.codex\nexport PATH=/nix/codex-isolation/bin:$PATH\nexport DEVSHELL_ENV_OUTPUT="
+                    + shlex.quote(runtime["output"])
+                    + "\n"
+                )
+            script.write_text(
+                """set -eu
 """
-        + startup
-        + """
+                + startup
+                + """
 set +e
 "$@"
 command_status=$?
@@ -787,103 +785,101 @@ git update-ref refs/isolation/index "$index_commit"
 git bundle create /result/commits.bundle HEAD refs/isolation/index
 printf '%s\n' "$command_status" > /result/exit-code
 """
-    )
-    fs = output / "root"
-    argv = [
-        str(paths["bwrap"] / "bin/bwrap"),
-        "--unshare-all",
-        "--die-with-parent",
-        "--new-session",
-        "--cap-drop",
-        "ALL",
-        "--clearenv",
-        # Runtime shares only the fresh network created by codex-namespace.py.
-        *(["--share-net"] if runtime else []),
-        "--tmpfs",
-        "/",
-        "--proc",
-        "/proc",
-        "--dev",
-        "/dev",
-        "--dir",
-        "/tmp",
-        "--dir",
-        "/home/agent",
-        "--bind",
-        str(store / "nix"),
-        "/nix",
-        "--bind",
-        str(store / "nix/store"),
-        "/nix/store",
-        "--bind",
-        str(fs / str(repo.root).lstrip("/")),
-        str(repo.root),
-        "--bind",
-        str(fs / str(repo.common_dir).lstrip("/")),
-        str(repo.common_dir),
-        "--bind",
-        str(result),
-        "/result",
-        "--ro-bind",
-        str(script),
-        "/inside.sh",
-        *mounts,
-        "--symlink",
-        str(paths["bash"] / "bin/bash"),
-        "/bin/sh",
-        "--symlink",
-        str(paths["bash"] / "bin/bash"),
-        "/bin/bash",
-        "--symlink",
-        str(paths["cat"] / "bin/env"),
-        "/usr/bin/env",
-        "--setenv",
-        "HOME",
-        "/home/agent",
-        "--setenv",
-        "PATH",
-        environment["PATH"],
-        "--setenv",
-        "LANG",
-        "C.UTF-8",
-        "--setenv",
-        "TERM",
-        "xterm-256color",
-        "--setenv",
-        "NIX_REMOTE",
-        "local",
-        "--setenv",
-        "NIX_CONFIG",
-        "experimental-features = nix-command flakes\nbuild-users-group =\nsandbox = false\nsubstituters ="
-        + (" https://cache.nixos.org" if runtime else "")
-        + "\n",
-        "--chdir",
-        str(repo.root),
-        str(paths["bash"] / "bin/bash"),
-        "/inside.sh",
-        *command,
-    ]
-    if runtime:
-        argv = [
-            str(paths["python3"] / "bin/python3"),
-            "-I",
-            str(Path(__file__).with_name("codex-namespace.py")),
-            *argv,
-        ]
-    try:
-        completed = subprocess.run(
-            argv, env=environment, timeout=None if runtime else 180
-        )
-    finally:
-        for gateway in gateways:
-            gateway.shutdown()
-            gateway.server_close()
-        shutil.rmtree(gateway_root)
-    if completed.returncode:
-        raise ValueError(
-            "isolated execution or export failed; the session is retained for recovery"
-        )
-    return int(read_input(result, "exit-code")[0])
+            )
+            fs = output / "root"
+            argv = [
+                str(paths["bwrap"] / "bin/bwrap"),
+                "--unshare-all",
+                "--die-with-parent",
+                "--new-session",
+                "--cap-drop",
+                "ALL",
+                "--clearenv",
+                # Runtime shares only the fresh network created by codex-namespace.py.
+                *(["--share-net"] if runtime else []),
+                "--tmpfs",
+                "/",
+                "--proc",
+                "/proc",
+                "--dev",
+                "/dev",
+                "--dir",
+                "/tmp",
+                "--dir",
+                "/home/agent",
+                "--bind",
+                str(store / "nix"),
+                "/nix",
+                "--bind",
+                str(store / "nix/store"),
+                "/nix/store",
+                "--bind",
+                str(fs / str(repo.root).lstrip("/")),
+                str(repo.root),
+                "--bind",
+                str(fs / str(repo.common_dir).lstrip("/")),
+                str(repo.common_dir),
+                "--bind",
+                str(result),
+                "/result",
+                "--ro-bind",
+                str(script),
+                "/inside.sh",
+                *mounts,
+                "--symlink",
+                str(paths["bash"] / "bin/bash"),
+                "/bin/sh",
+                "--symlink",
+                str(paths["bash"] / "bin/bash"),
+                "/bin/bash",
+                "--symlink",
+                str(paths["cat"] / "bin/env"),
+                "/usr/bin/env",
+                "--setenv",
+                "HOME",
+                "/home/agent",
+                "--setenv",
+                "PATH",
+                environment["PATH"],
+                "--setenv",
+                "LANG",
+                "C.UTF-8",
+                "--setenv",
+                "TERM",
+                "xterm-256color",
+                "--setenv",
+                "NIX_REMOTE",
+                "local",
+                "--setenv",
+                "NIX_CONFIG",
+                "experimental-features = nix-command flakes\nbuild-users-group =\nsandbox = false\nsubstituters ="
+                + (" https://cache.nixos.org" if runtime else "")
+                + "\n",
+                "--chdir",
+                str(repo.root),
+                str(paths["bash"] / "bin/bash"),
+                "/inside.sh",
+                *command,
+            ]
+            if runtime:
+                argv = [
+                    str(paths["python3"] / "bin/python3"),
+                    "-I",
+                    str(Path(__file__).with_name("codex-namespace.py")),
+                    *argv,
+                ]
+            completed = subprocess.run(
+                argv, env=environment, timeout=None if runtime else 180
+            )
+            if completed.returncode:
+                raise ValueError(
+                    "isolated execution or export failed; the session is retained for recovery"
+                )
+            status = int(read_input(result, "exit-code")[0])
+    except gateway_module["GatewayCleanupError"]:
+        if not status:
+            raise
+    return status
 
 
 def tree_files(directory, revision):
