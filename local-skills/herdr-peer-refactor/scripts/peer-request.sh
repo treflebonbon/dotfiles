@@ -186,6 +186,20 @@ timed_out() {
   }
   fail timeout 10
 }
+# A peer that cannot write the file answers on the terminal, and that answer can
+# already be complete when a wait times out or stalls. Take it before reporting
+# the failure; an unreadable or incomplete terminal leaves the failure as is.
+answered_on_terminal() {
+  local crc
+  set +e
+  capture
+  crc=$?
+  set -e
+  [ "$crc" -ne 0 ] || {
+    echo "$resp"
+    exit 0
+  }
+}
 left_ms() { echo $((((PEER_TIMEOUT_S < TOTAL_WAIT_S - waited ? PEER_TIMEOUT_S : TOTAL_WAIT_S - waited) - ($(date +%s) - start)) * 1000)); }
 
 rm -f "$resp" "$resp.part" # a file without a valid header is stale; never trust it
@@ -210,8 +224,14 @@ while :; do
     exit 0
   fi
   is_blocked "$out" && hold_blocked
-  if grep -qE '"code": *"agent_prompt_stalled"' <<<"$out"; then fail stalled 12; fi
-  if [ "$rc" -ne 0 ] && grep -qE '"code": *"timeout"' <<<"$out"; then timed_out; fi
+  if grep -qE '"code": *"agent_prompt_stalled"' <<<"$out"; then
+    answered_on_terminal
+    fail stalled 12
+  fi
+  if [ "$rc" -ne 0 ] && grep -qE '"code": *"timeout"' <<<"$out"; then
+    answered_on_terminal
+    timed_out
+  fi
   [ "$rc" -eq 0 ] || fail "error: $(head -c 200 <<<"$out" | tr '\n' ' ')" 12
 
   # Returned without a valid response: an old turn may have completed, or the
@@ -250,7 +270,10 @@ while :; do
     fi
   fi
 
-  [ "$(left_ms)" -gt 0 ] || timed_out
+  [ "$(left_ms)" -gt 0 ] || {
+    answered_on_terminal
+    timed_out
+  }
   set +e
   out=$(herdr_cmd agent wait "$peer" --timeout "$(left_ms)" 2>&1)
   rc=$?

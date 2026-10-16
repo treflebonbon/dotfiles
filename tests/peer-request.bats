@@ -449,6 +449,29 @@ terminal_answer() {
   ! grep -q '^END' "$WORK/REQ-1.md"
 }
 
+@test "a complete terminal answer is saved even when the wait timed out or stalled" {
+  local code
+  for code in timeout agent_prompt_stalled; do
+    rm -f "$WORK/REQ-1.md" "$WORK/REQ-1.failures"
+    terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding one' '  END REQ-1 n0nce1'
+    echo "{\"error\":{\"code\":\"$code\",\"message\":\"x\"}}" >"$MOCK_DIR/prompt.out"
+    echo 1 >"$MOCK_DIR/prompt.rc"
+    run_helper
+    [ "$status" -eq 0 ]
+    [ "$output" = "$WORK/REQ-1.md" ]
+    grep -Fxq 'finding one' "$WORK/REQ-1.md"
+  done
+}
+
+@test "an incomplete terminal answer does not hide a timeout" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding one'
+  echo '{"error":{"code":"timeout","message":"x"}}' >"$MOCK_DIR/prompt.out"
+  echo 1 >"$MOCK_DIR/prompt.rc"
+  run_helper
+  [ "$status" -eq 10 ]
+  [ ! -e "$WORK/REQ-1.md" ]
+}
+
 @test "the request carries the attempt nonce inside a sentence, never as a marker line" {
   terminal_answer ''
   run_helper
