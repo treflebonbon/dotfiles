@@ -45,7 +45,8 @@ for label, name, units in (
     m = re.fullmatch(r"(\d+)\s*(" + "|".join(units) + ")", value)
     if m is None:
         raise SystemExit(f"{label}: bad value {value!r}")
-    const = one(re.findall(rf"^{name}=(.*)$", script, re.M), name)
+    # leading blanks allowed: an indented override inside a conditional also counts
+    const = one(re.findall(rf"^[ \t]*{name}=(.*)$", script, re.M), name)
     # no leading zero: Bash arithmetic reads 01200 as octal, int() as decimal
     if re.fullmatch(r"[1-9]\d*", const) is None:
         raise SystemExit(f"{name}: not a plain decimal literal: {const!r}")
