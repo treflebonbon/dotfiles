@@ -230,6 +230,8 @@ def show_status(attempt):
             exit_code = result["exit_code"]
             if type(exit_code) is not int or not 0 <= exit_code <= 255:
                 raise ValueError("終了コード記録が不正です")
+            if exit_code == 0:
+                runner_directory(attempt / "runner-path", attempt.parent)
             state = "passed" if exit_code == 0 else "failed"
             tap = result["tap"] or {}
         else:

@@ -143,6 +143,18 @@ run_canonical() {
   [ ! -s "$TEST_LOG" ]
 }
 
+@test "canonical進捗は成功記録があっても別実行のrunner参照を拒否する" {
+  run_canonical
+  assert_success
+  local attempt runner
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+  runner=$(cat "$attempt/runner-path")
+  printf '/different/runner-path\n' >"$runner/canonical-receipt"
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_failure
+  assert_output --partial '異なる実行のrunnerログ'
+}
+
 @test "canonical進捗は最終照合の失敗を終了コードとともに表示する" {
   export CANONICAL_FIXTURE_MODE=exit-mismatch
   run_canonical
