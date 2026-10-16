@@ -13,7 +13,7 @@ herdr agent get <unique-name>
 
 writer と reviewer の cwd・役割・モデルを起動応答と実 process で確認する。`agent_pane_busy` が出たら `pane read <pane-id>` と `pane process-info --pane <pane-id>` で foreground を調べる。agent や別 command がいない対話 shell prompt と確認できた場合だけ、`herdr pane run <pane-id> '<native-agent-command>'` で起動して検出を待つ。稼働中 process を置換しない。
 
-起動前に `herdr pane current --current` で、継承された `HERDR_PANE_ID` が自分の pane（cwd と agent）かを確認する。別 workspace や別 cwd の pane を指す場合（引数なしの `claude` が開く dashboard から起動された background session など）は、`--current` で分割せず、他者の pane を読まず操作せず、peer 起動前に保留する。Claude の writer・親は pane の shell から `claude '<prompt>'` のように prompt を引数で渡して対話 session として起動する。引数なしの `claude` は dashboard を開き、`agent prompt` の内容は background job になる。
+起動前に `herdr pane current --current` で、継承された `HERDR_PANE_ID` が自分の pane（cwd と agent）かを確認する。別 workspace や別 cwd の pane を指す場合（dashboard から起動された background session など）は、`--current` で分割せず、他者の pane を読まず操作せず、peer 起動前に保留する。Claude の writer・親は pane の shell から `claude '<prompt>'` のように prompt を引数で渡して対話 session として起動する。引数なしの `claude` の挙動は version・設定・起動経路に依存し、dashboard を開く場合がある（Claude Code 2.1.296 の一回の実測では dashboard にならなかった）。dashboard が開いた場合、`agent prompt` の内容は background job になる。起動後は `pane current --current` と `pane process-info` で実際の pane・cwd を確認する。
 
 `pane run` で起動した agent は名前を持たない。検出後に `herdr agent rename <pane-id> <name>` するか、pane ID を宛先にする。起動した model と effort は、要求した引数と実 process までを確認し、実効値を取得できなければ「未確認」と記録する。peer から native checkout の Git が読めない（`not a git repository`）場合は、peer の検査対象を fixture・対象 SHA の Git object に限り、native checkout の状態は親が確認して peer の未確認を報告に残す。
 

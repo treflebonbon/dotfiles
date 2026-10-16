@@ -9,8 +9,10 @@
 # not verified; no environment variable marks an auto session, ADR-0075). The
 # fragment is the standard Claude permissions.deny file.
 #
-# The deny is confirmed from `herdr pane process-info`: a foreground `claude`
+# The launch is checked from `herdr pane process-info`: a foreground `claude`
 # process whose argv has `--settings <fragment>` and whose cwd is <worktree>.
+# This proves the flag reached the process, not that the deny is effective
+# (effectiveness is unmeasured).
 # A child that fails the check is NOT started: no request is sent to it, it is
 # not recorded, and its pane is left for the report (no pane is closed here).
 #
