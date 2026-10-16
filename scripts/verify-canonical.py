@@ -225,18 +225,18 @@ def show_status(attempt):
         ):
             raise ValueError("canonical検証の記録directoryではありません")
         result_path = attempt / "result.json"
+        receipt = attempt / "runner-path"
         if result_path.exists() or result_path.is_symlink():
             result = json.loads(read_record(result_path))
             exit_code = result["exit_code"]
             if type(exit_code) is not int or not 0 <= exit_code <= 255:
                 raise ValueError("終了コード記録が不正です")
-            if exit_code == 0:
-                runner_directory(attempt / "runner-path", attempt.parent)
+            if exit_code == 0 or receipt.exists() or receipt.is_symlink():
+                runner_directory(receipt, attempt.parent)
             state = "passed" if exit_code == 0 else "failed"
             tap = result["tap"] or {}
         else:
             tap = {"plan": None, "pass": 0, "skip": 0, "fail": 0}
-            receipt = attempt / "runner-path"
             if receipt.exists() or receipt.is_symlink():
                 directory = runner_directory(receipt, attempt.parent)
                 # 完了前のTAPには計画や必須fixtureが欠けるため、集計だけを表示する。

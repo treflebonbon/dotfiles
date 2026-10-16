@@ -168,6 +168,19 @@ run_canonical() {
   [ "$(grep -c '^lefthook run test$' "$TEST_LOG")" -eq 1 ]
 }
 
+@test "canonical進捗は失敗記録に残る別実行のrunner参照も拒否する" {
+  export CANONICAL_FIXTURE_MODE=exit-mismatch
+  run_canonical
+  assert_failure
+  local attempt runner
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+  runner=$(cat "$attempt/runner-path")
+  printf '/different/runner-path\n' >"$runner/canonical-receipt"
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_failure
+  assert_output --partial '異なる実行のrunnerログ'
+}
+
 @test "canonical進捗は不正な結果記録と別の実行のrunner参照を拒否する" {
   local attempt="$SOURCE/tmp/canonical-run.invalid" runner="$SOURCE/tmp/test-run.invalid" record
   mkdir -p "$attempt" "$runner"
