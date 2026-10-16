@@ -102,10 +102,14 @@ for path in os.environ.get("UNTRACKED", "").split("\n"):
     if not path:
         continue
     try:
+        n, last = 0, b"\n"
         with open(os.path.join(sys.argv[2], path), "rb") as f:
-            data = f.read()
+            # counted in chunks: a large untracked file is not held in memory
+            while chunk := f.read(1 << 20):
+                n += chunk.count(b"\n")
+                last = chunk[-1:]
         # an unterminated last line is still a line
-        n = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
+        n += 1 if last != b"\n" else 0
     except OSError:
         n = 1
     check(path, 1, max(n, 1), "1-%d" % max(n, 1), outside)

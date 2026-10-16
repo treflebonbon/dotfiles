@@ -40,7 +40,7 @@ native worktree ごとに writer は一人。親は選定・調整・検証・�
 
 peer は新しい context から始め、推奨を先に見せない。元候補・関連 ADR・コード・差分を直接読み、反例か実行した検証結果を答える。人の回答を待つ `grilling` を呼ばない別手順とし、その上流 skill の人間の回答を待つ条項は変えない。
 
-各依頼に依頼 ID と対象 SHA を付け、応答に両方と根拠があることを検査する。idle・送信成功・古い turn の完了は今回の完了ではない。待機後も一致する成果物を読む。返信先と要件資料は親と peer の両方がアクセスできる共有 scratch に置き、原本をコピーした場合は内容を照合して元の record を保持する。Claude の background session は同じ session に attach し、dashboard を完了扱いしない。状態不明の agent に依頼を再送しない。
+各依頼に依頼 ID と対象 SHA を付け、応答に両方と根拠があることを検査する。idle・送信成功・古い turn の完了は今回の完了ではない。待機後も一致する成果物を読む。返信先と要件資料は親と peer の両方がアクセスできる共有 scratch に置き、原本をコピーした場合は内容を照合して元の record を保持する。peer の sandbox が返信先に書けない場合、peer は端末に `DONE <ID> <SHA> <nonce>` 行・本文・`END <ID> <nonce>` 行で答え、親が依頼 ID・対象 SHA・試行ごとの nonce・非空本文・`END` までの完全性を検査して保存する（peer の権限は広げない。途中で切れた応答、前の試行の応答、依頼文の echo は完了にしない。端末を読めない、または保存できない場合は保留する）。Claude の background session は同じ session に attach し、dashboard を完了扱いしない。状態不明の agent に依頼を再送しない。
 
 | 上限             | 値     |
 | ---------------- | ------ |

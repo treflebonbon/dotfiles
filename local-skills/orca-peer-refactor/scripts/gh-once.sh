@@ -60,8 +60,13 @@ fi
 # first run's artifact. The lock is system Perl's flock(2) (macOS has no flock
 # command, ADR-0050); a lock that cannot be taken leaves existence unknown.
 # The path is fixed (not TMPDIR): callers with different TMPDIR must share it.
-lock="/tmp/gh-once-$(id -u)-$(printf '%s' "$marker" | cksum | cut -d' ' -f1).lock"
-exec 9>"$lock" || exit 3
+# The lock lives in a private per-user directory: in a shared /tmp another user
+# could plant a symlink at a predictable path and have it truncated.
+lock_dir="${GH_ONCE_TEST_LOCK_BASE:-/tmp}/gh-once-$(id -u)" # the base is overridden by tests only
+mkdir -m 700 "$lock_dir" 2>/dev/null || [ -d "$lock_dir" ] || exit 3
+{ [ -d "$lock_dir" ] && [ ! -L "$lock_dir" ] && [ -O "$lock_dir" ]; } || exit 3
+lock="$lock_dir/$(printf '%s' "$marker" | cksum | cut -d' ' -f1).lock"
+exec 9>>"$lock" || exit 3
 perl -MFcntl=:flock -e 'open(my $fh, "+<&=", 9) or exit 2; flock($fh, LOCK_EX) or exit 2' || exit 3
 
 found=$(lookup) || exit 3
