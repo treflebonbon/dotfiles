@@ -181,6 +181,32 @@ run_canonical() {
   assert_output --partial '異なる実行のrunnerログ'
 }
 
+@test "canonical進捗は欠落や不整合のあるTAP集計で成功を表示しない" {
+  run_canonical
+  assert_success
+  local attempt
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+  cp "$attempt/result.json" "$attempt/original-result"
+  local tap
+  for tap in '{}' 'null' \
+    '{"plan":1,"pass":true,"skip":0,"fail":0}' \
+    '{"plan":1,"pass":-1,"skip":2,"fail":0}' \
+    '{"plan":1,"pass":2,"skip":0,"fail":0}' \
+    '{"plan":1,"pass":0,"skip":0,"fail":1}'; do
+    python3 -I - "$attempt" "$tap" <<'PY'
+import json,sys
+from pathlib import Path
+attempt=Path(sys.argv[1])
+result=json.loads((attempt/'original-result').read_text())
+result['tap']=json.loads(sys.argv[2])
+(attempt/'result.json').write_text(json.dumps(result))
+PY
+    run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+    assert_failure
+    assert_output --partial '進捗記録を読めません'
+  done
+}
+
 @test "canonical進捗は不正な結果記録と別の実行のrunner参照を拒否する" {
   local attempt="$SOURCE/tmp/canonical-run.invalid" runner="$SOURCE/tmp/test-run.invalid" record
   mkdir -p "$attempt" "$runner"

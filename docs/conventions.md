@@ -29,7 +29,7 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 記録は `tmp/canonical-run.*/` の `before.json`／`after.json`、`command.log`、`runner-path`、`result.json` に残る。runnerが作成した `tmp/test-run.*/` と相互参照し、最新directory探索やconsoleの表示文言には依存しない。通常のテスト入口は維持し、受渡し情報をテスト内の別runnerへ引き継がない。Bats自体の結果と証拠照合の問題を区別し、不足・不一致・中断は非0終了する。全Batsコマンドの所要時間は実測し、環境準備の時間は含めない。自動再実行やNix build／APM再生成、PR／CIの照合は行わない。これは実行時点の証拠であり、後続のPR HEADや配備との一致確認は別に行う。
 
-進捗は `python3 scripts/verify-canonical.py --status <canonical-run-directory>` でJSON表示する。この操作は保存記録を読むだけで、全Batsやruntime検査を開始しない。`state` は完了記録がなければ `incomplete`、`result.json` の終了コードが0なら `passed`、非0なら `failed`。`plan`／`pass`／`skip`／`fail` と `exit_code` を表示し、完了前の終了コードは `null`、完了後は記録の終了コードをコマンドの終了コードにも使う。`incomplete` は実行中か中断済みかを区別せず、TAPの全結果が出そろっても成功とはしない。破損した記録や異なる実行のrunner参照は非0終了で拒否する。
+進捗は `python3 scripts/verify-canonical.py --status <canonical-run-directory>` でJSON表示する。この操作は保存記録を読むだけで、全Batsやruntime検査を開始しない。`state` は完了記録がなければ `incomplete`、`result.json` の終了コードが0なら `passed`、非0なら `failed`。`plan`／`pass`／`skip`／`fail` と `exit_code` を表示し、完了前の終了コードは `null`、完了後は記録の終了コードをコマンドの終了コードにも使う。`incomplete` は実行中か中断済みかを区別せず、TAPの全結果が出そろっても成功とはしない。JSON・終了コード・TAP集計形式の不正や、異なる実行のrunner参照は非0終了で拒否する。成功記録の件数合計と失敗0件も確認する。現在のsourceやruntimeの再検証は行わない。
 
 ローカルのユーザー devShell のツールと repo devShell を使い、Nix の取得・build 成果物とブラウザ環境を再利用する。環境を明示的に準備する場合は、worktree root から次を実行する。WSL2 では両方の `#default` を `#wsl` に置き換え、Managed Playwright Chrome を利用する。
 

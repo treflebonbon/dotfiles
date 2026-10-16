@@ -234,7 +234,20 @@ def show_status(attempt):
             if exit_code == 0 or receipt.exists() or receipt.is_symlink():
                 runner_directory(receipt, attempt.parent)
             state = "passed" if exit_code == 0 else "failed"
-            tap = result["tap"] or {}
+            tap = result["tap"]
+            if tap is None and exit_code != 0:
+                tap = {}
+            else:
+                for key in ("plan", "pass", "skip", "fail"):
+                    value = tap[key]
+                    if key == "plan" and value is None and exit_code != 0:
+                        continue
+                    if type(value) is not int or value < 0:
+                        raise ValueError("TAP集計記録が不正です")
+                if exit_code == 0 and (
+                    tap["fail"] != 0 or tap["plan"] != tap["pass"] + tap["skip"]
+                ):
+                    raise ValueError("成功記録のTAP集計が不整合です")
         else:
             tap = {"plan": None, "pass": 0, "skip": 0, "fail": 0}
             if receipt.exists() or receipt.is_symlink():
