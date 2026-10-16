@@ -455,6 +455,65 @@ PYTEST
   [ "$status" -eq 0 ]
 }
 
+@test "isolated startup cleans gateways after partial service and later setup failures" {
+  [ "$(uname -s)" = Linux ] || skip "descriptor accounting requires Linux procfs"
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-worktree.py" "$BATS_TEST_TMPDIR" <<'PYTEST'
+import os, runpy, shutil, sys, threading
+from pathlib import Path
+from unittest.mock import patch
+
+module = runpy.run_path(sys.argv[1])
+gateway_module = runpy.run_path(str(Path(sys.argv[1]).with_name('secret-isolation-gateway.py')))
+run_isolated = module['run_isolated']
+parent = Path(sys.argv[2])
+ca = parent / 'untrusted-ca.crt'
+ca.touch()
+for label, services, expected in (
+    ('partial', ['dependencies', 'model'], 'host tool login is unavailable'),
+    ('later', ['dependencies'], 'select the public CA bundle'),
+):
+    output = parent / label
+    output.mkdir()
+    root = parent / (label + '-gateways')
+    root.mkdir()
+    servers = []
+    def start_gateway(*args, **kwargs):
+        server = gateway_module['start_gateway'](*args, **kwargs)
+        servers.append(server)
+        return server
+    before_fds = set(os.listdir('/proc/self/fd'))
+    before_threads = set(threading.enumerate())
+    try:
+        with patch.dict(run_isolated.__globals__, prepare=lambda *a: None), \
+             patch.dict(gateway_module['start_gateway'].__globals__, start_gateway=start_gateway), \
+             patch('shutil.which', return_value=sys.executable), \
+             patch('subprocess.run') as run, \
+             patch('subprocess.check_output', return_value=''), \
+             patch('tempfile.mkdtemp', return_value=str(root)), \
+             patch('runpy.run_path', return_value=gateway_module):
+            try:
+                run_isolated(None, None, output, ['true'], services, ca_bundle=ca,
+                             runtime={'domains': [], 'codex_home': str(parent / 'missing-login')})
+            except ValueError as error:
+                assert expected in str(error), str(error)
+            else:
+                raise AssertionError('startup must fail')
+            assert run.call_count == 1, 'isolated command must not start'
+        assert len(servers) == 1, 'first gateway must have started'
+        assert not root.exists(), 'gateway directory leaked'
+        assert set(os.listdir('/proc/self/fd')) == before_fds, 'gateway descriptors leaked'
+        assert set(threading.enumerate()) == before_threads, 'gateway thread leaked'
+    finally:
+        for server in servers:
+            server.shutdown()
+            server.server_close()
+        if root.exists():
+            shutil.rmtree(root)
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "isolated bridge startup waits for readiness and rejects failed or stalled bridges" {
   [ "$(uname -s)" = Linux ] || skip "raw bridge startup requires Linux namespaces"
   run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation" "$BATS_TEST_TMPDIR" <<'PY'

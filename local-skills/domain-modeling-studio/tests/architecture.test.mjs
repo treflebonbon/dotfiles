@@ -115,10 +115,14 @@ test("拡張子なしのimportは対応する全てのindex拡張子へ解決す
   const root = await mkdtemp(path.join(os.tmpdir(), "arch-fixture-index-"));
   t.after(() => rm(root, { force: true, recursive: true }));
   const indexes = ["foo/index.jsx", "bar/index.tsx", "baz/index.cjs"];
-  for (const index of indexes) {
-    await mkdir(path.join(root, "src", path.dirname(index)), { recursive: true });
-    await writeFile(path.join(root, "src", index), "export default 1;\n");
-  }
+  await Promise.all(
+    indexes.map(async (index) => {
+      await mkdir(path.join(root, "src", path.dirname(index)), {
+        recursive: true,
+      });
+      await writeFile(path.join(root, "src", index), "export default 1;\n");
+    })
+  );
   await writeFile(
     path.join(root, "src/orderFlow.js"),
     'import a from "./foo";\nimport b from "./bar";\nimport c from "./baz";\n'
@@ -131,10 +135,12 @@ test("拡張子なしのimportは対応する全てのindex拡張子へ解決す
   });
 
   const labels = nodes.map((n) => n.data.label).toSorted();
-  assert.deepEqual(
-    labels,
-    ["src/bar/index.tsx", "src/baz/index.cjs", "src/foo/index.jsx", "src/orderFlow.js"]
-  );
+  assert.deepEqual(labels, [
+    "src/bar/index.tsx",
+    "src/baz/index.cjs",
+    "src/foo/index.jsx",
+    "src/orderFlow.js",
+  ]);
 });
 
 test("不正なrevision・リポジトリ外へ出るseedパスを拒否する", async (t) => {
