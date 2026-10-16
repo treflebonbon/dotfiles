@@ -73,6 +73,23 @@ reserve() {
   [ "$output" = null ]
 }
 
+@test "bare recovery refuses to no-op past an abandoned identity-scoped owner" {
+  bash -c 'node "$1" --identity abandoned-identity reserve --role playwright --id abandoned-identity --pid "$$" --mode headless --profile profile --endpoint http://127.0.0.1:9222' \
+    _ "$OWNER_CLI"
+
+  run owner recover
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"--identity"* ]]
+
+  run owner status --identity abandoned-identity
+  [[ "$output" == *'"id":"abandoned-identity"'* ]]
+
+  run owner --identity abandoned-identity recover
+  [ "$status" -eq 0 ]
+  run owner status --identity abandoned-identity
+  [ "$output" = null ]
+}
+
 @test "recovery cannot steal a reservation while the startup command is running" {
   local token startup_pid
   token="$(reserve playwright starting)"
