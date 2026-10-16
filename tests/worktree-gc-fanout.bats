@@ -8,6 +8,13 @@ readonly SRC="$BATS_TEST_DIRNAME/../local-skills/worktree-gc/scripts/worktree-gc
 
 setup() {
   setup_test_env
+  # ホストの他ユーザーの権限に依存せず、列挙できる全PIDのcwdが読める状態を作る。
+  export WORKTREE_GC_PROC_ROOT="$BATS_TEST_TMPDIR/proc"
+  mkdir -p "$WORKTREE_GC_PROC_ROOT/self" "$WORKTREE_GC_PROC_ROOT/1"
+  : >"$WORKTREE_GC_PROC_ROOT/self/stat"
+  ln -s / "$WORKTREE_GC_PROC_ROOT/self/cwd"
+  ln -s / "$WORKTREE_GC_PROC_ROOT/1/cwd"
+  printf '1 0 0:1 / /proc rw - proc proc rw\n' >"$WORKTREE_GC_PROC_ROOT/self/mountinfo"
 }
 
 extract_functions() {
@@ -37,6 +44,7 @@ run_pure_function() {
   run /usr/bin/env -i \
     PATH="/usr/bin:/bin" \
     HOME="$BATS_TEST_TMPDIR/home" \
+    WORKTREE_GC_PROC_ROOT="$WORKTREE_GC_PROC_ROOT" \
     /bin/bash -c "
       $(extract_functions "$SRC" "${deps[@]}")
       $fn ${quoted_args[*]}
@@ -174,6 +182,7 @@ EOF
     fi
     sleep 0.05
   done
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run_pure_function is_busy_dir "$dir"
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
@@ -390,6 +399,7 @@ EOF
     sleep 0.05
   done
   # symlink 経由の(未解決の)パスを渡しても検出できなければならない。
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run_pure_function is_busy_dir "$BATS_TEST_TMPDIR/link/wt"
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
@@ -439,6 +449,7 @@ EOF
     sleep 0.05
   done
 
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply --max-report 1 \
     --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
 
@@ -518,6 +529,7 @@ EOF
     sleep 0.05
   done
 
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply \
     --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
 
@@ -565,7 +577,7 @@ EOF
   make_ghq_repo "$BATS_TEST_TMPDIR/ghq/repo"
   printf '#!/bin/sh\necho invoked >>"$ENGINE_LOG"\necho "done removed=0"\n' >"$bin/engine"
   chmod +x "$bin/engine"
-  for mode in hidepid no-init missing-mountinfo mountinfo-directory visible; do
+  for mode in hidepid hidepid-4 hidepid-ptraceable no-init missing-mountinfo mountinfo-directory visible; do
     rm -rf "$proc"
     mkdir -p "$proc/self" "$proc/1"
     : >"$proc/self/stat"
@@ -573,7 +585,10 @@ EOF
     printf '1 0 0:1 / /proc rw - proc proc rw\n' >"$proc/self/mountinfo"
     [ "$mode" != hidepid ] || printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=2\n' >"$proc/self/mountinfo"
     [ "$mode" != no-init ] || rmdir "$proc/1"
+    [ "$mode" = no-init ] || ln -s / "$proc/1/cwd"
     case "$mode" in
+    hidepid-4) printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=4\n' >"$proc/self/mountinfo" ;;
+    hidepid-ptraceable) printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=ptraceable\n' >"$proc/self/mountinfo" ;;
     missing-mountinfo) rm "$proc/self/mountinfo" ;;
     mountinfo-directory)
       rm "$proc/self/mountinfo"
@@ -591,6 +606,37 @@ EOF
       assert_output --partial 'process inspection unavailable; refusing --apply'
       [ ! -e "$BATS_TEST_TMPDIR/$mode.log" ]
     fi
+  done
+}
+
+@test "統合: 生存するPIDのcwdを検査できなければrepoとdangling候補を保護する" {
+  local bin="$BATS_TEST_TMPDIR/bin" proc="$BATS_TEST_TMPDIR/proc" mode
+  mkdir -p "$bin" "$proc/2"
+  for mode in missing-cwd unreadable-cwd; do
+    local root="$BATS_TEST_TMPDIR/$mode" repo="$BATS_TEST_TMPDIR/$mode/ghq/repo"
+    make_ghq_repo "$repo"
+    git -C "$repo" worktree add -q -b feature "$root/herdr/repo/feature"
+    mkdir -p "$root/orca/gone/old"
+    printf 'gitdir: /missing/parent/worktrees/old\n' >"$root/orca/gone/old/.git"
+    age_dir "$root/herdr/repo/feature"
+    age_dir "$root/orca/gone/old"
+    if [ "$mode" = unreadable-cwd ]; then
+      ln -s "$root/herdr/repo/feature" "$proc/2/cwd"
+      cat >"$bin/readlink" <<'EOF'
+#!/bin/sh
+for arg do
+  [ "$arg" != "$WORKTREE_GC_PROC_ROOT/2/cwd" ] || exit 1
+done
+exec /usr/bin/readlink "$@"
+EOF
+      chmod +x "$bin/readlink"
+    fi
+    run env PATH="$bin:$PATH" WORKTREE_GC_PROC_ROOT="$proc" WORKTREE_GC_PROTECT_OPEN_PR=0 \
+      bash "$SRC" --apply --ghq-root "$root/ghq" --herdr-root "$root/herdr" --orca-root "$root/orca"
+    assert_success
+    [ -d "$root/herdr/repo/feature" ]
+    [ -d "$root/orca/gone/old" ]
+    assert_output --partial 'fanout done removed=0'
   done
 }
 

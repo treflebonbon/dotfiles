@@ -228,22 +228,25 @@ process_inspection_available() {
     [ -r "$root/self/stat" ] &&
     readlink -f "$root/self/cwd" >/dev/null 2>&1 &&
     [ -d "$root/1" ] || return 1
-  grep -Eq 'hidepid=(1|2|noaccess|invisible)' "$root/self/mountinfo" 2>/dev/null || mountinfo_status=$?
+  grep -Eq 'hidepid=(1|2|4|noaccess|invisible|ptraceable)' "$root/self/mountinfo" 2>/dev/null || mountinfo_status=$?
   [ "$mountinfo_status" -eq 1 ]
 }
 
-# Success iff a live process has $1 (or a path under it) as its cwd.
+# Success iff $1 is busy or a surviving PID's cwd cannot be inspected.
 is_busy_dir() {
-  local dir cwd_link resolved
+  local dir pid_dir resolved
   process_inspection_available || return 0
   # Canonicalize $1 too: /proc/<pid>/cwd always resolves to a canonical path,
   # so comparing it against an unresolved $1 would fail-open (miss a busy
   # process) whenever $1's path has a symlink component. Fall back to the
   # literal argument if it can't be resolved (e.g. it no longer exists).
   dir=$(readlink -f "$1" 2>/dev/null) || dir="$1"
-  for cwd_link in "${WORKTREE_GC_PROC_ROOT:-/proc}"/[0-9]*/cwd; do
-    [ -e "$cwd_link" ] || continue
-    resolved=$(readlink -f "$cwd_link" 2>/dev/null) || continue
+  for pid_dir in "${WORKTREE_GC_PROC_ROOT:-/proc}"/[0-9]*; do
+    [ -d "$pid_dir" ] || continue
+    if ! resolved=$(readlink "$pid_dir/cwd" 2>/dev/null); then
+      [ ! -d "$pid_dir" ] || return 0
+      continue
+    fi
     case "$resolved" in
     "$dir" | "$dir"/*) return 0 ;;
     esac
@@ -459,7 +462,7 @@ cmd_sweep() {
     fi
     roots=$(safe_roots_for "$repo")
     if [ "$APPLY" = true ] && repo_has_busy_candidate "$repo" "$roots"; then
-      echo "protected (busy process detected in a candidate): $repo" >&2
+      echo "protected (busy or uninspectable process in a candidate): $repo" >&2
       continue
     fi
     if ! out=$(bash "$ENGINE" "${engine_flags[@]}" --repo "$repo" --roots "$roots" \
@@ -486,7 +489,7 @@ cmd_sweep() {
         continue
       fi
       if is_busy_dir "$dir"; then
-        echo "protected (busy process detected): $dir" >&2
+        echo "protected (busy or uninspectable process): $dir" >&2
         continue
       fi
       echo "removing dangling: $dir"
