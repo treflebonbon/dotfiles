@@ -96,6 +96,24 @@ writes() { grep -cE '^issue (create|comment)' "$FAKE_DIR/calls.log" || true; }
   [ "$status" -eq 2 ]
 }
 
+@test "issue: the lock lives in a private per-user directory" {
+  export GH_ONCE_TEST_LOCK_BASE="$BATS_TEST_TMPDIR/locks"
+  mkdir "$GH_ONCE_TEST_LOCK_BASE"
+  run bash "$SCRIPT" issue run1 c1 "title" "$BATS_TEST_TMPDIR/body.md"
+  [ "$status" -eq 0 ]
+  [ "$(stat -c %a "$GH_ONCE_TEST_LOCK_BASE/gh-once-$(id -u)")" = 700 ]
+}
+
+@test "issue: a lock directory that is a symlink is refused and nothing is written" {
+  export GH_ONCE_TEST_LOCK_BASE="$BATS_TEST_TMPDIR/locks"
+  mkdir "$GH_ONCE_TEST_LOCK_BASE" "$BATS_TEST_TMPDIR/elsewhere"
+  ln -s "$BATS_TEST_TMPDIR/elsewhere" "$GH_ONCE_TEST_LOCK_BASE/gh-once-$(id -u)"
+  run bash "$SCRIPT" issue run1 c1 "title" "$BATS_TEST_TMPDIR/body.md"
+  [ "$status" -eq 3 ]
+  [ ! -f "$FAKE_DIR/calls.log" ] # gh was never reached
+  [ -z "$(ls -A "$BATS_TEST_TMPDIR/elsewhere")" ]
+}
+
 @test "issue: a full list page without the marker is unknown, not absent" {
   jq -n '[range(1000) | {number: ., body: "other", comments: []}]' >"$FAKE_DIR/issues.json"
   run bash "$SCRIPT" issue run1 c1 "title" "$BATS_TEST_TMPDIR/body.md"

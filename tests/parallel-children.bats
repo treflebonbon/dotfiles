@@ -399,6 +399,18 @@ mkrepo() {
   [ "$status" -eq 0 ]
 }
 
+@test "owned: a file larger than one read chunk is counted exactly" {
+  mkrepo
+  yes line | head -n 400000 >"$REPO/big.txt" # about 2 MB, more than one 1 MiB chunk
+  run bash "$SCRIPTS/check-owned.sh" "$REPO" "$BASE" big.txt:1-400000
+  [ "$status" -eq 0 ]
+  run bash "$SCRIPTS/check-owned.sh" "$REPO" "$BASE" big.txt:1-399999
+  [ "$status" -eq 1 ]
+  printf 'x' >>"$REPO/big.txt" # an unterminated last line past the chunk boundary
+  run bash "$SCRIPTS/check-owned.sh" "$REPO" "$BASE" big.txt:1-400000
+  [ "$status" -eq 1 ]
+}
+
 @test "owned: a base with no merge-base stops instead of diffing against the base" {
   mkrepo
   unrelated=$(git -C "$REPO" commit-tree "$(git -C "$REPO" hash-object -t tree /dev/null)" -m unrelated)
