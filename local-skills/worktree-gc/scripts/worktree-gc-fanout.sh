@@ -222,13 +222,14 @@ skip_summary_and_header() {
 # its own PID 1, so processes outside that namespace cannot be detected here.
 # WORKTREE_GC_PROC_ROOT only exists so tests can supply a fixture.
 process_inspection_available() {
-  local root="${WORKTREE_GC_PROC_ROOT:-/proc}"
+  local root="${WORKTREE_GC_PROC_ROOT:-/proc}" mountinfo_status=0
   [ "$(uname -s)" = Linux ] &&
     [ -r "$root" ] && [ -x "$root" ] &&
     [ -r "$root/self/stat" ] &&
     readlink -f "$root/self/cwd" >/dev/null 2>&1 &&
-    [ -d "$root/1" ] &&
-    ! grep -Eq 'hidepid=(1|2|noaccess|invisible)' "$root/self/mountinfo" 2>/dev/null
+    [ -d "$root/1" ] || return 1
+  grep -Eq 'hidepid=(1|2|noaccess|invisible)' "$root/self/mountinfo" 2>/dev/null || mountinfo_status=$?
+  [ "$mountinfo_status" -eq 1 ]
 }
 
 # Success iff a live process has $1 (or a path under it) as its cwd.

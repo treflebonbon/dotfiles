@@ -559,13 +559,13 @@ EOF
   done
 }
 
-@test "apply refuses a procfs that hides other processes and accepts a fully visible one" {
+@test "apply refuses hidden or uninspectable procfs and accepts a fully visible one" {
   local bin="$BATS_TEST_TMPDIR/bin" proc="$BATS_TEST_TMPDIR/proc" mode
   mkdir -p "$bin" "$BATS_TEST_TMPDIR/herdr" "$BATS_TEST_TMPDIR/orca"
   make_ghq_repo "$BATS_TEST_TMPDIR/ghq/repo"
   printf '#!/bin/sh\necho invoked >>"$ENGINE_LOG"\necho "done removed=0"\n' >"$bin/engine"
   chmod +x "$bin/engine"
-  for mode in hidepid no-init visible; do
+  for mode in hidepid no-init missing-mountinfo mountinfo-directory visible; do
     rm -rf "$proc"
     mkdir -p "$proc/self" "$proc/1"
     : >"$proc/self/stat"
@@ -573,6 +573,13 @@ EOF
     printf '1 0 0:1 / /proc rw - proc proc rw\n' >"$proc/self/mountinfo"
     [ "$mode" != hidepid ] || printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=2\n' >"$proc/self/mountinfo"
     [ "$mode" != no-init ] || rmdir "$proc/1"
+    case "$mode" in
+    missing-mountinfo) rm "$proc/self/mountinfo" ;;
+    mountinfo-directory)
+      rm "$proc/self/mountinfo"
+      mkdir "$proc/self/mountinfo"
+      ;;
+    esac
     run env WORKTREE_GC_PROC_ROOT="$proc" WORKTREE_GC_ENGINE="$bin/engine" ENGINE_LOG="$BATS_TEST_TMPDIR/$mode.log" \
       bash "$SRC" --apply --ghq-root "$BATS_TEST_TMPDIR/ghq" \
       --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
