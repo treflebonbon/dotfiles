@@ -167,7 +167,7 @@ def fetch_threads(repo: str, pr: int) -> list[dict[str, Any]]:
         cursor = page_info["endCursor"]
 
 
-def inspect(repo: str, pr: int) -> None:
+def inspect(repo: str, pr: int, no_diff: bool = False) -> None:
     metadata = json.loads(
         run_gh(
             [
@@ -181,7 +181,7 @@ def inspect(repo: str, pr: int) -> None:
             ]
         )
     )
-    diff = run_gh(["pr", "diff", str(pr), "--repo", repo, "--patch"])
+    diff = "" if no_diff else run_gh(["pr", "diff", str(pr), "--repo", repo, "--patch"])
     threads = fetch_threads(repo, pr)
     for thread in threads:
         thread["comments"] = {"nodes": fetch_thread(thread["id"])["comments"]}
@@ -189,7 +189,7 @@ def inspect(repo: str, pr: int) -> None:
         json.dumps(
             {
                 "pull_request": metadata,
-                "diff": diff,
+                **({} if no_diff else {"diff": diff}),
                 "review_threads": threads,
             },
             ensure_ascii=False,
@@ -413,13 +413,17 @@ def parse_args() -> argparse.Namespace:
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--repo", required=True)
     inspect_parser.add_argument("--pr", type=int, required=True)
+    inspect_parser.add_argument(
+        "--no-diff", action="store_true", help="omit the PR diff (about 40KB)"
+    )
     reply_parser = subparsers.add_parser(
         "reply-resolve",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "返信本文の形式（ADR-0032）:\n"
             "  --commit の場合:\n"
-            "    対応しました（<commitの先頭7文字>）。<修正要約>\n\n"
+            "    対応しました（<commitの先頭7文字>）。<修正要約>\n"
+            "    （本文は短縮 SHA、--commit には40桁の完全な SHA を渡す）\n\n"
             "    確認: <検証結果>\n\n"
             "  --explanation-only の場合:\n"
             "    確認しました。<回答>\n\n"
@@ -443,7 +447,7 @@ def main() -> None:
     split_repo(args.repo)
     run_gh(["auth", "status"])
     if args.command == "inspect":
-        inspect(args.repo, args.pr)
+        inspect(args.repo, args.pr, args.no_diff)
     elif args.command == "reply-resolve":
         reply_resolve(
             args.repo,

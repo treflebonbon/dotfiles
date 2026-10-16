@@ -9,6 +9,8 @@ tags: [autonomy, peer, herdr, orca, skills]
 
 `herdr-peer-refactor` / `orca-peer-refactor` の規範。実行手順は同 skill、環境共通の worktree・公開手順は [skill-harness](skill-harness.md) が持つ。決定は [ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)。permission 設定そのものは変更しない。
 
+保護の有無を論じるレビューは、実効の deny 層を先に読む。Claude は `private_dot_claude/settings.json.tmpl`、Codex は `private_dot_config/codex/rules/default.rules`（どちらも raw push を拒否する）。
+
 ## 開始と承認
 
 - 人が候補改善と peer 協働を明示依頼したら、通常 session でも進める。deny 設定がないことは、この明示依頼を拒否する条件ではない。専用 auto session を選んだ場合の追加保護は skill 同梱の `local-skills/herdr-peer-refactor/references/auto-session.md` に従う。適用が未確認の設定を有効と報告しない。
