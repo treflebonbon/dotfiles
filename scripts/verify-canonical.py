@@ -215,6 +215,54 @@ def runner_directory(receipt, temporary):
     return directory
 
 
+def show_status(attempt):
+    try:
+        attempt = attempt.absolute()
+        if (
+            not attempt.name.startswith("canonical-run.")
+            or not attempt.is_dir()
+            or attempt.resolve(strict=True) != attempt
+        ):
+            raise ValueError("canonical検証の記録directoryではありません")
+        result_path = attempt / "result.json"
+        receipt = attempt / "runner-path"
+        if result_path.exists() or result_path.is_symlink():
+            result = json.loads(read_record(result_path))
+            exit_code = result["exit_code"]
+            if type(exit_code) is not int or not 0 <= exit_code <= 255:
+                raise ValueError("終了コード記録が不正です")
+            if exit_code == 0 or receipt.exists() or receipt.is_symlink():
+                runner_directory(receipt, attempt.parent)
+            state = "passed" if exit_code == 0 else "failed"
+            tap = result["tap"]
+            if tap is None and exit_code != 0:
+                tap = {}
+            else:
+                for key in ("plan", "pass", "skip", "fail"):
+                    value = tap[key]
+                    if key == "plan" and value is None and exit_code != 0:
+                        continue
+                    if type(value) is not int or value < 0:
+                        raise ValueError("TAP集計記録が不正です")
+                if exit_code == 0 and (
+                    tap["fail"] != 0 or tap["plan"] != tap["pass"] + tap["skip"]
+                ):
+                    raise ValueError("成功記録のTAP集計が不整合です")
+        else:
+            tap = {"plan": None, "pass": 0, "skip": 0, "fail": 0}
+            if receipt.exists() or receipt.is_symlink():
+                directory = runner_directory(receipt, attempt.parent)
+                # 完了前のTAPには計画や必須fixtureが欠けるため、集計だけを表示する。
+                tap, _ = tap_record(directory / "tap.log")
+            state, exit_code = "incomplete", None
+        counts = {key: tap.get(key) for key in ("plan", "pass", "skip", "fail")}
+        print(json.dumps({"state": state, "exit_code": exit_code, **counts}))
+        return exit_code or 0
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        print(f"進捗記録を読めません: {error}", file=sys.stderr)
+        return 1
+
+
 def run_command(command, source, environment, output):
     process, interrupted = None, None
 
@@ -269,7 +317,16 @@ def run_command(command, source, environment, output):
 
 
 def main():
-    argparse.ArgumentParser(description=__doc__).parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--status",
+        type=Path,
+        metavar="DIRECTORY",
+        help="保存記録から進捗をJSON表示する（検証は開始しない）",
+    )
+    arguments = parser.parse_args()
+    if arguments.status is not None:
+        return show_status(arguments.status)
     source = Path(__file__).resolve().parent.parent
     environment = {
         key: value for key, value in os.environ.items() if not key.startswith("GIT_")

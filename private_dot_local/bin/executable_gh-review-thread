@@ -413,7 +413,19 @@ def parse_args() -> argparse.Namespace:
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--repo", required=True)
     inspect_parser.add_argument("--pr", type=int, required=True)
-    reply_parser = subparsers.add_parser("reply-resolve")
+    reply_parser = subparsers.add_parser(
+        "reply-resolve",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "返信本文の形式（ADR-0032）:\n"
+            "  --commit の場合:\n"
+            "    対応しました（<commitの先頭7文字>）。<修正要約>\n\n"
+            "    確認: <検証結果>\n\n"
+            "  --explanation-only の場合:\n"
+            "    確認しました。<回答>\n\n"
+            "    根拠: <根拠>"
+        ),
+    )
     reply_parser.add_argument("--repo", required=True)
     reply_parser.add_argument("--pr", type=int, required=True)
     reply_parser.add_argument("--thread-id", required=True)
