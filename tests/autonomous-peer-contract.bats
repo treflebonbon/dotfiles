@@ -196,8 +196,9 @@ PY
     run --separate-stderr codex execpolicy check --rules "$rules" -- "${argv[@]}"
     [ "$(jq -r .decision <<<"$output")" = forbidden ]
   done
-  grep -Fq '"AskUserQuestion"' "$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json"
-  grep -Fq '"Bash(*gh pr merge*)"' "$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json"
+  for cmd in 'AskUserQuestion' 'Bash(*gh pr merge*)' 'Bash(*gh --repo * pr merge*)' 'Bash(*mergePullRequest*)' 'Bash(*enablePullRequestAutoMerge*)' 'Bash(*pulls/*/merge*)' 'Bash(*gh api*/merges*)'; do
+    jq -e --arg p "$cmd" '.permissions.deny | index($p)' "$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json" >/dev/null
+  done
 }
 
 @test "Claude deny fragment is the projection of peer_deny and only applies to dedicated auto sessions" {
