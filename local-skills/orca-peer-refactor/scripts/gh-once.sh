@@ -12,8 +12,9 @@
 #
 # stdout: issue number (issue) | the report comment's issue number (report)
 # exit: 0 done (created or already there) | 1 write failed and a lookup confirmed
-# no artifact exists (the caller may resend) | 2 usage | 3 a lookup itself failed,
-# so whether the artifact exists is unknown (never resend; report it unconfirmed)
+# no artifact exists (the caller may resend) | 2 usage | 3 a lookup (or the marker
+# lock) failed or hit the list limit, so whether the artifact exists is unknown
+# (never resend; report it unconfirmed)
 set -euo pipefail
 
 kind=${1:-}
@@ -28,13 +29,17 @@ esac
 }
 
 run=$2
+limit=1000
 if [ "$kind" = issue ]; then
   marker="<!-- auto-run:$run cand:$3 -->"
   title=$4 body=$5
   lookup() {
-    # ponytail: newest 1000 issues only; paginate if a repo ever outgrows it
-    gh issue list --state all --limit 1000 --json number,body |
-      jq -r --arg m "$marker" '[.[] | select(.body | contains($m)) | .number] | first // empty'
+    # Only the newest $limit issues are listed: a full page with no match cannot
+    # prove the artifact is absent, so it fails the lookup (exit 3, unknown).
+    gh issue list --state all --limit "$limit" --json number,body |
+      jq -r --arg m "$marker" --argjson n "$limit" '
+        ([.[] | select(.body | contains($m)) | .number] | first) as $f
+        | if $f != null then $f elif length >= $n then error("issue list reached the limit") else empty end'
   }
   write() { gh issue create --label ready-for-agent --title "$title" --body-file "$tmp" >/dev/null; }
 else
@@ -50,6 +55,13 @@ else
   }
   write() { gh issue comment "$target" --body-file "$tmp" >/dev/null; }
 fi
+
+# One writer per marker: a concurrent run waits here, then its lookup sees the
+# first run's artifact. The lock is system Perl's flock(2) (macOS has no flock
+# command, ADR-0050); a lock that cannot be taken leaves existence unknown.
+lock="${TMPDIR:-/tmp}/gh-once-$(printf '%s' "$marker" | cksum | cut -d' ' -f1).lock"
+exec 9>"$lock"
+perl -MFcntl=:flock -e 'open(my $fh, "+<&=", 9) or exit 2; flock($fh, LOCK_EX) or exit 2' || exit 3
 
 found=$(lookup) || exit 3
 [ -z "$found" ] || {

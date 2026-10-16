@@ -95,3 +95,10 @@ writes() { grep -cE '^issue (create|comment)' "$FAKE_DIR/calls.log" || true; }
   run bash "$SCRIPT" issue run1
   [ "$status" -eq 2 ]
 }
+
+@test "issue: a full list page without the marker is unknown, not absent" {
+  jq -n '[range(1000) | {number: ., body: "other", comments: []}]' >"$FAKE_DIR/issues.json"
+  run bash "$SCRIPT" issue run1 c1 "title" "$BATS_TEST_TMPDIR/body.md"
+  [ "$status" -eq 3 ]
+  [ "$(writes)" -eq 0 ]
+}

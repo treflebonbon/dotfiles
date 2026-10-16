@@ -372,3 +372,27 @@ mkrepo() {
   grep -Fq '候補探索はやり直さず' "$skill"
   grep -Fq '候補の棄却を理由に探索し直さない' "$contract"
 }
+
+@test "launch: an unwritable run-dir stops before any herdr side effect" {
+  RUN_DIR="$BATS_TEST_TMPDIR/not-a-dir"
+  : >"$RUN_DIR"
+  launch
+  [ "$status" -eq 2 ]
+  [ ! -f "$MOCK_DIR/calls.log" ]
+}
+
+@test "owned: an untracked file without a trailing newline counts its last line" {
+  mkrepo
+  printf '1\n2' >"$REPO/new.sh"
+  run bash "$SCRIPTS/check-owned.sh" "$REPO" "$BASE" new.sh:1-1
+  [ "$status" -eq 1 ]
+  run bash "$SCRIPTS/check-owned.sh" "$REPO" "$BASE" new.sh:1-2
+  [ "$status" -eq 0 ]
+}
+
+@test "owned: a base with no merge-base stops instead of diffing against the base" {
+  mkrepo
+  unrelated=$(git -C "$REPO" commit-tree "$(git -C "$REPO" hash-object -t tree /dev/null)" -m unrelated)
+  run bash "$SCRIPTS/check-owned.sh" "$REPO" "$unrelated" a.sh
+  [ "$status" -eq 2 ]
+}

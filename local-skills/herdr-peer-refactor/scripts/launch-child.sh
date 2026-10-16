@@ -30,7 +30,7 @@
 # exit: 0 started (pane id printed) | 13 over the limit (no pane created) |
 # 14 the parent stopped (no pane created) | 20 deny fragment not on the child's
 # process | 21 child runs outside its worktree | 2 usage | 1 a herdr or parse
-# failure. These codes are this script's own; peer-request.sh uses 13 and 14
+# failure. 2 also covers an unwritable <run-dir>. These codes are this script's own; peer-request.sh uses 13 and 14
 # for other meanings.
 set -euo pipefail
 
@@ -46,6 +46,13 @@ case $limit$timeout_s in '' | *[!0-9]*)
   exit 2
   ;;
 esac
+
+# Both state files are appended after the child exists: an unwritable run-dir
+# would leave a live child unrecorded and uncounted, so check before any side effect.
+{ mkdir -p "$run_dir" && [ -w "$run_dir" ]; } || {
+  echo "run-dir is not writable: $run_dir" >&2
+  exit 2
+}
 
 [ ! -e "$run_dir/stopped" ] || {
   echo "the parent has stopped: no new child" >&2

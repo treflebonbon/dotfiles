@@ -407,3 +407,18 @@ calls() { cat "$MOCK_DIR/calls.log" 2>/dev/null || true; }
   run_helper
   [ "$status" -eq 0 ]
 }
+
+@test "a request ID that is a path is refused" {
+  run bash "$SCRIPT" peer ../../x "$SHA" "$WORK" "$BATS_TEST_TMPDIR/req.txt"
+  [ "$status" -eq 2 ]
+  [ ! -f "$MOCK_DIR/calls.log" ]
+}
+
+@test "a response with only the header line is not complete" {
+  echo 'printf "DONE REQ-1 abc1234\n" >"$WORK/REQ-1.md"' >"$MOCK_DIR/prompt.1.hook"
+  echo '{"agent_status":"idle"}' >"$MOCK_DIR/prompt.out"
+  echo '{"agent_status":"idle"}' >"$MOCK_DIR/get.out"
+  run_helper
+  [ "$status" -eq 12 ]
+  [[ "$output" == *missing* ]]
+}

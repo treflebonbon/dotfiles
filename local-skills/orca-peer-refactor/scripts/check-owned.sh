@@ -17,7 +17,7 @@
 # with no declaration is outside the ownership.
 #
 # exit: 0 every change is inside the declaration | 1 changes outside it (listed
-# on stdout; stop and select again, do not publish) | 2 usage
+# on stdout; stop and select again, do not publish) | 2 usage or no merge-base
 set -euo pipefail
 
 [ $# -eq 3 ] || {
@@ -26,7 +26,12 @@ set -euo pipefail
 }
 repo=$1 base=$2 owned=$3
 
-point=$(git -C "$repo" merge-base "$base" HEAD 2>/dev/null || printf '%s' "$base")
+# Unrelated history has no merge-base: diffing against <base> itself would flag
+# the whole base as changed, so stop instead of guessing.
+point=$(git -C "$repo" merge-base "$base" HEAD 2>/dev/null) || {
+  echo "no merge-base between $base and HEAD" >&2
+  exit 2
+}
 diff_out=$(git -C "$repo" -c core.quotepath=off diff -U0 --no-renames --no-color "$point")
 untracked=$(git -C "$repo" -c core.quotepath=off ls-files --others --exclude-standard)
 
@@ -98,7 +103,9 @@ for path in os.environ.get("UNTRACKED", "").split("\n"):
         continue
     try:
         with open(os.path.join(sys.argv[2], path), "rb") as f:
-            n = f.read().count(b"\n")
+            data = f.read()
+        # an unterminated last line is still a line
+        n = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
     except OSError:
         n = 1
     check(path, 1, max(n, 1), "1-%d" % max(n, 1), outside)

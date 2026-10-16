@@ -8,8 +8,8 @@
 # the shared task worktree such as <worktree>/.tmp/peer, which git ignores). A
 # session scratch directory can be read-only for the peer's sandbox.
 #
-# Completion = <workdir>/<req-id>.md exists and its first line is
-# "DONE <req-id> <sha>". An idle/done state from `herdr agent wait` is never
+# Completion = <workdir>/<req-id>.md exists, its first line is
+# "DONE <req-id> <sha>" and it has a non-blank body. An idle/done state from `herdr agent wait` is never
 # completion (it does not track turns). Limits come from
 # runtime/autonomous-peer-contract.md: 20 min per peer wait, 2 h total waiting
 # per candidate, 3 Review Rounds, same failure twice = hold.
@@ -38,10 +38,20 @@ SETTLE_S=${PEER_SETTLE_S:-5}
   exit 2
 }
 peer=$1 id=$2 sha=$3 workdir=$4 request=$5
+# The ID becomes a file name that is deleted and written: a path component
+# ("../x") would escape <workdir>.
+[[ $id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || {
+  echo "usage: <req-id> must match [A-Za-z0-9][A-Za-z0-9._-]*" >&2
+  exit 2
+}
 mkdir -p "$workdir"
 resp="$workdir/$id.md"
 
-valid() { [ -f "$resp" ] && [ "$(head -n1 "$resp")" = "DONE $id $sha" ]; }
+# Header line plus a non-blank body: a header alone is an interrupted write.
+valid() {
+  [ -f "$resp" ] && [ "$(head -n1 "$resp")" = "DONE $id $sha" ] &&
+    tail -n +2 "$resp" | grep -q '[^[:space:]]'
+}
 # herdr prints JSON: judge state by the "agent_status" value and errors by the
 # "code" value, never by a bare word (a terminal title or path can contain one).
 is_blocked() { grep -qE '"code": *"agent_blocked"|"agent_status": *"blocked"' <<<"$1"; }
@@ -136,13 +146,13 @@ timed_out() {
 }
 left_ms() { echo $((((PEER_TIMEOUT_S < TOTAL_WAIT_S - waited ? PEER_TIMEOUT_S : TOTAL_WAIT_S - waited) - ($(date +%s) - start)) * 1000)); }
 
-rm -f "$resp" # a file without a valid header is stale; never trust it
+rm -f "$resp" "$resp.part" # a file without a valid header is stale; never trust it
 
 prompt="$(cat "$request")
 
 Request ID: $id
 Target SHA: $sha
-Write your full reply to the file $resp. Its first line must be exactly: DONE $id $sha
+Write your full reply to the file $resp.part, then rename it to $resp (mv) when it is complete. Its first line must be exactly: DONE $id $sha, followed by the reply body
 Do not write the reply anywhere else: if that path is not writable, answer on the terminal with UNWRITABLE $resp and stop.
 Then answer on the terminal with only that file path."
 
