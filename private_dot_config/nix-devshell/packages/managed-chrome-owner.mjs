@@ -274,6 +274,22 @@ const activate = async (owner, token) => {
 
 const release = async (owner, token, command) => {
   if (!owner && command === "recover") {
+    if (!identity) {
+      const entries = await fs.readdir(root).catch((error) => {
+        if (error.code === "ENOENT") {
+          return [];
+        }
+        throw error;
+      });
+      const identities = entries.filter(
+        (name) => name.startsWith("identity-") && name.endsWith(".json")
+      );
+      if (identities.length) {
+        throw new Error(
+          "Bare recover found no legacy owner, but identity-scoped owner records exist; pass --identity to select one (see managed-chrome-owner status)."
+        );
+      }
+    }
     return;
   }
   if (command === "release") {
