@@ -334,7 +334,7 @@ mkrepo() {
   done
   grep -Fq '2N+2' "$auto"
   grep -Fq '<run dir>/stopped' "$auto"
-  # The deny is confirmed from the child's process, never from an environment variable.
+  # The launch is checked from the child's process, never from an environment variable.
   grep -Fq 'herdr pane process-info' "$auto"
   run grep -Fq 'AUTO_PEER_SESSION' "$auto"
   [ "$status" -eq 1 ]
