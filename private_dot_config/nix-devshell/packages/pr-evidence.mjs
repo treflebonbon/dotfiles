@@ -137,8 +137,9 @@ export const uploadEvidence = async (
       /https:\/\/github\.com\/user-attachments\/assets\/[a-zA-Z0-9-]+/gu;
     const initialBody = await textarea.inputValue();
     const before = new Set(initialBody.match(pattern) || []);
-    const started = Date.now();
     const input = body.locator("input[type=file]");
+    await input.waitFor({ state: "attached", timeout: 30_000 });
+    const started = Date.now();
     sent = true;
     await input.setInputFiles(image);
     let asset;
