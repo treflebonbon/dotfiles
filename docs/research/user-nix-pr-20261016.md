@@ -24,3 +24,19 @@ docs/conventions.mdの分割追跡・公開前全Bats・新規Codex build前の�
 ## このbranchの検証計画
 
 source manifest／lockとmain baselineの隔離frozen runtimeをbyte一致させ、既存helperの空candidate planで全配布・両target各46 discovery・hash・frontmatter・追加削除0を照合する。baseline frozen installはlock SHA-256不変、audit 10/10を今回確認済み。source-selected CLIを`--no-codex-build --shell wsl`で起動し、tmux実版、3-system評価、2軸レビュー、canonical全suiteをこのbranchで確認する。ARM実機と既定opt-inの未検証を明記する。
+
+## 分割branchの公開前検証結果
+
+canonical対象HEADは `9258f64407b502de5c643339b2635351c5fead31`。このbranchで `verify-ai-tools.py --no-codex-build --shell wsl -- python3 scripts/verify-canonical.py` を実行した。全862件中841成功・21既定skip・失敗0、verifier／runner／commandの終了コードはすべて0。全Batsの実測は 1558.35 秒。Design Hook 13件とPlaywright runtime 2件の必須fixtureは15件すべてskipなしで成功した。
+
+開始前後のHEAD、全tracked 602 fileのbytes／mode、runtime実体／hashは一致し、HEAD不一致と証拠照合エラーは0。6 AI CLIのsource-selected output・実path・実versionも照合した。Codexは既存 `/nix/store/lhczzl4166l2aps8bcl1zi9kbqbbqy3w-codex-0.162.1` を再利用し、Codex source buildは実行していない。
+
+source manifest／lockとmain baselineの隔離frozen runtime `/tmp/codex/publish-tools-skills.5wTc8t/base-apm` のbyte一致を確認し、空candidate planの配布照合がexit 0。20 dependency、両target各46 skill、実bytes／hash／frontmatter、追加削除0を確認した。今回のfrozen installはlock SHA-256不変、audit 10/10。user flakeの3-system checkはexit 0、rootは同じ入力のcommon checkを参照する。証拠は `user-nix-deployment.log`、`user-nix-flake-check.log`、`common-root-check.log`、`base-apm/`（いずれも `/tmp/codex/publish-tools-skills.5wTc8t/` 配下）。source-selected tmuxの実起動は `user-nix/tmux-smoke.json` に記録し、`tmux 3.7b` と一致した。
+
+分割後のStandards／Specレビューは各0件。レビュー対象は本canonical対象HEADのmain `300ffc8` との差分で、統合branchの結果は使用していない。
+
+今回のcanonical証拠は `/home/ubuntu/.codex/worktrees/591a/dotfiles/tmp/canonical-run.gzsnig7p/` の `before.json`／`after.json`／`result.json`／`runner-path`、AI CLI証拠は `/home/ubuntu/.codex/worktrees/591a/dotfiles/tmp/ai-tools-iuhjcvon/`。集計・起動条件・公開前の不変照合は `/tmp/codex/publish-tools-skills.5wTc8t/user-nix/` に保存する。
+
+検証後の追記は本結果記録だけとし、公開前に記録以外の全tracked内容と保存済みruntime実体／hashを再照合する。ARM2 systemの実機起動と認証・実モデル等の既定opt-in 21件は未検証。隔離APMの組織policy enforcementはwarning付きskipで、その適合は未検証。
+
+この時点で全3 branchの分割検証は成功済み、topic push／PR作成へ進む。merge・live applyは未実施で、更新全体の配備完了とは扱わない。
