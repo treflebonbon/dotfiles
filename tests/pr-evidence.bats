@@ -145,7 +145,7 @@ import assert from 'node:assert/strict';
 const {uploadEvidence}=await import(process.argv[2]);
 let closed=0;let uploaded=false;let signedIn=true;let fail=false;let missing=false;
 const textarea={count:async()=>signedIn?1:0,waitFor:async()=>{if(missing)throw new Error('no form');},inputValue:async()=>uploaded?'https://github.com/user-attachments/assets/new':'',locator:selector=>{assert.equal(selector,'xpath=ancestor::form[1]');return form;}};
-const form={locator:selector=>{assert.equal(selector,'input[type=file]');return {setInputFiles:async()=>{if(fail)throw new Error('network failure');uploaded=true;}};}};
+const form={locator:selector=>{assert.equal(selector,'input[type=file]');return {waitFor:async()=>{},setInputFiles:async()=>{if(fail)throw new Error('network failure');uploaded=true;}};}};
 const page={goto:async()=>{},url:()=> 'https://github.com/owner/repo/pull/42',locator:selector=>{
  if(selector==='#new_comment_field')return textarea;
  assert.equal(selector,'a[href^="/login"]');return {count:async()=>1};
@@ -156,6 +156,40 @@ fail=true;await assert.rejects(uploadEvidence(context,{repo:'owner/repo',pr:42,i
 signedIn=false;await assert.rejects(uploadEvidence(context,{repo:'owner/repo',pr:42,image:'/b.png',comment:true}),/authentication-required/);
 signedIn=true;missing=true;await assert.rejects(uploadEvidence(context,{repo:'owner/repo',pr:42,image:'/b.png',comment:true}),/upload-not-started/);
 assert.equal(closed,4);assert.equal(sibling.closed,false);
+JS
+  [ "$status" -eq 0 ]
+}
+
+@test "a missing comment attachment input allows retry with the same request ID" {
+  run node --input-type=module - "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/packages/pr-evidence.mjs" "$BATS_TEST_TMPDIR" <<'JS'
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+const {uploadEvidence,commentEvidence,digest}=await import(process.argv[2]);
+const directory=process.argv[3];const image=path.join(directory,'image.png');
+await writeFile(image,'image');
+let missing=true;let selected=0;let posts=0;let closed=0;
+const input={
+ waitFor:async options=>{assert.equal(options.state,'attached');assert.equal(options.timeout,30_000);if(missing)throw new Error('attachment input absent');},
+ setInputFiles:async()=>{if(missing)throw new Error('attachment input absent');selected++;},
+};
+const form={locator:selector=>{assert.equal(selector,'input[type=file]');return input;}};
+const textarea={count:async()=>1,waitFor:async()=>{},inputValue:async()=>selected?'https://github.com/user-attachments/assets/retry':'',locator:selector=>{assert.equal(selector,'xpath=ancestor::form[1]');return form;}};
+const context={newPage:async()=>({goto:async()=>{},url:()=> 'https://github.com/owner/repo/pull/42',locator:selector=>{assert.equal(selector,'#new_comment_field');return textarea;},close:async()=>{closed++;}})};
+const github=async args=>{
+ if(args.includes('user'))return 'me';
+ if(args.includes('--paginate'))return '';
+ if(args.includes('--method')){posts++;return JSON.stringify({...JSON.parse(await readFile(args.at(-1),'utf8')),html_url:'https://github.com/owner/repo/pull/42#issuecomment-1'});}
+ return JSON.stringify({number:42,base:{repo:{full_name:'owner/repo'}}});
+};
+const options={repo:'owner/repo',pr:42,images:[image],body:'<!-- screenshot-1 -->',requestId:'retry-input',directory,github,upload:image=>uploadEvidence(context,{repo:'owner/repo',pr:42,image,comment:true})};
+await assert.rejects(commentEvidence(options),/upload-not-started/);
+const receipt=JSON.parse(await readFile(path.join(directory,`comment-${digest('owner/repo#42:retry-input')}.json`),'utf8'));
+assert.equal(receipt.phase,'ready');assert.deepEqual(receipt.assets,[]);
+assert.equal(selected,0);assert.equal(posts,0);
+missing=false;
+const result=await commentEvidence(options);
+assert.equal(result.reused,false);assert.equal(posts,1);assert.equal(selected,1);assert.equal(closed,2);
 JS
   [ "$status" -eq 0 ]
 }
