@@ -449,6 +449,63 @@ terminal_answer() {
   ! grep -q '^END' "$WORK/REQ-1.md"
 }
 
+@test "a complete terminal answer is saved even when the wait timed out or stalled" {
+  local code
+  for code in timeout agent_prompt_stalled; do
+    rm -f "$WORK/REQ-1.md" "$WORK/REQ-1.failures"
+    terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding one' '  END REQ-1 n0nce1'
+    echo "{\"error\":{\"code\":\"$code\",\"message\":\"x\"}}" >"$MOCK_DIR/prompt.out"
+    echo 1 >"$MOCK_DIR/prompt.rc"
+    run_helper
+    [ "$status" -eq 0 ]
+    [ "$output" = "$WORK/REQ-1.md" ]
+    grep -Fxq 'finding one' "$WORK/REQ-1.md"
+  done
+}
+
+@test "an incomplete terminal answer does not hide a timeout" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding one'
+  echo '{"error":{"code":"timeout","message":"x"}}' >"$MOCK_DIR/prompt.out"
+  echo 1 >"$MOCK_DIR/prompt.rc"
+  run_helper
+  [ "$status" -eq 10 ]
+  [ ! -e "$WORK/REQ-1.md" ]
+}
+
+@test "a timeout leaves the response file a peer may still be writing alone" {
+  terminal_answer ''
+  echo 'printf "DONE REQ-1 abc1234\npartial\n" >"$WORK/REQ-1.md.part"' >"$MOCK_DIR/prompt.1.hook"
+  echo '{"error":{"code":"timeout","message":"x"}}' >"$MOCK_DIR/prompt.out"
+  echo 1 >"$MOCK_DIR/prompt.rc"
+  run_helper
+  [ "$status" -eq 10 ]
+  grep -Fxq 'partial' "$WORK/REQ-1.md.part"
+}
+
+@test "an unreadable terminal after a timeout or stall holds instead of allowing a re-ask" {
+  local code
+  for code in timeout agent_prompt_stalled; do
+    rm -f "$WORK/REQ-1.failures"
+    terminal_answer ''
+    echo "{\"error\":{\"code\":\"$code\",\"message\":\"x\"}}" >"$MOCK_DIR/prompt.out"
+    echo 1 >"$MOCK_DIR/prompt.rc"
+    echo 1 >"$MOCK_DIR/read.rc"
+    run_helper
+    [ "$status" -eq 15 ]
+    [ ! -e "$WORK/REQ-1.failures" ]
+  done
+}
+
+@test "a response file that lands while the terminal is read is taken after a timeout" {
+  terminal_answer ''
+  echo 'write_resp "DONE REQ-1 abc1234"' >"$MOCK_DIR/read.1.hook"
+  echo '{"error":{"code":"timeout","message":"x"}}' >"$MOCK_DIR/prompt.out"
+  echo 1 >"$MOCK_DIR/prompt.rc"
+  run_helper
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WORK/REQ-1.md" ]
+}
+
 @test "the request carries the attempt nonce inside a sentence, never as a marker line" {
   terminal_answer ''
   run_helper

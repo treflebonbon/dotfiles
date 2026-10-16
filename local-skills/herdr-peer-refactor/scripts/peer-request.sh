@@ -61,7 +61,8 @@ nonce=${PEER_REQUEST_TEST_NONCE:-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')}
 # <nonce>" line after it, each marker alone on its line (the request quotes them
 # inside a sentence), so the body may quote a block that carries the nonce too. The
 # body must be non-blank. The helper, not the peer, writes the file, through
-# .part and a rename. Returns 0 saved | 1 no complete block | 2 could not read or
+# its own .term file and a rename: the peer's .part may still be growing when this
+# runs after a timeout, so it is never touched here. Returns 0 saved | 1 no complete block | 2 could not read or
 # save (state unknown: the caller holds).
 capture() {
   local text
@@ -82,16 +83,19 @@ if starts:
             print(head + "\n" + "\n".join(body))
             sys.exit(0)
 sys.exit(3)
-' "DONE $id $sha" "DONE $id $sha $nonce" "END $id $nonce" <<<"$text" >"$resp.part"
+' "DONE $id $sha" "DONE $id $sha $nonce" "END $id $nonce" <<<"$text" >"$resp.term"
   case $? in
   0) ;;
   3)
-    rm -f "$resp.part"
+    rm -f "$resp.term"
     return 1
     ;;
-  *) return 2 ;; # includes a .part that cannot be opened (the shell's own status 1)
+  *)
+    rm -f "$resp.term"
+    return 2 # includes a .term that cannot be opened (the shell's own status 1)
+    ;;
   esac
-  mv "$resp.part" "$resp" || return 2
+  mv "$resp.term" "$resp" || return 2
   valid || return 2
 }
 # herdr prints JSON: judge state by the "agent_status" value and errors by the
@@ -186,9 +190,26 @@ timed_out() {
   }
   fail timeout 10
 }
+# A peer that cannot write the file answers on the terminal, and that answer can
+# already be complete when a wait times out or stalls. Take it before reporting
+# the failure. A terminal that cannot be read or saved is a hold (the peer state
+# is unknown, so no re-ask), and the response file is checked again because the
+# peer may have renamed it into place while the terminal was being read.
+answered_on_terminal() {
+  local crc
+  set +e
+  capture
+  crc=$?
+  set -e
+  [ "$crc" -ne 2 ] || cannot_verify "the peer's terminal answer could not be read or saved"
+  if [ "$crc" -eq 0 ] || valid; then
+    echo "$resp"
+    exit 0
+  fi
+}
 left_ms() { echo $((((PEER_TIMEOUT_S < TOTAL_WAIT_S - waited ? PEER_TIMEOUT_S : TOTAL_WAIT_S - waited) - ($(date +%s) - start)) * 1000)); }
 
-rm -f "$resp" "$resp.part" # a file without a valid header is stale; never trust it
+rm -f "$resp" "$resp.part" "$resp.term" # a file without a valid header is stale; never trust it
 
 prompt="$(cat "$request")
 
@@ -210,8 +231,14 @@ while :; do
     exit 0
   fi
   is_blocked "$out" && hold_blocked
-  if grep -qE '"code": *"agent_prompt_stalled"' <<<"$out"; then fail stalled 12; fi
-  if [ "$rc" -ne 0 ] && grep -qE '"code": *"timeout"' <<<"$out"; then timed_out; fi
+  if grep -qE '"code": *"agent_prompt_stalled"' <<<"$out"; then
+    answered_on_terminal
+    fail stalled 12
+  fi
+  if [ "$rc" -ne 0 ] && grep -qE '"code": *"timeout"' <<<"$out"; then
+    answered_on_terminal
+    timed_out
+  fi
   [ "$rc" -eq 0 ] || fail "error: $(head -c 200 <<<"$out" | tr '\n' ' ')" 12
 
   # Returned without a valid response: an old turn may have completed, or the
@@ -250,7 +277,10 @@ while :; do
     fi
   fi
 
-  [ "$(left_ms)" -gt 0 ] || timed_out
+  [ "$(left_ms)" -gt 0 ] || {
+    answered_on_terminal
+    timed_out
+  }
   set +e
   out=$(herdr_cmd agent wait "$peer" --timeout "$(left_ms)" 2>&1)
   rc=$?
