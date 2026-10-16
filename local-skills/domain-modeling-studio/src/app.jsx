@@ -141,6 +141,7 @@ const Evidence = ({ evidence }) =>
 const Inspector = ({
   doc,
   graph,
+  allNodes,
   crossLayerEdgeIds,
   kinds,
   selected,
@@ -273,7 +274,10 @@ const Inspector = ({
                   value={selected[key]}
                   onChange={(e) => edit({ [key]: e.target.value })}
                 >
-                  {graph.nodes.map((n) => (
+                  {(crossLayerEdgeIds?.has(selected.id)
+                    ? allNodes
+                    : graph.nodes
+                  ).map((n) => (
                     <option key={n.id} value={n.id}>
                       {n.data.label}
                     </option>
@@ -992,6 +996,7 @@ const App = ({ seed }) => {
                 edges: [...layerEdges, ...crossLayerEdges],
                 nodes: layerNodes,
               }}
+              allNodes={graph.nodes}
               crossLayerEdgeIds={crossLayerEdgeIds}
               kinds={layerKinds}
               selected={selected}

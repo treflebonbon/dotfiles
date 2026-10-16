@@ -58,8 +58,11 @@ const RELATIVE_SUFFIXES = [
   ".rb",
   ".rs",
   "/index.js",
+  "/index.jsx",
   "/index.ts",
+  "/index.tsx",
   "/index.mjs",
+  "/index.cjs",
   "/__init__.py",
   "/mod.rs",
 ];

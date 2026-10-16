@@ -23,20 +23,21 @@ const template = await readFile(
 const html = template.replace("__STUDIO_DOCUMENT__", () =>
   JSON.stringify(doc).replaceAll("<", "\\u003c")
 );
+const entries = artifactsDir ? Object.entries(artifacts(doc)) : [];
+// Preflight every destination, the HTML included, before writing any of them:
+// without this, a collision found later leaves a partial output set that also
+// can't be retried under the same output name.
+const existing = [
+  resolve(output),
+  ...entries.map(([name]) => resolve(artifactsDir, name)),
+].filter((destination) => existsSync(destination));
+if (existing.length > 0) {
+  throw new Error(`Output(s) already exist: ${existing.join(", ")}`);
+}
 await mkdir(dirname(resolve(output)), { recursive: true });
 await writeFile(output, html, { flag: "wx" });
 if (artifactsDir) {
   await mkdir(artifactsDir, { recursive: true });
-  const entries = Object.entries(artifacts(doc));
-  // Preflight every destination first: without this, Promise.all can write
-  // some artifacts before one collides with an existing file, leaving a
-  // partial set that also can't be retried under the same output name.
-  const existing = entries
-    .map(([name]) => resolve(artifactsDir, name))
-    .filter((destination) => existsSync(destination));
-  if (existing.length > 0) {
-    throw new Error(`Artifact(s) already exist: ${existing.join(", ")}`);
-  }
   await Promise.all(
     entries.map(([name, content]) =>
       writeFile(resolve(artifactsDir, name), content, { flag: "wx" })

@@ -33,4 +33,10 @@ test("既存の成果物ファイルと衝突する場合は他の成果物も�
   // would also make a same-name retry fail forever.
   const remaining = await readdir(artifactsDir);
   assert.deepEqual(remaining, ["model.md"]);
+  // The HTML is part of the same all-or-nothing set: it must not be written
+  // before the collision is found, or a retry would fail on its own output.
+  assert.deepEqual(
+    (await readdir(dir)).toSorted(),
+    ["artifacts", "model.json"]
+  );
 });
