@@ -23,6 +23,8 @@ tags: [conventions, git, lint, lefthook]
 
 topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
 
+アーキテクチャHTML report checkerの実ブラウザ再検証は、全Batsへ組み込まず、repo root で `nix develop ./private_dot_config/nix-devshell --command nix develop . --command scripts/run-architecture-render-smoke.sh` を個別に実行する。`playwright-cli` が管理する一時session、loopback HTTP server、追跡fixtureを使う。実report用 `check-architecture-render.js` を正本とし、既存SKILL.mdの手順と同じ `sed '$s/;$//'` を `run-code` へ渡す一時入力にだけ適用する。Mermaid 11.17.2 をjsDelivrから一時web rootへ取得し、vendoringしない。`curl` / `python3` / `playwright-cli` とjsDelivrへの接続が実行前提であり、未達時は失敗理由を表示する。TAPとconsoleの記録は試行ごとに `.tmp/architecture-render-smoke.*` へ保持する。図なしHTMLはHTTP 200なら成功、HTTP 404なら失敗として検査する。
+
 更新時のcanonical検証には、repo内の手動入口 `python3 scripts/verify-canonical.py` を使える。入口自身が置かれたlinked task worktreeを対象にするため、検証する変更をcommitしてcleanにし、既存手順で両devShellとruntimeを準備してから起動する。`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` には準備済みの絶対パスを渡す。入口は `lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。
 
 開始前は `git status` に加えて、全tracked内容とGit modeをHEADのtree/blobへ直接照合する。`assume-unchanged`／`skip-worktree` に隠れた未commitの変更もBats開始前に拒否し、flag自体は変更しない。実行後にHEADの内容・Git modeと異なるfileは `after.json` の `head_mismatches` に記録し、前後記録とTAPを保持する。
@@ -53,6 +55,10 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。
+
+## 自律 agent の peer 協働
+
+- 元の候補を native peer と改善する契約は [`runtime/autonomous-peer-contract.md`](../runtime/autonomous-peer-contract.md) を正本とする（[ADR-0075](adr/0075-adopt-peer-refactor-skills.md)）。
 
 ## 言語バージョンの更新
 

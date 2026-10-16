@@ -579,6 +579,26 @@ assert_codex_strict_config() {
   assert_codex_strict_config "$codex_home"
 }
 
+@test "dotfiles-peer is dotfiles-secure without the writable gh credential and leaves the default profile alone" {
+  local rendered="$BATS_TEST_TMPDIR/config.toml" secure peer
+  render_codex_managed_config "$PROJECT_ROOT" "$rendered"
+
+  # The default stays dotfiles-secure; a peer opts in with -c default_permissions.
+  grep -Fq 'default_permissions = "dotfiles-secure"' "$rendered"
+  secure="$(sed -n '/^\[permissions\."dotfiles-secure"\]/,/^\[permissions\."dotfiles-peer"\]/p' "$rendered" | sed '$d')"
+  peer="$(sed -n '/^\[permissions\."dotfiles-peer"\]/,/^\[plugins\./p' "$rendered" | sed '$d')"
+
+  # dotfiles-secure still reads ~/.config/gh; dotfiles-peer reads only its own gh config dir.
+  grep -Fq '[permissions."dotfiles-secure".filesystem."~/.config/gh"]' <<<"$secure"
+  grep -Fq '[permissions."dotfiles-peer".filesystem."~/.codex-peer/gh"]' <<<"$peer"
+  run grep -F '~/.config/gh' <<<"$peer"
+  [ "$status" -eq 1 ]
+
+  # Apart from the gh root, the two profiles are the same, so a change to one reaches the other.
+  diff <(sed 's/dotfiles-secure/PROFILE/; s#~/\.config/gh#GH_ROOT#' <<<"$secure") \
+    <(sed 's/dotfiles-peer/PROFILE/; s#~/\.codex-peer/gh#GH_ROOT#' <<<"$peer")
+}
+
 assert_ponytail_plugin_installed_and_enabled() {
   local plugin_list_json="$1"
   python3 - "$plugin_list_json" <<'PY'

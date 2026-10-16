@@ -1,0 +1,40 @@
+# Candidate rules for a codex peer launched in an auto session. Static measurement only.
+prefix_rule(
+    pattern = ["gh", "pr", "merge"],
+    decision = "forbidden",
+    justification = "origin/main merges are done by a human.",
+    match = ["gh pr merge 1"],
+    not_match = ["gh pr view 1"],
+)
+
+prefix_rule(
+    pattern = ["gh", ["-R", "--repo"]],
+    decision = "forbidden",
+    justification = "A global repo option can hide a merge subcommand behind it.",
+    match = ["gh -R o/r pr merge 1", "gh --repo o/r pr merge 1"],
+    not_match = ["gh pr view 1"],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["-R", "--repo"]],
+    decision = "forbidden",
+    justification = "A repo option between pr and merge hides the subcommand.",
+    match = ["gh pr -R o/r merge 1", "gh pr --repo o/r merge 1"],
+    not_match = ["gh pr view 1"],
+)
+
+prefix_rule(
+    pattern = ["gh", "api"],
+    decision = "forbidden",
+    justification = "GraphQL and REST calls can merge or update refs; a peer reviewer reads through gh issue/pr view.",
+    match = ["gh api graphql -F query=@x.graphql", "gh api -X PUT repos/o/r/pulls/1/merge"],
+    not_match = ["gh issue view 1"],
+)
+
+prefix_rule(
+    pattern = ["git-push-reviewed"],
+    decision = "forbidden",
+    justification = "A default-branch push is a human action.",
+    match = ["git-push-reviewed"],
+    not_match = ["git-push-topic"],
+)
