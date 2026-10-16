@@ -316,7 +316,7 @@ exec "$1" -I -c 'import json,os; print(json.dumps(dict(os.environ)))'
             continue
         if key.startswith(("GIT_", "CODEX_", "DEVSHELL_ENV_")):
             continue
-        if bootstrap.get(key) != value:
+        if key not in inherited:
             environment[key] = value
     paths = (prepared.get("PATH", "") + os.pathsep + inherited.get("PATH", "")).split(
         os.pathsep
