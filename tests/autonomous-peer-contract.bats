@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CONTRACT="$PROJECT_ROOT/runtime/autonomous-peer-contract.md"
@@ -120,14 +122,49 @@ setup() {
   grep -Fq '親停止' "$AUTO_SESSION"
 }
 
+# peer_deny in auto-peer.rules is the single source of what a dedicated auto peer must not
+# run. Both tools' settings are projections of it, and every check below reads it from there.
+peer_deny() {
+  python3 -I - "$PROJECT_ROOT/private_dot_config/codex/auto-peer.rules" "$@" <<'PY'
+import ast, json, re, sys
+from ast import literal_eval as parse_literal
+
+src = open(sys.argv[1]).read()
+records = next(
+    parse_literal(n.value)
+    for n in ast.parse(src).body
+    if isinstance(n, ast.Assign) and n.targets[0].id == "peer_deny"
+)
+mode = sys.argv[2]
+claude = [p for r in records for p in r["claude"]]
+if mode == "projection":
+    print(json.dumps({"permissions": {"deny": claude}}, indent=2))
+elif mode == "codex-match":
+    for r in records:
+        for rule in r["codex"]:
+            for cmd in rule["match"]:
+                print(cmd)
+elif mode == "claude-examples":
+    bash_deny = [p for p in claude if p.startswith("Bash(")]
+
+    def denied(command):
+        return any(
+            re.fullmatch(re.escape(p[5:-1]).replace(r"\*", ".*"), command, re.S)
+            for p in bash_deny
+        )
+
+    bad = [c for r in records for c in r.get("claude_deny", []) if not denied(c)]
+    bad += [c for r in records for c in r.get("claude_allow", []) if denied(c)]
+    assert bad == [], bad
+    assert all(p.startswith("Bash(") and p.endswith(")") for p in bash_deny)
+PY
+}
+
 @test "Codex peer permission rules remain isolated and preserve the read-only credential path" {
   local rules="$PROJECT_ROOT/private_dot_config/codex/auto-peer.rules"
   local sync="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   [ -f "$rules" ]
   ! grep -Fq 'auto-peer.rules' "$sync"
-  grep -Fq 'pattern = ["gh", "pr", "merge"]' "$rules"
-  grep -Fq 'pattern = ["gh", "api"]' "$rules"
-  grep -Fq 'pattern = ["git-push-reviewed"]' "$rules"
   grep -Fq 'pattern = ["git", "push"]' "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules"
   ! grep -Fq '"git", "push"' "$rules"
   grep -Fq 'default_permissions="dotfiles-peer"' "$AUTO_SESSION"
@@ -137,28 +174,35 @@ setup() {
   grep -Fq '[apps.github]' "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl"
 }
 
-@test "Claude deny fragment is standard permission configuration and only applies to dedicated auto sessions" {
-  local fragment="$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json"
-  [ -f "$fragment" ]
-  grep -Fq 'claude --permission-mode auto --settings ~/.claude/auto-peer-deny.json' "$AUTO_SESSION"
-  run python3 - "$fragment" <<'PY'
+@test "Codex peer rules forbid every peer_deny match; loading also validates each match and not_match" {
+  local rules="$PROJECT_ROOT/private_dot_config/codex/auto-peer.rules" cmd
+  local -a argv
+  run peer_deny codex-match
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  while IFS= read -r cmd; do
+    read -r -a argv <<<"$cmd"
+    run --separate-stderr codex execpolicy check --rules "$rules" -- "${argv[@]}"
+    [ "$status" -eq 0 ]
+    [ "$(jq -r .decision <<<"$output")" = forbidden ]
+  done < <(peer_deny codex-match)
+}
+
+@test "Removing a record from peer_deny cannot silently drop the named peer prohibitions" {
+  local rules="$PROJECT_ROOT/private_dot_config/codex/auto-peer.rules" cmd
+  local -a argv
+  for cmd in 'gh pr merge 1' 'gh -R o/r pr merge 1' 'gh --repo o/r pr merge 1' 'gh pr -R o/r merge 1' 'gh api graphql' 'git-push-reviewed'; do
+    read -r -a argv <<<"$cmd"
+    run --separate-stderr codex execpolicy check --rules "$rules" -- "${argv[@]}"
+    [ "$(jq -r .decision <<<"$output")" = forbidden ]
+  done
+  # Independent of peer_deny: every command the Claude fragment denied before peer_deny existed.
+  run python3 -I - "$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json" <<'PY'
 import json, re, sys
 
-doc = json.load(open(sys.argv[1]))
-assert list(doc) == ["permissions"], list(doc)
-assert list(doc["permissions"]) == ["deny"], list(doc["permissions"])
-deny = doc["permissions"]["deny"]
+deny = json.load(open(sys.argv[1]))["permissions"]["deny"]
 assert "AskUserQuestion" in deny, deny
-bash_deny = [p for p in deny if p != "AskUserQuestion"]
-assert bash_deny and all(p.startswith("Bash(") and p.endswith(")") for p in bash_deny), deny
-
-def denied(command):
-    for pattern in bash_deny:
-        rx = re.escape(pattern[len("Bash("):-1]).replace(r"\*", ".*")
-        if re.fullmatch(rx, command, re.S):
-            return True
-    return False
-
+patterns = [p[5:-1] for p in deny if p.startswith("Bash(")]
 must_deny = [
     "gh pr merge 1",
     "gh pr merge --auto --squash 1",
@@ -179,19 +223,22 @@ must_deny = [
     "gh -R o/r api repos/o/r/pulls/1/merge",
     "gh api -X POST repos/o/r/merges",
 ]
-must_allow = [
-    "gh pr view 1 --json state,mergeStateStatus",
-    "gh pr list --state merged --limit 1",
-    "gh pr create --title 'feat: add merge deny' --body-file b.md",
-    "gh pr close 1",
-    "gh pr reopen 1",
-    "gh pr ready 1",
-    "gh api graphql -f query='query { viewer { login } }'",
-    "git-push-topic",
+bad = [
+    c
+    for c in must_deny
+    if not any(re.fullmatch(re.escape(p).replace(r"\*", ".*"), c, re.S) for p in patterns)
 ]
-bad = [command for command in must_deny if not denied(command)] + [command for command in must_allow if denied(command)]
 assert not bad, bad
 PY
+  [ "$status" -eq 0 ]
+}
+
+@test "Claude deny fragment is the projection of peer_deny and only applies to dedicated auto sessions" {
+  local fragment="$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json"
+  [ -f "$fragment" ]
+  grep -Fq 'claude --permission-mode auto --settings ~/.claude/auto-peer-deny.json' "$AUTO_SESSION"
+  [ "$(peer_deny projection)" = "$(cat "$fragment")" ]
+  run peer_deny claude-examples
   [ "$status" -eq 0 ]
   run grep -Fq 'gh pr merge' "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
   [ "$status" -eq 1 ]

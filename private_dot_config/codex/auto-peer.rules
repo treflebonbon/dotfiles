@@ -1,40 +1,113 @@
 # Candidate rules for a codex peer launched in an auto session. Static measurement only.
-prefix_rule(
-    pattern = ["gh", "pr", "merge"],
-    decision = "forbidden",
-    justification = "origin/main merges are done by a human.",
-    match = ["gh pr merge 1"],
-    not_match = ["gh pr view 1"],
-)
+#
+# peer_deny is the single source of what a dedicated auto peer must not run.
+# Each record projects to both tools:
+#   claude: Bash(...) deny strings, copied in order into private_dot_claude/auto-peer-deny.json
+#           (tests/autonomous-peer-contract.bats fails until the JSON equals the projection)
+#   codex:  prefix_rule arguments, registered below
+# claude_deny / claude_allow are example commands the Claude deny strings must / must not match.
+# To add a variant, edit one record here, then update the JSON from the projection.
+peer_deny = [
+    {
+        "claude": ["AskUserQuestion"],
+        "codex": [],
+    },
+    {
+        "claude": ["Bash(*gh pr merge*)", "Bash(*gh pr 'merge'*)", "Bash(*gh pr \"merge\"*)"],
+        "claude_deny": [
+            "gh pr merge 1",
+            "gh pr merge --auto --squash 1",
+            "sh -c 'gh pr merge 1'",
+            "/usr/bin/gh pr merge 1",
+            "xargs -n1 gh pr merge",
+            "gh pr 'merge' 1",
+            "gh pr \"merge\" 1",
+        ],
+        "claude_allow": [
+            "gh pr view 1 --json state,mergeStateStatus",
+            "gh pr list --state merged --limit 1",
+            "gh pr create --title 'feat: add merge deny' --body-file b.md",
+            "gh pr close 1",
+            "gh pr reopen 1",
+            "gh pr ready 1",
+        ],
+        "codex": [{
+            "pattern": ["gh", "pr", "merge"],
+            "decision": "forbidden",
+            "justification": "origin/main merges are done by a human.",
+            "match": ["gh pr merge 1"],
+            "not_match": ["gh pr view 1"],
+        }],
+    },
+    {
+        "claude": [
+            "Bash(*gh -R * pr merge*)",
+            "Bash(*gh --repo * pr merge*)",
+            "Bash(*gh --repo=* pr merge*)",
+            "Bash(*gh pr -R * merge*)",
+            "Bash(*gh pr --repo * merge*)",
+            "Bash(*gh pr --repo=* merge*)",
+        ],
+        "claude_deny": [
+            "gh -R o/r pr merge 1",
+            "gh --repo o/r pr merge 1",
+            "gh --repo=o/r pr merge 1",
+            "gh pr -R o/r merge 1",
+            "gh pr --repo o/r merge 1",
+            "gh pr --repo=o/r merge 1",
+        ],
+        "codex": [
+            {
+                "pattern": ["gh", ["-R", "--repo"]],
+                "decision": "forbidden",
+                "justification": "A global repo option can hide a merge subcommand behind it.",
+                "match": ["gh -R o/r pr merge 1", "gh --repo o/r pr merge 1"],
+                "not_match": ["gh pr view 1"],
+            },
+            {
+                "pattern": ["gh", "pr", ["-R", "--repo"]],
+                "decision": "forbidden",
+                "justification": "A repo option between pr and merge hides the subcommand.",
+                "match": ["gh pr -R o/r merge 1", "gh pr --repo o/r merge 1"],
+                "not_match": ["gh pr view 1"],
+            },
+        ],
+    },
+    {
+        "claude": ["Bash(*mergePullRequest*)", "Bash(*enablePullRequestAutoMerge*)"],
+        "claude_deny": [
+            "gh api -X POST graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'",
+            "gh api graphql -f query='mutation { enablePullRequestAutoMerge(input: {}) { clientMutationId } }'",
+        ],
+        "codex": [],
+    },
+    {
+        "claude": ["Bash(*pulls/*/merge*)", "Bash(*gh api*/merges*)"],
+        "claude_deny": [
+            "gh api -X PUT repos/o/r/pulls/1/merge",
+            "gh -R o/r api repos/o/r/pulls/1/merge",
+            "gh api -X POST repos/o/r/merges",
+        ],
+        "claude_allow": ["gh api graphql -f query='query { viewer { login } }'"],
+        "codex": [{
+            "pattern": ["gh", "api"],
+            "decision": "forbidden",
+            "justification": "GraphQL and REST calls can merge or update refs; a peer reviewer reads through gh issue/pr view.",
+            "match": ["gh api graphql -F query=@x.graphql", "gh api -X PUT repos/o/r/pulls/1/merge"],
+            "not_match": ["gh issue view 1"],
+        }],
+    },
+    {
+        "claude": [],
+        "claude_allow": ["git-push-topic"],
+        "codex": [{
+            "pattern": ["git-push-reviewed"],
+            "decision": "forbidden",
+            "justification": "A default-branch push is a human action.",
+            "match": ["git-push-reviewed"],
+            "not_match": ["git-push-topic"],
+        }],
+    },
+]
 
-prefix_rule(
-    pattern = ["gh", ["-R", "--repo"]],
-    decision = "forbidden",
-    justification = "A global repo option can hide a merge subcommand behind it.",
-    match = ["gh -R o/r pr merge 1", "gh --repo o/r pr merge 1"],
-    not_match = ["gh pr view 1"],
-)
-
-prefix_rule(
-    pattern = ["gh", "pr", ["-R", "--repo"]],
-    decision = "forbidden",
-    justification = "A repo option between pr and merge hides the subcommand.",
-    match = ["gh pr -R o/r merge 1", "gh pr --repo o/r merge 1"],
-    not_match = ["gh pr view 1"],
-)
-
-prefix_rule(
-    pattern = ["gh", "api"],
-    decision = "forbidden",
-    justification = "GraphQL and REST calls can merge or update refs; a peer reviewer reads through gh issue/pr view.",
-    match = ["gh api graphql -F query=@x.graphql", "gh api -X PUT repos/o/r/pulls/1/merge"],
-    not_match = ["gh issue view 1"],
-)
-
-prefix_rule(
-    pattern = ["git-push-reviewed"],
-    decision = "forbidden",
-    justification = "A default-branch push is a human action.",
-    match = ["git-push-reviewed"],
-    not_match = ["git-push-topic"],
-)
+[prefix_rule(**rule) for record in peer_deny for rule in record["codex"]]
