@@ -44,6 +44,7 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - Builder-Evaluator 内の `code-review` は既知の base（通常 `origin/main`）を使う。standalone で base が不明な場合は確認する。
 - `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する（二重管理による thread 状態の不整合を防ぐため）。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
 - `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
+- 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
 
 個別実装の入口は `implement`、仕様全体の一括実装は `implement-spec`。必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
 
