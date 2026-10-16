@@ -196,9 +196,41 @@ PY
     run --separate-stderr codex execpolicy check --rules "$rules" -- "${argv[@]}"
     [ "$(jq -r .decision <<<"$output")" = forbidden ]
   done
-  for cmd in 'AskUserQuestion' 'Bash(*gh pr merge*)' 'Bash(*gh --repo * pr merge*)' 'Bash(*mergePullRequest*)' 'Bash(*enablePullRequestAutoMerge*)' 'Bash(*pulls/*/merge*)' 'Bash(*gh api*/merges*)'; do
-    jq -e --arg p "$cmd" '.permissions.deny | index($p)' "$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json" >/dev/null
-  done
+  # Independent of peer_deny: every command the Claude fragment denied before peer_deny existed.
+  run python3 -I - "$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json" <<'PY'
+import json, re, sys
+
+deny = json.load(open(sys.argv[1]))["permissions"]["deny"]
+assert "AskUserQuestion" in deny, deny
+patterns = [p[5:-1] for p in deny if p.startswith("Bash(")]
+must_deny = [
+    "gh pr merge 1",
+    "gh pr merge --auto --squash 1",
+    "gh -R o/r pr merge 1",
+    "gh --repo o/r pr merge 1",
+    "gh --repo=o/r pr merge 1",
+    "gh pr -R o/r merge 1",
+    "gh pr --repo o/r merge 1",
+    "gh pr --repo=o/r merge 1",
+    "sh -c 'gh pr merge 1'",
+    "/usr/bin/gh pr merge 1",
+    "xargs -n1 gh pr merge",
+    "gh pr 'merge' 1",
+    'gh pr "merge" 1',
+    "gh api -X POST graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'",
+    "gh api graphql -f query='mutation { enablePullRequestAutoMerge(input: {}) { clientMutationId } }'",
+    "gh api -X PUT repos/o/r/pulls/1/merge",
+    "gh -R o/r api repos/o/r/pulls/1/merge",
+    "gh api -X POST repos/o/r/merges",
+]
+bad = [
+    c
+    for c in must_deny
+    if not any(re.fullmatch(re.escape(p).replace(r"\*", ".*"), c, re.S) for p in patterns)
+]
+assert not bad, bad
+PY
+  [ "$status" -eq 0 ]
 }
 
 @test "Claude deny fragment is the projection of peer_deny and only applies to dedicated auto sessions" {
