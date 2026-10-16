@@ -44,12 +44,23 @@ case "$*" in
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"Please fix","author":{"login":"reviewer"}}]}}}}'
   fi
   ;;
-"api --paginate repos/owner/repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pulls --jq .[].number")
-  if [ "${MOCK_SCENARIO:-}" = "unpublished" ]; then
-    printf '%s\n' '7'
-  else
-    printf '%s\n' '42'
-  fi
+*"commits(first:"*)
+  python3 - "$@" <<'PY'
+import json, os, sys
+scenario = os.environ.get('MOCK_SCENARIO', '')
+commits = ['a' * 40]
+if scenario == 'unpublished':
+    commits = []
+elif scenario in ('commit-pages', 'unpublished-pages'):
+    commits = [f'{index:040x}' for index in range(251)]
+    if scenario == 'commit-pages':
+        commits[-1] = 'a' * 40
+start = next((int(arg.split('=', 1)[1]) for arg in sys.argv if arg.startswith('cursor=')), 0)
+end = min(start + 100, len(commits))
+connection = {'nodes': [{'commit': {'oid': sha}} for sha in commits[start:end]],
+              'pageInfo': {'hasNextPage': end < len(commits), 'endCursor': str(end)}}
+print(json.dumps({'data': {'repository': {'pullRequest': {'commits': connection}}}}))
+PY
   ;;
 *"addPullRequestReviewThreadReply"*)
   if [ "${MOCK_SCENARIO:-}" = "reply-failure" ]; then
@@ -173,7 +184,7 @@ EOF
   [ "$status" -eq 0 ]
   run jq -e '.reply == "skipped" and .resolve == "already_resolved"' <<<"$output"
   [ "$status" -eq 0 ]
-  ! grep -Fq '/pulls --jq' "$MOCK_LOG"
+  ! grep -Fq 'commits(first:' "$MOCK_LOG"
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
   ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
@@ -196,6 +207,49 @@ EOF
   [[ "$output" == *"review thread belongs to other/repo#7"* ]]
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
   ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+}
+
+@test "reply-resolve accepts a commit merged elsewhere that remains in a non-default-base PR" {
+  body_file="$BATS_TEST_TMPDIR/reply.md"
+  printf '%s\n\n%s\n' \
+    '対応しました（aaaaaaa）。指摘箇所を修正しました。' \
+    '確認: bats成功。' >"$body_file"
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="merged-elsewhere" \
+    python3 "$SCRIPT" reply-resolve --repo owner/repo --pr 42 \
+    --thread-id PRRT_1 --commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    --body-file "$body_file"
+
+  [ "$status" -eq 0 ]
+  run jq -e '.reply == "created" and .resolve == "resolved"' <<<"$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "reply-resolve checks all pages beyond 250 commits before accepting or rejecting a fix" {
+  local scenario
+  body_file="$BATS_TEST_TMPDIR/reply.md"
+  printf '%s\n\n%s\n' \
+    '対応しました（aaaaaaa）。指摘箇所を修正しました。' \
+    '確認: bats成功。' >"$body_file"
+
+  for scenario in commit-pages unpublished-pages; do
+    : >"$MOCK_LOG"
+    run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="$scenario" \
+      python3 "$SCRIPT" reply-resolve --repo owner/repo --pr 42 \
+      --thread-id PRRT_1 --commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+      --body-file "$body_file"
+
+    if [ "$scenario" = commit-pages ]; then
+      [ "$status" -eq 0 ]
+      run jq -e '.reply == "created" and .resolve == "resolved"' <<<"$output"
+      [ "$status" -eq 0 ]
+    else
+      [ "$status" -ne 0 ]
+      [[ "$output" == *"is not published in owner/repo#42"* ]]
+      ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
+      ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+    fi
+  done
 }
 
 @test "reply-resolve refuses to resolve an unpublished fix commit" {
@@ -252,7 +306,7 @@ EOF
     --body-file "$body_file"
 
   [ "$status" -eq 0 ]
-  ! grep -Fq '/pulls --jq' "$MOCK_LOG"
+  ! grep -Fq 'commits(first:' "$MOCK_LOG"
   grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
   grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
