@@ -50,7 +50,7 @@ resp="$workdir/$id.md"
 # Header line plus a non-blank body: a header alone is an interrupted write.
 valid() {
   [ -f "$resp" ] && [ "$(head -n1 "$resp")" = "DONE $id $sha" ] &&
-    tail -n +2 "$resp" | grep -q '[^[:space:]]'
+    awk 'NR > 1 && /[^[:space:]]/ { found = 1 } END { exit !found }' "$resp"
 }
 # herdr prints JSON: judge state by the "agent_status" value and errors by the
 # "code" value, never by a bare word (a terminal title or path can contain one).

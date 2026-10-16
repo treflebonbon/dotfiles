@@ -53,6 +53,12 @@ esac
   echo "run-dir is not writable: $run_dir" >&2
   exit 2
 }
+for f in children.tsv failed.tsv; do
+  [ ! -e "$run_dir/$f" ] || [ -w "$run_dir/$f" ] || {
+    echo "state file is not writable: $run_dir/$f" >&2
+    exit 2
+  }
+done
 
 [ ! -e "$run_dir/stopped" ] || {
   echo "the parent has stopped: no new child" >&2

@@ -414,6 +414,13 @@ calls() { cat "$MOCK_DIR/calls.log" 2>/dev/null || true; }
   [ ! -f "$MOCK_DIR/calls.log" ]
 }
 
+@test "a long finished response is accepted on resume (no SIGPIPE under pipefail)" {
+  { printf 'DONE REQ-1 abc1234\n'; head -c 200000 /dev/zero | tr '\0' x; } >"$WORK/REQ-1.md"
+  run_helper
+  [ "$status" -eq 0 ]
+  [ ! -f "$MOCK_DIR/calls.log" ]
+}
+
 @test "a response with only the header line is not complete" {
   echo 'printf "DONE REQ-1 abc1234\n" >"$WORK/REQ-1.md"' >"$MOCK_DIR/prompt.1.hook"
   echo '{"agent_status":"idle"}' >"$MOCK_DIR/prompt.out"

@@ -381,6 +381,15 @@ mkrepo() {
   [ ! -f "$MOCK_DIR/calls.log" ]
 }
 
+@test "launch: an unwritable state file stops before any herdr side effect" {
+  [ "$(id -u)" -ne 0 ] || skip "root can write any file"
+  : >"$RUN_DIR/children.tsv"
+  chmod 444 "$RUN_DIR/children.tsv"
+  launch
+  [ "$status" -eq 2 ]
+  [ ! -f "$MOCK_DIR/calls.log" ]
+}
+
 @test "owned: an untracked file without a trailing newline counts its last line" {
   mkrepo
   printf '1\n2' >"$REPO/new.sh"

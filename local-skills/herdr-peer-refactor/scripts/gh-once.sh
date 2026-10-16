@@ -59,8 +59,9 @@ fi
 # One writer per marker: a concurrent run waits here, then its lookup sees the
 # first run's artifact. The lock is system Perl's flock(2) (macOS has no flock
 # command, ADR-0050); a lock that cannot be taken leaves existence unknown.
-lock="${TMPDIR:-/tmp}/gh-once-$(printf '%s' "$marker" | cksum | cut -d' ' -f1).lock"
-exec 9>"$lock"
+# The path is fixed (not TMPDIR): callers with different TMPDIR must share it.
+lock="/tmp/gh-once-$(id -u)-$(printf '%s' "$marker" | cksum | cut -d' ' -f1).lock"
+exec 9>"$lock" || exit 3
 perl -MFcntl=:flock -e 'open(my $fh, "+<&=", 9) or exit 2; flock($fh, LOCK_EX) or exit 2' || exit 3
 
 found=$(lookup) || exit 3
