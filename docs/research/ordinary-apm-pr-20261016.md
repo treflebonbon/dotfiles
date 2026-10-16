@@ -26,3 +26,19 @@ ADR-0045 Decision 2–4、runtime/skill-harness.mdのnative lock／既存runtime
 ## このbranchの検証計画
 
 source manifest／lockと先行通常APM runtimeのbyte一致を確認し、既存helperの空candidate planで全配布・両target各46 discovery・hash・frontmatter・追加削除0を再照合する。先行native generation／frozen hash不変／auditの証拠は参照元として明示する。今回branchでsource-selected CLI outputを`--no-codex-build --shell wsl`で確保し、3-system評価、2軸レビュー、canonical全suiteを実行する。統合branchの862件をこのbranchの成功として転記しない。
+
+## 分割branchの公開前検証結果
+
+canonical対象HEADは `6d8d6a38adeb6598020c50a243a58d2cf608e3f9`。このbranchで `verify-ai-tools.py --no-codex-build --shell wsl -- python3 scripts/verify-canonical.py` を実行した。全862件中841成功・21既定skip・失敗0、verifier／runner／commandの終了コードはすべて0。全Batsの実測は 1572.03 秒。Design Hook 13件とPlaywright runtime 2件の必須fixtureは15件すべてskipなしで成功した。
+
+開始前後のHEAD、全tracked 603 fileのbytes／mode、runtime実体／hashは一致し、HEAD不一致と証拠照合エラーは0。6 AI CLIのsource-selected output・実path・実versionも照合した。Codexは既存 `/nix/store/lhczzl4166l2aps8bcl1zi9kbqbbqy3w-codex-0.162.1` を再利用し、Codex source buildは実行していない。
+
+source manifest／lockと再利用runtime `/tmp/codex/update-tools-skills.PW07sN/ordinary-apm` のbyte一致を確認し、空candidate planの配布照合がexit 0。20 dependency、両target各46 skill、実bytes／hash／frontmatter、追加削除0を確認した。先行native生成・frozen no-rewrite・audit 10/10は同一lockの証拠として再利用する。元のledger比較もshadcn単独ownerの4 hashのみ変更、残る1,460 recordと全owner／active_owner不変を確認済み。今回の再照合は `/tmp/codex/publish-tools-skills.5wTc8t/ordinary-deployment.log`、元のnative証拠とledgerは `/tmp/codex/update-tools-skills.PW07sN/ordinary-apm/` と `ordinary-ledger.json`。
+
+分割後のStandards／Specレビューは各0件。レビュー対象は本canonical対象HEADのmain `300ffc8` との差分で、統合branchの結果は使用していない。
+
+今回のcanonical証拠は `/home/ubuntu/.codex/worktrees/591a/dotfiles/tmp/canonical-run.yef80zn4/` の `before.json`／`after.json`／`result.json`／`runner-path`、AI CLI証拠は `/home/ubuntu/.codex/worktrees/591a/dotfiles/tmp/ai-tools-0mdyaw6w/`。集計・起動条件・公開前の不変照合は `/tmp/codex/publish-tools-skills.5wTc8t/ordinary/` に保存する。
+
+検証後の追記は本結果記録だけとし、公開前に記録以外の全tracked内容と保存済みruntime実体／hashを再照合する。ARM2 systemの実機起動と認証・実モデル等の既定opt-in 21件は未検証。隔離APMの組織policy enforcementはwarning付きskipで、その適合は未検証。
+
+この時点で全3 branchの分割検証は成功済み、topic push／PR作成へ進む。merge・live applyは未実施で、更新全体の配備完了とは扱わない。
