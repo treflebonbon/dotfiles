@@ -82,6 +82,8 @@
 
 **Runtime Adapter**: raw agent runtime の実行 context を公式 permission・working-root interface へ変換する狭い接続層。Active Git Metadata Boundary を解決できない場合は権限を広げず停止し、workflow policy や Git 操作そのものは所有しない。Worktree Owner が直接提供する built-in agent integration とは区別する。 _Avoid_: custom launcher, wrapper, glue
 
+**gateway 実行資源**: raw Codex の一回の隔離実行で、host と隔離側の通信を支えるために所有する一時資源の集合。終了後の復旧に使う session の成果物とは区別する。 _Avoid_: session, 復旧用 snapshot, 認証情報
+
 **Design Hook**: UI コードに対して決定論的なデザイン検査を行い、修正対象となる finding だけをエージェントの作業文脈へ返す advisory 型の自動フィードバック経路。二層で走る — 編集直後（per-edit）はその場で直すべき機械的な層だけ、残りはセッション終端の deep pass でまとめて返す。変更を拒否する品質ゲートではなく、人間が画面を見て判断する要素指差しフィードバックや、実装後の受入検証とも異なる。 _Avoid_: visual lint, UI review, 見た目確認
 
 **要素指差しフィードバック**: `tdd` の実装サイクル中、人間が画面上の UI 要素を選択し、その場でエージェントへ変更を指示する対話チャネル（Codex app（in-app browser）: Annotation Mode / Orca IDE: Design Mode / Claude Code: `claude-in-chrome`）。実装完了後にエージェントが自律的に行う受入検証とは主体（人間 vs エージェント）とタイミング（実装中 vs 実装後）の両方が異なる。 _Avoid_: UI verification, ブラウザ検証

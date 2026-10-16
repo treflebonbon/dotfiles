@@ -17,6 +17,13 @@ case "$runtime" in
 "$source_dir" | "$source_dir"/*) reject 'APM lockはsourceの外の隔離runtimeで生成してください' ;;
 esac
 [[ -f apm.yml ]] || reject '候補のapm.ymlがありません'
+# A symlinked parent would let install create skills outside this runtime.
+for path in .agents .claude; do
+  [[ ! -L "$path" ]] || reject "配備先の親がシンボリックリンクです: $path（新しい隔離runtimeを使ってください）"
+done
+for path in .agents/skills .claude/skills; do
+  [[ ! -e "$path" && ! -L "$path" ]] || reject "配備済みパスが存在します: $path（新しい隔離runtimeを使ってください）"
+done
 
 expected=$(APM_SOURCE_DIR="$source_dir" nix eval --impure --raw --no-write-lock-file --expr '
   let

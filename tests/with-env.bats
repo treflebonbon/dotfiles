@@ -39,6 +39,20 @@ with_env() {
   [ -z "${DUMMY_257+x}" ]
 }
 
+@test "with-env keeps the caller's value for a variable the devShell also exports" {
+  cat >"$FIXTURE/bin/nix" <<'EOF'
+#!/bin/sh
+printf 'export PROJECT_257=prepared\n'
+printf 'export DUMMY_257=from-devshell\n'
+EOF
+  export DUMMY_257=from-caller
+
+  run with_env bash -c 'printf "%s/%s\n" "$PROJECT_257" "$DUMMY_257"'
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'prepared/from-caller'* ]]
+}
+
 @test "with-env preserves caller Git settings without exposing them to preparation" {
   cat >"$FIXTURE/bin/nix" <<'EOF'
 #!/bin/sh

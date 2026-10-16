@@ -8,6 +8,13 @@ readonly SRC="$BATS_TEST_DIRNAME/../local-skills/worktree-gc/scripts/worktree-gc
 
 setup() {
   setup_test_env
+  # ホストの他ユーザーの権限に依存せず、列挙できる全PIDのcwdが読める状態を作る。
+  export WORKTREE_GC_PROC_ROOT="$BATS_TEST_TMPDIR/proc"
+  mkdir -p "$WORKTREE_GC_PROC_ROOT/self" "$WORKTREE_GC_PROC_ROOT/1"
+  : >"$WORKTREE_GC_PROC_ROOT/self/stat"
+  ln -s / "$WORKTREE_GC_PROC_ROOT/self/cwd"
+  ln -s / "$WORKTREE_GC_PROC_ROOT/1/cwd"
+  printf '1 0 0:1 / /proc rw - proc proc rw\n' >"$WORKTREE_GC_PROC_ROOT/self/mountinfo"
 }
 
 extract_functions() {
@@ -28,6 +35,7 @@ run_pure_function() {
   local deps=("$fn")
   case "$fn" in
   is_dangling_worktree) deps+=(gitdir_target) ;;
+  is_busy_dir) deps+=(process_inspection_available) ;;
   esac
   local quoted_args=() a
   for a in "$@"; do
@@ -36,6 +44,7 @@ run_pure_function() {
   run /usr/bin/env -i \
     PATH="/usr/bin:/bin" \
     HOME="$BATS_TEST_TMPDIR/home" \
+    WORKTREE_GC_PROC_ROOT="$WORKTREE_GC_PROC_ROOT" \
     /bin/bash -c "
       $(extract_functions "$SRC" "${deps[@]}")
       $fn ${quoted_args[*]}
@@ -173,6 +182,7 @@ EOF
     fi
     sleep 0.05
   done
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run_pure_function is_busy_dir "$dir"
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
@@ -389,6 +399,7 @@ EOF
     sleep 0.05
   done
   # symlink 経由の(未解決の)パスを渡しても検出できなければならない。
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run_pure_function is_busy_dir "$BATS_TEST_TMPDIR/link/wt"
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
@@ -438,6 +449,7 @@ EOF
     sleep 0.05
   done
 
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply --max-report 1 \
     --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
 
@@ -517,6 +529,7 @@ EOF
     sleep 0.05
   done
 
+  ln -s "/proc/$pid" "$WORKTREE_GC_PROC_ROOT/$pid"
   run env WORKTREE_GC_PROTECT_OPEN_PR=0 bash "$SRC" --apply \
     --ghq-root "$ghq_root" --herdr-root "$herdr" --orca-root "$orca" --age-days 7
 
@@ -526,6 +539,105 @@ EOF
   assert_success
   [ -d "$herdr/myrepo/feature-x" ]
   [ -d "$herdr/myrepo/feature-y" ]
+}
+
+@test "apply refuses unsupported or inaccessible process inspection before invoking the engine" {
+  local bin="$BATS_TEST_TMPDIR/bin" mode
+  mkdir -p "$bin" "$BATS_TEST_TMPDIR/herdr/deleted/old"
+  printf 'gitdir: /missing/parent/worktrees/old\n' >"$BATS_TEST_TMPDIR/herdr/deleted/old/.git"
+  age_dir "$BATS_TEST_TMPDIR/herdr/deleted/old"
+  make_ghq_repo "$BATS_TEST_TMPDIR/ghq/repo"
+  printf '#!/bin/sh\necho invoked >>"$ENGINE_LOG"\necho "done removed=0"\n' >"$bin/engine"
+  for mode in unsupported inaccessible; do
+    if [ "$mode" = unsupported ]; then
+      printf '#!/bin/sh\necho Darwin\n' >"$bin/uname"
+      printf '#!/bin/sh\nexec /usr/bin/readlink "$@"\n' >"$bin/readlink"
+    else
+      printf '#!/bin/sh\necho Linux\n' >"$bin/uname"
+      printf '#!/bin/sh\nexit 1\n' >"$bin/readlink"
+    fi
+    chmod +x "$bin/uname" "$bin/readlink"
+    run env PATH="$bin:$PATH" WORKTREE_GC_ENGINE="$bin/engine" ENGINE_LOG="$BATS_TEST_TMPDIR/$mode.log" bash "$SRC" --apply \
+      --ghq-root "$BATS_TEST_TMPDIR/ghq" \
+      --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
+    assert_failure
+    assert_output --partial 'process inspection unavailable; refusing --apply'
+    [ ! -e "$BATS_TEST_TMPDIR/$mode.log" ]
+    [ -d "$BATS_TEST_TMPDIR/herdr/deleted/old" ]
+    run env PATH="$bin:$PATH" bash "$SRC" --dry-run \
+      --ghq-root "$BATS_TEST_TMPDIR/empty" \
+      --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
+    assert_success
+  done
+}
+
+@test "apply refuses hidden or uninspectable procfs and accepts a fully visible one" {
+  local bin="$BATS_TEST_TMPDIR/bin" proc="$BATS_TEST_TMPDIR/proc" mode
+  mkdir -p "$bin" "$BATS_TEST_TMPDIR/herdr" "$BATS_TEST_TMPDIR/orca"
+  make_ghq_repo "$BATS_TEST_TMPDIR/ghq/repo"
+  printf '#!/bin/sh\necho invoked >>"$ENGINE_LOG"\necho "done removed=0"\n' >"$bin/engine"
+  chmod +x "$bin/engine"
+  for mode in hidepid hidepid-4 hidepid-ptraceable no-init missing-mountinfo mountinfo-directory visible; do
+    rm -rf "$proc"
+    mkdir -p "$proc/self" "$proc/1"
+    : >"$proc/self/stat"
+    ln -s / "$proc/self/cwd"
+    printf '1 0 0:1 / /proc rw - proc proc rw\n' >"$proc/self/mountinfo"
+    [ "$mode" != hidepid ] || printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=2\n' >"$proc/self/mountinfo"
+    [ "$mode" != no-init ] || rmdir "$proc/1"
+    [ "$mode" = no-init ] || ln -s / "$proc/1/cwd"
+    case "$mode" in
+    hidepid-4) printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=4\n' >"$proc/self/mountinfo" ;;
+    hidepid-ptraceable) printf '1 0 0:1 / /proc rw - proc proc rw,hidepid=ptraceable\n' >"$proc/self/mountinfo" ;;
+    missing-mountinfo) rm "$proc/self/mountinfo" ;;
+    mountinfo-directory)
+      rm "$proc/self/mountinfo"
+      mkdir "$proc/self/mountinfo"
+      ;;
+    esac
+    run env WORKTREE_GC_PROC_ROOT="$proc" WORKTREE_GC_ENGINE="$bin/engine" ENGINE_LOG="$BATS_TEST_TMPDIR/$mode.log" \
+      bash "$SRC" --apply --ghq-root "$BATS_TEST_TMPDIR/ghq" \
+      --herdr-root "$BATS_TEST_TMPDIR/herdr" --orca-root "$BATS_TEST_TMPDIR/orca"
+    if [ "$mode" = visible ]; then
+      assert_success
+      [ -e "$BATS_TEST_TMPDIR/$mode.log" ]
+    else
+      assert_failure
+      assert_output --partial 'process inspection unavailable; refusing --apply'
+      [ ! -e "$BATS_TEST_TMPDIR/$mode.log" ]
+    fi
+  done
+}
+
+@test "統合: 生存するPIDのcwdを検査できなければrepoとdangling候補を保護する" {
+  local bin="$BATS_TEST_TMPDIR/bin" proc="$BATS_TEST_TMPDIR/proc" mode
+  mkdir -p "$bin" "$proc/2"
+  for mode in missing-cwd unreadable-cwd; do
+    local root="$BATS_TEST_TMPDIR/$mode" repo="$BATS_TEST_TMPDIR/$mode/ghq/repo"
+    make_ghq_repo "$repo"
+    git -C "$repo" worktree add -q -b feature "$root/herdr/repo/feature"
+    mkdir -p "$root/orca/gone/old"
+    printf 'gitdir: /missing/parent/worktrees/old\n' >"$root/orca/gone/old/.git"
+    age_dir "$root/herdr/repo/feature"
+    age_dir "$root/orca/gone/old"
+    if [ "$mode" = unreadable-cwd ]; then
+      ln -s "$root/herdr/repo/feature" "$proc/2/cwd"
+      cat >"$bin/readlink" <<'EOF'
+#!/bin/sh
+for arg do
+  [ "$arg" != "$WORKTREE_GC_PROC_ROOT/2/cwd" ] || exit 1
+done
+exec /usr/bin/readlink "$@"
+EOF
+      chmod +x "$bin/readlink"
+    fi
+    run env PATH="$bin:$PATH" WORKTREE_GC_PROC_ROOT="$proc" WORKTREE_GC_PROTECT_OPEN_PR=0 \
+      bash "$SRC" --apply --ghq-root "$root/ghq" --herdr-root "$root/herdr" --orca-root "$root/orca"
+    assert_success
+    [ -d "$root/herdr/repo/feature" ]
+    [ -d "$root/orca/gone/old" ]
+    assert_output --partial 'fanout done removed=0'
+  done
 }
 
 @test "統合: 単体とfan-outの既定は3日で、danglingにも適用する" {

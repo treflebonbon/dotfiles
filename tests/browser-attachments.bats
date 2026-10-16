@@ -81,7 +81,7 @@ JS
   cat >"$BROWSER_ATTACHMENTS_PLAYWRIGHT" <<'JS'
 let number=0;
 export const chromium={connectOverCDP:async()=>({contexts:()=>[{newPage:async()=>{
- let asset='';const form={locator:()=>({setInputFiles:async()=>{asset=`https://github.com/user-attachments/assets/${++number}`;}})};
+ let asset='';const form={locator:()=>({waitFor:async()=>{},setInputFiles:async()=>{asset=`https://github.com/user-attachments/assets/${++number}`;}})};
  const textarea={count:async()=>1,waitFor:async()=>{},locator:()=>form,inputValue:async()=>asset};
  return {goto:async()=>{},url:()=> 'https://github.com/owner/repo/pull/42',locator:()=>textarea,close:async()=>{}};
 }}],close:async()=>{}})};

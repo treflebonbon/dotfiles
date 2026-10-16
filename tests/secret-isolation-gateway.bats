@@ -166,12 +166,27 @@ PY
   local project_root
   project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   run python3 - "$project_root/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/proxy" <<'PY'
-import http.client, runpy, socket, socketserver, sys, threading
+import http.client, runpy, socket, socketserver, ssl, sys, threading
 from pathlib import Path
 module = runpy.run_path(sys.argv[1])
+outgoing = ssl.MemoryBIO()
+# Keep the SSLObject alive while generating its first handshake flight.
+client_tls = ssl.create_default_context().wrap_bio(ssl.MemoryBIO(), outgoing, server_hostname='cache.nixos.org')
+try:
+    client_tls.do_handshake()
+except ssl.SSLWantReadError:
+    pass
+hello = outgoing.read()
 class Echo(socketserver.BaseRequestHandler):
     def handle(self):
-        self.request.sendall(self.request.recv(4))
+        received = bytearray()
+        while len(received) < len(hello):
+            chunk = self.request.recv(len(hello) - len(received))
+            if not chunk:
+                return
+            received.extend(chunk)
+        assert received == hello
+        self.request.sendall(b'pong')
 upstream = socketserver.ThreadingTCPServer(('127.0.0.1', 0), Echo)
 threading.Thread(target=upstream.serve_forever, daemon=True).start()
 server = module['start_gateway'](Path(sys.argv[2]), 'dependencies', domains=['cache.nixos.org'])
@@ -203,8 +218,8 @@ try:
     client.request('CONNECT', 'cache.nixos.org:443')
     response = client.getresponse()
     assert response.status == 200, response.status
-    tunnel.sendall(b'ping')
-    assert response.read(4) == b'ping'
+    tunnel.sendall(hello)
+    assert response.read(4) == b'pong'
     response.close()
     client.close()
     assert attempts == ['8.8.8.8', '1.1.1.1'], attempts
@@ -214,6 +229,228 @@ finally:
     upstream.shutdown()
     upstream.server_close()
 PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "request bodies delivered in fragments are read completely" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PYTEST'
+import json, runpy, socket, sys, time
+from pathlib import Path
+from unittest.mock import patch
+module = runpy.run_path(sys.argv[1])
+server = module['start_gateway'](Path(sys.argv[2]), 'dependencies', domains=['cache.nixos.org'])
+body = json.dumps({'host': 'cache.nixos.org', 'type': 1}).encode()
+try:
+    with patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443))]):
+        client = socket.socket(socket.AF_UNIX)
+        client.settimeout(5)
+        client.connect(server.server_address)
+        client.sendall(b'POST /resolve HTTP/1.1\r\nHost: resolver\r\nContent-Length: %d\r\n\r\n' % len(body))
+        for start in range(0, len(body), 7):
+            client.sendall(body[start:start + 7])
+            time.sleep(0.05)
+        response = client.recv(4096)
+        client.close()
+    assert response.startswith(b'HTTP/1.0 200') or response.startswith(b'HTTP/1.1 200'), response
+    assert response.endswith(b'["8.8.8.8"]'), response
+finally:
+    server.shutdown()
+    server.server_close()
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "a trickled TLS ClientHello is rejected by one overall deadline" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" <<'PYTEST'
+import runpy, socket, sys, threading, time
+check = runpy.run_path(sys.argv[1])['checked_client_hello']
+reader, writer = socket.socketpair()
+stop = threading.Event()
+def trickle():
+    try:
+        while not stop.is_set():
+            writer.sendall(b'\x16')
+            time.sleep(0.2)
+    except OSError:
+        pass
+thread = threading.Thread(target=trickle)
+thread.start()
+started = time.monotonic()
+try:
+    check(reader.makefile('rb', 0), 'allowed.example', reader, timeout=1)
+except ValueError:
+    pass
+else:
+    raise AssertionError('a trickled hello must be rejected')
+finally:
+    stop.set()
+    reader.close()
+    writer.close()
+    thread.join()
+assert time.monotonic() - started < 3, 'deadline was not enforced for the whole hello'
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "CONNECT refuses a different TLS virtual host on the same permitted IP" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PYTEST'
+import http.client, runpy, socket, socketserver, ssl, sys, threading
+from pathlib import Path
+from unittest.mock import patch
+module = runpy.run_path(sys.argv[1])
+received = []
+class Capture(socketserver.BaseRequestHandler):
+    def handle(self):
+        self.request.settimeout(3)
+        received.append(self.request.recv(65536))
+upstream = socketserver.ThreadingTCPServer(('127.0.0.1', 0), Capture)
+thread = threading.Thread(target=upstream.serve_forever)
+thread.start()
+server = module['start_gateway'](Path(sys.argv[2]), 'dependencies',
+    domains=['allowed.example'], denied_domains=['denied.example'])
+original_socket = socket.socket
+class FixtureSocket(original_socket):
+    def connect(self, address):
+        if self.family == socket.AF_INET and address == ('8.8.8.8', 443):
+            address = upstream.server_address
+        return super().connect(address)
+try:
+    with patch('socket.socket', FixtureSocket), patch('socket.getaddrinfo', return_value=[
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443))]):
+        for hostname in ('unlisted.example', 'denied.example', None):
+            outgoing = ssl.MemoryBIO()
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            tls = context.wrap_bio(ssl.MemoryBIO(), outgoing, server_hostname=hostname)
+            try:
+                tls.do_handshake()
+            except ssl.SSLWantReadError:
+                pass
+            client = http.client.HTTPConnection('gateway')
+            client.sock = original_socket(socket.AF_UNIX)
+            client.sock.settimeout(3)
+            client.sock.connect(server.server_address)
+            tunnel = client.sock
+            client.request('CONNECT', 'allowed.example:443')
+            response = client.getresponse()
+            assert response.status == 200
+            tunnel.sendall(outgoing.read())
+            assert response.read() == b''
+            response.close()
+            client.close()
+finally:
+    server.shutdown()
+    server.server_close()
+    upstream.shutdown()
+    upstream.server_close()
+    thread.join()
+assert received == [b'', b'', b''], [len(data) for data in received]
+assert server.requests == 0
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "TLS destination validation accepts fragmented hello and rejects hidden or malformed names" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" <<'PYTEST'
+import io, runpy, ssl, sys
+check = runpy.run_path(sys.argv[1])['checked_client_hello']
+outgoing = ssl.MemoryBIO()
+tls = ssl.create_default_context().wrap_bio(ssl.MemoryBIO(), outgoing, server_hostname='allowed.example')
+try:
+    tls.do_handshake()
+except ssl.SSLWantReadError:
+    pass
+hello = outgoing.read()
+assert check(io.BytesIO(hello), 'allowed.example') == hello
+payload = hello[5:]
+def record(data):
+    return b'\x16\x03\x03' + len(data).to_bytes(2, 'big') + data
+fragmented = b''.join(record(payload[n:n+3]) for n in range(0, len(payload), 3))
+assert check(io.BytesIO(fragmented), 'allowed.example') == fragmented
+# Add an ECH extension, maintaining all enclosing lengths.
+body = bytearray(payload[4:])
+pos = 34
+pos += 1 + body[pos]
+pos += 2 + int.from_bytes(body[pos:pos+2], 'big')
+pos += 1 + body[pos]
+size = int.from_bytes(body[pos:pos+2], 'big')
+body[pos:pos+2] = (size + 4).to_bytes(2, 'big')
+body.extend(b'\xfe\x0d\x00\x00')
+ech = record(b'\x01' + len(body).to_bytes(3, 'big') + body)
+for bad in (hello[:-1], b'GET /', record(b'\x02\x00\x00\x00'), ech,
+            record(payload + b'extra'), b'\x16\x03\x03\xff\xff'):
+    try:
+        check(io.BytesIO(bad), 'allowed.example')
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('invalid hello accepted')
+PYTEST
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "validated CONNECT tunnels complete TLS 1.2 and TLS 1.3 handshakes" {
+  run python3 - "$BATS_TEST_DIRNAME/../private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR" <<'PYTEST'
+import http.client, runpy, socket, socketserver, ssl, subprocess, sys, threading
+from pathlib import Path
+from unittest.mock import patch
+module = runpy.run_path(sys.argv[1])
+root = Path(sys.argv[2])
+subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+    '-keyout', str(root / 'key.pem'), '-out', str(root / 'cert.pem'), '-days', '1',
+    '-subj', '/CN=allowed.example', '-addext', 'subjectAltName=DNS:allowed.example'],
+    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(root / 'cert.pem', root / 'key.pem')
+names = []
+context.set_servername_callback(lambda sock, name, ctx: names.append(name))
+class Echo(socketserver.BaseRequestHandler):
+    def handle(self):
+        with context.wrap_socket(self.request, server_side=True) as tls:
+            assert tls.recv(4) == b'ping'
+            tls.sendall(b'pong')
+upstream = socketserver.ThreadingTCPServer(('127.0.0.1', 0), Echo)
+thread = threading.Thread(target=upstream.serve_forever)
+thread.start()
+server = module['start_gateway'](root / 'socket', 'dependencies', domains=['allowed.example'])
+original_socket = socket.socket
+class FixtureSocket(original_socket):
+    def connect(self, address):
+        if self.family == socket.AF_INET and address == ('8.8.8.8', 443):
+            address = upstream.server_address
+        return super().connect(address)
+try:
+    with patch('socket.socket', FixtureSocket), patch('socket.getaddrinfo', return_value=[
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443))]):
+        for version in (ssl.TLSVersion.TLSv1_2, ssl.TLSVersion.TLSv1_3):
+            client = http.client.HTTPConnection('gateway')
+            client.sock = original_socket(socket.AF_UNIX)
+            client.sock.settimeout(5)
+            client.sock.connect(server.server_address)
+            tunnel = client.sock
+            client.request('CONNECT', 'allowed.example:443')
+            response = client.getresponse()
+            assert response.status == 200
+            context_client = ssl.create_default_context(cafile=str(root / 'cert.pem'))
+            context_client.minimum_version = context_client.maximum_version = version
+            with context_client.wrap_socket(tunnel, server_hostname='allowed.example') as tls:
+                tls.sendall(b'ping')
+                assert tls.recv(4) == b'pong'
+            response.close()
+            client.close()
+finally:
+    server.shutdown()
+    server.server_close()
+    upstream.shutdown()
+    upstream.server_close()
+    thread.join()
+assert names == ['allowed.example', 'allowed.example']
+PYTEST
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
@@ -248,11 +485,12 @@ for label, services, expected in (
     before_threads = set(threading.enumerate())
     try:
         with patch.dict(run_isolated.__globals__, prepare=lambda *a: None), \
+             patch.dict(gateway_module['start_gateway'].__globals__, start_gateway=start_gateway), \
              patch('shutil.which', return_value=sys.executable), \
              patch('subprocess.run') as run, \
              patch('subprocess.check_output', return_value=''), \
              patch('tempfile.mkdtemp', return_value=str(root)), \
-             patch('runpy.run_path', return_value={'start_gateway': start_gateway}):
+             patch('runpy.run_path', return_value=gateway_module):
             try:
                 run_isolated(None, None, output, ['true'], services, ca_bundle=ca,
                              runtime={'domains': [], 'codex_home': str(parent / 'missing-login')})

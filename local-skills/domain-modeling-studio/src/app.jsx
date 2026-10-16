@@ -54,10 +54,17 @@ const deriveLayerView = (graph, layer, selected) => {
   const layerEdges = graph.edges.filter(
     (e) => layerNodeIds.has(e.source) && layerNodeIds.has(e.target)
   );
+  // An edge with exactly one endpoint in this layer is schema-valid
+  // (model.md's cross-layer section) but would never satisfy layerEdges'
+  // both-endpoints test in any single layer, so it must stay reachable for
+  // review even though the canvas can't place its other endpoint here.
+  const crossLayerEdges = graph.edges.filter(
+    (e) => layerNodeIds.has(e.source) !== layerNodeIds.has(e.target)
+  );
   const drillTarget =
     selected?.data?.drillInto &&
     graph.nodes.find((n) => n.id === selected.data.drillInto);
-  return { drillTarget, layerEdges, layerKinds, layerNodes };
+  return { crossLayerEdges, drillTarget, layerEdges, layerKinds, layerNodes };
 };
 const download = (name, content) => {
   const url = URL.createObjectURL(
@@ -134,6 +141,8 @@ const Evidence = ({ evidence }) =>
 const Inspector = ({
   doc,
   graph,
+  allNodes,
+  crossLayerEdgeIds,
   kinds,
   selected,
   selection,
@@ -170,6 +179,7 @@ const Inspector = ({
         {graph.edges.map((e) => (
           <option key={e.id} value={`edge:${e.id}`}>
             関係: {e.label || e.id}
+            {crossLayerEdgeIds?.has(e.id) ? "（他レイヤー）" : ""}
           </option>
         ))}
       </select>
@@ -264,7 +274,10 @@ const Inspector = ({
                   value={selected[key]}
                   onChange={(e) => edit({ [key]: e.target.value })}
                 >
-                  {graph.nodes.map((n) => (
+                  {(crossLayerEdgeIds?.has(selected.id)
+                    ? allNodes
+                    : graph.nodes
+                  ).map((n) => (
                     <option key={n.id} value={n.id}>
                       {n.data.label}
                     </option>
@@ -313,8 +326,12 @@ const Inspector = ({
       <textarea
         value={comment}
         onChange={(e) => {
-          draftTarget.current ??= target;
-          setComment(e.target.value);
+          const { value } = e.target;
+          // Clearing the draft (not just submitting it) must also drop the
+          // captured target, or a fresh draft started after reselecting gets
+          // silently attributed to whatever was selected when typing began.
+          draftTarget.current = value ? (draftTarget.current ?? target) : null;
+          setComment(value);
         }}
         rows={4}
         placeholder="認識の違い、例外条件、境界の疑問を記入"
@@ -459,11 +476,9 @@ const App = ({ seed }) => {
       (n) => n.id === selection.id
     );
   const target = selected ? { id: selected.id, view } : { view: "whole" };
-  const { drillTarget, layerEdges, layerKinds, layerNodes } = deriveLayerView(
-    graph,
-    layer,
-    selected
-  );
+  const { crossLayerEdges, drillTarget, layerEdges, layerKinds, layerNodes } =
+    deriveLayerView(graph, layer, selected);
+  const crossLayerEdgeIds = new Set(crossLayerEdges.map((e) => e.id));
   const goToDrillTarget = () => {
     if (!drillTarget) {
       return;
@@ -977,7 +992,12 @@ const App = ({ seed }) => {
             </section>
             <Inspector
               doc={doc}
-              graph={{ edges: layerEdges, nodes: layerNodes }}
+              graph={{
+                edges: [...layerEdges, ...crossLayerEdges],
+                nodes: layerNodes,
+              }}
+              allNodes={graph.nodes}
+              crossLayerEdgeIds={crossLayerEdgeIds}
               kinds={layerKinds}
               selected={selected}
               selection={selection}

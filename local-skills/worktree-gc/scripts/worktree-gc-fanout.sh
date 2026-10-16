@@ -31,7 +31,8 @@
 #
 # Dry-run by default (mirrors worktree-gc.sh). --diagnose prints an
 # aggregate, structured candidate report across every repo + the dangling
-# scan. --apply performs real removal.
+# scan. --apply requires readable Linux /proc cwd inspection; unsupported
+# platforms retain dry-run and diagnose support.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -214,17 +215,38 @@ skip_summary_and_header() {
   done
 }
 
-# Success iff a live process has $1 (or a path under it) as its cwd.
+# Refuse deletion when this runtime cannot inspect Linux process cwd links.
+# A procfs that exposes /proc/self but hides other processes (hidepid, or no
+# visible PID 1) is as blind as a missing one, so the current process alone is
+# not proof. Limit: a procfs mounted inside a nested PID namespace still shows
+# its own PID 1, so processes outside that namespace cannot be detected here.
+# WORKTREE_GC_PROC_ROOT only exists so tests can supply a fixture.
+process_inspection_available() {
+  local root="${WORKTREE_GC_PROC_ROOT:-/proc}" mountinfo_status=0
+  [ "$(uname -s)" = Linux ] &&
+    [ -r "$root" ] && [ -x "$root" ] &&
+    [ -r "$root/self/stat" ] &&
+    readlink -f "$root/self/cwd" >/dev/null 2>&1 &&
+    [ -d "$root/1" ] || return 1
+  grep -Eq 'hidepid=(1|2|4|noaccess|invisible|ptraceable)' "$root/self/mountinfo" 2>/dev/null || mountinfo_status=$?
+  [ "$mountinfo_status" -eq 1 ]
+}
+
+# Success iff $1 is busy or a surviving PID's cwd cannot be inspected.
 is_busy_dir() {
-  local dir cwd_link resolved
+  local dir pid_dir resolved
+  process_inspection_available || return 0
   # Canonicalize $1 too: /proc/<pid>/cwd always resolves to a canonical path,
   # so comparing it against an unresolved $1 would fail-open (miss a busy
   # process) whenever $1's path has a symlink component. Fall back to the
   # literal argument if it can't be resolved (e.g. it no longer exists).
   dir=$(readlink -f "$1" 2>/dev/null) || dir="$1"
-  for cwd_link in /proc/[0-9]*/cwd; do
-    [ -e "$cwd_link" ] || continue
-    resolved=$(readlink -f "$cwd_link" 2>/dev/null) || continue
+  for pid_dir in "${WORKTREE_GC_PROC_ROOT:-/proc}"/[0-9]*; do
+    [ -d "$pid_dir" ] || continue
+    if ! resolved=$(readlink "$pid_dir/cwd" 2>/dev/null); then
+      [ ! -d "$pid_dir" ] || return 0
+      continue
+    fi
     case "$resolved" in
     "$dir" | "$dir"/*) return 0 ;;
     esac
@@ -425,6 +447,10 @@ cmd_sweep() {
   local global_used=0 repo roots remaining out removed root dir
   local engine_flags=()
   if [ "$APPLY" = true ]; then
+    if ! process_inspection_available; then
+      echo "process inspection unavailable; refusing --apply" >&2
+      return 1
+    fi
     engine_flags=(--apply)
   fi
 
@@ -436,7 +462,7 @@ cmd_sweep() {
     fi
     roots=$(safe_roots_for "$repo")
     if [ "$APPLY" = true ] && repo_has_busy_candidate "$repo" "$roots"; then
-      echo "protected (busy process detected in a candidate): $repo" >&2
+      echo "protected (busy or uninspectable process in a candidate): $repo" >&2
       continue
     fi
     if ! out=$(bash "$ENGINE" "${engine_flags[@]}" --repo "$repo" --roots "$roots" \
@@ -463,7 +489,7 @@ cmd_sweep() {
         continue
       fi
       if is_busy_dir "$dir"; then
-        echo "protected (busy process detected): $dir" >&2
+        echo "protected (busy or uninspectable process): $dir" >&2
         continue
       fi
       echo "removing dangling: $dir"

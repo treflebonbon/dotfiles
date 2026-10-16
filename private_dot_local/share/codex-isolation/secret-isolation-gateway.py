@@ -2,6 +2,7 @@
 """Single-service, fixed-endpoint gateways for the #270 runtime experiment."""
 
 import argparse
+from contextlib import ExitStack, contextmanager
 import http.client
 from http.server import BaseHTTPRequestHandler
 import ipaddress
@@ -17,7 +18,9 @@ import ssl
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
+import time
 from urllib.parse import urlsplit
 
 
@@ -55,6 +58,95 @@ def relay(left, right):
             else:
                 peers.remove(peer)
                 target.shutdown(socket.SHUT_WR)
+
+
+def checked_client_hello(stream, host, connection=None, timeout=10):
+    """Buffer a bounded TLS ClientHello before forwarding any tunnel bytes.
+
+    With a connection, the whole read shares one deadline instead of a per-read timeout.
+    """
+    deadline = time.monotonic() + timeout
+
+    def read_exact(size):
+        data = bytearray()
+        while len(data) < size:
+            if connection is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ValueError("TLS ClientHello timed out")
+                connection.settimeout(remaining)
+            chunk = stream.read(size - len(data))
+            if not chunk:
+                raise ValueError("truncated TLS ClientHello")
+            data.extend(chunk)
+        return bytes(data)
+
+    wire = bytearray()
+    handshake = bytearray()
+    while len(handshake) < 4 or len(handshake) < 4 + int.from_bytes(
+        handshake[1:4], "big"
+    ):
+        header = read_exact(5)
+        size = int.from_bytes(header[3:5], "big")
+        if (
+            header[0] != 22
+            or header[1:3] not in (b"\x03\x01", b"\x03\x03")
+            or not 0 < size <= 16384
+        ):
+            raise ValueError("expected TLS handshake record")
+        if len(wire) + 5 + size > 65536:
+            raise ValueError("TLS ClientHello too large")
+        payload = read_exact(size)
+        wire.extend(header + payload)
+        handshake.extend(payload)
+        if handshake[0] != 1:
+            raise ValueError("expected TLS ClientHello")
+    if len(handshake) != 4 + int.from_bytes(handshake[1:4], "big"):
+        raise ValueError("unexpected data after ClientHello")
+    data = memoryview(handshake)[4:]
+    offset = 0
+
+    def take(size):
+        nonlocal offset
+        if offset + size > len(data):
+            raise ValueError("malformed TLS ClientHello")
+        value = bytes(data[offset : offset + size])
+        offset += size
+        return value
+
+    def vector(width):
+        return take(int.from_bytes(take(width), "big"))
+
+    if take(2) != b"\x03\x03":
+        raise ValueError("TLS 1.2 or later required")
+    take(32)
+    if len(vector(1)) > 32:
+        raise ValueError("invalid TLS session id")
+    ciphers = vector(2)
+    if not ciphers or len(ciphers) % 2 or vector(1) != b"\x00":
+        raise ValueError("invalid TLS negotiation")
+    extensions = vector(2)
+    if offset != len(data):
+        raise ValueError("trailing ClientHello data")
+    data, offset = memoryview(extensions), 0
+    seen = set()
+    server_name = None
+    while offset < len(data):
+        kind = int.from_bytes(take(2), "big")
+        value = vector(2)
+        # ECH can hide a different inner name; never authorize by its cover name.
+        if kind in seen or kind == 0xfe0d:
+            raise ValueError("duplicate or encrypted TLS extension")
+        seen.add(kind)
+        if kind == 0:
+            expected = host.encode("ascii")
+            entry = b"\x00" + len(expected).to_bytes(2, "big") + expected
+            if value != len(entry).to_bytes(2, "big") + entry:
+                raise ValueError("TLS server name differs from CONNECT destination")
+            server_name = host
+    if server_name is None:
+        raise ValueError("TLS server name required")
+    return bytes(wire)
 
 
 def local_tools(tools):
@@ -153,6 +245,15 @@ def local_request(payload):
     return True
 
 
+def _cleanup(operation, *arguments):
+    try:
+        operation(*arguments)
+    except Exception as error:
+        message = f"gateway cleanup failed ({operation.__name__}): {error}"
+        print(message, file=sys.stderr)
+        return message
+
+
 class UnixServer(socketserver.ThreadingUnixStreamServer):
     daemon_threads = True
 
@@ -169,7 +270,7 @@ class UnixServer(socketserver.ThreadingUnixStreamServer):
         try:
             super().__init__(address, handler)
         except BaseException:
-            self.server_close()
+            _cleanup(self.server_close)
             raise
 
     def server_close(self):
@@ -184,6 +285,18 @@ class UnixServer(socketserver.ThreadingUnixStreamServer):
 
 class Gateway(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.0"
+    # Tunnel handoff must not strand prefetched TLS bytes in rfile.
+    rbufsize = 0
+
+    def read_body(self, length):
+        # An unbuffered rfile may return fewer bytes than requested.
+        body = bytearray()
+        while len(body) < length:
+            chunk = self.rfile.read(length - len(body))
+            if not chunk:
+                raise ValueError("truncated request body")
+            body.extend(chunk)
+        return bytes(body)
 
     def log_message(self, *args):
         pass
@@ -252,6 +365,9 @@ class Gateway(BaseHTTPRequestHandler):
                     self.send_response(200, "Connection established")
                     self.end_headers()
                     connected = True
+                    hello = checked_client_hello(self.rfile, host, self.connection)
+                    self.connection.settimeout(120)
+                    upstream.sendall(hello)
                     self.server.requests += 1
                     relay(self.connection, upstream)
                     return
@@ -327,7 +443,7 @@ class Gateway(BaseHTTPRequestHandler):
         connection = None
         started = False
         try:
-            payload = json.loads(self.rfile.read(int(length)))
+            payload = json.loads(self.read_body(int(length)))
             # Permit client-executed functions, never authenticated remote tools.
             if not local_request(payload):
                 return self.reject()
@@ -380,7 +496,7 @@ class Gateway(BaseHTTPRequestHandler):
         ):
             return self.reject()
         try:
-            request = json.loads(self.rfile.read(int(length)))
+            request = json.loads(self.read_body(int(length)))
             if set(request) != {"host", "type"} or request["type"] not in (1, 28):
                 return self.reject()
             if (
@@ -457,9 +573,44 @@ def start_gateway(
                 raise ValueError("host ChatGPT login is unavailable")
         threading.Thread(target=server.serve_forever, daemon=True).start()
     except BaseException:
-        server.server_close()
+        _cleanup(server.server_close)
         raise
     return server
+
+
+class GatewayCleanupError(ValueError):
+    pass
+
+
+@contextmanager
+def gateway_scope():
+    errors = []
+
+    def cleanup(operation, *arguments):
+        if message := _cleanup(operation, *arguments):
+            errors.append(message)
+
+    with ExitStack() as resources:
+        root = Path(tempfile.mkdtemp(prefix="cxi-"))
+        resources.callback(cleanup, shutil.rmtree, root)
+
+        def start(service, **options):
+            directory = root / service
+            server = start_gateway(directory, service, **options)
+            resources.callback(cleanup, server.server_close)
+            resources.callback(cleanup, server.shutdown)
+            return directory
+
+        failed = False
+        try:
+            yield start
+        except BaseException:
+            failed = True
+            raise
+        finally:
+            resources.close()
+            if errors and not failed:
+                raise GatewayCleanupError("; ".join(errors))
 
 
 def bridge(unix_socket, port):
