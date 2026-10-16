@@ -398,6 +398,15 @@ EOF
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
 }
 
+@test "inspect --no-diff omits the diff" {
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" \
+    python3 "$SCRIPT" inspect --repo owner/repo --pr 42 --no-diff
+
+  [ "$status" -eq 0 ]
+  run jq -e 'has("diff") | not' <<<"$output"
+  [ "$status" -eq 0 ]
+}
+
 @test "inspect paginates comments within each review thread" {
   run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="comment-pages" \
     python3 "$SCRIPT" inspect --repo owner/repo --pr 42
