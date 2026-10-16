@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
@@ -26,8 +27,18 @@ await mkdir(dirname(resolve(output)), { recursive: true });
 await writeFile(output, html, { flag: "wx" });
 if (artifactsDir) {
   await mkdir(artifactsDir, { recursive: true });
+  const entries = Object.entries(artifacts(doc));
+  // Preflight every destination first: without this, Promise.all can write
+  // some artifacts before one collides with an existing file, leaving a
+  // partial set that also can't be retried under the same output name.
+  const existing = entries
+    .map(([name]) => resolve(artifactsDir, name))
+    .filter((destination) => existsSync(destination));
+  if (existing.length > 0) {
+    throw new Error(`Artifact(s) already exist: ${existing.join(", ")}`);
+  }
   await Promise.all(
-    Object.entries(artifacts(doc)).map(([name, content]) =>
+    entries.map(([name, content]) =>
       writeFile(resolve(artifactsDir, name), content, { flag: "wx" })
     )
   );

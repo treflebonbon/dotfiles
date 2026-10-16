@@ -91,6 +91,26 @@ test("業務フローが触れるモジュール(seed)と依存先1ホップだ�
   assert.doesNotThrow(() => validateDocument(doc));
 });
 
+test("ディレクトリを指すimportをindexファイルへ解決し、ディレクトリ自体はMODULEにしない", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "arch-fixture-dir-"));
+  t.after(() => rm(root, { force: true, recursive: true }));
+  await mkdir(path.join(root, "src/foo"), { recursive: true });
+  await writeFile(
+    path.join(root, "src/orderFlow.js"),
+    'import x from "./foo";\n'
+  );
+  await writeFile(path.join(root, "src/foo/index.js"), "export default 1;\n");
+
+  const { nodes } = await generateArchitecture({
+    repoRoot: root,
+    revision: REVISION,
+    seeds: ["src/orderFlow.js"],
+  });
+
+  const labels = nodes.map((n) => n.data.label).toSorted();
+  assert.deepEqual(labels, ["src/foo/index.js", "src/orderFlow.js"]);
+});
+
 test("不正なrevision・リポジトリ外へ出るseedパスを拒否する", async (t) => {
   const root = await buildFixtureRepo();
   t.after(() => rm(root, { force: true, recursive: true }));

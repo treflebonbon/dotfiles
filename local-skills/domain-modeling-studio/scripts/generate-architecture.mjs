@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -121,7 +121,15 @@ const resolveRelative = (repoRoot, fromRelPath, specifier) => {
       if (candidate === ".." || candidate.startsWith("../")) {
         continue;
       }
-      if (existsSync(path.join(repoRoot, candidate))) {
+      // An empty suffix matches a directory too (existsSync alone can't
+      // tell), which would record e.g. "src/foo" as a MODULE for
+      // `import x from "./foo"` when only "src/foo/index.js" is a real
+      // source file; require the candidate to resolve to an actual file.
+      const absoluteCandidate = path.join(repoRoot, candidate);
+      if (
+        existsSync(absoluteCandidate) &&
+        statSync(absoluteCandidate).isFile()
+      ) {
         return candidate;
       }
     }
