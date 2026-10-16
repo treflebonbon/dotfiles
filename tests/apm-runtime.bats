@@ -360,6 +360,21 @@ EOF
       [ "$(cat apm.lock.yaml)" = 'apm_version: 0.32.0' ]
     done
   done
+  for path in .agents .claude; do
+    mkdir -p "$runtime/parent-$path/external"
+    cd "$runtime/parent-$path"
+    printf 'name: candidate\n' >apm.yml
+    printf 'apm_version: 0.32.0\n' >apm.lock.yaml
+    ln -s external "$path"
+
+    run "$GENERATOR" "$PROJECT_ROOT"
+
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"$path"* ]]
+    [ ! -e "$GENERATION_LOG" ]
+    [ ! -e external/skills ]
+    [ "$(cat apm.lock.yaml)" = 'apm_version: 0.32.0' ]
+  done
 }
 
 @test "APM candidate generation rejects missing, malformed, and incorrect CLI versions before install" {
