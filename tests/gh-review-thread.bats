@@ -44,11 +44,11 @@ case "$*" in
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"Please fix","author":{"login":"reviewer"}}]}}}}'
   fi
   ;;
-"api --paginate repos/owner/repo/pulls/42/commits --jq .[].sha")
+"api --paginate repos/owner/repo/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pulls --jq .[].number")
   if [ "${MOCK_SCENARIO:-}" = "unpublished" ]; then
-    printf '%s\n' 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    printf '%s\n' '7'
   else
-    printf '%s\n' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    printf '%s\n' '42'
   fi
   ;;
 *"addPullRequestReviewThreadReply"*)
@@ -173,7 +173,7 @@ EOF
   [ "$status" -eq 0 ]
   run jq -e '.reply == "skipped" and .resolve == "already_resolved"' <<<"$output"
   [ "$status" -eq 0 ]
-  ! grep -Fq 'pulls/42/commits' "$MOCK_LOG"
+  ! grep -Fq '/pulls --jq' "$MOCK_LOG"
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
   ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
@@ -252,7 +252,7 @@ EOF
     --body-file "$body_file"
 
   [ "$status" -eq 0 ]
-  ! grep -Fq 'pulls/42/commits' "$MOCK_LOG"
+  ! grep -Fq '/pulls --jq' "$MOCK_LOG"
   grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
   grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }

@@ -237,16 +237,19 @@ def verify_thread_scope(thread: dict[str, Any], repo: str, pr: int) -> None:
 def verify_commit(repo: str, pr: int, commit: str) -> None:
     if not re.fullmatch(r"[0-9a-fA-F]{40}", commit):
         fail("--commit must be a full 40-character SHA", 2)
-    commits = run_gh(
+    # pulls/{pr}/commits lists at most 250 commits, so a real recent commit can
+    # be missing from it on a long-lived PR. Ask which PRs contain the commit
+    # instead; that endpoint has no such cap.
+    pulls = run_gh(
         [
             "api",
             "--paginate",
-            f"repos/{repo}/pulls/{pr}/commits",
+            f"repos/{repo}/commits/{commit}/pulls",
             "--jq",
-            ".[].sha",
+            ".[].number",
         ]
     ).splitlines()
-    if commit.casefold() not in {candidate.casefold() for candidate in commits}:
+    if str(pr) not in pulls:
         fail(f"commit {commit} is not published in {repo}#{pr}")
 
 
