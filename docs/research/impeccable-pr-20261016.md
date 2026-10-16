@@ -50,3 +50,9 @@ canonical対象HEADは `971ca0c9f92991ab8c948c488abcade0b2f9db0b`。このbranch
 検証後の追記は本結果記録だけとし、公開前に記録以外の全tracked内容と保存済みruntime実体／hashを再照合する。ARM2 systemの実機起動と認証・実モデル等の既定opt-in 21件は未検証。隔離APMの組織policy enforcementはwarning付きskipで、その適合は未検証。
 
 この時点で全3 branchの分割検証は成功済み、topic push／PR作成へ進む。merge・live applyは未実施で、更新全体の配備完了とは扱わない。
+
+## PR公開結果
+
+この単位は [428](https://github.com/treflebonbon/dotfiles/pull/428) としてmain向けに公開済み。初回公開HEADは `7f11bfd49c6ab12ddd5f987391d2b3291ad0a690`。検証済みHEADからの差分は本検証記録だけで、記録以外の全tracked内容と13 runtime pathの実体／hashが一致した。
+
+分割先の公開先は[通常APM #427](https://github.com/treflebonbon/dotfiles/pull/427)、[Impeccable #428](https://github.com/treflebonbon/dotfiles/pull/428)、[user Nix #429](https://github.com/treflebonbon/dotfiles/pull/429)。各PRの公開・merge・配備は個別状態として追跡する。いずれも未merge・未配備で、通常APM／Impeccableの共有lockとtest期待値はmerge順に応じて再整合する。更新全体の配備は未完了。
