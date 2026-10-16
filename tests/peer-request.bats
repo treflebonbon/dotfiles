@@ -429,3 +429,97 @@ calls() { cat "$MOCK_DIR/calls.log" 2>/dev/null || true; }
   [ "$status" -eq 12 ]
   [[ "$output" == *missing* ]]
 }
+
+terminal_answer() {
+  echo '{"agent_status":"idle"}' >"$MOCK_DIR/prompt.out"
+  echo '{"agent_status":"idle"}' >"$MOCK_DIR/get.out"
+  printf '%s\n' "$@" >"$MOCK_DIR/read.out"
+  export PEER_REQUEST_TEST_NONCE=n0nce1
+}
+
+@test "a terminal answer from a peer that cannot write the file is saved by the helper" {
+  terminal_answer '› review please' \
+    '  If you cannot write that path, answer with a line holding only DONE REQ-1 abc1234 n0nce1, then END REQ-1 n0nce1' \
+    '• DONE REQ-1 abc1234 n0nce1' '  finding one' '  finding two' '  END REQ-1 n0nce1'
+  run_helper
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WORK/REQ-1.md" ]
+  [ "$(head -n1 "$WORK/REQ-1.md")" = "DONE REQ-1 abc1234" ]
+  grep -Fxq 'finding two' "$WORK/REQ-1.md"
+  ! grep -q '^END' "$WORK/REQ-1.md"
+}
+
+@test "the request carries the attempt nonce inside a sentence, never as a marker line" {
+  terminal_answer ''
+  run_helper
+  calls | grep -F 'holding only DONE REQ-1 abc1234 n0nce1' | grep -vq '^DONE'
+  ! calls | grep -q '^DONE REQ-1'
+}
+
+@test "a terminal answer cut off before END is not complete" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding one'
+  run_helper
+  [ "$status" -eq 12 ]
+  [ ! -f "$WORK/REQ-1.md" ]
+}
+
+@test "an echo of the request's instruction line is not an answer" {
+  terminal_answer '  answer with a line holding only DONE REQ-1 abc1234 n0nce1, then the body, then a line holding only END REQ-1 n0nce1'
+  run_helper
+  [ "$status" -eq 12 ]
+  [ ! -f "$WORK/REQ-1.md" ]
+}
+
+@test "a complete block from an earlier attempt (other nonce) is not accepted, even before a cut-off new one" {
+  terminal_answer '• DONE REQ-1 abc1234 old0001' '  stale finding' '  END REQ-1 old0001' \
+    '• DONE REQ-1 abc1234 n0nce1' '  fresh finding'
+  run_helper
+  [ "$status" -eq 12 ]
+  [ ! -f "$WORK/REQ-1.md" ]
+}
+
+@test "marker-shaped lines in the reply body without the nonce do not cut the answer" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  sample:' '  DONE REQ-1 abc1234' '  END REQ-1' '  last line' '  END REQ-1 n0nce1'
+  run_helper
+  [ "$status" -eq 0 ]
+  grep -Fxq 'last line' "$WORK/REQ-1.md"
+}
+
+@test "a reply body that quotes a block carrying the same nonce is saved whole" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  the protocol is:' '  DONE REQ-1 abc1234 n0nce1' '  sample body' '  END REQ-1 n0nce1' '  closing line' '  END REQ-1 n0nce1'
+  run_helper
+  [ "$status" -eq 0 ]
+  grep -Fxq 'sample body' "$WORK/REQ-1.md"
+  grep -Fxq 'closing line' "$WORK/REQ-1.md"
+}
+
+@test "a rename that fails holds instead of reporting a missing reply" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding' '  END REQ-1 n0nce1'
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$MOCK_DIR/bin/mv"
+  chmod +x "$MOCK_DIR/bin/mv"
+  run_helper
+  [ "$status" -eq 15 ]
+  [ ! -f "$WORK/REQ-1.md" ]
+}
+
+@test "a terminal answer for another request or SHA is not accepted" {
+  terminal_answer '• DONE REQ-1 deadbee n0nce1' '  finding' '  END REQ-1 n0nce1'
+  run_helper
+  [ "$status" -eq 12 ]
+  terminal_answer '• DONE REQ-2 abc1234 n0nce1' '  finding' '  END REQ-2 n0nce1'
+  run_helper
+  [ "$status" -eq 13 ] # missing twice holds
+}
+
+@test "a terminal answer with an empty body is not complete" {
+  terminal_answer '• DONE REQ-1 abc1234 n0nce1' '' '  END REQ-1 n0nce1'
+  run_helper
+  [ "$status" -eq 12 ]
+}
+
+@test "a terminal that cannot be read holds instead of reporting a missing reply" {
+  terminal_answer ''
+  echo 1 >"$MOCK_DIR/read.rc"
+  run_helper
+  [ "$status" -eq 15 ]
+}

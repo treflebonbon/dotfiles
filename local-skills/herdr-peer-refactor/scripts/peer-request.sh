@@ -52,6 +52,48 @@ valid() {
   [ -f "$resp" ] && [ "$(head -n1 "$resp")" = "DONE $id $sha" ] &&
     awk 'NR > 1 && /[^[:space:]]/ { found = 1 } END { exit !found }' "$resp"
 }
+# One nonce per attempt: markers carry it, so an answer to an earlier attempt of
+# the same ID, a block quoted in the reply body, or an echo of the request never
+# matches (PEER_REQUEST_TEST_NONCE is for tests only).
+nonce=${PEER_REQUEST_TEST_NONCE:-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')}
+# Save a terminal answer for a peer whose sandbox cannot write <workdir>. The
+# block runs from the first "DONE <id> <sha> <nonce>" line to the last "END <id>
+# <nonce>" line after it, each marker alone on its line (the request quotes them
+# inside a sentence), so the body may quote a block that carries the nonce too. The
+# body must be non-blank. The helper, not the peer, writes the file, through
+# .part and a rename. Returns 0 saved | 1 no complete block | 2 could not read or
+# save (state unknown: the caller holds).
+capture() {
+  local text
+  text=$(herdr_cmd agent read "$peer" --source recent-unwrapped --lines 400 2>/dev/null) || return 2
+  python3 -I -c '
+import re, sys
+head, want_start, want_end = sys.argv[1], sys.argv[2], sys.argv[3]
+def norm(line):
+    return re.sub(r"^[\s•]+", "", line).rstrip()
+lines = sys.stdin.read().split("\n")
+starts = [i for i, l in enumerate(lines) if norm(l) == want_start]
+if starts:
+    i = starts[0]
+    ends = [j for j in range(i + 1, len(lines)) if norm(lines[j]) == want_end]
+    if ends:
+        body = [re.sub(r"^ {1,2}", "", l).rstrip() for l in lines[i + 1 : ends[-1]]]
+        if any(l.strip() for l in body):
+            print(head + "\n" + "\n".join(body))
+            sys.exit(0)
+sys.exit(3)
+' "DONE $id $sha" "DONE $id $sha $nonce" "END $id $nonce" <<<"$text" >"$resp.part"
+  case $? in
+  0) ;;
+  3)
+    rm -f "$resp.part"
+    return 1
+    ;;
+  *) return 2 ;; # includes a .part that cannot be opened (the shell's own status 1)
+  esac
+  mv "$resp.part" "$resp" || return 2
+  valid || return 2
+}
 # herdr prints JSON: judge state by the "agent_status" value and errors by the
 # "code" value, never by a bare word (a terminal title or path can contain one).
 is_blocked() { grep -qE '"code": *"agent_blocked"|"agent_status": *"blocked"' <<<"$1"; }
@@ -153,8 +195,8 @@ prompt="$(cat "$request")
 Request ID: $id
 Target SHA: $sha
 Write your full reply to the file $resp.part, then rename it to $resp (mv) when it is complete. Its first line must be exactly: DONE $id $sha, followed by the reply body
-Do not write the reply anywhere else: if that path is not writable, answer on the terminal with UNWRITABLE $resp and stop.
-Then answer on the terminal with only that file path."
+Do not write the reply anywhere else. If you cannot write that path, do not look for another one: answer on the terminal instead, with a line holding only DONE $id $sha $nonce, then the reply body, then a line holding only END $id $nonce. The requester saves it.
+Otherwise answer on the terminal with only that file path."
 
 set +e
 out=$(herdr_cmd agent prompt "$peer" "$prompt" --wait --timeout "$(left_ms)" 2>&1)
@@ -192,6 +234,18 @@ while :; do
     is_blocked "$state" && hold_blocked
     if ! is_working "$state"; then
       is_ready "$state" || cannot_verify "$state"
+      # A peer that cannot write the file answers on the terminal: save it here.
+      set +e
+      capture
+      crc=$?
+      set -e
+      case $crc in
+      0)
+        echo "$resp"
+        exit 0
+        ;;
+      2) cannot_verify "the peer's terminal answer could not be read or saved" ;;
+      esac
       fail missing 12
     fi
   fi
