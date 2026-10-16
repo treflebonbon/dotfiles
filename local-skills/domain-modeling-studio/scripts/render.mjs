@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { lstatSync, statSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
@@ -27,12 +27,20 @@ const entries = artifactsDir ? Object.entries(artifacts(doc)) : [];
 // Preflight every destination, the HTML included, before writing any of them:
 // without this, a collision found later leaves a partial output set that also
 // can't be retried under the same output name.
-const existing = [
+for (const destination of [
   resolve(output),
   ...entries.map(([name]) => resolve(artifactsDir, name)),
-].filter((destination) => existsSync(destination));
-if (existing.length > 0) {
-  throw new Error(`Output(s) already exist: ${existing.join(", ")}`);
+]) {
+  let ancestor = destination;
+  while (!lstatSync(ancestor, { throwIfNoEntry: false })) {
+    ancestor = dirname(ancestor);
+  }
+  if (ancestor === destination) {
+    throw new Error(`Output already exists: ${destination}`);
+  }
+  if (!statSync(ancestor).isDirectory()) {
+    throw new Error(`出力先の親がディレクトリではありません: ${ancestor}`);
+  }
 }
 await mkdir(dirname(resolve(output)), { recursive: true });
 await writeFile(output, html, { flag: "wx" });
