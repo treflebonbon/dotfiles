@@ -11,6 +11,10 @@ tags: [conventions, git, lint, lefthook]
 - **Linting / format**: lefthook `pre-commit` hook で自動実行（`lefthook.yml`）。pinact / shfmt / oxfmt / oxlint / ghalint / actionlint / shellcheck / gitleaks / typecheck の汎用品質ゲート
 - **認証**: HTTPS + `gh auth git-credential`。SSH は不使用
 
+## レビュー
+
+削除・権限判定の変更では、承認された要件に照らし、検査不能な状態を接続コードから最終操作まで追う。読取り失敗・一部しか見えない状態・検査中の対象消失をどう扱うか、許可条件と拒否条件の両方をレビュー担当が確認する。
+
 ## テスト
 
 `lefthook run test` で `tests/` の全 Bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。lefthook の `test` は `bun run test` → `scripts/test.sh` を呼ぶ。入口で実際の `python3 -I` が `dotenv.parser` を import でき、`with-env` が Nix store 内へ解決されることを確認してから、依存関係の frozen install と Bats の実行を行う。不足時は devShell を準備して再実行する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、Bats 非対象）。`.chezmoiignore` で home には非配備。
@@ -24,6 +28,8 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 開始前は `git status` に加えて、全tracked内容とGit modeをHEADのtree/blobへ直接照合する。`assume-unchanged`／`skip-worktree` に隠れた未commitの変更もBats開始前に拒否し、flag自体は変更しない。実行後にHEADの内容・Git modeと異なるfileは `after.json` の `head_mismatches` に記録し、前後記録とTAPを保持する。
 
 記録は `tmp/canonical-run.*/` の `before.json`／`after.json`、`command.log`、`runner-path`、`result.json` に残る。runnerが作成した `tmp/test-run.*/` と相互参照し、最新directory探索やconsoleの表示文言には依存しない。通常のテスト入口は維持し、受渡し情報をテスト内の別runnerへ引き継がない。Bats自体の結果と証拠照合の問題を区別し、不足・不一致・中断は非0終了する。全Batsコマンドの所要時間は実測し、環境準備の時間は含めない。自動再実行やNix build／APM再生成、PR／CIの照合は行わない。これは実行時点の証拠であり、後続のPR HEADや配備との一致確認は別に行う。
+
+進捗は `python3 scripts/verify-canonical.py --status <canonical-run-directory>` でJSON表示する。この操作は保存記録を読むだけで、全Batsやruntime検査を開始しない。`state` は完了記録がなければ `incomplete`、`result.json` の終了コードが0なら `passed`、非0なら `failed`。`plan`／`pass`／`skip`／`fail` と `exit_code` を表示し、完了前の終了コードは `null`、完了後は記録の終了コードをコマンドの終了コードにも使う。`incomplete` は実行中か中断済みかを区別せず、TAPの全結果が出そろっても成功とはしない。破損した記録や異なる実行のrunner参照は非0終了で拒否する。
 
 ローカルのユーザー devShell のツールと repo devShell を使い、Nix の取得・build 成果物とブラウザ環境を再利用する。環境を明示的に準備する場合は、worktree root から次を実行する。WSL2 では両方の `#default` を `#wsl` に置き換え、Managed Playwright Chrome を利用する。
 

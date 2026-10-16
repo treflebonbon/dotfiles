@@ -98,6 +98,87 @@ run_canonical() {
   [ ! -s "$TEST_LOG" ]
 }
 
+@test "canonical進捗は部分TAPを未完了として集計し記録を変更しない" {
+  local attempt="$SOURCE/tmp/canonical-run.progress" runner="$SOURCE/tmp/test-run.progress"
+  mkdir -p "$attempt" "$runner"
+  printf '%s\n' "$runner" >"$attempt/runner-path"
+  printf '%s\n' "$attempt/runner-path" >"$runner/canonical-receipt"
+  printf '1..4\nok 1 completed\nok 2 optional # SKIP opt-in\nnot ok 3 failed\n' >"$runner/tap.log"
+  local before
+  before=$(find "$SOURCE/tmp" -type f -exec sha256sum {} + | sort)
+
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_success
+  run jq -e '.state == "incomplete" and .exit_code == null and .plan == 4 and .pass == 1 and .skip == 1 and .fail == 1' <<<"$output"
+  assert_success
+  [ ! -s "$TEST_LOG" ]
+  [ "$before" = "$(find "$SOURCE/tmp" -type f -exec sha256sum {} + | sort)" ]
+  printf 'ok 4 completed\n' >>"$runner/tap.log"
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_success
+  run jq -e '.state == "incomplete" and .exit_code == null and .pass == 2' <<<"$output"
+  assert_success
+}
+
+@test "canonical進捗は照合済みの完了記録だけを成功として表示する" {
+  run_canonical
+  assert_success
+  local attempt
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_success
+  run jq -e '.state == "passed" and .exit_code == 0 and .plan == 16 and .pass == 15 and .skip == 1 and .fail == 0' <<<"$output"
+  assert_success
+  [ "$(grep -c '^lefthook run test$' "$TEST_LOG")" -eq 1 ]
+}
+
+@test "canonical進捗はrunner開始前を未完了として表示する" {
+  local attempt="$SOURCE/tmp/canonical-run.preparing"
+  mkdir -p "$attempt"
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_success
+  run jq -e '.state == "incomplete" and .exit_code == null and .plan == null and .pass == 0 and .skip == 0 and .fail == 0' <<<"$output"
+  assert_success
+  [ ! -s "$TEST_LOG" ]
+}
+
+@test "canonical進捗は最終照合の失敗を終了コードとともに表示する" {
+  export CANONICAL_FIXTURE_MODE=exit-mismatch
+  run_canonical
+  assert_failure
+  local attempt
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  [ "$status" -eq 2 ]
+  run jq -e '.state == "failed" and .exit_code == 2 and .fail == 0' <<<"$output"
+  assert_success
+  [ "$(grep -c '^lefthook run test$' "$TEST_LOG")" -eq 1 ]
+}
+
+@test "canonical進捗は不正な結果記録と別の実行のrunner参照を拒否する" {
+  local attempt="$SOURCE/tmp/canonical-run.invalid" runner="$SOURCE/tmp/test-run.invalid" record
+  mkdir -p "$attempt" "$runner"
+  for record in '{' '{"exit_code":null}' '{"exit_code":true}' '{"exit_code":-1}' '{"exit_code":256}'; do
+    printf '%s\n' "$record" >"$attempt/result.json"
+    run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+    assert_failure
+    assert_output --partial '進捗記録を読めません'
+  done
+  mv "$attempt/result.json" "$attempt/saved-result"
+  ln -s saved-result "$attempt/result.json"
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_failure
+  assert_output --partial 'symlink'
+  mv "$attempt/result.json" "$attempt/saved-link"
+  printf '%s\n' "$runner" >"$attempt/runner-path"
+  printf '/different/runner-path\n' >"$runner/canonical-receipt"
+  run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_failure
+  assert_output --partial '異なる実行のrunnerログ'
+  [ ! -s "$TEST_LOG" ]
+}
+
 @test "canonical検証は一度の全suiteの証拠を結び付け必須fixtureと既定skipを区別する" {
   run_canonical
 
