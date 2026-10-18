@@ -421,7 +421,7 @@ EOF
     for dir in .agents .claude; do
       cmp "$skill" "$SKILL_HOME/$dir/skills/$name-peer-refactor/SKILL.md"
       [ ! -e "$SKILL_HOME/.codex/skills/$name-peer-refactor" ]
-      for ref in "references/$name.md" scripts/gh-once.sh scripts/candidate-record.py scripts/check-owned.sh \
+      for ref in "references/$name.md" references/evidence.md scripts/run-evidence.py scripts/gh-once.sh scripts/candidate-record.py scripts/check-owned.sh \
         scripts/check-architecture-report.py scripts/check-architecture-render.js; do
         cmp "$SKILL_SOURCE/local-skills/$name-peer-refactor/$ref" \
           "$SKILL_HOME/$dir/skills/$name-peer-refactor/$ref"
@@ -443,9 +443,10 @@ EOF
   local h="$BATS_TEST_DIRNAME/../local-skills/herdr-peer-refactor"
   local o="$BATS_TEST_DIRNAME/../local-skills/orca-peer-refactor"
   local script
-  for script in candidate-record.py check-owned.sh gh-once.sh check-architecture-report.py check-architecture-render.js; do
+  for script in run-evidence.py candidate-record.py check-owned.sh gh-once.sh check-architecture-report.py check-architecture-render.js; do
     cmp "$h/scripts/$script" "$o/scripts/$script"
   done
+  cmp "$h/references/evidence.md" "$o/references/evidence.md"
   for section in '1\. 元の候補を固定' '3\. peer と設計' '4\. 実装と検証' '5\. 独立レビュー' '6\. PR と報告'; do
     cmp <(sed -n "/^## $section/,/^## [0-9]\\./p" "$h/SKILL.md") <(sed -n "/^## $section/,/^## [0-9]\\./p" "$o/SKILL.md")
   done

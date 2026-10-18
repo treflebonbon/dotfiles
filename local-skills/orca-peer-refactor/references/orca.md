@@ -11,6 +11,8 @@ ORCA skills get orca-cli --json
 ORCA skills get orchestration --json
 ```
 
+共有 receipt と reply は、SKILL.md で作成した `/tmp/codex` 配下の run directory に置く。以降の `$run_dir` はその確認済み絶対パスを指す。保存・中断からの復旧は [証跡の保存と復旧](evidence.md) に従う。
+
 ## native 評価前の preflight
 
 評価前に、本番と同じ native 起動経路で root → peer の深度と起動 effective 値（agent / model / effort）を smoke 確認する。`nested_worker_depth_exceeded` はシナリオの失敗採点ではなく環境不適合として別に記録する。設定変更や新しい Run の作成で深度をリセットしたことにしない。
@@ -26,6 +28,10 @@ coordinator receipt は `ok: true` と `result.run.id` / `result.run.coordinator
 
 ## 役割別の正規経路
 
+以下の `run-create`／`worker-start` の例は初回起動用。再開時は既存 receipt を照合し、native の現在状態を確認してから続ける。起動コマンドを再実行せず、読取り例を使う。receipt の存在だけを完了と扱わず、不正・未完了なら保持して復旧手順へ戻る。
+
+出力は上書き禁止の `.part` へ保存し、コマンドの成功と JSON 構文の確認後にだけ `ln` で確定名を作る。既存の確定名も置換しない。各保存が失敗したら後続へ進まない。`.json` がなく `.part` だけ残った場合は未確定の試行として保持し、native の状態と実行記録を照合して復旧する。起動コマンドの再実行や、未確認の `.part` の昇格・削除は行わない。確定後も下記 preflight で identity を照合する。
+
 ### 普通の dispatched worker
 
 自分の live preamble の handle で、自分の inbox を読む。通常の dispatched worker は `--run` を付けず、status を含む全 delivery を確認する。
@@ -40,14 +46,30 @@ ORCA orchestration check --terminal <worker-handle> --ack <delivery-id-from-resu
 coordinator は自分の terminal handle で Run を作成・bindし、返った Run ID を全 task / worker 操作に使う。
 
 ```text
-ORCA orchestration run-create --objective "<元候補の改善>" --from <coordinator-handle> --json > run-create.json
-ORCA orchestration check --terminal <coordinator-handle> --run <run-id> --wait --timeout-ms 45000 --json
-ORCA orchestration task-create --spec "<候補ID・AC・非目標・所有範囲・writerまたはreviewer>" --task-title "<title>" --run <run-id> --from <coordinator-handle> --json
-ORCA orchestration worker-start --task <task-id> --worktree id:<returned-worktree-id> --agent claude --run <run-id> --from <coordinator-handle> --json > worker-start.json
-ORCA orchestration worker-show --dispatch <dispatch-id> --json > worker-show.json
-python3 <skill-dir>/scripts/orca-preflight.py coordinator run-create.json --run <bound-run-id> --handle <runtime-handle>
-python3 <skill-dir>/scripts/orca-preflight.py worker-show worker-show.json --dispatch <started-dispatch-id> --task <started-task-id> --assignee <started-terminal-handle>
+: "${run_dir:?共有 run directory の絶対パスを指定してください}" &&
+(set -C
+  test ! -e "$run_dir/run-create.json" &&
+  ORCA orchestration run-create --objective "<元候補の改善>" --from <coordinator-handle> --json > "$run_dir/run-create.json.part" &&
+  python3 -m json.tool "$run_dir/run-create.json.part" > /dev/null &&
+  ln "$run_dir/run-create.json.part" "$run_dir/run-create.json") &&
+ORCA orchestration check --terminal <coordinator-handle> --run <run-id> --wait --timeout-ms 45000 --json &&
+ORCA orchestration task-create --spec "<候補ID・AC・非目標・所有範囲・writerまたはreviewer>" --task-title "<title>" --run <run-id> --from <coordinator-handle> --json &&
+receipt_dir=$(mktemp -d "$run_dir/worker.XXXXXX") &&
+(set -C
+  test ! -e "$receipt_dir/worker-start.json" &&
+  ORCA orchestration worker-start --task <task-id> --worktree id:<returned-worktree-id> --agent claude --run <run-id> --from <coordinator-handle> --json > "$receipt_dir/worker-start.json.part" &&
+  python3 -m json.tool "$receipt_dir/worker-start.json.part" > /dev/null &&
+  ln "$receipt_dir/worker-start.json.part" "$receipt_dir/worker-start.json") &&
+(set -C
+  test ! -e "$receipt_dir/worker-show.json" &&
+  ORCA orchestration worker-show --dispatch <dispatch-id> --json > "$receipt_dir/worker-show.json.part" &&
+  python3 -m json.tool "$receipt_dir/worker-show.json.part" > /dev/null &&
+  ln "$receipt_dir/worker-show.json.part" "$receipt_dir/worker-show.json") &&
+python3 <skill-dir>/scripts/orca-preflight.py coordinator "$run_dir/run-create.json" --run <bound-run-id> --handle <runtime-handle> &&
+python3 <skill-dir>/scripts/orca-preflight.py worker-show "$receipt_dir/worker-show.json" --dispatch <started-dispatch-id> --task <started-task-id> --assignee <started-terminal-handle>
 ```
+
+worker ごとに `mktemp` の返した receipt directory を保持し、再実行時は既存 receipt を読み直す。新しい worker には新しい directory を作る。checkpoint には全 worker の各 receipt ファイルを明示して渡す。
 
 保存した `run-create` receipt と、独立して分かっている Run ID / coordinator handle を coordinator preflight に渡す。`worker-show` receipt も start が返した Task / Dispatch / terminal と照合してから進む。reviewer は別 terminal の read-only peer とし、worker を別 runtime の subagent に置換しない。
 
@@ -58,10 +80,21 @@ peer には共有の絶対 reply-file を渡し、1 行目を `DONE <REQ> <sha>`
 実 worker がさらに peer を監督するときは、自分が owner となる child Run を作成・bindする。上位 coordinator から自分の Dispatch 宛てに届く follow-up と child worker の message は、child Run に bind した自分の terminal inbox で処理する。上位 Task / Dispatch / REQ / SHA は保持し、上位へ返す完了は live preamble の handle と Task / Dispatch ID を使う。
 
 ```text
-ORCA orchestration run-create --objective "<child work>" --from <nested-coordinator-handle> --json
-ORCA orchestration check --terminal <nested-coordinator-handle> --run <child-run-id> --wait --timeout-ms 45000 --json
-ORCA orchestration task-create --spec "<child task>" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json
-ORCA orchestration worker-start --task <child-task-id> --worktree id:<child-worktree-id> --agent codex --run <child-run-id> --from <nested-coordinator-handle> --json
+: "${run_dir:?共有 run directory の絶対パスを指定してください}" &&
+child_run_dir=$(mktemp -d "$run_dir/child-run.XXXXXX") &&
+(set -C
+  test ! -e "$child_run_dir/run-create.json" &&
+  ORCA orchestration run-create --objective "<child work>" --from <nested-coordinator-handle> --json > "$child_run_dir/run-create.json.part" &&
+  python3 -m json.tool "$child_run_dir/run-create.json.part" > /dev/null &&
+  ln "$child_run_dir/run-create.json.part" "$child_run_dir/run-create.json") &&
+ORCA orchestration check --terminal <nested-coordinator-handle> --run <child-run-id> --wait --timeout-ms 45000 --json &&
+ORCA orchestration task-create --spec "<child task>" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json &&
+child_receipt_dir=$(mktemp -d "$child_run_dir/worker.XXXXXX") &&
+(set -C
+  test ! -e "$child_receipt_dir/worker-start.json" &&
+  ORCA orchestration worker-start --task <child-task-id> --worktree id:<child-worktree-id> --agent codex --run <child-run-id> --from <nested-coordinator-handle> --json > "$child_receipt_dir/worker-start.json.part" &&
+  python3 -m json.tool "$child_receipt_dir/worker-start.json.part" > /dev/null &&
+  ln "$child_receipt_dir/worker-start.json.part" "$child_receipt_dir/worker-start.json")
 ```
 
 peer の ID / Run で上位の ID を置き換えたり、上位 coordinator の mailbox を直接読んだりしない。
@@ -74,17 +107,22 @@ ORCA orchestration send --to dispatch:<nested-dispatch-id> --from <coordinator-h
 
 ## ID を receipt から渡す
 
-ID を手入力・再構成せず、JSON receipt を `json.load` し、その値を `subprocess.run` の argv list に渡す。以下は選択済み CLI を `orca` に設定する例。coordinator の expected Run ID は bound inbox の peek 結果、handle は runtime が出した `ORCA_TERMINAL_HANDLE` と照合する。worker-show の expected 値は worker-start receipt から取り出す。
+ID を手入力・再構成せず、JSON receipt を `json.load` し、その値を `subprocess.run` の argv list に渡す。以下は選択済み CLI を `orca` に設定する例。実行時の第1引数に上記 `$run_dir`、第2引数に対象 worker の `$receipt_dir` を渡す。coordinator の expected Run ID は bound inbox の peek 結果、handle は runtime が出した `ORCA_TERMINAL_HANDLE` と照合する。worker-show の expected 値は worker-start receipt から取り出す。
 
-```python
+```bash
+python3 - "${run_dir:?共有 run directory の絶対パスを指定してください}" "${receipt_dir:?対象 worker の receipt directory を指定してください}" <<'PY'
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+run_dir = Path(sys.argv[1])
+receipt_dir = Path(sys.argv[2])
 
 orca = "orca-ide"  # ここを選択済み CLI に置き換える
 checker = "<skill-dir>/scripts/orca-preflight.py"
-with open("run-create.json", encoding="utf-8") as stream:
+with open(run_dir / "run-create.json", encoding="utf-8") as stream:
     created = json.load(stream)
 run = created["result"]["run"]
 handle = os.environ["ORCA_TERMINAL_HANDLE"]
@@ -96,7 +134,7 @@ bound = subprocess.run(
 )
 run_id = json.loads(bound.stdout)["result"]["runId"]
 subprocess.run(
-    [sys.executable, checker, "coordinator", "run-create.json", "--run", run_id, "--handle", handle],
+    [sys.executable, checker, "coordinator", str(run_dir / "run-create.json"), "--run", run_id, "--handle", handle],
     check=True,
 )
 subprocess.run(
@@ -104,24 +142,33 @@ subprocess.run(
     check=True,
 )
 
-with open("worker-start.json", encoding="utf-8") as stream:
+with open(receipt_dir / "worker-start.json", encoding="utf-8") as stream:
     started = json.load(stream)["result"]
 assignee = next(
     effect["id"] for effect in started["effects"]
     if effect.get("kind") == "terminal" and effect.get("role") == "agent"
 )
-shown = subprocess.run(
-    [orca, "orchestration", "worker-show", "--dispatch", started["dispatchId"], "--json"],
-    capture_output=True,
-    text=True,
-    check=True,
-)
-with open("worker-show.json", "w", encoding="utf-8") as stream:
-    stream.write(shown.stdout)
+shown_path = receipt_dir / "worker-show.json"
+candidate_path = shown_path
+if not shown_path.exists():
+    candidate_path = receipt_dir / "worker-show.json.part"
+    if candidate_path.exists():
+        sys.exit("未確定の receipt があります。native の状態と実行記録を照合してください")
+    shown = subprocess.run(
+        [orca, "orchestration", "worker-show", "--dispatch", started["dispatchId"], "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    with open(candidate_path, "x", encoding="utf-8") as stream:
+        stream.write(shown.stdout)
 subprocess.run(
-    [sys.executable, checker, "worker-show", "worker-show.json", "--dispatch", started["dispatchId"], "--task", started["taskId"], "--assignee", assignee],
+    [sys.executable, checker, "worker-show", str(candidate_path), "--dispatch", started["dispatchId"], "--task", started["taskId"], "--assignee", assignee],
     check=True,
 )
+if candidate_path != shown_path:
+    os.link(candidate_path, shown_path)
+PY
 ```
 
 ordinary / nested worker の `check` は filter なしで whole FIFO を読むため、`status` follow-up でも起きる。全 message を処理してから、JSON の `result.deliveryId` を同じ handle の `--ack` argv に渡す。`consumer_fenced` は例外を成功扱いせず、その場で停止する。

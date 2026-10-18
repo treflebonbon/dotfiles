@@ -8,7 +8,7 @@
 
 ## 一時ファイル
 
-セッション間で共有する一時ファイルは `/tmp/codex` 配下に置き、`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。通常の `/tmp` は共有先として許可していない。機密ファイル名の拒否と raw の隔離境界は `~/runtime/ai-runtimes.md` を参照する。
+セッション間で共有する一時ファイルは `/tmp/codex` 配下に置き、`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。通常の `/tmp` は共有先として許可していない。peer-refactor の公開証跡の保管・復旧は `~/runtime/autonomous-peer-contract.md` に従う。機密ファイル名の拒否と raw の隔離境界は `~/runtime/ai-runtimes.md` を参照する。
 
 ## Behavior
 
