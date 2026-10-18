@@ -11,6 +11,8 @@ ORCA skills get orca-cli --json
 ORCA skills get orchestration --json
 ```
 
+共有 receipt と reply は、SKILL.md で作成した `/tmp/codex` 配下の run directory に置く。以降の `$run_dir` はその確認済み絶対パスを指す。保存・中断からの復旧は [証跡の保存と復旧](evidence.md) に従う。
+
 ## native 評価前の preflight
 
 評価前に、本番と同じ native 起動経路で root → peer の深度と起動 effective 値（agent / model / effort）を smoke 確認する。`nested_worker_depth_exceeded` はシナリオの失敗採点ではなく環境不適合として別に記録する。設定変更や新しい Run の作成で深度をリセットしたことにしない。
@@ -40,13 +42,13 @@ ORCA orchestration check --terminal <worker-handle> --ack <delivery-id-from-resu
 coordinator は自分の terminal handle で Run を作成・bindし、返った Run ID を全 task / worker 操作に使う。
 
 ```text
-ORCA orchestration run-create --objective "<元候補の改善>" --from <coordinator-handle> --json > run-create.json
+ORCA orchestration run-create --objective "<元候補の改善>" --from <coordinator-handle> --json > "$run_dir/run-create.json"
 ORCA orchestration check --terminal <coordinator-handle> --run <run-id> --wait --timeout-ms 45000 --json
 ORCA orchestration task-create --spec "<候補ID・AC・非目標・所有範囲・writerまたはreviewer>" --task-title "<title>" --run <run-id> --from <coordinator-handle> --json
-ORCA orchestration worker-start --task <task-id> --worktree id:<returned-worktree-id> --agent claude --run <run-id> --from <coordinator-handle> --json > worker-start.json
-ORCA orchestration worker-show --dispatch <dispatch-id> --json > worker-show.json
-python3 <skill-dir>/scripts/orca-preflight.py coordinator run-create.json --run <bound-run-id> --handle <runtime-handle>
-python3 <skill-dir>/scripts/orca-preflight.py worker-show worker-show.json --dispatch <started-dispatch-id> --task <started-task-id> --assignee <started-terminal-handle>
+ORCA orchestration worker-start --task <task-id> --worktree id:<returned-worktree-id> --agent claude --run <run-id> --from <coordinator-handle> --json > "$run_dir/worker-start.json"
+ORCA orchestration worker-show --dispatch <dispatch-id> --json > "$run_dir/worker-show.json"
+python3 <skill-dir>/scripts/orca-preflight.py coordinator "$run_dir/run-create.json" --run <bound-run-id> --handle <runtime-handle>
+python3 <skill-dir>/scripts/orca-preflight.py worker-show "$run_dir/worker-show.json" --dispatch <started-dispatch-id> --task <started-task-id> --assignee <started-terminal-handle>
 ```
 
 保存した `run-create` receipt と、独立して分かっている Run ID / coordinator handle を coordinator preflight に渡す。`worker-show` receipt も start が返した Task / Dispatch / terminal と照合してから進む。reviewer は別 terminal の read-only peer とし、worker を別 runtime の subagent に置換しない。
@@ -74,17 +76,20 @@ ORCA orchestration send --to dispatch:<nested-dispatch-id> --from <coordinator-h
 
 ## ID を receipt から渡す
 
-ID を手入力・再構成せず、JSON receipt を `json.load` し、その値を `subprocess.run` の argv list に渡す。以下は選択済み CLI を `orca` に設定する例。coordinator の expected Run ID は bound inbox の peek 結果、handle は runtime が出した `ORCA_TERMINAL_HANDLE` と照合する。worker-show の expected 値は worker-start receipt から取り出す。
+ID を手入力・再構成せず、JSON receipt を `json.load` し、その値を `subprocess.run` の argv list に渡す。以下は選択済み CLI を `orca` に設定する例。実行時の第1引数に上記 `$run_dir` を渡す。coordinator の expected Run ID は bound inbox の peek 結果、handle は runtime が出した `ORCA_TERMINAL_HANDLE` と照合する。worker-show の expected 値は worker-start receipt から取り出す。
 
 ```python
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+run_dir = Path(sys.argv[1])
 
 orca = "orca-ide"  # ここを選択済み CLI に置き換える
 checker = "<skill-dir>/scripts/orca-preflight.py"
-with open("run-create.json", encoding="utf-8") as stream:
+with open(run_dir / "run-create.json", encoding="utf-8") as stream:
     created = json.load(stream)
 run = created["result"]["run"]
 handle = os.environ["ORCA_TERMINAL_HANDLE"]
@@ -96,7 +101,7 @@ bound = subprocess.run(
 )
 run_id = json.loads(bound.stdout)["result"]["runId"]
 subprocess.run(
-    [sys.executable, checker, "coordinator", "run-create.json", "--run", run_id, "--handle", handle],
+    [sys.executable, checker, "coordinator", str(run_dir / "run-create.json"), "--run", run_id, "--handle", handle],
     check=True,
 )
 subprocess.run(
@@ -104,7 +109,7 @@ subprocess.run(
     check=True,
 )
 
-with open("worker-start.json", encoding="utf-8") as stream:
+with open(run_dir / "worker-start.json", encoding="utf-8") as stream:
     started = json.load(stream)["result"]
 assignee = next(
     effect["id"] for effect in started["effects"]
@@ -116,10 +121,10 @@ shown = subprocess.run(
     text=True,
     check=True,
 )
-with open("worker-show.json", "w", encoding="utf-8") as stream:
+with open(run_dir / "worker-show.json", "w", encoding="utf-8") as stream:
     stream.write(shown.stdout)
 subprocess.run(
-    [sys.executable, checker, "worker-show", "worker-show.json", "--dispatch", started["dispatchId"], "--task", started["taskId"], "--assignee", assignee],
+    [sys.executable, checker, "worker-show", str(run_dir / "worker-show.json"), "--dispatch", started["dispatchId"], "--task", started["taskId"], "--assignee", assignee],
     check=True,
 )
 ```

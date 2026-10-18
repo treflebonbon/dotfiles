@@ -20,9 +20,9 @@ SENSITIVE = (
     "*.pem", "*.key", "*.pfx", "*.p12", "credentials*.json", "auth.json",
     "secret.json", "secrets.json", "service-account*.json", "id_rsa*", "id_ed25519*",
     "token.json", "tokens.json", "token.*.json", "credentials", ".netrc", ".npmrc", ".pypirc",
-    "application_default_credentials.json", "access_tokens.db",
+    "application_default_credentials.json", "access_tokens.db", ".git-credentials", ".credentials*.json",
 )
-SENSITIVE_DIRECTORIES = (".aws", ".ssh", ".gnupg", ".kube", "gcloud")
+SENSITIVE_DIRECTORIES = (".aws", ".ssh", ".gnupg", ".kube", ".docker", ".azure", "gcloud")
 
 
 def fail(message):
