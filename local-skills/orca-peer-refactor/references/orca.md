@@ -60,10 +60,10 @@ peer には共有の絶対 reply-file を渡し、1 行目を `DONE <REQ> <sha>`
 実 worker がさらに peer を監督するときは、自分が owner となる child Run を作成・bindする。上位 coordinator から自分の Dispatch 宛てに届く follow-up と child worker の message は、child Run に bind した自分の terminal inbox で処理する。上位 Task / Dispatch / REQ / SHA は保持し、上位へ返す完了は live preamble の handle と Task / Dispatch ID を使う。
 
 ```text
-ORCA orchestration run-create --objective "<child work>" --from <nested-coordinator-handle> --json
+ORCA orchestration run-create --objective "<child work>" --from <nested-coordinator-handle> --json > "$run_dir/child-run-create.json"
 ORCA orchestration check --terminal <nested-coordinator-handle> --run <child-run-id> --wait --timeout-ms 45000 --json
 ORCA orchestration task-create --spec "<child task>" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json
-ORCA orchestration worker-start --task <child-task-id> --worktree id:<child-worktree-id> --agent codex --run <child-run-id> --from <nested-coordinator-handle> --json
+ORCA orchestration worker-start --task <child-task-id> --worktree id:<child-worktree-id> --agent codex --run <child-run-id> --from <nested-coordinator-handle> --json > "$run_dir/child-worker-start.json"
 ```
 
 peer の ID / Run で上位の ID を置き換えたり、上位 coordinator の mailbox を直接読んだりしない。

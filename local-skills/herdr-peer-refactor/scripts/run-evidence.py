@@ -38,7 +38,7 @@ def public_path(value, artifact_path=None):
         fail("証跡は /tmp/codex 配下の絶対パスで指定してください")
     parts = tuple(part.lower() for part in path.parts)
     for part in parts:
-        if (part.startswith(".env") and part not in (".env.example", ".envrc")) or part in SENSITIVE_DIRECTORIES or any(
+        if (part.startswith(".env") and part != ".env.example") or part in SENSITIVE_DIRECTORIES or any(
             fnmatch.fnmatchcase(part, pattern) for pattern in SENSITIVE
         ):
             fail("機密ファイル名を証跡に含められません")
