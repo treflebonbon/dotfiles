@@ -201,3 +201,39 @@ PY
   [[ "$output" == *'fingerprint が一致しません'* ]]
   [ ! -e "$REPORT" ]
 }
+
+@test "Orca receipt example reuses a saved worker receipt without a second query or write" {
+  run python3 - "$BATS_TEST_DIRNAME/.." "$EVIDENCE" <<'PY'
+import json, os, subprocess, sys
+from pathlib import Path
+from unittest.mock import patch
+
+root, run = (Path(p).resolve() for p in sys.argv[1:])
+receipt = run / 'worker-one'
+receipt.mkdir()
+(run / 'run-create.json').write_text(json.dumps({'ok': True, 'result': {'run': {'id': 'run-1', 'coordinator_handle': 'parent-1'}}}))
+(receipt / 'worker-start.json').write_text(json.dumps({'result': {'dispatchId': 'dispatch-1', 'taskId': 'task-1', 'effects': [{'kind': 'terminal', 'role': 'agent', 'id': 'worker-1'}]}}))
+doc = root / 'local-skills/orca-peer-refactor/references/orca.md'
+source = doc.read_text().split("<<'PY'\n", 1)[1].split('\nPY\n```', 1)[0]
+source = source.replace('<skill-dir>', str(root / 'local-skills/orca-peer-refactor'))
+actual_run = subprocess.run
+queries = []
+def fake_orca(argv, **kwargs):
+    if argv[0] != 'orca-ide':
+        return actual_run(argv, **kwargs)
+    if 'worker-show' in argv:
+        queries.append(argv)
+        result = {'ok': True, 'result': {'dispatch': {'id': 'dispatch-1', 'taskId': 'task-1', 'assigneeHandle': 'worker-1', 'status': 'dispatched'}}}
+    else:
+        result = {'result': {'runId': 'run-1'}}
+    return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(result))
+
+with patch.object(sys, 'argv', ['example', str(run), str(receipt)]), patch.dict(os.environ, {'ORCA_TERMINAL_HANDLE': 'parent-1'}), patch.object(subprocess, 'run', fake_orca):
+    exec(compile(source, str(doc), 'exec'), {})
+    original = (receipt / 'worker-show.json').read_bytes()
+    exec(compile(source, str(doc), 'exec'), {})
+assert len(queries) == 1, queries
+assert (receipt / 'worker-show.json').read_bytes() == original
+PY
+  [ "$status" -eq 0 ]
+}
