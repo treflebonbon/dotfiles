@@ -2,7 +2,7 @@
 
 このテンプレートは言語ツール、devShell、`with-env` app を提供する。アプリやテスト自体は生成しない。Nix（flakes 有効）と Git があれば、dotfiles のローカル checkout や direnv なしで使える。
 
-Rust は stable 1.99.0 を選択する。生成先の lock には Rust overlay と言語用 nixpkgs の依存も記録される。
+Rust は stable 1.99.1 を選択する。生成先の lock には Rust overlay と言語用 nixpkgs の依存も記録される。
 
 ## 初回の準備と明示起動
 
@@ -22,7 +22,7 @@ nix run .#with-env -- rustc --version
 
 `flake.nix` と生成した `flake.lock` をコミットする。言語用 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
 
-Rust 1.99.0 は rust-overlay の固定バージョンを使い、rust-analyzer は `nixpkgs-language-sources` の固定 revision から取得する。言語本体と LSP を別々に選び、古い共有チャンネルの LSP を持ち込まない。
+Rust 1.99.1 は rust-overlay の固定バージョンを使い、rust-analyzer は `nixpkgs-language-sources` の固定 revision から取得する。言語本体と LSP を別々に選び、古い共有チャンネルの LSP を持ち込まない。
 
 ## 人間向けコマンドごとの dotenv
 

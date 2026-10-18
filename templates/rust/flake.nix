@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
     nixpkgs-language-sources = {
-      url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
+      url = "github:NixOS/nixpkgs/fe13242281a67641c0102cdb1087f0ebe586c7df";
       flake = false;
     };
     dotfiles = {
@@ -46,7 +46,7 @@
             inherit system;
             overlays = [ rust-overlay.overlays.default ];
           };
-          rustStable = pkgs.rust-bin.stable."1.99.0".default;
+          rustStable = pkgs.rust-bin.stable."1.99.1".default;
           languagePkgs = import nixpkgs-language-sources { inherit system; };
         in
         {
