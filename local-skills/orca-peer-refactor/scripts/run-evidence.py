@@ -149,9 +149,20 @@ def restore(fingerprint, digest):
         target = public_path(path, artifact_path)
         target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
         if not target.exists():
-            with target.open("xb") as stream:
-                os.fchmod(stream.fileno(), 0o600)
-                stream.write(content)
+            created = False
+            try:
+                stream = target.open("xb")
+                created = True
+                with stream:
+                    os.fchmod(stream.fileno(), 0o600)
+                    stream.write(content)
+            except OSError:
+                if created:
+                    try:
+                        target.unlink()
+                    except OSError:
+                        pass  # 元の復元エラーを保持する。
+                raise
     candidate_record["check"](
         data["record_path"], data["candidates_path"], fingerprint,
         lambda path: read_public(path, artifact_path),

@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+setup_file() {
+  if [ ! -e /tmp/codex ] && [ ! -L /tmp/codex ]; then
+    mkdir -m 700 /tmp/codex
+  fi
+  [ -d /tmp/codex ] && [ ! -L /tmp/codex ] && [ -O /tmp/codex ]
+}
+
 setup() {
   unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_PREFIX
   local project_root
@@ -27,7 +34,9 @@ setup() {
 }
 
 teardown() {
-  [[ "$EVIDENCE" == /tmp/codex/peer-evidence-test.* ]] && rm -r -- "$EVIDENCE"
+  if [[ "${EVIDENCE:-}" == /tmp/codex/peer-evidence-test.* ]]; then
+    rm -r -- "$EVIDENCE"
+  fi
 }
 
 checkpoint() {
@@ -200,6 +209,126 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *'fingerprint が一致しません'* ]]
   [ ! -e "$REPORT" ]
+}
+
+@test "standalone evidence tests prepare a private shared root and reject unsafe roots" {
+  run python3 - "$BATS_TEST_DIRNAME/.." "$EVIDENCE" <<'PY'
+import os, re, shlex, stat, subprocess, sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+evidence = Path(sys.argv[2])
+source = (root / 'tests/run-evidence.bats').read_text()
+assignment = '  project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"'
+assert source.splitlines().count(assignment) == 1
+for kind in ['missing', 'owned', 'file', 'symlink', 'dangling']:
+    shared = evidence / f'shared-{kind}'
+    if kind == 'owned':
+        shared.mkdir(mode=0o700)
+        (shared / 'keep').write_text('unchanged')
+    elif kind == 'file':
+        shared.write_text('unchanged')
+    elif kind == 'symlink':
+        (evidence / 'link-target').mkdir(mode=0o700)
+        (evidence / 'link-target' / 'keep').write_text('unchanged')
+        shared.symlink_to(evidence / 'link-target')
+    elif kind == 'dangling':
+        shared.symlink_to(evidence / 'missing-target')
+    fixture = evidence / f'{kind}.bats'
+    fixture.write_text(source.replace('/tmp/codex', str(shared)).replace(assignment, '  project_root=' + shlex.quote(str(root)), 1))
+    result = subprocess.run(['bats', '--tap', '--print-output-on-failure', '--filter', '^checkpoint validates the original fingerprint', str(fixture)], capture_output=True, text=True)
+    if kind in ['missing', 'owned']:
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert shared.is_dir() and not shared.is_symlink()
+        assert shared.stat().st_uid == os.getuid()
+        assert stat.S_IMODE(shared.stat().st_mode) == 0o700
+        assert list(shared.iterdir()) == ([] if kind == 'missing' else [shared / 'keep'])
+    else:
+        assert result.returncode != 0, kind
+        assert 'setup_file failed' in result.stdout, result.stdout
+        if kind == 'file':
+            assert shared.read_text() == 'unchanged'
+        elif kind == 'symlink':
+            assert shared.is_symlink()
+            assert list((evidence / 'link-target').iterdir()) == [evidence / 'link-target' / 'keep']
+        else:
+            assert shared.is_symlink() and not (evidence / 'missing-target').exists()
+
+setup_file = re.search(r'^setup_file\(\) \{\n.*?^\}', source, re.M | re.S).group()
+if Path('/').stat().st_uid != os.getuid():
+    rejected = subprocess.run(['bash', '-c', setup_file.replace('/tmp/codex', '/') + '\nsetup_file'], capture_output=True, text=True)
+    assert rejected.returncode != 0
+teardown = re.search(r'^teardown\(\) \{\n.*?^\}', source, re.M | re.S).group()
+for state in ['unset EVIDENCE', "EVIDENCE=''"]:
+    result = subprocess.run(['bash', '-c', 'set -u\n' + teardown + '\n' + state + '\nteardown'], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+PY
+  [ "$status" -eq 0 ]
+}
+
+@test "restore cleans up failed writes but preserves a concurrently created destination" {
+  save_checkpoint
+  run python3 - "$SCRIPT" "$REPO" "$REPORT" "$FINGERPRINT" "$CHECKPOINT" <<'PY'
+import os, runpy, sys
+from pathlib import Path
+from unittest.mock import patch
+
+script, repo, report, fingerprint, checkpoint = sys.argv[1:]
+os.chdir(repo)
+restore = runpy.run_path(script)['restore']
+report = Path(report)
+original = report.read_bytes()
+actual_open, actual_chmod = Path.open, os.fchmod
+
+class FailingStream:
+    def __init__(self, stream, fault):
+        self.stream, self.fault = stream, fault
+    def __enter__(self):
+        self.stream.__enter__()
+        return self
+    def __exit__(self, *args):
+        self.stream.__exit__(*args)
+        if self.fault == 'close':
+            raise OSError('injected close failure')
+    def fileno(self):
+        return self.stream.fileno()
+    def write(self, content):
+        if self.fault == 'write':
+            self.stream.write(content[:3])
+            self.stream.flush()
+            raise OSError('injected write failure')
+        return self.stream.write(content)
+
+for fault in ['chmod', 'write', 'close', 'concurrent']:
+    report.unlink()
+    def faulty_open(path, mode='r', *args, **kwargs):
+        if path != report or mode != 'xb':
+            return actual_open(path, mode, *args, **kwargs)
+        if fault == 'concurrent':
+            with actual_open(path, 'xb') as stream:
+                stream.write(b'newer evidence')
+        stream = actual_open(path, mode, *args, **kwargs)
+        return FailingStream(stream, fault)
+    chmod = OSError('injected chmod failure') if fault == 'chmod' else actual_chmod
+    with patch.object(Path, 'open', faulty_open), patch.object(os, 'fchmod', side_effect=chmod):
+        try:
+            restore(fingerprint, checkpoint)
+        except OSError as error:
+            if fault == 'concurrent':
+                assert isinstance(error, FileExistsError), error
+            else:
+                assert str(error) == f'injected {fault} failure', error
+        else:
+            raise AssertionError(f'{fault}: expected restore failure')
+    if fault == 'concurrent':
+        assert report.read_bytes() == b'newer evidence'
+        report.unlink()
+    else:
+        assert not report.exists(), f'{fault}: incomplete evidence remains'
+    restore(fingerprint, checkpoint)
+    assert report.read_bytes() == original
+PY
+  [ "$status" -eq 0 ]
 }
 
 @test "Orca receipt example validates before publishing and reuses saved worker receipts" {
