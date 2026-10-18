@@ -37,7 +37,7 @@ playwright-cli run-code "$(sed '$s/;$//' "$render_script")"
 
 oxfmt が JS expression の末尾に追加する `;` だけを除いてから `run-code` に渡す。CLI が source を expression として括るために必要な処理である。
 
-`mktemp -d /tmp/codex/peer-refactor.XXXXXX` で共有 directory を作り、候補ごとの `id`、元の `title`、`acceptance`（受入条件の配列）、`non_goals`（非目標の配列）、`owned_files`（変更担当のファイル・行範囲の配列）を JSON に記録する。受入条件は元の改善意図を具体化し、既存 helper の整備など別の目的へ差し替えない。peer と合意した非目標も明記する。
+`run_dir=$(mktemp -d /tmp/codex/peer-refactor.XXXXXX)` で共有 directory を作り、候補ごとの `id`、元の `title`、`acceptance`（受入条件の配列）、`non_goals`（非目標の配列）、`owned_files`（変更担当のファイル・行範囲の配列）を JSON に記録する。受入条件は元の改善意図を具体化し、既存 helper の整備など別の目的へ差し替えない。peer と合意した非目標も明記する。
 
 ```bash
 python3 <skill-dir>/scripts/candidate-record.py pin <artifact> <source-repo-common-dir> <source-sha> <candidates.json> <record.json>

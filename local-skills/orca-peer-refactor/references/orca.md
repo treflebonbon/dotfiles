@@ -42,6 +42,7 @@ ORCA orchestration check --terminal <worker-handle> --ack <delivery-id-from-resu
 coordinator は自分の terminal handle で Run を作成・bindし、返った Run ID を全 task / worker 操作に使う。
 
 ```text
+: "${run_dir:?共有 run directory の絶対パスを指定してください}"
 ORCA orchestration run-create --objective "<元候補の改善>" --from <coordinator-handle> --json > "$run_dir/run-create.json"
 ORCA orchestration check --terminal <coordinator-handle> --run <run-id> --wait --timeout-ms 45000 --json
 ORCA orchestration task-create --spec "<候補ID・AC・非目標・所有範囲・writerまたはreviewer>" --task-title "<title>" --run <run-id> --from <coordinator-handle> --json
@@ -60,6 +61,7 @@ peer には共有の絶対 reply-file を渡し、1 行目を `DONE <REQ> <sha>`
 実 worker がさらに peer を監督するときは、自分が owner となる child Run を作成・bindする。上位 coordinator から自分の Dispatch 宛てに届く follow-up と child worker の message は、child Run に bind した自分の terminal inbox で処理する。上位 Task / Dispatch / REQ / SHA は保持し、上位へ返す完了は live preamble の handle と Task / Dispatch ID を使う。
 
 ```text
+: "${run_dir:?共有 run directory の絶対パスを指定してください}"
 ORCA orchestration run-create --objective "<child work>" --from <nested-coordinator-handle> --json > "$run_dir/child-run-create.json"
 ORCA orchestration check --terminal <nested-coordinator-handle> --run <child-run-id> --wait --timeout-ms 45000 --json
 ORCA orchestration task-create --spec "<child task>" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json
@@ -78,7 +80,8 @@ ORCA orchestration send --to dispatch:<nested-dispatch-id> --from <coordinator-h
 
 ID を手入力・再構成せず、JSON receipt を `json.load` し、その値を `subprocess.run` の argv list に渡す。以下は選択済み CLI を `orca` に設定する例。実行時の第1引数に上記 `$run_dir` を渡す。coordinator の expected Run ID は bound inbox の peek 結果、handle は runtime が出した `ORCA_TERMINAL_HANDLE` と照合する。worker-show の expected 値は worker-start receipt から取り出す。
 
-```python
+```bash
+python3 - "${run_dir:?共有 run directory の絶対パスを指定してください}" <<'PY'
 import json
 import os
 import subprocess
@@ -127,6 +130,7 @@ subprocess.run(
     [sys.executable, checker, "worker-show", str(run_dir / "worker-show.json"), "--dispatch", started["dispatchId"], "--task", started["taskId"], "--assignee", assignee],
     check=True,
 )
+PY
 ```
 
 ordinary / nested worker の `check` は filter なしで whole FIFO を読むため、`status` follow-up でも起きる。全 message を処理してから、JSON の `result.deliveryId` を同じ handle の `--ack` argv に渡す。`consumer_fenced` は例外を成功扱いせず、その場で停止する。
