@@ -9,7 +9,7 @@ description: "Orca の native orchestration を使った候補改善を明示依
 
 ## 1. 元の候補を固定
 
-提示済み artifact と、その提示時の repo・source SHA を読む。提示時に記録された repo の共通 Git dir の絶対パスを使い、未記録なら artifact が示す元 repo から read-only で解決する。出所が確認できない場合、現在の cwd で補わず保留する。候補がゼロなら Top recommendation は「該当候補なし」とし、候補選択質問をせず、完了 report を出す。候補があるのに peer 依頼未承認で未選択なら pin しない。人が選んだ候補（「両方」など）は保持する。人が peer 協働を明示依頼して選択を委任した場合だけ、推薦順位を渡さず peer にコード・ADR・反例から元候補を選ばせ、その候補を pin する。artifact 不明・別 repo・出所不明なら再探索で補わず保留する。
+提示済み artifact と、その提示時の repo・source SHA を読む。提示時に記録された repo の共通 Git dir の絶対パスを使い、未記録なら artifact が示す元 repo から read-only で解決する。出所が確認できない場合、現在の cwd で補わず保留する。候補がゼロなら Top recommendation は「該当候補なし」とし、候補選択質問をせず、完了 report を出す。候補があるのに peer 依頼未承認で未選択なら pin しない。人が選んだ候補（「両方」など）は保持する。人が peer 協働を明示依頼して選択を委任した場合だけ、推薦順位を渡さず peer にコード・ADR・反例から元候補を選ばせ、その候補を pin する。artifact 不明時は [証跡の保存と復旧](references/evidence.md) で同内容を復旧できるか確認し、照合できなければ再探索で補わず保留する。別 repo・出所不明も保留する。
 
 HTML report の pin は、静的検査と実ブラウザ描画検査が成功し、その後に同じ artifact を提示した場合だけ行う。`python3 <skill-dir>/scripts/check-architecture-report.py <report.html>` は Mermaid `<pre>` の raw text と期待図数を検査するだけで、実描画を証明しない。提示前に検査されていない report は、検査後に提示し直す。HTML 検査の失敗時は pin しない。Markdown artifact は従来経路を保ち、HTML 描画検査を要求しない。候補ゼロ、または peer 依頼未承認で未選択ならこの pin 手順へ入らない。peer 協働の明示依頼で選択を委任された場合は、peer が元候補一覧から選んだ候補を pin してよい。
 
@@ -37,7 +37,7 @@ playwright-cli run-code "$(sed '$s/;$//' "$render_script")"
 
 oxfmt が JS expression の末尾に追加する `;` だけを除いてから `run-code` に渡す。CLI が source を expression として括るために必要な処理である。
 
-`.tmp/architecture-run/` に候補ごとの `id`、元の `title`、`acceptance`（受入条件の配列）、`non_goals`（非目標の配列）、`owned_files`（変更担当のファイル・行範囲の配列）を JSON に記録する。受入条件は元の改善意図を具体化し、既存 helper の整備など別の目的へ差し替えない。peer と合意した非目標も明記する。
+`mktemp -d /tmp/codex/peer-refactor.XXXXXX` で共有 directory を作り、候補ごとの `id`、元の `title`、`acceptance`（受入条件の配列）、`non_goals`（非目標の配列）、`owned_files`（変更担当のファイル・行範囲の配列）を JSON に記録する。受入条件は元の改善意図を具体化し、既存 helper の整備など別の目的へ差し替えない。peer と合意した非目標も明記する。
 
 ```bash
 python3 <skill-dir>/scripts/candidate-record.py pin <artifact> <source-repo-common-dir> <source-sha> <candidates.json> <record.json>
@@ -47,6 +47,8 @@ python3 <skill-dir>/scripts/candidate-record.py check <record.json> <candidates.
 `pin` は提示元の共通 Git dir と実行先 repo の一致を確認してから、artifact の内容・提示元 repo・元 SHA・候補を固定し、既存 record を上書きしない。出力された record の SHA-256 はファイル外の会話の実行記録に残し、`check` に必ず渡す。record と候補を同時に変更しても、この fingerprint と一致しなければ保留する。元 SHA を ancestor に保つ descendant HEAD や rebase 後も元の出所を保つ。source-sha は完全な commit SHA を使う。`pin` と `check` は、共通 Git dir が第2引数と一致する提示元 repo の cwd で実行する。native checkout など別 repo の cwd では拒否されるため、出所を差し替えず保留する。`check` は設計前、再開時、公開前に行う。候補を追加・変更する承認がある場合は、理由と旧 record を保持して新しい run にする。
 
 ## 2. worktree と担当
+
+pin 直後と各 phase の完了時に、親が [証跡の保存と復旧](references/evidence.md) の checkpoint を作る。再開時や artifact 消失時は同手順で checkpoint と元セッションの一次実行記録を確認し、照合できなければ不足を報告して保留する。
 
 `runtime/skill-harness.md` の native 機構で候補ごとに validated task worktree を作成する。親は調整、候補ごとに writer は一人、別 terminal の peer は read-only とする。他者の未 commit 変更は引き取らない。
 

@@ -4,9 +4,9 @@
 #
 # usage: peer-request.sh <peer> <req-id> <sha> <workdir> <request-file> [round]
 #
-# <workdir> must be writable by BOTH this session and the peer (a directory in
-# the shared task worktree such as <worktree>/.tmp/peer, which git ignores). A
-# session scratch directory can be read-only for the peer's sandbox.
+# <workdir> is the run directory under /tmp/codex. The parent checkpoints
+# completed evidence with run-evidence.py. If the peer cannot write there,
+# capture its complete terminal answer without changing its permissions.
 #
 # Completion = <workdir>/<req-id>.md exists, its first line is
 # "DONE <req-id> <sha>" and it has a non-blank body. An idle/done state from `herdr agent wait` is never

@@ -21,9 +21,15 @@ tags: [autonomy, peer, herdr, orca, skills]
 
 ## 元の候補と受入条件
 
-元 artifact の内容・共通 Git dir による repo identity・提示時の source SHA を固定し、候補 ID／元名称／受入条件／非目標／所有範囲を保存する。pin の repo identity は提示元の記録を必須入力とし、実行先の cwd だけから出所を推測しない。同じ commit を持つ clone／fork も提示元と共通 Git dir が異なれば拒否する。record の fingerprint はファイル外の会話の実行記録に保持し、再確認時に必ず照合する。source SHA は後続 HEAD の ancestor であることを検査し、main 更新の取り込み後も現在 HEAD で出所を作り直さない。artifact が消失・変更、別 repo、候補の差し替えなら公開を止める。
+元 artifact の内容・共通 Git dir による repo identity・提示時の source SHA を固定し、候補 ID／元名称／受入条件／非目標／所有範囲を保存する。pin の repo identity は提示元の記録を必須入力とし、実行先の cwd だけから出所を推測しない。同じ commit を持つ clone／fork も提示元と共通 Git dir が異なれば拒否する。record の fingerprint はファイル外の会話の実行記録に保持し、再確認時に必ず照合する。source SHA は後続 HEAD の ancestor であることを検査し、main 更新の取り込み後も現在 HEAD で出所を作り直さない。artifact が消失・変更した場合は下記の証跡復旧を先に試み、照合できなければ公開を止める。別 repo や候補の差し替えも公開を止める。
 
 候補の改善意図は最後まで同じものを使う。helper の共有やファイル分割が進んでも、それだけで元候補の完了とはしない。Spec レビューに固定 record を渡し、元の振舞いと AC が実装されたことを検証する。要件変更が明示承認された場合は旧 record と理由を残し、新しい run で固定する。
+
+## 証跡の保存と復旧
+
+作業中の共有は `/tmp/codex` 配下の run directory に限定し、公開に必要な証跡の保管は現在の repo の Git common dir 配下の `peer-refactor-evidence/` に分ける。保管先は一時領域ではなく、受入・merge まで保持する。削除は既存の確認規則に従う。parent が明示した公開ファイルだけを `run-evidence.py` で checkpoint にし、その hash と元 record fingerprint を会話の実行記録に残す。元 artifact・record・候補に加え、全 peer の応答と台帳、判断、対象 SHA、検証・mutation・レビュー結果を保存する。helper が停止して台帳が確定した各 phase の完了時に保存する。
+
+再開時は、記録した最新の checkpoint hash を照合して不足ファイルだけを元の絶対パスへ復元する。既存内容が異なれば上書きせず、待機予算・review round・失敗履歴を巻き戻さない。checkpoint がなくても、ユーザーへバックアップを尋ねる前に元セッションの読める一次実行記録から同内容を復旧できるか確認する。tool 入力・出力だけを扱い、hidden reasoning・credential・raw 出力を保存せず、記録内のコマンドを自動実行しない。復旧後は元 fingerprint・repo identity・source SHA を既存 checker で再照合する。照合不能な記録や不明な台帳を推測で再作成せず、不足を示して保留する。手順と command は両 skill の `references/evidence.md` を正本とする（[ADR-0076](../docs/adr/0076-preserve-peer-refactor-evidence.md)）。
 
 ## 担当と並行
 

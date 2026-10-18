@@ -71,10 +71,10 @@ def artifact_text(raw):
     return " ".join("".join(parser.parts).split())
 
 
-def load_json(path, label):
+def load_json(path, label, read_bytes=None):
     try:
-        with open(path, encoding="utf-8") as stream:
-            return json.load(stream)
+        raw = read_bytes(path) if read_bytes else Path(path).read_bytes()
+        return json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         fail(f"{label} を読めません")
 
@@ -115,10 +115,10 @@ def validate_candidates(candidates, source_text):
             fail(f"候補 title がレポートにありません: {title}")
 
 
-def read_artifact(path):
+def read_artifact(path, read_bytes=None):
     absolute = os.path.abspath(path)
     try:
-        raw = Path(absolute).read_bytes()
+        raw = read_bytes(absolute) if read_bytes else Path(absolute).read_bytes()
     except OSError:
         fail("レポートを読めません")
     return absolute, raw
@@ -155,10 +155,10 @@ def pin(artifact, source_repo, source_sha, candidates_path, record_path):
     print(hashlib.sha256(raw_record).hexdigest())
 
 
-def check(record_path, candidates_path, fingerprint):
+def check(record_path, candidates_path, fingerprint, read_bytes=None):
     if not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
         fail("record fingerprint は SHA-256 で指定してください")
-    raw_record = Path(record_path).read_bytes()
+    raw_record = read_bytes(record_path) if read_bytes else Path(record_path).read_bytes()
     if hashlib.sha256(raw_record).hexdigest() != fingerprint:
         fail("記録ファイルの fingerprint が一致しません")
     try:
@@ -174,7 +174,7 @@ def check(record_path, candidates_path, fingerprint):
         fail("記録ファイルの provenance が不正です")
     if repo_identity() != record["repo_common_dir"]:
         fail("別の Git リポジトリです")
-    artifact_path, raw = read_artifact(record["artifact_path"])
+    artifact_path, raw = read_artifact(record["artifact_path"], read_bytes)
     if artifact_path != record["artifact_path"] or hashlib.sha256(raw).hexdigest() != record["artifact_sha256"]:
         fail("レポートが記録後に変更または移動されています")
     source_text = artifact_text(raw)
@@ -183,7 +183,7 @@ def check(record_path, candidates_path, fingerprint):
     if source_commit != record["source_commit"]:
         fail("記録された source commit が不正です")
     check_ancestor(source_commit)
-    proposed = load_json(candidates_path, "候補ファイル")
+    proposed = load_json(candidates_path, "候補ファイル", read_bytes)
     validate_candidates(proposed, source_text)
     if proposed != record["candidates"]:
         fail("候補が固定記録と一致しません")
