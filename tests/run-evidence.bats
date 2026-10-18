@@ -107,7 +107,7 @@ restore() {
 
 @test "checkpoint refuses sensitive names symlinks directories and paths outside shared evidence" {
   local path
-  for path in .env private.key credentials.json auth.json secret.json secrets.json service-account-test.json .ENV .envrc token.json .aws/credentials .ssh/config .config/gh/hosts.yml .docker/config.json .azure/accessTokens.json .git-credentials .credentials.json; do
+  for path in .env private.key credentials.json auth.json secret.json secrets.json service-account-test.json .ENV .envrc token.json .aws/credentials .ssh/config .config/gh/hosts.yml .docker/config.json .azure/accessTokens.json .git-credentials .credentials.json id_rsa id_ed25519 id_ecdsa id_dsa; do
     mkdir -p "$(dirname "$EVIDENCE/$path")"
     printf 'synthetic\n' >"$EVIDENCE/$path"
     run checkpoint "$EVIDENCE/$path"

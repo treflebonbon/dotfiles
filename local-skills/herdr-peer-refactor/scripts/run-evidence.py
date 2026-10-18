@@ -18,7 +18,7 @@ candidate_record = runpy.run_path(str(Path(__file__).with_name("candidate-record
 SHARED = Path("/tmp/codex")
 SENSITIVE = (
     "*.pem", "*.key", "*.pfx", "*.p12", "credentials*.json", "auth.json",
-    "secret.json", "secrets.json", "service-account*.json", "id_rsa*", "id_ed25519*",
+    "secret.json", "secrets.json", "service-account*.json", "id_*",
     "token.json", "tokens.json", "token.*.json", "credentials", ".netrc", ".npmrc", ".pypirc",
     "application_default_credentials.json", "access_tokens.db", ".git-credentials", ".credentials*.json",
 )
