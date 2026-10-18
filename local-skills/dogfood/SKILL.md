@@ -105,6 +105,8 @@ For multi-cycle requests, track cycle count and zero-finding streak separately f
 - Stop on `gh issue create` failure and print already-created issue numbers plus rollback commands.
 - Adapt the approval questions to the current runtime's choice limit without dropping either per-finding editing or the explicit batch escape hatch.
 - The Playwright dogfood runner is the standard path for both normal web targets and `--extension` MV3 targets. For open-ended manual browser exploration, use `playwright-cli`.
+- The runner inspects only the target's initial page: it neither signs in nor navigates. For a target behind authentication it sees only the login screen, so "no findings" there does not mean the app is clean. Explore such a target with `playwright-cli` after signing in with throwaway credentials the target itself provides (a local demo's invitation, a test account); never reuse real credentials. In the summary, name the areas the run did not cover.
+- When exploring by hand, an action that looks destructive or irreversible usually opens a confirmation dialog (`alertdialog`) and sends nothing until it is confirmed. Take a fresh snapshot after the click before concluding the action did nothing.
 
 ## References
 
