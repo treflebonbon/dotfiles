@@ -4,7 +4,7 @@
 
 ## 保存
 
-元 record・候補一覧・元 artifact は自動で含める。追加するのは確認済みの公開ファイルだけとし、run 全体や session transcript を一括コピーしない。機密名と symlink は helper が拒否するが、内容の機密判定はしない。
+元 record・候補一覧・元 artifact は自動で含める。record・候補と追加入力は `/tmp/codex` 配下に置く。元 artifact は、元 fingerprint が固定する絶対パスに限り、共有領域外にある既存レポートも保存・復元できる。追加するのは確認済みの公開ファイルだけとし、run 全体や session transcript を一括コピーしない。機密名と symlink は元 artifact にも適用して拒否するが、内容の機密判定はしない。
 
 ```bash
 python3 "$skill_dir/scripts/run-evidence.py" checkpoint \

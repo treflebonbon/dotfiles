@@ -107,7 +107,8 @@ restore() {
 
 @test "checkpoint refuses sensitive names symlinks directories and paths outside shared evidence" {
   local path
-  for path in .env private.key credentials.json auth.json secret.json secrets.json service-account-test.json; do
+  for path in .env private.key credentials.json auth.json secret.json secrets.json service-account-test.json .ENV token.json .aws/credentials .ssh/config .config/gh/hosts.yml; do
+    mkdir -p "$(dirname "$EVIDENCE/$path")"
     printf 'synthetic\n' >"$EVIDENCE/$path"
     run checkpoint "$EVIDENCE/$path"
     [ "$status" -ne 0 ]
@@ -123,6 +124,19 @@ restore() {
   [ "$status" -ne 0 ]
   [[ "$output" == *'/tmp/codex'* ]]
   [ ! -e "$COMMON/peer-refactor-evidence" ]
+}
+
+@test "checkpoint preserves an existing pinned report outside the shared run directory" {
+  local previous="$REPORT"
+  REPORT="$BATS_TEST_TMPDIR/external.md"
+  cp "$previous" "$REPORT"
+  rm -- "$RECORD"
+  FINGERPRINT="$(cd "$REPO" && python3 "$PIN" pin "$REPORT" "$COMMON" "$SHA" "$CANDIDATES" "$RECORD")"
+  save_checkpoint
+  rm -- "$REPORT"
+  run restore
+  [ "$status" -eq 0 ]
+  cmp "$previous" "$REPORT"
 }
 
 @test "restore refuses symlink destinations and leaves their target unchanged" {
