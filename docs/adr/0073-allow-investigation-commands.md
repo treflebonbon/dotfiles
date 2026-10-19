@@ -39,7 +39,7 @@ Secret Manager の秘密値や認証トークンをエージェントへ表示�
 
 Monitoring の時系列データは、導入版 CLI の対応を確認したうえで必要なら公式の `projects.timeSeries.list` を利用する。認証値をエージェントへ表示する手順は採用しない。任意の `gh api` や GraphQL は初期の自動許可対象に加えず、必要な GitHub 調査は専用の参照コマンドで提供する。
 
-通常の `gcloud` は一括禁止を維持する。グローバルオプションを先に置くと秘密取得を狭い prefix ルールで識別できないため、単に個別確認へ緩和する設計は採用しない。別名の限定入口を許可し、Codex の command rules と Claude Code の共通設定・repo 設定を揃える。Codex の allow で限定入口を既存の承認経路から実行し、秘密ファイルや network domain の許可範囲は広げない。raw 隔離版の独立した認証・通信境界は変更しない。
+通常の `gcloud` は一括禁止を維持する。グローバルオプションを先に置くと秘密取得を狭い prefix ルールで識別できないため、単に個別確認へ緩和する設計は採用しない。別名の限定入口を許可し、Codex の command rules と Claude Code の共通設定・repo 設定を揃える。Codex の allow で限定入口を既存の承認経路から実行し、秘密ファイルや network domain の許可範囲は広げない。raw 隔離版の独立した認証・通信境界は変更しない。通常の `gcloud` の単独呼出しを `gcloud-inspect` へ接続する hook は [ADR-0077](0077-route-investigation-commands-through-hooks.md) で扱い、この権限境界は変えない。
 
 既存の Git 保護と同様に、`command gcloud`・`env gcloud` と `/bin/gcloud`・`/usr/bin/gcloud` も禁止する。任意のラッパーや interpreter の実行をコマンドルールだけで完全に遮断する設計ではなく、[ADR-0055](0055-disable-block-reads-outside-working-directories.md) の既存の限界を引き継ぐ。拒否された操作を別経路で実行しない行動契約も維持する。
 

@@ -13,6 +13,14 @@ tags: [gcloud, github, codex, claude-code, permissions]
 
 自動調査には `gcloud-inspect` を使う。既存の `gcloud` が PATH に必要。操作とオプションを検証してから CLI を呼び、JSON の既知の機密項目を `[非表示]` に置き換える。
 
+通常の `gcloud <引数>` を、リテラルの引数だけで単独に1回呼んだ場合は、PreToolUse hook（`gcloud-inspect-hook`）が `gcloud-inspect <引数>` へ書換える。許可の判定と機密項目の除外は `gcloud-inspect` が行う。次の入力は書換えず、理由つきで拒否する。拒否後は案内に従って呼び直し、直接の `gcloud` や別の実行方法で迂回しない。
+
+- 複合 shell（`cd … &&`、パイプ、`;`、コマンド置換）: `gcloud <引数>` を単独で1回呼ぶ。
+- 展開（`$…`、バッククォート、glob、`~`、`{}`）、環境変数の代入、リダイレクト、改行・コメント: リテラルの引数だけにする。
+- 先頭の `--reviewed`: ユーザーの確認後に、明示的な `gcloud-inspect --reviewed …` を使う。
+
+認識できない別名や wrapper（`command`、`env`、絶対パス）、hook の失敗・timeout・未信頼では書換えず、元の `gcloud` が既存の禁止ルールで拒否される。Codex は hook の trust が済むまで hook をスキップするため、配備後は trust 済みであることを確認する。`gh` は書換えない。設計の経緯は [ADR-0077](../docs/adr/0077-route-investigation-commands-through-hooks.md)。
+
 ```bash
 gcloud-inspect logging read 'severity>=ERROR' --project PROJECT_ID --freshness 1h --limit 50
 gcloud-inspect run services describe SERVICE --project PROJECT_ID --region asia-northeast1
