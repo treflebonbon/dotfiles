@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # 実機の Claude / Codex でダミーの gcloud に対し hook が効くかを確認する。モデルを呼ぶため既定は skip。
-# 有効化: GCLOUD_INSPECT_HOOK_LIVE=claude / codex（空白区切りで両方可）。
+# 有効化: GCLOUD_INSPECT_HOOK_LIVE=claude または codex。両方なら引用符で囲む: GCLOUD_INSPECT_HOOK_LIVE="claude codex"。
 # Codex は使い捨て CODEX_HOME の hook が未信頼で無視されるため、CODEX_BYPASS_HOOK_TRUST=1 も必要（live-hook-agent.sh 参照）。
 
 setup() {

@@ -23,7 +23,7 @@ tags: [conventions, git, lint, lefthook]
 
 進捗は `scripts/test-status.sh [tmp/test-run.*]` で確認する。最新の `tmp/test-run.*/` の `exit-code` の有無で完了を判定し、成功・失敗・スキップ・計画件数を表示する。プロセス検索（`pgrep` など）は使わない。
 
-実機のモデルを呼ぶ検証（`tests/live-hook.bats`、`GCLOUD_INSPECT_HOOK_LIVE=claude codex`。Codex は加えて `CODEX_BYPASS_HOOK_TRUST=1`）と大規模な差分テスト（`GCLOUD_INSPECT_HOOK_FUZZ=1`）は既定で skip し、環境変数で opt-in する。道具は `tests/helpers/live-hook-*.sh`。
+実機のモデルを呼ぶ検証（`tests/live-hook.bats`。両方なら `GCLOUD_INSPECT_HOOK_LIVE="claude codex" CODEX_BYPASS_HOOK_TRUST=1 bats tests/live-hook.bats`。Codex は `CODEX_BYPASS_HOOK_TRUST=1` が必要）と大規模な差分テスト（`GCLOUD_INSPECT_HOOK_FUZZ=1`）は既定で skip し、環境変数で opt-in する。道具は `tests/helpers/live-hook-*.sh`。
 
 topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
 
