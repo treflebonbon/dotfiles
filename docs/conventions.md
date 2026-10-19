@@ -21,6 +21,10 @@ tags: [conventions, git, lint, lefthook]
 
 テスト入口は明示的に TAP 形式を使い、試行ごとに `tmp/test-run.*/` へ `tap.log`、環境確認・install のログ（`setup.log`）、選択された Python・with-env の実体パス（`environment`）、終了コード（`exit-code`）を保存する。環境確認や install が失敗した場合も記録し、Bats 未実行なら TAP ログは空になる。lefthook が出力をまとめて表示する場合も、このログで実行中の進捗を確認できる。進捗はログ全体の TAP 結果行から集計する。成功はスキップ指定のない `ok` 行、失敗は `not ok` 行、スキップは `# skip` 指定付きの `ok` 行として数える。入口は Bats が正常終了した後も、計画が1つで結果件数と一致し、結果番号が1から連続し、失敗結果や中断宣言がないことを確認する。不整合な TAP は終了コード1で拒否し、元のログを残す。Bats が正常終了する空 suite（`--allow-empty-suite` の `1..0`）は受け入れる。完了時は保存された終了コードも確認する。再実行の結果は初回の結果と分けて報告する。
 
+進捗は `scripts/test-status.sh [tmp/test-run.*]` で確認する。最新の `tmp/test-run.*/` の `exit-code` の有無で完了を判定し、成功・失敗・スキップ・計画件数を表示する。プロセス検索（`pgrep` など）は使わない。
+
+実機のモデルを呼ぶ検証（`tests/live-hook.bats`）と大規模な差分テスト（`GCLOUD_INSPECT_HOOK_FUZZ=1`）は既定で skip し、環境変数で opt-in する。道具は `tests/helpers/live-hook-*.sh`。
+
 topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
 
 アーキテクチャHTML report checkerの実ブラウザ再検証は、全Batsへ組み込まず、repo root で `nix develop ./private_dot_config/nix-devshell --command nix develop . --command scripts/run-architecture-render-smoke.sh` を個別に実行する。`playwright-cli` が管理する一時session、loopback HTTP server、追跡fixtureを使う。実report用 `check-architecture-render.js` を正本とし、既存SKILL.mdの手順と同じ `sed '$s/;$//'` を `run-code` へ渡す一時入力にだけ適用する。Mermaid 11.17.2 をjsDelivrから一時web rootへ取得し、vendoringしない。`curl` / `python3` / `playwright-cli` とjsDelivrへの接続が実行前提であり、未達時は失敗理由を表示する。TAPとconsoleの記録は試行ごとに `.tmp/architecture-render-smoke.*` へ保持する。図なしHTMLはHTTP 200なら成功、HTTP 404なら失敗として検査する。

@@ -69,6 +69,13 @@ print({
   done
 }
 
+# 小さな差分テストは seed 固定で毎回実行する。件数を増やした版は GCLOUD_INSPECT_HOOK_FUZZ=1 の opt-in。
+@test "乱数で作った引数列も bash の単語分割と一致して書換える" {
+  local count=100
+  [ "${GCLOUD_INSPECT_HOOK_FUZZ:-0}" = 1 ] && count=5000
+  run -0 python3 -I "$PROJECT_ROOT/tests/helpers/gcloud-inspect-hook-fuzz.py" "$SCRIPT" 20261020 "$count"
+}
+
 @test "gcloud-inspect の入力に書換え後も展開が残らない" {
   run -0 hook "gcloud projects list '--filter=\$(printf PROBE)'"
   [ "$(field command <<<"$output")" = "gcloud-inspect projects list '--filter=\$(printf PROBE)'" ]
