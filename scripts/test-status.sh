@@ -11,7 +11,7 @@ dir=${1:-$(find tmp -maxdepth 1 -type d -name "test-run.*" -printf "%T@ %p\n" 2>
 dir=${dir%/}
 
 tap="$dir/tap.log"
-plan=$(sed -n 's/^1\.\.\([0-9][0-9]*\).*/\1/p' "$tap" 2>/dev/null | head -n1)
+plan=$(sed -n 's/^1\.\.\([0-9][0-9]*\).*/\1/p' "$tap" 2>/dev/null | head -n1 || true)
 read -r pass fail skip < <(awk '
   /^not ok / { f++ }
   /^ok / { if ($0 ~ /# [Ss][Kk][Ii][Pp]/) s++; else p++ }
