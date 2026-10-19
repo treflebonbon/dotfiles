@@ -51,8 +51,7 @@ class Word(NamedTuple):
 class Scan:
     """command を単語へ分解し、構造（演算子・置換）と未対応構文の有無を集める。
 
-    コメントと heredoc の本文は読み飛ばし、その後の行は走査を続ける。二重引用符内の置換にある heredoc だけは、
-    本文の終わりを決められないため、そこで走査を止める。
+    コメントと heredoc の本文は読み飛ばし、その後の行は走査を続ける。
     """
 
     def __init__(self, command):
@@ -189,6 +188,7 @@ class Scan:
                 plain = False
                 i += 1
                 in_substitution = False
+                pending = []  # 置換の中の heredoc
                 while True:
                     if i >= n:
                         bad = True
@@ -197,9 +197,18 @@ class Scan:
                     if d == '"':
                         i += 1
                         break
-                    if in_substitution and command.startswith("<<", i):
-                        self.stopped = True
-                        break
+                    if in_substitution and command.startswith("<<", i) and not command.startswith("<<<", i):
+                        i, heredoc = self._heredoc_delimiter(i + 2)
+                        if heredoc is None:
+                            self.stopped = True
+                            break
+                        pending.append(heredoc)
+                        continue
+                    if d == "\n" and pending:
+                        value += d
+                        i = self._skip_heredocs(i + 1, pending)
+                        pending = []
+                        continue
                     if d == "\\" and i + 1 < n and command[i + 1] in '$`"\\':
                         value += command[i + 1]
                         i += 2

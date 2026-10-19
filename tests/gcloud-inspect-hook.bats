@@ -103,6 +103,10 @@ print({
     "echo \"\$(if true; then gcloud projects list; fi)\""
     "echo \"\$(! gcloud projects list)\""
     "echo \"\$(while true; do gcloud projects list; done)\""
+    $'echo "$(cat <<\'EOF\'\nbody\nEOF\n)"; gcloud projects list'
+    $'echo "$(cat <<\'EOF\'\nbody\nEOF\n)"\ngcloud projects list'
+    $'echo "$(cat <<EOF\nsay \"hi\" and gcloud x\nEOF\n)" && gcloud projects list'
+    $'echo "$(cat <<-EOF\n\tbody\n\tEOF\n)" | gcloud projects list'
   )
   local c
   for c in "${cases[@]}"; do
@@ -220,6 +224,8 @@ SH
     $'cat <<EOF\ngcloud projects list\nEOF'
     $'cat <<EOF\ntext\nEOF\necho done'
     "\"NAME=v\" gcloud projects list"
+    $'git commit -m "$(cat <<\'EOF\'\nfix: \"quoted\" gcloud x\nEOF\n)"'
+    $'echo "$(cat <<\'EOF\'\nbody; gcloud projects list\nEOF\n)"; echo done'
     "gh pr create --body \"\$(cat body.md)\" --title \"fix (gcloud)\""
     "echo \"\$(date)\" \"; gcloud\""
     "echo \"\$(date)\" \"| gcloud\""
