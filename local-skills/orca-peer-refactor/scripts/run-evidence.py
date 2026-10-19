@@ -152,14 +152,15 @@ def restore(fingerprint, digest):
             target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
             if not target.exists():
                 stream = target.open("xb")
-                created.append(target)
+                created.append((target, os.fstat(stream.fileno())))
                 with stream:
                     os.fchmod(stream.fileno(), 0o600)
                     stream.write(content)
         except OSError:
-            for done in created:
+            for done, made in created:
                 try:
-                    done.unlink()
+                    if os.path.samestat(done.stat(), made):  # 別 writer が置き換えた宛先は消さない。
+                        done.unlink()
                 except OSError:
                     pass  # 元の復元エラーを保持する。
             raise

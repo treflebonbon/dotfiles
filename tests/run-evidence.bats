@@ -369,6 +369,49 @@ PY
   [ "$status" -eq 0 ]
 }
 
+@test "restore rollback preserves a destination another writer replaced after creation" {
+  save_checkpoint
+  run python3 - "$SCRIPT" "$REPO" "$REPORT" "$EVIDENCE/mutation.log" "$FINGERPRINT" "$CHECKPOINT" <<'PY'
+import os, runpy, sys
+from pathlib import Path
+from unittest.mock import patch
+
+script, repo, first, second, fingerprint, checkpoint = sys.argv[1:]
+os.chdir(repo)
+restore = runpy.run_path(script)['restore']
+first, second = Path(first), Path(second)
+originals = {path: path.read_bytes() for path in (first, second)}
+actual_open = Path.open
+
+for path in originals:
+    path.unlink()
+created = []
+def faulty_open(path, mode='r', *args, **kwargs):
+    if mode == 'xb':
+        created.append(path)
+        if len(created) == 2:
+            # 別 writer が先に作った宛先を、旧 inode が残るうちに新しい inode で置き換える。
+            victim = created[0]
+            replacement = victim.with_name(victim.name + '.other')
+            replacement.write_bytes(b'newer evidence')
+            os.replace(replacement, victim)
+            raise OSError('injected second-file failure')
+    return actual_open(path, mode, *args, **kwargs)
+with patch.object(Path, 'open', faulty_open):
+    try:
+        restore(fingerprint, checkpoint)
+    except OSError as error:
+        assert str(error) == 'injected second-file failure', error
+    else:
+        raise AssertionError('expected restore failure')
+victim = created[0]
+assert victim.exists(), 'replaced destination was deleted'
+assert victim.read_bytes() == b'newer evidence', 'replaced destination was deleted'
+assert not (set(originals) - {victim}) & {p for p in originals if p.exists()}, 'other created file remains'
+PY
+  [ "$status" -eq 0 ]
+}
+
 @test "Orca receipt example validates before publishing and reuses saved worker receipts" {
   run python3 - "$BATS_TEST_DIRNAME/.." "$EVIDENCE" <<'PY'
 import json, os, subprocess, sys
