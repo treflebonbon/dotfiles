@@ -94,6 +94,11 @@ print({
     "if true; then gcloud projects list; fi"
     "{ gcloud projects list; }"
     "! gcloud projects list"
+    $'echo ok # comment\ngcloud projects list'
+    $'cat <<EOF\ntext\nEOF\ngcloud projects list'
+    $'cat <<-EOF\n\ttext\n\tEOF\ngcloud projects list'
+    $'cat <<\'EOF\'\ngcloud in body\nEOF\ngcloud projects list'
+    $'cat <<EOF | tee x\ntext\nEOF\ngcloud projects list'
   )
   local c
   for c in "${cases[@]}"; do
@@ -118,6 +123,10 @@ print({
     "gcloud projects list ?"
     "gcloud projects list [a]"
     "NAME=value gcloud projects list"
+    "NAME='value' gcloud projects list"
+    "NAME=\"value\" gcloud projects list"
+    "NAME=a\\ b gcloud projects list"
+    "A=1 B='2' gcloud projects list"
     "gcloud projects list > out.json"
     "gcloud projects list 2>&1"
     "gcloud projects list < in"
@@ -202,6 +211,11 @@ SH
     "echo \"\$Xgcloud\""
     "echo \"\$(echo hi; gcloud-inspect projects list)\""
     "echo \"\$(date)\"; echo gcloud"
+    "echo ok # gcloud projects list"
+    $'echo ok # note\necho done'
+    $'cat <<EOF\ngcloud projects list\nEOF'
+    $'cat <<EOF\ntext\nEOF\necho done'
+    "\"NAME=v\" gcloud projects list"
     "ls"
     ""
   )

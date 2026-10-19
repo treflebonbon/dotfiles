@@ -47,7 +47,11 @@ class Word(NamedTuple):
 
 
 class Scan:
-    """command を単語へ分解し、構造（演算子・置換）と未対応構文の有無を集める。heredoc 以降は走査しない。"""
+    """command を単語へ分解し、構造（演算子・置換）と未対応構文の有無を集める。
+
+    コメントと heredoc の本文は読み飛ばし、その後の行は走査を続ける。二重引用符内の置換にある heredoc だけは、
+    本文の終わりを決められないため、そこで走査を止める。
+    """
 
     def __init__(self, command):
         self.command = command.strip()
@@ -73,9 +77,36 @@ class Scan:
         if NESTED_GCLOUD.search(content):
             self.nested_gcloud = True
 
+    def _heredoc_delimiter(self, i):
+        """<< の直後から終端語を読む。(次の位置, (終端語, タブを無視するか)) を返し、読めなければ None。"""
+        command, n = self.command, len(self.command)
+        strip_tabs = command.startswith("-", i)
+        i += strip_tabs
+        while i < n and command[i] in " \t":
+            i += 1
+        start = i
+        while i < n and command[i] not in WORD_END:
+            i += 1
+        delimiter = re.sub(r"['\"\\]", "", command[start:i])
+        return i, (delimiter, strip_tabs) if delimiter else None
+
+    def _skip_heredocs(self, i, pending):
+        """改行の直後から、各 heredoc の終端行までを読み飛ばす。"""
+        command, n = self.command, len(self.command)
+        for delimiter, strip_tabs in pending:
+            while i < n:
+                end = command.find("\n", i)
+                end = n if end < 0 else end
+                line = command[i:end]
+                i = end + 1
+                if (line.lstrip("\t") if strip_tabs else line) == delimiter:
+                    break
+        return min(i, n)
+
     def _run(self):
         command, n = self.command, len(self.command)
         at_start = True
+        pending = []  # 本文を読み飛ばす heredoc
         i = 0
         while i < n and not self.stopped:
             ch = command[i]
@@ -85,20 +116,30 @@ class Scan:
                 self.structure = True
                 at_start = True
                 i += 1
+                if ch == "\n" and pending:
+                    i = self._skip_heredocs(i, pending)
+                    pending = []
             elif ch in "<>":
                 self.redirect = True
-                if command.startswith("<<", i):
-                    self.stopped = True
-                    break
+                if command.startswith("<<", i) and not command.startswith("<<<", i):
+                    i, heredoc = self._heredoc_delimiter(i + 2)
+                    if heredoc is None:
+                        self.stopped = True
+                    else:
+                        pending.append(heredoc)
+                    continue
                 i += 1
-                while i < n and command[i] in "&>|":
+                while i < n and command[i] in "&>|<":
                     i += 1
             elif ch == "#":
+                # 行コメント。次の改行まで読み飛ばし、以降の行は走査を続ける。
                 self.redirect = True
-                self.stopped = True
+                end = command.find("\n", i)
+                i = n if end < 0 else end
             else:
+                start = i
                 i, word = self._word(i)
-                if at_start and word.plain and ASSIGNMENT.match(word.value):
+                if at_start and ASSIGNMENT.match(command, start):
                     self.assignment = True
                 else:
                     self.words.append(word._replace(command_position=at_start))
