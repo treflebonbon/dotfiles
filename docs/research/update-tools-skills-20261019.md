@@ -44,10 +44,24 @@ flylineは公式Linux2assetをhash固定して取得し、Nix package化が成�
 
 source採用後のAPM関連22件も全成功した。最終manifest／lockとImpeccable隔離runtimeのbyte一致を確認し、空candidate planの全配布照合（20 dependency、両target各46 skill、追加削除0）が成功した。user devShellの3-system全package構成を開始点と比較し、版変更はLinuxのflylineだけ、Darwinは全版不変だった。
 
-独立テンプレートgateはshared nixpkgsを既存の`7529d323`、Rust overlayを入口で固定した`42076d1c`に揃え、全6言語を実行中。source差分はRust／Gleamの2テンプレートとRust手順書だけで、他4言語のsourceを変更していない。誤指定した不存在の`tests/templates.bats`は収集時に失敗し、検証成功に含めない。存在する`tests/helpers/template-with-env.py`の結果を採用する。
+独立テンプレートgateはshared nixpkgsを既存の`7529d323`、Rust overlayを入口で固定した`42076d1c`に揃え、全6言語を実行した（最終結果は次節）。source差分はRust／Gleamの2テンプレートとRust手順書だけで、他4言語のsourceを変更していない。誤指定した不存在の`tests/templates.bats`は収集時に失敗し、検証成功に含めない。存在する`tests/helpers/template-with-env.py`の結果を採用する。
 
 ## レビュー・canonical検証の境界
 
 通常APM、Impeccable、flyline、Rust／Gleamを別commitにした。開始点`30cd7bfa8bad5595ccb7074a479674e27d73135e`からのcommit済み差分をStandards／Specで確認する。両軸へ現在の依頼、本記録、適用ADR・規約を渡す。今回PR分割は行わず、採用しなかった候補と理由は上表へ記録した。PR公開・merge・live applyは未実施で、本依頼の完了条件に追加しない。
 
 レビューの指摘修正後、最終sourceをcleanにし、source-selected 6CLIと既存Codex outputを`verify-ai-tools.py --no-codex-build --shell wsl`で照合する。最終APM runtimeのlauncher、source-selected engine、WSL Playwright outputを開始前から指定し、`verify-canonical.py`から`lefthook run test`を一度実行する。完了後にTAP・終了コード・必須15fixture・source／runtime前後一致と独立テンプレートgateの結果を追記する。
+
+## 最終検証結果
+
+検証対象HEADは`2f1e0b6e62ba65c0a7807a80024c1c36ca7362ad`。事前の独立code-reviewはStandardsの規約違反／smellとも0件、Specの未実装／部分実装・依頼外追加・誤実装とも0件で、source修正は不要だった。
+
+canonical入口をこのbranchから一度実行し、全1,036件（1,015成功・21既定skip・失敗0）、verifier／runner／commandのexitは全て0。実測1,228.51秒（約20分29秒）。Design Hook13件とPlaywright runtime2件の必須fixtureは15件全てskipなしで成功した。HEAD・全tracked654fileのbytes／mode・13runtime pathの実体／hashは前後一致し、HEAD不一致・証拠照合エラー・中断は0。親もTAPの1–1,036の連番・件数・skip・exit・前後JSON完全一致を独立照合した。
+
+独立テンプレートgateは6/6言語・exit0。全言語で3-system評価、devShell／with-env実行、dotenv／worktree／失敗／output選択、lock不変、raw entryからのdummy test／commit／再起動が成功した。Rust1.99.1はvtable回帰・Cargo test／nextest／clippy／fmt、rust-analyzer2026-10-12の起動を確認した。Gleam1.19.2は既存fixtureでOTP29の`rand:shuffle/1`を使い、devShell／with-envの両方でcompile／runが成功した。追加smokeの準備は既存fixtureの存在確認で停止し、既存gateの実行証拠を採用した。
+
+canonical証拠はこのcheckoutの`tmp/canonical-run.wix1eos4/{before.json,after.json,result.json,runner-path}`、TAP／exitは`tmp/test-run.lTnxM7/`、source-selected6CLIの照合は`tmp/ai-tools-_r0tyc4n/`。独立テンプレートのstdout／exitは`tmp/ai-tools-zf0_vivh/`、共有可能な結果は共通一時directoryの`template-result.json`／`template-startup.log`／`gleam-compile-evidence.log`に保存した。raw内部の証拠は`template-result.json`に所在だけを記録する。関連gate・upstream unit test・独立テンプレートの件数をcanonical全suiteへ合算していない。
+
+全suite後のsource変更は本記録の結果追記だけで、実装・test・依存・検証runtimeは維持する。最終commit前後に本記録以外のtracked内容とruntime実体／hashを照合し、同じ全suiteを繰り返さない。sourceの実装・検証・レビュー・commitを完了対象とし、PR公開・merge・live配備は未実施。
+
+ARM Linux／Darwinの実機実行、LSP全機能のprotocol検査、実browserでのImpeccable live mode、APM組織policy enforcement、認証・実モデル等の既定opt-in21件は未検証。canonical側でskipした6言語gateは上記の別実行で確認したが、canonicalの21skipを成功へ数え直していない。Codex0.163.0を含む新AI snapshotはcleanup回帰と適合cache不在で不採用とし、現行snapshot／floor／patchを維持した。
