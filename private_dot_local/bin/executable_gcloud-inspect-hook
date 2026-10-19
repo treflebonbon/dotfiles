@@ -31,10 +31,12 @@ REASONS = {
 }
 
 ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
-# 置換の中身で、先頭または演算子・予約語の直後にある gcloud。gcloud-inspect などは含めない。
-NESTED_GCLOUD = re.compile(r"(?:\A|[;&|({`\n]|\$\(|\b(?:then|else|do)\b)\s*gcloud(?![\w./-])")
 # 直後の単語もコマンド位置として扱うシェル構文。
 COMMAND_KEYWORDS = {"if", "then", "else", "elif", "do", "while", "until", "time", "!", "{"}
+# 置換の中身で、先頭または演算子・予約語の直後にある gcloud。gcloud-inspect などは含めない。
+NESTED_GCLOUD = re.compile(
+    r"(?:\A|[;&|({`\n]|\$\(|\b(?:if|then|else|elif|do|while|until|time)\b|!\s)\s*gcloud(?![\w./-])"
+)
 OPERATORS = "\n;|&()"
 WORD_END = " \t" + OPERATORS + "<>"
 
@@ -64,16 +66,41 @@ class Scan:
         self._run()
 
     def _substitution(self, i):
-        """i が $( またはバッククォートなら、置換の中身の開始位置を返す。"""
+        """i が $( またはバッククォートなら、(置換の中身の開始位置, バッククォートか) を返す。"""
         if self.command.startswith("$(", i):
-            return i + 2
+            return i + 2, False
         if self.command[i] == "`":
-            return i + 1
+            return i + 1, True
         return None
 
-    def _enter_substitution(self, content_start):
-        # heredoc の本文は走査しない。
+    def _substitution_end(self, text):
+        """$( の中身 text で、対応する閉じ括弧の位置を返す。なければ末尾。"""
+        depth, i, n = 1, 0, len(text)
+        while i < n:
+            c = text[i]
+            if c == "\\":
+                i += 1
+            elif c == "'":
+                i = text.find("'", i + 1)
+                if i < 0:
+                    return n
+            elif c == '"':
+                i += 1
+                while i < n and text[i] != '"':
+                    i += 2 if text[i] == "\\" else 1
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    return i
+            i += 1
+        return n
+
+    def _enter_substitution(self, content_start, backtick):
+        # heredoc の本文と、置換が閉じた後の文字列は走査しない。
         content = self.command[content_start:].split("<<", 1)[0]
+        content = content.split("`", 1)[0] if backtick else content[: self._substitution_end(content)]
         if NESTED_GCLOUD.search(content):
             self.nested_gcloud = True
 
@@ -182,7 +209,7 @@ class Scan:
                         content = self._substitution(i)
                         if content is not None:
                             in_substitution = True
-                            self._enter_substitution(content)
+                            self._enter_substitution(*content)
                     value += d
                     i += 1
             elif c == "\\":
@@ -197,7 +224,7 @@ class Scan:
                 bad = True
                 content = self._substitution(i)
                 if content is not None:
-                    self._enter_substitution(content)
+                    self._enter_substitution(*content)
                 value += c
                 i += 1
             else:

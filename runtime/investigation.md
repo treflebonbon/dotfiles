@@ -19,7 +19,7 @@ tags: [gcloud, github, codex, claude-code, permissions]
 - 展開（`$…`、バッククォート、glob、`~`、`{}`）、環境変数の代入、リダイレクト、改行・コメント: リテラルの引数だけにする。
 - 先頭の `--reviewed`: ユーザーの確認後に、明示的な `gcloud-inspect --reviewed …` を使う。
 
-認識できない別名や wrapper（`command`、`env`、絶対パス）、hook の失敗・timeout・未信頼では書換えず、元の `gcloud` が既存の禁止ルールで拒否される。Codex は hook の trust が済むまで hook をスキップするため、配備後は trust 済みであることを確認する。`gh` は書換えない。設計の経緯は [ADR-0077](../docs/adr/0077-route-investigation-commands-through-hooks.md)。
+`command gcloud`・`env gcloud`・`/bin/gcloud`・`/usr/bin/gcloud`、および hook の失敗・timeout・未信頼では書換えず、元の command が既存の禁止ルールで拒否される。それ以外の絶対パス・別名・interpreter 経由は技術的には遮断されないが、迂回は禁止する（行動契約。[ADR-0073](../docs/adr/0073-allow-investigation-commands.md) の既存の限界と同じ）。Codex は hook の trust が済むまで hook をスキップするため、配備後は trust 済みであることを確認する。`gh` は書換えない。設計の経緯は [ADR-0077](../docs/adr/0077-route-investigation-commands-through-hooks.md)。
 
 ```bash
 gcloud-inspect logging read 'severity>=ERROR' --project PROJECT_ID --freshness 1h --limit 50

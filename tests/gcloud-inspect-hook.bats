@@ -99,6 +99,10 @@ print({
     $'cat <<-EOF\n\ttext\n\tEOF\ngcloud projects list'
     $'cat <<\'EOF\'\ngcloud in body\nEOF\ngcloud projects list'
     $'cat <<EOF | tee x\ntext\nEOF\ngcloud projects list'
+    "echo \"\$(time gcloud projects list)\""
+    "echo \"\$(if true; then gcloud projects list; fi)\""
+    "echo \"\$(! gcloud projects list)\""
+    "echo \"\$(while true; do gcloud projects list; done)\""
   )
   local c
   for c in "${cases[@]}"; do
@@ -216,6 +220,12 @@ SH
     $'cat <<EOF\ngcloud projects list\nEOF'
     $'cat <<EOF\ntext\nEOF\necho done'
     "\"NAME=v\" gcloud projects list"
+    "gh pr create --body \"\$(cat body.md)\" --title \"fix (gcloud)\""
+    "echo \"\$(date)\" \"; gcloud\""
+    "echo \"\$(date)\" \"| gcloud\""
+    "echo \"\$(date)\" \"then gcloud\""
+    "echo \"\$(date)\" \"!gcloud\""
+    "echo \"\\\`date\\\`\" \"(gcloud)\""
     "ls"
     ""
   )

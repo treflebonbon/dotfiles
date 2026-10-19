@@ -40,7 +40,7 @@ status: accepted
 - 「リテラル引数」は、単引用符・二重引用符（展開を含まないもの）・バックスラッシュのエスケープだけで構成され、空引数や引用部分と非引用部分の連結を含んでよい引数を指す。glob、tilde（引用符なしの `~` は位置を問わない）、brace expansion、算術展開、変数展開、コマンド置換、改行、コメントを含む引数は展開または未対応の構文として扱う。末尾の空白・改行は無視する。受理例・拒否例は単体テストで固定する。初回から対応範囲は広げない。
 - `gcloud` と認識した後に未対応の引数構文へ遭遇した場合は、hook の異常終了ではなく deny とする。
 - 書換え後も、確定した引数列を空引数・空白・メタ文字を含めて保存し、引数の内容をシェル構文として再解釈させない。例えば `gcloud projects list '--filter=$(printf PROBE)'` は、書換え後も `$(printf PROBE)` が文字列のまま helper に渡る。
-- 初回の「認識できた」の対象は、`gcloud` を実行名とする単独の単純コマンドと、上記の deny 対象とする。コマンド位置は、先頭、演算子（`&&`・`;`・`|` など）の直後、`if`・`then`・`else`・`elif`・`do`・`while`・`until`・`time`・`!`・`{` の直後、コマンド置換の中身（二重引用符内を含む）とする。行コメントと heredoc の本文は読み飛ばし、その後の行は走査を続ける。二重引用符内の置換にある heredoc だけは、本文の終わりを決められないため、そこで走査を止める。環境変数の代入は、値に引用符を使うもの（`NAME='v'`）も代入として扱う。`'gcloud'`・`gcl"oud"`・エスケープされた実行名、`command` / `env` / 絶対パス wrapper、別名、interpreter 経由は、初回は認識対象に広げない。
+- 初回の「認識できた」の対象は、`gcloud` を実行名とする単独の単純コマンドと、上記の deny 対象とする。コマンド位置は、先頭、演算子（`&&`・`;`・`|` など）の直後、`if`・`then`・`else`・`elif`・`do`・`while`・`until`・`time`・`!`・`{` の直後、コマンド置換の中身（二重引用符内を含み、対応する閉じ括弧またはバッククォートまで）とする。行コメントと heredoc の本文は読み飛ばし、その後の行は走査を続ける。二重引用符内の置換にある heredoc だけは、本文の終わりを決められないため、そこで走査を止める。環境変数の代入は、値に引用符を使うもの（`NAME='v'`）も代入として扱う。`'gcloud'`・`gcl"oud"`・エスケープされた実行名、`command` / `env` / 絶対パス wrapper、別名、interpreter 経由は、初回は認識対象に広げない。
 - backstop の保証範囲は次のとおり。
   - hook の失敗・timeout・未信頼などで、既存の `gcloud` deny / forbidden ルールに一致する元 command が残る場合は、そのルールが拒否する。ルールは変更しない。
   - 認識できない別名・interpreter 経由の完全な遮断は保証せず、ADR-0073 の既存の限界と行動契約を引き継ぐ。
@@ -88,7 +88,7 @@ status: accepted
 - hook の `allow` は、書換え後の command に一致する deny / ask / forbidden ルールを飛ばさない。一致するルールがなければ確認を省略する。
 - Codex の PreToolUse は `ask` を扱えない。確認を出せるのはルールの `prompt` だけである。Claude は hook から `ask` を出せる。
 - hook の異常終了・timeout・失敗は、両 runtime とも fail-open で元の command に進む。Codex は未信頼の hook をスキップし、これも元の command に進む。
-- 既存の `devshell-env claude-hook` は command を変更せず、許可判断も出さない。第2の Bash hook は並列に動く追加として共存できる。Codex の `hooks.json` に PreToolUse はない。
+- 既存の `devshell-env claude-hook` は command を変更せず、許可判断も出さない。第2の Bash hook は並列に動く追加として共存できる。実装前の調査時点では、Codex の `hooks.json` に PreToolUse はなかった（この変更で追加した）。
 - `gcloud-inspect` は、許可リストと引数検証を実行前に、`--format=json` の固定を実行時の指定として、`redact()` による機密項目の除外を出力後に行う。出力側の処理は hook では再現できない。
 - helper は先頭引数が `--reviewed` なら追加読み取り用の経路へ入る。実プロセスと通信を禁止したスタブで確認した。
 - `gh` の単独の参照コマンドは、既存の allow ルールで通る。`gh api` は ask / prompt のままである。
