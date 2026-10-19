@@ -145,24 +145,25 @@ def restore(fingerprint, digest):
         target = public_path(path, artifact_path)
         if target.exists() and read_public(path, artifact_path) != content:
             fail("既存の証跡と異なるため復元を中止しました。待機台帳も上書きしません")
+    created = []
     for path, content in files.items():
         target = public_path(path, artifact_path)
-        target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-        if not target.exists():
-            created = False
-            try:
+        try:
+            target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+            if not target.exists():
                 stream = target.open("xb")
-                created = True
+                created.append((target, os.fstat(stream.fileno())))
                 with stream:
                     os.fchmod(stream.fileno(), 0o600)
                     stream.write(content)
-            except OSError:
-                if created:
-                    try:
-                        target.unlink()
-                    except OSError:
-                        pass  # 元の復元エラーを保持する。
-                raise
+        except OSError:
+            for done, made in created:
+                try:
+                    if os.path.samestat(done.stat(), made):  # 別 writer が置き換えた宛先は消さない。
+                        done.unlink()
+                except OSError:
+                    pass  # 元の復元エラーを保持する。
+            raise
     candidate_record["check"](
         data["record_path"], data["candidates_path"], fingerprint,
         lambda path: read_public(path, artifact_path),
