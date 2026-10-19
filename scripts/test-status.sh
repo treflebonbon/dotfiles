@@ -3,7 +3,25 @@
 # プロセスは見ない（pgrep は使わない）。TAP の結果行から成功・失敗・スキップ・計画件数を数える。
 set -euo pipefail
 
-dir=${1:-$(find tmp -maxdepth 1 -type d -name "test-run.*" -printf "%T@ %p\n" 2>/dev/null | sort -n | tail -n1 | cut -d" " -f2-)}
+# 開始時刻（scripts/test.sh が書く started、ナノ秒）が最も新しい実行を選ぶ。started の無い古い実行は更新時刻で比べる。
+latest() {
+  local d key best="" best_key=-1
+  for d in tmp/test-run.*/; do
+    [[ -d "$d" ]] || continue
+    if [[ -f "$d/started" ]]; then
+      key=$(<"$d/started")
+    else
+      key=$(($(stat -c %Y "$d") * 1000000000))
+    fi
+    if ((key > best_key)); then
+      best_key=$key
+      best=${d%/}
+    fi
+  done
+  printf '%s' "$best"
+}
+
+dir=${1:-$(latest)}
 [[ -n "$dir" && -d "$dir" ]] || {
   echo "tmp/test-run.* がありません" >&2
   exit 1

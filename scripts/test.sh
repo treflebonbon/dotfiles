@@ -5,6 +5,7 @@ test_run_receipt=${DOTFILES_TEST_RUN_RECEIPT:-}
 unset DOTFILES_TEST_RUN_RECEIPT
 mkdir -p tmp
 log_dir=$(mktemp -d tmp/test-run.XXXXXX)
+date +%s%N >"$log_dir/started"
 active_runner_pid=
 trap 'printf "%s\n" "$?" >"$log_dir/exit-code"' EXIT
 stop() {

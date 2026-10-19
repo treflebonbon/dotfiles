@@ -21,7 +21,7 @@ done
 export STUB_LOG="$work/stub.log" HOOK_LOG="$work/hook.log" PATH="$work/bin:$PATH"
 : >"$STUB_LOG"
 wrapper="$here/live-hook-wrapper.sh"
-command_line="bash $wrapper $hook"
+printf -v command_line 'bash %q %q' "$wrapper" "$hook"
 
 case "$agent" in
 claude)
