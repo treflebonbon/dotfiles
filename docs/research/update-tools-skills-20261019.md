@@ -48,9 +48,9 @@ source採用後のAPM関連22件も全成功した。最終manifest／lockとImp
 
 ## レビュー・canonical検証の境界
 
-通常APM、Impeccable、flyline、Rust／Gleamを別commitにした。開始点`30cd7bfa8bad5595ccb7074a479674e27d73135e`からのcommit済み差分をStandards／Specで確認する。両軸へ現在の依頼、本記録、適用ADR・規約を渡す。今回PR分割は行わず、採用しなかった候補と理由は上表へ記録した。PR公開・merge・live applyは未実施で、本依頼の完了条件に追加しない。
+通常APM、Impeccable、flyline、Rust／Gleamを別commitにした。開始点`30cd7bfa8bad5595ccb7074a479674e27d73135e`からのcommit済み差分をStandards／Specで確認した。両軸へ現在の依頼、本記録、適用ADR・規約を渡した。今回PR分割は行わず、採用しなかった候補と理由は上表へ記録した。PR公開・merge・live applyは未実施で、本依頼の完了条件に追加しない。
 
-レビューの指摘修正後、最終sourceをcleanにし、source-selected 6CLIと既存Codex outputを`verify-ai-tools.py --no-codex-build --shell wsl`で照合する。最終APM runtimeのlauncher、source-selected engine、WSL Playwright outputを開始前から指定し、`verify-canonical.py`から`lefthook run test`を一度実行する。完了後にTAP・終了コード・必須15fixture・source／runtime前後一致と独立テンプレートgateの結果を追記する。
+レビュー後に最終sourceをcleanにし、source-selected 6CLIと既存Codex outputを`verify-ai-tools.py --no-codex-build --shell wsl`で照合した。最終APM runtimeのlauncher、source-selected engine、WSL Playwright outputを開始前から指定し、`verify-canonical.py`から`lefthook run test`を一度実行した。TAP・終了コード・必須15fixture・source／runtime前後一致と独立テンプレートgateの結果は次節に記録した。
 
 ## 最終検証結果
 
@@ -62,6 +62,8 @@ canonical入口をこのbranchから一度実行し、全1,036件（1,015成功�
 
 canonical証拠はこのcheckoutの`tmp/canonical-run.wix1eos4/{before.json,after.json,result.json,runner-path}`、TAP／exitは`tmp/test-run.lTnxM7/`、source-selected6CLIの照合は`tmp/ai-tools-_r0tyc4n/`。独立テンプレートのstdout／exitは`tmp/ai-tools-zf0_vivh/`、共有可能な結果は共通一時directoryの`template-result.json`／`template-startup.log`／`gleam-compile-evidence.log`に保存した。raw内部の証拠は`template-result.json`に所在だけを記録する。関連gate・upstream unit test・独立テンプレートの件数をcanonical全suiteへ合算していない。
 
-全suite後のsource変更は本記録の結果追記だけで、実装・test・依存・検証runtimeは維持する。最終commit前後に本記録以外のtracked内容とruntime実体／hashを照合し、同じ全suiteを繰り返さない。sourceの実装・検証・レビュー・commitを完了対象とし、PR公開・merge・live配備は未実施。
+全suite後のsource変更は本記録の結果追記だけで、実装・test・依存・検証runtimeは維持する。最終commit前後に本記録以外のtracked内容とruntime実体／hashを照合した。実装・test・依存・検証runtimeが不変のため、同じ全suiteは繰り返していない。sourceの実装・検証・レビュー・commitを完了対象とし、PR公開・merge・live配備は未実施。
 
-ARM Linux／Darwinの実機実行、LSP全機能のprotocol検査、実browserでのImpeccable live mode、APM組織policy enforcement、認証・実モデル等の既定opt-in21件は未検証。canonical側でskipした6言語gateは上記の別実行で確認したが、canonicalの21skipを成功へ数え直していない。Codex0.163.0を含む新AI snapshotはcleanup回帰と適合cache不在で不採用とし、現行snapshot／floor／patchを維持した。
+canonicalのskipは21件。このうち6言語gate1件相当は上記の独立実行で6/6言語を検証済みで、残る20件は未実行。canonicalの21skipを成功へ数え直していない。ARM Linux／Darwinの実機実行、LSP全機能のprotocol検査、実browserでのImpeccable live mode、APM組織policy enforcement、認証・実モデル等は未検証。Codex0.163.0を含む新AI snapshotはcleanup回帰と適合cache不在で不採用とし、現行snapshot／floor／patchを維持した。
+
+最終結果追記のStandards確認で残っていた未来形とskip内訳の2点を修正した。Spec確認は指摘0件。実装差分と検証結果は変更していない。
