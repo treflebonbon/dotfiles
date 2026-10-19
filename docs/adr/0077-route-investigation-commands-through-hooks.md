@@ -44,6 +44,11 @@ status: accepted
 - backstop の保証範囲は次のとおり。
   - hook の失敗・timeout・未信頼などで、既存の `gcloud` deny / forbidden ルールに一致する元 command が残る場合は、そのルールが拒否する。ルールは変更しない。
   - 認識できない別名・interpreter 経由の完全な遮断は保証せず、ADR-0073 の既存の限界と行動契約を引き継ぐ。
+- 保証の境界は次のとおり。
+  - 書換えの経路は、`gcloud-inspect` と `shlex.quote` した引数だけを出力する。パーサーが誤っても、生の `gcloud` を出すことはない。
+  - deny の経路は、複合形式などを見つけたときに案内を返す、できる範囲の機能である。見逃した入力は何も出力せず、PR 前と同じく既存ルールの判断に戻る。
+  - 二重引用符内の置換の中の heredoc は、置換の終わりを正確には追跡せず近似して読み飛ばす。そのため、`<<` を含む引用文字列や、バックスラッシュを含むクォート付きの終端語の後ろにある `gcloud` は、案内されないことがある。これらは初回の認識範囲の外とする。
+  - 見逃した入力のうち、Claude Code では既存の権限判定が拒否する。Codex では既存ルールが拒否せず、生の `gcloud` が実行される（`hook` なしで実機確認）。これは ADR-0073 が認めている「任意の wrapper や interpreter の完全な遮断は保証しない」限界のままである。
 - 書換えに成功した場合、元の command の deny は効かない。守るのは helper の検証と、書換え後の command に一致するルールである。元の deny が担うのは、書換えが行われなかった場合だけである。
 - `gh` は初回は書換えず、hook は何もしない。単独の参照は既存の allow ルールで通り、`gh api` などは既存どおり ask / prompt が確認する。複合形が実際に詰まった例が出た時点で追加を検討する。このため、複合 shell の案内は初回は `gcloud` に限る。
 - helper が対応外と判断した操作は、helper の案内どおり人への確認へ戻す。Codex の hook は `ask` を出せないため、対応外を承認済みの状態へ自動変換しない。
@@ -102,6 +107,7 @@ status: accepted
 - 属性の保持: Claude は `description` が書換え後も残る。Codex は書換え後の command が元と同じ cwd で実行される。
 - 受入表の各場面は、両 runtime で期待どおりだった（書換え先の allow・deny / forbidden・ask / prompt、先頭 `--reviewed`・展開・代入・複合 shell の deny、hook の失敗・未登録のときに元 command が既存ルールで拒否されること）。ask / prompt は、headless 実行では承認待ちとして実行が止まる。Codex は `approval required by policy` で、Claude は未承認の権限要求として拒否される。
 - 既存 hook との共存: 本物の `devshell-env claude-hook` と並べても、書換えと権限判断は保たれる。
+- hook なしの baseline: `NAME='v' gcloud …`、コメントの次行の `gcloud`、`echo "$(date) <<EOF"; gcloud …`、`E\OF` を終端語にする heredoc の後ろの `gcloud`、通常の heredoc の後ろの `gcloud` は、Claude Code では既存の権限判定が拒否し、Codex では生の `gcloud`（スタブ）が実行された。
 - helper 不在: 書換え後の `gcloud-inspect` が `command not found`（終了コード127）で失敗し、元の `gcloud` は実行されない。hook は再試行しない。
 - 経路の通し確認: hook から本物の `gcloud-inspect`、スタブの `gcloud` まで通すと、helper が引数を `--project=p --limit=100 --format=json --quiet` に組み直した。
 - hook 本体の追加確認として、`gcloud` で始まるランダムな入力 36万件を分類器へ通し、例外が出ないことと、書換え後の引数が元の command を bash が単語分割した結果と一致することを確かめた。この確認で `name=~` の `~` が bash では展開されることが分かり、引用符なしの `~` を位置を問わず展開として扱うことにした。確認用のスクリプトは repo に含めない。
