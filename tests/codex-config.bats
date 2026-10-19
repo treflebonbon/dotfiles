@@ -997,6 +997,18 @@ assert isinstance(command, str) and command
 # the same fail-open pass-through command.
 assert data == {
     "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "\"$HOME/.local/bin/gcloud-inspect-hook\"",
+                        "timeout": 5,
+                    }
+                ],
+            }
+        ],
         "PostToolUse": [
             {
                 "matcher": "Edit|Write|apply_patch",
@@ -1042,7 +1054,12 @@ assert data["hooks"]["PreToolUse"] == [
                 "type": "command",
                 "command": "\"$HOME/.local/bin/devshell-env\" claude-hook",
                 "timeout": 120,
-            }
+            },
+            {
+                "type": "command",
+                "command": "\"$HOME/.local/bin/gcloud-inspect-hook\"",
+                "timeout": 5,
+            },
         ],
     }
 ]
