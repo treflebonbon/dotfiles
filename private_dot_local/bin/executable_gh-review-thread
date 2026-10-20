@@ -167,7 +167,42 @@ def fetch_threads(repo: str, pr: int) -> list[dict[str, Any]]:
         cursor = page_info["endCursor"]
 
 
-def inspect(repo: str, pr: int, no_diff: bool = False) -> None:
+# Only known review-bot markup is removed so code such as `<<EOF` or `Result<T>`
+# survives; fenced blocks (closed by a fence of the same kind, or unclosed to the
+# end) and inline code spans (closed by an equal backtick run, within a
+# paragraph) are kept verbatim.
+CODE = re.compile(
+    r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[^\n]*$|\Z)"
+    r"|(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n).)+?(?<!`)\2(?!`)",
+    re.MULTILINE | re.DOTALL,
+)
+REVIEW_MARKUP = re.compile(
+    r"<!--.*?-->"
+    r"|</?(?:details|summary|sub|br|p|blockquote)\b[^>]*>"
+    r"|<img\b[^>]*\bsrc=[\"']?https://img\.shields\.io/[^>]*>"
+    r"|!\[[^\]]*\]\(https://img\.shields\.io/[^)]*\)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def strip_review_markup(text: str) -> str:
+    return re.sub(r"\n(?:[ \t]*\n){2,}", "\n\n", REVIEW_MARKUP.sub("", text))
+
+
+def plain_body(body: str) -> str:
+    parts: list[str] = []
+    position = 0
+    for code in CODE.finditer(body):
+        parts += [strip_review_markup(body[position : code.start()]), code[0]]
+        position = code.end()
+    parts.append(strip_review_markup(body[position:]))
+    # Code parts sit at odd indexes, so trimming the edges never touches code.
+    parts[0] = parts[0].lstrip()
+    parts[-1] = parts[-1].rstrip()
+    return "".join(parts)
+
+
+def inspect(repo: str, pr: int, no_diff: bool = False, plain: bool = False) -> None:
     metadata = json.loads(
         run_gh(
             [
@@ -184,7 +219,11 @@ def inspect(repo: str, pr: int, no_diff: bool = False) -> None:
     diff = "" if no_diff else run_gh(["pr", "diff", str(pr), "--repo", repo, "--patch"])
     threads = fetch_threads(repo, pr)
     for thread in threads:
-        thread["comments"] = {"nodes": fetch_thread(thread["id"])["comments"]}
+        comments = fetch_thread(thread["id"])["comments"]
+        if plain:
+            for comment in comments:
+                comment["body"] = plain_body(comment.get("body") or "")
+        thread["comments"] = {"nodes": comments}
     print(
         json.dumps(
             {
@@ -416,6 +455,11 @@ def parse_args() -> argparse.Namespace:
     inspect_parser.add_argument(
         "--no-diff", action="store_true", help="omit the PR diff (about 40KB)"
     )
+    inspect_parser.add_argument(
+        "--plain",
+        action="store_true",
+        help="strip known review-bot HTML and badges from comment bodies",
+    )
     reply_parser = subparsers.add_parser(
         "reply-resolve",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -447,7 +491,7 @@ def main() -> None:
     split_repo(args.repo)
     run_gh(["auth", "status"])
     if args.command == "inspect":
-        inspect(args.repo, args.pr, args.no_diff)
+        inspect(args.repo, args.pr, args.no_diff, args.plain)
     elif args.command == "reply-resolve":
         reply_resolve(
             args.repo,
