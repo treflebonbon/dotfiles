@@ -4,7 +4,7 @@ chezmoi dotfiles repo。ログインシェルは bash。
 
 **重要**: 実装は validated task worktree 内の source を編集する。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi apply` して `~/` へ反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
 
-`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向け、`CLAUDE.md` は Claude Code 向けとして別々に保守する。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
+`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向け、`CLAUDE.md` は Claude Code 向けとして別々に保守し、共有する workflow / safety contract は整合させる。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
 
 ## Architecture
 
@@ -19,6 +19,7 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - コミットと PR タイトルは Conventional Commits 形式にし、PR タイトルへ `[codex]` などの prefix を付けない。
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
 - ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
+- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（手順・ログ・opt-in 検証は `docs/conventions.md`）。
 
 ## 設計→実装ワークフロー
 
@@ -46,3 +47,7 @@ Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright
 - CLI バイナリは nix devshell
 
 配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。Codex 固有設定は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-managed-sync.sh.tmpl` で `$CODEX_HOME` へ反映する。
+
+## Agent skills
+
+Issue tracker は GitHub Issues（`gh` CLI、外部 PR は triage 対象外）、triage ラベル名は役割名と同一、domain docs は single-context。詳細は `docs/agents/issue-tracker.md`、`docs/agents/triage-labels.md`、`docs/agents/domain.md` を読む。
