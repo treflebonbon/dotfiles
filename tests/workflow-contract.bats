@@ -52,7 +52,9 @@ setup() {
     grep -Fq 'Integration Branch／PR' "$instructions"
     ! grep -Eq 'to-pr|batch-implement|harness-feedback' "$instructions"
   done
-  grep -Fq '`GLOSSARY.md`' "$GLOBAL_CODEX"
+  grep -Fq '用語集（`GLOSSARY.md`）や対象領域の ADR があれば、コード探索前に読む。無ければそのまま進む。' "$GLOBAL_CODEX"
+  ! grep -Fq 'docs/agents/domain.md' "$GLOBAL_CODEX"
+  grep -Fq '`docs/agents/domain.md`' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq '`GLOSSARY.md`' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq '一つの Integration Branch' "$RUNTIME"
   grep -Fq 'draft PR' "$RUNTIME"
