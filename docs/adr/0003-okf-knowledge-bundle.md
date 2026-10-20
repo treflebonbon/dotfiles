@@ -31,5 +31,6 @@ upstream は独自の知識グラフ（CEG frontmatter の depends_on/topics、`
 - OKF は構造の標準であり意味論は与えない（producer が type 語彙を決める）
 - (2026-07-04 追記) 決定記録の置き場については、mattpocock skills の標準（`docs/adr/`）に一本化する方向で見直した。詳細は ADR-0006。
 - (2026-07-04 追記) ディレクトリ名 `okf/` は OKF という*書式*の名前であり内容を表さないため、`runtime/` へ改名した。加えて、concept 文書のうち dotfiles repo 自身にしか関係しないもの（architecture / conventions）は home-wide 配備の対象から外し `docs/` へ移した。詳細は ADR-0007。
+- (2026-10-20 追記) `~/CLAUDE.md` を repo 直下の `CLAUDE.md` から配備するモデルは廃止した。グローバル指示は `~/.claude/CLAUDE.md` と `$CODEX_HOME/AGENTS.md` が持つ。詳細は [ADR-0078](0078-keep-repo-instructions-out-of-home.md)。
 
 関連: [index](../../runtime/index.md) / [skill-harness](../../runtime/skill-harness.md)

@@ -15,8 +15,8 @@ setup() {
   grep -Fq 'autonomous-peer-contract.md' "$PROJECT_ROOT/docs/conventions.md"
   grep -Fq 'autonomous-peer-contract.md' "$PROJECT_ROOT/runtime/skill-harness.md"
   local claude agents
-  claude="$(grep -F 'autonomous-peer-contract.md' "$PROJECT_ROOT/CLAUDE.md")"
-  agents="$(grep -F 'autonomous-peer-contract.md' "$PROJECT_ROOT/AGENTS.md")"
+  claude="$(grep -F 'autonomous-peer-contract.md` を正本とする' "$PROJECT_ROOT/private_dot_claude/CLAUDE.md")"
+  agents="$(grep -F 'autonomous-peer-contract.md` を正本とする' "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md")"
   [ -n "$claude" ]
   [ "$(printf '%s\n' "$claude" | wc -l)" -eq 1 ]
   [ "$claude" = "$agents" ]

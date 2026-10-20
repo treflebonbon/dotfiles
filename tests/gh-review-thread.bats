@@ -563,11 +563,11 @@ BODY
     grep -Fq 'short commit SHA' "$guidance"
   done
 
-  grep -Fq '`runtime/skill-harness.md`' "$PROJECT_ROOT/AGENTS.md"
-  ! grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/AGENTS.md"
-  grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '`gh-review-thread`' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq 'Review Round' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '`~/runtime/skill-harness.md`' "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md"
+  ! grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md"
+  grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/private_dot_claude/CLAUDE.md"
+  grep -Fq '`gh-review-thread`' "$PROJECT_ROOT/private_dot_claude/CLAUDE.md"
+  grep -Fq 'Review Round' "$PROJECT_ROOT/private_dot_claude/CLAUDE.md"
 
   grep -Fq '**Review Round**' "$PROJECT_ROOT/GLOSSARY.md"
   grep -Fq '`gh-address-comments`' "$PROJECT_ROOT/runtime/skill-harness.md"

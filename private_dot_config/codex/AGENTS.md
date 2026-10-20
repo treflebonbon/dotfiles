@@ -72,3 +72,22 @@ Prefer the smallest change that satisfies the whole task, including known cross-
 ## Visualization
 
 Use Mermaid code blocks, not ASCII art or box-drawing characters.
+
+## 設計→実装ワークフロー
+
+実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `~/runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
+
+- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）
+- 要件確定済み: `implement`。PR 本文は `pr`、振り返りは `retro`
+- raw issue: `triage` で ready-for-agent 化してから `implement`
+- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
+
+Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `~/runtime/skill-harness.md` と関連 ADR を読む。
+
+- 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `~/runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
+
+仕様全体の一括実装では `implement-spec` で一つの Integration Branch／PR に集約し、詳細は `~/runtime/skill-harness.md` の「一括実装」を読む。コード探索前に対象 repo の `GLOSSARY.md` と対象領域の ADR を読む。用語・domain 文書を編集するときは対象 repo の `docs/agents/domain.md` に従う。
+
+## ブラウザ操作ツール
+
+Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright-cli` または CDP、外部 browser window や native app の OS/window-level 操作は `computer-use` を使う。Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、実行ランタイムの要素指差しフィードバック機能を追加チャネルとして使う。

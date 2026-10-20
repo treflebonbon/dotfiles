@@ -3,6 +3,8 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   RUNTIME="$PROJECT_ROOT/runtime/skill-harness.md"
+  GLOBAL_CLAUDE="$PROJECT_ROOT/private_dot_claude/CLAUDE.md"
+  GLOBAL_CODEX="$PROJECT_ROOT/private_dot_config/codex/AGENTS.md"
 }
 
 @test "agent instructions separate task worktree edits from live chezmoi deployment" {
@@ -43,14 +45,15 @@ setup() {
 
 @test "standard workflow uses one integration PR and preserves publication and destructive-action boundaries" {
   local instructions
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+  for instructions in "$GLOBAL_CODEX" "$GLOBAL_CLAUDE"; do
     grep -Fq '`implement-spec`' "$instructions"
     grep -Fq '`pr`' "$instructions"
     grep -Fq '`retro`' "$instructions"
     grep -Fq 'Integration Branch／PR' "$instructions"
-    grep -Fq '`GLOSSARY.md`' "$instructions"
     ! grep -Eq 'to-pr|batch-implement|harness-feedback' "$instructions"
   done
+  grep -Fq '`GLOSSARY.md`' "$GLOBAL_CODEX"
+  grep -Fq '`GLOSSARY.md`' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq '一つの Integration Branch' "$RUNTIME"
   grep -Fq 'draft PR' "$RUNTIME"
   grep -Fq 'ready 化' "$RUNTIME"
@@ -65,11 +68,11 @@ setup() {
 }
 
 @test "local workflow overrides preserve triage, review base, and Review Round authority" {
-  grep -Fq '`triage` は推薦根拠の read-only 検証' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq 'standalone で base が不明な場合は確認する' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '`gh-review-thread` に統一する' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '1つの Review Round' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '`git-push-topic`' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '`triage` は推薦根拠の read-only 検証' "$GLOBAL_CLAUDE"
+  grep -Fq 'standalone で base が不明な場合は確認する' "$GLOBAL_CLAUDE"
+  grep -Fq '`gh-review-thread` に統一する' "$GLOBAL_CLAUDE"
+  grep -Fq '1つの Review Round' "$GLOBAL_CLAUDE"
+  grep -Fq '`git-push-topic`' "$GLOBAL_CLAUDE"
 
   grep -Fq '`triage` は推薦根拠を得る read-only 検証' "$RUNTIME"
   grep -Fq 'standalone で fixed point が不明な場合だけ質問する' "$RUNTIME"
@@ -81,8 +84,8 @@ setup() {
 @test "empirical prompt tuning does not claim strict convergence without usage metrics" {
   local instructions
 
-  grep -Fq '外部 skill を実行・評価するときのローカル上書き' "$PROJECT_ROOT/AGENTS.md"
-  for instructions in "$PROJECT_ROOT/CLAUDE.md" "$RUNTIME"; do
+  grep -Fq '外部 skill を実行・評価するときのローカル上書き' "$GLOBAL_CODEX"
+  for instructions in "$GLOBAL_CLAUDE" "$RUNTIME"; do
     grep -Fq '`tool_uses` または `duration_ms` を取得できない round' "$instructions"
     grep -Fq 'strict convergence の判定に含めない' "$instructions"
     grep -Fq '`qualitative plateau; quantitative convergence unverified`' "$instructions"
@@ -91,12 +94,12 @@ setup() {
 }
 
 @test "instruction layers guard model-invoked external writes, secrets, and permissions" {
-  grep -Fq 'model-invoked discipline' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '外部書込みは親 Contract' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '機密情報・credential・CI secret' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '読み出し、出力、commit' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '無断変更' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq 'permission bypass' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq 'model-invoked discipline' "$GLOBAL_CLAUDE"
+  grep -Fq '外部書込みは親 Contract' "$GLOBAL_CLAUDE"
+  grep -Fq '機密情報・credential・CI secret' "$GLOBAL_CLAUDE"
+  grep -Fq '読み出し、出力、commit' "$GLOBAL_CLAUDE"
+  grep -Fq '無断変更' "$GLOBAL_CLAUDE"
+  grep -Fq 'permission bypass' "$GLOBAL_CLAUDE"
 
   grep -Fq 'model-invoked discipline' "$RUNTIME"
   grep -Fq '外部書込み（Issue / PR / shared service など）は親の Contract' "$RUNTIME"
@@ -107,7 +110,7 @@ setup() {
 }
 
 @test "prototype contract is a self-contained HTML primary source" {
-  for instructions in "$PROJECT_ROOT/CLAUDE.md" "$RUNTIME"; do
+  for instructions in "$GLOBAL_CLAUDE" "$RUNTIME"; do
     grep -Fq 'single self-contained HTML' "$instructions"
     grep -Fq 'build / server 不要' "$instructions"
     grep -Fq 'pure logic' "$instructions"
@@ -124,21 +127,22 @@ setup() {
   [ -f "$PROJECT_ROOT/CLAUDE.md" ]
   ! cmp -s "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"
 
-  grep -Fq 'Matt Pocock skill の workflow / safety contract' "$PROJECT_ROOT/AGENTS.md"
-  grep -Fq '`runtime/skill-harness.md`' "$PROJECT_ROOT/AGENTS.md"
-  ! grep -Fq '## Matt Pocock workflow contract' "$PROJECT_ROOT/AGENTS.md"
-  ! grep -Fq 'model-invoked discipline' "$PROJECT_ROOT/AGENTS.md"
-  ! grep -Fq 'single self-contained HTML' "$PROJECT_ROOT/AGENTS.md"
+  grep -Fq 'Matt Pocock skill の workflow / safety contract' "$GLOBAL_CODEX"
+  grep -Fq '`~/runtime/skill-harness.md`' "$GLOBAL_CODEX"
+  ! grep -Fq '## Matt Pocock workflow contract' "$GLOBAL_CODEX"
+  ! grep -Fq 'model-invoked discipline' "$GLOBAL_CODEX"
+  ! grep -Fq 'single self-contained HTML' "$GLOBAL_CODEX"
 
-  grep -Fq 'Matt Pocock workflow contract' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq 'Matt Pocock workflow contract' "$GLOBAL_CLAUDE"
   grep -Fq '共有する workflow / safety contract は整合させる' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '共有する workflow / safety contract は整合させる' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq '**Instruction ownership**' "$RUNTIME"
 }
 
 @test "managed workflow revision uses explicit invocation, round separators, and setup pointers" {
-  grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$PROJECT_ROOT/CLAUDE.md"
-  grep -Fq '別の user-invoked skill から自動実行せず' "$PROJECT_ROOT/CLAUDE.md"
+  grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$GLOBAL_CLAUDE"
+  grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$GLOBAL_CLAUDE"
+  grep -Fq '別の user-invoked skill から自動実行せず' "$GLOBAL_CLAUDE"
 
   grep -Fq '49dd158d1076134a641b33efb035946536778336' "$RUNTIME"
   grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$RUNTIME"
@@ -147,7 +151,7 @@ setup() {
 }
 
 @test "AGENTS routes browser work by interaction surface" {
-  local instructions="$PROJECT_ROOT/AGENTS.md"
+  local instructions="$GLOBAL_CODEX"
 
   grep -Fq 'Orca 内蔵 page は `orca-cli`' "$instructions"
   grep -Fq '外部 Web page の自動操作は `playwright-cli` または CDP' "$instructions"
@@ -158,7 +162,7 @@ setup() {
 
 @test "native worktree guidance replaces the retired entry skill" {
   [ ! -e "$PROJECT_ROOT/local-skills/to-worktree" ]
-  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+  for instructions in "$GLOBAL_CODEX" "$GLOBAL_CLAUDE"; do
     grep -Fq 'runtime/skill-harness.md' "$instructions"
     run grep -Fq '/to-worktree' "$instructions"
     [ "$status" -eq 1 ]
@@ -195,4 +199,22 @@ setup() {
   grep -Fq 'ADR-0037 の旧20-skill pin 据え置き理由' "$adr"
   grep -Fq 'supersede' "$adr"
   grep -Fq 'full set の配備判断自体は ADR-0040 が正本' "$adr"
+}
+
+@test "repo-root instructions stay out of home while global sources carry shared contracts" {
+  grep -Fxq 'CLAUDE.md' "$PROJECT_ROOT/.chezmoiignore"
+  grep -Fxq 'AGENTS.md' "$PROJECT_ROOT/.chezmoiignore"
+  local root instructions
+  for root in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq 'home へは配備しない' "$root"
+    ! grep -Fq '## 設計→実装ワークフロー' "$root"
+    ! grep -Fq '## ブラウザ操作ツール' "$root"
+    ! grep -Fq '## Google Cloud / GitHub の調査' "$root"
+  done
+  for instructions in "$GLOBAL_CLAUDE" "$GLOBAL_CODEX"; do
+    grep -Fq '## 設計→実装ワークフロー' "$instructions"
+    grep -Fq '## Google Cloud / GitHub の調査' "$instructions"
+    ! grep -Fq '`runtime/' "$instructions"
+  done
+  grep -Fq 'status: accepted' "$PROJECT_ROOT/docs/adr/0078-keep-repo-instructions-out-of-home.md"
 }

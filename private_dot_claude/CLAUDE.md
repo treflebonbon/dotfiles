@@ -68,3 +68,39 @@ When a choice or clarification is genuinely the user's to make, ask it with the 
 ## Visualization
 
 Use Mermaid code blocks, not ASCII art or box-drawing characters.
+
+## Google Cloud / GitHub の調査
+
+Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可された `gh` の参照コマンドを使う。未対応の調査操作は、ユーザーへ内容を示して実行前に確認し、auto 判定や別の実行方法で代用しない。秘密値・認証値の取得と機密項目の除外解除は禁止。操作一覧と手順は `~/runtime/investigation.md` を読む。
+
+## 設計→実装ワークフロー
+
+実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `~/runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
+
+- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）
+- 要件確定済み: `implement`。PR 本文は `pr`、振り返りは `retro`
+- raw issue: `triage` で ready-for-agent 化してから `implement`
+- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
+
+必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
+
+## Matt Pocock workflow contract
+
+- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round は人間の回答を待ってから次に進み、事実は環境から確認する。未回答の decision は推測して先へ進めない。
+- cross-skill 呼出しは Skill tool と skill 名を明示する。setup 情報が未配備なら `setup-matt-pocock-skills` を別の user-invoked skill から自動実行せず、ユーザーへ明示起動を案内する。
+- phase boundary の公式5択は `Continue → /clear → /handoff → Subagent → /compact`。次 phase が現 phase を primary source として必要、または smart zone（目安 ~150k tokens）に収まるなら `Continue`。context が無関係なら `/clear`。portability が必要な場合だけ `/handoff`。AFK の scoped task は `Subagent`。同じ harness / directory の relevant context は `/compact` で引き継ぐ。
+- `implement-spec` は各 ticket を専用 worktree で並列実装し、仕様全体を一つの Integration Branch／PR に集約する。draft 作成・ready 化と、reset／worktree 削除の安全境界は `~/runtime/skill-harness.md` を読む。
+- model-invoked discipline は current repository の実装契約内で動く。外部書込みは親 Contract または明示的に起動した user-invoked skill の範囲に限り、機密情報・credential・CI secret を読み出し、出力、commit、無断変更しない。権限拡大や permission bypass は推測せず、runtime profile に従い必要ならユーザーへ戻す。
+- `prototype` の logic path は single self-contained HTML とし、build / server 不要で、inline pure logic、free-play、guided walkthroughs、操作後の全 state 表示を持つ。決定を本実装へ反映した後も prototype 全体を throwaway branch に primary source として残し、implementation issue から参照する。main branch には decision だけを残す。
+
+自律実行範囲、PR 公開手順、各 skill のローカル上書きは `~/runtime/skill-harness.md` と関連 ADR を正本とする。特に次を守る:
+
+- `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、close/reopen/delete は確認する。
+- Builder-Evaluator 内の `code-review` は既知の base（通常 `origin/main`）を使う。standalone で base が不明な場合は確認する。
+- `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する（二重管理による thread 状態の不整合を防ぐため）。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
+- `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
+- 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `~/runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
+
+## ブラウザ操作ツール
+
+通常のブラウザ操作は `playwright-cli` skill を使い、Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、利用可能な `claude-in-chrome` を追加チャネルとして使う。
