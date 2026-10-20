@@ -94,6 +94,28 @@ pre-commit:
         - shfmt
         - oxfmt
         - oxlint
+    # 指示ファイルの文言・行一致を検査する Bats（数秒）。全 Bats を待たずに
+    # 文言変更による契約テストの破損を commit 時に検出する。
+    - name: instruction-contract
+      run: >-
+        bats tests/workflow-contract.bats tests/autonomous-peer-contract.bats && bats --filter 'Review Round contract' tests/gh-review-thread.bats
+      glob:
+        - "CLAUDE.md"
+        - "AGENTS.md"
+        - "GLOSSARY.md"
+        - ".chezmoiignore"
+        - "private_dot_claude/CLAUDE.md"
+        - "private_dot_config/codex/AGENTS.md"
+        - "private_dot_gemini/AGENTS.md"
+        - "runtime/*.md"
+        - "docs/architecture.md"
+        - "docs/conventions.md"
+        - "docs/adr/*.md"
+        - "local-skills/ui-grill-with-docs/SKILL.md"
+        - "local-skills/*-peer-refactor/**/*.md"
+        - "tests/workflow-contract.bats"
+        - "tests/autonomous-peer-contract.bats"
+        - "tests/gh-review-thread.bats"
     - name: gitleaks
       run: gitleaks protect --staged -v
       exclude:

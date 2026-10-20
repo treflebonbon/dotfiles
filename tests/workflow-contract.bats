@@ -222,3 +222,19 @@ setup() {
   done
   grep -Fq 'status: accepted' "$PROJECT_ROOT/docs/adr/0078-keep-repo-instructions-out-of-home.md"
 }
+
+@test "pre-commit runs the instruction contract tests when instruction files change" {
+  local config="$PROJECT_ROOT/lefthook.yml" job file
+  job="$(sed -n '/name: instruction-contract/,/name: gitleaks/p' "$config")"
+
+  for file in CLAUDE.md AGENTS.md private_dot_claude/CLAUDE.md private_dot_config/codex/AGENTS.md 'runtime/\*.md'; do
+    grep -Eq "^ +- \"$file\"$" <<<"$job"
+  done
+  for file in tests/workflow-contract.bats tests/autonomous-peer-contract.bats tests/gh-review-thread.bats; do
+    [ -f "$PROJECT_ROOT/$file" ]
+    grep -Fq "bats" <<<"$job"
+    grep -Fq "$file" <<<"$job"
+  done
+  run bats --count --filter 'Review Round contract' "$PROJECT_ROOT/tests/gh-review-thread.bats"
+  [ "$output" -ge 1 ]
+}
