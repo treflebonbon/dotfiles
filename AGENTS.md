@@ -30,7 +30,9 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - raw issue: `triage` で ready-for-agent 化してから `implement`
 - 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
 
-Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
+Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。
+
+- 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
 
 仕様全体の一括実装では `implement-spec` で一つの Integration Branch／PR に集約し、詳細は `runtime/skill-harness.md` の「一括実装」を読む。コード探索前に `GLOSSARY.md` と対象領域の ADR を読む。用語・domain 文書を編集するときは `docs/agents/domain.md` に従う。
 
