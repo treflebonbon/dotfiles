@@ -4,15 +4,11 @@ chezmoi dotfiles repo。ログインシェルは bash。
 
 **重要**: 実装は validated task worktree 内の source を編集する。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi apply` して `~/` へ反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
 
-`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向け、`CLAUDE.md` は Claude Code 向けとして別々に保守し、共有する workflow / safety contract は整合させる。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
+この `CLAUDE.md` / `AGENTS.md` は dotfiles repo を編集するための指示で、home へは配備しない（`.chezmoiignore`）。全 repo 共通の指示は `private_dot_claude/CLAUDE.md`（Claude Code）と `private_dot_config/codex/AGENTS.md`（Codex）に置き、repo 直下とグローバルの各ファイルは別々に保守し、共有する workflow / safety contract は整合させる。home 配下の repo に共通する環境知識は `~/runtime/index.md`（source は `runtime/`）、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
 
 ## Architecture
 
 flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ランタイム・横断ツール用の `private_dot_config/nix-devshell/flake.nix` を分けている。ツールの追加先は `docs/architecture.md` で判断する。
-
-## Google Cloud / GitHub の調査
-
-Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可された `gh` の参照コマンドを使う。未対応の調査操作は、ユーザーへ内容を示して実行前に確認し、auto 判定や別の実行方法で代用しない。秘密値・認証値の取得と機密項目の除外解除は禁止。操作一覧と手順は `runtime/investigation.md`（他 repo では `~/runtime/investigation.md`）を読む。
 
 ## Conventions
 
@@ -20,25 +16,6 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
 - ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
 - この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（手順・ログ・opt-in 検証は `docs/conventions.md`）。
-
-## 設計→実装ワークフロー
-
-実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
-
-- 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）
-- 要件確定済み: `implement`。PR 本文は `pr`、振り返りは `retro`
-- raw issue: `triage` で ready-for-agent 化してから `implement`
-- 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
-
-Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `runtime/skill-harness.md` と関連 ADR を読む。
-
-- 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
-
-仕様全体の一括実装では `implement-spec` で一つの Integration Branch／PR に集約し、詳細は `runtime/skill-harness.md` の「一括実装」を読む。コード探索前に `GLOSSARY.md` と対象領域の ADR を読む。用語・domain 文書を編集するときは `docs/agents/domain.md` に従う。
-
-## ブラウザ操作ツール
-
-Orca 内蔵 page は `orca-cli`、外部 Web page の自動操作は `playwright-cli` または CDP、外部 browser window や native app の OS/window-level 操作は `computer-use` を使う。Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、実行ランタイムの要素指差しフィードバック機能を追加チャネルとして使う。役割の違いは ADR-0017 を参照する。
 
 ## Skill 配布経路の選択
 
