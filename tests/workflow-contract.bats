@@ -178,6 +178,11 @@ setup() {
   grep -Fq '**owner 側では有効、子から参照不能**' "$RUNTIME"
   grep -Fq '子が自分の環境で再検証に成功してから' "$RUNTIME"
   grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$RUNTIME"
+  grep -Fq '[worker readiness 手順](../local-skills/orca-peer-refactor/references/orca.md#worktree-readiness)' "$RUNTIME"
+  grep -Fq 'ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は' "$RUNTIME"
+  grep -Fq '配備先: `~/.agents/skills/orca-peer-refactor/references/orca.md#worktree-readiness`' "$RUNTIME"
+  grep -Fq '同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する' "$RUNTIME"
+  grep -Fq 'folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外' "$RUNTIME"
 }
 
 @test "ADR-0046 uses Orca built-in Codex launch and keeps the adapter outside Orca" {

@@ -17,7 +17,7 @@ ORCA skills get orchestration --json
 
 評価前に、本番と同じ native 起動経路で root → peer の深度と起動 effective 値（agent / model / effort）を smoke 確認する。`nested_worker_depth_exceeded` はシナリオの失敗採点ではなく環境不適合として別に記録する。設定変更や新しい Run の作成で深度をリセットしたことにしない。
 
-Run / Dispatch の receipt は、独立した runtime の期待値と照合する。`scripts/orca-preflight.py` は保存済み JSON を読むだけで、CLI の wrapper、Run の bind、権限付与、再送は行わない。
+Run / Dispatch の receipt は、独立した runtime の期待値と照合する。`scripts/orca-preflight.py` の `coordinator` / `worker-show` は保存済み native receipt を読み、`worker-readiness record` は worker 自身の Git metadata を別の JSON に記録し、`verify` はその JSON と親が独立取得した Git metadata を照合する。いずれも CLI wrapper、Run の bind、権限付与、再送は行わない。
 
 ```text
 python3 <skill-dir>/scripts/orca-preflight.py coordinator <run-receipt.json> --run <expected-run-id> --handle <coordinator-handle>
@@ -25,6 +25,41 @@ python3 <skill-dir>/scripts/orca-preflight.py worker-show <worker-show-receipt.j
 ```
 
 coordinator receipt は `ok: true` と `result.run.id` / `result.run.coordinator_handle` の一致を要する。worker-show receipt は `ok: true` と `result.dispatch.id` / `taskId` / `assigneeHandle` の一致、および `status: dispatched` を要する。settled、error、malformed、欠落、不一致は拒否する。期待値は preamble または runtime の bound Run / worker-start 結果から取り、検査対象の receipt から作らない。
+
+## Worktree readiness
+
+ローカル変更につながる診断・実装を Git task worktree で監督するとき、peer 協働に限らず適用する。folder workspace と primary checkout での説明・状態確認・読み取り調査は対象外。この CLI は worker と verifier が同じ実行 host 上の Git task worktree を参照できる場合に使う。remote placement では親の local path から worker 側を推測せず、実行 host 側の独立観測がない限り照合成功として扱わない。native worktree と Agent Picker の built-in agent 起動、Orca が所有する permission mode はそのまま使う。次の順序を守り、worker の診断・編集は照合成功後に始める。
+
+1. 親は Task の初回 `--spec` を準備確認だけにし、「native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ」ことだけを指示する。親は native の割当結果から Task / Dispatch / worker handle / worktree の絶対 path を確定し、割当時の branch と開始 HEAD も独立に記録する。既存の `worker-show` receipt 検証は引き続き実行し、worker readiness JSON の代用にしない。
+2. worker は割当直後、ソースを読む前に共有作業領域へ新しい記録先を作り、現在の自分の process cwd から観測を保存する。Task / Dispatch / handle と絶対 JSON path を親へ報告し、実タスクの説明を受け取るまで待つ。
+
+```bash
+mkdir -p /tmp/codex
+readiness_dir=$(mktemp -d /tmp/codex/orca-readiness.XXXXXX)
+python3 <skill-dir>/scripts/orca-preflight.py worker-readiness record "$readiness_dir/worker-readiness.json" \
+  --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
+```
+
+この JSON は native receipt ではなく、`orca-worker-readiness-observation/v1` の checkout 観測である。record は既存ファイルを上書きせず、Git metadata 読取では ambient `GIT_*` を除く。worker は絶対 path と native Task / Dispatch / handle を親へ送り、照合結果を待つ。
+
+3. 親は native 割当から固定した path・branch・開始 HEAD と ID を渡して、別の自分の process から検査する。観測ファイルの値から期待値を作らない。
+
+```bash
+python3 <skill-dir>/scripts/orca-preflight.py worker-readiness verify <worker-readiness.json> \
+  --worktree <native-assigned-absolute-path> --branch <assigned-branch> --head <assigned-start-head> \
+  --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
+```
+
+verify は指定 path から physical root・branch・HEAD・absolute Git dir・common dir を独立に取得し、cwd を root として worker 観測の六項目および native ID と比較する。割当時の branch / HEAD と現在の指定 worktree も一致しなければならず、primary checkout、別 worktree、欠落・不正・不一致は拒否する。観測 JSON は読取り専用で、malformed JSON と shell 風文字列も実行しない。照合成功後だけ親は `dispatch:<dispatch-id>` 宛てに実タスク本文を送る。
+
+`task_body_file` には確定済み本文を保存したファイルの path を指定する。ファイルから読んだ本文を引用付きの変数として渡す。
+
+```bash
+task_body=$(cat -- "$task_body_file") &&
+ORCA orchestration send --to "dispatch:<dispatch-id>" --subject "実タスク開始" --body "$task_body" --type dispatch --json
+```
+
+失敗・観測不能時は診断・編集へ進まず、記録を保って親へ報告する。これは native launch や permission boundary を置き換える wrapper ではない。
 
 ## 役割別の正規経路
 
@@ -53,7 +88,7 @@ coordinator は自分の terminal handle で Run を作成・bindし、返った
   python3 -m json.tool "$run_dir/run-create.json.part" > /dev/null &&
   ln "$run_dir/run-create.json.part" "$run_dir/run-create.json") &&
 ORCA orchestration check --terminal <coordinator-handle> --run <run-id> --wait --timeout-ms 45000 --json &&
-ORCA orchestration task-create --spec "<候補ID・AC・非目標・所有範囲・writerまたはreviewer>" --task-title "<title>" --run <run-id> --from <coordinator-handle> --json &&
+ORCA orchestration task-create --spec "準備確認のみ: native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ" --task-title "<title>" --run <run-id> --from <coordinator-handle> --json &&
 receipt_dir=$(mktemp -d "$run_dir/worker.XXXXXX") &&
 (set -C
   test ! -e "$receipt_dir/worker-start.json" &&
@@ -79,6 +114,8 @@ peer には共有の絶対 reply-file を渡し、1 行目を `DONE <REQ> <sha>`
 
 実 worker がさらに peer を監督するときは、自分が owner となる child Run を作成・bindする。上位 coordinator から自分の Dispatch 宛てに届く follow-up と child worker の message は、child Run に bind した自分の terminal inbox で処理する。上位 Task / Dispatch / REQ / SHA は保持し、上位へ返す完了は live preamble の handle と Task / Dispatch ID を使う。
 
+ローカル変更を行う child worker も [Worktree readiness](#worktree-readiness) に従う。Task の初回 spec は準備確認だけにし、child worker の観測を同じ実行 host で独立 verify した後、成功時だけ child Dispatch 宛てに実タスク本文を送る。
+
 ```text
 : "${run_dir:?共有 run directory の絶対パスを指定してください}" &&
 child_run_dir=$(mktemp -d "$run_dir/child-run.XXXXXX") &&
@@ -88,7 +125,7 @@ child_run_dir=$(mktemp -d "$run_dir/child-run.XXXXXX") &&
   python3 -m json.tool "$child_run_dir/run-create.json.part" > /dev/null &&
   ln "$child_run_dir/run-create.json.part" "$child_run_dir/run-create.json") &&
 ORCA orchestration check --terminal <nested-coordinator-handle> --run <child-run-id> --wait --timeout-ms 45000 --json &&
-ORCA orchestration task-create --spec "<child task>" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json &&
+ORCA orchestration task-create --spec "準備確認のみ: native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json &&
 child_receipt_dir=$(mktemp -d "$child_run_dir/worker.XXXXXX") &&
 (set -C
   test ! -e "$child_receipt_dir/worker-start.json" &&
@@ -99,10 +136,18 @@ child_receipt_dir=$(mktemp -d "$child_run_dir/worker.XXXXXX") &&
 
 peer の ID / Run で上位の ID を置き換えたり、上位 coordinator の mailbox を直接読んだりしない。
 
+子の照合成功後に実タスクを送る宛先は child Dispatch とする。
+
+```bash
+task_body=$(cat -- "$task_body_file") &&
+ORCA orchestration send --to "dispatch:<child-dispatch-id>" --subject "実タスク開始" --body "$task_body" --type dispatch --json
+```
+
 上位 coordinator から nested Dispatch への follow-up は、安定した Dispatch 宛てに送り `--run` を省略する。child coordinator の `check` / `reply` / ack は child Run を指定し、上位 coordinator の `check` / `reply` / ack は上位 Run を指定する。
 
-```text
-ORCA orchestration send --to dispatch:<nested-dispatch-id> --from <coordinator-handle> --subject "follow-up" --body "<literal body>" --type status --json
+```bash
+task_body=$(cat -- "$task_body_file") &&
+ORCA orchestration send --to "dispatch:<nested-dispatch-id>" --from "<coordinator-handle>" --subject "follow-up" --body "$task_body" --type status --json
 ```
 
 ## ID を receipt から渡す
