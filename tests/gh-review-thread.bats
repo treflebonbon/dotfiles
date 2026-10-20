@@ -526,6 +526,19 @@ BODY
   done
 }
 
+@test "inspect --plain trims only outside protected code at the body edges" {
+  MOCK_BODY_FILE="$BATS_TEST_TMPDIR/body.md"
+  printf '  ```text\n<p>x</p>\n  ```\n\n<br>\n```\nopen  ' >"$MOCK_BODY_FILE"
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="bot-body" \
+    MOCK_BODY_FILE="$MOCK_BODY_FILE" \
+    python3 "$SCRIPT" inspect --repo owner/repo --pr 42 --no-diff --plain
+
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.review_threads[0].comments.nodes[0].body' <<<"$output")" = \
+    $'  ```text\n<p>x</p>\n  ```\n\n```\nopen  ' ]
+}
+
 @test "inspect keeps the raw review body by default" {
   write_bot_body
 

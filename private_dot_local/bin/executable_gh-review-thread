@@ -196,7 +196,10 @@ def plain_body(body: str) -> str:
         parts += [strip_review_markup(body[position : code.start()]), code[0]]
         position = code.end()
     parts.append(strip_review_markup(body[position:]))
-    return "".join(parts).strip()
+    # Code parts sit at odd indexes, so trimming the edges never touches code.
+    parts[0] = parts[0].lstrip()
+    parts[-1] = parts[-1].rstrip()
+    return "".join(parts)
 
 
 def inspect(repo: str, pr: int, no_diff: bool = False, plain: bool = False) -> None:
