@@ -169,9 +169,11 @@ def fetch_threads(repo: str, pr: int) -> list[dict[str, Any]]:
 
 # Only known review-bot markup is removed so code such as `<<EOF` or `Result<T>`
 # survives; fenced blocks (closed by a fence of the same kind, or unclosed to the
-# end) and inline code spans are kept verbatim.
+# end) and inline code spans (closed by an equal backtick run, within a
+# paragraph) are kept verbatim.
 CODE = re.compile(
-    r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[^\n]*$|\Z)|`[^`\n]+`",
+    r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[^\n]*$|\Z)"
+    r"|(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n).)+?(?<!`)\2(?!`)",
     re.MULTILINE | re.DOTALL,
 )
 REVIEW_MARKUP = re.compile(

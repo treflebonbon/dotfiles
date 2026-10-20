@@ -487,6 +487,9 @@ BODY
   cat >"$MOCK_BODY_FILE" <<'BODY'
 <details>
 Use `<br>` here.
+Keep ``literal `<p>` tag`` okay.
+Span ``across
+<sub>lines``.
 
 ~~~html
 <p>tilde</p>
@@ -516,7 +519,8 @@ BODY
   body="$(jq -r '.review_threads[0].comments.nodes[0].body' <<<"$output")"
   [[ "$body" != *'<details>'* ]]
   local kept
-  for kept in 'Use `<br>` here.' '<p>tilde</p>' '<p>nested</p>' $'a\n\n\nb' \
+  for kept in 'Use `<br>` here.' 'Keep ``literal `<p>` tag`` okay.' \
+    $'Span ``across\n<sub>lines``.' '<p>tilde</p>' '<p>nested</p>' $'a\n\n\nb' \
     '<img src="https://example.com/shot.png">'; do
     [[ "$body" == *"$kept"* ]]
   done
