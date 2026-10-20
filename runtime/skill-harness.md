@@ -17,7 +17,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本 + on-ramp 2つで構成する — 詳細は [ADR-0014](../docs/adr/0014-triage-not-after-to-issues.md)、上流 `ask-matt` の main-flow/on-ramp 構造に整合）:
 
-- メインフロー: native worktree での作業開始 → `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）。小さな要件確定済みの作業は `implement` から直接入る。PR 本文は model-invoked の `pr`、実装後の振り返りは user-invoked の `retro` を使う。`tdd` の green slice commit・`code-review` 後の修正 commit は実装依頼の範囲で確認なしに行う。`code-review` は `git diff <fixed-point>...HEAD` の commit 済み差分を対象にし、empty diff は fail する。
+- メインフロー: native worktree での作業開始 → `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）。小さな要件確定済みの作業は `implement` から直接入る。PR 本文は model-invoked の `pr`、実装後の振り返りは user-invoked の `retro` を使う。`tdd` の green slice commit・`code-review` 後の修正 commit は実装依頼の範囲で確認なしに行う。`implement` 中の `tdd` は、ADR・spec・ticket の受入条件からテストする公開境界（seam）を特定できる場合に限り、それを合意済みの seam とみなしてユーザー確認を省く。受入条件がない、または境界が曖昧な場合は `tdd` どおり確認する（vendored skill 本体は改変しない）。`code-review` は `git diff <fixed-point>...HEAD` の commit 済み差分を対象にし、empty diff は fail する。
 - on-ramp（raw issue: `to-tickets` の産出物には使わない）: `triage` → ready-for-agent 化 → `implement` へ合流
 - on-ramp（ハードなバグ）: `diagnosing-bugs` → `code-review`。PR 本文は `pr`。raw な報告ならまず `triage` を通す
 
