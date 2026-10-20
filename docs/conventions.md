@@ -8,7 +8,7 @@ tags: [conventions, git, lint, lefthook]
 # Conventions
 
 - **コミット**: Conventional Commits 形式（`cog verify` で検証、`commit-msg` hook）
-- **Linting / format**: lefthook `pre-commit` hook で自動実行（`lefthook.yml`）。pinact / shfmt / oxfmt / oxlint / ghalint / actionlint / shellcheck / gitleaks / typecheck の汎用品質ゲート
+- **Linting / format**: lefthook `pre-commit` hook で自動実行（`lefthook.yml`）。pinact / shfmt / oxfmt / oxlint / ghalint / actionlint / shellcheck / gitleaks / typecheck の汎用品質ゲートと、指示ファイル変更時の `instruction-contract`
 - **認証**: HTTPS + `gh auth git-credential`。SSH は不使用
 
 ## レビュー
@@ -25,7 +25,7 @@ tags: [conventions, git, lint, lefthook]
 
 実機のモデルを呼ぶ検証（`tests/live-hook.bats`。両方なら `GCLOUD_INSPECT_HOOK_LIVE="claude codex" CODEX_BYPASS_HOOK_TRUST=1 bats tests/live-hook.bats`。Codex は `CODEX_BYPASS_HOOK_TRUST=1` が必要）は既定で skip し、環境変数で opt-in する。差分テスト（`tests/gcloud-inspect-hook.bats`）は既定でも100件を毎回実行し、`GCLOUD_INSPECT_HOOK_FUZZ=1` で5000件に増やす。道具は `tests/helpers/live-hook-*.sh`。
 
-topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint のまま維持し、`pre-push` に全 Bats を自動実行する hook は追加しない。
+topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint と、指示ファイルを変更したときだけ動く契約テスト（`instruction-contract`、数秒）に留め、`pre-push` に全 Bats を自動実行する hook は追加しない。
 
 アーキテクチャHTML report checkerの実ブラウザ再検証は、全Batsへ組み込まず、repo root で `nix develop ./private_dot_config/nix-devshell --command nix develop . --command scripts/run-architecture-render-smoke.sh` を個別に実行する。`playwright-cli` が管理する一時session、loopback HTTP server、追跡fixtureを使う。実report用 `check-architecture-render.js` を正本とし、既存SKILL.mdの手順と同じ `sed '$s/;$//'` を `run-code` へ渡す一時入力にだけ適用する。Mermaid 11.17.2 をjsDelivrから一時web rootへ取得し、vendoringしない。`curl` / `python3` / `playwright-cli` とjsDelivrへの接続が実行前提であり、未達時は失敗理由を表示する。TAPとconsoleの記録は試行ごとに `.tmp/architecture-render-smoke.*` へ保持する。図なしHTMLはHTTP 200なら成功、HTTP 404なら失敗として検査する。
 
