@@ -14,7 +14,9 @@ pre-commit:
       stage_fixed: true
     - name: shfmt
       run: shfmt -w {staged_files}
-      glob: "**/*.sh"
+      glob:
+        - "**/*.sh"
+        - "**/*.bash"
       exclude:
         - ".agents/skills/**"
         - "private_dot_config/bash/bash-preexec.sh" # vendored third-party
