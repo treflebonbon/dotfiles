@@ -139,6 +139,8 @@ setup() {
   grep -Fq '共有する workflow / safety contract は整合させる' "$PROJECT_ROOT/CLAUDE.md"
   grep -Fq '共有する workflow / safety contract は整合させる' "$PROJECT_ROOT/AGENTS.md"
   grep -Fq '**Instruction ownership**' "$RUNTIME"
+  grep -Fq 'OpenCode / Zed / Cursor などのグローバル指示はこの dotfiles では管理しない' "$RUNTIME"
+  ! grep -Fq '`AGENTS.md` は Codex / OpenCode / Zed / Cursor' "$RUNTIME"
 }
 
 @test "managed workflow revision uses explicit invocation, round separators, and setup pointers" {

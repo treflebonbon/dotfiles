@@ -15,6 +15,7 @@ chezmoi は repo 直下の `CLAUDE.md` / `AGENTS.md` を `~/CLAUDE.md` / `~/AGEN
 
 - repo 直下の `CLAUDE.md` / `AGENTS.md` は dotfiles repo を編集するための指示とし、`.chezmoiignore` で home への配備から外す。chezmoi の編集規則、flake 構成、この repo の検証コマンド、skill 配布経路、`docs/agents` の設定だけを持つ。
 - 全 repo 共通の指示は `private_dot_claude/CLAUDE.md`（Claude Code）と `private_dot_config/codex/AGENTS.md`（Codex）だけが持つ。調査規則、設計→実装ワークフロー、Matt Pocock workflow contract（ADR-0023 の外部 skill のローカル上書きを含む）、ブラウザ操作の使い分けをこちらへ移し、参照先は `~/runtime/...` にする。
+- グローバル指示を配備する対象は Claude Code と Codex だけとする。OpenCode / Zed / Cursor は以前から `~/AGENTS.md` をグローバル配備先として読まず、この dotfiles でも設定を管理していないため、グローバル指示の管理対象に含めない。
 - ADR-0007 の「cross-repo 価値の有無で配備を分ける」基準を指示ファイルにも適用する。`runtime/` の home-wide 配備は変えない。
 
 ## Considered Options
