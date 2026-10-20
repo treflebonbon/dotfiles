@@ -224,17 +224,31 @@ setup() {
 }
 
 @test "pre-commit runs the instruction contract tests when instruction files change" {
-  local config="$PROJECT_ROOT/lefthook.yml" job file
-  job="$(sed -n '/name: instruction-contract/,/name: gitleaks/p' "$config")"
+  run python3 -I - "$PROJECT_ROOT" <<'PY'
+import json
+import shlex
+import subprocess
+import sys
 
-  for file in CLAUDE.md AGENTS.md private_dot_claude/CLAUDE.md private_dot_config/codex/AGENTS.md 'runtime/\*.md'; do
-    grep -Eq "^ +- \"$file\"$" <<<"$job"
-  done
-  for file in tests/workflow-contract.bats tests/autonomous-peer-contract.bats tests/gh-review-thread.bats; do
-    [ -f "$PROJECT_ROOT/$file" ]
-    grep -Fq "bats" <<<"$job"
-    grep -Fq "$file" <<<"$job"
-  done
+dump = subprocess.run(["lefthook", "dump", "--format", "json"], cwd=sys.argv[1], capture_output=True, text=True, check=True)
+job = next(job for job in json.loads(dump.stdout)["pre-commit"]["jobs"] if job.get("name") == "instruction-contract")
+commands = [shlex.split(part) for part in job["run"].split("&&")]
+assert commands[0][:3] == ["command", "-v", "codex"], commands
+assert commands[1] == ["bats", "tests/workflow-contract.bats", "tests/autonomous-peer-contract.bats"], commands
+assert commands[2] == ["bats", "--filter", "Review Round contract", "tests/gh-review-thread.bats"], commands
+# 契約テストが読むファイルの変更で起動する。
+required = {
+    "CLAUDE.md", "AGENTS.md", "GLOSSARY.md", ".chezmoiignore", "lefthook.yml", "runtime/*.md",
+    "private_dot_claude/CLAUDE.md", "private_dot_claude/auto-peer-deny.json", "private_dot_claude/settings.json.tmpl",
+    "private_dot_config/codex/AGENTS.md", "private_dot_config/codex/auto-peer.rules",
+    "private_dot_config/codex/config.toml.tmpl", "private_dot_config/codex/rules/default.rules",
+    "private_dot_local/bin/executable_sync-codex-managed-config", "private_dot_gemini/AGENTS.md",
+    "tests/workflow-contract.bats", "tests/autonomous-peer-contract.bats", "tests/gh-review-thread.bats",
+}
+missing = sorted(required - set(job["glob"]))
+assert not missing, missing
+PY
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output"; false; }
   run bats --count --filter 'Review Round contract' "$PROJECT_ROOT/tests/gh-review-thread.bats"
   [ "$output" -ge 1 ]
 }

@@ -98,13 +98,20 @@ pre-commit:
     # 文言変更による契約テストの破損を commit 時に検出する。
     - name: instruction-contract
       run: >-
-        bats tests/workflow-contract.bats tests/autonomous-peer-contract.bats && bats --filter 'Review Round contract' tests/gh-review-thread.bats
+        command -v codex >/dev/null || { echo 'instruction-contract: codex がない。docs/conventions.md の devShell 手順（ユーザー devShell と repo devShell）で commit する' >&2; exit 1; } && bats tests/workflow-contract.bats tests/autonomous-peer-contract.bats && bats --filter 'Review Round contract' tests/gh-review-thread.bats
       glob:
         - "CLAUDE.md"
         - "AGENTS.md"
         - "GLOSSARY.md"
         - ".chezmoiignore"
+        - "lefthook.yml"
         - "private_dot_claude/CLAUDE.md"
+        - "private_dot_claude/auto-peer-deny.json"
+        - "private_dot_claude/settings.json.tmpl"
+        - "private_dot_config/codex/auto-peer.rules"
+        - "private_dot_config/codex/config.toml.tmpl"
+        - "private_dot_config/codex/rules/default.rules"
+        - "private_dot_local/bin/executable_sync-codex-managed-config"
         - "private_dot_config/codex/AGENTS.md"
         - "private_dot_gemini/AGENTS.md"
         - "runtime/*.md"
