@@ -15,6 +15,12 @@ tags: [conventions, git, lint, lefthook]
 
 削除・権限判定の変更では、承認された要件に照らし、検査不能な状態を接続コードから最終操作まで追う。読取り失敗・一部しか見えない状態・検査中の対象消失をどう扱うか、許可条件と拒否条件の両方をレビュー担当が確認する。
 
+テストと、テストから起動するスクリプトは、他のテストファイルと並列に動く前提でレビューする（[ADR-0079](adr/0079-run-bats-files-in-parallel.md)）。直列では表に出ず、並列の負荷や順序で表に出る次の形を確認する。
+
+- 資源はテストごとの領域（テスト節）に置く。テスト対象の仕様で共有が決まっている資源（`/tmp/codex` など）は、既に存在しても成功する形で作り、その後に種類と所有者を確かめる。「存在確認 → 作成」は競合する。
+- 待ち時間・タイムアウトは負荷で延びる処理を見込み、production の既定値以上にする。短い値が要るのは、時間切れそのものを検証するテストに限る。
+- background job（`&`）の直後に `disown`・`kill`・`wait` する箇所は、job が先に終了・回収されても成功する。
+
 ## テスト
 
 `lefthook run test` で `tests/` の全 Bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。lefthook の `test` は `bun run test` → `scripts/test.sh` を呼ぶ。入口で実際の `python3 -I` が `dotenv.parser` を import でき、`with-env` と `parallel` が Nix store 内へ解決されることを確認してから、依存関係の frozen install と Bats の実行を行う。Bats はテストファイルを CPU コア数で並列に、ファイル内のテストを直列に実行し、GNU parallel は repo の devShell が提供する（[ADR-0079](adr/0079-run-bats-files-in-parallel.md)）。テストはファイルをまたいで共有資源を使わず、`BATS_TEST_TMPDIR` などテストごとの領域を使う。不足時は devShell を準備して再実行する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、Bats 非対象）。`.chezmoiignore` で home には非配備。
