@@ -536,10 +536,23 @@ def prepare(repo, policy, output):
 
 
 def bridge_startup(service, port):
-    return f"""if ! IFS= read -r -t 10 bridge_ready < <(
+    # read status >128 is a timeout; other failures mean the bridge closed stdout.
+    # Killing first keeps wait bounded if the bridge closed stdout but kept running.
+    return f"""bridge_read_status=0
+IFS= read -r -t 10 bridge_ready < <(
     python3 /gateway-bridge.py /gateway/{service}/service.sock {port} </dev/null
-) || [ "$bridge_ready" != ready ]; then
-    printf '%s\\n' 'gateway bridge did not start' >&2
+) || bridge_read_status=$?
+if [ "$bridge_read_status" -gt 128 ]; then
+    printf '%s\\n' 'gateway bridge did not start: no readiness within 10s' >&2
+    exit 1
+elif [ "$bridge_read_status" -ne 0 ]; then
+    kill "$!" 2>/dev/null || :
+    bridge_status=0
+    wait "$!" || bridge_status=$?
+    printf 'gateway bridge did not start: bridge exited with status %s\\n' "$bridge_status" >&2
+    exit 1
+elif [ "$bridge_ready" != ready ]; then
+    printf '%s\\n' 'gateway bridge did not start: unexpected readiness line' >&2
     exit 1
 fi
 """
