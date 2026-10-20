@@ -949,6 +949,8 @@ EOF
   run bash "$WRAPPER" -s=alpha open https://example.com
   [ "$status" -eq 0 ]
   export PWCLI_FAKE_CLOSE_INSPECTIONS=2
+  # 並列実行の負荷で2回の状態確認が setup の1秒を超えないよう、既定の待ち時間に戻す。
+  export PWCLI_CDP_TIMEOUT=10
   : >"$POWERSHELL_LOG"
 
   run bash "$WRAPPER" -s=alpha close

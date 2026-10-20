@@ -205,11 +205,21 @@ PY
   refute_log_contains "/bats "
 }
 
+@test "テスト入口は Nix store 外の GNU parallel を install より前に拒否する" {
+  stub_cmd parallel
+  run_entry
+  assert_failure
+  assert_output --partial "parallel"
+  assert_output --partial "テスト環境が不完全"
+  refute_log_contains "bun install"
+  refute_log_contains "/bats "
+}
+
 @test "テスト入口は TAP ログと終了コードを保存する" {
   run_entry
   assert_success
   assert_log_contains "bun install --frozen-lockfile"
-  assert_log_contains "bats --tap --print-output-on-failure tests/"
+  assert_log_contains "bats --tap --print-output-on-failure --jobs $(nproc) --no-parallelize-within-files tests/"
   local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
   [ "${#logs[@]}" -eq 1 ]
   [ "$(cat "${logs[0]}")" = $'1..1\nok 1 fixture' ]
@@ -471,7 +481,7 @@ PY
   run_entry_after_signal TERM
   assert_success
   assert_output --partial "entry_status=143"
-  assert_log_contains "bats --tap --print-output-on-failure tests/"
+  assert_log_contains "bats --tap --print-output-on-failure --jobs $(nproc) --no-parallelize-within-files tests/"
   local logs=("$RUN_ROOT"/tmp/test-run.*/tap.log)
   [ "$(cat "${logs[0]}")" = '1..1' ]
   [ "$(cat "${logs[0]%/tap.log}/exit-code")" = 143 ]

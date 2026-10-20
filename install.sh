@@ -121,7 +121,8 @@ if ! pgrep -x nix-daemon >/dev/null 2>&1; then
     # sudo -n: 非インタラクティブモード（パスワード要求時は即座に失敗）
     if sudo -n true 2>/dev/null; then
       sudo /nix/var/nix/profiles/default/bin/nix-daemon &
-      disown
+      # すぐ終了して回収済みの job は disown できないが、切り離す対象がないだけなので続行する。
+      disown 2>/dev/null || :
     else
       echo "Warning: sudo requires password. Run manually: sudo nix-daemon &"
     fi

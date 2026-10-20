@@ -1,9 +1,8 @@
 #!/usr/bin/env bats
 
 setup_file() {
-  if [ ! -e /tmp/codex ] && [ ! -L /tmp/codex ]; then
-    mkdir -m 700 /tmp/codex
-  fi
+  # 並列実行の別ファイルが先に作った場合も、次行で種類と所有者を確かめる。
+  mkdir -m 700 /tmp/codex 2>/dev/null || :
   [ -d /tmp/codex ] && [ ! -L /tmp/codex ] && [ -O /tmp/codex ]
 }
 
