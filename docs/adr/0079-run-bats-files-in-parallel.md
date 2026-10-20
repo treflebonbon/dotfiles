@@ -29,8 +29,8 @@ status: accepted
 
 共有状態の確認（issue #448 の前提条件）:
 
-- confirmed: `/tmp/codex` を使う `codex-tmp.bats`・`run-evidence.bats` は、その下にテストごとの `mktemp -d` を作る。`tmp/` を使う `test-status.bats`・`verify-canonical.bats` は `BATS_TEST_TMPDIR` 内の複製で動く。`managed-chrome-owner.bats`・`browser-attachments.bats` の port は fixture の文字列で、待受けはしない。ファイル間並列の2回の全件実行と、新しい devShell での INT 中断（終了コード130、bats・parallel の残存プロセスなし）を確認した。
-- inferred: grep と2回の成功に基づくもので、全テストの共有資源を網羅的に監査したものではない。
+- confirmed: `/tmp/codex` を使う `codex-tmp.bats`・`run-evidence.bats`・`raw-codex-integration.bats` は、その下にテストごとの `mktemp -d` を作る。ただし共有 root `/tmp/codex` の作成は「存在確認 → `mkdir`」で、`/tmp/codex` がない環境では並列のファイル同士が競合した（PR #460 のレビューで指摘、3並列の再現で600回中400回失敗）。EEXIST を許容する `mkdir` と、その後の種類・所有者の確認に変えた。`tmp/` を使う `test-status.bats`・`verify-canonical.bats` は `BATS_TEST_TMPDIR` 内の複製で動く。`managed-chrome-owner.bats`・`browser-attachments.bats` の port は fixture の文字列で、待受けはしない。ファイル間並列の2回の全件実行と、新しい devShell での INT 中断（終了コード130、bats・parallel の残存プロセスなし）を確認した。
+- inferred: grep と全件実行の成功に基づくもので、全テストの共有資源を網羅的に監査したものではない。共有資源がすでに存在するホストでの成功は、初回作成時の競合を検出できない。
 
 ## Considered Options
 
