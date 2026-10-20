@@ -10,17 +10,17 @@ raw_fixture() {
   cp "$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree" "$RAW_BASE/bin/codex-worktree"
   chmod +x "$RAW_BASE/bin/codex-worktree"
   ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$RAW_BASE/bin/devshell-env"
-  chezmoi --source "$PROJECT_ROOT" execute-template -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" > "$RAW_BASE/home/.codex/config.toml"
+  chezmoi --source "$PROJECT_ROOT" execute-template -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" >"$RAW_BASE/home/.codex/config.toml"
   RAW_CA="${CODEX_ISOLATION_CA_BUNDLE:-${NIX_SSL_CERT_FILE:-${SSL_CERT_FILE:-}}}"
   [ -f "$RAW_CA" ]
   raw_flake
-  printf 'RAW_DUMMY_SECRET=dummy-root-secret\n' > "$RAW_BASE/work/.env"
-  printf 'dummy-renamed-secret\n' > "$RAW_BASE/work/ordinary-looking-name"
-  printf 'dummy-other-worktree-secret\n' > "$RAW_BASE/repo/.env"
+  printf 'RAW_DUMMY_SECRET=dummy-root-secret\n' >"$RAW_BASE/work/.env"
+  printf 'dummy-renamed-secret\n' >"$RAW_BASE/work/ordinary-looking-name"
+  printf 'dummy-other-worktree-secret\n' >"$RAW_BASE/repo/.env"
   mkdir "$RAW_BASE/work/nested"
   cp "$RAW_BASE/work/.env" "$RAW_BASE/work/nested/.env"
   cp "$RAW_BASE/work/.env" "$RAW_BASE/work/nested/renamed"
-  printf 'test -z "${RAW_DUMMY_SECRET+x}"\n' > "$RAW_BASE/work/task.sh"
+  printf 'test -z "${RAW_DUMMY_SECRET+x}"\n' >"$RAW_BASE/work/task.sh"
 }
 
 raw_flake() {

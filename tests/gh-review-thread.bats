@@ -38,6 +38,8 @@ case "$*" in
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":true,"endCursor":"NEXT"},"nodes":[{"id":"PRRC_1","body":"first","createdAt":"2026-07-31T00:00:00Z","updatedAt":"2026-07-31T00:00:00Z","author":{"login":"reviewer"}}]}}}}'
   elif [ "${MOCK_SCENARIO:-}" = "resolved" ]; then
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":true,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}'
+  elif [ "${MOCK_SCENARIO:-}" = "resolved-replied" ]; then
+    printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":true,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"確認しました。既に対応済みです。\n\n根拠: threadがresolvedです。","author":{"login":"agent"}}]}}}}'
   elif [ "${MOCK_SCENARIO:-}" = "wrong-scope" ]; then
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":7,"repository":{"nameWithOwner":"other/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}'
   elif [ "${MOCK_SCENARIO:-}" = "null-author" ]; then
@@ -169,13 +171,36 @@ EOF
   grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
 
-@test "reply-resolve treats an already resolved thread as an idempotent success" {
+@test "reply-resolve still replies to a thread resolved before the reply" {
+  body_file="$BATS_TEST_TMPDIR/reply.md"
+  printf '%s\n\n%s\n' \
+    '対応しました（aaaaaaa）。指摘箇所を修正しました。' \
+    '確認: bats成功。' >"$body_file"
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="resolved" \
+    python3 "$SCRIPT" reply-resolve \
+    --repo owner/repo \
+    --pr 42 \
+    --thread-id PRRT_1 \
+    --commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    --body-file "$body_file"
+
+  [ "$status" -eq 0 ]
+  run jq -e '.reply == "created" and .resolve == "resolved"' <<<"$output"
+  [ "$status" -eq 0 ]
+  grep -Fq 'commits(first:' "$MOCK_LOG"
+  grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
+  # 取得後に resolve が外されても完了させるため、取得時の状態によらず resolve する。
+  grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+}
+
+@test "reply-resolve does not repeat its reply on an already resolved thread" {
   body_file="$BATS_TEST_TMPDIR/reply.md"
   printf '%s\n\n%s\n' \
     '確認しました。既に対応済みです。' \
     '根拠: threadがresolvedです。' >"$body_file"
 
-  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="resolved" \
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="resolved-replied" \
     python3 "$SCRIPT" reply-resolve \
     --repo owner/repo \
     --pr 42 \
@@ -184,11 +209,10 @@ EOF
     --body-file "$body_file"
 
   [ "$status" -eq 0 ]
-  run jq -e '.reply == "skipped" and .resolve == "already_resolved"' <<<"$output"
+  run jq -e '.reply == "skipped" and .resolve == "resolved"' <<<"$output"
   [ "$status" -eq 0 ]
-  ! grep -Fq 'commits(first:' "$MOCK_LOG"
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
-  ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+  grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
 
 @test "reply-resolve refuses a thread from another pull request" {
