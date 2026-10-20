@@ -26,6 +26,32 @@ python3 <skill-dir>/scripts/orca-preflight.py worker-show <worker-show-receipt.j
 
 coordinator receipt は `ok: true` と `result.run.id` / `result.run.coordinator_handle` の一致を要する。worker-show receipt は `ok: true` と `result.dispatch.id` / `taskId` / `assigneeHandle` の一致、および `status: dispatched` を要する。settled、error、malformed、欠落、不一致は拒否する。期待値は preamble または runtime の bound Run / worker-start 結果から取り、検査対象の receipt から作らない。
 
+## Worktree readiness
+
+この確認は peer 協働に限らず、Orca で Task / Dispatch を監督する全 task に適用する。native worktree と Agent Picker の built-in agent 起動、Orca が所有する permission mode はそのまま使う。次の順序を守り、worker の読み取り調査・診断・編集は照合成功後に始める。
+
+1. 親は native の割当結果から Task / Dispatch / worker handle / worktree の絶対 path を確定し、割当時の branch と開始 HEAD も独立に記録する。既存の `worker-show` receipt 検証は引き続き実行し、worker readiness JSON の代用にしない。
+2. worker は割当直後、ソースを読む前に共有作業領域へ新しい記録先を作り、現在の自分の process cwd から観測を保存する。
+
+```bash
+mkdir -p /tmp/codex
+readiness_dir=$(mktemp -d /tmp/codex/orca-readiness.XXXXXX)
+python3 <skill-dir>/scripts/orca-preflight.py worker-readiness record "$readiness_dir/worker-readiness.json" \
+  --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
+```
+
+この JSON は native receipt ではなく、`orca-worker-readiness-observation/v1` の checkout 観測である。record は既存ファイルを上書きせず、Git metadata 読取では ambient `GIT_*` を除く。worker は絶対 path と native Task / Dispatch / handle を親へ送り、照合結果を待つ。
+
+3. 親は native 割当から固定した path・branch・開始 HEAD と ID を渡して、別の自分の process から検査する。観測ファイルの値から期待値を作らない。
+
+```bash
+python3 <skill-dir>/scripts/orca-preflight.py worker-readiness verify <worker-readiness.json> \
+  --worktree <native-assigned-absolute-path> --branch <assigned-branch> --head <assigned-start-head> \
+  --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
+```
+
+verify は指定 path から physical root・branch・HEAD・absolute Git dir・common dir を独立に取得し、cwd を root として worker 観測の六項目および native ID と比較する。割当時の branch / HEAD と現在の指定 worktree も一致しなければならず、primary checkout、別 worktree、欠落・不正・不一致は拒否する。観測 JSON は読取り専用で、malformed JSON と shell 風文字列も実行しない。成功した場合だけ親が着手を伝える。失敗・観測不能時は診断・編集へ進まず、記録を保って親へ報告する。これは native launch や permission boundary を置き換える wrapper ではない。
+
 ## 役割別の正規経路
 
 以下の `run-create`／`worker-start` の例は初回起動用。再開時は既存 receipt を照合し、native の現在状態を確認してから続ける。起動コマンドを再実行せず、読取り例を使う。receipt の存在だけを完了と扱わず、不正・未完了なら保持して復旧手順へ戻る。

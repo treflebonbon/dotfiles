@@ -67,7 +67,7 @@ Worktree Entry Point は、対象 task worktree を確認して作業を始め�
 - **Orca**: native worktree と Agent Picker の built-in agent 起動を使い、permission mode は Orca に委ねる。自律 workflow は shipped Yolo、確認を残す場合は Manual と Orca Source Control を使う。Orca native Codex は `codex-orca` / `codex-worktree` を使わない。worktree は review / recovery の境界であり OS sandbox ではないため、Yolo は信頼できる repository / host に限る。runtime 自己認識で Orca を識別し、`ORCA_*` environment の汎用判定は導入しない。Orca primary checkout からの実装は native worktree の新しい agent session で開始する。
 - **Claude Code / Codex**: Claude Code は `EnterWorktree`、Codex app は native worktree、Codex CLI の新規作成は導入版の `codex --help` に従い `--worktree` を使う。native 作成と隔離起動は別の責務。raw Codex の秘密隔離が必要な場合は、作成済み linked worktree で既存 `codex-worktree` を使い、その公開入力登録・trust・返却契約に従う。
 
-Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。
+Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。**Orca の全監督 task は診断・編集前に [worker readiness 手順](../local-skills/orca-peer-refactor/references/orca.md#worktree-readiness) を行い、worker 観測と割当時に固定した期待値の照合成功を待つ。**
 
 Git 管理情報を解決できない場合は編集・Git 書込みを保留し、以下を区別する。
 
