@@ -527,12 +527,19 @@ bash = Path(shutil.which('bash')).resolve()
 with tempfile.TemporaryDirectory(prefix='cxi-ready-', dir='/tmp') as temporary:
     server = gateway['start_gateway'](Path(temporary) / 'dependencies', 'dependencies', domains=[])
     try:
-        for mode, expected in [('slow', 0), ('failed', 1), ('stalled', 1), ('invalid', 1)]:
+        for mode, expected, reason in [
+            ('slow', 0, ''),
+            ('failed', 1, 'bridge exited with status 17'),
+            ('stalled', 1, 'no readiness within 10s'),
+            ('closed', 1, 'bridge exited with status 143'),
+            ('invalid', 1, 'unexpected readiness line'),
+        ]:
             wrapper = fixture / f'{mode}.py'
             wrapper.write_text('import runpy, time\n' + {
                 'slow': 'time.sleep(1.5)\n',
-                'failed': 'raise SystemExit(17)\n',
+                'failed': 'import sys\nprint("bridge stderr marker", file=sys.stderr)\nraise SystemExit(17)\n',
                 'stalled': 'time.sleep(20)\n',
+                'closed': 'import os\nos.close(1)\ntime.sleep(20)\n',
                 'invalid': 'print("unexpected", flush=True)\ntime.sleep(20)\n',
             }[mode] + 'runpy.run_path("/gateway-source.py", run_name="__main__")\n')
             script = fixture / f'{mode}.sh'
@@ -560,7 +567,9 @@ CLIENT
             if expected == 0:
                 assert result.stdout.strip() == 'BRIDGE_COMMAND_STARTED', result.stdout
             else:
-                assert 'gateway bridge did not start' in result.stderr, (mode, result.stderr)
+                assert f'gateway bridge did not start: {reason}' in result.stderr, (mode, result.stderr)
+                if mode == 'failed':
+                    assert 'bridge stderr marker' in result.stderr, result.stderr
                 assert 'BRIDGE_COMMAND_STARTED' not in result.stdout, mode
             print(f'{mode}: exit={result.returncode}', flush=True)
     finally:
