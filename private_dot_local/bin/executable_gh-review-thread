@@ -413,24 +413,23 @@ def reply_resolve(
             ]
         )
 
-    # push 直後に bot が resolve した thread にも返信は残し、resolve だけ省く。
-    if not thread["isResolved"]:
-        run_gh_json(
-            [
-                "api",
-                "graphql",
-                "-f",
-                f"query={RESOLVE_MUTATION}",
-                "-f",
-                f"threadId={thread_id}",
-            ]
-        )
+    # 取得時の isResolved は返信中に変わりうるため、resolve 済みでも冪等な resolve を実行する。
+    run_gh_json(
+        [
+            "api",
+            "graphql",
+            "-f",
+            f"query={RESOLVE_MUTATION}",
+            "-f",
+            f"threadId={thread_id}",
+        ]
+    )
     print(
         json.dumps(
             {
                 "thread_id": thread_id,
                 "reply": "skipped" if duplicate else "created",
-                "resolve": "already_resolved" if thread["isResolved"] else "resolved",
+                "resolve": "resolved",
             }
         )
     )

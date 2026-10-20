@@ -186,11 +186,12 @@ EOF
     --body-file "$body_file"
 
   [ "$status" -eq 0 ]
-  run jq -e '.reply == "created" and .resolve == "already_resolved"' <<<"$output"
+  run jq -e '.reply == "created" and .resolve == "resolved"' <<<"$output"
   [ "$status" -eq 0 ]
   grep -Fq 'commits(first:' "$MOCK_LOG"
   grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
-  ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+  # 取得後に resolve が外されても完了させるため、取得時の状態によらず resolve する。
+  grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
 
 @test "reply-resolve does not repeat its reply on an already resolved thread" {
@@ -208,10 +209,10 @@ EOF
     --body-file "$body_file"
 
   [ "$status" -eq 0 ]
-  run jq -e '.reply == "skipped" and .resolve == "already_resolved"' <<<"$output"
+  run jq -e '.reply == "skipped" and .resolve == "resolved"' <<<"$output"
   [ "$status" -eq 0 ]
   ! grep -Fq 'addPullRequestReviewThreadReply' "$MOCK_LOG"
-  ! grep -Fq 'resolveReviewThread' "$MOCK_LOG"
+  grep -Fq 'resolveReviewThread' "$MOCK_LOG"
 }
 
 @test "reply-resolve refuses a thread from another pull request" {
