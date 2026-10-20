@@ -4,7 +4,7 @@ chezmoi dotfiles repo。ログインシェルは bash。
 
 **重要**: 実装は validated task worktree 内の source を編集する。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi apply` して `~/` へ反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
 
-`CLAUDE.md` は Claude Code 向け、`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向けとして別々に保守する。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
+`CLAUDE.md` は Claude Code 向け、`AGENTS.md` は Codex / OpenCode / Zed / Cursor 向けとして別々に保守し、共有する workflow / safety contract は整合させる。home 配下の repo に共通する環境知識は `~/runtime/index.md`、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
 
 ## Architecture
 
@@ -19,6 +19,7 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - コミットと PR タイトルは Conventional Commits 形式にする。
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
 - ユーザーが結果を依頼し内容が確定した後は、非破壊な GitHub 定型書込みは二重確認しない。topic branch は `git-push-topic` で公開し、force-push は行わない。default branch の直接 push は明示承認後に `git-push-reviewed` を使い、merge、close/reopen/delete、release、workflow dispatch、repository settings/secrets は事前確認する。
+- topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（手順・ログ・opt-in 検証は `docs/conventions.md`）。
 
 ## 設計→実装ワークフロー
 
@@ -29,9 +30,11 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - raw issue: `triage` で ready-for-agent 化してから `implement`
 - 再現・原因調査が必要なバグ: `diagnosing-bugs` → `code-review`。PR 本文は `pr`
 
+必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
+
 ## Matt Pocock workflow contract
 
-- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round は人間の回答を待ってから次に進み、事実は環境から確認する。未回答の decision は推測して先へ進めない。`AGENTS.md` と `CLAUDE.md` は別管理だが、共有する workflow / safety contract は整合させる。
+- `grilling` は frontier round 単位で、依存関係が解決済みの質問をまとめて推奨付きで提示し、複数質問の間を horizontal rule (`---`) で区切る。各 round は人間の回答を待ってから次に進み、事実は環境から確認する。未回答の decision は推測して先へ進めない。
 - cross-skill 呼出しは Skill tool と skill 名を明示する。setup 情報が未配備なら `setup-matt-pocock-skills` を別の user-invoked skill から自動実行せず、ユーザーへ明示起動を案内する。
 - phase boundary の公式5択は `Continue → /clear → /handoff → Subagent → /compact`。次 phase が現 phase を primary source として必要、または smart zone（目安 ~150k tokens）に収まるなら `Continue`。context が無関係なら `/clear`。portability が必要な場合だけ `/handoff`。AFK の scoped task は `Subagent`。同じ harness / directory の relevant context は `/compact` で引き継ぐ。
 - `implement-spec` は各 ticket を専用 worktree で並列実装し、仕様全体を一つの Integration Branch／PR に集約する。draft 作成・ready 化と、reset／worktree 削除の安全境界は `runtime/skill-harness.md` を読む。
@@ -45,8 +48,6 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する（二重管理による thread 状態の不整合を防ぐため）。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
 - `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
 - 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
-
-個別実装の入口は `implement`、仕様全体の一括実装は `implement-spec`。必要な discipline skill（`tdd`、`code-review`、`diagnosing-bugs` など）は実装中に適用する。
 
 ## ブラウザ操作ツール
 
