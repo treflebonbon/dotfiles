@@ -482,6 +482,46 @@ BODY
   [[ "$body" != *$'\n\n\n'* ]]
 }
 
+@test "inspect --plain leaves code spans, every fence style and non-badge images untouched" {
+  MOCK_BODY_FILE="$BATS_TEST_TMPDIR/body.md"
+  cat >"$MOCK_BODY_FILE" <<'BODY'
+<details>
+Use `<br>` here.
+
+~~~html
+<p>tilde</p>
+~~~
+
+````md
+```
+<p>nested</p>
+```
+````
+
+```text
+a
+
+
+b
+```
+
+<img src="https://example.com/shot.png">
+BODY
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="bot-body" \
+    MOCK_BODY_FILE="$MOCK_BODY_FILE" \
+    python3 "$SCRIPT" inspect --repo owner/repo --pr 42 --no-diff --plain
+
+  [ "$status" -eq 0 ]
+  body="$(jq -r '.review_threads[0].comments.nodes[0].body' <<<"$output")"
+  [[ "$body" != *'<details>'* ]]
+  local kept
+  for kept in 'Use `<br>` here.' '<p>tilde</p>' '<p>nested</p>' $'a\n\n\nb' \
+    '<img src="https://example.com/shot.png">'; do
+    [[ "$body" == *"$kept"* ]]
+  done
+}
+
 @test "inspect keeps the raw review body by default" {
   write_bot_body
 

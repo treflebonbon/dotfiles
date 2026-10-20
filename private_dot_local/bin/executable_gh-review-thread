@@ -168,21 +168,33 @@ def fetch_threads(repo: str, pr: int) -> list[dict[str, Any]]:
 
 
 # Only known review-bot markup is removed so code such as `<<EOF` or `Result<T>`
-# survives; fenced code blocks match first and are kept verbatim.
+# survives; fenced blocks (closed by a fence of the same kind, or unclosed to the
+# end) and inline code spans are kept verbatim.
+CODE = re.compile(
+    r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[^\n]*$|\Z)|`[^`\n]+`",
+    re.MULTILINE | re.DOTALL,
+)
 REVIEW_MARKUP = re.compile(
-    r"(?P<code>^[ \t]*```.*?^[ \t]*```[^\n]*$)"
-    r"|<!--.*?-->"
+    r"<!--.*?-->"
     r"|</?(?:details|summary|sub|br|p|blockquote)\b[^>]*>"
-    r"|<img\b[^>]*>"
+    r"|<img\b[^>]*\bsrc=[\"']?https://img\.shields\.io/[^>]*>"
     r"|!\[[^\]]*\]\(https://img\.shields\.io/[^)]*\)",
-    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    re.IGNORECASE | re.DOTALL,
 )
 
 
+def strip_review_markup(text: str) -> str:
+    return re.sub(r"\n(?:[ \t]*\n){2,}", "\n\n", REVIEW_MARKUP.sub("", text))
+
+
 def plain_body(body: str) -> str:
-    text = REVIEW_MARKUP.sub(lambda match: match["code"] or "", body)
-    text = re.sub(r"[ \t]+$", "", text, flags=re.MULTILINE)
-    return re.sub(r"\n{3,}", "\n\n", text).strip()
+    parts: list[str] = []
+    position = 0
+    for code in CODE.finditer(body):
+        parts += [strip_review_markup(body[position : code.start()]), code[0]]
+        position = code.end()
+    parts.append(strip_review_markup(body[position:]))
+    return "".join(parts).strip()
 
 
 def inspect(repo: str, pr: int, no_diff: bool = False, plain: bool = False) -> None:
