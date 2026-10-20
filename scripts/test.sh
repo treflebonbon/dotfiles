@@ -241,7 +241,7 @@ PY
   return "$status"
 }
 
-if ! python3 -I - >"$log_dir/environment" 2>"$log_dir/setup.log" <<'PY'; then
+if ! python3 -I - >"$log_dir/environment" 2>"$log_dir/setup.log" <<'PY'
 import shutil
 import sys
 from pathlib import Path
@@ -256,13 +256,15 @@ except ImportError as error:
 if not with_env or not Path(with_env).resolve().is_relative_to("/nix/store"):
     raise SystemExit("with-env が Nix store の実行ファイルに解決されない")
 PY
+then
   cat "$log_dir/setup.log" >&2
   printf '%s\n' 'テスト環境が不完全です。docs/conventions.md の devShell 手順で再実行してください。' | tee -a "$log_dir/setup.log" >&2
   exit 1
 fi
 
 run_logged "$log_dir/setup.log" append bun install --frozen-lockfile
-run_logged "$log_dir/tap.log" truncate bats --tap --print-output-on-failure tests/ "$@"
+# ファイル内並列は bats がテストを SIGINT 無視で起動し、シグナル系テストが壊れるためファイル間だけ並列化する。
+run_logged "$log_dir/tap.log" truncate bats --tap --print-output-on-failure --jobs "$(nproc)" --no-parallelize-within-files tests/ "$@"
 python3 -I - "$log_dir/tap.log" <<'PY'
 import re
 import sys

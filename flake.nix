@@ -82,6 +82,7 @@
               p.bats-support
               p.bats-assert
             ]))
+            parallel
             nodePkgs.nodejs_24
             bun
             pythonFor.${system}
