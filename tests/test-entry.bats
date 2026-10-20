@@ -205,6 +205,16 @@ PY
   refute_log_contains "/bats "
 }
 
+@test "テスト入口は Nix store 外の GNU parallel を install より前に拒否する" {
+  stub_cmd parallel
+  run_entry
+  assert_failure
+  assert_output --partial "parallel"
+  assert_output --partial "テスト環境が不完全"
+  refute_log_contains "bun install"
+  refute_log_contains "/bats "
+}
+
 @test "テスト入口は TAP ログと終了コードを保存する" {
   run_entry
   assert_success

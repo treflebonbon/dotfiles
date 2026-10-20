@@ -255,6 +255,9 @@ except ImportError as error:
     raise SystemExit(f"python3 -I: {error}") from None
 if not with_env or not Path(with_env).resolve().is_relative_to("/nix/store"):
     raise SystemExit("with-env が Nix store の実行ファイルに解決されない")
+parallel = shutil.which("parallel")
+if not parallel or not Path(parallel).resolve().is_relative_to("/nix/store"):
+    raise SystemExit("Bats の並列実行に使う parallel が Nix store の実行ファイルに解決されない")
 PY
 then
   cat "$log_dir/setup.log" >&2

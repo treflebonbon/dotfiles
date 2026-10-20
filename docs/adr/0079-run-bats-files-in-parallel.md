@@ -13,7 +13,7 @@ status: accepted
 
 ## Decision
 
-- `scripts/test.sh` は `bats --jobs "$(nproc)" --no-parallelize-within-files` で、テストファイルを並列に、ファイル内のテストを直列に実行する。bats の並列実行に必要な GNU parallel は repo の devShell（`./flake.nix`）に入れる。
+- `scripts/test.sh` は `bats --jobs "$(nproc)" --no-parallelize-within-files` で、テストファイルを並列に、ファイル内のテストを直列に実行する。bats の並列実行に必要な GNU parallel は repo の devShell（`./flake.nix`）に入れる。テスト入口は `parallel` が Nix store から解決されることを install 前に確認する。
 - 全件再実行の規約（`docs/conventions.md` のテスト節）は変えない。
 
 実測（16コアの WSL2、同じ worktree・devShell、confirmed）:
@@ -35,5 +35,5 @@ status: accepted
 ## Consequences
 
 - 並列実行は bats の結果順を保つため、TAP の計画・連番の検査（`scripts/test.sh`）と `scripts/test-status.sh` の集計は変わらない。
-- ファイルをまたいで共有資源（固定 port、HOME 直下、`tmp/` の固定名など）を使うテストは競合しうる。bats にはファイル単位で並列を外す指定がないため、新しいテストは `BATS_TEST_TMPDIR` などのテストごとの領域を使う。
+- ファイルをまたいで共有資源（固定 port、HOME 直下、`tmp/` の固定名など）を使うテストは競合しうる。bats にはファイル単位で並列を外す指定がなく、違反を自動で検知する仕組みもないため、テストは `BATS_TEST_TMPDIR` などのテストごとの領域を使うことを規約とし、レビューで確認する。
 - 所要時間は最も遅いテストファイルとコア数に依存する。
