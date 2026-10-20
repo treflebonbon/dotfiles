@@ -26,7 +26,9 @@ case "$*" in
   printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"PRRT_1","isResolved":false,"isOutdated":false,"path":"a.txt","line":3,"diffSide":"RIGHT","startLine":null,"startDiffSide":null,"originalLine":3,"originalStartLine":null,"resolvedBy":null,"comments":{"nodes":[{"id":"PRRC_1","body":"Please fix","createdAt":"2026-07-31T00:00:00Z","updatedAt":"2026-07-31T00:00:00Z","author":{"login":"reviewer"}}]}}]}}}}}'
   ;;
 *"node(id:"*)
-  if [ "${MOCK_SCENARIO:-}" = "duplicate" ]; then
+  if [ "${MOCK_SCENARIO:-}" = "bot-body" ]; then
+    jq -cn --rawfile body "$MOCK_BODY_FILE" '{data:{viewer:{login:"agent"},node:{id:"PRRT_1",isResolved:false,pullRequest:{number:42,repository:{nameWithOwner:"owner/repo"}},comments:{pageInfo:{hasNextPage:false,endCursor:null},nodes:[{id:"PRRC_1",body:$body,author:{login:"coderabbitai"}}]}}}}'
+  elif [ "${MOCK_SCENARIO:-}" = "duplicate" ]; then
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"対応しました（aaaaaaa）。指摘箇所を修正しました。\n\n確認: bats成功。","author":{"login":"agent"}}]}}}}'
   elif [ "${MOCK_SCENARIO:-}" = "duplicate-after-feedback" ]; then
     printf '%s\n' '{"data":{"viewer":{"login":"agent"},"node":{"id":"PRRT_1","isResolved":false,"pullRequest":{"number":42,"repository":{"nameWithOwner":"owner/repo"}},"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"body":"対応しました（aaaaaaa）。指摘箇所を修正しました。\n\n確認: bats成功。","author":{"login":"agent"}},{"body":"追加の指摘です。","author":{"login":"reviewer"}}]}}}}'
@@ -417,6 +419,78 @@ EOF
   ' <<<"$output"
   [ "$status" -eq 0 ]
   grep -Fq 'cursor=NEXT' "$MOCK_LOG"
+}
+
+write_bot_body() {
+  MOCK_BODY_FILE="$BATS_TEST_TMPDIR/body.md"
+  cat >"$MOCK_BODY_FILE" <<'BODY'
+_⚠️ Potential issue_ | _🟠 Major_
+
+<details>
+<summary>🧩 Analysis chain</summary>
+
+Run log line
+</details>
+
+Keep `cat <<EOF` and `Result<T>` intact.<br>
+<sub>Footnote</sub>
+
+<p>Paragraph</p>
+
+<blockquote>Quoted</blockquote>
+
+```diff
+-<p>old</p>
++cat <<EOF
+```
+
+<!-- This is an auto-generated comment by CodeRabbit -->
+<img src="https://img.shields.io/badge/x-y-z" alt="badge">
+![badge](https://img.shields.io/badge/a-b-c)
+
+<details>
+<summary>🤖 Prompt for AI Agents</summary>
+
+```
+Verify each finding.
+```
+
+</details>
+BODY
+}
+
+@test "inspect --plain strips known review HTML and badges but keeps code angle brackets" {
+  write_bot_body
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="bot-body" \
+    MOCK_BODY_FILE="$MOCK_BODY_FILE" \
+    python3 "$SCRIPT" inspect --repo owner/repo --pr 42 --no-diff --plain
+
+  [ "$status" -eq 0 ]
+  body="$(jq -r '.review_threads[0].comments.nodes[0].body' <<<"$output")"
+  local kept
+  for kept in 'cat <<EOF' 'Result<T>' '-<p>old</p>' '+cat <<EOF' \
+    'Analysis chain' 'Run log line' 'Footnote' 'Paragraph' 'Quoted' \
+    'Prompt for AI Agents' 'Verify each finding.' '```diff'; do
+    [[ "$body" == *"$kept"* ]]
+  done
+  local removed
+  for removed in '<details' '</details>' '<summary' '<sub>' '<br>' \
+    '<p>Paragraph' '<blockquote' '<!--' '<img' 'img.shields.io'; do
+    [[ "$body" != *"$removed"* ]]
+  done
+  [[ "$body" != *$'\n\n\n'* ]]
+}
+
+@test "inspect keeps the raw review body by default" {
+  write_bot_body
+
+  run env PATH="$MOCK_BIN:$PATH" MOCK_LOG="$MOCK_LOG" MOCK_SCENARIO="bot-body" \
+    MOCK_BODY_FILE="$MOCK_BODY_FILE" \
+    python3 "$SCRIPT" inspect --repo owner/repo --pr 42 --no-diff
+
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.review_threads[0].comments.nodes[0].body' <<<"$output")" = "$(cat "$MOCK_BODY_FILE")" ]
 }
 
 @test "runtime guidance defines the Review Round contract across agents" {
