@@ -13,7 +13,7 @@
 
 - worker が自分の cwd から Task / Dispatch / handle と checkout の六項目を別 JSON に記録し、親が native 割当時に固定した branch / HEAD と worktree path から独立検証する CLI を追加する。
 - 別 worktree、primary checkout、割当値・Git metadata・JSON の欠落や不一致を拒否する。ambient `GIT_*` を metadata subprocess から除き、入力 JSON は変更しない。
-- `runtime/skill-harness.md` に対象となる Orca supervision の入口 pointer を追加し、既存 Orca reference へ「準備確認のみのDispatch → 記録 → 親照合 → 実タスクのDispatch → 着手」の順を記す。同じ実行 host でのGit照合を前提とし、remote placement は実行host側の独立観測がなければ成功扱いしない。folder workspace と primary checkout の説明・状態確認・読み取り調査は対象外。
+- `runtime/skill-harness.md` に対象となる Orca supervision の入口 pointer を追加し、既存 Orca reference へ、nested coordinator の子taskも含む「準備確認のみのDispatch → 記録 → 親照合 → 実タスクのDispatch → 着手」の順を記す。同じ実行 host でのGit照合を前提とし、remote placement は実行host側の独立観測がなければ成功扱いしない。folder workspace と primary checkout の説明・状態確認・読み取り調査は対象外。
 - 新しい ADR、外部 orchestration の fork、native launch / permission の変更、`chezmoi apply` は対象外。
 
 ## 実装と検証

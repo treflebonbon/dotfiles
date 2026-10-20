@@ -331,6 +331,10 @@ PY
 
   [[ "$ordinary_worker" == *'通常の dispatched worker は `--run` を付けず'* ]]
   [[ "$nested_coordinator" == *'上位 coordinator から自分の Dispatch 宛てに届く follow-up'* ]]
+  [[ "$nested_coordinator" == *'Task の初回 spec は準備確認だけにし'* ]]
+  [[ "$nested_coordinator" == *'task-create --spec "準備確認のみ: native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ"'* ]]
+  [[ "$nested_coordinator" == *'--to dispatch:<child-dispatch-id>'* ]]
+  [[ "$nested_coordinator" == *'--type dispatch --json'* ]]
   [[ "$inbox_settlement" == *'`consumer_fenced` を受けたら停止し'* ]]
   [[ "$verification_record" == *'全採点と native receipt が確定し、一つにまとまった evidence packet'* ]]
   [[ "$verification_record" == *'usage が取得できない場合は `null`'* ]]

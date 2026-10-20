@@ -111,6 +111,8 @@ peer には共有の絶対 reply-file を渡し、1 行目を `DONE <REQ> <sha>`
 
 実 worker がさらに peer を監督するときは、自分が owner となる child Run を作成・bindする。上位 coordinator から自分の Dispatch 宛てに届く follow-up と child worker の message は、child Run に bind した自分の terminal inbox で処理する。上位 Task / Dispatch / REQ / SHA は保持し、上位へ返す完了は live preamble の handle と Task / Dispatch ID を使う。
 
+ローカル変更を行う child worker も [Worktree readiness](#worktree-readiness) に従う。Task の初回 spec は準備確認だけにし、child worker の観測を同じ実行 host で独立 verify した後、成功時だけ child Dispatch 宛てに実タスク本文を送る。
+
 ```text
 : "${run_dir:?共有 run directory の絶対パスを指定してください}" &&
 child_run_dir=$(mktemp -d "$run_dir/child-run.XXXXXX") &&
@@ -120,7 +122,7 @@ child_run_dir=$(mktemp -d "$run_dir/child-run.XXXXXX") &&
   python3 -m json.tool "$child_run_dir/run-create.json.part" > /dev/null &&
   ln "$child_run_dir/run-create.json.part" "$child_run_dir/run-create.json") &&
 ORCA orchestration check --terminal <nested-coordinator-handle> --run <child-run-id> --wait --timeout-ms 45000 --json &&
-ORCA orchestration task-create --spec "<child task>" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json &&
+ORCA orchestration task-create --spec "準備確認のみ: native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ" --task-title "<title>" --run <child-run-id> --from <nested-coordinator-handle> --json &&
 child_receipt_dir=$(mktemp -d "$child_run_dir/worker.XXXXXX") &&
 (set -C
   test ! -e "$child_receipt_dir/worker-start.json" &&
@@ -130,6 +132,12 @@ child_receipt_dir=$(mktemp -d "$child_run_dir/worker.XXXXXX") &&
 ```
 
 peer の ID / Run で上位の ID を置き換えたり、上位 coordinator の mailbox を直接読んだりしない。
+
+子の照合成功後に実タスクを送る宛先は child Dispatch とする。
+
+```text
+ORCA orchestration send --to dispatch:<child-dispatch-id> --subject "実タスク開始" --body "<確定済みのchild task本文>" --type dispatch --json
+```
 
 上位 coordinator から nested Dispatch への follow-up は、安定した Dispatch 宛てに送り `--run` を省略する。child coordinator の `check` / `reply` / ack は child Run を指定し、上位 coordinator の `check` / `reply` / ack は上位 Run を指定する。
 
