@@ -31,8 +31,10 @@ apm_modules/**
 tests/**
 
 # リポジトリ開発用メタ。chezmoi deploy 対象ではない。
-# CLAUDE.md / AGENTS.md はここに含めない: chezmoi が ~/CLAUDE.md, ~/AGENTS.md として
-# 配備するグローバル agent 指示ファイルであり、意図した deploy 対象（→ okf/architecture.md）。
+# 直下の CLAUDE.md / AGENTS.md は dotfiles repo 編集用の指示。グローバル指示は
+# private_dot_claude/CLAUDE.md と private_dot_config/codex/AGENTS.md が持つ（ADR-0078）。
+CLAUDE.md
+AGENTS.md
 node_modules/**
 package.json
 codex
