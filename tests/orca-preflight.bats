@@ -202,7 +202,8 @@ PY
   run env GIT_DIR="$BATS_TEST_TMPDIR/not-a-git-dir" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$BATS_TEST_TMPDIR/not-a-worktree" python3 "$SCRIPT" worker-readiness record "$observation" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
   [[ "$output" != *"not-a-worktree"* ]]
-  ! grep -Fq "not-a-worktree" "$observation"
+  run grep -Fq "not-a-worktree" "$observation"
+  [ "$status" -eq 1 ]
   run env GIT_DIR="$BATS_TEST_TMPDIR/not-a-git-dir" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$BATS_TEST_TMPDIR/not-a-worktree" python3 "$SCRIPT" worker-readiness verify "$observation" --worktree "$WORKER_WORKTREE" --branch "$branch" --head "$head" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
   [[ "$output" != *"not-a-worktree"* ]]
@@ -308,6 +309,56 @@ assert argv == [
 PY
 }
 
+@test "documented shell sends preserve file body text without shell expansion" {
+  local example="$BATS_TEST_TMPDIR/send.sh" fake_cli="$BATS_TEST_TMPDIR/ORCA" body_file="$BATS_TEST_TMPDIR/task body.md"
+  cat >"$body_file" <<'BODY'
+本文:
+literal $READINESS_LITERAL、$(touch "$READINESS_SHELL_MARKER")、`touch "$READINESS_BACKTICK_MARKER"`、"二重引用符"、'一重引用符'
+BODY
+  python3 - "$ORCA_DOC" "$example" "$body_file" <<'PY'
+from pathlib import Path
+import sys
+doc, target, body_file = map(Path, sys.argv[1:])
+lines = [line for line in doc.read_text().splitlines() if line.startswith(("task_body=", "ORCA orchestration send --to "))]
+script = "\n".join(lines)
+for placeholder, value in (
+    ("<dispatch-id>", "dispatch-1"),
+    ("<child-dispatch-id>", "dispatch-child"),
+    ("<nested-dispatch-id>", "dispatch-nested"),
+    ("<coordinator-handle>", "term-parent"),
+):
+    script = script.replace(placeholder, value)
+for placeholder in ("<確定済みの実タスク本文>", "<確定済みのchild task本文>", "<literal body>"):
+    script = script.replace(placeholder, body_file.read_text().rstrip("\n"))
+target.write_text(script + "\n")
+PY
+  cat >"$fake_cli" <<'PY'
+#!/usr/bin/env python3
+import json, os, sys
+with open(os.environ["ARGV_CAPTURE"], "a", encoding="utf-8") as stream:
+    stream.write(json.dumps(sys.argv[1:], ensure_ascii=False) + "\n")
+PY
+  chmod +x "$fake_cli"
+  run env ARGV_CAPTURE="$BATS_TEST_TMPDIR/argv.jsonl" PATH="$BATS_TEST_TMPDIR:$PATH" task_body_file="$body_file" READINESS_LITERAL=expanded READINESS_SHELL_MARKER="$BATS_TEST_TMPDIR/shell-marker" READINESS_BACKTICK_MARKER="$BATS_TEST_TMPDIR/backtick-marker" bash "$example"
+  [ "$status" -eq 0 ]
+  [ ! -e "$BATS_TEST_TMPDIR/shell-marker" ]
+  [ ! -e "$BATS_TEST_TMPDIR/backtick-marker" ]
+  python3 - "$BATS_TEST_TMPDIR/argv.jsonl" "$body_file" <<'PY'
+import json, sys
+from pathlib import Path
+calls = [json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
+body = Path(sys.argv[2]).read_text().rstrip("\n")
+expected = []
+for target, sender, subject, kind in (
+    ("dispatch-1", [], "実タスク開始", "dispatch"),
+    ("dispatch-child", [], "実タスク開始", "dispatch"),
+    ("dispatch-nested", ["--from", "term-parent"], "follow-up", "status"),
+):
+    expected.append(["orchestration", "send", "--to", f"dispatch:{target}", *sender, "--subject", subject, "--body", body, "--type", kind, "--json"])
+assert calls == expected, calls
+PY
+}
+
 @test "Orca guidance separates worker, coordinator, nested inbox, and report evidence" {
   section() {
     awk -v heading="$1" '
@@ -333,7 +384,7 @@ PY
   [[ "$nested_coordinator" == *'上位 coordinator から自分の Dispatch 宛てに届く follow-up'* ]]
   [[ "$nested_coordinator" == *'Task の初回 spec は準備確認だけにし'* ]]
   [[ "$nested_coordinator" == *'task-create --spec "準備確認のみ: native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ"'* ]]
-  [[ "$nested_coordinator" == *'--to dispatch:<child-dispatch-id>'* ]]
+  [[ "$nested_coordinator" == *'--to "dispatch:<child-dispatch-id>"'* ]]
   [[ "$nested_coordinator" == *'--type dispatch --json'* ]]
   [[ "$inbox_settlement" == *'`consumer_fenced` を受けたら停止し'* ]]
   [[ "$verification_record" == *'全採点と native receipt が確定し、一つにまとまった evidence packet'* ]]

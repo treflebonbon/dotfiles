@@ -52,8 +52,11 @@ python3 <skill-dir>/scripts/orca-preflight.py worker-readiness verify <worker-re
 
 verify は指定 path から physical root・branch・HEAD・absolute Git dir・common dir を独立に取得し、cwd を root として worker 観測の六項目および native ID と比較する。割当時の branch / HEAD と現在の指定 worktree も一致しなければならず、primary checkout、別 worktree、欠落・不正・不一致は拒否する。観測 JSON は読取り専用で、malformed JSON と shell 風文字列も実行しない。照合成功後だけ親は `dispatch:<dispatch-id>` 宛てに実タスク本文を送る。
 
-```text
-ORCA orchestration send --to dispatch:<dispatch-id> --subject "実タスク開始" --body "<確定済みの実タスク本文>" --type dispatch --json
+`task_body_file` には確定済み本文を保存したファイルの path を指定する。ファイルから読んだ本文を引用付きの変数として渡す。
+
+```bash
+task_body=$(cat -- "$task_body_file") &&
+ORCA orchestration send --to "dispatch:<dispatch-id>" --subject "実タスク開始" --body "$task_body" --type dispatch --json
 ```
 
 失敗・観測不能時は診断・編集へ進まず、記録を保って親へ報告する。これは native launch や permission boundary を置き換える wrapper ではない。
@@ -135,14 +138,16 @@ peer の ID / Run で上位の ID を置き換えたり、上位 coordinator の
 
 子の照合成功後に実タスクを送る宛先は child Dispatch とする。
 
-```text
-ORCA orchestration send --to dispatch:<child-dispatch-id> --subject "実タスク開始" --body "<確定済みのchild task本文>" --type dispatch --json
+```bash
+task_body=$(cat -- "$task_body_file") &&
+ORCA orchestration send --to "dispatch:<child-dispatch-id>" --subject "実タスク開始" --body "$task_body" --type dispatch --json
 ```
 
 上位 coordinator から nested Dispatch への follow-up は、安定した Dispatch 宛てに送り `--run` を省略する。child coordinator の `check` / `reply` / ack は child Run を指定し、上位 coordinator の `check` / `reply` / ack は上位 Run を指定する。
 
-```text
-ORCA orchestration send --to dispatch:<nested-dispatch-id> --from <coordinator-handle> --subject "follow-up" --body "<literal body>" --type status --json
+```bash
+task_body=$(cat -- "$task_body_file") &&
+ORCA orchestration send --to "dispatch:<nested-dispatch-id>" --from "<coordinator-handle>" --subject "follow-up" --body "$task_body" --type status --json
 ```
 
 ## ID を receipt から渡す
