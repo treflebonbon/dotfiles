@@ -19,42 +19,48 @@ write_worker_receipt() {
 JSON
 }
 
-worktree_branch_head() {
-  python3 - "$1" <<'PY'
+readiness_git() {
+  python3 - "$@" <<'PY'
 import os, subprocess, sys
 env = {key: os.environ[key] for key in os.environ if not key.startswith("GIT_")}
-def git(*args):
-    result = subprocess.run(["git", "-C", sys.argv[1], *args], env=env, check=True, capture_output=True, text=True)
-    return result.stdout.rstrip("\n")
-print(git("branch", "--show-current") + "\t" + git("rev-parse", "--verify", "HEAD"))
+subprocess.run(["git", *sys.argv[1:]], env=env, check=True)
 PY
 }
 
-worktree_common_dir() {
-  python3 - "$1" <<'PY'
+readiness_git_value() {
+  python3 - "$@" <<'PY'
 import os, subprocess, sys
 env = {key: os.environ[key] for key in os.environ if not key.startswith("GIT_")}
-result = subprocess.run(["git", "-C", sys.argv[1], "rev-parse", "--path-format=absolute", "--git-common-dir"], env=env, check=True, capture_output=True, text=True)
-print(result.stdout.rstrip("\n"))
+result = subprocess.run(["git", *sys.argv[1:]], env=env, check=True, capture_output=True, text=True)
+sys.stdout.write(result.stdout[:-1] if result.stdout.endswith("\n") else result.stdout)
 PY
 }
 
-other_linked_worktree() {
+readiness_git_identity() {
   python3 - "$1" <<'PY'
 import os, subprocess, sys
-root = os.path.realpath(sys.argv[1])
 env = {key: os.environ[key] for key in os.environ if not key.startswith("GIT_")}
-listing = subprocess.run(["git", "-C", root, "worktree", "list", "--porcelain"], env=env, check=True, capture_output=True, text=True)
-for block in listing.stdout.split("\n\n"):
-    path = next((line[9:] for line in block.splitlines() if line.startswith("worktree ")), "")
-    if not path or os.path.realpath(path) == root or not os.path.isdir(path):
-        continue
-    git_dir = subprocess.run(["git", "-C", path, "rev-parse", "--absolute-git-dir"], env=env, check=True, capture_output=True, text=True).stdout.strip()
-    common_dir = subprocess.run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], env=env, check=True, capture_output=True, text=True).stdout.strip()
-    if os.path.realpath(git_dir) != os.path.realpath(common_dir):
-        print(os.path.realpath(path))
-        break
+root = sys.argv[1]
+branch = subprocess.run(["git", "-C", root, "branch", "--show-current"], env=env, check=True, capture_output=True, text=True).stdout.rstrip("\n")
+head = subprocess.run(["git", "-C", root, "rev-parse", "--verify", "HEAD"], env=env, check=True, capture_output=True, text=True).stdout.rstrip("\n")
+print(f"{branch}\t{head}")
 PY
+}
+
+setup_readiness_fixture() {
+  local repo="$BATS_TEST_TMPDIR/readiness-repo"
+  WORKER_WORKTREE="$BATS_TEST_TMPDIR/readiness-worker"
+  OTHER_WORKTREE="$BATS_TEST_TMPDIR/readiness-other"
+  mkdir -p "$repo"
+  readiness_git init -q -b main "$repo"
+  readiness_git -C "$repo" config user.name readiness-test
+  readiness_git -C "$repo" config user.email readiness-test@example.invalid
+  printf 'readiness fixture\n' >"$repo/README.md"
+  readiness_git -C "$repo" add README.md
+  readiness_git -C "$repo" commit -q -m fixture
+  readiness_git -C "$repo" worktree add -q -b worker "$WORKER_WORKTREE" HEAD
+  readiness_git -C "$repo" worktree add -q -b other "$OTHER_WORKTREE" HEAD
+  PRIMARY_WORKTREE="$repo"
 }
 
 worker_readiness_verify() {
@@ -87,46 +93,47 @@ PY
 }
 
 @test "worker readiness must match the assigned checkout, including another worktree of the same repo" {
-  local other_root primary_root observation="$BATS_TEST_TMPDIR/worker-readiness.json" primary_observation="$BATS_TEST_TMPDIR/primary-readiness.json" branch head other_branch other_head primary_branch primary_head
-  other_root="$(other_linked_worktree "$PROJECT_ROOT")"
-  [ -n "$other_root" ] || skip "requires another registered linked worktree"
-  IFS=$'\t' read -r branch head <<<"$(worktree_branch_head "$PROJECT_ROOT")"
-  IFS=$'\t' read -r other_branch other_head <<<"$(worktree_branch_head "$other_root")"
+  local observation="$BATS_TEST_TMPDIR/worker-readiness.json" primary_observation="$BATS_TEST_TMPDIR/primary-readiness.json" branch head other_branch other_head primary_branch primary_head
+  setup_readiness_fixture
+  IFS=$'\t' read -r branch head <<<"$(readiness_git_identity "$WORKER_WORKTREE")"
+  IFS=$'\t' read -r other_branch other_head <<<"$(readiness_git_identity "$OTHER_WORKTREE")"
+  IFS=$'\t' read -r primary_branch primary_head <<<"$(readiness_git_identity "$PRIMARY_WORKTREE")"
 
-  cd "$PROJECT_ROOT"
+  cd "$WORKER_WORKTREE"
   run python3 "$SCRIPT" worker-readiness record "$observation" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
   [[ "$output" == *"observation saved"* ]]
   cp "$observation" "$BATS_TEST_TMPDIR/worker-readiness.original.json"
 
-  run worker_readiness_verify "$observation" "$PROJECT_ROOT" "$branch" "$head" task-1 dispatch-1 term-1
+  run worker_readiness_verify "$observation" "$WORKER_WORKTREE" "$branch" "$head" task-1 dispatch-1 term-1
   [ "$status" -eq 0 ]
   cmp "$BATS_TEST_TMPDIR/worker-readiness.original.json" "$observation"
 
-  run worker_readiness_verify "$observation" "$other_root" "$other_branch" "$other_head" task-1 dispatch-1 term-1
+  run worker_readiness_verify "$observation" "$OTHER_WORKTREE" "$other_branch" "$other_head" task-1 dispatch-1 term-1
   [ "$status" -ne 0 ]
   cmp "$BATS_TEST_TMPDIR/worker-readiness.original.json" "$observation"
 
-  primary_root="$(dirname "$(worktree_common_dir "$PROJECT_ROOT")")"
-  [ "$primary_root" != "$PROJECT_ROOT" ] || skip "requires a linked task worktree and its primary checkout"
-  IFS=$'\t' read -r primary_branch primary_head <<<"$(worktree_branch_head "$primary_root")"
-  (cd "$primary_root" && python3 "$SCRIPT" worker-readiness record "$primary_observation" --task task-1 --dispatch dispatch-1 --assignee term-1)
-  run worker_readiness_verify "$primary_observation" "$primary_root" "$primary_branch" "$primary_head" task-1 dispatch-1 term-1
+  cd "$PRIMARY_WORKTREE"
+  run python3 "$SCRIPT" worker-readiness record "$primary_observation" --task task-1 --dispatch dispatch-1 --assignee term-1
+  [ "$status" -eq 0 ]
+  run worker_readiness_verify "$primary_observation" "$PRIMARY_WORKTREE" "$primary_branch" "$primary_head" task-1 dispatch-1 term-1
   [ "$status" -ne 0 ]
 }
 
 @test "worker readiness rejects every changed checkout and native assignment field" {
   local observation="$BATS_TEST_TMPDIR/worker-readiness.json" variant="$BATS_TEST_TMPDIR/variant.json" field branch head wrong_head
-  cd "$PROJECT_ROOT"
+  setup_readiness_fixture
+  cd "$WORKER_WORKTREE"
   run python3 "$SCRIPT" worker-readiness record "$observation" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
   cp "$observation" "$BATS_TEST_TMPDIR/worker-readiness.original.json"
-  IFS=$'\t' read -r branch head <<<"$(worktree_branch_head "$PROJECT_ROOT")"
-  wrong_head="f${head:1}"
+  branch=worker
+  head="$(readiness_git_value -C "$WORKER_WORKTREE" rev-parse --verify HEAD)"
+  wrong_head=0000000000000000000000000000000000000000
 
-  run worker_readiness_verify "$observation" "$PROJECT_ROOT" "${branch}-different" "$head" task-1 dispatch-1 term-1
+  run worker_readiness_verify "$observation" "$WORKER_WORKTREE" "${branch}-different" "$head" task-1 dispatch-1 term-1
   [ "$status" -ne 0 ]
-  run worker_readiness_verify "$observation" "$PROJECT_ROOT" "$branch" "$wrong_head" task-1 dispatch-1 term-1
+  run worker_readiness_verify "$observation" "$WORKER_WORKTREE" "$branch" "$wrong_head" task-1 dispatch-1 term-1
   [ "$status" -ne 0 ]
 
   for field in cwd physical_root branch head git_dir common_dir task_id dispatch_id assignee_handle; do
@@ -138,7 +145,7 @@ doc[field] = "f" * 40 if field == "head" else doc[field] + "-different"
 json.dump(doc, open(target, "w", encoding="utf-8"))
 PY
     cp "$variant" "$BATS_TEST_TMPDIR/variant.original.json"
-    run worker_readiness_verify "$variant" "$PROJECT_ROOT" "$branch" "$head" task-1 dispatch-1 term-1
+    run worker_readiness_verify "$variant" "$WORKER_WORKTREE" "$branch" "$head" task-1 dispatch-1 term-1
     [ "$status" -ne 0 ]
     cmp "$BATS_TEST_TMPDIR/variant.original.json" "$variant"
   done
@@ -147,13 +154,15 @@ PY
 
 @test "worker readiness rejects malformed, missing, empty, and non-string observation values" {
   local observation="$BATS_TEST_TMPDIR/worker-readiness.json" invalid="$BATS_TEST_TMPDIR/invalid.json" branch head
-  cd "$PROJECT_ROOT"
+  setup_readiness_fixture
+  cd "$WORKER_WORKTREE"
   run python3 "$SCRIPT" worker-readiness record "$observation" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
-  IFS=$'\t' read -r branch head <<<"$(worktree_branch_head "$PROJECT_ROOT")"
+  branch=worker
+  head="$(readiness_git_value -C "$WORKER_WORKTREE" rev-parse --verify HEAD)"
   printf '{not-json\n' >"$invalid"
   cp "$invalid" "$BATS_TEST_TMPDIR/invalid.original.json"
-  run worker_readiness_verify "$invalid" "$PROJECT_ROOT" "$branch" "$head" task-1 dispatch-1 term-1
+  run worker_readiness_verify "$invalid" "$WORKER_WORKTREE" "$branch" "$head" task-1 dispatch-1 term-1
   [ "$status" -ne 0 ]
   cmp "$BATS_TEST_TMPDIR/invalid.original.json" "$invalid"
 
@@ -176,7 +185,7 @@ with open(target, "w", encoding="utf-8") as stream:
     json.dump(doc, stream)
 PY
     cp "$invalid" "$BATS_TEST_TMPDIR/invalid.original.json"
-    run worker_readiness_verify "$invalid" "$PROJECT_ROOT" "$branch" "$head" task-1 dispatch-1 term-1
+    run worker_readiness_verify "$invalid" "$WORKER_WORKTREE" "$branch" "$head" task-1 dispatch-1 term-1
     [ "$status" -ne 0 ]
     cmp "$BATS_TEST_TMPDIR/invalid.original.json" "$invalid"
   done
@@ -186,13 +195,15 @@ PY
 
 @test "worker readiness ignores ambient Git overrides and never executes shell-looking JSON" {
   local observation="$BATS_TEST_TMPDIR/worker-readiness.json" marker="$BATS_TEST_TMPDIR/should-not-exist" variant="$BATS_TEST_TMPDIR/variant.json" branch head
-  IFS=$'\t' read -r branch head <<<"$(worktree_branch_head "$PROJECT_ROOT")"
-  cd "$PROJECT_ROOT"
+  setup_readiness_fixture
+  branch=worker
+  head="$(readiness_git_value -C "$WORKER_WORKTREE" rev-parse --verify HEAD)"
+  cd "$WORKER_WORKTREE"
   run env GIT_DIR="$BATS_TEST_TMPDIR/not-a-git-dir" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$BATS_TEST_TMPDIR/not-a-worktree" python3 "$SCRIPT" worker-readiness record "$observation" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
   [[ "$output" != *"not-a-worktree"* ]]
   ! grep -Fq "not-a-worktree" "$observation"
-  run env GIT_DIR="$BATS_TEST_TMPDIR/not-a-git-dir" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$BATS_TEST_TMPDIR/not-a-worktree" python3 "$SCRIPT" worker-readiness verify "$observation" --worktree "$PROJECT_ROOT" --branch "$branch" --head "$head" --task task-1 --dispatch dispatch-1 --assignee term-1
+  run env GIT_DIR="$BATS_TEST_TMPDIR/not-a-git-dir" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$BATS_TEST_TMPDIR/not-a-worktree" python3 "$SCRIPT" worker-readiness verify "$observation" --worktree "$WORKER_WORKTREE" --branch "$branch" --head "$head" --task task-1 --dispatch dispatch-1 --assignee term-1
   [ "$status" -eq 0 ]
   [[ "$output" != *"not-a-worktree"* ]]
 
@@ -205,7 +216,7 @@ with open(target, "w", encoding="utf-8") as stream:
     json.dump(doc, stream)
 PY
   cp "$variant" "$BATS_TEST_TMPDIR/variant.original.json"
-  run worker_readiness_verify "$variant" "$PROJECT_ROOT" "$branch" "$head" task-1 dispatch-1 term-1
+  run worker_readiness_verify "$variant" "$WORKER_WORKTREE" "$branch" "$head" task-1 dispatch-1 term-1
   [ "$status" -ne 0 ]
   [ ! -e "$marker" ]
   cmp "$BATS_TEST_TMPDIR/variant.original.json" "$variant"
@@ -313,6 +324,7 @@ PY
 
   ordinary_worker="$(section '### 普通の dispatched worker')"
   nested_coordinator="$(section '### nested coordinator')"
+  coordinator="$(section '### coordinator')"
   inbox_settlement="$(section '## inbox / settlement')"
   verification_record="$(section '## 検証記録')"
   worktree_readiness="$(section '## Worktree readiness')"
@@ -322,7 +334,10 @@ PY
   [[ "$inbox_settlement" == *'`consumer_fenced` を受けたら停止し'* ]]
   [[ "$verification_record" == *'全採点と native receipt が確定し、一つにまとまった evidence packet'* ]]
   [[ "$verification_record" == *'usage が取得できない場合は `null`'* ]]
-  [[ "$worktree_readiness" == *'Orca で Task / Dispatch を監督する全 task'* ]]
-  [[ "$worktree_readiness" == *'成功した場合だけ親が着手を伝える'* ]]
+  [[ "$worktree_readiness" == *'ローカル変更につながる診断・実装を Git task worktree で監督するとき'* ]]
+  [[ "$worktree_readiness" == *'remote placement では親の local path から worker 側を推測せず'* ]]
+  [[ "$worktree_readiness" == *'照合成功後だけ親は `dispatch:<dispatch-id>` 宛てに実タスク本文を送る'* ]]
+  [[ "$coordinator" == *'準備確認のみ: native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ'* ]]
+  [[ "$worktree_readiness" == *'--type dispatch --json'* ]]
   [[ "$worktree_readiness" == *'--branch <assigned-branch> --head <assigned-start-head>'* ]]
 }
