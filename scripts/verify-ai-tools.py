@@ -1,9 +1,11 @@
 """隔離 HOME の user / repo devShell で候補 AI output と実起動を照合する。"""
 
 import argparse
+import atexit
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -91,6 +93,8 @@ def main():
         path = runtime / directory
         path.mkdir(mode=0o700)
         environment[key] = str(path)
+        # 隔離先は証拠ではない。tmp/ に壊れた symlink が残ると chezmoi が source 全体で失敗する。
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
     for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR", "FORCE_COLOR"):
         environment.pop(key, None)
     environment.update(

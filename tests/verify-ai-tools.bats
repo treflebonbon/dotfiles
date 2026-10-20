@@ -110,7 +110,7 @@ PY
   run env PATH="$BIN:$PATH" HOME="$BATS_TEST_TMPDIR/original-home" \
     CODEX_HOME=ambient CLAUDE_CONFIG_DIR=ambient FORCE_COLOR=1 \
     XDG_CACHE_HOME=ambient XDG_STATE_HOME=ambient \
-    python3 "$PROBE" "$SOURCE" --shell wsl -- bash -c 'printf "verified-command\n"'
+    python3 "$PROBE" "$SOURCE" --shell wsl -- bash -c 'printf "verified-command/%s\n" "$(cat "$HOME/.agents/hook")"'
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'PASS: 6 CLI'* ]]
@@ -123,8 +123,10 @@ assert len(rows)==3
 assert len({row['HOME'] for row in rows})==1
 home=Path(rows[0]['HOME'])
 assert home.is_relative_to(Path(sys.argv[2])/'tmp')
-assert (home/'.agents/hook').read_text()=='isolated'
-assert 'verified-command' in (home.parent/'startup.log').read_text()
+assert 'verified-command/isolated' in (home.parent/'startup.log').read_text()
+# A leftover symlink under the source tmp/ makes chezmoi fail on the whole source.
+for name in ['home', 'config', 'data', 'runtime', 'cache', 'state']:
+    assert not (home.parent/name).exists(), name
 for row in rows:
     assert row['CODEX_HOME'] is row['CLAUDE_CONFIG_DIR'] is row['FORCE_COLOR'] is None
     assert row['XDG_CONFIG_HOME']==str(home.parent/'config')
