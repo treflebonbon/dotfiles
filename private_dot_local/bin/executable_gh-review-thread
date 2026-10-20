@@ -379,18 +379,6 @@ def reply_resolve(
 
     thread = fetch_thread(thread_id)
     verify_thread_scope(thread, repo, pr)
-    if thread["isResolved"]:
-        print(
-            json.dumps(
-                {
-                    "thread_id": thread_id,
-                    "reply": "skipped",
-                    "resolve": "already_resolved",
-                }
-            )
-        )
-        return
-
     if commit is not None:
         verify_commit(repo, pr, commit)
 
@@ -425,22 +413,24 @@ def reply_resolve(
             ]
         )
 
-    run_gh_json(
-        [
-            "api",
-            "graphql",
-            "-f",
-            f"query={RESOLVE_MUTATION}",
-            "-f",
-            f"threadId={thread_id}",
-        ]
-    )
+    # push 直後に bot が resolve した thread にも返信は残し、resolve だけ省く。
+    if not thread["isResolved"]:
+        run_gh_json(
+            [
+                "api",
+                "graphql",
+                "-f",
+                f"query={RESOLVE_MUTATION}",
+                "-f",
+                f"threadId={thread_id}",
+            ]
+        )
     print(
         json.dumps(
             {
                 "thread_id": thread_id,
                 "reply": "skipped" if duplicate else "created",
-                "resolve": "resolved",
+                "resolve": "already_resolved" if thread["isResolved"] else "resolved",
             }
         )
     )
