@@ -8,4 +8,5 @@ export const projectIgnorePatterns = [
   "**/.claude/worktrees/**",
   "**/.worktrees/**",
   "CHANGELOG.md",
+  "scripts/vendor/ultracite/config/**",
 ];
