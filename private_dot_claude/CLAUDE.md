@@ -101,6 +101,10 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 - `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
 - 元の候補を native peer と改善する `herdr-peer-refactor` / `orca-peer-refactor` の契約は `~/runtime/autonomous-peer-contract.md` を正本とする。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
 
+## Shell 操作
+
+別ディレクトリの git は `git -C` ではなく `cd <dir> && git …` で実行する。構文の複雑さで拒否された複合コマンドは、スクリプトを scratchpad に書いて実行する（権限で禁止された操作の迂回には使わない）。詳細は `~/runtime/index.md`。
+
 ## ブラウザ操作ツール
 
 通常のブラウザ操作は `playwright-cli` skill を使い、Chrome MV3 拡張は persistent Chromium context で検証する。`tdd` 中に人間が UI 要素を指差す場合は、利用可能な `claude-in-chrome` を追加チャネルとして使う。
