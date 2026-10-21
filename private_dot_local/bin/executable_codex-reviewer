@@ -18,10 +18,23 @@ BOUNDARY_OPTIONS = {
     "--profile",
     "--permission-profile",
     "--permissions-profile",
+    "--worktree",
     "--yolo",
+    "--approve-for-me",
     "--ignore-user-config",
+    "--ignore-rules",
+    "--remote",
+    "--remote-auth-token-env",
     "--sandbox-state-json",
     "--sandbox-state-readable-root",
+}
+BOUNDARY_CONFIG_KEYS = {
+    "default_permissions",
+    "permissions",
+    "sandbox_mode",
+    "sandbox_workspace_write",
+    "profile",
+    "profiles",
 }
 
 
@@ -32,20 +45,16 @@ def validate_arguments(arguments):
         if argument == "--":
             return
         name = argument.split("=", 1)[0]
-        if (
-            argument in ("-c", "--config")
-            or name == "--config"
-            or argument.startswith("-c")
-        ):
-            value = (
-                next(arguments, "")
-                if argument in ("-c", "--config")
-                else argument[2:]
-                if argument.startswith("-c")
-                else argument.split("=", 1)[1]
-            )
-            key = value.split("=", 1)[0].strip()
-            if key == "default_permissions" or key.split(".", 1)[0] == "permissions":
+        if argument.startswith(("-c", "--config")):
+            if argument in ("-c", "--config"):
+                value = next(arguments, "")
+            elif argument.startswith("-c"):
+                value = argument[2:]
+            else:
+                value = argument.split("=", 1)[1]
+            # Codex splits -c keys on dots without unquoting, so the first segment is the table.
+            key = value.split("=", 1)[0].split(".", 1)[0].strip()
+            if key in BOUNDARY_CONFIG_KEYS:
                 raise InvalidContext(
                     f"config can replace the reviewer boundary: {value}"
                 )
@@ -68,7 +77,7 @@ def main():
     validate_arguments(arguments)
     repo = Repository.discover(Path.cwd(), linked_only=True)
     # Codex splits -c keys on every dot, so the paths go in an inline table value.
-    paths = ",".join(
+    filesystem_entries = ",".join(
         f'{json.dumps(str(path))}="read"' for path in (repo.git_dir, repo.common_dir)
     )
     os.execvpe(
@@ -80,7 +89,7 @@ def main():
             "-c",
             f'default_permissions="{profile}"',
             "-c",
-            f"permissions.{profile}.filesystem={{{paths}}}",
+            f"permissions.{profile}.filesystem={{{filesystem_entries}}}",
             *arguments,
         ],
         git_environment(),

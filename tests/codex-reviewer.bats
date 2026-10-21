@@ -54,15 +54,20 @@ reviewer() {
 }
 
 @test "arguments that can replace the reviewer boundary are rejected without launching Codex" {
-  local argument
-  for argument in -C/tmp --cd=/tmp -s --sandbox=danger-full-access --add-dir=/tmp \
-    -Pother --permissions-profile=other -pother --profile=other \
-    --dangerously-bypass-approvals-and-sandbox --yolo --ignore-user-config \
-    -cdefault_permissions=x --config=permissions.dotfiles-secure.filesystem={} \
-    '-c permissions.x={}'; do
-    # shellcheck disable=SC2086 # the last case splits into "-c" and its value
-    reviewer "$WORKTREE" $argument
-    [ "$status" -eq 1 ] || { echo "accepted: $argument"; return 1; }
+  local case
+  local -a cases=(
+    -C/tmp --cd=/tmp -s --sandbox=danger-full-access --add-dir=/tmp --worktree
+    -Pother --permissions-profile=other -pother --profile=other
+    --dangerously-bypass-approvals-and-sandbox --yolo --ignore-user-config --ignore-rules
+    --approve-for-me --remote=ws://x --remote-auth-token-env=X
+    -cdefault_permissions=x --config=permissions.dotfiles-secure.filesystem={}
+    "-c|permissions.x={}" "--config|sandbox_mode=\"danger-full-access\""
+    "-c|sandbox_workspace_write.network_access=true" "-c|profile=\"other\"" "-c|profiles.x={}"
+  )
+  for case in "${cases[@]}"; do
+    IFS='|' read -r -a argv <<<"$case"
+    reviewer "$WORKTREE" "${argv[@]}"
+    [ "$status" -eq 1 ] || { echo "accepted: $case"; return 1; }
     [[ "$output" == "codex-reviewer: "* ]]
     [ ! -e "$LAUNCHED" ]
   done
