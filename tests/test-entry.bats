@@ -254,6 +254,21 @@ STUB_EOF
   [ "$(grep -c '^receipt=unset$' "$TEST_LOG")" -eq 2 ]
 }
 
+@test "テスト入口は環境の LEFTHOOK_OUTPUT を Bats へ渡さない" {
+  export LEFTHOOK_OUTPUT=failure
+  cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
+#!/bin/bash
+printf 'lefthook-output=%s\n' "${LEFTHOOK_OUTPUT-unset}" >> "$TEST_LOG"
+printf '1..1\nok 1 fixture\n'
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/bats"
+
+  run_entry
+
+  assert_success
+  assert_log_contains "lefthook-output=unset"
+}
+
 @test "テスト入口はログ受渡しの範囲外パスと既存fileを上書きしない" {
   local outside="$BATS_TEST_TMPDIR/outside"
   printf 'preserved\n' >"$outside"

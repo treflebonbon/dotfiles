@@ -3,6 +3,8 @@ set -euo pipefail
 
 test_run_receipt=${DOTFILES_TEST_RUN_RECEIPT:-}
 unset DOTFILES_TEST_RUN_RECEIPT
+# エージェント環境の LEFTHOOK_OUTPUT=failure は成功時の出力を消し、lefthook の出力を検査する Bats を壊す。
+unset LEFTHOOK_OUTPUT
 mkdir -p tmp
 log_dir=$(mktemp -d tmp/test-run.XXXXXX)
 date +%s%N >"$log_dir/started"
