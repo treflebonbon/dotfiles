@@ -8,6 +8,7 @@ setup() {
 
 write_registry_fixture() {
   mkdir -p "$REGISTRY_REPO/scripts" "$REGISTRY_REPO/tests/experiments/rop-analysis"
+  ln -s "$PROJECT_ROOT/node_modules" "$REGISTRY_REPO/node_modules"
   cp "$SCRIPT" "$REGISTRY_REPO/scripts/check-registry-locks.js"
   cp "$PROJECT_ROOT/lefthook.yml" "$REGISTRY_REPO/lefthook.yml"
   cat >"$REGISTRY_REPO/tests/experiments/rop-analysis/.npmrc" <<'NPMRC'
@@ -52,7 +53,7 @@ run_registry_checker() (
 
 run_registry_hook() (
   cd "$REGISTRY_REPO"
-  lefthook run pre-commit --job registry-locks --no-auto-install
+  lefthook run pre-commit --job format-and-registry --no-auto-install
 )
 
 run_full_registry_hook() (
@@ -260,7 +261,6 @@ JSON
 @test "the full pre-commit hook preserves the staged registry and rejects a staged mirror" {
   write_registry_fixture
   git -C "$REGISTRY_REPO" commit -qm fixture
-  ln -s "$PROJECT_ROOT/node_modules" "$REGISTRY_REPO/node_modules"
   printf '\n' >>"$REGISTRY_REPO/bunfig.toml"
   git -C "$REGISTRY_REPO" add bunfig.toml
   cat >"$REGISTRY_REPO/bunfig.toml" <<'TOML'
@@ -279,4 +279,48 @@ TOML
   run run_full_registry_hook
   [ "$status" -ne 0 ]
   [[ "$output" == *"bunfig.toml: [install].registry は公式 npm registry を一つだけ指定してください"* ]]
+}
+
+@test "the full pre-commit hook validates the index after formatter restaging" {
+  write_registry_fixture
+  cat >>"$REGISTRY_REPO/scripts/check-registry-locks.js" <<'JS'
+await Bun.write(
+  process.env.REGISTRY_TEST_SNAPSHOT,
+  Bun.spawnSync(["git", "show", ":bunfig.toml"]).stdout
+);
+JS
+  git -C "$REGISTRY_REPO" add scripts/check-registry-locks.js
+  git -C "$REGISTRY_REPO" commit -qm fixture
+  printf '[install]\nregistry="https://registry.npmjs.org"\nminimumReleaseAge=604800\n' >"$REGISTRY_REPO/bunfig.toml"
+  git -C "$REGISTRY_REPO" add bunfig.toml
+
+  local bin="$BATS_TEST_TMPDIR/bin"
+  export REGISTRY_TEST_BUNX REGISTRY_TEST_SNAPSHOT
+  REGISTRY_TEST_BUNX="$(command -v bunx)"
+  REGISTRY_TEST_SNAPSHOT="$BATS_TEST_TMPDIR/registry-index.toml"
+  mkdir -p "$bin"
+  cat >"$bin/bunx" <<'SH'
+#!/usr/bin/env bash
+sleep 0.5
+exec "$REGISTRY_TEST_BUNX" "$@"
+SH
+  chmod +x "$bin/bunx"
+  PATH="$bin:$PATH" run run_full_registry_hook
+  [ "$status" -eq 0 ]
+  python3 - "$REGISTRY_TEST_SNAPSHOT" "$REGISTRY_REPO" <<'PY'
+from pathlib import Path
+import subprocess, sys
+observed = Path(sys.argv[1]).read_bytes()
+staged = subprocess.check_output(["git", "show", ":bunfig.toml"], cwd=sys.argv[2])
+assert b'registry = "https://registry.npmjs.org"' in staged
+assert observed == staged, (observed, staged)
+PY
+  cat >"$bin/bunx" <<'SH'
+#!/usr/bin/env bash
+exit 19
+SH
+  REGISTRY_TEST_SNAPSHOT="$BATS_TEST_TMPDIR/formatter-failed.toml"
+  PATH="$bin:$PATH" run run_full_registry_hook
+  [ "$status" -ne 0 ]
+  [ ! -e "$REGISTRY_TEST_SNAPSHOT" ]
 }
