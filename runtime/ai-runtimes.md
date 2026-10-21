@@ -56,8 +56,8 @@ herdr
 
 - **Claude Code**: `herdr agent start NAME --kind claude --pane PANE -- --name NAME` で個別 session を開く。この経路が一覧画面を避けるかは unconfirmed。
 - **Codex**: `herdr agent start --kind codex` は使わない。実装役は pane の shell から `codex-worktree`、読み取り専用のレビュー役は `codex-reviewer` で起動する（[契約](skill-harness.md#worktree-の開始と復旧)）。
-- **`agent_pane_busy` が続くとき**（confirmed: shell prompt 表示後も発生）: `herdr pane read PANE` で shell prompt が出ていて他の command が動いていないことを確かめ、`herdr pane run PANE "claude"` で起動する。この経路には `agent start` の ready 判定がなく、agent に名前も付かない。`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` してから `agent prompt` する。busy の原因は bash の line editor（flyline）が前面 process に見えるためと推測している（inferred）。
-- **背景 session の一覧画面が開くとき**（confirmed: Claude Code で `pane run` の直後に発生）: 一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。`agent prompt` の内容は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。prompt を引数で渡す（`claude '<prompt>'`）と対話 session になる見込みだが、引数なしの `claude` の挙動は version・設定・起動経路に依存し、一覧が開く原因は unconfirmed（[実測の記録](../local-skills/herdr-peer-refactor/references/herdr.md)）。
+- **`agent_pane_busy` が続くとき**（confirmed: #458 で shell prompt 表示後も発生。pane の revision や `--no-focus` との関係は未確認、[#426 の観測](../docs/research/herdr-agent-startup-observations.md)）: `herdr pane read PANE` と `herdr pane process-info --pane PANE` で、shell prompt が出ていて他の command が動いていないことを確かめ、`herdr pane run PANE "claude"` で起動する（confirmed: #458 で起動し agent として認識された）。この経路には `agent start` の ready 判定がなく、agent に名前も付かない。`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` してから `agent prompt` する。busy の原因を bash の line editor（flyline）が前面 process に見えるためとする見立ては #458 の報告者の推測で、repo 内に裏付けはない（inferred）。
+- **背景 session の一覧画面が開くとき**: #458 では `pane run` で起動した `claude` が一覧を開いた（confirmed、ただし再現性は低く、[別の実測](../local-skills/herdr-peer-refactor/references/herdr.md)では対話画面になった）。原因（設定・起動経路・version）は unconfirmed。一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。一覧に送った `agent prompt` は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。
 
 ### 新規 worktree への `.env` コピー
 
