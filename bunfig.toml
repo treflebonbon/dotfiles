@@ -1,4 +1,5 @@
 [test]
 
 [install]
+registry = "https://registry.npmjs.org"
 minimumReleaseAge = 604800

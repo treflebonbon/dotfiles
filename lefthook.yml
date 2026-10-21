@@ -8,6 +8,15 @@ test:
 pre-commit:
   parallel: true
   jobs:
+    - name: registry-locks
+      run: bun scripts/check-registry-locks.js --staged
+      glob:
+        - "bun.lock"
+        - "bunfig.toml"
+        - "package-lock.json"
+        - "**/package-lock.json"
+        - "scripts/check-registry-locks.js"
+        - "tests/experiments/rop-analysis/.npmrc"
     - name: pinact
       run: pinact run {staged_files}
       glob: ".github/**/*.{yaml,yml}"
