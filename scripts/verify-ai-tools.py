@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -68,6 +69,9 @@ def main():
     separator = cli.index("--") if "--" in cli else len(cli)
     arguments = parser.parse_args(cli[:separator])
     command = cli[separator + 1 :]
+    # SIGTERM / SIGHUP は atexit を飛ばす。SystemExit に変えて後始末を走らせ、subprocess.run に子を止めさせる。
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, lambda received, _frame: sys.exit(128 + received))
     source = arguments.source.resolve(strict=True)
     (source / "tmp").mkdir(exist_ok=True)
     runtime = Path(tempfile.mkdtemp(prefix="ai-tools-", dir=source / "tmp"))

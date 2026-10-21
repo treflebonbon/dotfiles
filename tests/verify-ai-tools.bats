@@ -51,6 +51,10 @@ else:
     if os.environ.get('AI_FIXTURE_MODE') == 'startup-signal':
         print('fixture startup signal', file=sys.stderr, flush=True)
         os.kill(os.getpid(), 15)
+    if os.environ.get('AI_FIXTURE_MODE') == 'startup-hang':
+        Path(os.environ['AI_FIXTURE_LOG'] + '.ready').touch()
+        import time
+        time.sleep(60)
     Path(os.environ['HOME'], '.agents').mkdir(exist_ok=True)
     Path(os.environ['HOME'], '.agents', 'hook').write_text('isolated')
     command = sys.argv[sys.argv.index('--command') + 1:]
@@ -275,4 +279,23 @@ PY
     [ "$(cat "$case_source"/tmp/ai-tools-*/exit-code)" -eq 143 ]
     grep -q 'fixture .* signal' "$case_source"/tmp/ai-tools-*/*.log
   done
+}
+
+@test "AI candidate verification removes isolated directories when terminated mid-run" {
+  AI_FIXTURE_MODE=startup-hang PATH="$BIN:$PATH" HOME="$BATS_TEST_TMPDIR/original-home" \
+    python3 "$PROBE" "$SOURCE" >/dev/null 2>&1 &
+  local pid=$!
+  local waited=0
+  while [ ! -e "$AI_FIXTURE_LOG.ready" ]; do
+    sleep 0.1
+    waited=$((waited + 1))
+    [ "$waited" -lt 100 ]
+  done
+  kill -TERM "$pid"
+  local status=0
+  wait "$pid" || status=$?
+
+  [ "$status" -eq 143 ]
+  # A leftover symlink under the source tmp/ makes chezmoi fail on the whole source.
+  run ! compgen -G "$SOURCE/tmp/ai-tools-*/home"
 }
