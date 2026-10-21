@@ -1,0 +1,101 @@
+#!/usr/bin/env -S python3 -I
+"""Start a read-only reviewer Codex that can read its linked worktree's Git metadata."""
+
+import json
+import os
+from pathlib import Path
+import sys
+
+# Use the installed source even under Python -I; never search the worktree.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "share/devshell-env"))
+from devshell_environment import InvalidContext, Repository, git_environment
+
+
+BOUNDARY_OPTIONS = {
+    "--cd",
+    "--sandbox",
+    "--add-dir",
+    "--profile",
+    "--permission-profile",
+    "--permissions-profile",
+    "--worktree",
+    "--yolo",
+    "--approve-for-me",
+    "--ignore-user-config",
+    "--ignore-rules",
+    "--remote",
+    "--remote-auth-token-env",
+    "--sandbox-state-json",
+    "--sandbox-state-readable-root",
+}
+# Other keys can start commands outside the sandbox (mcp_servers, notify) or replace it.
+ALLOWED_CONFIG_KEYS = {
+    "model",
+    "model_reasoning_effort",
+    "model_reasoning_summary",
+    "model_verbosity",
+}
+
+
+def validate_arguments(arguments):
+    """Reject arguments that replace the root, profile, or sandbox set by this launcher."""
+    arguments = iter(arguments)
+    for argument in arguments:
+        if argument == "--":
+            return
+        name = argument.split("=", 1)[0]
+        if argument.startswith(("-c", "--config")):
+            if argument in ("-c", "--config"):
+                value = next(arguments, "")
+            elif argument.startswith("-c"):
+                value = argument[2:]
+            else:
+                value = argument.split("=", 1)[1]
+            key = value.split("=", 1)[0].strip()
+            # A line break could smuggle a later TOML table past the key check.
+            if key not in ALLOWED_CONFIG_KEYS or "\n" in value or "\r" in value:
+                raise InvalidContext(f"only model config is allowed: {value}")
+        elif (
+            name in BOUNDARY_OPTIONS
+            or name.startswith("--dangerously-")
+            or argument.startswith(("-C", "-s", "-P", "-p"))
+        ):
+            raise InvalidContext(
+                f"argument can replace the reviewer boundary: {argument}"
+            )
+
+
+def main():
+    profile = "dotfiles-secure"
+    arguments = sys.argv[1:]
+    if arguments[:1] == ["--peer"]:
+        profile = "dotfiles-peer"
+        arguments = arguments[1:]
+    validate_arguments(arguments)
+    repo = Repository.discover(Path.cwd(), linked_only=True)
+    # Codex splits -c keys on every dot, so the paths go in an inline table value.
+    filesystem_entries = ",".join(
+        f'{json.dumps(str(path))}="read"' for path in (repo.git_dir, repo.common_dir)
+    )
+    os.execvpe(
+        "codex",
+        [
+            "codex",
+            "-C",
+            str(repo.root),
+            "-c",
+            f'default_permissions="{profile}"',
+            "-c",
+            f"permissions.{profile}.filesystem={{{filesystem_entries}}}",
+            *arguments,
+        ],
+        git_environment(),
+    )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (InvalidContext, OSError) as error:
+        print(f"codex-reviewer: {error}", file=sys.stderr)
+        sys.exit(1)

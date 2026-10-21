@@ -7,7 +7,8 @@ herdr --help
 herdr worktree create --cwd <repo> --branch <topic> --base <base> --label <candidate-id> --no-focus
 herdr pane split <returned-pane-id> --direction right --cwd <worktree> --no-focus   # peer 用
 herdr workspace create --cwd <worktree> --label <candidate-id> --no-focus   # 並列子 session 用。起動応答の `.result.root_pane.pane_id` を使う
-herdr agent start <unique-name> --kind codex --pane <new-pane-id> -- <agent-args>
+herdr pane run <new-pane-id> 'codex-reviewer <agent-args>'   # Codex peer。shell prompt の pane で起動する
+herdr agent rename <new-pane-id> <unique-name>   # 検出後
 herdr agent get <unique-name>
 ```
 
@@ -15,7 +16,7 @@ writer と reviewer の cwd・役割・モデルを起動応答と実 process �
 
 起動前に `herdr pane current --current` で、継承された `HERDR_PANE_ID` が自分の pane（cwd と agent）かを確認する。別 workspace や別 cwd の pane を指す場合（dashboard から起動された background session など）は、`--current` で分割せず、他者の pane を読まず操作せず、peer 起動前に保留する。Claude の writer・親は pane の shell から `claude '<prompt>'` のように prompt を引数で渡して対話 session として起動する。引数なしの `claude` の挙動は version・設定・起動経路に依存し、dashboard を開く場合がある（Claude Code 2.1.296 の一回の実測では dashboard にならなかった）。dashboard が開いた場合、`agent prompt` の内容は background job になる。起動後は `pane current --current` と `pane process-info` で実際の pane・cwd を確認する。
 
-`pane run` で起動した agent は名前を持たない。検出後に `herdr agent rename <pane-id> <name>` するか、pane ID を宛先にする。起動した model と effort は、要求した引数と実 process までを確認し、実効値を取得できなければ「未確認」と記録する。peer から native checkout の Git が読めない（`not a git repository`）場合は、peer の検査対象を fixture・対象 SHA の Git object に限り、native checkout の状態は親が確認して peer の未確認を報告に残す。
+`pane run` で起動した agent は名前を持たない。検出後に `herdr agent rename <pane-id> <name>` するか、pane ID を宛先にする。起動した model と effort は、要求した引数と実 process までを確認し、実効値を取得できなければ「未確認」と記録する。Codex peer は `herdr agent start --kind codex` で起動しない。worktree を cwd にした pane の shell から `codex-reviewer` で起動し、対象 worktree の Git 管理情報を read で使えるようにする（起動契約の正本は `~/runtime/skill-harness.md` の「Worktree の開始と復旧」）。それでも peer から Git が読めない（`not a git repository`）場合は、起動経路と `codex-reviewer` のエラーを確認する。peer の権限は広げず、native checkout の状態は親が確認して、peer 側の未確認として報告に残す。
 
 peer-dir と request-file は親と peer の両方から読書きできる Git 管理外の共有ディレクトリの絶対パスで渡す。`/tmp/codex` 配下の run directory に要件・候補と返信先を置く。証跡は [保存と復旧](evidence.md) に従って checkpoint を作る。原本の record は保持し、コピー元と内容を照合する。各依頼に `REQ-<n>` と対象 SHA を付け、共有ディレクトリの `REQ-<n>.md` の一行目を `DONE REQ-<n> <sha>` にする。`<sha>` は依頼の対象 SHA で、writer では依頼時の base SHA とし、最終 commit の SHA は本文の先頭行に書かせる(最終 SHA は依頼時に未確定で、`peer-request.sh` は一行目の SHA だけを照合する)。peer は本文に反例または自分の検証コマンド・結果を書く。peer の sandbox が共有ディレクトリに書けないときは端末に `DONE REQ-<n> <sha> <nonce>` 行・本文・`END REQ-<n> <nonce>` 行で答えさせる（nonce は依頼文に `peer-request.sh` が試行ごとに入れる）。`peer-request.sh` がこの完全な block だけを検査して `REQ-<n>.md` に保存する。peer の権限は広げず、端末を読めない、または保存できない場合は保留する。依頼本文はファイルに保存し、run ID は最初に `date -u +%Y%m%dT%H%M%SZ` と `openssl rand -hex 4` から一度生成する。
 
