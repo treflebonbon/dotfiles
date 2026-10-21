@@ -96,9 +96,9 @@ if (-not $Chrome) {
 $ProfileProcesses = @(Get-ChromeProcesses)
 $Listeners = @(
     if ($DebugPort -gt 0) {
-        Get-NetTCPConnection -ErrorAction Stop | Where-Object {
-            $_.State -eq 'Listen' -and $_.LocalAddress -eq $DebugAddress -and $_.LocalPort -eq $DebugPort
-        }
+        # CIM State 2 = Listen
+        Get-CimInstance -Namespace 'root/StandardCimv2' -ClassName MSFT_NetTCPConnection `
+            -Filter "State = 2 AND LocalAddress = '$DebugAddress' AND LocalPort = $DebugPort" -ErrorAction Stop
     }
 )
 
