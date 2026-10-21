@@ -50,6 +50,15 @@ herdr
 
 関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [llm-agents の Herdr package](https://github.com/numtide/llm-agents.nix/tree/main/packages/herdr)
 
+### Herdr からの agent 起動
+
+新しい pane の shell prompt から Claude Code / Codex を対話モードで起動する手順。確度は confirmed（実測）／inferred（推論）／unconfirmed（未確認）で区別する（[#458](https://github.com/treflebonbon/dotfiles/issues/458)）。
+
+- **Claude Code**: `herdr agent start NAME --kind claude --pane PANE -- --name NAME` で個別 session を開く。この経路が一覧画面を避けるかは unconfirmed。
+- **Codex**: `herdr agent start --kind codex` は使わない。実装役は pane の shell から `codex-worktree`、読み取り専用のレビュー役は `codex-reviewer` で起動する（[契約](skill-harness.md#worktree-の開始と復旧)）。
+- **`agent_pane_busy` が続くとき**（confirmed: #458 で shell prompt 表示後も発生。pane の revision や `--no-focus` との関係は未確認、[#426 の観測](../docs/research/herdr-agent-startup-observations.md)）: `herdr pane read PANE` と `herdr pane process-info --pane PANE` で、shell prompt が出ていて他の command が動いていないことを確かめ、`herdr pane run PANE "claude"` で起動する（confirmed: #458 で起動し agent として認識された）。この経路には `agent start` の ready 判定がなく、agent に名前も付かない。`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` してから `agent prompt` する。busy の原因を bash の line editor（flyline）が前面 process に見えるためとする見立ては #458 の報告者の推測で、repo 内に裏付けはない（inferred）。
+- **背景 session の一覧画面が開くとき**: #458 では `pane run` で起動した `claude` が一覧を開いた（confirmed、ただし再現性は低く、[別の実測](../local-skills/herdr-peer-refactor/references/herdr.md)では対話画面になった）。原因（設定・起動経路・version）は unconfirmed。一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。一覧に送った `agent prompt` は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。
+
 ### 新規 worktree への `.env` コピー
 
 dotfiles repo の `.herdr/herdr-plugin.toml` は、`worktree.created` に Bash のコピー処理を直接定義するローカル plugin。外部 plugin の install は不要で、実行には既存ユーザー devShell の Bash・jq・Git・cp を使う。`.herdr` は chezmoi のホーム配備対象から除外する。
