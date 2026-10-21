@@ -1,7 +1,7 @@
 import { defineConfig } from "oxfmt";
-import ultracite from "ultracite/oxfmt";
 
 import { projectIgnorePatterns } from "./project-ignore-patterns.ts";
+import ultracite from "./scripts/vendor/ultracite/config/oxfmt/index.mjs";
 
 export default defineConfig({
   ...ultracite,

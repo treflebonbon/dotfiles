@@ -49,6 +49,7 @@ pre-commit:
         - ".claude/skills/**"
         - ".claude/worktrees/**"
         - ".worktrees/**"
+        - "scripts/vendor/ultracite/config/**"
         - "CHANGELOG.md"
         # apm 生成の lockfile。oxfmt で再整形すると apm install が runtime で
         # native 形式に書き戻し chezmoi と永続 drift するため除外する。
@@ -68,6 +69,7 @@ pre-commit:
         - ".claude/skills/**"
         - ".claude/worktrees/**"
         - ".worktrees/**"
+        - "scripts/vendor/ultracite/config/**"
       stage_fixed: true
     - name: ghalint
       run: ghalint run {staged_files}
