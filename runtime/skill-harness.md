@@ -60,7 +60,7 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 
 ### Worktree の開始と復旧
 
-Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に physical root、ブランチ、HEAD、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
+Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に `git fetch origin` し、physical root、ブランチ、HEAD（`origin/<default>` との一致を含む。native 作成は fetch 前の古い参照から作ることがある）、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
 
 - **Herdr**: 明示依頼時に `herdr` スキルを使い、`HERDR_ENV=1` を確認して native worktree・pane を管理する。Codex の隔離起動は、対象 pane の shell prompt から `codex-worktree` を実行する。既存 linked worktree を受け取る adapter なので `--worktree` は渡さない。pane の cwd と返却された ID を確認し、background 起動は `--no-focus` を使う。agent 認識と入力可能状態を親が確認してから依頼を引き継ぐ。隔離内では Herdr socket を公開せず、Herdr の制御は親が担当する。
 - **Orca**: native worktree と Agent Picker の built-in agent 起動を使い、permission mode は Orca に委ねる。自律 workflow は shipped Yolo、確認を残す場合は Manual と Orca Source Control を使う。Orca native Codex は `codex-orca` / `codex-worktree` を使わない。worktree は review / recovery の境界であり OS sandbox ではないため、Yolo は信頼できる repository / host に限る。runtime 自己認識で Orca を識別し、`ORCA_*` environment の汎用判定は導入しない。Orca primary checkout からの実装は native worktree の新しい agent session で開始する。

@@ -103,7 +103,7 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 
 ## Shell 操作
 
-別ディレクトリの git は `git -C` ではなく `cd <dir> && git …` で実行する。構文の複雑さで拒否された複合コマンドは、スクリプトを scratchpad に書いて実行する（権限で禁止された操作の迂回には使わない）。詳細は `~/runtime/index.md`。
+別ディレクトリの git は `git -C` ではなく `cd <dir> && git …` で実行する。worktree に隔離されたセッションは自分の worktree で完結させ、別 checkout へ `cd` した git は拒否されるため、必要ならユーザーへ戻す。構文の複雑さで拒否された複合コマンドは、スクリプトを scratchpad に書いて実行する（権限で禁止された操作の迂回には使わない）。詳細は `~/runtime/index.md`。
 
 ## ブラウザ操作ツール
 
