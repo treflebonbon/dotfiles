@@ -1,9 +1,12 @@
 """隔離 HOME の user / repo devShell で候補 AI output と実起動を照合する。"""
 
 import argparse
+import atexit
 import json
 import os
 from pathlib import Path
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -66,6 +69,9 @@ def main():
     separator = cli.index("--") if "--" in cli else len(cli)
     arguments = parser.parse_args(cli[:separator])
     command = cli[separator + 1 :]
+    # SIGTERM / SIGHUP は atexit を飛ばす。SystemExit に変えて後始末を走らせ、subprocess.run に子を止めさせる。
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, lambda received, _frame: sys.exit(128 + received))
     source = arguments.source.resolve(strict=True)
     (source / "tmp").mkdir(exist_ok=True)
     runtime = Path(tempfile.mkdtemp(prefix="ai-tools-", dir=source / "tmp"))
@@ -91,6 +97,8 @@ def main():
         path = runtime / directory
         path.mkdir(mode=0o700)
         environment[key] = str(path)
+        # 隔離先は証拠ではない。tmp/ に壊れた symlink が残ると chezmoi が source 全体で失敗する。
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
     for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR", "FORCE_COLOR"):
         environment.pop(key, None)
     environment.update(

@@ -51,6 +51,10 @@ else:
     if os.environ.get('AI_FIXTURE_MODE') == 'startup-signal':
         print('fixture startup signal', file=sys.stderr, flush=True)
         os.kill(os.getpid(), 15)
+    if os.environ.get('AI_FIXTURE_MODE') == 'startup-hang':
+        Path(os.environ['AI_FIXTURE_LOG'] + '.ready').touch()
+        import time
+        time.sleep(60)
     Path(os.environ['HOME'], '.agents').mkdir(exist_ok=True)
     Path(os.environ['HOME'], '.agents', 'hook').write_text('isolated')
     command = sys.argv[sys.argv.index('--command') + 1:]
@@ -110,7 +114,7 @@ PY
   run env PATH="$BIN:$PATH" HOME="$BATS_TEST_TMPDIR/original-home" \
     CODEX_HOME=ambient CLAUDE_CONFIG_DIR=ambient FORCE_COLOR=1 \
     XDG_CACHE_HOME=ambient XDG_STATE_HOME=ambient \
-    python3 "$PROBE" "$SOURCE" --shell wsl -- bash -c 'printf "verified-command\n"'
+    python3 "$PROBE" "$SOURCE" --shell wsl -- bash -c 'printf "verified-command/%s\n" "$(cat "$HOME/.agents/hook")"'
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'PASS: 6 CLI'* ]]
@@ -123,8 +127,10 @@ assert len(rows)==3
 assert len({row['HOME'] for row in rows})==1
 home=Path(rows[0]['HOME'])
 assert home.is_relative_to(Path(sys.argv[2])/'tmp')
-assert (home/'.agents/hook').read_text()=='isolated'
-assert 'verified-command' in (home.parent/'startup.log').read_text()
+assert 'verified-command/isolated' in (home.parent/'startup.log').read_text()
+# A leftover symlink under the source tmp/ makes chezmoi fail on the whole source.
+for name in ['home', 'config', 'data', 'runtime', 'cache', 'state']:
+    assert not (home.parent/name).exists(), name
 for row in rows:
     assert row['CODEX_HOME'] is row['CLAUDE_CONFIG_DIR'] is row['FORCE_COLOR'] is None
     assert row['XDG_CONFIG_HOME']==str(home.parent/'config')
@@ -273,4 +279,23 @@ PY
     [ "$(cat "$case_source"/tmp/ai-tools-*/exit-code)" -eq 143 ]
     grep -q 'fixture .* signal' "$case_source"/tmp/ai-tools-*/*.log
   done
+}
+
+@test "AI candidate verification removes isolated directories when terminated mid-run" {
+  AI_FIXTURE_MODE=startup-hang PATH="$BIN:$PATH" HOME="$BATS_TEST_TMPDIR/original-home" \
+    python3 "$PROBE" "$SOURCE" >/dev/null 2>&1 &
+  local pid=$!
+  local waited=0
+  while [ ! -e "$AI_FIXTURE_LOG.ready" ]; do
+    sleep 0.1
+    waited=$((waited + 1))
+    [ "$waited" -lt 100 ]
+  done
+  kill -TERM "$pid"
+  local status=0
+  wait "$pid" || status=$?
+
+  [ "$status" -eq 143 ]
+  # A leftover symlink under the source tmp/ makes chezmoi fail on the whole source.
+  run ! compgen -G "$SOURCE/tmp/ai-tools-*/home"
 }
