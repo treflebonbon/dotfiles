@@ -118,10 +118,37 @@ reviewer() {
   [ ! -e "$LAUNCHED" ]
 }
 
-@test "skills and runtime docs start Codex through codex-reviewer or codex-worktree, not herdr agent start" {
-  # Commands only: prose may still name the unsupported route in backticks.
-  run grep -rnE -- '^[[:space:]]*(\$ )?herdr agent start\b[^`]*--kind[= ]codex' \
-    "$PROJECT_ROOT/local-skills" "$PROJECT_ROOT/runtime"
+# Prints command lines that start Codex with `herdr agent start`, joining
+# backslash continuations first. Commands only: prose may still name the
+# unsupported route in backticks.
+herdr_codex_launches() {
+  # Text files only; awk warns on binaries such as __pycache__ entries.
+  grep -rIlZ '' "$@" | xargs -0 awk '
+    FNR == 1 { command = "" }
+    /\\$/ { command = command substr($0, 1, length($0) - 1); next }
+    {
+      command = command $0
+      if (command ~ /^[[:space:]]*(\$ )?herdr agent start[[:space:]][^`]*--kind[= ]codex/) {
+        print FILENAME ": " command
+      }
+      command = ""
+    }
+  '
+}
 
-  [ "$status" -eq 1 ]
+@test "herdr Codex launch check also catches commands wrapped with backslash continuations" {
+  printf '%s\n' '```bash' 'herdr agent start reviewer \' '  --kind codex --pane 1' '```' \
+    >"$BATS_TEST_TMPDIR/wrapped.md"
+
+  run herdr_codex_launches "$BATS_TEST_TMPDIR/wrapped.md"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "$BATS_TEST_TMPDIR/wrapped.md: herdr agent start reviewer   --kind codex --pane 1" ]
+}
+
+@test "skills and runtime docs start Codex through codex-reviewer or codex-worktree, not herdr agent start" {
+  run herdr_codex_launches "$PROJECT_ROOT/local-skills" "$PROJECT_ROOT/runtime"
+
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }
