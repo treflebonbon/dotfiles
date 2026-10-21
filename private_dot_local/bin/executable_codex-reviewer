@@ -54,7 +54,8 @@ def validate_arguments(arguments):
                 value = argument.split("=", 1)[1]
             # Codex splits -c keys on dots without unquoting, so the first segment is the table.
             key = value.split("=", 1)[0].split(".", 1)[0].strip()
-            if key in BOUNDARY_CONFIG_KEYS:
+            # A line break could smuggle a later TOML table past the first-key check.
+            if key in BOUNDARY_CONFIG_KEYS or "\n" in value or "\r" in value:
                 raise InvalidContext(
                     f"config can replace the reviewer boundary: {value}"
                 )

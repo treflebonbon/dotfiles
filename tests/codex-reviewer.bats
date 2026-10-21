@@ -63,9 +63,12 @@ reviewer() {
     -cdefault_permissions=x --config=permissions.dotfiles-secure.filesystem={}
     "-c|permissions.x={}" "--config|sandbox_mode=\"danger-full-access\""
     "-c|sandbox_workspace_write.network_access=true" "-c|profile=\"other\"" "-c|profiles.x={}"
+    $'-c|model_reasoning_effort="high"\n[permissions.dotfiles-secure.filesystem]\n"/"="write"'
+    $'--config=model="x"\r[permissions.x]'
   )
   for case in "${cases[@]}"; do
-    IFS='|' read -r -a argv <<<"$case"
+    # "option|value" passes the value as a separate argument, newlines included.
+    if [[ "$case" == *"|"* ]]; then argv=("${case%%|*}" "${case#*|}"); else argv=("$case"); fi
     reviewer "$WORKTREE" "${argv[@]}"
     [ "$status" -eq 1 ] || { echo "accepted: $case"; return 1; }
     [[ "$output" == "codex-reviewer: "* ]]
