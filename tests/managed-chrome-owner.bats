@@ -234,9 +234,31 @@ PY
     script="$(wslpath -w "$script")"
     for query in process port; do
       run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$harness" \
-        -ScriptPath "$script" -FailedQuery "$query" -Role "$role"
+        -ScriptPath "$script" -Scenario "$query" -Role "$role"
       [ "$status" -ne 0 ]
       [[ "$output" == *"query unavailable"* ]]
+    done
+  done
+}
+
+@test "Windows inspection filters the selected listener and preserves its owner" {
+  command -v powershell.exe >/dev/null || skip "Windows PowerShell is unavailable"
+  local harness script role scenario expected
+  harness="$(wslpath -w "$PROJECT_ROOT/tests/fixtures/managed-chrome-inspection.ps1")"
+  for role in playwright dogfood; do
+    script="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
+    [[ "$role" == dogfood ]] && script="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
+    script="$(wslpath -w "$script")"
+    for scenario in absent conflict managed; do
+      case "$scenario" in
+        absent) expected=absent ;;
+        conflict) expected=port-conflict:4242 ;;
+        managed) expected=managed:headless:4242 ;;
+      esac
+      run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$harness" \
+        -ScriptPath "$script" -Scenario "$scenario" -Role "$role"
+      [ "$status" -eq 0 ]
+      [ "${output%$'\r'}" = "$expected" ]
     done
   done
 }
