@@ -53,6 +53,8 @@ run_registry_checker() (
 
 run_registry_hook() (
   cd "$REGISTRY_REPO"
+  # 成功時の出力を検査するため、環境の LEFTHOOK_OUTPUT=failure を外す。
+  unset LEFTHOOK_OUTPUT
   lefthook run pre-commit --job format-and-registry --no-auto-install
 )
 
