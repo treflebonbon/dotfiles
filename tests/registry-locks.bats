@@ -62,6 +62,17 @@ run_registry_hook() (
   [[ "$output" == *"1 個の npm lockfile"* ]]
 }
 
+@test "staged npm configuration rejects registry keys that npm ignores" {
+  write_registry_fixture
+  for key in REGISTRY Registry; do
+    printf '%s=https://registry.npmjs.org/\n' "$key" >"$REGISTRY_REPO/tests/experiments/rop-analysis/.npmrc"
+    git -C "$REGISTRY_REPO" add tests/experiments/rop-analysis/.npmrc
+    run run_registry_checker --staged
+    [ "$status" -ne 0 ]
+    [[ "$output" == *".npmrc: registry は公式 npm registry を一つだけ指定してください"* ]]
+  done
+}
+
 @test "Bun and npm lockfiles reject mirror and lookalike registry hosts" {
   write_registry_fixture
   for url in \

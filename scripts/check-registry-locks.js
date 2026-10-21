@@ -100,11 +100,11 @@ const checkNpmrc = () => {
       continue;
     }
     const setting = line.match(
-      /^(?<key>(?:@[^:]+:)?registry)\s*=\s*(?<value>.*?)\s*$/iu
+      /^(?<key>(?:@[^:]+:)?registry)\s*=\s*(?<value>.*?)\s*$/u
     );
     if (setting) {
       registries.push([
-        setting.groups.key.toLowerCase(),
+        setting.groups.key,
         setting.groups.value.replace(/\s+#.*$/u, "").trim(),
       ]);
     } else if (/^(?:@[^:]+:)?registry\b/iu.test(line)) {
@@ -232,9 +232,10 @@ if (!paths.includes("bun.lock")) {
 checkBunfig();
 checkNpmrc();
 checkBunLock();
-for (const path of paths.filter(
+const npmLockPaths = paths.filter(
   (name) => name === "package-lock.json" || name.endsWith("/package-lock.json")
-)) {
+);
+for (const path of npmLockPaths) {
   checkNpmLock(path);
 }
 
@@ -245,5 +246,5 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(
-  `registry-locks: bun.lock と ${paths.filter((name) => name === "package-lock.json" || name.endsWith("/package-lock.json")).length} 個の npm lockfile は公式 registry を参照しています`
+  `registry-locks: bun.lock と ${npmLockPaths.length} 個の npm lockfile は公式 registry を参照しています`
 );
