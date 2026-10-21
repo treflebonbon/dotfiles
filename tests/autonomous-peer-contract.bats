@@ -167,10 +167,10 @@ PY
   ! grep -Fq 'auto-peer.rules' "$sync"
   grep -Fq 'pattern = ["git", "push"]' "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules"
   ! grep -Fq '"git", "push"' "$rules"
-  grep -Fq 'default_permissions="dotfiles-peer"' "$AUTO_SESSION"
   grep -Fq 'GH_CONFIG_DIR=~/.codex-peer/gh' "$AUTO_SESSION"
   grep -Fq 'CODEX_HOME=~/.codex-peer' "$AUTO_SESSION"
-  grep -Fq 'codex --disable apps -c' "$AUTO_SESSION"
+  # --peer selects dotfiles-peer (tests/codex-reviewer.bats).
+  grep -Fq 'codex-reviewer --peer --disable apps' "$AUTO_SESSION"
   grep -Fq '[apps.github]' "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl"
 }
 

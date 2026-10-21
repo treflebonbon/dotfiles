@@ -22,7 +22,7 @@ codex の peer は GitHub に書き込まないので、書込み権限のない
 - 資格情報: repo 限定の read-only の fine-grained token を、専用の gh 設定先 `~/.codex-peer/gh`（`GH_CONFIG_DIR`）に置く。人が発行して置く。
 - 隔離: peer は `dotfiles-peer` profile（`private_dot_config/codex/config.toml.tmpl`）で起動する。`dotfiles-secure` から、書込み可能な資格情報がある `~/.config/gh` の読取りを外し、`~/.codex-peer/gh` だけを読む。
 - 別の認証経路: 管理設定は GitHub App を `approve` で有効にしている（`[apps.github]`）。peer では `--disable apps` で App 全体を無効にし、`gh` の read-only の資格情報を唯一の GitHub 認証にする。
-- 起動: peer の pane の shell で `CODEX_HOME=~/.codex-peer GH_CONFIG_DIR=~/.codex-peer/gh codex --disable apps -c 'default_permissions="dotfiles-peer"'`。
+- 起動: peer の pane の shell で `CODEX_HOME=~/.codex-peer GH_CONFIG_DIR=~/.codex-peer/gh codex-reviewer --peer --disable apps`。`--peer` で `dotfiles-peer` を選び、対象 worktree の Git dir と common dir を read だけで足す（`~/runtime/skill-harness.md` の「Worktree の開始と復旧」）。
 - 使う条件: 専用 home、`rules/auto-peer.rules`、read-only の資格情報を人が用意し、この参照の「有効化」の表の行を人が「有効」に更新したときだけ使う。それまでは未有効の規則で、実行せず、報告に未実行の項目と有効化の手順を書く。実測は任意で、済んでいなくても使えるが、rules が覆うのは列挙した形だけで、`sh -c` や `env` の前置きは実行できる。
 
 ## 起動と既存 helper
