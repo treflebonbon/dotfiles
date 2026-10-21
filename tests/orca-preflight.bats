@@ -350,6 +350,32 @@ PY
   [[ "$output" == *"UTF-8本文ファイル"* ]]
 }
 
+@test "orca-send limits the UTF-8 body to 8 KiB before invoking Orca" {
+  local fake_cli="$BATS_TEST_TMPDIR/orca-ide" body_file="$BATS_TEST_TMPDIR/body.md"
+  cat >"$fake_cli" <<'PY'
+#!/usr/bin/env python3
+import os
+from pathlib import Path
+Path(os.environ["ORCA_CALLED"]).touch()
+PY
+  chmod +x "$fake_cli"
+  python3 - "$body_file" <<'PY'
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_bytes(("あ" * 2730 + "ab").encode("utf-8"))
+PY
+  run env ORCA_CALLED="$BATS_TEST_TMPDIR/limit-called" "$ORCA_SEND" --cli "$fake_cli" --body-file "$body_file" -- --to dispatch:dispatch-1
+  [ "$status" -eq 0 ]
+  [ -e "$BATS_TEST_TMPDIR/limit-called" ]
+  printf 'c' >>"$body_file"
+  run env ORCA_CALLED="$BATS_TEST_TMPDIR/oversize-called" "$ORCA_SEND" --cli "$fake_cli" --body-file "$body_file" -- --to dispatch:dispatch-1
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"本文は8 KiB以内"* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/oversize-called" ]
+  run "$ORCA_SEND" --help
+  [[ "$output" == *"argv"* ]]
+}
+
 @test "the documented Python sender calls orca-send and preserves shell-looking body text" {
   local example="$BATS_TEST_TMPDIR/example.py" bin="$BATS_TEST_TMPDIR/bin" body_file="$BATS_TEST_TMPDIR/task body.md"
   mkdir -p "$bin"

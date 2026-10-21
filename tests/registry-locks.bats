@@ -55,11 +55,41 @@ run_registry_hook() (
   lefthook run pre-commit --job registry-locks --no-auto-install
 )
 
+run_full_registry_hook() (
+  cd "$REGISTRY_REPO"
+  lefthook run pre-commit --no-auto-install
+)
+
 @test "official Bun and npm registries pass with normal package-lock root and workspace entries" {
   write_registry_fixture
   run run_registry_checker --staged
   [ "$status" -eq 0 ]
   [[ "$output" == *"1 個の npm lockfile"* ]]
+}
+
+@test "npm registry values accept INI quotes and comments without hiding mirror URLs" {
+  write_registry_fixture
+  for value in \
+    '"https://registry.npmjs.org/"' \
+    "'https://registry.npmjs.org/'" \
+    '"https:\/\/registry.npmjs.org\/"' \
+    'https://registry.npmjs.org/ ; official registry'; do
+    printf 'registry=%s\n' "$value" >"$REGISTRY_REPO/tests/experiments/rop-analysis/.npmrc"
+    git -C "$REGISTRY_REPO" add tests/experiments/rop-analysis/.npmrc
+    run run_registry_checker --staged
+    [ "$status" -eq 0 ]
+  done
+  for value in \
+    '"https://mirror.invalid/"' \
+    "'https://mirror.invalid/'" \
+    "'[\"https://registry.npmjs.org/\"]'" \
+    '"https://registry.npmjs.org/#mirror"' \
+    'https://registry.npmjs.org/\#mirror'; do
+    printf 'registry=%s\n' "$value" >"$REGISTRY_REPO/tests/experiments/rop-analysis/.npmrc"
+    git -C "$REGISTRY_REPO" add tests/experiments/rop-analysis/.npmrc
+    run run_registry_checker --staged
+    [ "$status" -ne 0 ]
+  done
 }
 
 @test "staged npm configuration rejects registry keys that npm ignores" {
@@ -225,4 +255,28 @@ JSON
   run run_registry_hook
   [ "$status" -eq 0 ]
   [[ "$output" == *"registry-locks: bun.lock と 1 個の npm lockfile"* ]]
+}
+
+@test "the full pre-commit hook preserves the staged registry and rejects a staged mirror" {
+  write_registry_fixture
+  git -C "$REGISTRY_REPO" commit -qm fixture
+  ln -s "$PROJECT_ROOT/node_modules" "$REGISTRY_REPO/node_modules"
+  printf '\n' >>"$REGISTRY_REPO/bunfig.toml"
+  git -C "$REGISTRY_REPO" add bunfig.toml
+  cat >"$REGISTRY_REPO/bunfig.toml" <<'TOML'
+[install]
+registry = "https://mirror.invalid"
+TOML
+  run run_full_registry_hook
+  [ "$status" -eq 0 ]
+  run git -C "$REGISTRY_REPO" show :bunfig.toml
+  [[ "$output" == *"https://registry.npmjs.org"* ]]
+  [[ "$output" != *"mirror.invalid"* ]]
+  run cat "$REGISTRY_REPO/bunfig.toml"
+  [[ "$output" == *"https://mirror.invalid"* ]]
+
+  git -C "$REGISTRY_REPO" add bunfig.toml
+  run run_full_registry_hook
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"bunfig.toml: [install].registry は公式 npm registry を一つだけ指定してください"* ]]
 }

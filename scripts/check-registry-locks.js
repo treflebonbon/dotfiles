@@ -27,6 +27,9 @@ const git = (argv) => {
 };
 
 const officialRegistry = (value, packageSource = false) => {
+  if (typeof value !== "string") {
+    return false;
+  }
   try {
     const url = new URL(value);
     return (
@@ -87,6 +90,29 @@ const checkBunfig = () => {
   }
 };
 
+const npmrcValue = (raw) => {
+  let value = raw.trim();
+  const quoted = ['"', "'"].some(
+    (quote) => value.startsWith(quote) && value.endsWith(quote)
+  );
+  if (!quoted) {
+    return value
+      .replaceAll(
+        /\\(?<escaped>[\\;#])|[;#].*$/gu,
+        (_match, escaped) => escaped ?? ""
+      )
+      .trim();
+  }
+  if (value.startsWith("'")) {
+    value = value.slice(1, -1);
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
 const checkNpmrc = () => {
   const path = "tests/experiments/rop-analysis/.npmrc";
   const source = textOf(path);
@@ -103,10 +129,7 @@ const checkNpmrc = () => {
       /^(?<key>(?:@[^:]+:)?registry)\s*=\s*(?<value>.*?)\s*$/u
     );
     if (setting) {
-      registries.push([
-        setting.groups.key,
-        setting.groups.value.replace(/\s+#.*$/u, "").trim(),
-      ]);
+      registries.push([setting.groups.key, npmrcValue(setting.groups.value)]);
     } else if (/^(?:@[^:]+:)?registry\b/iu.test(line)) {
       malformed = true;
     }
