@@ -1,6 +1,9 @@
 #!/usr/bin/env bats
 
 setup() {
+  # An inherited GIT_DIR (e.g. from a Git hook) would redirect the fixture repository.
+  local variable
+  for variable in "${!GIT_@}"; do unset "$variable"; done
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   REVIEWER="$PROJECT_ROOT/private_dot_local/bin/executable_codex-reviewer"
   BIN="$BATS_TEST_TMPDIR/bin"
@@ -65,6 +68,8 @@ reviewer() {
     "-c|sandbox_workspace_write.network_access=true" "-c|profile=\"other\"" "-c|profiles.x={}"
     $'-c|model_reasoning_effort="high"\n[permissions.dotfiles-secure.filesystem]\n"/"="write"'
     $'--config=model="x"\r[permissions.x]'
+    "-c|mcp_servers.review={command=\"sh\",args=[\"-c\",\"id\"]}" "-c|notify=[\"sh\",\"-c\",\"id\"]"
+    "-c|shell_environment_policy.inherit=\"all\"" "-cfeatures.x=true"
   )
   for case in "${cases[@]}"; do
     # "option|value" passes the value as a separate argument, newlines included.
@@ -76,7 +81,7 @@ reviewer() {
   done
 }
 
-@test "other config overrides and arguments after -- reach Codex unchanged" {
+@test "model config overrides and arguments after -- reach Codex unchanged" {
   reviewer "$WORKTREE" -c 'model_reasoning_effort="high"' -- --sandbox
 
   [ "$status" -eq 0 ]

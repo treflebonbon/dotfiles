@@ -15,7 +15,7 @@ Herdr pane で起動したレビュー役の Codex は、task worktree で `git 
 
 - 読み取り専用レビュー役は `codex-reviewer` で起動する。`codex-reviewer` は `codex-worktree` と同じ `Repository.discover(linked_only=True)` で ownership chain を検証する。そのうえで `-C <root>`、`default_permissions`、`permissions.<profile>.filesystem={"<git dir>"="read","<common dir>"="read"}` を付けて Codex を起動する。
 - 既定の profile は `dotfiles-secure`。auto peer は `--peer` で `dotfiles-peer` を選び、gh 資格情報の隔離を保つ。
-- root・profile・filesystem・sandbox・rules を置き換える引数を受け取ったら、Codex を起動しない。対象は `codex-inner.py` の `validate_codex_arguments` と同じフラグ群と、`-c` の `default_permissions`、`permissions`、`sandbox_mode`、`sandbox_workspace_write`、`profile`、`profiles`。それ以外の `-c` と `--disable` は通す。auto peer の `--disable apps` を使うためで、adapter の validator を共用しない理由もここにある。
+- root・profile・filesystem・sandbox・rules を置き換える引数を受け取ったら、Codex を起動しない。対象は `codex-inner.py` の `validate_codex_arguments` と同じフラグ群。`-c` は `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` の 1 行の値だけを許可する。`mcp_servers` や `notify` のように sandbox の外でコマンドを起動できるキーがあり、拒否するキーを列挙する方式では漏れるため。`--disable` は通す。auto peer の `--disable apps` を使うためで、adapter の validator を共用しない理由もここにある。
 - Codex CLI の `-c` は key を「.」ごとに分割し、quoted key を TOML として解釈しない。そのため、`github.com` を含む path は key に書けない。path は inline table の値として渡す。Codex 0.162.1 では、この inline table は profile の既存の filesystem table にマージされた（`:workspace_roots` 配下の `.env` deny が残ることを実測）。
 
 ## Considered Options

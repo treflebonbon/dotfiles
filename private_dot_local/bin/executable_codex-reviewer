@@ -28,13 +28,12 @@ BOUNDARY_OPTIONS = {
     "--sandbox-state-json",
     "--sandbox-state-readable-root",
 }
-BOUNDARY_CONFIG_KEYS = {
-    "default_permissions",
-    "permissions",
-    "sandbox_mode",
-    "sandbox_workspace_write",
-    "profile",
-    "profiles",
+# Other keys can start commands outside the sandbox (mcp_servers, notify) or replace it.
+ALLOWED_CONFIG_KEYS = {
+    "model",
+    "model_reasoning_effort",
+    "model_reasoning_summary",
+    "model_verbosity",
 }
 
 
@@ -52,13 +51,10 @@ def validate_arguments(arguments):
                 value = argument[2:]
             else:
                 value = argument.split("=", 1)[1]
-            # Codex splits -c keys on dots without unquoting, so the first segment is the table.
-            key = value.split("=", 1)[0].split(".", 1)[0].strip()
-            # A line break could smuggle a later TOML table past the first-key check.
-            if key in BOUNDARY_CONFIG_KEYS or "\n" in value or "\r" in value:
-                raise InvalidContext(
-                    f"config can replace the reviewer boundary: {value}"
-                )
+            key = value.split("=", 1)[0].strip()
+            # A line break could smuggle a later TOML table past the key check.
+            if key not in ALLOWED_CONFIG_KEYS or "\n" in value or "\r" in value:
+                raise InvalidContext(f"only model config is allowed: {value}")
         elif (
             name in BOUNDARY_OPTIONS
             or name.startswith("--dangerously-")
