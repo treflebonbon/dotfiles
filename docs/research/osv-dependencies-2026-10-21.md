@@ -46,7 +46,7 @@ ADR-0045 は llm-agents snapshot、通常の APM payload、Impeccable、Matt Poc
 現行 `braces` の latest は3.0.3で、advisory は affected `<=3.0.3`、patched version `None` ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm))。公式 npm metadata でも `ultracite@8.0.1` の latest 依存は `fast-glob@^3.3.3` / `find-workspaces@^0.3.1`、latest の `fast-glob@3.3.3` は `micromatch@^4.0.8`、latest の `micromatch@4.0.8` は `braces@^3.0.3` を維持する。互換範囲内の通常更新ではこの advisory は消えない。
 
 1. **公式 export を維持**: npm 公開 package `ultracite@7.12.4` は `./oxlint/*` と `./oxfmt` を export するが、その同じ package が CLI と全 dependency tree を宣言する。npm registry search では公式 preset-only package を確認できなかったため、subpath export だけでは `braces` を外せない。
-2. **現行 preset を同梱**: 固定済み tarball の `oxlint/core/index.mjs`（622行 / 26,139B）、`oxfmt/index.mjs`（29行 / 638B）、共有 `ignores.mjs`（78行 / 2,724B）で計729行 / 29,501B。型宣言3つも要り、npm package metadata は MIT を宣言する一方、tarball に root LICENSE は含まないため upstream notice を別途保つ必要がある。source 差分は root の2 config、`project-ignore-patterns.ts`、`lefthook.yml`、`package.json`（Ultracite と stale override を削除）、生成 `bun.lock`、同梱設定と license に限る。固定した upstream export と同梱設定の deep equality、`projectIgnorePatterns` の合成結果、同一対象に対する Oxlint / Oxfmt の既存出力を比較すれば挙動を検証できる。Ultracite CLI caller は見つかっていないが、preset 設定の upstream 追随は以後手動保守となる。
+2. **現行 preset を同梱**: 固定済み tarball の `oxlint/core/index.mjs`（622行 / 26,139B）、`oxfmt/index.mjs`（29行 / 638B）、共有 `ignores.mjs`（78行 / 2,724B）で計729行 / 29,501B。型宣言3つも要り、npm package metadata は MIT を宣言する一方、tarball に root LICENSE は含まないため upstream notice を別途保つ必要がある。source 差分は root の2 config、`project-ignore-patterns.ts`、`lefthook.yml`、`package.json`（Ultracite と stale override を削除）、生成 `bun.lock`、同梱設定と license に限る。固定した upstream export と同梱設定の deep equality、`projectIgnorePatterns` の合成結果、同一対象に対する Oxlint / Oxfmt の出力を比較して挙動を検証した。Ultracite CLI caller は見つかっていないが、preset 設定の upstream 追随は以後手動保守となる。
 3. **現行維持**: 追加の保守はないが、root の High advisory が残り、repo 全体の Full Scan は失敗する。
 
 ### 採用判断
@@ -58,5 +58,13 @@ ADR-0045 は llm-agents snapshot、通常の APM payload、Impeccable、Matt Poc
 - `bun install --frozen-lockfile` は 66 packages を変更なく確認し、実行前後の `bun.lock` SHA-256 は `8b1a8a37f49ffdc9115dbea620bbea782bf7dc3f0c24bfad2d8e47d10dcfabf0` で不変。
 - `bunx tsc --noEmit`、対象3ファイルの `bunx oxlint`、変更した設定・lock・文書の `bunx oxfmt --check` がすべて成功。
 - `bats tests/ultracite-vendor.bats` は vendored presets の import と lint/format 除外を確認して成功。
+- 保存済み root config と現在の config は、意図した `scripts/vendor/ultracite/config/**` ignore を除けば設定全体が一致。同じ3ファイルに対する baseline / candidate の Oxlint 診断は byte 一致し、Oxfmt 出力も実行時間の行以外は一致、両方 exit 0。
 - 公式 OSV Scanner `v2.5.1` の最終 recursive scan は7 lockfile を走査し、0 findings / exit 0。
-- `git diff --check` は成功。full Bats suite は親による二軸 review 後に実行する。
+- 原因は、experiment の `package-lock.json` が互換範囲内で修正済みの `brace-expansion@5.0.12` ではなく旧 `5.0.9` を固定していたこと、および root が使用するものは Ultracite の2 preset と共有 ignore だけなのに、preset-only package がなく CLI 全体の依存鎖を導入していたこと。
+- 親による二軸 review 後、次を一度実行した。Bats は 781.29 秒で完了し、plan 1,072 / pass 1,048 / skip 24 / fail 0 / exit 0。skip は hosted model、実 GitHub、Nix build、特定 runtime 等の opt-in 検証で、実行済みとしては数えない。
+
+```bash
+nix develop ./private_dot_config/nix-devshell#wsl --command nix develop .#wsl --command lefthook run test
+```
+
+実行時の TAP、setup log、exit code は `tmp/test-run.GKnH3w/` に保存。`git diff --check` は成功。
