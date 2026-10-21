@@ -128,7 +128,7 @@ herdr_codex_launches() {
     /\\$/ { command = command substr($0, 1, length($0) - 1); next }
     {
       command = command $0
-      if (command ~ /^[[:space:]]*(\$ )?herdr agent start[[:space:]][^`]*--kind[= ]codex/) {
+      if (command ~ /^[[:space:]]*(\$[[:space:]]+)?herdr[[:space:]]+agent[[:space:]]+start[[:space:]][^`]*--kind(=|[[:space:]]+)codex/) {
         print FILENAME ": " command
       }
       command = ""
@@ -144,6 +144,16 @@ herdr_codex_launches() {
 
   [ "$status" -eq 0 ]
   [ "$output" = "$BATS_TEST_TMPDIR/wrapped.md: herdr agent start reviewer   --kind codex --pane 1" ]
+}
+
+@test "herdr Codex launch check also catches repeated whitespace and --kind=codex" {
+  local command
+  for command in 'herdr  agent start reviewer --kind codex' 'herdr agent  start reviewer --kind  codex' \
+    'herdr agent start reviewer --kind=codex'; do
+    printf '%s\n' "$command" >"$BATS_TEST_TMPDIR/spaced.md"
+    run herdr_codex_launches "$BATS_TEST_TMPDIR/spaced.md"
+    [ -n "$output" ] || { echo "missed: $command"; return 1; }
+  done
 }
 
 @test "skills and runtime docs start Codex through codex-reviewer or codex-worktree, not herdr agent start" {
