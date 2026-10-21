@@ -117,3 +117,11 @@ reviewer() {
   [[ "$output" == "codex-reviewer: "* ]]
   [ ! -e "$LAUNCHED" ]
 }
+
+@test "skills and runtime docs start Codex through codex-reviewer or codex-worktree, not herdr agent start" {
+  # Commands only: prose may still name the unsupported route in backticks.
+  run grep -rnE -- '^[[:space:]]*(\$ )?herdr agent start\b[^`]*--kind[= ]codex' \
+    "$PROJECT_ROOT/local-skills" "$PROJECT_ROOT/runtime"
+
+  [ "$status" -eq 1 ]
+}
