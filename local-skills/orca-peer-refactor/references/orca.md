@@ -220,27 +220,29 @@ ordinary / nested worker の `check` は filter なしで whole FIFO を読む�
 
 ## literal message body
 
-shell 展開を避けるため、body を argv の一要素として `subprocess.run` に渡す。`shell=True` や shell command 文字列は使わない。live receipt の宛先・handle・Run ID に置き換える。
+複数行または shell 記号を含む本文は UTF-8 ファイルに置き、配備済みの `orca-send` に本文と native send 引数を渡す。`--cli` にはこの session で選択した Orca 実行ファイルを指定し、live receipt の宛先・handle・Run ID に置き換える。helper は `shell` を使わず `--body` などの二重指定を拒否する。
+
+選択済み CLI の `orchestration send` は `--body` のみを受け付けるため、本文はプロセスの argv に入り、同一ホストのプロセスから見える可能性がある。本文は公開情報に限り、UTF-8で8 KiB以内にする。上限を超える場合は公開証跡ファイルのパスと短い要約を送る。native 引数や環境を含む OS の起動上限も適用され、上限内でも起動に失敗した場合は非0終了する。
 
 <!-- literal-safe-example:start -->
 
 ```python
+import os
 import subprocess
 
-body = "\n".join((
-    "レビューの要点:",
-    'literal $HOME、$(printf test)、`バッククォート`、"二重引用符"、\'一重引用符\' を含む。',
-))
+body_file = os.environ["ORCA_BODY_FILE"]  # UTF-8本文ファイルの絶対パス
+sender = "orca-send"  # 配備済み入口
 orca = "orca-ide"  # ここを選択済み CLI に置き換える
 subprocess.run(
     [
-        orca,
-        "orchestration", "send",
+        sender,
+        "--cli", orca,
+        "--body-file", body_file,
+        "--",
         "--to", "run:<run-id>",
         "--run", "<run-id>",
         "--from", "<sender-handle>",
         "--subject", "レビュー依頼",
-        "--body", body,
         "--type", "status",
         "--json",
     ],

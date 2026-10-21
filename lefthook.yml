@@ -8,6 +8,47 @@ test:
 pre-commit:
   parallel: true
   jobs:
+    - name: format-and-registry
+      group:
+        piped: true
+        jobs:
+          - name: oxfmt
+            # stage_fixed の後処理を待たず、後続の registry 検査より前に index を確定する。
+            run: bunx oxfmt --write {staged_files} && git add -- {staged_files}
+            glob:
+              - "**/*.js"
+              - "**/*.mjs"
+              - "**/*.jsx"
+              - "**/*.ts"
+              - "**/*.tsx"
+              - "**/*.json"
+              - "**/*.jsonc"
+              - "**/*.css"
+              - "**/*.md"
+              - "**/*.yaml"
+              - "**/*.yml"
+              - "**/*.toml"
+            exclude:
+              - "**/dist/**"
+              - ".agents/skills/**"
+              - ".claude/skills/**"
+              - ".claude/worktrees/**"
+              - ".worktrees/**"
+              - "scripts/vendor/ultracite/config/**"
+              - "CHANGELOG.md"
+              # apm 生成の lockfile。oxfmt で再整形すると apm install が runtime で
+              # native 形式に書き戻し chezmoi と永続 drift するため除外する。
+              - "apm.lock.yaml"
+            stage_fixed: true
+          - name: registry-locks
+            run: bun scripts/check-registry-locks.js --staged
+            glob:
+              - "bun.lock"
+              - "bunfig.toml"
+              - "package-lock.json"
+              - "**/package-lock.json"
+              - "scripts/check-registry-locks.js"
+              - "tests/experiments/rop-analysis/.npmrc"
     - name: pinact
       run: pinact run {staged_files}
       glob: ".github/**/*.{yaml,yml}"
@@ -27,33 +68,6 @@ pre-commit:
       file_types:
         - text/x-shellscript
         - text/x-sh
-      stage_fixed: true
-    - name: oxfmt
-      run: bunx oxfmt --write {staged_files}
-      glob:
-        - "**/*.js"
-        - "**/*.mjs"
-        - "**/*.jsx"
-        - "**/*.ts"
-        - "**/*.tsx"
-        - "**/*.json"
-        - "**/*.jsonc"
-        - "**/*.css"
-        - "**/*.md"
-        - "**/*.yaml"
-        - "**/*.yml"
-        - "**/*.toml"
-      exclude:
-        - "**/dist/**"
-        - ".agents/skills/**"
-        - ".claude/skills/**"
-        - ".claude/worktrees/**"
-        - ".worktrees/**"
-        - "scripts/vendor/ultracite/config/**"
-        - "CHANGELOG.md"
-        # apm 生成の lockfile。oxfmt で再整形すると apm install が runtime で
-        # native 形式に書き戻し chezmoi と永続 drift するため除外する。
-        - "apm.lock.yaml"
       stage_fixed: true
     - name: oxlint
       run: bunx oxlint --fix {staged_files}
