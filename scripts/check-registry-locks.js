@@ -59,7 +59,7 @@ const textOf = (filePath) => {
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
-    errors.push(`${path}: UTF-8として読み取れません`);
+    errors.push(`${filePath}: UTF-8として読み取れません`);
     return null;
   }
 };

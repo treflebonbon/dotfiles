@@ -175,6 +175,19 @@ NPMRC
   [ "$status" -ne 0 ]
 }
 
+@test "staged invalid UTF-8 reports the tracked file path" {
+  write_registry_fixture
+  python3 - "$REGISTRY_REPO/package-lock.json" <<'PY'
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_bytes(b"\xff")
+PY
+  git -C "$REGISTRY_REPO" add package-lock.json
+  run run_registry_checker --staged
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"package-lock.json: UTF-8として読み取れません"* ]]
+}
+
 @test "the pre-commit hook runs for a staged lockfile and checker change, using the index" {
   write_registry_fixture
   git -C "$REGISTRY_REPO" commit -qm fixture
