@@ -235,5 +235,6 @@ Claude 本体と起動済み MCP の環境更新、Claude の dotenv 注入・OS
 - **tmux** — `Ctrl+a` プレフィックス
 - **neovim (lazy.nvim)** — LSP は flake devShell 管理のものを PATH 経由で利用
 - **wezterm** — ターミナル（Dracula テーマ、WSL 対応）
+- **nixpkgs の単発ツール** — 実行ファイルの store path を変数に取るときは、`nix eval --json nixpkgs#<pkg>.outputs` で出力を確かめ（実行ファイルは `bin` があれば `bin`、無ければ `out` にある）、`nix build 'nixpkgs#<pkg>^<output>' --no-link --print-out-paths` と明示する（例: rclone は `^out`、openssl は `^bin`）。省略すると、複数出力のパッケージでは複数行が返る場合があり、`$(...)/bin/<cmd>` が壊れる。
 
 関連: [architecture](../docs/architecture.md) / [ai-runtimes](ai-runtimes.md)
