@@ -54,10 +54,15 @@ herdr
 
 新しい pane の shell prompt から Claude Code / Codex を対話モードで起動する手順。確度は confirmed（実測）／inferred（推論）／unconfirmed（未確認）で区別する（[#458](https://github.com/treflebonbon/dotfiles/issues/458)）。
 
-- **Claude Code**: `herdr agent start NAME --kind claude --pane PANE -- --name NAME` で個別 session を開く。この経路が一覧画面を避けるかは unconfirmed。
-- **Codex**: `herdr agent start --kind codex` は使わない。実装役は pane の shell から `codex-worktree`、読み取り専用のレビュー役は `codex-reviewer` で起動する（[契約](skill-harness.md#worktree-の開始と復旧)）。
-- **`agent_pane_busy` が続くとき**（confirmed: #458 で shell prompt 表示後も発生。pane の revision や `--no-focus` との関係は未確認、[#426 の観測](../docs/research/herdr-agent-startup-observations.md)）: `herdr pane read PANE` と `herdr pane process-info --pane PANE` で、shell prompt が出ていて他の command が動いていないことを確かめ、`herdr pane run PANE "claude"` で起動する（confirmed: #458 で起動し agent として認識された）。この経路には `agent start` の ready 判定がなく、agent に名前も付かない。`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` してから `agent prompt` する。busy の原因を bash の line editor（flyline）が前面 process に見えるためとする見立ては #458 の報告者の推測で、repo 内に裏付けはない（inferred）。
-- **背景 session の一覧画面が開くとき**: #458 では `pane run` で起動した `claude` が一覧を開いた（confirmed、ただし再現性は低く、[別の実測](../local-skills/herdr-peer-refactor/references/herdr.md)では対話画面になった）。原因（設定・起動経路・version）は unconfirmed。一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。一覧に送った `agent prompt` は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。
+確認した条件は Herdr 0.9.3、Claude Code 2.1.296、`~/.claude.json` の `defaultToAgentsView: true`。試行ごとの観測は[研究記録](https://github.com/treflebonbon/dotfiles/blob/main/docs/research/herdr-agent-startup-observations.md)にある。
+
+- **Claude Code**: `--name NAME` を付けて起動する。`herdr agent start NAME --kind claude --pane PANE -- --name NAME` で個別の対話 session を開く（confirmed）。`pane run PANE "claude --name NAME"` も対話画面になる（confirmed）。一覧画面については下記を参照。
+- **Codex**: `herdr agent start --kind codex` は使わない。実装役は pane の shell から `codex-worktree`、読み取り専用のレビュー役は `codex-reviewer` で起動する（[契約](skill-harness.md#worktree-の開始と復旧)）。`pane run PANE "codex-reviewer"` の後、`agent list` で codex として認識された（confirmed）。
+- **`agent_pane_busy` が出たとき**:
+  - 観測: split 直後の新しい pane では、shell の子 bash が zombie（`ps` で `Z+`）のまま前面 process group に残ることがある。`pane process-info` には cmdline が `null` の `bash` として出る（confirmed）。busy の原因がこの zombie だというのは inferred（同時に観測したのは 1 回で、Herdr の判定実装は未確認）。zombie の生成元（bashrc の subshell か flyline か）と、revision・`--no-focus` との関係は unconfirmed。
+  - 回避: `herdr pane read PANE` で未確定の入力がない空の shell prompt を、`herdr pane process-info --pane PANE` で shell と zombie 以外の command がないことを確かめる。`herdr pane send-keys PANE enter` で空行を送ってから `agent start` をやり直す（confirmed）。
+  - 最後の手段: `herdr pane run PANE "claude --name NAME"`。ready 判定も agent 名もないので、`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` し、対話画面を確認してから `agent prompt` する。
+- **背景 session の一覧画面が開くとき**: 引数なしの `pane run PANE "claude"` は一覧（`describe a task for a new session`）を開く（confirmed）。Claude Code は、起動条件を満たすと `defaultToAgentsView === true` で agents view を選ぶ（confirmed: 本体コード）。一覧表示へ進む起動条件の詳細は unconfirmed。この設定は `/config` の "Open agents view by default" で、dotfiles では管理していない個人設定。一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。一覧に送った `agent prompt` は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。
 
 ### 新規 worktree への `.env` コピー
 
