@@ -29,4 +29,8 @@
 
 ## 検証結果
 
-結果は最終commit前に追記する。
+- 開発中の関連Bats（ai-quality-floor／nix-devshell／verify-ai-tools／apm-runtime／mattpocock-update-gate／impeccable-engine／herdr）は成功。`nix flake check --no-build --all-systems`成功、x86_64-linux WSL devShellのbuild成功。Codex 0.163.0は`nix build --dry-run`でcacheからfetch（source buildなし）。
+- 初回の`lefthook run test`は`tests/herdr.bats`の1件だけ失敗した（Herdr 0.9.3期待値）。0.9.5へ更新して成功。
+- Herdr本体は0.9.5、Herdr skillはAPM保留のため0.9.3同梱のrevisionのまま。APM unit再開時に揃える。
+- review（Standards／Spec）で指摘された孤児helper、`runtime/ai-runtimes.md`の現在形記述、ADR-0045への撤去追記を修正した。flake.lockのうち`llm-agents`のnixpkgs／treefmt-nixは同inputの更新に伴う変更。
+- 未確認: aarch64実機、waza新hashの実行確認、撤去したcleanup回帰の再現。

@@ -233,6 +233,10 @@ Tool Snapshotを exact revision `998b9f267c671917a0b9a88b01e287c3168f3c24` に�
 - Matt Pocock managed set は `tests/mattpocock-update-gate.sh` の全工程を通す。ADR-0043 に記録した4 testの既知例外は現行 main で再現しないため、今回の例外にはしない。
 - repository の full test、`chezmoi apply`、live 環境の version/discovery smoke までを完了境界とする。
 
+## 2026-10-23 amendment
+
+ユーザー判断により、repo独自のCodex patchを撤去した。上記の`codex-sandbox-cleanup.patch`とsingle-job source buildの維持は終了し、Codexはupstream（Numtide cache）の出力をそのまま使う。SIGKILL時に空dotenvが残り得る既知の回帰は許容する。以後の更新で独自patchを新規に追加しない。経緯と検証は[更新記録](../research/update-tools-skills-20261023.md)を参照する。
+
 ## Consequences
 
 候補ごとの失敗を他の更新へ波及させず、snapshot packaging、通常の skill payload、hook runtime、workflow semantics をそれぞれの根拠で採否できる。一方、単一の一括更新より検証回数と順序制約は増える。
