@@ -11,7 +11,7 @@ tags: [dotfiles, chezmoi, runtime]
 
 chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で作業している agent もここを読める。**このディレクトリに置くのは、home 配下のどの repo でも同じ意味を持つ ambient な知識だけ**（シェル環境・skill 配備の仕組み・AI ランタイム設定）。ディレクトリ名は「runtime」— OKF は書式（markdown + frontmatter）の名前であり、内容を表す名前ではないため使わない。dotfiles repo 自身の内部構造（chezmoi source レイアウト、commit/lint 規約など）は、他 repo で作業中の agent には価値が無いため `docs/`（repo ローカル、`.chezmoiignore` で home 非配備）に置く（[ADR-0007](../docs/adr/0007-split-okf-by-cross-repo-value.md) 参照）。
 
-このディレクトリの `../` で始まるリンクは、配備元の source（`chezmoi source-path` が返す directory）を基準にした相対パスとして辿る。`docs/` などは source 側にだけある。例: `../docs/adr/0007-split-okf-by-cross-repo-value.md` は `$(chezmoi source-path)/docs/adr/0007-split-okf-by-cross-repo-value.md` を読む。
+このディレクトリの `../` で始まるリンクは、配備元の source（`chezmoi source-path` が返す directory）にある `runtime/` を起点にした相対パスとして辿る。`docs/` などは source 側にだけある。例: `../docs/adr/0007-split-okf-by-cross-repo-value.md` は `$(chezmoi source-path)/docs/adr/0007-split-okf-by-cross-repo-value.md` を読む。
 
 ## Concepts
 
