@@ -13,6 +13,8 @@ tags: [conventions, git, lint, lefthook]
 
 ## レビュー
 
+Standards 軸の判断基準（機械的な check にできないもの）は [coding-standards.md](coding-standards.md) を読む。
+
 削除・権限判定の変更では、承認された要件に照らし、検査不能な状態を接続コードから最終操作まで追う。読取り失敗・一部しか見えない状態・検査中の対象消失をどう扱うか、許可条件と拒否条件の両方をレビュー担当が確認する。
 
 sandbox・権限・秘密値の境界を守る入力検査（起動引数、設定の上書き、受け付ける path など）は、通すものを列挙する許可リストで書く。拒否リストは、まだ知らない設定キーや入力の形（改行で区切った別の設定など）で境界を外から広げられる。レビュー担当は、許可した値ごとに境界を広げないことを確認する（[ADR-0080](adr/0080-grant-reviewer-codex-read-only-git-metadata.md) の `-c` 検査が実例）。
@@ -57,6 +59,8 @@ nix develop ./private_dot_config/nix-devshell#default --command \
 ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。
 
 Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。例外として `tests/dogfood.bats` は利用者の記録を汚さないよう `BATS_TEST_TMPDIR` 配下を使う。そのため実際のDogfood session や、Cleanup 失敗で残ったテストの Chrome と同時に動くと、`port-conflict` で失敗することがある。
+
+WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`-Command "$script"` の引数で渡す（confirmed、2026-10-23、#496）。stdin（`-Command -`）で渡すと、`-NonInteractive` の有無にかかわらず、エラーも含めて出力が消えた。`MSFT_NetTCPConnection` の `-Filter` に `LocalPort >= …` のような範囲比較を書くと `0x80041017` で失敗するため、`State` などの等価条件だけをプロバイダに渡し、範囲の絞り込みは PowerShell 側の `Where-Object` で行う。
 
 ```bash
 python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test
