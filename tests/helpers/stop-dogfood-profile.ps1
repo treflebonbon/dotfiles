@@ -2,7 +2,8 @@ param([Parameter(Mandatory = $true)][string]$ProfileDir)
 
 # Test-only fallback that stays independent of the production Cleanup under test.
 # Match the full --user-data-dir argument so a similar or real user profile is never stopped.
-$Pattern = '(?:^|\s)--user-data-dir="?' + [Regex]::Escape($ProfileDir) + '"?(?:\s|$)'
+$Escaped = [Regex]::Escape($ProfileDir)
+$Pattern = '(?:^|\s)--user-data-dir=(?:"' + $Escaped + '"|' + $Escaped + ')(?:\s|$)'
 
 for ($Attempt = 0; $Attempt -lt 100; $Attempt++) {
     $Processes = @(

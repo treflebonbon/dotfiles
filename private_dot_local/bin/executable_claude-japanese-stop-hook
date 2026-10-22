@@ -9,7 +9,7 @@ import json
 import re
 import sys
 
-CODE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+CODE = re.compile(r"^(`{3,}|~{3,}).*?^\1|(`+).+?\2", re.DOTALL | re.MULTILINE)
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
 LATIN = re.compile(r"[A-Za-z]")
 

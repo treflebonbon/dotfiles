@@ -26,6 +26,8 @@ stop_event() {
   for event in \
     "$(stop_event 'テストは成功しました。`lefthook run test` を実行済みです。')" \
     "$(stop_event $'```bash\nbats tests/dogfood.bats\n```')" \
+    "$(stop_event $'~~~bash\necho hello\n~~~')" \
+    "$(stop_event '``echo `hello` ``')" \
     "$(stop_event 'Done.' true)" \
     'not json'; do
     run "$HOOK" <<<"$event"

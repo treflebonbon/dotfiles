@@ -96,18 +96,22 @@ EOF
 # with the test. Stop that profile's Chrome here so later runs do not hit port-conflict.
 teardown() {
   [[ "$DOGFOOD_TEST_WSL" == 1 ]] || return 0
-  local profile helper
-  helper="$(wslpath -w "$PROJECT_ROOT/tests/helpers/stop-dogfood-profile.ps1")"
-  while IFS= read -r profile; do
-    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$helper" -ProfileDir "$profile" </dev/null
-  done < <("$NODE_BIN" -e '
+  # Bats runs teardown without errexit, so each failure is checked explicitly.
+  local profile profiles helper failed=0
+  helper="$(wslpath -w "$PROJECT_ROOT/tests/helpers/stop-dogfood-profile.ps1")" || return 1
+  profiles="$("$NODE_BIN" -e '
     const fs = require("node:fs");
     const dir = process.argv[1];
     for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
       if (!/^(owner|identity-.*\.json)$/.test(name)) continue;
       const owner = JSON.parse(fs.readFileSync(`${dir}/${name}`, "utf8"));
       if (owner.role === "dogfood") console.log(owner.profile);
-    }' "$BROWSER_OWNERSHIP_DIR")
+    }' "$BROWSER_OWNERSHIP_DIR")" || return 1
+  while IFS= read -r profile; do
+    [[ -n "$profile" ]] || continue
+    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$helper" -ProfileDir "$profile" </dev/null || failed=1
+  done <<<"$profiles"
+  return "$failed"
 }
 
 @test "teardown helper stops only Chrome whose profile matches exactly" {
@@ -118,6 +122,7 @@ $global:Alive = [Collections.Generic.List[object]]@(
   @{ ProcessId = 1; CommandLine = 'chrome.exe --user-data-dir=C:\t\aiakos-dogfood-a --type=renderer' },
   @{ ProcessId = 2; CommandLine = 'chrome.exe --user-data-dir="C:\t\aiakos-dogfood-a" --no-first-run' },
   @{ ProcessId = 3; CommandLine = 'chrome.exe --user-data-dir=C:\t\aiakos-dogfood-ab' },
+  @{ ProcessId = 5; CommandLine = 'chrome.exe --user-data-dir="C:\t\aiakos-dogfood-a personal" --no-first-run' },
   @{ ProcessId = 4; CommandLine = 'chrome.exe --user-data-dir=C:\Users\me\real' }
 )
 function Get-CimInstance { [CmdletBinding()] param([string]$ClassName, [string]$Filter) $global:Alive }
@@ -130,7 +135,7 @@ EOF
     -File "$(wslpath -w "$BATS_TEST_TMPDIR/harness.ps1")" \
     -ScriptPath "$(wslpath -w "$PROJECT_ROOT/tests/helpers/stop-dogfood-profile.ps1")"
   [ "$status" -eq 0 ]
-  [ "${output//$'\r'/}" = "exit:0 alive:3,4" ]
+  [ "${output//$'\r'/}" = "exit:0 alive:3,5,4" ]
 }
 
 @test "skill rejects annotation resume conflict before side effects" {
