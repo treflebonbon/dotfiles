@@ -34,6 +34,7 @@ setup() {
   grep -Fq '`run_after_*` と `run_onchange_*` を実行しない' "$architecture"
   grep -Fq '`private_dot_config/codex/` を変えた場合は続けて `sync-codex-managed-config`' "$architecture"
   grep -Fq 'chezmoi apply --force <配備先パス>' "$architecture"
+  grep -Fq 'キャッシュ更新・Codex 同期のうち必要なもの' "$architecture"
 }
 
 @test "runtime notes record Codex sync side effects and isolated-session Herdr targeting" {
@@ -43,6 +44,7 @@ setup() {
   grep -Fq 'Orca の起動時に再登録される' "$runtimes"
   grep -Fq '`echo "$HERDR_PANE_ID"` で値を取り' "$runtimes"
   grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"`' "$index"
+  grep -Fq '変数代入そのものが拒否されるかは未確認' "$index"
 }
 
 @test "grilling uses frontier rounds and waits for human decisions" {
