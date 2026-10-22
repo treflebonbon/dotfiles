@@ -45,3 +45,10 @@ globalThis.WebSocket = class extends EventTarget {
 
 process.argv = [process.execPath, cdpClosePath, "http://127.0.0.1:9222"];
 await import(pathToFileURL(cdpClosePath));
+
+// A ref'd timer left after Browser.close keeps the process alive; check it deterministically, not by wall-clock time.
+const resources = process.getActiveResourcesInfo();
+if (resources.includes("Timeout")) {
+  console.error(`active timer after Browser.close: ${resources.join(", ")}`);
+  process.exit(1);
+}
