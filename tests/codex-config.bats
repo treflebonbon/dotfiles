@@ -1075,7 +1075,16 @@ assert data["hooks"]["PostToolUse"] == [
 # Stop carries no matcher (it is not a tool event) and gets the upstream deep-pass
 # budget of 30s instead of the per-edit 5s.
 assert data["hooks"]["Stop"] == [
-    {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
+    {"hooks": [{"type": "command", "command": command, "timeout": 30}]},
+    {
+        "hooks": [
+            {
+                "type": "command",
+                "command": "\"$HOME/.local/bin/claude-japanese-stop-hook\"",
+                "timeout": 10,
+            }
+        ]
+    },
 ]
 assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
 for rule in [

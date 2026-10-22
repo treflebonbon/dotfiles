@@ -1,0 +1,34 @@
+#!/usr/bin/env -S python3 -I
+
+"""Stop hook: 日本語を1文字も含まない英語だけの最終返答を、一度だけ日本語で書き直させる。
+
+文字種の有無による補助判定で、言語判定ではない。コードは除いて判定し、入力不正や再入（stop_hook_active）は通す。
+"""
+
+import json
+import re
+import sys
+
+CODE = re.compile(r"^(`{3,}|~{3,}).*?^\1|(`+).+?\2", re.DOTALL | re.MULTILINE)
+JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
+LATIN = re.compile(r"[A-Za-z]")
+
+try:
+    event = json.load(sys.stdin)
+except ValueError:
+    sys.exit(0)
+if not isinstance(event, dict) or event.get("stop_hook_active") is True:
+    sys.exit(0)
+message = event.get("last_assistant_message")
+if not isinstance(message, str):
+    sys.exit(0)
+prose = CODE.sub("", message)
+if LATIN.search(prose) and not JAPANESE.search(prose):
+    json.dump(
+        {
+            "decision": "block",
+            "reason": "最後の返答が日本語ではありません。操作は繰り返さず、同じ内容を日本語で書き直してください。",
+        },
+        sys.stdout,
+        ensure_ascii=False,
+    )
