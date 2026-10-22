@@ -126,7 +126,7 @@ setup() {
 @test "rejected shell syntax falls back to a single allowed command, then to the human" {
   run grep -Fq 'スクリプトを scratchpad に書いて実行する' "$GLOBAL_CLAUDE"
   [ "$status" -eq 1 ]
-  grep -Fq '許可された単一のコマンド' "$GLOBAL_CLAUDE"
+  grep -Fq '許可された単一のコマンドへ書き直す' "$GLOBAL_CLAUDE"
   grep -Fq '同じ形の再試行をせず' "$GLOBAL_CLAUDE"
   grep -Fq '外部のターミナル向けにまとめて渡す' "$GLOBAL_CLAUDE"
   grep -Fq '権限による拒否の迂回には使わない' "$GLOBAL_CLAUDE"
