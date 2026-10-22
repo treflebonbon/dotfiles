@@ -21,6 +21,9 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=600000, help="prompt の待機上限（ms、既定 600000）")
     parser.add_argument("--lines", type=int, default=120, help="表示する最近の出力行数（既定 120）")
     args = parser.parse_args()
+    # Reject bad values before prompting; failing after delivery invites a duplicate resend.
+    if args.timeout < 1 or args.lines < 1:
+        parser.error("--timeout と --lines は1以上にしてください")
 
     try:
         with Path(args.body_file).open("rb") as stream:

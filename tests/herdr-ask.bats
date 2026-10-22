@@ -64,6 +64,16 @@ PY
   [[ "$output" == *"agent read が終了コード 3 で失敗しました"* ]]
 }
 
+@test "herdr-ask rejects non-positive timeout and lines before calling herdr" {
+  printf '本文\n' >"$BATS_TEST_TMPDIR/body.md"
+  for option in "--timeout 0" "--timeout -1" "--lines 0" "--lines -1"; do
+    # shellcheck disable=SC2086 # Split the option and its value.
+    run "$HERDR_ASK" peer --body-file "$BATS_TEST_TMPDIR/body.md" $option
+    [ "$status" -eq 2 ]
+    [ ! -e "$HERDR_CALLS" ]
+  done
+}
+
 @test "herdr-ask rejects empty, whitespace, NUL, oversized, unreadable, and invalid UTF-8 bodies before calling herdr" {
   local dir="$BATS_TEST_TMPDIR"
   : >"$dir/empty.md"
