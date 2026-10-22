@@ -33,6 +33,7 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `herdr` から Claude / Codex を起動する手順と既知の癖は [Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動) を正本とする。peer 協働の起動の詳細は `local-skills/herdr-peer-refactor/references/herdr.md` にある。
 - `find-skills` はインストール手順として `npx skills add -g -y` を案内するが、外部 skill は `apm.yml` / `apm.lock.yaml` 経由でのみ導入する。このコマンドは実行せず、追加候補は `apm.yml` への追記として提示する。
 - `pdf` の SKILL.md は `REFERENCE.md` / `FORMS.md` を指すが、実ファイルは小文字の `reference.md` / `forms.md`。小文字のファイルを読む。
+- `wizard` に書く CLI コマンドは、書く前に `--help` で対話プロンプトと設定ファイルの自動更新の有無を確かめ、それを止めるフラグを付ける（例: `wrangler r2 bucket create` には `--update-config=false`。付けないと、バインディングを設定へ追加するかを尋ね、了承すると repo の設定ファイルを書き換える）。人が wizard を実行し終えたら、`git status` と `git diff` を実行前と比べ、想定外のファイル変更が無いことを確かめる。
 - Builder-Evaluator 内の `code-review` は branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone で fixed point が不明な場合だけ質問する。
 - `code-review` の Spec 軸には、ユーザーが承認した要件原文と後続の修正・追加、実装上の判断、過去の参考記録を区別して渡す。制約の根拠は現在の依頼に照合し、要件違反の指摘には原文または現在適用される仕様の箇所を示す。過去資料や agent の提案を現在の制約として扱う場合は、その採用根拠を明記する。
 - dotfilesのツール・スキル更新を `code-review` する場合は、[更新の追跡とレビュー](../docs/conventions.md#ツールスキル更新の追跡とレビュー)に従い、両軸へ現在の要件・適用ADRの箇所・予定変更と分割時に外した変更の調査記録を渡す。
