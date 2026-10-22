@@ -41,9 +41,10 @@ setup() {
   local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md" index="$PROJECT_ROOT/runtime/index.md"
 
   grep -Fq 'Orca が登録した hook も消える' "$runtimes"
-  grep -Fq 'Orca の起動時に再登録される' "$runtimes"
-  grep -Fq '`echo "$HERDR_PANE_ID"` で値を取り' "$runtimes"
-  grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"`' "$index"
+  grep -Fq 'Orca の起動時に再登録されるのはユーザーの申告で、この repo では未観測（unconfirmed）' "$runtimes"
+  grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"` が拒否された（confirmed' "$runtimes"
+  grep -Fq '`echo "$HERDR_PANE_ID"` で値を取り、`--pane w10:p1` のようにリテラルで渡すと通った（confirmed）' "$runtimes"
+  grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"` は、変数の展開を理由に拒否された（confirmed' "$index"
   grep -Fq '変数代入そのものが拒否されるかは未確認' "$index"
 }
 
