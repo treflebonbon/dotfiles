@@ -92,6 +92,47 @@ EOF
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 }
 
+# A failed Cleanup preserves the owner record in this test's directory, which is removed
+# with the test. Stop that profile's Chrome here so later runs do not hit port-conflict.
+teardown() {
+  [[ "$DOGFOOD_TEST_WSL" == 1 ]] || return 0
+  local profile helper
+  helper="$(wslpath -w "$PROJECT_ROOT/tests/helpers/stop-dogfood-profile.ps1")"
+  while IFS= read -r profile; do
+    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$helper" -ProfileDir "$profile" </dev/null
+  done < <("$NODE_BIN" -e '
+    const fs = require("node:fs");
+    const dir = process.argv[1];
+    for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+      if (!/^(owner|identity-.*\.json)$/.test(name)) continue;
+      const owner = JSON.parse(fs.readFileSync(`${dir}/${name}`, "utf8"));
+      if (owner.role === "dogfood") console.log(owner.profile);
+    }' "$BROWSER_OWNERSHIP_DIR")
+}
+
+@test "teardown helper stops only Chrome whose profile matches exactly" {
+  [[ "$DOGFOOD_TEST_WSL" == 1 ]] || skip "Windows PowerShell is unavailable"
+  cat >"$BATS_TEST_TMPDIR/harness.ps1" <<'EOF'
+param([string]$ScriptPath)
+$global:Alive = [Collections.Generic.List[object]]@(
+  @{ ProcessId = 1; CommandLine = 'chrome.exe --user-data-dir=C:\t\aiakos-dogfood-a --type=renderer' },
+  @{ ProcessId = 2; CommandLine = 'chrome.exe --user-data-dir="C:\t\aiakos-dogfood-a" --no-first-run' },
+  @{ ProcessId = 3; CommandLine = 'chrome.exe --user-data-dir=C:\t\aiakos-dogfood-ab' },
+  @{ ProcessId = 4; CommandLine = 'chrome.exe --user-data-dir=C:\Users\me\real' }
+)
+function Get-CimInstance { [CmdletBinding()] param([string]$ClassName, [string]$Filter) $global:Alive }
+function Stop-Process { [CmdletBinding()] param([int]$Id, [switch]$Force) [void]$global:Alive.RemoveAll({ param($p) $p.ProcessId -eq $Id }) }
+function Start-Sleep { param([int]$Milliseconds) }
+& $ScriptPath -ProfileDir 'C:\t\aiakos-dogfood-a'
+Write-Output "exit:$LASTEXITCODE alive:$(($global:Alive | ForEach-Object ProcessId) -join ',')"
+EOF
+  run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass \
+    -File "$(wslpath -w "$BATS_TEST_TMPDIR/harness.ps1")" \
+    -ScriptPath "$(wslpath -w "$PROJECT_ROOT/tests/helpers/stop-dogfood-profile.ps1")"
+  [ "$status" -eq 0 ]
+  [ "${output//$'\r'/}" = "exit:0 alive:3,4" ]
+}
+
 @test "skill rejects annotation resume conflict before side effects" {
   local skill="$PROJECT_ROOT/local-skills/dogfood/SKILL.md"
   local reject_line preflight_line
