@@ -44,6 +44,8 @@ Routine GitHub collaboration writes do not need a second confirmation once the u
 
 Requests to address pull request review feedback authorize a Review Round. For that workflow, use `gh-review-thread` rather than the GitHub plugin for thread-aware reads and writes. Group the selected threads into one `fix: address PR review feedback` commit, verify the changes, publish with `git-push-topic`, then post a Japanese reply with the short commit SHA, change summary, and verification result to each addressed thread and resolve it. Mark explanation-only threads with `--explanation-only` and do not create an empty commit. Continue after per-thread failures; leave ambiguous, rejected, failed-verification, unpublished, or failed threads open and report why.
 
+When starting implementation, check the current branch. On the default branch, create a topic branch before changing or committing, unless the user explicitly approved committing there.
+
 Force pushes are prohibited by policy. Direct raw `git push` commands and common wrapper or global-option variants are blocked by runtime rules. Use `git-push-topic` for the current topic branch. Use `git-push-reviewed` for a default-branch push only after explicit approval.
 
 ## Clarifying questions
