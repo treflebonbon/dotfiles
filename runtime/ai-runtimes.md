@@ -62,6 +62,7 @@ herdr
   - 観測: split 直後の新しい pane では、shell の子 bash が zombie（`ps` で `Z+`）のまま前面 process group に残ることがある。`pane process-info` には cmdline が `null` の `bash` として出る（confirmed）。busy の原因がこの zombie だというのは inferred（同時に観測したのは 1 回で、Herdr の判定実装は未確認）。zombie の生成元（bashrc の subshell か flyline か）と、revision・`--no-focus` との関係は unconfirmed。
   - 回避: `herdr pane read PANE` で未確定の入力がない空の shell prompt を、`herdr pane process-info --pane PANE` で shell と zombie 以外の command がないことを確かめる。`herdr pane send-keys PANE enter` で空行を送ってから `agent start` をやり直す（confirmed）。
   - 最後の手段: `herdr pane run PANE "claude --name NAME"`。ready 判定も agent 名もないので、`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` し、対話画面を確認してから `agent prompt` する。
+- **本文の送信**: 複数行や記号を含む依頼は、本文を UTF-8 ファイルに書き、`herdr-ask NAME --body-file FILE [--timeout MS] [--lines N]` で送る（source: `private_dot_local/bin/executable_herdr-ask`）。`agent prompt --wait` の後、成否にかかわらず `agent read` の最近の出力を表示する。終了コードは、prompt が失敗すればそのコード、成功すれば read のコード。待機の完了は今回の依頼への回答完了を保証しないので、表示された応答を確かめる。timeout でも配送済みのことがあるので、再送する前に状態を確かめる。
 - **背景 session の一覧画面が開くとき**: 引数なしの `pane run PANE "claude"` は一覧（`describe a task for a new session`）を開く（confirmed）。Claude Code は、起動条件を満たすと `defaultToAgentsView === true` で agents view を選ぶ（confirmed: 本体コード）。一覧表示へ進む起動条件の詳細は unconfirmed。この設定は `/config` の "Open agents view by default" で、dotfiles では管理していない個人設定。一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。一覧に送った `agent prompt` は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。
 
 ### 新規 worktree への `.env` コピー

@@ -15,7 +15,7 @@ setup() {
     grep -Fq 'validated task worktree 内の source を編集する' "$instructions"
     grep -Fq '`chezmoi source-path` が示す live source' "$instructions"
     grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$instructions"
-    grep -Fq '受入後に live source で `chezmoi apply`' "$instructions"
+    grep -Fq '受入後に live source で `chezmoi diff` を確認し、変更した対象を `chezmoi apply <配備先パス>`' "$instructions"
   done
 
   grep -Fq 'validated task worktree 内の source で行う' "$architecture"

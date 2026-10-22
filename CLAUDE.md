@@ -2,7 +2,7 @@
 
 chezmoi dotfiles repo。ログインシェルは bash。
 
-**重要**: 実装は validated task worktree 内の source を編集する。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi apply` して `~/` へ反映する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
+**重要**: 実装は validated task worktree 内の source を編集する。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi diff` を確認し、変更した対象を `chezmoi apply <配備先パス>` で `~/` へ反映する。無関係な差分は反映せずユーザーへ報告する。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source に戻す。
 
 この `CLAUDE.md` / `AGENTS.md` は dotfiles repo を編集するための指示で、home へは配備しない（`.chezmoiignore`）。全 repo 共通の指示は `private_dot_claude/CLAUDE.md`（Claude Code）と `private_dot_config/codex/AGENTS.md`（Codex）に置き、repo 直下とグローバルの各ファイルは別々に保守し、共有する workflow / safety contract は整合させる。home 配下の repo に共通する環境知識は `~/runtime/index.md`（source は `runtime/`）、この repo の構造・規約・判断は `docs/architecture.md`、`docs/conventions.md`、`docs/adr/` を参照する。
 
@@ -13,7 +13,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 ## Conventions
 
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
-- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（指示・文書 Markdown だけの変更は `scripts/test-docs.sh`）。Bats の実行・進捗確認・ログ・opt-in 検証の手順は先に `docs/conventions.md` を読む。
+- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（指示・文書 Markdown だけの変更なら `scripts/test-docs.sh` でよい。exit 2 は対象外の変更を含むので全 Bats を実行する）。Bats の実行・進捗確認・ログ・opt-in 検証の手順は先に `docs/conventions.md` を読む。
 
 ## Skill 配布経路の選択
 
