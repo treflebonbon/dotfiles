@@ -23,6 +23,30 @@ setup() {
   grep -Fq '未 merge の task worktree から `chezmoi apply` しない' "$architecture"
 }
 
+@test "path-scoped deploys point to the run-script and Codex sync caveats" {
+  local architecture="$PROJECT_ROOT/docs/architecture.md"
+
+  local instructions
+  for instructions in "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/CLAUDE.md"; do
+    grep -Fq '`docs/architecture.md` の編集・配備ルール' "$instructions"
+  done
+
+  grep -Fq '`run_after_*` と `run_onchange_*` を実行しない' "$architecture"
+  grep -Fq '`private_dot_config/codex/` を変えた場合は続けて `sync-codex-managed-config`' "$architecture"
+  grep -Fq 'chezmoi apply --force <配備先パス>' "$architecture"
+  grep -Fq 'キャッシュ更新・Codex 同期のうち必要なもの' "$architecture"
+}
+
+@test "runtime notes record Codex sync side effects and isolated-session Herdr targeting" {
+  local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md" index="$PROJECT_ROOT/runtime/index.md"
+
+  grep -Fq 'Orca が登録した hook も消える' "$runtimes"
+  grep -Fq 'Orca の起動時に再登録される' "$runtimes"
+  grep -Fq '`echo "$HERDR_PANE_ID"` で値を取り' "$runtimes"
+  grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"`' "$index"
+  grep -Fq '変数代入そのものが拒否されるかは未確認' "$index"
+}
+
 @test "grilling uses frontier rounds and waits for human decisions" {
   local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
 
