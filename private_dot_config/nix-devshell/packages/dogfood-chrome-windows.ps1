@@ -66,10 +66,10 @@ function Format-ConflictState {
     param([uint32]$OwnerPid)
 
     # Name the owner so `aiakos-dogfood-*` (a stranded dogfood Chrome) is told apart from a foreign process.
-    $Owner = Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerPid" -ErrorAction Stop | Select-Object -First 1
+    $Owner = Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerPid" -ErrorAction SilentlyContinue | Select-Object -First 1
     $Detail = "unknown"
     if ($Owner) {
-        $Detail = if ($Owner.Name) { $Owner.Name } else { "unknown" }
+        if ($Owner.Name) { $Detail = $Owner.Name }
         if ($Owner.CommandLine -match '--user-data-dir=(?:"([^"]*)"|(\S+))') {
             $Detail = "$($Matches[1])$($Matches[2])"
         }
