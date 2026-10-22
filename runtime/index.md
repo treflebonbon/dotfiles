@@ -39,7 +39,7 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - #468 の隔離 session（同じ 2.1.296、2026-10-23）でも、scratchpad のスクリプトを `bash` で呼ぶと「git を検証できない形」として拒否された（confirmed）。
 - scratchpad のパスに含まれる `-github-com-` が理由かは inferred。
 - 本文を `--body "…"` で渡す `gh issue comment` も拒否され、worktree 内に置いた一時ファイルを `--body-file <相対パス>` で渡すと通った（confirmed）。
-- Herdr agent への本文の送信には `herdr-ask`（[Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動)）を使う。
+- Herdr agent への本文の送信には `herdr-ask`（[Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動)）を使う。本文は 8 KiB 以内の公開情報に限る。argv に渡すため、同一ホストのプロセスから見える可能性があり、秘密情報は渡さない。
 - 隔離 session で Windows 側の dogfood Chrome を確認するには、実行権限つきの `~/.local/bin/dogfood-chrome-inspect` を絶対パスで呼ぶ（読み取り専用。
 - CDP port 19330〜19393 の待ち受けの port・PID・起動時刻・command line を表示する）。
 - `powershell.exe` の直接実行は `!` 経由でも拒否された（confirmed、#490）。
