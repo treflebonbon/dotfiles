@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Prompt a Herdr agent with a literal UTF-8 body file, then print its recent output."""
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+MAX_BODY_BYTES = 8 * 1024
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="herdr-ask",
+        description="UTF-8本文ファイルを Herdr agent へ文字どおり送り、待機後に最近の出力を表示します。",
+        epilog="本文は8 KiB以内の公開情報に限ります。本文をargvに渡すため、同一ホストのプロセスから見える可能性があります。--wait の完了は今回の依頼への回答完了を保証しません。",
+        allow_abbrev=False,
+    )
+    parser.add_argument("agent", help="agent 名または pane ID")
+    parser.add_argument("--body-file", required=True, help="送信本文のUTF-8ファイル")
+    parser.add_argument("--timeout", type=int, default=600000, help="prompt の待機上限（ms、既定 600000）")
+    parser.add_argument("--lines", type=int, default=120, help="表示する最近の出力行数（既定 120）")
+    args = parser.parse_args()
+
+    try:
+        with Path(args.body_file).open("rb") as stream:
+            body_bytes = stream.read(MAX_BODY_BYTES + 1)
+        if len(body_bytes) > MAX_BODY_BYTES:
+            print("herdr-ask: 本文は8 KiB以内にしてください", file=sys.stderr)
+            return 2
+        body = body_bytes.decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        print("herdr-ask: 本文ファイルをUTF-8として読み取れません", file=sys.stderr)
+        return 2
+    if not body.strip():
+        print("herdr-ask: 本文が空です", file=sys.stderr)
+        return 2
+    if "\0" in body:
+        print("herdr-ask: 本文にNUL文字は使えません", file=sys.stderr)
+        return 2
+
+    try:
+        prompt = subprocess.run(
+            ["herdr", "agent", "prompt", args.agent, body, "--wait", "--timeout", str(args.timeout)], check=False
+        )
+        # A failed or timed-out wait may still have delivered the prompt, so always show the terminal.
+        read = subprocess.run(
+            ["herdr", "agent", "read", args.agent, "--source", "recent-unwrapped", "--lines", str(args.lines)],
+            check=False,
+        )
+    except OSError:
+        print("herdr-ask: herdr を起動できません", file=sys.stderr)
+        return 2
+    if read.returncode != 0:
+        print(f"herdr-ask: agent read が終了コード {read.returncode} で失敗しました", file=sys.stderr)
+    return prompt.returncode or read.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
