@@ -301,18 +301,18 @@ prepare_lock_generation() {
   if [[ ${1:-} != real-nix ]]; then
     cat >"$GENERATION_BIN/nix" <<'EOF'
 #!/usr/bin/env bash
-printf '%s' "${APM_TEST_SNAPSHOT_VERSION-0.33.0}"
+printf '%s' "${APM_TEST_SNAPSHOT_VERSION-0.34.0}"
 exit "${APM_TEST_NIX_STATUS:-0}"
 EOF
   fi
   cat >"$GENERATION_BIN/apm" <<'EOF'
 #!/usr/bin/env bash
 if [[ "$*" == --version ]]; then
-  printf '%s\n' "${APM_TEST_CLI_OUTPUT-Agent Package Manager (APM) CLI version 0.33.0}"
+  printf '%s\n' "${APM_TEST_CLI_OUTPUT-Agent Package Manager (APM) CLI version 0.34.0}"
   exit "${APM_TEST_CLI_STATUS:-0}"
 fi
 printf '%s\n' "$*" >>"$APM_TEST_LOG"
-printf '%s\n' "${APM_TEST_LOCK-apm_version: 0.33.0}" >apm.lock.yaml
+printf '%s\n' "${APM_TEST_LOCK-apm_version: 0.34.0}" >apm.lock.yaml
 EOF
   chmod +x "$GENERATION_BIN"/*
   cd "$BATS_TEST_TMPDIR/runtime"
@@ -328,7 +328,7 @@ EOF
   run "$GENERATOR" "$PROJECT_ROOT"
 
   [ "$status" -eq 0 ]
-  [ "$(cat apm.lock.yaml)" = 'apm_version: 0.33.0' ]
+  [ "$(cat apm.lock.yaml)" = 'apm_version: 0.34.0' ]
   [ "$(cat "$GENERATION_LOG")" = 'install --target claude,codex --https' ]
 }
 
@@ -380,7 +380,7 @@ EOF
 @test "APM candidate generation rejects missing, malformed, and incorrect CLI versions before install" {
   prepare_lock_generation
   local banner
-  for banner in '' '0.33.0' 'Agent Package Manager (APM) CLI version 0.32.0'; do
+  for banner in '' '0.34.0' 'Agent Package Manager (APM) CLI version 0.32.0'; do
     run env APM_TEST_CLI_OUTPUT="$banner" "$GENERATOR" "$PROJECT_ROOT"
     [ "$status" -ne 0 ]
     [[ "$output" == *'APM CLI'* ]]
@@ -411,7 +411,7 @@ EOF
   prepare_lock_generation
   local lock
   for lock in 'lockfile_version: 1' 'apm_version: unknown' 'apm_version: 0.32.0' \
-    $'apm_version: 0.33.0\napm_version: 0.33.0'; do
+    $'apm_version: 0.34.0\napm_version: 0.34.0'; do
     run env APM_TEST_LOCK="$lock" "$GENERATOR" "$PROJECT_ROOT"
     [ "$status" -ne 0 ]
     [[ "$output" == *'生成lockのAPM版'* ]]
