@@ -32,6 +32,8 @@ is_docs() {
   case $1 in
   CLAUDE.md | AGENTS.md | GLOSSARY.md | private_dot_claude/CLAUDE.md | private_dot_config/codex/AGENTS.md | private_dot_gemini/AGENTS.md | docs/architecture.md | docs/conventions.md | local-skills/ui-grill-with-docs/SKILL.md) return 0 ;;
   runtime/*.md | docs/adr/*.md | local-skills/*-peer-refactor/*.md) return 0 ;;
+  # triage が却下した依頼の記録。指示ファイルではないが、Markdown だけの変更として扱う。
+  .out-of-scope/*.md) return 0 ;;
   esac
   return 1
 }

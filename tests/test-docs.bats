@@ -13,6 +13,11 @@ setup() {
   [[ "$output" == *"tests/autonomous-peer-contract.bats"* ]]
 }
 
+@test "an out-of-scope record is a docs-only change" {
+  run -0 scripts/test-docs.sh --plan .out-of-scope/embedded-bash-shellcheck.md
+  [[ "$output" == *"tests/workflow-contract.bats"* ]]
+}
+
 @test "a non-docs file in the change requires the full Bats" {
   run scripts/test-docs.sh --plan runtime/index.md tests/with-env.bats
   [ "$status" -eq 2 ]
