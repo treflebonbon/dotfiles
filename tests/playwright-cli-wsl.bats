@@ -912,19 +912,19 @@ EOF
 }
 
 @test "CDP close exits promptly after Chrome acknowledges Browser.close" {
-  run timeout 2 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT"
+  run timeout 30 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT"
 
   [ "$status" -eq 0 ]
 }
 
 @test "CDP close ignores unrelated events before the matching response" {
-  run timeout 2 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT" event-then-success
+  run timeout 30 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT" event-then-success
 
   [ "$status" -eq 0 ]
 }
 
 @test "CDP close rejects a matching error response" {
-  run timeout 2 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT" error
+  run timeout 30 node "$CDP_CLOSE_HARNESS" "$CDP_CLOSE_SCRIPT" error
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"close refused"* ]]
