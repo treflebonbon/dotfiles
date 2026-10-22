@@ -27,3 +27,18 @@ timestamp: 2026-10-16
 - `pane run` で直接起動する場合は、対象が空き shell で、前景に別プロセスがいないことを確認する。起動後は agent としての認識と、対象の個別セッションの画面を確認する。
 - 確認画面では内容を読み、承認・信頼の判断はユーザーに委ねる。Escape による安全な終了を確認できるまでは、自動で閉じない。
 - `agent prompt --wait` は turn 単位の追跡ではない。待機結果に加えて `agent read` で依頼への応答を確認し、timeout や stalled の場合も、受信・実行状況を確認してから再送する。
+
+## 2026-10-22 の追加観測（#458）
+
+上の節は 2026-10-16 時点の記録として残す。この節で一部を更新する。環境は Herdr 0.9.3、Claude Code 2.1.296（nix wrapper は引数を足さない）、`~/.claude.json` の `defaultToAgentsView: true`。各試行では新しい pane を split した（約 0.5 秒で prompt が表示され、revision は 0）。
+
+| 試行 | 起動方法 | split 直後の前面 process | 結果 |
+| --- | --- | --- | --- |
+| A | `agent start t458a --kind claude --pane P -- --name t458a` | `/bin/bash` と zombie の子 bash（`Z+`、同じ pgid） | 1回目は `agent_pane_busy`。`pane send-keys P enter` の後は zombie が消え、再実行で成功。対話画面で応答した |
+| B | `pane run P "claude --name t458b"` | `/bin/bash` のみ | 対話画面 |
+| C | `pane run P "claude"` | zombie あり | 背景 session の一覧 |
+| C2 | `pane run P "claude"` | zombie あり | 背景 session の一覧 |
+| Codex | `pane run P "codex-reviewer"` | `/bin/bash` のみ（split の 3 秒後に確認） | `agent list` に codex として認識された |
+
+- 一覧画面: Claude Code 本体のコードで、起動条件を満たすと `defaultToAgentsView === true` で agents view を選ぶことを確認した。一覧表示へ進む起動条件の詳細は未読。`--name` 付きの起動が対話画面になることだけを実測した。
+- `agent_pane_busy`: busy と zombie を同時に観測したのは試行 A の 1 回。Herdr の判定実装は未確認。zombie の生成元（bashrc の subshell か、bash に読み込まれた flyline か）は未確認。revision と `--no-focus` との関係も、引き続き未確認。
