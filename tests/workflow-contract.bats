@@ -307,3 +307,10 @@ PY
   run bats --count --filter 'Review Round contract' "$PROJECT_ROOT/tests/gh-review-thread.bats"
   [ "$output" -ge 1 ]
 }
+
+@test "ready-for-agent gate checks acceptance criteria against existing conventions" {
+  grep -Fq '規約との照合も最低条件とする' "$RUNTIME"
+  grep -Fq '`docs/`（`docs/research/` の調査記録を除く）と `runtime/` で検索し' "$RUNTIME"
+  grep -Fq '`triage` では「Apply the outcome」の前、`to-tickets` では生成直後に行う' "$RUNTIME"
+  grep -Fq '`ready-for-agent` を外して `needs-info` を付ける' "$RUNTIME"
+}
