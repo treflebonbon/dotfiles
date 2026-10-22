@@ -249,12 +249,20 @@ PY
     script="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
     [[ "$role" == dogfood ]] && script="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
     script="$(wslpath -w "$script")"
-    for scenario in absent conflict managed; do
+    for scenario in absent conflict conflict-bare managed; do
       case "$scenario" in
         absent) expected=absent ;;
         conflict) expected=port-conflict:4242 ;;
+        conflict-bare) expected=port-conflict:4242 ;;
         managed) expected=managed:headless:4242 ;;
       esac
+      # Dogfood also names the owner (its --user-data-dir, else the executable name).
+      if [[ "$role" == dogfood ]]; then
+        case "$scenario" in
+          conflict) expected='port-conflict:4242:C:\other profile\aiakos-dogfood-x' ;;
+          conflict-bare) expected='port-conflict:4242:node.exe' ;;
+        esac
+      fi
       run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$harness" \
         -ScriptPath "$script" -Scenario "$scenario" -Role "$role"
       [ "$status" -eq 0 ]
@@ -540,4 +548,12 @@ PY
   run owner --identity unrelated status
   [ "$status" -eq 0 ]
   [[ "$output" == *"$(cat "$BATS_TEST_TMPDIR/third")"* ]]
+}
+
+@test "dogfood-chrome-inspect lists dogfood CDP listeners read-only" {
+  command -v powershell.exe >/dev/null || skip "Windows PowerShell is unavailable"
+  run "$PROJECT_ROOT/private_dot_local/bin/executable_dogfood-chrome-inspect"
+  [ "$status" -eq 0 ]
+  # Either nothing is listening, or each row is port<TAB>pid<TAB>started<TAB>command line.
+  [ "$output" = "no dogfood listeners" ] || ! grep -qvP '^\d+\t\d+\t\S+\t' <<<"$output"
 }

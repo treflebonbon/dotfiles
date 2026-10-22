@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Read-only: list Windows processes listening on the dogfood CDP ports (19330-19393).
+# Prints: port<TAB>pid<TAB>started<TAB>command line. Never stops or changes anything.
+set -euo pipefail
+
+ps_script=$(
+  cat <<'PS'
+$ErrorActionPreference = 'Stop'
+$Listeners = @(Get-CimInstance -Namespace 'root/StandardCimv2' -ClassName MSFT_NetTCPConnection -Filter "State = 2 AND LocalAddress = '127.0.0.1'" | Where-Object { $_.LocalPort -ge 19330 -and $_.LocalPort -le 19393 })
+if ($Listeners.Count -eq 0) { Write-Output 'no dogfood listeners'; exit 0 }
+foreach ($L in ($Listeners | Sort-Object LocalPort)) {
+    $P = Get-CimInstance Win32_Process -Filter "ProcessId = $($L.OwningProcess)"
+    $Started = if ($P -and $P.CreationDate) { $P.CreationDate.ToString('s') } else { '-' }
+    $Cmd = if ($P -and $P.CommandLine) { $P.CommandLine } else { '-' }
+    Write-Output ("{0}`t{1}`t{2}`t{3}" -f $L.LocalPort, $L.OwningProcess, $Started, $Cmd)
+}
+PS
+)
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ps_script" | tr -d '\r'

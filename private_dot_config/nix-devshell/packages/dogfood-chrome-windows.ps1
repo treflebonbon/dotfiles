@@ -62,6 +62,21 @@ function Format-ManagedState {
     return "managed:${ProcessMode}:$($Process.ProcessId)"
 }
 
+function Format-ConflictState {
+    param([uint32]$OwnerPid)
+
+    # Name the owner so `aiakos-dogfood-*` (a stranded dogfood Chrome) is told apart from a foreign process.
+    $Owner = Get-CimInstance Win32_Process -Filter "ProcessId = $OwnerPid" -ErrorAction Stop | Select-Object -First 1
+    $Detail = "unknown"
+    if ($Owner) {
+        $Detail = if ($Owner.Name) { $Owner.Name } else { "unknown" }
+        if ($Owner.CommandLine -match '--user-data-dir=(?:"([^"]*)"|(\S+))') {
+            $Detail = "$($Matches[1])$($Matches[2])"
+        }
+    }
+    return "port-conflict:${OwnerPid}:$($Detail -replace '[\r\n]+', ' ')"
+}
+
 if ($Action -eq "Resolve") {
     Write-Output $ProfileDir
     exit 0
@@ -116,7 +131,7 @@ if ($ProfileProcesses.Count -gt 0) {
             Write-Output (Format-ManagedState -Process $MatchingProcess)
         }
         elseif ($Listeners.Count -gt 0) {
-            Write-Output "port-conflict:$($Listeners[0].OwningProcess)"
+            Write-Output (Format-ConflictState -OwnerPid $Listeners[0].OwningProcess)
         }
         else {
             Write-Output (Format-ManagedState -Process $MatchingProcess)
@@ -128,7 +143,7 @@ if ($ProfileProcesses.Count -gt 0) {
 }
 
 if ($Listeners.Count -gt 0) {
-    Write-Output "port-conflict:$($Listeners[0].OwningProcess)"
+    Write-Output (Format-ConflictState -OwnerPid $Listeners[0].OwningProcess)
     exit 0
 }
 
