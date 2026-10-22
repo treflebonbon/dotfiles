@@ -68,13 +68,15 @@ if ($Action -eq "Resolve") {
 }
 
 if ($Action -eq "Cleanup") {
-    $ManagedProcesses = @(Get-ChromeProcesses)
-    foreach ($Process in $ManagedProcesses) {
-        Stop-Process -Id ([int]$Process.ProcessId) -Force -ErrorAction SilentlyContinue
-    }
-    for ($Attempt = 0; $Attempt -lt 20; $Attempt++) {
-        if (@(Get-ChromeProcesses).Count -eq 0) {
+    # Stop again on every poll: Chrome can spawn or leave children after the first stop.
+    # Allow about 10 seconds because exit slows down under parallel load.
+    for ($Attempt = 0; $Attempt -lt 100; $Attempt++) {
+        $ManagedProcesses = @(Get-ChromeProcesses)
+        if ($ManagedProcesses.Count -eq 0) {
             break
+        }
+        foreach ($Process in $ManagedProcesses) {
+            Stop-Process -Id ([int]$Process.ProcessId) -Force -ErrorAction SilentlyContinue
         }
         Start-Sleep -Milliseconds 100
     }

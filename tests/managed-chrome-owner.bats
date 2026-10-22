@@ -263,6 +263,33 @@ PY
   done
 }
 
+dogfood_cleanup() {
+  run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass \
+    -File "$(wslpath -w "$PROJECT_ROOT/tests/fixtures/managed-chrome-cleanup.ps1")" \
+    -ScriptPath "$(wslpath -w "$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1")" \
+    -Scenario "$1"
+  [ "$status" -eq 0 ]
+  output="${output//$'\r'/}"
+}
+
+@test "Dogfood cleanup stops profile processes that appear after the first stop" {
+  command -v powershell.exe >/dev/null || skip "Windows PowerShell is unavailable"
+  dogfood_cleanup respawn
+  [ "$output" = "result:ok removed:True" ]
+}
+
+@test "Dogfood cleanup waits for processes that exit slowly under load" {
+  command -v powershell.exe >/dev/null || skip "Windows PowerShell is unavailable"
+  dogfood_cleanup slow
+  [ "$output" = "result:ok removed:True" ]
+}
+
+@test "Dogfood cleanup keeps the profile when processes never exit" {
+  command -v powershell.exe >/dev/null || skip "Windows PowerShell is unavailable"
+  dogfood_cleanup stuck
+  [ "$output" = "result:failed removed:False Managed Chrome did not exit for profile 'C:\\test-profile'." ]
+}
+
 @test "both roles racing for ownership produce exactly one owner" {
   (if reserve playwright race-playwright >"$BATS_TEST_TMPDIR/p.out" 2>&1; then echo ok; else echo blocked; fi) >"$BATS_TEST_TMPDIR/p.result" &
   local playwright_pid=$!
