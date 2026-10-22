@@ -26,6 +26,9 @@ setup() {
   else
     export DOGFOOD_TEST_WSL=0
   fi
+  export DOGFOOD_WINDOWS_SCRIPT="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
+  export MANAGED_CHROME_OWNER="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs"
+  export BROWSER_OWNERSHIP_DIR="$BATS_TEST_TMPDIR/browser-ownership"
   export REAL_PLAYWRIGHT_CLI="$(command -v playwright-cli)"
   export FAKE_CLI_LOG="$BATS_TEST_TMPDIR/playwright-cli.log"
   export PWTEST_DAEMON_SESSION_DIR="$BATS_TEST_TMPDIR/playwright-cli-daemon"
