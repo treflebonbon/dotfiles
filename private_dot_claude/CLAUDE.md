@@ -40,6 +40,8 @@ Confirm before executing hard-to-reverse or shared-system-affecting actions:
 - Hard-to-reverse: `git reset --hard`, amending published commits
 - High-impact or shared: direct pushes to a default branch, merging/closing/reopening/deleting PRs or issues, releases, workflow dispatches, repository settings or secrets, non-GitHub messages, and shared infrastructure
 
+Keep secret values, including ones you just generated, off the screen, the conversation, and logs; this also covers commands you hand to the user. Pipe a secret straight into its approved destination or pass it through a mode-0600 temporary file, use `wizard` only for the steps a human must perform, and confirm registration by the command's success without reading the value back.
+
 Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues; reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
 
 Requests to address pull request review feedback authorize a Review Round. For that workflow, use `gh-review-thread` rather than the GitHub plugin for thread-aware reads and writes. Group the selected threads into one `fix: address PR review feedback` commit, verify the changes, publish with `git-push-topic`, then post a Japanese reply with the short commit SHA, change summary, and verification result to each addressed thread and resolve it. Mark explanation-only threads with `--explanation-only` and do not create an empty commit. Continue after per-thread failures; leave ambiguous, rejected, failed-verification, unpublished, or failed threads open and report why.
@@ -103,7 +105,7 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 
 ## Shell 操作
 
-別ディレクトリの git は `git -C` ではなく `cd <dir> && git …` で実行する。worktree に隔離されたセッションは自分の worktree で完結させ、別 checkout へ `cd` した git は拒否されるため、必要ならユーザーへ戻す。構文の複雑さで拒否された複合コマンドは、スクリプトを scratchpad に書いて実行する（権限で禁止された操作の迂回には使わない）。詳細は `~/runtime/index.md`。
+別ディレクトリの git は `git -C` ではなく `cd <dir> && git …` で実行する。worktree に隔離されたセッションは自分の worktree で完結させ、別 checkout へ `cd` した git は拒否されるため、必要ならユーザーへ戻す。シェル構文で拒否されたら、許可された単一のコマンドで実行できないかを確かめる。scratchpad のスクリプトは、その runtime が実行を許す場合だけ使う。スクリプトの実行も拒否される場合は同じ形の再試行をせず、人の操作が要る手順を外部のターミナル向けにまとめて渡す。外部のターミナルや別の実行方法は、権限による拒否の迂回には使わない。拒否された形と通った形の観測は `~/runtime/index.md`。
 
 ## ブラウザ操作ツール
 

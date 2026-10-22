@@ -111,6 +111,31 @@ setup() {
   grep -Fq 'permission bypass' "$RUNTIME"
 }
 
+@test "instruction layers keep newly generated secrets off screen" {
+  for instructions in "$GLOBAL_CLAUDE" "$GLOBAL_CODEX"; do
+    grep -Fq 'including ones you just generated' "$instructions"
+    grep -Fq 'commands you hand to the user' "$instructions"
+    grep -Fq 'mode-0600 temporary file' "$instructions"
+    grep -Fq 'without reading the value back' "$instructions"
+  done
+  grep -Fq '新しく作る値も' "$RUNTIME"
+  grep -Fq '権限 0600 の一時ファイル' "$RUNTIME"
+  grep -Fq '値を読み戻さず' "$RUNTIME"
+}
+
+@test "rejected shell syntax falls back to a single allowed command, then to the human" {
+  run grep -Fq 'スクリプトを scratchpad に書いて実行する' "$GLOBAL_CLAUDE"
+  [ "$status" -eq 1 ]
+  grep -Fq '許可された単一のコマンド' "$GLOBAL_CLAUDE"
+  grep -Fq '同じ形の再試行をせず' "$GLOBAL_CLAUDE"
+  grep -Fq '外部のターミナル向けにまとめて渡す' "$GLOBAL_CLAUDE"
+  grep -Fq '権限による拒否の迂回には使わない' "$GLOBAL_CLAUDE"
+
+  local index="$PROJECT_ROOT/runtime/index.md"
+  grep -Fq '`--body-file <相対パス>`' "$index"
+  grep -Fq 'scratchpad' "$index"
+}
+
 @test "prototype contract is a self-contained HTML primary source" {
   for instructions in "$GLOBAL_CLAUDE" "$RUNTIME"; do
     grep -Fq 'single self-contained HTML' "$instructions"
