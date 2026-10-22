@@ -6,7 +6,7 @@ set -euo pipefail
 ps_script=$(
   cat <<'PS'
 $ErrorActionPreference = 'Stop'
-$Listeners = @(Get-CimInstance -Namespace 'root/StandardCimv2' -ClassName MSFT_NetTCPConnection -Filter "State = 2 AND LocalAddress = '127.0.0.1'" | Where-Object { $_.LocalPort -ge 19330 -and $_.LocalPort -le 19393 })
+$Listeners = @(Get-CimInstance -Namespace 'root/StandardCimv2' -ClassName MSFT_NetTCPConnection -Filter "State = 2" | Where-Object { $_.LocalPort -ge 19330 -and $_.LocalPort -le 19393 })
 if ($Listeners.Count -eq 0) { Write-Output 'no dogfood listeners'; exit 0 }
 foreach ($L in ($Listeners | Sort-Object LocalPort)) {
     $P = Get-CimInstance Win32_Process -Filter "ProcessId = $($L.OwningProcess)"

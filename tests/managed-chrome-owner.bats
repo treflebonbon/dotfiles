@@ -249,18 +249,20 @@ PY
     script="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
     [[ "$role" == dogfood ]] && script="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
     script="$(wslpath -w "$script")"
-    for scenario in absent conflict conflict-bare managed; do
+    for scenario in absent conflict conflict-bare conflict-quoted conflict-lookup-fails conflict-gone managed; do
       case "$scenario" in
         absent) expected=absent ;;
         conflict) expected=port-conflict:4242 ;;
-        conflict-bare) expected=port-conflict:4242 ;;
+        conflict-*) expected=port-conflict:4242 ;;
         managed) expected=managed:headless:4242 ;;
       esac
       # Dogfood also names the owner (its --user-data-dir, else the executable name).
       if [[ "$role" == dogfood ]]; then
         case "$scenario" in
           conflict) expected='port-conflict:4242:C:\other profile\aiakos-dogfood-x' ;;
+          conflict-quoted) expected='port-conflict:4242:C:\other profile\aiakos-dogfood-x' ;;
           conflict-bare) expected='port-conflict:4242:node.exe' ;;
+          conflict-lookup-fails | conflict-gone) expected='port-conflict:4242:unknown' ;;
         esac
       fi
       run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$harness" \

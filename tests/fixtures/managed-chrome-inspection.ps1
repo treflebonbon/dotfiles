@@ -8,6 +8,9 @@ function Get-CimInstance {
     if ($ClassName -eq 'Win32_Process') {
         if ($Scenario -eq 'process') { Write-Error 'process query unavailable' }
         if ($Filter -match 'ProcessId = 4242' -and $Scenario -like 'conflict*') {
+            if ($Scenario -eq 'conflict-lookup-fails') { Write-Error 'owner lookup unavailable'; return }
+            if ($Scenario -eq 'conflict-gone') { return }
+            if ($Scenario -eq 'conflict-quoted') { return @{ ProcessId = 4242; Name = 'chrome.exe'; CommandLine = 'chrome.exe "--user-data-dir=C:\other profile\aiakos-dogfood-x" --remote-debugging-port=19330' } }
             if ($Scenario -eq 'conflict-bare') { return @{ ProcessId = 4242; Name = 'node.exe'; CommandLine = 'node.exe server.js' } }
             return @{ ProcessId = 4242; Name = 'chrome.exe'; CommandLine = 'chrome.exe --user-data-dir="C:\other profile\aiakos-dogfood-x" --remote-debugging-port=19330' }
         }
@@ -27,7 +30,7 @@ function Get-CimInstance {
         throw 'TCP query must filter the selected loopback listener in the provider'
     }
     if ($Scenario -eq 'port') { Write-Error 'port query unavailable' }
-    if ($Scenario -in @('conflict', 'conflict-bare', 'managed')) { return @{ OwningProcess = 4242 } }
+    if ($Scenario -in @('conflict', 'conflict-bare', 'conflict-quoted', 'conflict-lookup-fails', 'conflict-gone', 'managed')) { return @{ OwningProcess = 4242 } }
 }
 function Get-NetTCPConnection {
     [CmdletBinding()]

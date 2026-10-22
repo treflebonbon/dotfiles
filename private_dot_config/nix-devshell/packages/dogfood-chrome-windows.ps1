@@ -70,8 +70,8 @@ function Format-ConflictState {
     $Detail = "unknown"
     if ($Owner) {
         if ($Owner.Name) { $Detail = $Owner.Name }
-        if ($Owner.CommandLine -match '--user-data-dir=(?:"([^"]*)"|(\S+))') {
-            $Detail = "$($Matches[1])$($Matches[2])"
+        if ($Owner.CommandLine -match '(?:"--user-data-dir=([^"]*)"|--user-data-dir=(?:"([^"]*)"|(\S+)))') {
+            $Detail = "$($Matches[1])$($Matches[2])$($Matches[3])"
         }
     }
     return "port-conflict:${OwnerPid}:$($Detail -replace '[\r\n]+', ' ')"
