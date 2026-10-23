@@ -10,6 +10,8 @@ import {
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
+const digest = (data) =>
+  `sha256:${createHash("sha256").update(data).digest("hex")}`;
 const key = (dependency) =>
   JSON.stringify([dependency.repo_url, dependency.virtual_path ?? ""]);
 const readYaml = (file) => Bun.YAML.parse(readFileSync(file, "utf-8"));
@@ -154,8 +156,17 @@ const verify = (baseFile, runtimeDirectory, planFile) => {
         `通常 file ではありません: ${file}`
       );
       const bytes = readFileSync(deployedPath);
-      const actual = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-      assert.equal(hashes[file], actual, `file hash 不一致: ${file}`);
+      // APM は lock に改行を LF へ正規化した hash を記録するが、配備 file は CRLF のまま残る。
+      const actual = [
+        digest(bytes),
+        digest(
+          Buffer.from(
+            bytes.toString("latin1").replaceAll("\r\n", "\n"),
+            "latin1"
+          )
+        ),
+      ];
+      assert.ok(actual.includes(hashes[file]), `file hash 不一致: ${file}`);
       verifiedFiles.add(file);
       if (file.endsWith("/SKILL.md")) {
         verifyFrontmatter(bytes, file);

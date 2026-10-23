@@ -56,6 +56,8 @@ elif mutation=='noncandidate-hash':
     file='.agents/skills/beta/SKILL.md'; content=(runtime/file).read_text()+'Changed\n'
     (runtime/file).write_text(content)
     beta['deployed_file_hashes'][file]='sha256:'+hashlib.sha256(content.encode()).hexdigest()
+elif mutation=='crlf':
+    file=runtime/'.agents/skills/alpha/guide.md'; file.write_bytes(b'# Guide\r\n\r\n## Usage\r\nPlain Markdown.\r\n')
 elif mutation=='tamper':
     (runtime/'.agents/skills/alpha/guide.md').write_text('Changed\n')
 elif mutation=='frontmatter':
@@ -116,6 +118,12 @@ PY
   run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
   [ "$status" -eq 1 ]
   [[ "$output" == *'候補外の drift'* ]]
+}
+
+@test "APM deployment verification accepts CRLF bytes whose LF-normalized hash matches the native hash" {
+  mutate_fixture crlf
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+  [ "$status" -eq 0 ]
 }
 
 @test "APM deployment verification rejects deployed bytes that disagree with the native hash" {

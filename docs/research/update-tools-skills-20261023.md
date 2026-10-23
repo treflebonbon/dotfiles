@@ -34,3 +34,7 @@
 - Herdr本体は0.9.5、Herdr skillはAPM保留のため0.9.3同梱のrevisionのまま。APM unit再開時に揃える。
 - review（Standards／Spec）で指摘された孤児helper、`runtime/ai-runtimes.md`の現在形記述、ADR-0045への撤去追記を修正した。flake.lockのうち`llm-agents`のnixpkgs／treefmt-nixは同inputの更新に伴う変更。
 - 未確認: aarch64実機、waza新hashの実行確認、撤去したcleanup回帰の再現。
+
+## 訂正（同日）
+
+「APM 0.34.0 の `apm --version` が 0.33.0 を返す」は上流の表示ずれではなく、継承した旧 `PYTHONPATH` が旧 `apm_cli` を読んでいたことが原因だった。保留した APM unit は [update-apm-skills-20261023.md](update-apm-skills-20261023.md) で再開した。

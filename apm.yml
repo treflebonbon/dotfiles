@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#2f46b7a8b059af00d20dd13b64dbe165e7c6a742
+    - pbakaus/impeccable/.agents/skills/impeccable#490141501de5035d1d2fb975239ceb757f045bcb
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -25,9 +25,9 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#1441a11e95db35443bd76bb318386c0d3ca00053
+    - remotion-dev/skills/skills/remotion-best-practices#6c67adcd9cdbe6eb84d76342da89b225f9161cb2
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#b31dc0a43ff5d19bcf386a3476a216f3b39a6f55
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#65e7edd67e77420eaf02c5df00fdc0521417d809
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # mattpocock/skills 公式27-skill collection — 公式 full set を一括管理。
@@ -41,5 +41,5 @@ dependencies:
     - stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use
-    # Herdr 0.9.3 同梱スキルと同じ revision を APM で配布する。
-    - herdrdev/herdr/skills/herdr#7b116c05bfda646af39d2524c54e70c751f57ee8
+    # Herdr 0.9.5 同梱スキルと同じ revision を APM で配布する。
+    - herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01
