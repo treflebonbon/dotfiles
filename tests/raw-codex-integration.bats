@@ -227,7 +227,9 @@ with (base / 'config-rpc.log').open('w') as log:
         session = Path(next(line.split('isolated session ', 1)[1].strip() for line in (base / 'config-rpc.log').read_text().splitlines() if 'isolated session ' in line))
         assert session.is_relative_to(base / 'state/devshell-env/sessions')
         assert not (session / 'config/auth.json').exists()
-        assert not (session / 'root' / str(base / 'work').lstrip('/') / '.env').exists()
+        # 独自 cleanup patch の撤去後は Codex が空の mask を残し得る（ADR-0045 2026-10-23）。秘密値の持込みだけを拒否する。
+        dotenv = session / 'root' / str(base / 'work').lstrip('/') / '.env'
+        assert not dotenv.is_symlink() and (not dotenv.exists() or (dotenv.is_file() and dotenv.stat().st_size == 0)), dotenv
         print('SESSION_TRUST_SAVED_POLICY_FIXED')
     finally:
         process.stdin.close()
