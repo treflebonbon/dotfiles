@@ -1,0 +1,64 @@
+#!/usr/bin/env -S python3 -I
+
+"""PostToolUse hook: project 内の編集ファイルだけを、project の Ultracite で整形する。"""
+
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def main():
+    event = json.load(sys.stdin)
+    if (
+        not isinstance(event, dict)
+        or event.get("hook_event_name") != "PostToolUse"
+        or event.get("tool_name") not in ("Write", "Edit")
+    ):
+        return
+    tool_input = event.get("tool_input")
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR")
+    file_path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+    if not project_dir or not isinstance(file_path, str) or not file_path:
+        return
+    project = Path(project_dir)
+    file = Path(file_path)
+    if not project.is_absolute() or not file.is_absolute():
+        return
+    project = project.resolve(strict=True)
+    file = file.resolve(strict=True)
+    if not file.is_relative_to(project) or not file.is_file():
+        return
+    if re.search(rb"(?m)^(?:<{7}|={7}|>{7}|\|{7})", file.read_bytes()):
+        return
+    git_dir = Path(
+        subprocess.check_output(
+            ["git", "rev-parse", "--absolute-git-dir"],
+            cwd=file.parent,
+            env={
+                key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+            },
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    )
+    if {"MERGE_HEAD", "rebase-merge", "rebase-apply"} & {
+        entry.name for entry in git_dir.iterdir()
+    }:
+        return
+    subprocess.run(
+        [str(project / "node_modules/.bin/ultracite"), "fix", str(file)],
+        cwd=project,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+
+try:
+    main()
+except (OSError, ValueError, subprocess.SubprocessError):
+    pass

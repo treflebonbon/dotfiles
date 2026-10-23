@@ -221,6 +221,12 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 **Herdr**: [公式スキル](https://herdr.dev/ja/docs/agent-skill/)を `herdrdev/herdr/skills/herdr` から APM で配布する。導入時の CLI 0.9.0 と同じ commit `b99002ac99b09e00b4ca692436cb15a6b0d676f1` に固定し、`~/.agents/skills/herdr/` と `~/.claude/skills/herdr/` へ展開する。Herdr の操作を明示的に依頼された場合に使い、制御コマンドの前に `HERDR_ENV=1` を確認する。CLI バイナリは nix devshell が供給する。
 
+## Ultracite の project hook
+
+`ultracite init` が生成する Claude Code の整形 hook は、各 project の `.claude/settings.json` で `PostToolUse` の `Write|Edit` に対する command を `"\"$HOME/.local/bin/ultracite-fix-hook\""` に置き換える。既存 command と併用せず、他の hook は保持する。
+
+この hook は stdin の `tool_input.file_path` と `$CLAUDE_PROJECT_DIR` の絶対パスを解決し、project 内の通常ファイル1件だけを project の `node_modules/.bin/ultracite fix <file>` へ渡す。実行 cwd は project に固定する。入力不正・対象なし・範囲外（外向き symlink を含む）・競合記号・対象ファイルの repo で merge/rebase 中・Git 状態の検査不能時はスキップする。local CLI がなければ取得せず、整形の失敗は無言で編集を継続する。user-global hook の追加や project 設定の自動書換えは行わない。
+
 ## chezmoi 配布のローカル skill
 
 apm 外の user-scoped private skill は chezmoi で配布する。`local-skills/<name>/SKILL.md` の配置自体を配備対象の宣言とし、別の配備・保持一覧への登録は不要とする。ソースは `.chezmoiignore` で `~/` へ直接 deploy せず、`run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイムの skill dir へ `rsync` で materialize する:
