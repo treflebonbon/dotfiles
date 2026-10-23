@@ -25,6 +25,9 @@ for path in .agents/skills .claude/skills; do
   [[ ! -e "$path" && ! -L "$path" ]] || reject "配備済みパスが存在します: $path（新しい隔離runtimeを使ってください）"
 done
 
+# 旧 devShell から継承した PYTHONPATH は旧 apm_cli を先に読み込み、CLI の版表示を古くする。
+unset PYTHONPATH
+
 expected=$(APM_SOURCE_DIR="$source_dir" nix eval --impure --raw --no-write-lock-file --expr '
   let
     flake = builtins.getFlake ("git+file://" + builtins.getEnv "APM_SOURCE_DIR" + "?dir=private_dot_config/nix-devshell");

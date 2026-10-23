@@ -308,6 +308,7 @@ EOF
   cat >"$GENERATION_BIN/apm" <<'EOF'
 #!/usr/bin/env bash
 if [[ "$*" == --version ]]; then
+  [[ -z ${PYTHONPATH:-} ]] || { printf 'Agent Package Manager (APM) CLI version 0.33.0\n'; exit 0; }
   printf '%s\n' "${APM_TEST_CLI_OUTPUT-Agent Package Manager (APM) CLI version 0.34.0}"
   exit "${APM_TEST_CLI_STATUS:-0}"
 fi
@@ -330,6 +331,14 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(cat apm.lock.yaml)" = 'apm_version: 0.34.0' ]
   [ "$(cat "$GENERATION_LOG")" = 'install --target claude,codex --https' ]
+}
+
+@test "APM candidate generation ignores an inherited PYTHONPATH that would load a stale apm_cli" {
+  prepare_lock_generation
+
+  run env PYTHONPATH=/stale "$GENERATOR" "$PROJECT_ROOT"
+
+  [ "$status" -eq 0 ]
 }
 
 @test "APM candidate generation rejects existing deployment paths without changing the lock" {
