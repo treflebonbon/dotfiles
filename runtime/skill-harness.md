@@ -139,6 +139,8 @@ bun "$SOURCE_DIR/scripts/verify-apm-deployment.mjs" \
   "$BASE_LOCK" "$CANDIDATE_RUNTIME" "$PLAN_JSON"
 ```
 
+`PLAN_JSON` の下書きは `bun "$SOURCE_DIR/scripts/plan-apm-deployment.mjs" "$BASE_LOCK" "$CANDIDATE_RUNTIME/apm.lock.yaml"` が標準出力へ出す。floating の `resolved_commit` だけが進んだ dependency を除き、いずれかの field が変わった dependency（`content_hash` だけの変更を含む）を候補に挙げ、追加・削除は `deployed_files` の差分から作る。候補にする判断は人が確認し、生成結果をそのまま採用しない。
+
 `PLAN_JSON` は配列そのものではなく、次の形式の object にする。これは形式例であり、`repo_url`／`virtual_path` は native lock と一致させ、directory を含む `deployed_files` の追加・削除を事前に列挙する。
 
 ```json
