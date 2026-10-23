@@ -6,9 +6,9 @@
     "test": "bash scripts/test.sh"
   },
   "devDependencies": {
-    "bun-types": "1.4.2",
-    "oxfmt": "^0.72.0",
-    "oxlint": "^1.87.0",
+    "bun-types": "1.4.3",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
     "typescript": "^7.0.2"
   }
 }

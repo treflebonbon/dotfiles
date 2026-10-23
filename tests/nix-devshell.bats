@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/998b9f267c671917a0b9a88b01e287c3168f3c24' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "998b9f267c671917a0b9a88b01e287c3168f3c24"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "998b9f267c671917a0b9a88b01e287c3168f3c24"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
@@ -193,12 +193,12 @@ PS
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
-  local record="$PROJECT_ROOT/docs/research/tool-snapshot-pr-20261013.md"
+  local record="$PROJECT_ROOT/docs/research/update-tools-skills-20261023.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '998b9f267c671917a0b9a88b01e287c3168f3c24' "$record"
-  grep -Fq '998b9f267c671917a0b9a88b01e287c3168f3c24' "$flake"
+  grep -Fq '529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0' "$record"
+  grep -Fq '529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0' "$flake"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#1441a11e95db35443bd76bb318386c0d3ca00053' "$manifest"
 }
 

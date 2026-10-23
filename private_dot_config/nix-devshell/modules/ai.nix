@@ -57,26 +57,13 @@ let
     decision = "docs/adr/0045-separate-llm-agents-and-apm-update-units.md";
   };
 
-  codexBase = requireQualityFloor {
+  codex = requireQualityFloor {
     name = "codex";
     package = codexPackage;
     minimum = minCodex;
     reason = "複数 denied file の Linux sandbox 起動、書込み可能な sandbox 構築用 executable、ripgrep 設定による deny-glob の弱体化を修正した版。";
     decision = "docs/adr/0045-separate-llm-agents-and-apm-update-units.md";
   };
-  codex =
-    if pkgs.stdenv.isLinux then
-      codexBase.overrideAttrs (old: {
-        inherit (codexBase) version src;
-        patches = (old.patches or [ ]) ++ [
-          ../packages/codex-sandbox-cleanup.patch
-        ];
-        preBuild = (old.preBuild or "") + ''
-          export NIX_BUILD_CORES=1
-        '';
-      })
-    else
-      codexBase;
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
