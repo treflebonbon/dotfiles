@@ -44,7 +44,7 @@ assert_lock_entry() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#2f46b7a8b059af00d20dd13b64dbe165e7c6a742' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#490141501de5035d1d2fb975239ceb757f045bcb' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -58,8 +58,8 @@ assert_lock_entry() {
 
   grep -Fq 'apm_version: 0.34.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: 2f46b7a8b059af00d20dd13b64dbe165e7c6a742' "$lock"
-  grep -Fq 'content_hash: sha256:c163814cf8e99e089913154ed472e7d3237ac972b1d209b469c4b3518e0f033c' "$lock"
+  grep -Fq 'resolved_commit: 490141501de5035d1d2fb975239ceb757f045bcb' "$lock"
+  grep -Fq 'content_hash: sha256:75749e28d24c02267b692eb094ef14e863dd70a74e2fd40163bfc9c00397e300' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/impeccable' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/impeccable' "$lock"
@@ -137,7 +137,7 @@ assert_lock_entry() {
     '3d98900e9b73c45f035f8109e9d41ba6a51685e7' \
     'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    'f0450469e4224f79b8a388bb89438f8c5b125e3f' \
+    'cae9a066b31d9d7c4a44f4f3e29c1dd8f3429663' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
@@ -146,7 +146,7 @@ assert_lock_entry() {
     '2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' \
     'sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    'f0450469e4224f79b8a388bb89438f8c5b125e3f' \
+    'cae9a066b31d9d7c4a44f4f3e29c1dd8f3429663' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
   [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 1 ]
   manifest_pins="$(
