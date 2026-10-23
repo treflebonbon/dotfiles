@@ -43,6 +43,9 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - 隔離 session で Windows 側の dogfood Chrome を確認するには、実行権限つきの `~/.local/bin/dogfood-chrome-inspect` を絶対パスで呼ぶ（読み取り専用。
 - CDP port 19330〜19393 の待ち受けの port・PID・起動時刻・command line を表示する）。
 - `powershell.exe` の直接実行は `!` 経由でも拒否された（confirmed、#490）。
+- ツール・スキル更新の session（Claude Code 2.1.296、2026-10-23）で次の形が拒否された（confirmed）。
+- `nix eval --expr …`、`for` ループ、`sed -i … $f` のように変数を渡す形、`herdr … --cwd "$PWD"`、`cd <dir> && …` を使う複合。
+- 単一の plain コマンドを 1 呼び出しずつ実行する形、`cp` や `sed -i` にリテラルのパスを渡す形、実行権限つきスクリプトの絶対パス呼出しは通った。
 
 dotfiles repo 自身の構造・規約は [docs/architecture.md](../docs/architecture.md) / [docs/conventions.md](../docs/conventions.md)（repo ローカル）を参照。
 

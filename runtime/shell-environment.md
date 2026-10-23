@@ -77,6 +77,8 @@ codex-worktree
 
 `admit` は現在の managed `CODEX_HOME/config.toml`、存在する AGENTS・default rules、Git の user.name/email と実行可能 hook も公開入力として記録する。これらにもプロジェクト秘密を含めない。署名鍵や署名 agent は提供しないため、隔離 repository は `commit.gpgsign=false` で起動する。以前登録した入力に署名設定が含まれていても同じ扱いとし、ホストの署名設定は変更しない。
 
+dotfiles repo のように root の `flake.nix` が他のファイルを参照する repo では、`flake.nix` と `flake.lock`、それが参照するファイル（例: `private_dot_local/bin/executable_devshell-env`）も `admit` の引数に明示的に含める。`admit` は指定したファイルだけを記録する。root の `flake.nix` が未登録だと `codex-worktree` は拒否し、`flake.nix` が参照する未登録ファイルは分離環境の snapshot に存在せず、Nix 準備が失敗した（confirmed、2026-10-23）。登録する範囲が広がる場合は、公開入力を増やさずに済む `codex:rescue` でのレビューを先に検討する。
+
 初回の index は HEAD と一致させる。symlink・hardlink・特殊ファイルは列挙するファイル入力として受理しない。HEAD にある symlink・submodule の Git エントリは保持するが、ホストのリンク先や submodule の内容はコピーしない。変更のないエントリはそのまま返却でき、新規・変更された symlink・gitlink の結果は拒否する。ファイル名の denylist を公開可否の判定に使わないため、通常名に隠した秘密も列挙しなければ入らない。`.env`・鍵・認証ファイルを入力に加えて問題を回避しない。
 
 `devshell-env status [directory]` と `untrust [directory]` は従来どおり。信頼は Git common directory の physical path と inode に結び付き、同じ repo の正当な linked worktree に継承する。公開入力の登録は worktree ごとに必要。primary checkout で信頼登録はできるが、raw 起動は linked worktree に限定する。
