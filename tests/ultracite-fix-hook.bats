@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
+  unset "${!GIT_@}"
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   HOOK="$PROJECT_ROOT/private_dot_local/bin/executable_ultracite-fix-hook"
   export CLAUDE_PROJECT_DIR="$BATS_TEST_TMPDIR/project with spaces"
@@ -53,6 +54,29 @@ hook() {
   [ "$status" -eq 0 ]
   [ "$(cat "$EDITED")" = unformatted ]
   [ ! -e "$CALL_LOG" ]
+}
+
+@test "親の Git 環境に流されず編集ファイルの repo の merge 状態を検査する" {
+  local foreign="$BATS_TEST_TMPDIR/other" event
+  git init -q "$foreign"
+  event=$(jq -nc --arg file "$EDITED" '{hook_event_name:"PostToolUse",tool_name:"Edit",tool_input:{file_path:$file}}')
+  touch "$CLAUDE_PROJECT_DIR/.git/MERGE_HEAD"
+  run env GIT_DIR="$foreign/.git" GIT_WORK_TREE="$foreign" \
+    GIT_COMMON_DIR="$foreign/.git" GIT_INDEX_FILE="$foreign/index" \
+    GIT_OBJECT_DIRECTORY="$foreign/.git/objects" \
+    GIT_ALTERNATE_OBJECT_DIRECTORIES="$foreign/.git/objects" GIT_PREFIX=other/ \
+    "$HOOK" <<<"$event"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$EDITED")" = unformatted ]
+  [ ! -e "$CALL_LOG" ]
+  mv "$CLAUDE_PROJECT_DIR/.git/MERGE_HEAD" "$foreign/.git/MERGE_HEAD"
+  run env GIT_DIR="$foreign/.git" GIT_WORK_TREE="$foreign" \
+    GIT_COMMON_DIR="$foreign/.git" GIT_INDEX_FILE="$foreign/index" \
+    GIT_OBJECT_DIRECTORY="$foreign/.git/objects" \
+    GIT_ALTERNATE_OBJECT_DIRECTORIES="$foreign/.git/objects" GIT_PREFIX=other/ \
+    "$HOOK" <<<"$event"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$EDITED")" = formatted ]
 }
 
 @test "rebase の両 backend は整形しない" {

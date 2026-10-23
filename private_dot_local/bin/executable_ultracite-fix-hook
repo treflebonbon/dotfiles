@@ -37,6 +37,9 @@ def main():
         subprocess.check_output(
             ["git", "rev-parse", "--absolute-git-dir"],
             cwd=file.parent,
+            env={
+                key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+            },
             stderr=subprocess.DEVNULL,
             text=True,
         ).strip()
