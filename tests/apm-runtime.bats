@@ -56,7 +56,7 @@ assert_lock_entry() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
-  grep -Fq 'apm_version: 0.33.0' "$lock"
+  grep -Fq 'apm_version: 0.34.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
   grep -Fq 'resolved_commit: 2f46b7a8b059af00d20dd13b64dbe165e7c6a742' "$lock"
   grep -Fq 'content_hash: sha256:c163814cf8e99e089913154ed472e7d3237ac972b1d209b469c4b3518e0f033c' "$lock"
@@ -111,10 +111,10 @@ assert_lock_entry() {
   local manifest_pins
   local lock_refs
 
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#b31dc0a43ff5d19bcf386a3476a216f3b39a6f55' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#1441a11e95db35443bd76bb318386c0d3ca00053' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#65e7edd67e77420eaf02c5df00fdc0521417d809' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#6c67adcd9cdbe6eb84d76342da89b225f9161cb2' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$manifest"
-  grep -Fq 'herdrdev/herdr/skills/herdr#7b116c05bfda646af39d2524c54e70c751f57ee8' "$manifest"
+  grep -Fq 'herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
   ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
   ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"
@@ -122,8 +122,8 @@ assert_lock_entry() {
   ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
   assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
-    'b31dc0a43ff5d19bcf386a3476a216f3b39a6f55' \
-    'sha256:2bdf613c1efa013eb28bbc1ade3d6542f6864694cb344221b06d6754b183322c'
+    '65e7edd67e77420eaf02c5df00fdc0521417d809' \
+    'sha256:02f8e646b358660529dcb676ad0f65fbffcededf4dd2ff1c44d3b8cb6e36b97f'
   assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
     'dbd4588f9e1033efb41dad4bef2f7947c8993d44' \
     'sha256:69e2ac9eb2bbe2881df26acc53b46b39a15cfda206f5357e5f9c83feb0fadcc7'
@@ -131,22 +131,22 @@ assert_lock_entry() {
     'dbd4588f9e1033efb41dad4bef2f7947c8993d44' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    '1441a11e95db35443bd76bb318386c0d3ca00053' \
-    'sha256:a8928ae0da5f31445bec75f600137f3a473cefc8ab47fdb995915d6220b39409'
+    '6c67adcd9cdbe6eb84d76342da89b225f9161cb2' \
+    'sha256:631367215bad56d1d73fd1f9d82209ed12c29349c0fa13c48819dc9332f8846b'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    'daaf156ee00ed91cc7e6bdd937c1b4973152d141' \
+    '3d98900e9b73c45f035f8109e9d41ba6a51685e7' \
     'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    '859e359e35043b6754e883e5f93b736ef7607fbf' \
+    'f0450469e4224f79b8a388bb89438f8c5b125e3f' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
     'sha256:ccd717aed7b9866a059b0b31d9a009641a28f6db3201749943fbbb797af4a317'
   assert_lock_entry "$lock" 'herdrdev/herdr' 'herdr' \
-    '7b116c05bfda646af39d2524c54e70c751f57ee8' \
-    'sha256:66715d76e5947497431ec0db32f2693b9c916ad799c3f32b99e6174b4b9c607f'
+    '2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' \
+    'sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    '859e359e35043b6754e883e5f93b736ef7607fbf' \
+    'f0450469e4224f79b8a388bb89438f8c5b125e3f' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
   [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 1 ]
   manifest_pins="$(

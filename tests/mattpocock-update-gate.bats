@@ -16,7 +16,7 @@ setup() {
   ln -s "$PROJECT_ROOT/tests/fixtures/mattpocock-update-gate-chezmoi.sh" "$FAKE_BIN/chezmoi"
   cat >"$FAKE_BIN/nix" <<'EOF'
 #!/usr/bin/env bash
-printf '%s' "${MATT_GATE_SNAPSHOT_VERSION:-0.33.0}"
+printf '%s' "${MATT_GATE_SNAPSHOT_VERSION:-0.34.0}"
 EOF
   chmod +x "$FAKE_BIN/nix"
 }
