@@ -530,15 +530,15 @@ with tempfile.TemporaryDirectory(prefix='cxi-ready-', dir='/tmp') as temporary:
         for mode, expected, reason in [
             ('slow', 0, ''),
             ('failed', 1, 'bridge exited with status 17'),
-            ('stalled', 1, 'no readiness within 10s'),
+            ('stalled', 1, 'no readiness within 30s'),
             ('closed', 1, 'bridge exited with status 143'),
             ('invalid', 1, 'unexpected readiness line'),
         ]:
             wrapper = fixture / f'{mode}.py'
             wrapper.write_text('import runpy, time\n' + {
-                'slow': 'time.sleep(1.5)\n',
+                'slow': 'time.sleep(12)\n',
                 'failed': 'import sys\nprint("bridge stderr marker", file=sys.stderr)\nraise SystemExit(17)\n',
-                'stalled': 'time.sleep(20)\n',
+                'stalled': 'time.sleep(60)\n',
                 'closed': 'import os\nos.close(1)\ntime.sleep(20)\n',
                 'invalid': 'print("unexpected", flush=True)\ntime.sleep(20)\n',
             }[mode] + 'runpy.run_path("/gateway-source.py", run_name="__main__")\n')
@@ -562,7 +562,7 @@ CLIENT
                 '--ro-bind', str(wrapper), '/gateway-bridge.py', '--ro-bind', str(script), '/startup.sh',
                 '--clearenv', '--setenv', 'PATH', f'{bash.parent}:{python.parent}',
                 str(bash), '/startup.sh',
-            ], text=True, capture_output=True, timeout=15)
+            ], text=True, capture_output=True, timeout=45)
             assert result.returncode == expected, (mode, result.returncode, result.stdout, result.stderr)
             if expected == 0:
                 assert result.stdout.strip() == 'BRIDGE_COMMAND_STARTED', result.stdout

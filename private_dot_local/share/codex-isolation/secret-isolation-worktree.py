@@ -536,14 +536,15 @@ def prepare(repo, policy, output):
 
 
 def bridge_startup(service, port):
+    # CPU 競合で10秒を超える正常な Python の初期化も待つ。
     # read status >128 is a timeout; other failures mean the bridge closed stdout.
     # Killing first keeps wait bounded if the bridge closed stdout but kept running.
     return f"""bridge_read_status=0
-IFS= read -r -t 10 bridge_ready < <(
+IFS= read -r -t 30 bridge_ready < <(
     python3 /gateway-bridge.py /gateway/{service}/service.sock {port} </dev/null
 ) || bridge_read_status=$?
 if [ "$bridge_read_status" -gt 128 ]; then
-    printf '%s\\n' 'gateway bridge did not start: no readiness within 10s' >&2
+    printf '%s\\n' 'gateway bridge did not start: no readiness within 30s' >&2
     exit 1
 elif [ "$bridge_read_status" -ne 0 ]; then
     kill "$!" 2>/dev/null || :
