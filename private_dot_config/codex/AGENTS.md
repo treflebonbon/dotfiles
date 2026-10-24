@@ -10,6 +10,8 @@
 
 セッション間で共有する一時ファイルは `/tmp/codex` 配下に置き、`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。通常の `/tmp` は共有先として許可していない。peer-refactor の公開証跡の保管・復旧は `~/runtime/autonomous-peer-contract.md` に従う。機密ファイル名の拒否と raw の隔離境界は `~/runtime/ai-runtimes.md` を参照する。
 
+Codex の同一の実効 permission profile では、具体的な path の規則が祖先 path の規則に優先し、`write` は read も含む。`/tmp` deny と `/tmp/codex` write が併記されている場合、共有先の公開ファイルには後者を適用する。より具体的な機密名 deny と上位 policy の制限は引き続き守り、実際の tool 拒否と未実行の推測を区別する（[公式の優先規則](https://learn.chatgpt.com/docs/permissions)）。
+
 ## Behavior
 
 - Carry clear requests through completion, including appropriate verification. Infer routine, reversible steps within the requested scope.
