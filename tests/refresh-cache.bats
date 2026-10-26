@@ -87,44 +87,48 @@ assert_cache_version() {
   [ "$(cat "$FAKE_HOME/.cache/nix-devshell-global-env.bash")" = 'export CACHE_VERSION=old' ]
 }
 
-@test ".git/ がコミット 0 件なら silent 削除し stdout に通知" {
-  stub_cmd nix
-  cat >"$TEST_BIN_DIR/git" <<'STUB'
-#!/bin/bash
-echo "$0 $*" >> "$TEST_LOG"
-if [[ "$*" == *"rev-parse --verify HEAD"* ]]; then
-  exit 1
-fi
-exit 0
-STUB
-  chmod +x "$TEST_BIN_DIR/git"
-  mkdir -p "$FAKE_HOME/.config/nix-devshell/.git/objects"
+@test "未コミットの HEAD でも別ブランチの履歴を保持して必須更新を停止する" {
+  local source="$FAKE_HOME/.config/nix-devshell" commit
+  env -i HOME="$FAKE_HOME" PATH="$PATH" git -C "$source" init -q -b main
+  env -i HOME="$FAKE_HOME" PATH="$PATH" git -C "$source" \
+    -c user.name=Test -c user.email=test@example.invalid commit -q --allow-empty -m initial
+  commit=$(env -i HOME="$FAKE_HOME" PATH="$PATH" git -C "$source" rev-parse main)
+  env -i HOME="$FAKE_HOME" PATH="$PATH" git -C "$source" symbolic-ref HEAD refs/heads/unborn
+  printf 'export CACHE_VERSION=old\n' >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  stub_real_cmd git
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
 
-  run_refresh
+  run_required_refresh
 
-  assert_success
-  [ ! -d "$FAKE_HOME/.config/nix-devshell/.git" ]
-  echo "$output" | grep -q "removed untracked .git/"
+  assert_failure
+  [ -d "$source/.git" ]
+  [ "$(env -i HOME="$FAKE_HOME" PATH="$PATH" git -C "$source" rev-parse main)" = "$commit" ]
+  [ "$(cat "$FAKE_HOME/.cache/nix-devshell-global-env.bash")" = 'export CACHE_VERSION=old' ]
+  refute_log_contains 'nix print-dev-env'
 }
 
-@test ".git/ にコミットあれば削除せず警告し refresh を skip" {
+@test "Git コマンドがなくても .git を保持して背景更新を省略する" {
   stub_cmd nix
-  cat >"$TEST_BIN_DIR/git" <<'STUB'
-#!/bin/bash
-echo "$0 $*" >> "$TEST_LOG"
-if [[ "$*" == *"rev-parse --verify HEAD"* ]]; then
-  exit 0
-fi
-exit 0
-STUB
-  chmod +x "$TEST_BIN_DIR/git"
   mkdir -p "$FAKE_HOME/.config/nix-devshell/.git/objects"
 
   run_refresh
 
   assert_success
   [ -d "$FAKE_HOME/.config/nix-devshell/.git" ]
-  echo "$output" | grep -q "has user commits"
+  assert_output --partial '手動での確認が必要'
+  refute_log_contains "nix print-dev-env"
+}
+
+@test "Git の検査が失敗する場合も .git を保持して必須更新を停止する" {
+  stub_cmd nix
+  stub_cmd git 128
+  mkdir -p "$FAKE_HOME/.config/nix-devshell/.git/objects"
+
+  run_required_refresh
+
+  assert_failure
+  [ -d "$FAKE_HOME/.config/nix-devshell/.git" ]
+  assert_output --partial '手動での確認が必要'
   refute_log_contains "nix print-dev-env"
 }
 

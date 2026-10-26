@@ -19,6 +19,11 @@ echo "NIX_CONFIG=${NIX_CONFIG:-}" >> "$TEST_LOG"
 if [ "$1" = print-dev-env ]; then
   echo 'export CACHE_VERSION=fresh'
 fi
+if [[ "$1" = build && "${@: -1}" = 'nixpkgs#python3^out' ]]; then
+  /bin/mkdir -p "$HOME/bootstrap-python/bin"
+  /bin/cp "$HOME/python-adapter" "$HOME/bootstrap-python/bin/python3"
+  printf '%s\n' "$HOME/bootstrap-python"
+fi
 STUB
   chmod +x "$TEST_BIN_DIR/nix"
   stub_cmd direnv
@@ -53,6 +58,11 @@ STUB
   stub_hash_cmd
   # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
   cp "$TEST_BIN_DIR/nix" "$test_home/nix-adapter"
+  cat >"$test_home/python-adapter" <<'STUB'
+#!/bin/bash
+echo "compatible-python $0 $*" >> "$TEST_LOG"
+STUB
+  chmod +x "$test_home/python-adapter"
   cat >"$TEST_BIN_DIR/sh" <<'STUB'
 #!/bin/bash
 echo "sh $*" >> "$TEST_LOG"
@@ -262,11 +272,11 @@ STUB
 # devShell 評価より前の chezmoi init --apply 時点で必要とする）
 # =============================================================================
 
-@test "python3 がない場合 nix profile 経由でインストールする" {
+@test "python3 がない場合 Nix で互換 Python を準備する" {
   run_install
 
   assert_success
-  assert_log_contains "nix profile add nixpkgs#python3"
+  assert_log_contains "nix build --no-link --print-out-paths nixpkgs#python3^out"
 }
 
 @test "python3 がある場合はインストールをスキップする" {
@@ -275,7 +285,64 @@ STUB
   run_install
 
   assert_success
-  refute_log_contains "nix profile add nixpkgs#python3"
+  refute_log_contains "nix build --no-link --print-out-paths nixpkgs#python3^out"
+}
+
+@test "tomllib を持たない既存 Python を置き換えてから初回配備する" {
+  stub_cmd python3 1
+  cat >"$TEST_BIN_DIR/chezmoi" <<'STUB'
+#!/bin/bash
+echo "chezmoi $*" >> "$TEST_LOG"
+if [ "$1" = init ]; then
+  exec python3 -c 'import tomllib'
+fi
+STUB
+  chmod +x "$TEST_BIN_DIR/chezmoi"
+
+  run_install
+
+  assert_success
+  assert_log_contains 'nix build --no-link --print-out-paths nixpkgs#python3^out'
+  assert_log_contains "compatible-python $BATS_TEST_TMPDIR/home/bootstrap-python/bin/python3 -c import tomllib"
+  assert_log_contains 'chezmoi init'
+}
+
+@test "Python の準備後も tomllib を利用できなければ初回配備を始めない" {
+  stub_cmd python3 1
+  printf '#!/bin/sh\nexit 1\n' >"$BATS_TEST_TMPDIR/home/python-adapter"
+
+  run_install
+
+  assert_failure
+  assert_output --partial 'tomllib を利用できる Python を準備できませんでした'
+  refute_log_contains 'chezmoi'
+}
+
+@test "既存 profile の Python と衝突せず互換 Python で初回配備できる" {
+  stub_cmd python3 1
+  local test_home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$test_home/.nix-profile/bin"
+  cp "$TEST_BIN_DIR/python3" "$test_home/.nix-profile/bin/python3"
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "nix $*" >> "$TEST_LOG"
+if [[ "$1" = profile && "$2" = add && "${@: -1}" = nixpkgs#python3 ]]; then
+  exit 17
+elif [[ "$1" = build && "${@: -1}" = 'nixpkgs#python3^out' ]]; then
+  /bin/mkdir -p "$HOME/bootstrap-python/bin"
+  /bin/cp "$HOME/python-adapter" "$HOME/bootstrap-python/bin/python3"
+  printf '%s\n' "$HOME/bootstrap-python"
+elif [ "$1" = print-dev-env ]; then
+  echo 'export CACHE_VERSION=fresh'
+fi
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+
+  run_install
+
+  assert_success
+  cmp "$TEST_BIN_DIR/python3" "$test_home/.nix-profile/bin/python3"
+  assert_log_contains "compatible-python $test_home/bootstrap-python/bin/python3 -c import tomllib"
 }
 
 # =============================================================================
@@ -433,16 +500,19 @@ STUB
 }
 
 @test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  stub_cmd python3
   check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" stable
 }
 
 @test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  stub_cmd python3
   check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" changing
   refute_log_contains 'direnv allow'
   refute_output --partial 'Dotfiles installed successfully!'
 }
 
 @test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  stub_cmd python3
   check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" failure
   refute_log_contains 'direnv allow'
   refute_output --partial 'Dotfiles installed successfully!'

@@ -96,14 +96,10 @@ _nix_devshell_refresh_locked() {
 
   export NIX_CONFIG="${NIX_CONFIG:-extra-experimental-features = nix-command flakes}"
 
-  if [ -d "$DIR/.git" ] && command -v git >/dev/null 2>&1; then
-    if git -C "$DIR" rev-parse --verify HEAD >/dev/null 2>&1; then
-      printf 'refresh-nix-devshell-cache: %s/.git has user commits; skipping recovery (manual cleanup needed)\n' "$DIR" >&2
-      [ "$required" = "1" ] && return 1
-      return 0
-    fi
-    rm -rf "$DIR/.git"
-    printf 'refresh-nix-devshell-cache: removed untracked .git/ in %s\n' "$DIR"
+  if [ -d "$DIR/.git" ]; then
+    printf 'refresh-nix-devshell-cache: %s/.git を保持して更新を省略します。手動での確認が必要です。\n' "$DIR" >&2
+    [ "$required" = "1" ] && return 1
+    return 0
   fi
 
   local tmp="" err="" input_id cached_id selected_output post_id post_output

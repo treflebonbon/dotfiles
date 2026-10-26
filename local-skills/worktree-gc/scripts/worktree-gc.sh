@@ -9,6 +9,11 @@
 # Shared implementation for the SessionStart hook and the manual command.
 set -euo pipefail
 
+# 検査と削除の対象を、呼出元の Git 設定ではなく --repo に固定する。
+for git_variable in "${!GIT_@}"; do
+  unset "$git_variable"
+done
+
 APPLY=false
 DIAGNOSE=false
 REPO=""
@@ -128,15 +133,20 @@ is_clean_worktree() {
   [ -z "$status" ]
 }
 has_unique_commit() {
-  local branch="$1" exclusions head
-  exclusions=$(git -C "$REPO" for-each-ref --format='%(refname)' \
-    refs/heads/ refs/tags/ refs/remotes/ 2>/dev/null | grep -v -F -x "$branch" || true)
-  if [ -z "$exclusions" ]; then
-    [ -n "$(git -C "$REPO" rev-list "$branch" 2>/dev/null | head -1)" ]
-    return $?
-  fi
+  local branch="$1" exclusions="" refs ref head
+  refs=$(git -C "$REPO" for-each-ref --format='%(refname)' \
+    refs/heads/ refs/tags/ refs/remotes/ 2>/dev/null) || {
+    printf 'worktree-gc: 参照一覧を検査できないため停止します: %s\n' "$branch" >&2
+    exit 1
+  }
+  while IFS= read -r ref; do
+    [ "$ref" = "$branch" ] || exclusions+="$ref"$'\n'
+  done <<<"$refs"
   # shellcheck disable=SC2086
-  head=$(git -C "$REPO" rev-list "$branch" --not $exclusions 2>/dev/null | head -1)
+  head=$(git -C "$REPO" rev-list --max-count=1 "$branch" --not $exclusions 2>/dev/null) || {
+    printf 'worktree-gc: コミットを検査できないため停止します: %s\n' "$branch" >&2
+    exit 1
+  }
   [ -n "$head" ]
 }
 
@@ -502,5 +512,7 @@ fi
 
 for r in "${_roots[@]}"; do sweep_root "$r"; done
 # Prune dangling worktree admin entries left by removals.
-git -C "$REPO" worktree prune --expire now 2>/dev/null || true
+if [ "$APPLY" = true ]; then
+  git -C "$REPO" worktree prune --expire now 2>/dev/null || true
+fi
 echo "done removed=$REMOVED"
