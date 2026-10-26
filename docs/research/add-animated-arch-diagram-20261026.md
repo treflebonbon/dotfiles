@@ -19,6 +19,9 @@
 - 既存20 dependency の全 field、既存 deployment ledger、root metadata は更新前と一致。追加は1 dependency と24 deployment record（11ファイルと skill directory を両 target に配置）。
 - `SKILL.md`、`references/`、`assets/template/` 内の全11ファイルが `.agents/skills/animated-arch-diagram/` と `.claude/skills/animated-arch-diagram/` に元と同じ bytes で配備され、台帳の owner／target／hash が一致した。
 - `scripts/verify-apm-deployment.mjs` に候補 lock 自身を baseline として渡し、全21 dependency の実ファイル／hash／frontmatter と、両 target での47 skill の discovery を検証した。既存 lock からの追加差分と台帳不変の比較は、dependency 構成を固定する同 helper の対象外なので、別の assertion で照合した。
-- 関連 Bats（`apm-runtime.bats`、`local-skills.bats`、`run_onchange_before_remove-orphan-claude-skills.bats`）は69件成功。全 Bats は最終 lock を採用した source で別途実行する。
+- 関連 Bats（`apm-runtime.bats`、`local-skills.bats`、`run_onchange_before_remove-orphan-claude-skills.bats`）は69件成功。
+- 両 devShell 内の `lefthook run test` は361.35秒で終了。計画1,120件のうち成功1,083件、失敗1件、skip 36件、exit 1。ログは task worktree の `tmp/test-run.CdGR0o/` に保持した。失敗は `tests/nix-devshell.bats:262` の既存テスト `code-review-graph package meets its FastMCP floor on all supported systems` で、MCP 応答待ちが10秒で timeout したもの。今回、そのテストと code-review-graph の package／Nix snapshot は変更していない。
+- 同じ source・devShell で上記テストだけを `bats --tap --print-output-on-failure --filter 'code-review-graph package meets its FastMCP floor' tests/nix-devshell.bats` により再実行し、1件成功、exit 0。並列実行中の負荷による一時的な timeout の可能性はあるが、原因は未確定。全 suite の初回失敗と単独再実行の成功を区別し、全 suite 成功とは扱わない。
+- `code-review` は base `2e07d8dbe23bb8ad595a0954c7b477c16f47e26e` から実装 commit `c7ed02e` までを独立した2 agent が読み取り専用でレビューし、Standards／Spec とも指摘0件。
 
 隔離 runtime とログは `/tmp/codex/add-animated-arch-diagram.Qcb7Ay/` に保持した。MP4／GIF の書き出しと実セッションでの呼出しは未検証。live HOME への反映は受入・merge 後の配備境界に残す。
