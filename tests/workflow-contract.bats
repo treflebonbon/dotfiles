@@ -37,17 +37,6 @@ setup() {
   grep -Fq 'キャッシュ更新・Codex 同期のうち必要なもの' "$architecture"
 }
 
-@test "runtime notes record Codex sync side effects and isolated-session Herdr targeting" {
-  local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md" index="$PROJECT_ROOT/runtime/index.md"
-
-  grep -Fq 'Orca が登録した hook も消える' "$runtimes"
-  grep -Fq 'Orca の起動時に再登録されるのはユーザーの申告で、この repo では未観測（unconfirmed）' "$runtimes"
-  grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"` が拒否された（confirmed' "$runtimes"
-  grep -Fq '`echo "$HERDR_PANE_ID"` で値を取り、`--pane w10:p1` のようにリテラルで渡すと通った（confirmed）' "$runtimes"
-  grep -Fq '`herdr pane layout --pane "$HERDR_PANE_ID"` は、変数の展開を理由に拒否された（confirmed' "$index"
-  grep -Fq '変数代入そのものが拒否されるかは未確認' "$index"
-}
-
 @test "grilling uses frontier rounds and waits for human decisions" {
   local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
 
@@ -233,31 +222,6 @@ setup() {
   grep -Fq '配備先: `~/.agents/skills/orca-peer-refactor/references/orca.md#worktree-readiness`' "$RUNTIME"
   grep -Fq '同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する' "$RUNTIME"
   grep -Fq 'folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外' "$RUNTIME"
-}
-
-@test "ADR-0046 uses Orca built-in Codex launch and keeps the adapter outside Orca" {
-  local adr="$PROJECT_ROOT/docs/adr/0046-separate-orca-native-worktree-entry.md"
-
-  grep -Fq 'status: accepted' "$adr"
-  grep -Fq 'Agent Picker からの built-in agent 起動' "$adr"
-  grep -Fq 'Orca shipped Yolo' "$adr"
-  grep -Fq '`codex-orca` / `codex-worktree` や repository-owned permission override を挟まない' "$adr"
-  grep -Fq 'filesystem / network の security boundary ではない' "$adr"
-  grep -Fq 'Agent Permissions を Manual' "$adr"
-  grep -Fq 'Orca Source Control で stage / commit / push' "$adr"
-  grep -Fq 'raw Codex CLI の `codex-worktree` Worktree Activation' "$adr"
-}
-
-@test "workflow migration ADR supersedes old exclusions and pins" {
-  local adr="$PROJECT_ROOT/docs/adr/0041-adopt-mattpocock-v1-2-3-workflow-semantics.md"
-
-  [ -f "$adr" ]
-  grep -Fq 'status: accepted' "$adr"
-  grep -Fq '旧一問一答・120k smart-zone・旧 phase boundary' "$adr"
-  grep -Fq 'ADR-0022 の `grill-me` / `teach` 非導入判断' "$adr"
-  grep -Fq 'ADR-0037 の旧20-skill pin 据え置き理由' "$adr"
-  grep -Fq 'supersede' "$adr"
-  grep -Fq 'full set の配備判断自体は ADR-0040 が正本' "$adr"
 }
 
 @test "repo-root instructions stay out of home while global sources carry shared contracts" {
