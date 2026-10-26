@@ -21,46 +21,20 @@ setup() {
   [ ! -e "$SKILL_HOME/.codex/skills/pr-screenshots" ]
 }
 
-@test "dogfood replaces the retired issue-only skill in both deployment hubs" {
-  local dir
-  for dir in .agents .claude .codex; do
-    mkdir -p "$SKILL_HOME/$dir/skills/dogfood-to-issues"
-    printf 'old skill\n' >"$SKILL_HOME/$dir/skills/dogfood-to-issues/SKILL.md"
-  done
-
-  run run_skill_phase before_remove-orphan-claude-skills
-  [ "$status" -eq 0 ]
-  run run_skill_phase after_deploy-local-skills
-  [ "$status" -eq 0 ]
-
-  for dir in .agents .claude .codex; do
-    [ ! -e "$SKILL_HOME/$dir/skills/dogfood-to-issues" ]
-  done
-  for dir in .agents .claude; do
-    cmp "$SKILL_SOURCE/local-skills/dogfood/SKILL.md" "$SKILL_HOME/$dir/skills/dogfood/SKILL.md"
-  done
-}
-
-@test "retired MVP skill is removed from all deployment locations" {
-  local dir
-  for dir in .agents .claude .codex; do
-    mkdir -p "$SKILL_HOME/$dir/skills/mvp-mediator-architecture"
-    printf 'old skill\n' >"$SKILL_HOME/$dir/skills/mvp-mediator-architecture/SKILL.md"
-  done
-  run run_skill_phase before_remove-orphan-claude-skills
-  [ "$status" -eq 0 ]
-  run run_skill_phase after_deploy-local-skills
-  [ "$status" -eq 0 ]
-  for dir in .agents .claude .codex; do
-    [ ! -e "$SKILL_HOME/$dir/skills/mvp-mediator-architecture" ]
-  done
-}
-
 @test "standard workflow migration retires local skills and the removed upstream skill without redeployment" {
   setup_skill_apply
   mkdir -p "$SKILL_HOME/.codex-app/skills" "$SKILL_HOME/.agents/skills/user-owned"
   local dir skill root
-  local retired=(batch-implement to-pr harness-feedback resolving-merge-conflicts)
+  local retired=(
+    batch-implement
+    to-pr
+    harness-feedback
+    dogfood-to-issues
+    mvp-mediator-architecture
+    to-worktree
+    rop-visualizer
+    resolving-merge-conflicts
+  )
   for root in "$SKILL_HOME/.gemini/skills" "$SKILL_HOME/.copilot/skills"; do
     mkdir -p "$root/resolving-merge-conflicts"
     printf 'independent skill\n' >"$root/resolving-merge-conflicts/SKILL.md"
@@ -80,7 +54,10 @@ setup() {
       done
     done
     [ -d "$SKILL_HOME/.agents/skills/user-owned" ]
-    [ -f "$SKILL_HOME/.agents/skills/dogfood/SKILL.md" ]
+    [ -f "$SKILL_HOME/.claude/skills/pdf/SKILL.md" ]
+    for dir in .agents .claude; do
+      cmp "$SKILL_SOURCE/local-skills/dogfood/SKILL.md" "$SKILL_HOME/$dir/skills/dogfood/SKILL.md"
+    done
     for root in "$SKILL_HOME/.gemini/skills" "$SKILL_HOME/.copilot/skills"; do
       grep -Fxq 'independent skill' "$root/resolving-merge-conflicts/SKILL.md"
     done
@@ -368,40 +345,6 @@ EOF
   done
   [ ! -e "$SKILL_HOME/.codex/skills/autofix" ]
   [ ! -e "$SKILL_HOME/.copilot/skills/autofix" ]
-}
-
-@test "normal apply retires to-worktree across managed skill homes without redeployment" {
-  setup_skill_apply
-  local dir
-  for dir in "$SKILL_HOME/.agents/skills" "$SKILL_HOME/.claude/skills" "$SKILL_HOME/.codex/skills" "$SKILL_HOME/.codex-app/skills"; do
-    mkdir -p "$dir/to-worktree"
-    printf 'old managed skill\n' >"$dir/to-worktree/SKILL.md"
-  done
-  for _ in 1 2; do
-    run skill_chezmoi apply
-    [ "$status" -eq 0 ]
-    for dir in "$SKILL_HOME/.agents/skills" "$SKILL_HOME/.claude/skills" "$SKILL_HOME/.codex/skills" "$SKILL_HOME/.codex-app/skills"; do
-      [ ! -e "$dir/to-worktree" ]
-    done
-    [ -f "$SKILL_HOME/.claude/skills/pdf/SKILL.md" ]
-  done
-}
-
-@test "normal apply retires rop-visualizer across managed skill homes without redeployment" {
-  setup_skill_apply
-  local dir
-  for dir in "$SKILL_HOME/.agents/skills" "$SKILL_HOME/.claude/skills" "$SKILL_HOME/.codex/skills" "$SKILL_HOME/.codex-app/skills"; do
-    mkdir -p "$dir/rop-visualizer"
-    printf 'old managed skill\n' >"$dir/rop-visualizer/SKILL.md"
-  done
-  for _ in 1 2; do
-    run skill_chezmoi apply
-    [ "$status" -eq 0 ]
-    for dir in "$SKILL_HOME/.agents/skills" "$SKILL_HOME/.claude/skills" "$SKILL_HOME/.codex/skills" "$SKILL_HOME/.codex-app/skills"; do
-      [ ! -e "$dir/rop-visualizer" ]
-    done
-    [ -f "$SKILL_HOME/.claude/skills/pdf/SKILL.md" ]
-  done
 }
 
 @test "herdr and orca architecture candidate skills deploy to both hubs under names APM does not own" {

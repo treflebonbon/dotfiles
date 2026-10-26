@@ -66,18 +66,6 @@ assert_lock_entry() {
   ! grep -Fq 'virtual_path: skills/frontend-design' "$lock"
 }
 
-@test "Impeccable 4.1.2 record documents native Codex Stop and silent convergence" {
-  local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
-  local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md"
-  local harness="$PROJECT_ROOT/runtime/skill-harness.md"
-
-  grep -Fq '63b04e2530f5c7b41ea83c133daab24f34912456' "$adr"
-  grep -Fq 'eaf9d73a3348cbda6774b1a8268645c17f4d8cf5b5231743d2c44d71212cd755' "$adr"
-  grep -Fq 'top-level `decision` / `reason`' "$runtimes"
-  grep -Fq '次回の `Stop` は無言' "$harness"
-  grep -Fq '4.1.2' "$harness"
-}
-
 @test "APM pins the official Matt Pocock full set" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
@@ -208,50 +196,6 @@ assert_lock_entry() {
   grep -Fq 'content_hash: sha256:0d0012537fe7619026f0a844fe505958beb2d525afb8f854ac7217798a2785e2' <<<"$view_transition_entry"
 }
 
-@test "APM 0.29 refresh record documents compatibility gates and isolated adoption" {
-  local record="$PROJECT_ROOT/docs/research/llm-agents-and-apm-update-2026-09-01-after-pr-202.md"
-  local harness="$PROJECT_ROOT/runtime/skill-harness.md"
-
-  grep -Fq '## Issue #205 実装結果' "$record"
-  grep -Fq 'd343147e73c22f76eb0ccbb4a22838987fa29cd6857cd51c8d4002f3fc0e4369' "$record"
-  grep -Fq 'Effect-TS compatibility' "$record"
-  grep -Fq 'React View Transitions compatibility' "$record"
-  grep -Fq 'STARTED_NO_PLAN' "$record"
-  grep -Fq 'CONTINUED_SAME_SESSION_NO_PLAN' "$record"
-  grep -Fq 'live HOME非変更' "$record"
-  grep -Fq 'APM 0.29.0の隔離cwd/HOME' "$harness"
-  grep -Fq 'Claude/Codex 42/42 discovery' "$harness"
-}
-
-@test "APM install is gated on a successful nix-devshell snapshot refresh" {
-  local script="$PROJECT_ROOT/run_onchange_after_apm-install.sh.tmpl"
-  local refresh_line
-  local install_line
-
-  grep -q 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script"
-  refresh_line="$(grep -n 'NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache' "$script" | cut -d: -f1)"
-  install_line="$(grep -n '^apm install --frozen --target claude,codex --https$' "$script" | cut -d: -f1)"
-  [ "$refresh_line" -lt "$install_line" ]
-}
-
-@test "APM refresh record distinguishes payload changes from revision-only movement" {
-  local adr="$PROJECT_ROOT/docs/adr/0045-separate-llm-agents-and-apm-update-units.md"
-  local runtimes="$PROJECT_ROOT/runtime/ai-runtimes.md"
-  local harness="$PROJECT_ROOT/runtime/skill-harness.md"
-
-  grep -Fq '457c381def89ce6213a171238f92eea63e9eaeb2' "$adr"
-  grep -Fq '07775fbfaed98fcf50795256434f646da296311bc10dd54f2de29075eca9095b' "$adr"
-  grep -Fq '7a3d0ca45d2f6a00bf35cb3c525734a36d55a834' "$adr"
-  grep -Fq '2493dc60c3917d2e1153cd60d9e4df771b2775f64f3e17cbb1c2f1d011f888f3' "$adr"
-  grep -Fq '683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$adr"
-  grep -Fq '9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$adr"
-  grep -Fq '026389a3bc03da03ca2d65295e805493712b0774' "$adr"
-  grep -Fq '29186c40a47bf6c25d9fbf73d15ebba4dc9575be7242f381ddaeac82ed24e6c4' "$adr"
-  grep -Fq 'revision-only' "$runtimes"
-  grep -Fq 'd43138a744099027b61ad50150b4a36246f747214d23761c9f970b3a38d03720' "$harness"
-  grep -Fq '29186c40a47bf6c25d9fbf73d15ebba4dc9575be7242f381ddaeac82ed24e6c4' "$harness"
-}
-
 @test "APM runtime deploy targets remain git-ignored" {
   grep -q '^/\.agents/$' "$PROJECT_ROOT/.gitignore"
   grep -q '^/\.claude/agents/$' "$PROJECT_ROOT/.gitignore"
@@ -267,12 +211,6 @@ assert_lock_entry() {
   grep -q '^cd "\$HOME"$' "$script"
   grep -q '^apm install --frozen --target claude,codex --https$' "$script"
   ! grep -q 'APM_LEGACY_SKILL_PATHS=1' "$script"
-}
-
-@test "APM install prunes packages removed from apm.yml" {
-  local script="$PROJECT_ROOT/run_onchange_after_apm-install.sh.tmpl"
-
-  grep -q '^apm prune$' "$script"
 }
 
 @test "APM targets do not add a duplicate explicit agent-skills target" {

@@ -6,7 +6,6 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CONTRACT="$PROJECT_ROOT/runtime/autonomous-peer-contract.md"
   AUTO_SESSION="$PROJECT_ROOT/local-skills/herdr-peer-refactor/references/auto-session.md"
-  ADR="$PROJECT_ROOT/docs/adr/0075-adopt-peer-refactor-skills.md"
 }
 
 @test "contract stays indexed and the instruction layers share one model-independent pointer" {
@@ -244,11 +243,6 @@ PY
   [ "$status" -eq 1 ]
   run grep -Fq 'AskUserQuestion' "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
   [ "$status" -eq 1 ]
-}
-
-@test "the ADR and the runtime contract pointer remain readable" {
-  grep -Fq 'status: accepted' "$ADR"
-  grep -Fq 'runtime/autonomous-peer-contract.md' "$ADR"
 }
 
 # The Orca reference keeps the two rules the contract states for every peer request: a

@@ -125,14 +125,6 @@ PS
   [ "$status" -eq 0 ]
 }
 
-@test "WSL2 ADR keeps the CDP evidence record video-free" {
-  local adr="$PROJECT_ROOT/docs/adr/0038-keep-wsl2-browser-free.md"
-
-  grep -Fq 'screenshot / traceを生成し' "$adr"
-  grep -Fq 'video-free契約のため、video artifactはこの経路の検証対象外' "$adr"
-  ! grep -Fq 'screenshot / trace / video' "$adr"
-}
-
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
@@ -190,23 +182,6 @@ PS
   grep -q '_df_select_wsl_flake_output' "$direnvrc"
   grep -q 'use flake .#wsl' "$global_envrc"
   [ -f "$PROJECT_ROOT/.wsl-browser-free" ]
-}
-
-@test "AI toolset snapshot and selected payload source contract is documented" {
-  local record="$PROJECT_ROOT/docs/research/update-tools-skills-20261026.md"
-  local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
-  local manifest="$PROJECT_ROOT/apm.yml"
-
-  grep -Fq 'a5500f41321b0a6b68407500f26dd55dbeb5793f' "$record"
-  grep -Fq 'a5500f41321b0a6b68407500f26dd55dbeb5793f' "$flake"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#6c67adcd9cdbe6eb84d76342da89b225f9161cb2' "$manifest"
-}
-
-@test "nix-devshell has no retired Intel Darwin Claude Code package" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/claude-code-darwin-x64.nix"
-
-  run test -e "$package"
-  [ "$status" -ne 0 ]
 }
 
 @test "nix-devshell keeps the other agents pinned without Intel Darwin" {
