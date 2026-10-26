@@ -14,7 +14,7 @@ python3 "$skill_dir/scripts/run-evidence.py" probe \
 
 nonce は16〜64桁の小文字の16進数、receipt は `/tmp/codex` 配下の新しい公開ファイルにする。既存ファイルの上書き、機密名、symlink は拒否する。receipt と標準出力には version・nonce・fingerprint・実 HEAD・cwd・checker の実行コマンド・終了コードだけを JSON で残す。元資料の本文や checker の生出力は保存しない。
 
-checker が失敗した場合も終了コードを保存し、probe 自体も非0で終了する。事前検査や保存が失敗した場合は、receipt がない、または不完全なことがある。親は [Herdr の readiness 手順](herdr.md#公開入力の-readiness)で判定し、成功・失敗の receipt を checkpoint の追加入力に明示する。
+checker が失敗した場合も終了コードを保存し、probe 自体も非0で終了する。事前検査や保存が失敗した場合は、receipt がない、または不完全なことがある。親は [利用中の skill](../SKILL.md) の native 手順で判定し、成功・失敗の receipt を checkpoint の追加入力に明示する。
 
 ## 保存
 
