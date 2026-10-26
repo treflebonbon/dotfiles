@@ -9,6 +9,11 @@
 # Shared implementation for the SessionStart hook and the manual command.
 set -euo pipefail
 
+# 検査と削除の対象を、呼出元の Git 設定ではなく --repo に固定する。
+for git_variable in "${!GIT_@}"; do
+  unset "$git_variable"
+done
+
 APPLY=false
 DIAGNOSE=false
 REPO=""

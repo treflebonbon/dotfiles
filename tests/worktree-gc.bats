@@ -110,6 +110,28 @@ SH
   refute_output --partial "$GC_WORKTREE"
 }
 
+@test "継承した Git 環境が別 repo を指しても対象 worktree の独自コミットを保護する" {
+  setup_gc_repository
+  gc_git -C "$GC_WORKTREE" -c user.name=Test -c user.email=test@example.invalid \
+    commit -q --allow-empty -m unique
+  local foreign="$BATS_TEST_TMPDIR/foreign" mode
+  mkdir -p "$foreign"
+  gc_git -C "$foreign" init -q -b main
+  gc_git -C "$foreign" -c user.name=Test -c user.email=test@example.invalid \
+    commit -q --allow-empty -m foreign
+
+  for mode in --diagnose --apply; do
+    run env -i HOME="$BATS_TEST_TMPDIR/home" PATH="$TEST_BIN_DIR:$PATH" TEST_LOG="$TEST_LOG" \
+      GIT_DIR="$foreign/.git" GIT_WORK_TREE="$foreign" GIT_COMMON_DIR="$foreign/.git" \
+      GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$foreign" \
+      bash "$SRC" --repo "$GC_REPO" --roots .worktrees --age-days 0 "$mode"
+
+    assert_success
+    refute_output --partial 'remove-candidate'
+    [ -d "$GC_WORKTREE" ]
+  done
+}
+
 # BSD/macOS の stat（`-f FORMAT`）のみ受け付け、GNU の `-c` は拒否するスタブ。
 # mtime は 2001-09-09 (epoch 1000000000) 固定 — どんな --age-days 閾値より
 # 確実に「古い」ことを保証する。

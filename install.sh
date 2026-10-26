@@ -166,8 +166,8 @@ fi
 # 通常時の python3 は nix-devshell（ユーザー環境）が汎用ランタイムとして供給する。
 if ! python3 -c 'import tomllib' >/dev/null 2>&1; then
   echo "tomllib を利用できる Python を Nix で準備します..."
-  nix profile add --profile "$HOME/.nix-profile" nixpkgs#python3
-  export PATH="$HOME/.nix-profile/bin:$PATH"
+  bootstrap_python=$(nix build --no-link --print-out-paths nixpkgs#python3)
+  export PATH="$bootstrap_python/bin:$PATH"
   hash -r
 fi
 if ! python3 -c 'import tomllib' >/dev/null 2>&1; then
