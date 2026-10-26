@@ -68,12 +68,16 @@ def probe(record_path, candidates_path, fingerprint, nonce, receipt_path):
         fail("probe nonce は16〜64桁の小文字の16進数で指定してください")
     artifact_path = original_artifact(read_public(record_path), fingerprint)
     public_path(artifact_path, artifact_path)
-    public_path(candidates_path)
+    read_public(candidates_path)
     destination = public_path(receipt_path)
     head = candidate_record["git"]("rev-parse", "--verify", "HEAD^{commit}")
     command = [sys.executable, str(Path(__file__).with_name("candidate-record.py")),
                "check", record_path, candidates_path, fingerprint]
-    result = subprocess.run(command, stdout=subprocess.DEVNULL)
+    try:
+        exit_code = subprocess.run(command, stdout=subprocess.DEVNULL, timeout=30).returncode
+    except subprocess.TimeoutExpired:
+        exit_code = 124
+        print("エラー: checker の実行がタイムアウトしました", file=sys.stderr)
     receipt = {
         "version": 1,
         "nonce": nonce,
@@ -81,13 +85,13 @@ def probe(record_path, candidates_path, fingerprint, nonce, receipt_path):
         "head": head,
         "cwd": str(Path.cwd().resolve()),
         "command": command,
-        "exit_code": result.returncode,
+        "exit_code": exit_code,
     }
     raw = json.dumps(receipt, ensure_ascii=False, indent=2) + "\n"
     with os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), "w") as stream:
         stream.write(raw)
     print(raw, end="")
-    return result.returncode
+    return exit_code
 
 
 def storage(fingerprint):

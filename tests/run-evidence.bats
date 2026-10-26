@@ -60,6 +60,52 @@ probe() {
   (cd "$REPO" && python3 "$SCRIPT" probe "$RECORD" "$CANDIDATES" "$FINGERPRINT" "${1-0123456789abcdef}" "${2-$EVIDENCE/probe.json}")
 }
 
+bounded_probe() {
+  (cd "$REPO" && python3 - "$SCRIPT" probe "$RECORD" "$CANDIDATES" "$FINGERPRINT" 0123456789abcdef "$EVIDENCE/probe.json" <<'PY'
+import os, signal, subprocess, sys
+
+process = subprocess.Popen([sys.executable, *sys.argv[1:]], start_new_session=True)
+try:
+    code = process.wait(timeout=45)
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+    print('テスト外側の制限時間を超えました', file=sys.stderr)
+    code = 125
+sys.exit(code)
+PY
+  )
+}
+
+@test "probe rejects a candidate FIFO before starting the checker" {
+  CANDIDATES="$EVIDENCE/candidates.pipe"
+  mkfifo "$CANDIDATES"
+  run -1 bounded_probe
+  [[ "$output" == *'通常ファイル'* ]]
+  [ ! -e "$EVIDENCE/probe.json" ]
+}
+
+@test "probe bounds a stalled checker and records its timeout" {
+  rm -- "$REPORT"
+  mkfifo "$REPORT"
+  run -124 --separate-stderr bounded_probe
+  [[ "$stderr" == *'タイムアウト'* ]]
+  python3 - "$EVIDENCE/probe.json" "$output" "$SHA" "$FINGERPRINT" <<'PY'
+import json, sys
+from pathlib import Path
+
+receipt = json.loads(Path(sys.argv[1]).read_text())
+assert receipt == json.loads(sys.argv[2])
+assert receipt['exit_code'] == 124
+assert receipt['head'] == sys.argv[3]
+assert receipt['fingerprint'] == sys.argv[4]
+assert receipt['nonce'] == '0123456789abcdef'
+PY
+}
+
 @test "probe runs the pinned checker and saves its result with the current HEAD and nonce" {
   run probe
   [ "$status" -eq 0 ]
