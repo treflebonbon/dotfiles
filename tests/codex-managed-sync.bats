@@ -34,6 +34,35 @@ assert_managed_home() {
   [ ! -d "$TEST_HOME/.codex-app" ]
 }
 
+@test "Codex 管理設定の同期は skills.config のテーブル配列を保持する" {
+  mkdir -p "$TEST_HOME/.codex"
+  cat >"$TEST_HOME/.codex/config.toml" <<'TOML'
+model = "local"
+[[skills.config]]
+path = "/public/skill one/SKILL.md"
+enabled = false
+[[skills.config]]
+path = "/public/日本語/SKILL.md"
+enabled = true
+TOML
+
+  run env HOME="$TEST_HOME" bash "$SYNC_COMMAND"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  python3 - "$TEST_HOME/.codex/config.toml" <<'PY'
+import sys, tomllib
+from pathlib import Path
+config = tomllib.loads(Path(sys.argv[1]).read_text())
+assert config['model'] == 'managed'
+assert config['skills']['config'] == [
+    {'path': '/public/skill one/SKILL.md', 'enabled': False},
+    {'path': '/public/日本語/SKILL.md', 'enabled': True},
+]
+PY
+  cmp "$TEST_HOME/.config/codex/AGENTS.md" "$TEST_HOME/.codex/AGENTS.md"
+}
+
 @test "Codex 管理設定 syncs and seeds an existing Desktop home" {
   mkdir -p "$TEST_HOME/.codex-app"
   env -u CODEX_HOME HOME="$TEST_HOME" bash "$SYNC_COMMAND"

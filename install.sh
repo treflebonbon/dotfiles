@@ -164,10 +164,15 @@ fi
 # run_onchange スクリプト（codex-managed-sync 等）は最初の chezmoi init --apply 実行時点
 # （nix-devshell の devShell 評価より前）で python3 を必要とするため、先に用意する。
 # 通常時の python3 は nix-devshell（ユーザー環境）が汎用ランタイムとして供給する。
-if ! command -v python3 &>/dev/null; then
-  echo "python3 not found, installing via nix profile (bootstrap for chezmoi run_onchange scripts)..."
-  nix profile add nixpkgs#python3
+if ! python3 -c 'import tomllib' >/dev/null 2>&1; then
+  echo "tomllib を利用できる Python を Nix で準備します..."
+  nix profile add --profile "$HOME/.nix-profile" nixpkgs#python3
+  export PATH="$HOME/.nix-profile/bin:$PATH"
   hash -r
+fi
+if ! python3 -c 'import tomllib' >/dev/null 2>&1; then
+  echo "Error: tomllib を利用できる Python を準備できませんでした。" >&2
+  exit 1
 fi
 
 # chezmoi 設定用の環境変数をエクスポート

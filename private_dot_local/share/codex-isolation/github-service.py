@@ -362,7 +362,7 @@ class GitHubService:
             if request.command == "GET" and int(length):
                 return request.reject()
             payload = (
-                json.loads(request.rfile.read(int(length))) if int(length) else None
+                json.loads(request.read_body(int(length))) if int(length) else None
             )
         except ValueError:
             return request.reject()

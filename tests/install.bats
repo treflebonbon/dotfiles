@@ -19,6 +19,10 @@ echo "NIX_CONFIG=${NIX_CONFIG:-}" >> "$TEST_LOG"
 if [ "$1" = print-dev-env ]; then
   echo 'export CACHE_VERSION=fresh'
 fi
+if [[ "$1" = profile && "$2" = add && "${@: -1}" = nixpkgs#python3 ]]; then
+  /bin/mkdir -p "$HOME/.nix-profile/bin"
+  /bin/cp "$HOME/python-adapter" "$HOME/.nix-profile/bin/python3"
+fi
 STUB
   chmod +x "$TEST_BIN_DIR/nix"
   stub_cmd direnv
@@ -53,6 +57,11 @@ STUB
   stub_hash_cmd
   # Nix installer 成功後の PATH 読込みでもホストの nix を使わない。
   cp "$TEST_BIN_DIR/nix" "$test_home/nix-adapter"
+  cat >"$test_home/python-adapter" <<'STUB'
+#!/bin/bash
+echo "compatible-python $0 $*" >> "$TEST_LOG"
+STUB
+  chmod +x "$test_home/python-adapter"
   cat >"$TEST_BIN_DIR/sh" <<'STUB'
 #!/bin/bash
 echo "sh $*" >> "$TEST_LOG"
@@ -266,7 +275,7 @@ STUB
   run_install
 
   assert_success
-  assert_log_contains "nix profile add nixpkgs#python3"
+  assert_log_contains "nix profile add --profile $BATS_TEST_TMPDIR/home/.nix-profile nixpkgs#python3"
 }
 
 @test "python3 がある場合はインストールをスキップする" {
@@ -275,7 +284,37 @@ STUB
   run_install
 
   assert_success
-  refute_log_contains "nix profile add nixpkgs#python3"
+  refute_log_contains "nix profile add --profile"
+}
+
+@test "tomllib を持たない既存 Python を置き換えてから初回配備する" {
+  stub_cmd python3 1
+  cat >"$TEST_BIN_DIR/chezmoi" <<'STUB'
+#!/bin/bash
+echo "chezmoi $*" >> "$TEST_LOG"
+if [ "$1" = init ]; then
+  exec python3 -c 'import tomllib'
+fi
+STUB
+  chmod +x "$TEST_BIN_DIR/chezmoi"
+
+  run_install
+
+  assert_success
+  assert_log_contains 'nix profile add'
+  assert_log_contains "compatible-python $BATS_TEST_TMPDIR/home/.nix-profile/bin/python3 -c import tomllib"
+  assert_log_contains 'chezmoi init'
+}
+
+@test "Python の準備後も tomllib を利用できなければ初回配備を始めない" {
+  stub_cmd python3 1
+  stub_cmd nix
+
+  run_install
+
+  assert_failure
+  assert_output --partial 'tomllib を利用できる Python を準備できませんでした'
+  refute_log_contains 'chezmoi'
 }
 
 # =============================================================================
@@ -433,16 +472,19 @@ STUB
 }
 
 @test "必須更新の競合後に待機中の入力変更を反映して成功する" {
+  stub_cmd python3
   check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" stable
 }
 
 @test "必須更新の競合後に入力が繰り返し変われば失敗して後続処理を止める" {
+  stub_cmd python3
   check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" changing
   refute_log_contains 'direnv allow'
   refute_output --partial 'Dotfiles installed successfully!'
 }
 
 @test "必須更新の競合後に待機後の生成失敗で後続処理を止める" {
+  stub_cmd python3
   check_deployment_cache_concurrency run_install "$BATS_TEST_TMPDIR/home" failure
   refute_log_contains 'direnv allow'
   refute_output --partial 'Dotfiles installed successfully!'

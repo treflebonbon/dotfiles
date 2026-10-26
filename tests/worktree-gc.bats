@@ -10,6 +10,106 @@ setup() {
   setup_test_env
 }
 
+gc_git() {
+  env -i HOME="$BATS_TEST_TMPDIR/home" PATH="$PATH" git "$@"
+}
+
+setup_gc_repository() {
+  GC_REPO="$BATS_TEST_TMPDIR/repo"
+  GC_WORKTREE="$GC_REPO/.worktrees/topic"
+  mkdir -p "$BATS_TEST_TMPDIR/home" "$GC_REPO"
+  gc_git -C "$GC_REPO" init -q -b main
+  gc_git -C "$GC_REPO" -c user.name=Test -c user.email=test@example.invalid \
+    commit -q --allow-empty -m initial
+  gc_git -C "$GC_REPO" worktree add -q -b topic "$GC_WORKTREE"
+  stub_cmd gh
+}
+
+run_gc() {
+  run env -i HOME="$BATS_TEST_TMPDIR/home" PATH="$TEST_BIN_DIR:$PATH" TEST_LOG="$TEST_LOG" \
+    bash "$SRC" --repo "$GC_REPO" --roots .worktrees --age-days 0 "$@"
+}
+
+@test "GC の dry-run は一時的に参照できない worktree の管理情報を保持する" {
+  setup_gc_repository
+  mv "$GC_WORKTREE" "$BATS_TEST_TMPDIR/temporarily-unavailable"
+
+  run_gc --dry-run
+
+  assert_success
+  mv "$BATS_TEST_TMPDIR/temporarily-unavailable" "$GC_WORKTREE"
+  run gc_git -C "$GC_WORKTREE" rev-parse --show-toplevel
+  assert_success
+  assert_output "$GC_WORKTREE"
+}
+
+@test "コミットを検査できない GC は診断と apply の両方で停止して worktree を保持する" {
+  setup_gc_repository
+  gc_git -C "$GC_WORKTREE" -c user.name=Test -c user.email=test@example.invalid \
+    commit -q --allow-empty -m unique
+  run_gc --diagnose
+  assert_success
+  assert_output --partial 'unique-commit'
+  printf '%s\n' ffffffffffffffffffffffffffffffffffffffff >"$GC_REPO/.git/refs/heads/broken"
+
+  local mode
+  for mode in --diagnose --apply; do
+    run_gc "$mode"
+
+    assert_failure
+    [ -d "$GC_WORKTREE" ]
+    refute_output --partial 'remove-candidate'
+  done
+}
+
+@test "参照一覧の取得失敗を merge 済みという照会結果で上書きしない" {
+  setup_gc_repository
+  local real_git
+  real_git=$(command -v git)
+  cat >"$TEST_BIN_DIR/git" <<'SH'
+#!/usr/bin/env bash
+for argument in "$@"; do
+  if [ "$argument" = for-each-ref ]; then
+    exit 128
+  fi
+done
+exec "$GC_REAL_GIT" "$@"
+SH
+  chmod +x "$TEST_BIN_DIR/git"
+  gc_git -C "$GC_REPO" rev-parse topic >"$BATS_TEST_TMPDIR/merged-head"
+  cat >"$TEST_BIN_DIR/gh" <<'SH'
+#!/usr/bin/env bash
+case "$*" in
+*'--state merged'*) cat "$GC_MERGED_HEAD" ;;
+esac
+SH
+  chmod +x "$TEST_BIN_DIR/gh"
+
+  local mode
+  for mode in --diagnose --apply; do
+    run env -i HOME="$BATS_TEST_TMPDIR/home" PATH="$TEST_BIN_DIR:$PATH" \
+      GC_REAL_GIT="$real_git" GC_MERGED_HEAD="$BATS_TEST_TMPDIR/merged-head" \
+      bash "$SRC" --repo "$GC_REPO" --roots .worktrees --age-days 0 "$mode"
+
+    assert_failure
+    [ -d "$GC_WORKTREE" ]
+  done
+}
+
+@test "検査が成功した clean な worktree は診断と apply で回収できる" {
+  setup_gc_repository
+
+  run_gc --diagnose
+  assert_success
+  assert_output --partial 'remove-candidate'
+  run_gc --apply
+  assert_success
+  [ ! -d "$GC_WORKTREE" ]
+  run gc_git -C "$GC_REPO" worktree list --porcelain
+  assert_success
+  refute_output --partial "$GC_WORKTREE"
+}
+
 # BSD/macOS の stat（`-f FORMAT`）のみ受け付け、GNU の `-c` は拒否するスタブ。
 # mtime は 2001-09-09 (epoch 1000000000) 固定 — どんな --age-days 閾値より
 # 確実に「古い」ことを保証する。

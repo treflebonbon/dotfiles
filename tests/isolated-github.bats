@@ -133,6 +133,55 @@ PY
   [ "$status" -eq 0 ]
 }
 
+@test "GitHub socket は分割送信された PR 本文を欠落なく受け付ける" {
+  local root
+  root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  mkdir "$BATS_TEST_TMPDIR/bin"
+  ln -s "$(command -v cat)" "$BATS_TEST_TMPDIR/bin/cat"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/bin/sh
+case "$*" in
+  'api repos/example/public --method GET') printf '{"full_name":"example/public","private":false,"default_branch":"main"}\n' ;;
+  'api repos/example/public/git/trees/'*' --method GET') printf '{"tree":[]}\n' ;;
+  'api repos/example/public/pulls --method POST --input -')
+    cat >"$HOME/received.json"
+    printf '{"number":7}\n' ;;
+  *) exit 70 ;;
+esac
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  run env HOME="$BATS_TEST_TMPDIR" PATH="$BATS_TEST_TMPDIR/bin:$PATH" python3 - \
+    "$root/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" "$BATS_TEST_TMPDIR/socket" <<'PY'
+import http.client, json, runpy, socket, sys
+from pathlib import Path
+module = runpy.run_path(sys.argv[1])
+policy = {'repository': 'example/public', 'branch': 'task', 'default_branch': 'main',
+          'reviewed_commit': 'a' * 40, 'automation': 'no-project-secrets', 'review': 'public fixture'}
+server = module['start_gateway'](Path(sys.argv[2]), 'github', github_policy=policy)
+payload = {'title': 'fix: fragmented body', 'body': 'public fixture ' * 3000,
+           'head': 'task', 'base': 'main'}
+body = json.dumps(payload).encode()
+try:
+    with socket.socket(socket.AF_UNIX) as client:
+        client.settimeout(30)
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+        client.connect(server.server_address)
+        client.sendall(b'POST /repos/example/public/pulls HTTP/1.0\r\nHost: api.github.com\r\nContent-Length: %d\r\n\r\n' % len(body))
+        for offset in range(0, len(body), 4096):
+            client.sendall(body[offset:offset + 4096])
+        response = http.client.HTTPResponse(client)
+        response.begin()
+        assert response.status == 200, response.status
+        assert json.loads(response.read()) == {'number': 7}
+    assert json.loads((Path.home() / 'received.json').read_text()) == payload
+finally:
+    server.shutdown()
+    server.server_close()
+PY
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "isolated gh reads typed fields from stdin and files while raw fields stay literal" {
   local root
   root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

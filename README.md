@@ -36,6 +36,8 @@
 
 環境キャッシュの更新では、初回を含めて毎回、排他に PATH 上の `perl`（native `flock` 対応）、鮮度判定に `sha256sum` または `shasum` を使います。生成済みのキャッシュがあってもこれらは必要です。`install.sh` は導入を始める前に、`git`・`curl`・`perl` の存在、Perl の native `flock` 対応、SHA-256 コマンドの存在を確認します。
 
+初回配備には `tomllib` を利用できる Python が必要です。`install.sh` は既存の Python で import を確認し、不足していれば Nix の Python を `~/.nix-profile` に導入して、その実行ファイルで配備を進めます。準備後も import できない場合は、配備前に停止します。
+
 ### コンテナイメージの前提条件
 
 DevPod と VS Code Dev Containers では、dotfiles の自動インストールが始まる前に、コンテナイメージ内へ依存を用意してください。Debian／Ubuntu ベースなら、既存の Dockerfile の root で実行する箇所（`USER` で一般ユーザーへ切り替える前）に追加します。`git` と `curl` は従来どおりイメージ側で提供します。
