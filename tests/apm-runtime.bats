@@ -56,7 +56,7 @@ assert_lock_entry() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
-  grep -Fq 'apm_version: 0.34.0' "$lock"
+  grep -Fq 'apm_version: 0.35.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
   grep -Fq 'resolved_commit: 490141501de5035d1d2fb975239ceb757f045bcb' "$lock"
   grep -Fq 'content_hash: sha256:75749e28d24c02267b692eb094ef14e863dd70a74e2fd40163bfc9c00397e300' "$lock"
@@ -134,10 +134,10 @@ assert_lock_entry() {
     '6c67adcd9cdbe6eb84d76342da89b225f9161cb2' \
     'sha256:631367215bad56d1d73fd1f9d82209ed12c29349c0fa13c48819dc9332f8846b'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
-    '3d98900e9b73c45f035f8109e9d41ba6a51685e7' \
+    '481d523374745e77d0cf9c53a4115ab5dd7c8481' \
     'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'
   assert_lock_entry "$lock" 'stablyai/orca' 'computer-use' \
-    'cae9a066b31d9d7c4a44f4f3e29c1dd8f3429663' \
+    'de93f326eaff6157bc5be4cceafb0bec19810d65' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' \
@@ -146,7 +146,7 @@ assert_lock_entry() {
     '2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' \
     'sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
-    'cae9a066b31d9d7c4a44f4f3e29c1dd8f3429663' \
+    'de93f326eaff6157bc5be4cceafb0bec19810d65' \
     'sha256:0dc04a0a354974eed5c15115fc6cb7461d7423e95a5b19ee995796cf1383e7ed'
   [ "$(grep -Fc 'resolved_commit: aedb9305cd1b3de859b5eafc1ee0d77fa0df8963' "$lock")" -eq 1 ]
   manifest_pins="$(
@@ -301,7 +301,7 @@ prepare_lock_generation() {
   if [[ ${1:-} != real-nix ]]; then
     cat >"$GENERATION_BIN/nix" <<'EOF'
 #!/usr/bin/env bash
-printf '%s' "${APM_TEST_SNAPSHOT_VERSION-0.34.0}"
+printf '%s' "${APM_TEST_SNAPSHOT_VERSION-0.35.0}"
 exit "${APM_TEST_NIX_STATUS:-0}"
 EOF
   fi
@@ -309,11 +309,11 @@ EOF
 #!/usr/bin/env bash
 if [[ "$*" == --version ]]; then
   [[ -z ${PYTHONPATH:-} ]] || { printf 'Agent Package Manager (APM) CLI version 0.33.0\n'; exit 0; }
-  printf '%s\n' "${APM_TEST_CLI_OUTPUT-Agent Package Manager (APM) CLI version 0.34.0}"
+  printf '%s\n' "${APM_TEST_CLI_OUTPUT-Agent Package Manager (APM) CLI version 0.35.0}"
   exit "${APM_TEST_CLI_STATUS:-0}"
 fi
 printf '%s\n' "$*" >>"$APM_TEST_LOG"
-printf '%s\n' "${APM_TEST_LOCK-apm_version: 0.34.0}" >apm.lock.yaml
+printf '%s\n' "${APM_TEST_LOCK-apm_version: 0.35.0}" >apm.lock.yaml
 EOF
   chmod +x "$GENERATION_BIN"/*
   cd "$BATS_TEST_TMPDIR/runtime"
@@ -329,7 +329,7 @@ EOF
   run "$GENERATOR" "$PROJECT_ROOT"
 
   [ "$status" -eq 0 ]
-  [ "$(cat apm.lock.yaml)" = 'apm_version: 0.34.0' ]
+  [ "$(cat apm.lock.yaml)" = 'apm_version: 0.35.0' ]
   [ "$(cat "$GENERATION_LOG")" = 'install --target claude,codex --https' ]
 }
 
@@ -389,7 +389,7 @@ EOF
 @test "APM candidate generation rejects missing, malformed, and incorrect CLI versions before install" {
   prepare_lock_generation
   local banner
-  for banner in '' '0.34.0' 'Agent Package Manager (APM) CLI version 0.32.0'; do
+  for banner in '' '0.35.0' 'Agent Package Manager (APM) CLI version 0.32.0'; do
     run env APM_TEST_CLI_OUTPUT="$banner" "$GENERATOR" "$PROJECT_ROOT"
     [ "$status" -ne 0 ]
     [[ "$output" == *'APM CLI'* ]]
@@ -420,7 +420,7 @@ EOF
   prepare_lock_generation
   local lock
   for lock in 'lockfile_version: 1' 'apm_version: unknown' 'apm_version: 0.32.0' \
-    $'apm_version: 0.34.0\napm_version: 0.34.0'; do
+    $'apm_version: 0.35.0\napm_version: 0.35.0'; do
     run env APM_TEST_LOCK="$lock" "$GENERATOR" "$PROJECT_ROOT"
     [ "$status" -ne 0 ]
     [[ "$output" == *'生成lockのAPM版'* ]]

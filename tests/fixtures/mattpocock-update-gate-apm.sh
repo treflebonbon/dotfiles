@@ -6,7 +6,7 @@ mkdir -p "$(dirname "$command_log")"
 printf 'apm %s\n' "$*" >>"$command_log"
 
 if [[ "$*" == --version ]]; then
-  printf 'Agent Package Manager (APM) CLI version %s\n' "${MATT_GATE_CLI_VERSION:-0.34.0}"
+  printf 'Agent Package Manager (APM) CLI version %s\n' "${MATT_GATE_CLI_VERSION:-0.35.0}"
   exit 0
 fi
 

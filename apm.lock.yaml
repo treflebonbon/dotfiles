@@ -1,5 +1,5 @@
 lockfile_version: '1'
-apm_version: 0.34.0
+apm_version: 0.35.0
 dependencies:
 - repo_url: anthropics/skills
   name: pdf
@@ -2333,7 +2333,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 3d98900e9b73c45f035f8109e9d41ba6a51685e7
+  resolved_commit: 481d523374745e77d0cf9c53a4115ab5dd7c8481
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2430,7 +2430,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: cae9a066b31d9d7c4a44f4f3e29c1dd8f3429663
+  resolved_commit: de93f326eaff6157bc5be4cceafb0bec19810d65
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2465,7 +2465,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: cae9a066b31d9d7c4a44f4f3e29c1dd8f3429663
+  resolved_commit: de93f326eaff6157bc5be4cceafb0bec19810d65
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
