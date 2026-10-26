@@ -4,7 +4,7 @@
 
 ## 公開入力の probe
 
-起動後の同じ native peer から、固定 record・候補・元 artifact を既存の `candidate-record.py check` で照合し、実行結果を公開 receipt に保存する。nonce と保存先は親が試行ごとに指定する。
+利用中の skill が probe を要求する場合は、起動後の同じ native peer から、固定 record・候補・元 artifact を既存の `candidate-record.py check` で照合し、実行結果を公開 receipt に保存する。nonce と保存先は親が試行ごとに指定する。
 
 ```bash
 python3 "$skill_dir/scripts/run-evidence.py" probe \
