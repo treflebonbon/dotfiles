@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+bats_require_minimum_version 1.5.0
+
 setup_file() {
   # 並列実行の別ファイルが先に作った場合も、次行で種類と所有者を確かめる。
   mkdir -m 700 /tmp/codex 2>/dev/null || :
@@ -43,7 +45,7 @@ checkpoint() {
 }
 
 save_checkpoint() {
-  run checkpoint "$EVIDENCE/peer/run-id" "$EVIDENCE/peer/waited-s" "$EVIDENCE/peer/round" "$EVIDENCE/peer/REQ-1.failures" "$EVIDENCE/mutation.log"
+  run checkpoint "$EVIDENCE/peer/run-id" "$EVIDENCE/peer/waited-s" "$EVIDENCE/peer/round" "$EVIDENCE/peer/REQ-1.failures" "$EVIDENCE/mutation.log" "$@"
   [ "$status" -eq 0 ]
   CHECKPOINT="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["checkpoint"])' "$output")"
   ARCHIVE="$COMMON/peer-refactor-evidence/$FINGERPRINT/$CHECKPOINT.json"
@@ -52,6 +54,132 @@ save_checkpoint() {
 
 restore() {
   (cd "$REPO" && python3 "$SCRIPT" restore "$FINGERPRINT" "$CHECKPOINT")
+}
+
+probe() {
+  (cd "$REPO" && python3 "$SCRIPT" probe "$RECORD" "$CANDIDATES" "$FINGERPRINT" "${1-0123456789abcdef}" "${2-$EVIDENCE/probe.json}")
+}
+
+bounded_probe() {
+  (cd "$REPO" && python3 - "$SCRIPT" probe "$RECORD" "$CANDIDATES" "$FINGERPRINT" 0123456789abcdef "$EVIDENCE/probe.json" <<'PY'
+import os, signal, subprocess, sys
+
+process = subprocess.Popen([sys.executable, *sys.argv[1:]], start_new_session=True)
+try:
+    code = process.wait(timeout=45)
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+    print('テスト外側の制限時間を超えました', file=sys.stderr)
+    code = 125
+sys.exit(code)
+PY
+  )
+}
+
+@test "probe rejects a candidate FIFO before starting the checker" {
+  CANDIDATES="$EVIDENCE/candidates.pipe"
+  mkfifo "$CANDIDATES"
+  run -1 bounded_probe
+  [[ "$output" == *'通常ファイル'* ]]
+  [ ! -e "$EVIDENCE/probe.json" ]
+}
+
+@test "probe bounds a stalled checker and records its timeout" {
+  rm -- "$REPORT"
+  mkfifo "$REPORT"
+  run -124 --separate-stderr bounded_probe
+  [[ "$stderr" == *'タイムアウト'* ]]
+  python3 - "$EVIDENCE/probe.json" "$output" "$SHA" "$FINGERPRINT" <<'PY'
+import json, sys
+from pathlib import Path
+
+receipt = json.loads(Path(sys.argv[1]).read_text())
+assert receipt == json.loads(sys.argv[2])
+assert receipt['exit_code'] == 124
+assert receipt['head'] == sys.argv[3]
+assert receipt['fingerprint'] == sys.argv[4]
+assert receipt['nonce'] == '0123456789abcdef'
+PY
+}
+
+@test "probe runs the pinned checker and saves its result with the current HEAD and nonce" {
+  run probe
+  [ "$status" -eq 0 ]
+  python3 - "$EVIDENCE/probe.json" "$SHA" "$FINGERPRINT" "$PIN" "$RECORD" "$CANDIDATES" "$output" "$REPO" <<'PY'
+import json, stat, sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+receipt = json.loads(path.read_text())
+assert receipt == json.loads(sys.argv[7])
+assert set(receipt) == {'version', 'nonce', 'head', 'cwd', 'fingerprint', 'command', 'exit_code'}
+assert receipt['version'] == 1
+assert receipt['nonce'] == '0123456789abcdef'
+assert receipt['head'] == sys.argv[2]
+assert receipt['cwd'] == str(Path(sys.argv[8]).resolve())
+assert receipt['fingerprint'] == sys.argv[3]
+assert receipt['command'][1:] == [sys.argv[4], 'check', sys.argv[5], sys.argv[6], sys.argv[3]]
+assert receipt['exit_code'] == 0
+assert stat.S_IMODE(path.stat().st_mode) == 0o600
+PY
+}
+
+@test "probe preserves a checker failure without recording public input bodies" {
+  printf 'public-body-not-for-receipt\n' >>"$REPORT"
+  run --separate-stderr probe
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *'変更または移動'* ]]
+  python3 - "$EVIDENCE/probe.json" "$output" <<'PY'
+import json, sys
+from pathlib import Path
+
+raw = Path(sys.argv[1]).read_text()
+receipt = json.loads(raw)
+assert receipt == json.loads(sys.argv[2])
+assert receipt['exit_code'] == 1
+assert receipt['nonce'] == '0123456789abcdef'
+assert 'public-body-not-for-receipt' not in raw
+PY
+}
+
+@test "probe refuses unsafe paths invalid nonces and existing receipts" {
+  local path nonce
+  for path in "$EVIDENCE/.env" "$EVIDENCE/private.key" "$BATS_TEST_TMPDIR/outside.json"; do
+    run probe 0123456789abcdef "$path"
+    [ "$status" -ne 0 ]
+    [ ! -e "$path" ]
+  done
+  for nonce in '' not-hex 0123456789abcde; do
+    run probe "$nonce"
+    [ "$status" -ne 0 ]
+    [ ! -e "$EVIDENCE/probe.json" ]
+  done
+  ln -s "$REPORT" "$EVIDENCE/link.json"
+  run probe 0123456789abcdef "$EVIDENCE/link.json"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$REPORT")" = '# Gateway preparation' ]
+  run probe
+  [ "$status" -eq 0 ]
+  local previous
+  previous="$(cat "$EVIDENCE/probe.json")"
+  run probe
+  [ "$status" -ne 0 ]
+  [ "$(cat "$EVIDENCE/probe.json")" = "$previous" ]
+}
+
+@test "checkpoint preserves the probe receipt for independent review after restore" {
+  run probe
+  [ "$status" -eq 0 ]
+  local receipt="$output"
+  save_checkpoint "$EVIDENCE/probe.json"
+  rm -- "$EVIDENCE/probe.json"
+  run restore
+  [ "$status" -eq 0 ]
+  [ "$(cat "$EVIDENCE/probe.json")" = "$receipt" ]
 }
 
 @test "checkpoint restores candidate bytes and all peer budgets after shared evidence disappears" {
