@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/a5500f41321b0a6b68407500f26dd55dbeb5793f' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "a5500f41321b0a6b68407500f26dd55dbeb5793f"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "a5500f41321b0a6b68407500f26dd55dbeb5793f"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
@@ -193,12 +193,12 @@ PS
 }
 
 @test "AI toolset snapshot and selected payload source contract is documented" {
-  local record="$PROJECT_ROOT/docs/research/update-tools-skills-20261023.md"
+  local record="$PROJECT_ROOT/docs/research/update-tools-skills-20261026.md"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq '529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0' "$record"
-  grep -Fq '529ee8f9a886cb6f09d6f3d25f13b0de72c8a4c0' "$flake"
+  grep -Fq 'a5500f41321b0a6b68407500f26dd55dbeb5793f' "$record"
+  grep -Fq 'a5500f41321b0a6b68407500f26dd55dbeb5793f' "$flake"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#6c67adcd9cdbe6eb84d76342da89b225f9161cb2' "$manifest"
 }
 

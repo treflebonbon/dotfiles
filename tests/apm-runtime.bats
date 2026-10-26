@@ -56,7 +56,7 @@ assert_lock_entry() {
 @test "APM lock materializes the validated Impeccable payload" {
   local lock="$PROJECT_ROOT/apm.lock.yaml"
 
-  grep -Fq 'apm_version: 0.34.0' "$lock"
+  grep -Fq 'apm_version: 0.35.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
   grep -Fq 'resolved_commit: 490141501de5035d1d2fb975239ceb757f045bcb' "$lock"
   grep -Fq 'content_hash: sha256:75749e28d24c02267b692eb094ef14e863dd70a74e2fd40163bfc9c00397e300' "$lock"
