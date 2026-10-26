@@ -1470,6 +1470,63 @@ dependencies:
     .claude/skills/empirical-prompt-tuning/SKILL-ja.md: sha256:0a38d830802c2e08a7faca13928fedf6911e00b896946b4b03910d662de6dea5
     .claude/skills/empirical-prompt-tuning/SKILL.md: sha256:252418e7ef022981d2dda2e3ec57fa1c786d30af68c50b7e062edf1d7361b0cb
   content_hash: sha256:26042612e2d8b6ee1deebcdfc556da494640488e03471aaae74da587ae84fa2b
+- repo_url: musoukun/skills
+  name: animated-arch-diagram
+  host: github.com
+  resolved_commit: 7b1c4d514cb387cf160cd1ae1b6f8f62c3b92aa4
+  version: unknown
+  virtual_path: animated-arch-diagram
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/animated-arch-diagram
+  - .agents/skills/animated-arch-diagram/SKILL.md
+  - .agents/skills/animated-arch-diagram/assets/template/carry-spec.js
+  - .agents/skills/animated-arch-diagram/assets/template/carry.html
+  - .agents/skills/animated-arch-diagram/assets/template/carry.js
+  - .agents/skills/animated-arch-diagram/assets/template/engine.js
+  - .agents/skills/animated-arch-diagram/assets/template/index.html
+  - .agents/skills/animated-arch-diagram/assets/template/package.json
+  - .agents/skills/animated-arch-diagram/assets/template/spec.js
+  - .agents/skills/animated-arch-diagram/assets/template/tools/render.mjs
+  - .agents/skills/animated-arch-diagram/references/carry-spec.md
+  - .agents/skills/animated-arch-diagram/references/spec.md
+  - .claude/skills/animated-arch-diagram
+  - .claude/skills/animated-arch-diagram/SKILL.md
+  - .claude/skills/animated-arch-diagram/assets/template/carry-spec.js
+  - .claude/skills/animated-arch-diagram/assets/template/carry.html
+  - .claude/skills/animated-arch-diagram/assets/template/carry.js
+  - .claude/skills/animated-arch-diagram/assets/template/engine.js
+  - .claude/skills/animated-arch-diagram/assets/template/index.html
+  - .claude/skills/animated-arch-diagram/assets/template/package.json
+  - .claude/skills/animated-arch-diagram/assets/template/spec.js
+  - .claude/skills/animated-arch-diagram/assets/template/tools/render.mjs
+  - .claude/skills/animated-arch-diagram/references/carry-spec.md
+  - .claude/skills/animated-arch-diagram/references/spec.md
+  deployed_file_hashes:
+    .agents/skills/animated-arch-diagram/SKILL.md: sha256:59ce1843f09d3e16bb5ccfc9cb4594375900f077255599bc71bf995c43212a10
+    .agents/skills/animated-arch-diagram/assets/template/carry-spec.js: sha256:7f84eb1956d05074ece49d5875d65cbccd639ccfcc240d10c8087106dc35b3a3
+    .agents/skills/animated-arch-diagram/assets/template/carry.html: sha256:e2acb8d657c0b971106610c9862688b95c4bd833545acd3d1da091df730c719c
+    .agents/skills/animated-arch-diagram/assets/template/carry.js: sha256:28f1ea8946b86e6c661267a451d51f2242889308b1f7f899e7079925bc801bed
+    .agents/skills/animated-arch-diagram/assets/template/engine.js: sha256:69b07528dcf0fa066bfea425e54e2a868fdcd3d1cf0680ff78e668a0dd665f44
+    .agents/skills/animated-arch-diagram/assets/template/index.html: sha256:3cd5f40acd07d17b25559761395750f3a2a471a67e7ac6dec6161784ec59bc1f
+    .agents/skills/animated-arch-diagram/assets/template/package.json: sha256:5a9ff00150022a53e6f437d1118eff2ac49498f3328226d653a734c21cec9883
+    .agents/skills/animated-arch-diagram/assets/template/spec.js: sha256:6ed4c50732d771071144921dc43ab1eed19b3be64e6a01e07097fb56122743f0
+    .agents/skills/animated-arch-diagram/assets/template/tools/render.mjs: sha256:ebdb8bd6e3c002814d24617c5d628823ff69f337ff95a3d39771f4fe9708e891
+    .agents/skills/animated-arch-diagram/references/carry-spec.md: sha256:5ddb7a243cdb8f4a2326ff852d8211f98e943fc60d8e6b7f779ff55afd9aadf5
+    .agents/skills/animated-arch-diagram/references/spec.md: sha256:1988ef3fec9579f367bbb41c02472c6dc61c833f6b3bb006ff65ec9fe0fac16f
+    .claude/skills/animated-arch-diagram/SKILL.md: sha256:59ce1843f09d3e16bb5ccfc9cb4594375900f077255599bc71bf995c43212a10
+    .claude/skills/animated-arch-diagram/assets/template/carry-spec.js: sha256:7f84eb1956d05074ece49d5875d65cbccd639ccfcc240d10c8087106dc35b3a3
+    .claude/skills/animated-arch-diagram/assets/template/carry.html: sha256:e2acb8d657c0b971106610c9862688b95c4bd833545acd3d1da091df730c719c
+    .claude/skills/animated-arch-diagram/assets/template/carry.js: sha256:28f1ea8946b86e6c661267a451d51f2242889308b1f7f899e7079925bc801bed
+    .claude/skills/animated-arch-diagram/assets/template/engine.js: sha256:69b07528dcf0fa066bfea425e54e2a868fdcd3d1cf0680ff78e668a0dd665f44
+    .claude/skills/animated-arch-diagram/assets/template/index.html: sha256:3cd5f40acd07d17b25559761395750f3a2a471a67e7ac6dec6161784ec59bc1f
+    .claude/skills/animated-arch-diagram/assets/template/package.json: sha256:5a9ff00150022a53e6f437d1118eff2ac49498f3328226d653a734c21cec9883
+    .claude/skills/animated-arch-diagram/assets/template/spec.js: sha256:6ed4c50732d771071144921dc43ab1eed19b3be64e6a01e07097fb56122743f0
+    .claude/skills/animated-arch-diagram/assets/template/tools/render.mjs: sha256:ebdb8bd6e3c002814d24617c5d628823ff69f337ff95a3d39771f4fe9708e891
+    .claude/skills/animated-arch-diagram/references/carry-spec.md: sha256:5ddb7a243cdb8f4a2326ff852d8211f98e943fc60d8e6b7f779ff55afd9aadf5
+    .claude/skills/animated-arch-diagram/references/spec.md: sha256:1988ef3fec9579f367bbb41c02472c6dc61c833f6b3bb006ff65ec9fe0fac16f
+  content_hash: sha256:2c1b78ecb18a4f452f725ebd59dc061ca90a7fce00621677a83fc944594e145e
 - repo_url: pbakaus/impeccable
   name: impeccable
   host: github.com
@@ -3106,6 +3163,114 @@ dependencies:
     .claude/skills/find-skills/SKILL.md: sha256:c00eeea0e13e74fe4a9d84ba0a8542205a1b736d65f13134fe1a6647eb14976f
   content_hash: sha256:913b9d37d0d54047dd65222bb8c67b2bf04e3cb87dcad1729068d7a8b2c8c396
 deployments:
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:59ce1843f09d3e16bb5ccfc9cb4594375900f077255599bc71bf995c43212a10
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/carry-spec.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:7f84eb1956d05074ece49d5875d65cbccd639ccfcc240d10c8087106dc35b3a3
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/carry.html
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:e2acb8d657c0b971106610c9862688b95c4bd833545acd3d1da091df730c719c
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/carry.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:28f1ea8946b86e6c661267a451d51f2242889308b1f7f899e7079925bc801bed
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/engine.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:69b07528dcf0fa066bfea425e54e2a868fdcd3d1cf0680ff78e668a0dd665f44
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/index.html
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:3cd5f40acd07d17b25559761395750f3a2a471a67e7ac6dec6161784ec59bc1f
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/package.json
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:5a9ff00150022a53e6f437d1118eff2ac49498f3328226d653a734c21cec9883
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/spec.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:6ed4c50732d771071144921dc43ab1eed19b3be64e6a01e07097fb56122743f0
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/assets/template/tools/render.mjs
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:ebdb8bd6e3c002814d24617c5d628823ff69f337ff95a3d39771f4fe9708e891
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/references/carry-spec.md
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:5ddb7a243cdb8f4a2326ff852d8211f98e943fc60d8e6b7f779ff55afd9aadf5
+- kind: project-relative
+  target: claude
+  value: .claude/skills/animated-arch-diagram/references/spec.md
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:1988ef3fec9579f367bbb41c02472c6dc61c833f6b3bb006ff65ec9fe0fac16f
 - kind: project-relative
   target: claude
   value: .claude/skills/ask-matt
@@ -9766,6 +9931,114 @@ deployments:
   - mattpocock/skills
   active_owner: mattpocock/skills
   content_hash: sha256:eacb24b2a618cfb81dacb0416f4fdd75ddf3a8060f8ddb99aae1b1e301907e4b
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: null
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:59ce1843f09d3e16bb5ccfc9cb4594375900f077255599bc71bf995c43212a10
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/carry-spec.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:7f84eb1956d05074ece49d5875d65cbccd639ccfcc240d10c8087106dc35b3a3
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/carry.html
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:e2acb8d657c0b971106610c9862688b95c4bd833545acd3d1da091df730c719c
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/carry.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:28f1ea8946b86e6c661267a451d51f2242889308b1f7f899e7079925bc801bed
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/engine.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:69b07528dcf0fa066bfea425e54e2a868fdcd3d1cf0680ff78e668a0dd665f44
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/index.html
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:3cd5f40acd07d17b25559761395750f3a2a471a67e7ac6dec6161784ec59bc1f
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/package.json
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:5a9ff00150022a53e6f437d1118eff2ac49498f3328226d653a734c21cec9883
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/spec.js
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:6ed4c50732d771071144921dc43ab1eed19b3be64e6a01e07097fb56122743f0
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/assets/template/tools/render.mjs
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:ebdb8bd6e3c002814d24617c5d628823ff69f337ff95a3d39771f4fe9708e891
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/references/carry-spec.md
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:5ddb7a243cdb8f4a2326ff852d8211f98e943fc60d8e6b7f779ff55afd9aadf5
+- kind: project-relative
+  target: codex
+  value: .agents/skills/animated-arch-diagram/references/spec.md
+  runtime: null
+  scope: project
+  owners:
+  - musoukun/skills/animated-arch-diagram
+  active_owner: musoukun/skills/animated-arch-diagram
+  content_hash: sha256:1988ef3fec9579f367bbb41c02472c6dc61c833f6b3bb006ff65ec9fe0fac16f
 - kind: project-relative
   target: codex
   value: .agents/skills/ask-matt
