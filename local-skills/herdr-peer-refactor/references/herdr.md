@@ -22,6 +22,20 @@ peer-dir と request-file は親と peer の両方から読書きできる Git �
 
 並行する peer(reviewer など)は、依頼ごとに別の peer-dir を使う。`peer-request.sh` は peer-dir ごとに 1 本だけ動き、同じ dir の 2 本目は exit 15 で保留される。
 
+## 公開入力の readiness
+
+設計依頼の前に、起動後の同じ peer へ短い read-only の readiness 依頼を送る。親は依頼 ID・対象 SHA・cwd・record fingerprint を固定し、`openssl rand -hex 16` で試行ごとの公開 nonce を作る。新しい receipt の絶対パスを `/tmp/codex` の今回の run directory 内に指定し、[公開入力の probe](evidence.md#公開入力の-probe) のコマンドを具体的な値で渡す。peer は権限を変更せず、自分の通常の shell tool で実行する。
+
+親は応答と receipt を読み、次の全条件を満たしてから設計依頼へ進む。
+
+- 今回の依頼 ID と対象 SHA の応答があり、probe の実行と終了を確認できる。
+- receipt は完全な JSON で、version は1、nonce・fingerprint・実 HEAD・cwd が依頼値と一致する。
+- 実行コマンドは指定した skill の `candidate-record.py check` と元の record・候補・fingerprint を指し、終了コードは0である。
+
+receipt がない、不完全、不一致、または非0なら readiness 未完了とし、設計へ進まない。tool 実行前の peer の判断は「未実行」と記録し、実際の tool 拒否とは区別する。実行済みの失敗は receipt と観測したエラーの要約を残す。親側の sandbox 成功だけを peer の成功にせず、既存の再照会・保留規則と待機台帳を引き継ぐ。採用した receipt は checkpoint と独立レビューへの入力に含める。
+
+## 依頼と応答
+
 ```bash
 bash <skill-dir>/scripts/peer-request.sh <peer> REQ-<n> <sha> <peer-dir> <request-file> [<round>]
 ```

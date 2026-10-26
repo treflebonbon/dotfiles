@@ -52,7 +52,7 @@ pin 直後と各 phase の完了時に、親が [証跡の保存と復旧](refer
 
 `runtime/skill-harness.md` の native 機構で候補ごとに validated task worktree を作成する。親は調整、候補ごとに writer は一人、別 pane の peer は read-only とする。他者の未 commit 変更は引き取らない。
 
-[Herdr 手順](references/herdr.md) を読み、Herdr の pane / agent を使う。内部 subagent を native peer の実績として扱わない。専用 auto を要求された場合だけ [追加の起動保護](references/auto-session.md) を適用する。Orca で行う場合は `orca-peer-refactor` を使う。
+[Herdr 手順](references/herdr.md) を読み、Herdr の pane / agent を使う。設計依頼の前に、同じ peer の公開入力の readiness を完了する。内部 subagent を native peer の実績として扱わない。専用 auto を要求された場合だけ [追加の起動保護](references/auto-session.md) を適用する。Orca で行う場合は `orca-peer-refactor` を使う。
 
 並行数は利用可能な slot と所有範囲に合わせて記録する。同じファイルでも別 hunk かつ挙動が独立なら並行にできる。読取り依存を含む意味的な競合は直列にする。公開前に実差分を `check-owned.sh <worktree> <base> <owned-files>` で照合し、並行差分の Git 結合と挙動の整合を別々に確認する。main を取り込む・rebase した後は、`check-owned.sh` の base を新しい main の SHA にする。旧 base のままだと、取り込んだ変更が範囲外と判定される。範囲付きの宣言(`path:start-end`)は、新 base のファイルでの行番号に読み替えて渡す(record の `owned_files` は変えない)。
 

@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import runpy
 import stat
+import subprocess
 import sys
 import tempfile
 
@@ -60,6 +61,33 @@ def read_public(value, artifact_path=None):
         if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
             fail("証跡は通常ファイルで指定してください")
         return stream.read()
+
+
+def probe(record_path, candidates_path, fingerprint, nonce, receipt_path):
+    if not re.fullmatch(r"[0-9a-f]{16,64}", nonce):
+        fail("probe nonce は16〜64桁の小文字の16進数で指定してください")
+    artifact_path = original_artifact(read_public(record_path), fingerprint)
+    public_path(artifact_path, artifact_path)
+    public_path(candidates_path)
+    destination = public_path(receipt_path)
+    head = candidate_record["git"]("rev-parse", "--verify", "HEAD^{commit}")
+    command = [sys.executable, str(Path(__file__).with_name("candidate-record.py")),
+               "check", record_path, candidates_path, fingerprint]
+    result = subprocess.run(command, stdout=subprocess.DEVNULL)
+    receipt = {
+        "version": 1,
+        "nonce": nonce,
+        "fingerprint": fingerprint,
+        "head": head,
+        "cwd": str(Path.cwd().resolve()),
+        "command": command,
+        "exit_code": result.returncode,
+    }
+    raw = json.dumps(receipt, ensure_ascii=False, indent=2) + "\n"
+    with os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), "w") as stream:
+        stream.write(raw)
+    print(raw, end="")
+    return result.returncode
 
 
 def storage(fingerprint):
@@ -172,17 +200,19 @@ def restore(fingerprint, digest):
 
 
 def main(argv):
-    if len(argv) >= 5 and argv[1] == "checkpoint":
+    if len(argv) == 7 and argv[1] == "probe":
+        return probe(*argv[2:])
+    elif len(argv) >= 5 and argv[1] == "checkpoint":
         checkpoint(*argv[2:])
     elif len(argv) == 4 and argv[1] == "restore":
         restore(*argv[2:])
     else:
-        fail("使い方: run-evidence.py checkpoint <record> <candidates> <record-sha256> [public-file ...] | restore <record-sha256> <checkpoint-sha256>")
+        fail("使い方: run-evidence.py probe <record> <candidates> <record-sha256> <nonce> <receipt.json> | checkpoint <record> <candidates> <record-sha256> [public-file ...] | restore <record-sha256> <checkpoint-sha256>")
 
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        sys.exit(main(sys.argv))
     except (ValueError, OSError, KeyError, TypeError) as error:
         print(f"エラー: {error}", file=sys.stderr)
         sys.exit(1)
