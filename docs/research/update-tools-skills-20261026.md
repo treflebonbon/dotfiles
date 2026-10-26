@@ -14,3 +14,9 @@
 | Matt Pocock | HEAD `5beb35b0…` の差分は managed set 外のみ（前回と同じ）。維持。 |
 | root npm | 保留。oxfmt 0.74.0／oxlint 1.89.0 は 2026-10-19 公開で、bunfig の minimumReleaseAge（7日）を本日は満たさない（2026-10-26 17:26 UTC 以降に満たす）。bun-types 1.4.4 も 2026-10-22 公開で未達。 |
 | 固定CLI | waza 0.39.0 が最新のため維持。 |
+
+## 検証結果
+
+- Tool Snapshot: `scripts/verify-ai-tools.py --shell wsl --no-codex-build` が成功。6 CLI の候補 output と実起動が一致（Claude 2.1.310、Codex 0.164.0、Copilot 1.0.103、Antigravity 1.4.7、APM 0.35.0、Herdr 0.9.5）。
+- 通常APM: 隔離 runtime（accepted lock をコピー、`PYTHONPATH` 除去、APM 0.35.0）で `generate-apm-lock.sh --update` が成功。frozen install 前後の lock SHA-256 は不変、`apm audit --ci` 10/10。差分は `apm_version` と floating dependency 3件の `resolved_commit` だけで、`content_hash` と配備 file は不変（個別の採用理由にしない）。
+- 未確認: ARM／Darwin 実機、Codex 0.164.0 の実モデル動作。
