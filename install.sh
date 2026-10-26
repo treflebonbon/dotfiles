@@ -166,7 +166,7 @@ fi
 # 通常時の python3 は nix-devshell（ユーザー環境）が汎用ランタイムとして供給する。
 if ! python3 -c 'import tomllib' >/dev/null 2>&1; then
   echo "tomllib を利用できる Python を Nix で準備します..."
-  bootstrap_python=$(nix build --no-link --print-out-paths nixpkgs#python3)
+  bootstrap_python=$(nix build --no-link --print-out-paths 'nixpkgs#python3^out')
   export PATH="$bootstrap_python/bin:$PATH"
   hash -r
 fi

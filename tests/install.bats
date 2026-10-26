@@ -19,7 +19,7 @@ echo "NIX_CONFIG=${NIX_CONFIG:-}" >> "$TEST_LOG"
 if [ "$1" = print-dev-env ]; then
   echo 'export CACHE_VERSION=fresh'
 fi
-if [[ "$1" = build && "${@: -1}" = nixpkgs#python3 ]]; then
+if [[ "$1" = build && "${@: -1}" = 'nixpkgs#python3^out' ]]; then
   /bin/mkdir -p "$HOME/bootstrap-python/bin"
   /bin/cp "$HOME/python-adapter" "$HOME/bootstrap-python/bin/python3"
   printf '%s\n' "$HOME/bootstrap-python"
@@ -276,7 +276,7 @@ STUB
   run_install
 
   assert_success
-  assert_log_contains "nix build --no-link --print-out-paths nixpkgs#python3"
+  assert_log_contains "nix build --no-link --print-out-paths nixpkgs#python3^out"
 }
 
 @test "python3 がある場合はインストールをスキップする" {
@@ -285,7 +285,7 @@ STUB
   run_install
 
   assert_success
-  refute_log_contains "nix build --no-link --print-out-paths nixpkgs#python3"
+  refute_log_contains "nix build --no-link --print-out-paths nixpkgs#python3^out"
 }
 
 @test "tomllib を持たない既存 Python を置き換えてから初回配備する" {
@@ -302,7 +302,7 @@ STUB
   run_install
 
   assert_success
-  assert_log_contains 'nix build --no-link --print-out-paths nixpkgs#python3'
+  assert_log_contains 'nix build --no-link --print-out-paths nixpkgs#python3^out'
   assert_log_contains "compatible-python $BATS_TEST_TMPDIR/home/bootstrap-python/bin/python3 -c import tomllib"
   assert_log_contains 'chezmoi init'
 }
@@ -328,7 +328,7 @@ STUB
 echo "nix $*" >> "$TEST_LOG"
 if [[ "$1" = profile && "$2" = add && "${@: -1}" = nixpkgs#python3 ]]; then
   exit 17
-elif [[ "$1" = build && "${@: -1}" = nixpkgs#python3 ]]; then
+elif [[ "$1" = build && "${@: -1}" = 'nixpkgs#python3^out' ]]; then
   /bin/mkdir -p "$HOME/bootstrap-python/bin"
   /bin/cp "$HOME/python-adapter" "$HOME/bootstrap-python/bin/python3"
   printf '%s\n' "$HOME/bootstrap-python"
