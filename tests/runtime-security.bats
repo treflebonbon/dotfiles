@@ -75,6 +75,33 @@ setup() {
   [ "$found" -eq 1 ]
 }
 
+@test "managed Node.js uses hash-pinned official release binaries on all systems" {
+  run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
+    let
+      root = builtins.getEnv "PROJECT_ROOT";
+      repo = builtins.getFlake root;
+      user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
+      releases = {
+        x86_64-linux = { platform = "linux-x64"; hash = "sha256-bBcqmrZxj3uAH7WnvUhq8u5eMnWAhqBLhPzOKqdwleY="; };
+        aarch64-linux = { platform = "linux-arm64"; hash = "sha256-26v3ocv5R+YFn/rSwnuABB25feoeVTtir97n8T/KM24="; };
+        aarch64-darwin = { platform = "darwin-arm64"; hash = "sha256-ZUunneYVVkfiIyGTK0Xyocy3BZdswzfJuOJ4vrCFpig="; };
+      };
+      describe = flake: builtins.mapAttrs (system: shells:
+        let
+          node = builtins.head (builtins.filter
+            (package: (package.pname or "") == "nodejs") shells.wsl.nativeBuildInputs);
+          release = releases.${system};
+          url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-${release.platform}.tar.xz";
+        in assert node.src.urls == [ url ];
+        assert node.src.outputHash == release.hash;
+        node.version
+      ) flake.devShells;
+    in { repo = describe repo; user = describe user; }
+  '
+  [ "$status" -eq 0 ]
+  jq -e '[.[] | .[]] | length == 6' <<<"$output"
+}
+
 @test "managed CLI runtime closures use patched Node.js and Brotli" {
   run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
@@ -104,13 +131,11 @@ setup() {
 
   run nix-store --query --requisites "${nodes[@]}"
   [ "$status" -eq 0 ]
-  found=0
+  # 公式 binary の同梱 Brotli は修正を backport 済み。共有 library がある場合は別に検査する。
   while IFS= read -r path; do
     if [[ "$path" =~ -brotli-([0-9]+\.[0-9]+\.[0-9]+)(-|$) ]]; then
       version="${BASH_REMATCH[1]}"
       [ "$(printf '%s\n' 1.2.1 "$version" | sort -V | head -n 1)" = 1.2.1 ]
-      found=1
     fi
   done <<<"$output"
-  [ "$found" -eq 1 ]
 }

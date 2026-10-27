@@ -111,6 +111,23 @@
         "type": "github"
       }
     },
+    "nixpkgs-brotli-sources": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792660224,
+        "narHash": "sha256-VW2dvDKzFrZG4onSrbbn4hz+3h82zZtUw+7FncP0ei8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad",
+        "type": "github"
+      }
+    },
     "nixpkgs-language-sources": {
       "flake": false,
       "locked": {
@@ -125,23 +142,6 @@
         "owner": "NixOS",
         "repo": "nixpkgs",
         "rev": "0d765791b09356dd5b356559c1b67c1600ca3c5b",
-        "type": "github"
-      }
-    },
-    "nixpkgs-node-sources": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1792660224,
-        "narHash": "sha256-VW2dvDKzFrZG4onSrbbn4hz+3h82zZtUw+7FncP0ei8=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad",
         "type": "github"
       }
     },
@@ -166,8 +166,8 @@
         "llm-agents": "llm-agents",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-ai-sources": "nixpkgs-ai-sources",
-        "nixpkgs-language-sources": "nixpkgs-language-sources",
-        "nixpkgs-node-sources": "nixpkgs-node-sources"
+        "nixpkgs-brotli-sources": "nixpkgs-brotli-sources",
+        "nixpkgs-language-sources": "nixpkgs-language-sources"
       }
     },
     "systems": {

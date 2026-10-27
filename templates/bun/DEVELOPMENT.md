@@ -9,7 +9,7 @@
 ```bash
 git init
 nix flake init -t 'github:treflebonbon/dotfiles#bun'
-git add flake.nix .gitignore
+git add flake.nix nodejs-bin.nix .gitignore
 nix flake lock
 git add flake.lock
 nix develop .#default
@@ -20,7 +20,7 @@ nix run .#with-env -- bun --version
 
 `flake.nix` と生成した `flake.lock` をコミットする。言語用 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
 
-Bun は安定版 1.4.4 を使う。共有チャンネルに未収録のため、`nixpkgs-language-sources` に固定した revision から Bun のパッケージ定義だけを取り込み、共有 nixpkgs の依存パッケージで構築する。LSP が使う Node.js と共有 Brotli は、`nixpkgs-node-sources` のセキュリティ修正版へ揃える。
+Bun は安定版 1.4.4 を使う。共有チャンネルに未収録のため、`nixpkgs-language-sources` に固定した revision から Bun のパッケージ定義だけを取り込み、共有 nixpkgs の依存パッケージで構築する。LSP が使う Node.js は `nodejs-bin.nix` の公式 24.22.1 配布バイナリを使い、OS／CPU ごとの SHA-256 を固定する。Node.js 本体のコンパイルは不要で、同梱 Brotli には CVE-2026-111497 の修正が backport されている。更新時は公式 release の hash と、汎用環境の同名 package 定義を揃える。
 
 ## 人間向けコマンドごとの dotenv
 

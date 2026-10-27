@@ -3,10 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-node-sources = {
-      url = "github:NixOS/nixpkgs/04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad";
-      flake = false;
-    };
     nixpkgs-language-sources = {
       url = "github:NixOS/nixpkgs/0d765791b09356dd5b356559c1b67c1600ca3c5b";
       flake = false;
@@ -17,7 +13,6 @@
     {
       self,
       nixpkgs,
-      nixpkgs-node-sources,
       nixpkgs-language-sources,
       ...
     }:
@@ -33,10 +28,7 @@
         import nixpkgs {
           inherit system;
           overlays = [
-            (import ./private_dot_config/nix-devshell/overlays/runtime-security.nix {
-              inherit system;
-              nixpkgs = nixpkgs-node-sources;
-            })
+            (import ./private_dot_config/nix-devshell/overlays/runtime-security.nix)
           ];
         }
       );
@@ -81,7 +73,6 @@
         system:
         let
           pkgs = pkgsFor.${system};
-          nodePkgs = import nixpkgs-node-sources { inherit system; };
           basePackages = with pkgs; [
             chezmoi
             lefthook
@@ -99,7 +90,7 @@
               p.bats-assert
             ]))
             parallel
-            nodePkgs.nodejs_24
+            nodejs-bin
             (callPackage (nixpkgs-language-sources + "/pkgs/by-name/bu/bun/package.nix") { })
             pythonFor.${system}
             self.packages.${system}.with-env

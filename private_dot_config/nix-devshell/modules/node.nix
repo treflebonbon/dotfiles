@@ -1,14 +1,9 @@
-{
-  pkgs,
-  inputs,
-  system,
-  ...
-}:
+{ pkgs, ... }:
 
 {
   packages = with pkgs; [
     # Toolchain
-    (import inputs.nixpkgs-node-sources { inherit system; }).nodejs_24
+    nodejs-bin
 
     # LSP
     typescript-language-server

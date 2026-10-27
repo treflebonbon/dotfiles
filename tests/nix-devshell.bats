@@ -157,7 +157,7 @@ PS
 @test "repository flake includes Playwright runner dependencies" {
   local flake="$PROJECT_ROOT/flake.nix"
 
-  grep -q 'nodejs_24' "$flake"
+  grep -q 'nodejs-bin' "$flake"
   grep -q 'playwright-driver' "$flake"
   grep -q 'PLAYWRIGHT_BROWSERS_PATH' "$flake"
   grep -q 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$flake"

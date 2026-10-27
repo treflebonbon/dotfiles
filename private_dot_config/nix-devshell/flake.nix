@@ -5,7 +5,7 @@
     # Keep the shared package set fixed while AI tools advance through pinned sources.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
-    nixpkgs-node-sources = {
+    nixpkgs-brotli-sources = {
       url = "github:NixOS/nixpkgs/04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad";
       flake = false;
     };
@@ -51,10 +51,7 @@
             inherit system;
             config.allowUnfree = true;
             overlays = [
-              (import ./overlays/runtime-security.nix {
-                inherit system;
-                nixpkgs = inputs.nixpkgs-node-sources;
-              })
+              (import ./overlays/runtime-security.nix)
               inputs.llm-agents.overlays.shared-nixpkgs
             ];
           };
