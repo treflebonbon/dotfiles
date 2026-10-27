@@ -5,9 +5,14 @@
     # Keep the shared package set fixed while AI tools advance through pinned sources.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
+    nixpkgs-node-sources = {
+      url = "github:NixOS/nixpkgs/04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad";
+      flake = false;
+    };
+
     # 共有チャンネルに未収録の安定版言語パッケージの取得元。
     nixpkgs-language-sources = {
-      url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
+      url = "github:NixOS/nixpkgs/0d765791b09356dd5b356559c1b67c1600ca3c5b";
       flake = false;
     };
 
@@ -45,7 +50,13 @@
           pkgs = import nixpkgs {
             inherit system;
             config.allowUnfree = true;
-            overlays = [ inputs.llm-agents.overlays.shared-nixpkgs ];
+            overlays = [
+              (import ./overlays/runtime-security.nix {
+                inherit system;
+                nixpkgs = inputs.nixpkgs-node-sources;
+              })
+              inputs.llm-agents.overlays.shared-nixpkgs
+            ];
           };
           lib = pkgs.lib;
 

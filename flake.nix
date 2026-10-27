@@ -4,7 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-node-sources = {
-      url = "github:NixOS/nixpkgs/240fddad86d7a0520319f21d8be1b43db426b18d";
+      url = "github:NixOS/nixpkgs/04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad";
+      flake = false;
+    };
+    nixpkgs-language-sources = {
+      url = "github:NixOS/nixpkgs/0d765791b09356dd5b356559c1b67c1600ca3c5b";
       flake = false;
     };
   };
@@ -14,6 +18,7 @@
       self,
       nixpkgs,
       nixpkgs-node-sources,
+      nixpkgs-language-sources,
       ...
     }:
     let
@@ -23,7 +28,18 @@
         "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
-      pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+      pkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [
+            (import ./private_dot_config/nix-devshell/overlays/runtime-security.nix {
+              inherit system;
+              nixpkgs = nixpkgs-node-sources;
+            })
+          ];
+        }
+      );
       pythonFor = forAllSystems (system: pkgsFor.${system}.python3.withPackages (p: [ p.python-dotenv ]));
     in
     {
@@ -84,7 +100,7 @@
             ]))
             parallel
             nodePkgs.nodejs_24
-            bun
+            (callPackage (nixpkgs-language-sources + "/pkgs/by-name/bu/bun/package.nix") { })
             pythonFor.${system}
             self.packages.${system}.with-env
             git

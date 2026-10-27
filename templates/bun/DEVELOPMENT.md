@@ -20,7 +20,7 @@ nix run .#with-env -- bun --version
 
 `flake.nix` と生成した `flake.lock` をコミットする。言語用 nixpkgs は従来の `nixpkgs-26.05-darwin` 系統、共通 `with-env` は検証済み dotfiles revision に固定し、nixpkgs を共有する。対応 system は x86_64 Linux、ARM Linux、Apple Silicon macOS。
 
-Bun は安定版 1.4.2 を使う。共有チャンネルに未収録のため、`nixpkgs-language-sources` に固定した revision から Bun のパッケージ定義だけを取り込み、共有 nixpkgs の依存パッケージで構築する。
+Bun は安定版 1.4.4 を使う。共有チャンネルに未収録のため、`nixpkgs-language-sources` に固定した revision から Bun のパッケージ定義だけを取り込み、共有 nixpkgs の依存パッケージで構築する。LSP が使う Node.js と共有 Brotli は、`nixpkgs-node-sources` のセキュリティ修正版へ揃える。
 
 ## 人間向けコマンドごとの dotenv
 
