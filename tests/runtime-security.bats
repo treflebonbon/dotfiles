@@ -75,7 +75,7 @@ setup() {
   [ "$found" -eq 1 ]
 }
 
-@test "managed CLI runtime closures exclude unpatched Node.js" {
+@test "managed CLI runtime closures use patched Node.js and Brotli" {
   run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
       root = builtins.getEnv "PROJECT_ROOT";
@@ -90,11 +90,25 @@ setup() {
   run nix-store --query --requisites "${packages[@]}"
   [ "$status" -eq 0 ]
   local path version found=0
+  local -a nodes=()
   while IFS= read -r path; do
     if [[ "$path" =~ -nodejs(-slim)?-([0-9]+\.[0-9]+\.[0-9]+)(-|$) ]]; then
       version="${BASH_REMATCH[2]}"
       [[ "$version" == 24.* ]]
       [ "$(printf '%s\n' 24.22.1 "$version" | sort -V | head -n 1)" = 24.22.1 ]
+      nodes+=("$path")
+      found=1
+    fi
+  done <<<"$output"
+  [ "$found" -eq 1 ]
+
+  run nix-store --query --requisites "${nodes[@]}"
+  [ "$status" -eq 0 ]
+  found=0
+  while IFS= read -r path; do
+    if [[ "$path" =~ -brotli-([0-9]+\.[0-9]+\.[0-9]+)(-|$) ]]; then
+      version="${BASH_REMATCH[1]}"
+      [ "$(printf '%s\n' 1.2.1 "$version" | sort -V | head -n 1)" = 1.2.1 ]
       found=1
     fi
   done <<<"$output"
