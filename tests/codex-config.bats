@@ -421,6 +421,7 @@ expected_domains = {
     "files.pythonhosted.org": "allow",
     "**.python.org": "allow",
     "cache.nixos.org": "allow",
+    "nodejs.org": "allow",
     "proxy.golang.org": "allow",
     "sum.golang.org": "allow",
     "**.crates.io": "allow",
