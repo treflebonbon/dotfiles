@@ -733,6 +733,23 @@ EOF
   [ "$(cat "$home/.ssh/config")" = "protected" ]
 }
 
+@test "managed dependency policy permits official Node.js downloads and rejects lookalike hosts" {
+  render_codex_managed_config "$PROJECT_ROOT" "$BATS_TEST_TMPDIR/config.toml"
+  run python3 - "$BATS_TEST_TMPDIR/config.toml" "$PROJECT_ROOT/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" <<'PY'
+import runpy, sys, tomllib
+from pathlib import Path
+config = tomllib.loads(Path(sys.argv[1]).read_text())
+allowed = runpy.run_path(sys.argv[2])["allowed_destination"]
+for profile in ("dotfiles-secure", "dotfiles-peer"):
+    policy = config["permissions"][profile]["network"]["domains"]
+    domains = [host for host, action in policy.items() if action == "allow"]
+    assert allowed("nodejs.org", domains)
+    for host in ("nodejs.org.evil.example", "evilnodejs.org", "www.nodejs.org"):
+        assert not allowed(host, domains), (profile, host)
+PY
+  [ "$status" -eq 0 ]
+}
+
 @test "dotfiles-secure denies files outside the workspace while Nix store tools remain executable" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$home/.codex"
