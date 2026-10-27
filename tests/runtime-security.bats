@@ -53,12 +53,12 @@ setup() {
 }
 
 @test "APM runtime closure uses the patched Brotli library" {
-  run --separate-stderr nix eval --impure --raw --no-write-lock-file --option warn-dirty false --expr '
+  run --separate-stderr nix build --no-link --print-out-paths --impure --no-write-lock-file --option warn-dirty false --expr '
     let
       flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
       packages = flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
-    in (builtins.head (builtins.filter
-      (package: (package.pname or "") == "apm") packages)).outPath
+    in builtins.head (builtins.filter
+      (package: (package.pname or "") == "apm") packages)
   '
   [ "$status" -eq 0 ]
   local package="$output"
@@ -103,17 +103,17 @@ setup() {
 }
 
 @test "managed CLI runtime closures use patched Node.js and Brotli" {
-  run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
+  run --separate-stderr nix build --no-link --print-out-paths --impure --no-write-lock-file --option warn-dirty false --expr '
     let
       root = builtins.getEnv "PROJECT_ROOT";
       repo = builtins.getFlake root;
       user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
       packages = flake: flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
-    in map toString (packages repo ++ packages user)
+    in packages repo ++ packages user
   '
   [ "$status" -eq 0 ]
   local -a packages
-  mapfile -t packages < <(jq -r '.[]' <<<"$output")
+  mapfile -t packages <<<"$output"
   run nix-store --query --requisites "${packages[@]}"
   [ "$status" -eq 0 ]
   local path version found=0
