@@ -57,7 +57,19 @@ def public_path(value, artifact_path=None):
 
 def read_public(value, artifact_path=None):
     path = public_path(value, artifact_path)
-    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+    # Walk from "/" one component at a time with O_NOFOLLOW so an ancestor
+    # swapped for a symlink after public_path() cannot redirect the read.
+    fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in path.parts[1:-1]:
+            fd, parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd), fd
+            os.close(parent)
+        leaf = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+    except OSError:
+        fail("証跡のパスを安全に開けません")
+    finally:
+        os.close(fd)
+    with os.fdopen(leaf, "rb") as stream:
         if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
             fail("証跡は通常ファイルで指定してください")
         return stream.read()
