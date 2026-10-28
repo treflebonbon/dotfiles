@@ -120,6 +120,10 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 2026-09-11 に `gpt-6-astra` の `medium` / `xhigh` 比較として速度改善の試行を計画したが、5件の記録は一度も実施されないまま、[ADR-0065](../docs/adr/0065-adopt-gpt-6-sol-and-luna-as-managed-models.md) で既定モデル自体を `gpt-6-astra` から `gpt-6-sol` へ切り替えたため前提が失効した（`medium` はもはや候補設定ではなく、この trial の rollback 条件も成立しない）。旧既定の採否根拠は ADR-0065、新しい `gpt-6.1-sol` の採用根拠は ADR-0070 を正本とする。
 
+### GPT-6.1 Terra の選択
+
+既定の `gpt-6.1-sol` / `xhigh` を維持し、GPT-6.1 Terra を使う場合は `codex -m gpt-6.1-terra` で起動する。既存の対話 session では `/model` から選択する。2026-10-28 の Tool Snapshot は、Terra を bundled catalog に含む Codex 0.165.0 を採用する。候補版・検証範囲は [更新記録](../docs/research/tool-snapshot-terra-20261028.md)を参照する。
+
 ### Codex 管理設定の同期
 
 `sync-codex-managed-config` は引数なしで5種類をまとめて同期する。配備先は常に `~/.codex`、存在する場合の `~/.codex-app`、明示された `CODEX_HOME`。config.toml は managed 値を優先してマージし、project trust やローカル state を保持する。他4種類は管理ファイルで置換する。置換で `~/.codex/hooks.json` に Orca が登録した hook も消える（confirmed、2026-10-23）。Orca の起動時に再登録されるのはユーザーの申告で、この repo では未観測（unconfirmed）。

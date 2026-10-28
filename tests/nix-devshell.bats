@@ -39,9 +39,9 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/a5500f41321b0a6b68407500f26dd55dbeb5793f' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "a5500f41321b0a6b68407500f26dd55dbeb5793f"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "a5500f41321b0a6b68407500f26dd55dbeb5793f"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
