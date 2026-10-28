@@ -5,6 +5,9 @@ test_run_receipt=${DOTFILES_TEST_RUN_RECEIPT:-}
 unset DOTFILES_TEST_RUN_RECEIPT
 # エージェント環境の LEFTHOOK_OUTPUT=failure は成功時の出力を消し、lefthook の出力を検査する Bats を壊す。
 unset LEFTHOOK_OUTPUT
+# pre-push など git hook は GIT_DIR / GIT_INDEX_FILE 等を設定する。Bats の fixture が作る git が
+# テスト用 repo ではなく実 repo（共有 bare repo を含む）へ commit・設定変更するため、ここで外す。
+while IFS= read -r git_var; do unset "$git_var"; done < <(git rev-parse --local-env-vars)
 mkdir -p tmp
 log_dir=$(mktemp -d tmp/test-run.XXXXXX)
 date +%s%N >"$log_dir/started"

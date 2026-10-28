@@ -178,3 +178,39 @@ run_is_older_than_days() {
   run_is_older_than_days "$old_path" 7
   assert_success
 }
+
+@test "GC は repo 内 root が外部への symlink でも外部の子を削除しない" {
+  setup_gc_repository
+  mkdir -p "$BATS_TEST_TMPDIR/outside/victim"
+  gc_git -C "$GC_REPO" worktree remove --force "$GC_WORKTREE"
+  rm -rf "$GC_REPO/.worktrees"
+  ln -s "$BATS_TEST_TMPDIR/outside" "$GC_REPO/.worktrees"
+
+  run_gc --apply
+
+  [ -d "$BATS_TEST_TMPDIR/outside/victim" ]
+}
+
+@test "GC は末尾 / 付きの安全な root でも孤立 directory を掃除する" {
+  setup_gc_repository
+  mkdir -p "$GC_REPO/.worktrees/orphan"
+
+  run env -i HOME="$BATS_TEST_TMPDIR/home" PATH="$TEST_BIN_DIR:$PATH" TEST_LOG="$TEST_LOG" \
+    bash "$SRC" --repo "$GC_REPO" --roots .worktrees/ --age-days 0 --apply
+
+  assert_success
+  [ ! -d "$GC_REPO/.worktrees/orphan" ]
+}
+
+@test "GC は改行を含む孤立 directory を sweep でも診断でも対象にしない" {
+  setup_gc_repository
+  mkdir -p "$GC_REPO/.worktrees/$(printf 'a\nb')"
+
+  run_gc --diagnose
+  assert_success
+  refute_output --partial "remove-candidate	orphan"
+
+  run_gc --apply
+  assert_success
+  [ -d "$GC_REPO/.worktrees/$(printf 'a\nb')" ]
+}

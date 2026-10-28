@@ -58,5 +58,7 @@ printf '対象 Bats:\n' >&2
 printf '  %s\n' "${files[@]}" >&2
 ((plan_only)) && exit 0
 
+# git hook 由来の GIT_DIR 等は Bats の fixture を実 repo へ向けるため外す（scripts/test.sh と同じ）。
+while IFS= read -r git_var; do unset "$git_var"; done < <(git rev-parse --local-env-vars)
 bats "${files[@]}"
 bats --filter 'Review Round contract' tests/gh-review-thread.bats

@@ -178,7 +178,7 @@ STUB
   run_install
 
   assert_log_contains "curl"
-  assert_log_contains "get.chezmoi.io"
+  assert_log_contains "https://get.chezmoi.io"
 }
 
 @test "chezmoi インストール後も見つからない場合はエラー終了" {

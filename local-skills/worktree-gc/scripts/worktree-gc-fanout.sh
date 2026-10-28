@@ -267,18 +267,38 @@ find_ghq_repos() {
 find_worktree_dirs() {
   local root="$1"
   [ -d "$root" ] || return 0
-  find "$root" -mindepth 2 -maxdepth 2 -type d 2>/dev/null
+  find "$root" -mindepth 2 -maxdepth 2 -type d ${2:+"$2"} 2>/dev/null
 }
 
 # Prints dangling worktree dirs (age-gated) under $1. Shared by cmd_diagnose
 # and cmd_sweep so the two never drift apart on what counts as dangling.
 dangling_candidates() {
   local root="$1" dir
-  while IFS= read -r dir; do
+  while IFS= read -r -d '' dir; do
+    # Candidates travel newline-delimited; a newline in a name would split into
+    # fragments (possibly relative paths) that rm -rf later resolves elsewhere.
+    case "$dir" in
+    *$'\n'*)
+      echo "skipping name with newline: ${dir//$'\n'/?}" >&2
+      continue
+      ;;
+    esac
     is_dangling_worktree "$dir" || continue
     is_older_than_days "$dir" "$AGE_DAYS" || continue
     printf '%s\n' "$dir"
-  done < <(find_worktree_dirs "$root")
+  done < <(find_worktree_dirs "$root" -print0)
+}
+
+# Removes $2 only if its parent physically sits under $1. cd -P pins the parent
+# as the cwd, so a later symlink swap of an ancestor cannot redirect rm.
+remove_dangling_dir() {
+  local root="$1" dir="$2" real_root
+  real_root=$(cd -P -- "$root" 2>/dev/null && pwd -P) || return 1
+  (
+    cd -P -- "$(dirname -- "$dir")" 2>/dev/null || exit 1
+    [[ "$PWD/" == "$real_root/"* ]] || exit 1
+    rm -rf -- "./$(basename -- "$dir")"
+  )
 }
 
 # ---------------------------------------------------------------------------
@@ -493,7 +513,10 @@ cmd_sweep() {
         continue
       fi
       echo "removing dangling: $dir"
-      rm -rf -- "$dir"
+      remove_dangling_dir "$root" "$dir" || {
+        echo "refused to remove (outside root or unreachable): $dir" >&2
+        continue
+      }
       global_used=$((global_used + 1))
     done < <(dangling_candidates "$root")
   done

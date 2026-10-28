@@ -270,6 +270,22 @@ STUB_EOF
   assert_log_contains "lefthook-output=unset"
 }
 
+@test "テスト入口は git hook 由来の GIT_* を Bats へ渡さない" {
+  # pre-push などの hook は GIT_DIR を設定する。渡すと fixture の git が実 repo へ commit する。
+  export GIT_DIR="$BATS_TEST_TMPDIR/hook.git" GIT_INDEX_FILE="$BATS_TEST_TMPDIR/hook.index" GIT_WORK_TREE="$BATS_TEST_TMPDIR"
+  cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
+#!/bin/bash
+printf 'git-vars=%s\n' "$(env | grep -c '^GIT_\(DIR\|INDEX_FILE\|WORK_TREE\)=' || true)" >> "$TEST_LOG"
+printf '1..1\nok 1 fixture\n'
+STUB_EOF
+  chmod +x "$TEST_BIN_DIR/bats"
+
+  run_entry
+
+  assert_success
+  assert_log_contains "git-vars=0"
+}
+
 @test "テスト入口はログ受渡しの範囲外パスと既存fileを上書きしない" {
   local outside="$BATS_TEST_TMPDIR/outside"
   printf 'preserved\n' >"$outside"

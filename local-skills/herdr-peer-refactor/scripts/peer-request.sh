@@ -65,8 +65,13 @@ nonce=${PEER_REQUEST_TEST_NONCE:-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')}
 # runs after a timeout, so it is never touched here. Returns 0 saved | 1 no complete block | 2 could not read or
 # save (state unknown: the caller holds).
 capture() {
-  local text
+  local text term rc
   text=$(herdr_cmd agent read "$peer" --source recent-unwrapped --lines 400 2>/dev/null) || return 2
+  # The redirect below creates the file itself, exclusively (noclobber is
+  # O_EXCL), under an unpredictable name: a peer can neither pre-plant a symlink
+  # at it nor swap one in, because the helper never reopens an existing file.
+  term="$workdir/.$id.term.$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+  set -C
   python3 -I -c '
 import re, sys
 head, want_start, want_end = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -83,19 +88,21 @@ if starts:
             print(head + "\n" + "\n".join(body))
             sys.exit(0)
 sys.exit(3)
-' "DONE $id $sha" "DONE $id $sha $nonce" "END $id $nonce" <<<"$text" >"$resp.term"
-  case $? in
+' "DONE $id $sha" "DONE $id $sha $nonce" "END $id $nonce" <<<"$text" >"$term"
+  rc=$?
+  set +C
+  case $rc in
   0) ;;
   3)
-    rm -f "$resp.term"
+    rm -f "$term"
     return 1
     ;;
   *)
-    rm -f "$resp.term"
+    rm -f "$term"
     return 2 # includes a .term that cannot be opened (the shell's own status 1)
     ;;
   esac
-  mv "$resp.term" "$resp" || return 2
+  mv "$term" "$resp" || return 2
   valid || return 2
 }
 # herdr prints JSON: judge state by the "agent_status" value and errors by the
