@@ -258,7 +258,7 @@ PS
     [ "$status" -eq 0 ]
     [ -f "$probe/.code-review-graph/graph.db" ]
 
-    run nix develop --file "$shell" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 10' _ "$probe"
+    run nix develop --file "$shell" --command bash -c 'cd "$1" && CRG_TOOLS=list_graph_stats_tool fastmcp call --command "code-review-graph mcp" --target list_graph_stats_tool --json --timeout 30' _ "$probe"
     [ "$status" -eq 0 ]
     [[ "$output" == *'"is_error": false'* ]]
     [[ "$output" == *'"total_nodes": 2'* ]]

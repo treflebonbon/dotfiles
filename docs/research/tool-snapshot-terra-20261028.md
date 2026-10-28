@@ -52,3 +52,11 @@
 ## 最終状態
 
 Tool Snapshot、Terra の利用手順、並列負荷を見込む停止検証の待機時間を task worktree に実装し、検証した。APM payload / Impeccable / Matt Pocock / 一般ツールは今回の対象外として維持し、分割で外した未反映の実装差分はない。実モデルの応答、ARM / Darwin の実機、live 配備は未確認。受入・merge・live source への配備はこの実装完了とは区別する。
+
+## PR 公開前の再検証（2026-10-29）
+
+最終記録の commit 後の HEAD `88f6201` は検証済み tree と異なるため、公開前に全 Bats を再実行した。1,158件中1,134成功、1失敗、23 skip、exit 1。今回は `tests/nix-devshell.bats` の code-review-graph MCP smoke が、応答待ち10秒で timeout した（confirmed）。証拠: `tmp/test-run.ldnnul/` と `tmp/ai-tools-abgc0psu/`。INT 停止検証は成功しており、以前の失敗とは別である。
+
+同じ正式 devShell の単独実行では、変更前の10秒でも成功した。並列負荷の関与は inferred とし、code-review-graph の不具合とは断定しない。`docs/conventions.md` の並列負荷時のタイムアウト規則に従い、この smoke の応答待ちだけを30秒へ変更する。許可する MCP tool、品質 floor、`is_error: false` と `total_nodes: 2` の検査は維持する。
+
+30秒へ変更後の対象テストも単独で1/1、exit 0。この追加変更を含む公開対象 HEAD の全 Bats の結果は、PR 本文へ記録する。
