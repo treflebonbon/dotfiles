@@ -36,6 +36,7 @@ run_pure_function() {
   case "$fn" in
   is_dangling_worktree) deps+=(gitdir_target) ;;
   is_busy_dir) deps+=(process_inspection_available) ;;
+  remove_dangling_dir) ;;
   dangling_candidates) deps+=(find_worktree_dirs is_dangling_worktree gitdir_target is_older_than_days) ;;
   esac
   local quoted_args=() a
@@ -678,4 +679,21 @@ EOF
   assert_success
   assert_line "$root/repo/ok"
   refute_line "victim"
+}
+
+@test "remove_dangling_dir: 祖先が root 外への symlink に差し替わっていたら外部を削除しない" {
+  local root="$BATS_TEST_TMPDIR/root" outside="$BATS_TEST_TMPDIR/outside"
+  mkdir -p "$root" "$outside/victim"
+  ln -s "$outside" "$root/repo"
+  run_pure_function remove_dangling_dir "$root" "$root/repo/victim"
+  assert_failure
+  [ -d "$outside/victim" ]
+}
+
+@test "remove_dangling_dir: root 配下の通常のディレクトリは削除する" {
+  local root="$BATS_TEST_TMPDIR/root"
+  mkdir -p "$root/repo/wt"
+  run_pure_function remove_dangling_dir "$root" "$root/repo/wt"
+  assert_success
+  [ ! -e "$root/repo/wt" ]
 }

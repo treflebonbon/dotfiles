@@ -289,6 +289,18 @@ dangling_candidates() {
   done < <(find_worktree_dirs "$root" -print0)
 }
 
+# Removes $2 only if its parent physically sits under $1. cd -P pins the parent
+# as the cwd, so a later symlink swap of an ancestor cannot redirect rm.
+remove_dangling_dir() {
+  local root="$1" dir="$2" real_root
+  real_root=$(cd -P -- "$root" 2>/dev/null && pwd -P) || return 1
+  (
+    cd -P -- "$(dirname -- "$dir")" 2>/dev/null || exit 1
+    [[ "$PWD/" == "$real_root/"* ]] || exit 1
+    rm -rf -- "./$(basename -- "$dir")"
+  )
+}
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
@@ -500,12 +512,11 @@ cmd_sweep() {
         echo "protected (busy or uninspectable process): $dir" >&2
         continue
       fi
-      [[ "$dir" == "$root/"* ]] || {
-        echo "prefix guard rejected: $dir" >&2
+      echo "removing dangling: $dir"
+      remove_dangling_dir "$root" "$dir" || {
+        echo "refused to remove (outside root or unreachable): $dir" >&2
         continue
       }
-      echo "removing dangling: $dir"
-      rm -rf -- "$dir"
       global_used=$((global_used + 1))
     done < <(dangling_candidates "$root")
   done
