@@ -13,7 +13,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 ## Conventions
 
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
-- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（指示・文書 Markdown だけの変更なら `scripts/test-docs.sh` でよい。exit 2 は対象外の変更を含むので全 Bats を実行する）。Bats の実行・進捗確認・ログ・opt-in 検証の手順は先に `docs/conventions.md` を読む。
+- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（指示・文書 Markdown だけの変更なら `scripts/test-docs.sh` でよい）。通していない tree の push は `pre-push` hook が全 Bats を走らせるため約 6 分待たされる。Bats の実行・進捗確認・ログ・opt-in 検証の手順は先に `docs/conventions.md` を読む。
 
 ## Skill 配布経路の選択
 
