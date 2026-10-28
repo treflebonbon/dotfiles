@@ -587,5 +587,7 @@ terminal_answer() {
   export BATS_TEST_TMPDIR
   terminal_answer '• DONE REQ-1 abc1234 n0nce1' '  finding one' '  END REQ-1 n0nce1'
   run_helper
+  [ "$status" -eq 0 ]
   [ "$(cat "$BATS_TEST_TMPDIR/victim")" = protected ]
+  grep -Fxq 'finding one' "$WORK/REQ-1.md"
 }

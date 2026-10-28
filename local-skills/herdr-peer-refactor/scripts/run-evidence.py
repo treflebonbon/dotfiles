@@ -57,11 +57,14 @@ def public_path(value, artifact_path=None):
 
 def read_public(value, artifact_path=None):
     path = public_path(value, artifact_path)
-    # Walk from "/" one component at a time with O_NOFOLLOW so an ancestor
-    # swapped for a symlink after public_path() cannot redirect the read.
-    fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
+    # Walk one component at a time with O_NOFOLLOW so an ancestor swapped for a
+    # symlink after public_path() cannot redirect the read. Shared evidence is
+    # anchored at SHARED itself, like public_path(), so a system alias above it
+    # (macOS /tmp -> /private/tmp) keeps working.
+    anchor = SHARED if path.is_relative_to(SHARED) else Path("/")
+    fd = os.open(anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
-        for part in path.parts[1:-1]:
+        for part in path.relative_to(anchor).parts[:-1]:
             fd, parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd), fd
             os.close(parent)
         leaf = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)

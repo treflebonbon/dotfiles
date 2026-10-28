@@ -691,9 +691,26 @@ def swap(value, artifact_path=None):
 m.public_path = swap
 try:
     data = m.read_public(target)
-except Exception:
+except ValueError:
     data = b"rejected"
 print(data.decode().strip())
 PY
-  [ "$output" != outside ]
+  [ "$status" -eq 0 ]
+  [ "$output" = rejected ]
+}
+
+@test "read_public は共有 directory 自体が system の symlink 配下にあっても読める" {
+  mkdir -p "$BATS_TEST_TMPDIR/real/codex"
+  ln -s "$BATS_TEST_TMPDIR/real" "$BATS_TEST_TMPDIR/tmp"
+  printf 'inside\n' >"$BATS_TEST_TMPDIR/real/codex/f"
+  run python3 -I - "$SCRIPT" "$BATS_TEST_TMPDIR/tmp/codex" <<'PY'
+import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("run_evidence", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m.SHARED = Path(sys.argv[2])
+print(m.read_public(str(m.SHARED / "f")).decode().strip())
+PY
+  [ "$status" -eq 0 ]
+  [ "$output" = inside ]
 }
