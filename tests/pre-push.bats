@@ -30,6 +30,42 @@ push_refs() {
   [ ! -s "$CALLS" ]
 }
 
+@test "an empty ref list is not treated as a deletion" {
+  DOCS_STATUS=2 run -0 bash -c ': | "$1/scripts/pre-push.sh" origin url' _ "$PROJECT_ROOT"
+  [ "$(cat "$CALLS")" = $'docs\nfull' ]
+}
+
+@test "a pushed commit that is not HEAD and was never verified is refused without running tests" {
+  git -c user.name=t -c user.email=t@example.com commit -q --allow-empty -m second
+  echo change >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m third
+  run -1 push_refs "$HEAD_SHA"
+  [ ! -s "$CALLS" ]
+}
+
+@test "a pushed commit that is not HEAD passes when its tree was verified" {
+  run -0 "$PROJECT_ROOT/scripts/pre-push.sh" record
+  echo change >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m second
+  run -0 push_refs "$HEAD_SHA"
+  [ ! -s "$CALLS" ]
+}
+
+@test "every pushed ref must be verified" {
+  run -0 "$PROJECT_ROOT/scripts/pre-push.sh" record
+  echo one >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m second
+  second=$(git rev-parse HEAD)
+  echo two >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m third
+  run -1 bash -c 'printf "refs/heads/a %s refs/heads/a %s\nrefs/heads/b %s refs/heads/b %s\n" "$1" "$3" "$2" "$3" | "$4/scripts/pre-push.sh" origin url' _ "$HEAD_SHA" "$second" "$ZERO" "$PROJECT_ROOT"
+  [ ! -s "$CALLS" ]
+}
+
 @test "a docs-only change passes after the docs entry succeeds, without the full Bats" {
   run -0 push_refs "$HEAD_SHA"
   [ "$(cat "$CALLS")" = docs ]

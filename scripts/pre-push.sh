@@ -6,9 +6,8 @@ set -euo pipefail
 
 zero=0000000000000000000000000000000000000000
 # 検証済み tree の一覧。worktree ごとの git dir に置くので、追跡対象にも tmp/ の掃除にも巻き込まれない。
-stamp=$(git rev-parse --git-path tested-trees)
-# ponytail: push 対象は HEAD とみなす（git-push-topic は HEAD を push する）。別 ref を push する運用は照合を ref 単位にする。
-tree=$(git rev-parse 'HEAD^{tree}')
+tested_trees=$(git rev-parse --git-path tested-trees)
+head_tree=$(git rev-parse 'HEAD^{tree}')
 
 record() {
   # 未 commit・未追跡の内容は tree に反映されず、検証した内容と HEAD の tree が食い違うので記録しない。
@@ -16,14 +15,7 @@ record() {
     echo "未 commit または未追跡の変更があるため、検証済みとして記録しない" >&2
     return 0
   fi
-  echo "$tree" >>"$stamp"
-}
-
-pushes_only_deletions() {
-  local local_sha
-  while read -r _ local_sha _; do
-    [[ $local_sha == "$zero" ]] || return 1
-  done
+  echo "$head_tree" >>"$tested_trees"
 }
 
 if [[ ${1:-} == record ]]; then
@@ -31,13 +23,27 @@ if [[ ${1:-} == record ]]; then
   exit 0
 fi
 
-if pushes_only_deletions; then
-  exit 0
+# stdin の ref ごとに push 対象の tree を照合する。空入力（手動実行など）は削除と見なさず HEAD を対象にする。
+needs_run=0
+saw_ref=0
+while read -r _ local_sha _; do
+  saw_ref=1
+  [[ $local_sha == "$zero" ]] && continue
+  tree=$(git rev-parse "$local_sha^{tree}")
+  if grep -qxF "$tree" "$tested_trees" 2>/dev/null; then
+    continue
+  elif [[ $tree == "$head_tree" ]]; then
+    needs_run=1
+  else
+    # テストは作業ツリー（HEAD）に対して走るため、HEAD 以外の未検証 commit は検証できない。
+    echo "検証済みでない commit $local_sha は HEAD ではないため push できない。checkout して lefthook run test を実行する" >&2
+    exit 1
+  fi
+done
+if ((saw_ref == 0)); then
+  grep -qxF "$head_tree" "$tested_trees" 2>/dev/null || needs_run=1
 fi
-
-if grep -qxF "$tree" "$stamp" 2>/dev/null; then
-  exit 0
-fi
+((needs_run)) || exit 0
 
 docs_cmd=${DOTFILES_PRE_PUSH_DOCS_CMD:-scripts/test-docs.sh}
 full_cmd=${DOTFILES_PRE_PUSH_FULL_CMD:-bun run test}
