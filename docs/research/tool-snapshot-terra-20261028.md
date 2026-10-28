@@ -32,4 +32,18 @@
 - 認証を持たない隔離 HOME の候補 Codex app-server に `initialize` / `model/list` を送り、`gpt-6.1-terra` が1件あり、`xhigh` を公開することを確認（confirmed）。証拠: `/tmp/codex/terra-catalog.23izq9xi/terra.json`。実モデルへの接続は未確認で、この結果をアカウントの利用権限の確認とは扱わない。
 - `tests/nix-devshell.bats` は26/26、`tests/ai-quality-floor.bats` は7/7。型チェックは frozen install 後に成功（confirmed）。初回の snapshot テストは lock 再生成との実行順の誤りで失敗し、lock 確定後に再実行した。初回型チェックは依存関係の未導入で失敗した。失敗を最終成功の試行と混同しない。
 - 最初のオンライン lock 再生成は Nix daemon の接続拒否で停止した。既存キャッシュを使った native の offline 再生成は成功し、その後 service と socket の稼働を確認した。権限変更は行っていない。
-- 6 CLI の実起動、全 Bats と code-review は実行中／未実施。live 配備は受入・merge 後とする。
+- `scripts/verify-ai-tools.py --shell default --no-codex-build` は exit 0。6 CLI の候補 output と実際の `--version` が一致した（confirmed）。証拠: `tmp/ai-tools-hsrtz11v/`。
+- 候補 Codex を使う `tests/codex-config.bats` は61/61、exit 0。strict parse、管理設定の同期、実 sandbox の denied-file / dotenv / network 境界を含む（confirmed）。
+- 最初の全 Bats は1,158件中1,134成功、1失敗、23 skip、exit 1。失敗は `tests/test-entry.bats` の INT 停止待ちが3秒を超過した1件。証拠: `tmp/test-run.Fn6q8B/`。6 CLI の起動不一致ではなく、後続テストの失敗として記録する。
+- `0b5a6711dc4630b90336f75e8d3d28a2b00ea960...d5d14e0` の code-review は Standards / Spec とも指摘0。追加の待機時間変更は再レビューする。
+- live 配備は受入・merge 後とする。
+
+## 検証中に追加した変更
+
+全 Bats の停止検証の失敗を受け、`tests/test-entry.bats` のシグナル送信後の待機上限を3秒から10秒へ変更する。既存の fixture 起動待ちと同じ猶予であり、`docs/conventions.md` の並列実行時のタイムアウト規則と ADR-0079 に従う実装判断である。停止処理本体は変更せず、終了コード130 / 143、子孫プロセスの消滅、INT handler の実行 marker を引き続き検査する。
+
+3秒の上限超過は confirmed。並列負荷の関与は、全体実行のみの失敗、同じ正式 devShell での単独成功、待機中の I/O wait の観測に基づく inferred であり、Codex の回帰とは断定しない。全体の負荷を小さい fixture に固定した再現の最小化は行っていない。今回の修正はテスト補助の時間上限だけに限定し、停止処理の不具合は既存の意味的な検査と次の検証で引き続き検出する。
+
+- 変更後の `tests/test-entry.bats` は20/20、exit 0。
+- 一時コピーの `scripts/test.sh` で Python の SIGINT handler を無効にすると、対象テストは10秒の上限で失敗した。待機時間を延ばしても停止しない実装を拒否できる（confirmed）。証拠: `/tmp/codex/terra-int-mutation.y02qzqzf/tap.log`。本体にはこの変更を適用していない。
+- 変更後の全 Bats と差分レビューはこれから実行する。初回の失敗とは別の試行として記録する。
