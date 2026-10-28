@@ -45,6 +45,12 @@ if ((saw_ref == 0)); then
 fi
 ((needs_run)) || exit 0
 
+# テストと文書判定は作業ツリーを見るため、未 commit・未追跡の変更があると push する tree とは別の内容を検証してしまう。
+if [[ -n $(git status --porcelain) ]]; then
+  echo "未 commit または未追跡の変更があるため、push する tree を検証できない。commit または退避してから push する" >&2
+  exit 1
+fi
+
 docs_cmd=${DOTFILES_PRE_PUSH_DOCS_CMD:-scripts/test-docs.sh}
 full_cmd=${DOTFILES_PRE_PUSH_FULL_CMD:-bun run test}
 

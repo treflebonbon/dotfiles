@@ -109,13 +109,26 @@ push_refs() {
   [ "$(cat "$CALLS")" = $'docs\nfull' ]
 }
 
-@test "a pass on a worktree with uncommitted changes is not remembered for HEAD" {
+@test "an unverified tree is refused without running tests while the worktree has untracked files" {
   echo change >file
-  DOCS_STATUS=2 run -0 push_refs "$HEAD_SHA"
-  rm file
-  : >"$CALLS"
-  DOCS_STATUS=2 run -0 push_refs "$HEAD_SHA"
-  [ "$(cat "$CALLS")" = $'docs\nfull' ]
+  run -1 push_refs "$HEAD_SHA"
+  [ ! -s "$CALLS" ]
+}
+
+@test "an unverified tree is refused without running tests while the worktree has uncommitted changes" {
+  echo change >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m second
+  echo changed >file
+  run -1 push_refs "$(git rev-parse HEAD)"
+  [ ! -s "$CALLS" ]
+}
+
+@test "a verified tree passes even while the worktree has uncommitted changes" {
+  run -0 "$PROJECT_ROOT/scripts/pre-push.sh" record
+  echo change >file
+  run -0 push_refs "$HEAD_SHA"
+  [ ! -s "$CALLS" ]
 }
 
 @test "record remembers a clean tree so the next push runs nothing" {
