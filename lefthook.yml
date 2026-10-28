@@ -2,8 +2,16 @@ glob_matcher: doublestar
 
 test:
   jobs:
+    # hook の導入を兼ねる。成功した clean な tree は pre-push が再実行を省くため記録する。
     - name: bats
-      run: bun run test
+      run: lefthook install && bun run test && scripts/pre-push.sh record
+
+# 全 Bats を通していない tree の push を止める。判定は scripts/pre-push.sh（stdin の ref が要る）。
+pre-push:
+  jobs:
+    - name: bats
+      run: scripts/pre-push.sh
+      use_stdin: true
 
 pre-commit:
   parallel: true
