@@ -31,3 +31,15 @@ setup() {
     [ "$status" -eq 2 ]
   done
 }
+
+@test "a docs-only run does not pass git hook GIT_* variables to Bats" {
+  local bin="$BATS_TEST_TMPDIR/bin" log="$BATS_TEST_TMPDIR/log"
+  mkdir -p "$bin"
+  printf '#!/bin/bash\nenv | grep -c "^GIT_DIR=" >> "%s" || true\n' "$log" >"$bin/bats"
+  chmod +x "$bin/bats"
+
+  GIT_DIR="$BATS_TEST_TMPDIR/hook.git" PATH="$bin:$PATH" run scripts/test-docs.sh runtime/skill-harness.md
+
+  [ "$status" -eq 0 ]
+  [ "$(sort -u "$log")" = 0 ]
+}
