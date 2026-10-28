@@ -46,4 +46,9 @@
 
 - 変更後の `tests/test-entry.bats` は20/20、exit 0。
 - 一時コピーの `scripts/test.sh` で Python の SIGINT handler を無効にすると、対象テストは10秒の上限で失敗した。待機時間を延ばしても停止しない実装を拒否できる（confirmed）。証拠: `/tmp/codex/terra-int-mutation.y02qzqzf/tap.log`。本体にはこの変更を適用していない。
-- 変更後の全 Bats と差分レビューはこれから実行する。初回の失敗とは別の試行として記録する。
+- 変更後の `lefthook run test` は1,158件中1,135成功、23 skip、失敗0、exit 0（confirmed）。証拠: `tmp/test-run.DO2tKj/`。`scripts/verify-ai-tools.py --shell default --no-codex-build -- lefthook run test` 自体も exit 0。証拠: `tmp/ai-tools-6ubdfmoy/`。初回失敗とは別の試行であり、実モデル・認証等の既定 opt-in は実行していない。
+- `0b5a6711dc4630b90336f75e8d3d28a2b00ea960...51b933b` の追加差分レビューも Standards / Spec とも指摘0。停止検査を維持した待機時間変更と、初回失敗／局所検証／再実行の区別を確認した。
+
+## 最終状態
+
+Tool Snapshot、Terra の利用手順、並列負荷を見込む停止検証の待機時間を task worktree に実装し、検証した。APM payload / Impeccable / Matt Pocock / 一般ツールは今回の対象外として維持し、分割で外した未反映の実装差分はない。実モデルの応答、ARM / Darwin の実機、live 配備は未確認。受入・merge・live source への配備はこの実装完了とは区別する。
