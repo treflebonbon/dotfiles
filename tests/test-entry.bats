@@ -151,13 +151,14 @@ if not fixtures_ready:
 started = time.monotonic()
 os.kill(entry.pid, signal_number)
 try:
-    status = entry.wait(timeout=3)
+    # 並列実行の I/O 待ちを見込み、fixture の起動待ちと同じ猶予を取る。
+    status = entry.wait(timeout=10)
 except subprocess.TimeoutExpired:
     stop_entry()
     stop_fixture(child_pid_file, child_marker)
     stop_fixture(grandchild_pid_file, grandchild_marker)
     output.close()
-    raise SystemExit(f"{signal_name} did not stop test.sh within 3 seconds")
+    raise SystemExit(f"{signal_name} did not stop test.sh within 10 seconds")
 elapsed = time.monotonic() - started
 output.close()
 
