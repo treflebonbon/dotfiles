@@ -13,7 +13,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 ## Conventions
 
 - Git 認証は HTTPS + `gh auth git-credential` を使う。
-- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（指示・文書 Markdown だけの変更なら `scripts/test-docs.sh` でよい）。通していない tree の push は `pre-push` hook が全 Bats を走らせるため5〜8 分ほど待たされる。Bats の実行・進捗確認・ログ・opt-in 検証の手順は先に `docs/conventions.md` を読む。
+- この dotfiles repo では、topic branch の push・PR 公開前に validated task worktree で `lefthook run test` を実行する（指示・文書 Markdown だけの変更なら `scripts/test-docs.sh` でよい）。Bats の実行・進捗確認・ログ・opt-in 検証の手順は先に `docs/conventions.md` を読む。
 
 ## Skill 配布経路の選択
 
@@ -21,7 +21,7 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 - user-scoped private skill は `local-skills/<name>/`
 - CLI バイナリは nix devshell
 
-配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。Codex 固有設定は `private_dot_config/codex/` を編集し、`run_onchange_after_codex-managed-sync.sh.tmpl` で `$CODEX_HOME` へ反映する。
+配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。Codex 固有設定は `private_dot_config/codex/` を編集し、配備と `$CODEX_HOME` への同期は `docs/architecture.md` の編集・配備ルールに従う。
 
 ## Agent skills
 
