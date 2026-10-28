@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
     nixpkgs-language-sources = {
-      url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
+      url = "github:NixOS/nixpkgs/0d765791b09356dd5b356559c1b67c1600ca3c5b";
       flake = false;
     };
     dotfiles = {
@@ -27,7 +27,29 @@
         "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
-      pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+      pkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [
+            (
+              final: prev:
+              let
+                nodejs = prev.callPackage ./nodejs-bin.nix { };
+              in
+              {
+                typescript = prev.typescript.override {
+                  buildNpmPackage = prev.buildNpmPackage.override { inherit nodejs; };
+                };
+                typescript-language-server = prev.typescript-language-server.override {
+                  inherit nodejs;
+                  typescript = final.typescript;
+                };
+              }
+            )
+          ];
+        }
+      );
     in
     {
       apps = forAllSystems (system: {

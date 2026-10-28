@@ -13,7 +13,7 @@ teardown() { raw_cleanup; }
   for tool in bunx node uvx; do
     ln -s "$(command -v "$tool")" "$RAW_BASE/profile/bin/$tool"
   done
-  cat >> "$RAW_BASE/home/.codex/config.toml" <<'TOML'
+  cat >>"$RAW_BASE/home/.codex/config.toml" <<'TOML'
 
 [mcp_servers.unreviewed]
 command = "secret-fetcher"
@@ -40,10 +40,9 @@ for server in sorted(servers, key=lambda entry: entry["name"]):
   run raw_run sandbox -- python3 -c '
 import subprocess, sys
 assert len(sys.argv) == 3
-for command, (usage, status) in zip(sys.argv[1:], (("Usage: bunx", 1), ("Usage: uvx", 0))):
-    # bunx 1.3 returns 1 for help without a package, including on the host.
+for command, usage in zip(sys.argv[1:], ("Usage: bunx", "Usage: uvx")):
     result = subprocess.run([command, "--help"], capture_output=True, text=True)
-    assert result.returncode == status, result
+    assert result.returncode == 0, result
     assert usage in result.stdout + result.stderr, result
 subprocess.run(["node", "--version"], check=True)
 print("MCP_PROFILE_TOOLS_CHECKED")
@@ -59,7 +58,7 @@ print("MCP_PROFILE_TOOLS_CHECKED")
   mkdir -p "$RAW_BASE/host-config"
   ln -s "$host_gh_config" "$RAW_BASE/host-config/gh"
   git -C "$RAW_BASE/work" remote add origin https://github.com/treflebonbon/dotfiles.git
-  cat > "$RAW_BASE/work/task.sh" <<'TASK'
+  cat >"$RAW_BASE/work/task.sh" <<'TASK'
 set -eu
 test -z "${GH_CONFIG_DIR+x}"
 test -z "${GH_TOKEN+x}"
@@ -112,7 +111,7 @@ import sys
 path = Path(sys.argv[1])
 path.write_text(path.read_text().replace('PUBLIC_VAR = "normal";', 'PUBLIC_VAR = "normal"; RUST_LOG = "codex_rmcp_client=info";'))
 PY
-  printf 'def greeting():\n    return "before"\n' > "$RAW_BASE/work/greeting.py"
+  printf 'def greeting():\n    return "before"\n' >"$RAW_BASE/work/greeting.py"
   raw_admit flake.nix task.sh greeting.py
   raw_cli admit --git-head "$(git -C "$RAW_BASE/work" rev-parse HEAD)" --mcp context7 --mcp serena -- flake.nix task.sh greeting.py
   run raw_run exec --json 'Use the context7 MCP tools to resolve the Python documentation library and query pathlib read_text documentation. Use the serena MCP tools to activate the current Python project, read greeting.py, and change the return value of greeting() from before to after. You must actually call both MCP servers, not use shell replacements. Verify that .env and ordinary-looking-name cannot be read, without asking for broader permissions. End with MCP_SERVICES_CHECKED only if both MCP operations succeeded.'

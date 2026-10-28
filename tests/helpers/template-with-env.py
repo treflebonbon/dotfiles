@@ -145,7 +145,7 @@ def verify(language, evidence):
     repo.mkdir()
     run(["git", "init", "-q"], repo)
     run(["nix", "flake", "init", "-t", f"git+file://{SOURCE}#{language}"], repo)
-    run(["git", "add", "flake.nix", ".gitignore", "DEVELOPMENT.md"], repo)
+    run(["git", "add", "*.nix", ".gitignore", "DEVELOPMENT.md"], repo)
     lock_command = ["nix", "flake", "lock"]
     for input_name, owner in (("nixpkgs", "NixOS"), ("rust-overlay", "oxalica")):
         if input_name == "rust-overlay" and language != "rust":
@@ -400,10 +400,15 @@ set -eu
 source "$PROJECT_ROOT/tests/helpers/raw-codex.bash"
 raw_fixture
 cp "$TEMPLATE_REPO/flake.nix" "$TEMPLATE_REPO/flake.lock" "$RAW_BASE/work/"
+inputs=(flake.nix flake.lock task.sh fixture.txt .envrc)
+if [ -f "$TEMPLATE_REPO/nodejs-bin.nix" ]; then
+  cp "$TEMPLATE_REPO/nodejs-bin.nix" "$RAW_BASE/work/"
+  inputs+=(nodejs-bin.nix)
+fi
 cp "$TEMPLATE_RAW_TASK" "$RAW_BASE/work/task.sh"
 printf 'public\n' > "$RAW_BASE/work/fixture.txt"
 printf 'touch envrc-executed; exit 89\n' > "$RAW_BASE/work/.envrc"
-raw_admit flake.nix flake.lock task.sh fixture.txt .envrc
+raw_admit "${inputs[@]}"
 export RAW_DUMMY_SECRET=dummy-template-host-only
 raw_run sandbox -- bash task.sh
 test "$(cat "$RAW_BASE/work/fixture.txt")" = tested

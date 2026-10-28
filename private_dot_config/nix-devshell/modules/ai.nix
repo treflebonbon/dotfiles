@@ -13,11 +13,34 @@ let
   # package so upstream versions match the Numtide cache even though this
   # devShell keeps its shared nixpkgs on the stable branch.
   codexPackage = inputs.llm-agents.packages.${system}.codex;
+  patched = import inputs.nixpkgs-brotli-sources { inherit system; };
+  nodejs = pkgs.nodejs-bin;
+  buildNpmPackage = pkgs.buildNpmPackage.override { inherit nodejs; };
+
+  apmPkgs = import inputs.llm-agents.inputs.nixpkgs { inherit system; };
+  apmGit = apmPkgs.gitMinimal.override {
+    curl = apmPkgs.curl.override { brotli = patched.brotli; };
+  };
+  # Keep the approved APM release while rebuilding its affected Python dependencies.
+  apmPackage = inputs.llm-agents.packages.${system}.apm.override {
+    python3 = apmPkgs.python3.override {
+      packageOverrides = _: prev: {
+        brotli = prev.brotli.override {
+          brotli = patched.brotli;
+        };
+        gitpython = prev.gitpython.override {
+          pkgs = apmPkgs // {
+            gitMinimal = apmGit;
+          };
+        };
+      };
+    };
+  };
 
   # Evaluate only these newer package definitions against the shared package set.
-  defuddle = pkgs.callPackage (
-    inputs.nixpkgs-ai-sources + "/pkgs/by-name/de/defuddle/package.nix"
-  ) { };
+  defuddle = pkgs.callPackage (inputs.nixpkgs-ai-sources + "/pkgs/by-name/de/defuddle/package.nix") {
+    inherit buildNpmPackage;
+  };
   markitdown = pkgs.python3Packages.callPackage (
     inputs.nixpkgs-ai-sources + "/pkgs/development/python-modules/markitdown/default.nix"
   ) { };
@@ -67,9 +90,10 @@ let
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
   codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
-  design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { };
+  design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { inherit buildNpmPackage nodejs; };
   impeccable = pkgs.callPackage ../packages/impeccable.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix {
+    inherit buildNpmPackage nodejs;
     playwright-driver = if browserless then null else pkgs.playwright-driver;
   };
   waza = pkgs.callPackage ../packages/waza.nix { };
@@ -117,7 +141,7 @@ in
 
     # --- Agent Package Manager ---
     # The shared overlay can't supply upstream's installAgentSkills hook on stable nixpkgs.
-    inputs.llm-agents.packages.${system}.apm
+    apmPackage
   ];
 
   shellHook = ''

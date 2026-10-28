@@ -3,7 +3,7 @@
 {
   packages = with pkgs; [
     # Toolchain
-    nodejs_24
+    nodejs-bin
 
     # LSP
     typescript-language-server
