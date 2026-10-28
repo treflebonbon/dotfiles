@@ -14,7 +14,7 @@ status: accepted
 ## Decision
 
 - `private_dot_claude/settings.json.tmpl` から `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` と `teammateMode` を削除する。`teammateMode` は teams の表示方式を選ぶ設定で、teams の有効化も通常の subagent の background 実行も制御しない。`AGENT_TEAMS` を外すと効かない休眠設定になるため、同時に外す。再度使うときは必要な設定を足し直す。
-- `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` は維持する。これまでこの値の根拠を書いた記録は repo に見つからなかった。親の `model` も `sonnet` で、この override は親のモデルを切り替えても subagent を同じ tier に固定する。変更する理由が見つからないため現状を維持し、コストやレイテンシの比較は行っていない。
+- `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` は維持する。これまでこの値の根拠を書いた記録は repo に見つからなかった。親の `model` も `sonnet` で、この override は親のモデルを切り替えても、明示的な model 指定がない subagent の既定 tier を sonnet に保つ。`_FORCE` が未設定なので、per-spawn の `model` と subagent 定義の `model` が優先され、すべての subagent を sonnet に固定するものではない。変更する理由が見つからないため現状を維持し、コストやレイテンシの比較は行っていない。
 - `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` は未設定のままにする。設定すると upstream skill が per-spawn で指定する model を無視してしまい、upstream skill を変更しない方針と衝突する。
 - Codex の `default_subagent_model` / `default_subagent_reasoning_effort` は [ADR-0065](0065-adopt-gpt-6-sol-and-luna-as-managed-models.md) が根拠なので変更せず、重複記述もしない。
 - `README.md` と `runtime/ai-runtimes.md` の現在の設定説明から `teammateMode` の記述を削除する。`runtime/ai-runtimes.md`（240、327、343、369、389 行付近の changelog 評価）、`docs/research/`、[ADR-0005](0005-advisor-tool-default-enable.md)、[ADR-0043](0043-update-llm-agents-and-impeccable-update-unit.md)、[ADR-0045](0045-separate-llm-agents-and-apm-update-units.md) にある `teammateMode: auto` や `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` への言及（「この repo は `teammateMode: auto` を使うため直撃する」「既存の experimental env var」など）は、当時の前提の記録として書き換えない。これらは現在の設定を表すものではなく、この ADR が supersede する。
