@@ -222,6 +222,13 @@ sweep_root() {
   *) parent="$REPO/$root" ;;
   esac
   [ -d "$parent" ] || return 0
+  # A root that is (or resolves through) a symlink out of the repo must not be
+  # swept: the textual prefix guard in remove_orphan would not notice.
+  if [ "$(cd "$parent" && pwd -P)" != "$(cd "$REPO" && pwd -P)/${parent#"$REPO"/}" ] &&
+    [[ "$parent" == "$REPO/"* ]]; then
+    echo "root resolves outside repo, skipping: $parent" >&2
+    return 0
+  fi
   local line path="" branch="" is_locked=0 is_detached=0
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -254,6 +261,9 @@ sweep_orphans() {
   for dir in "$parent"/*/; do
     [ -d "$dir" ] || continue
     dir="${dir%/}"
+    # Names with a newline cannot survive the line-based diagnostics the
+    # fanout wrapper parses; keep them rather than risk a truncated path.
+    [[ "$dir" != *$'\n'* ]] || continue
     # Skip registered worktrees (handled by porcelain sweep).
     if printf '%s\n' "$registered" | grep -q -F -x "$dir"; then
       continue

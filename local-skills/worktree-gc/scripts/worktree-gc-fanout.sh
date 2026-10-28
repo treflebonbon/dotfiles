@@ -267,18 +267,26 @@ find_ghq_repos() {
 find_worktree_dirs() {
   local root="$1"
   [ -d "$root" ] || return 0
-  find "$root" -mindepth 2 -maxdepth 2 -type d 2>/dev/null
+  find "$root" -mindepth 2 -maxdepth 2 -type d ${2:+"$2"} 2>/dev/null
 }
 
 # Prints dangling worktree dirs (age-gated) under $1. Shared by cmd_diagnose
 # and cmd_sweep so the two never drift apart on what counts as dangling.
 dangling_candidates() {
   local root="$1" dir
-  while IFS= read -r dir; do
+  while IFS= read -r -d '' dir; do
+    # Candidates travel newline-delimited; a newline in a name would split into
+    # fragments (possibly relative paths) that rm -rf later resolves elsewhere.
+    case "$dir" in
+    *$'\n'*)
+      echo "skipping name with newline: ${dir//$'\n'/?}" >&2
+      continue
+      ;;
+    esac
     is_dangling_worktree "$dir" || continue
     is_older_than_days "$dir" "$AGE_DAYS" || continue
     printf '%s\n' "$dir"
-  done < <(find_worktree_dirs "$root")
+  done < <(find_worktree_dirs "$root" -print0)
 }
 
 # ---------------------------------------------------------------------------
@@ -492,6 +500,10 @@ cmd_sweep() {
         echo "protected (busy or uninspectable process): $dir" >&2
         continue
       fi
+      [[ "$dir" == "$root/"* ]] || {
+        echo "prefix guard rejected: $dir" >&2
+        continue
+      }
       echo "removing dangling: $dir"
       rm -rf -- "$dir"
       global_used=$((global_used + 1))

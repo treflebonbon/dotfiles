@@ -672,3 +672,28 @@ for index, heading in enumerate(['### coordinator\n', '### nested coordinator\n'
 PY
   [ "$status" -eq 0 ]
 }
+
+@test "read_public は検査後に祖先 directory が symlink へ差し替えられても外部を読まない" {
+  mkdir -p "$EVIDENCE/dir" "$BATS_TEST_TMPDIR/outside"
+  printf 'inside\n' >"$EVIDENCE/dir/f"
+  printf 'outside\n' >"$BATS_TEST_TMPDIR/outside/f"
+  run python3 -I - "$SCRIPT" "$EVIDENCE/dir/f" "$EVIDENCE/dir" "$BATS_TEST_TMPDIR/outside" <<'PY'
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("run_evidence", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+target, anc, outside = sys.argv[2:5]
+checked = m.public_path
+def swap(value, artifact_path=None):
+    path = checked(value, artifact_path)
+    os.rename(anc, anc + ".moved")
+    os.symlink(outside, anc)
+    return path
+m.public_path = swap
+try:
+    data = m.read_public(target)
+except Exception:
+    data = b"rejected"
+print(data.decode().strip())
+PY
+  [ "$output" != outside ]
+}

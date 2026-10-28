@@ -178,3 +178,15 @@ run_is_older_than_days() {
   run_is_older_than_days "$old_path" 7
   assert_success
 }
+
+@test "GC は repo 内 root が外部への symlink でも外部の子を削除しない" {
+  setup_gc_repository
+  mkdir -p "$BATS_TEST_TMPDIR/outside/victim"
+  gc_git -C "$GC_REPO" worktree remove --force "$GC_WORKTREE"
+  rm -rf "$GC_REPO/.worktrees"
+  ln -s "$BATS_TEST_TMPDIR/outside" "$GC_REPO/.worktrees"
+
+  run_gc --apply
+
+  [ -d "$BATS_TEST_TMPDIR/outside/victim" ]
+}

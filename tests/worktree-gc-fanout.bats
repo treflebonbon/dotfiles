@@ -36,6 +36,7 @@ run_pure_function() {
   case "$fn" in
   is_dangling_worktree) deps+=(gitdir_target) ;;
   is_busy_dir) deps+=(process_inspection_available) ;;
+  dangling_candidates) deps+=(find_worktree_dirs is_dangling_worktree gitdir_target is_older_than_days) ;;
   esac
   local quoted_args=() a
   for a in "$@"; do
@@ -45,6 +46,7 @@ run_pure_function() {
     PATH="/usr/bin:/bin" \
     HOME="$BATS_TEST_TMPDIR/home" \
     WORKTREE_GC_PROC_ROOT="$WORKTREE_GC_PROC_ROOT" \
+    AGE_DAYS=0 \
     /bin/bash -c "
       $(extract_functions "$SRC" "${deps[@]}")
       $fn ${quoted_args[*]}
@@ -664,4 +666,16 @@ EOF
   assert_output --partial "$orca/gone/day-3"
   refute_output --partial "$repo/.worktrees/day-2"
   refute_output --partial "$orca/gone/day-2"
+}
+
+@test "dangling_candidates: 改行を含むディレクトリ名は候補にせず、相対パス断片も出さない" {
+  local root="$BATS_TEST_TMPDIR/root" cwd="$BATS_TEST_TMPDIR/cwd"
+  mkdir -p "$root/repo/$(printf 'a\nvictim')" "$root/repo/ok" "$cwd/victim"
+  echo "gitdir: /nonexistent/x" >"$cwd/victim/.git"
+  echo "gitdir: /nonexistent/x" >"$root/repo/ok/.git"
+  cd "$cwd"
+  run_pure_function dangling_candidates "$root"
+  assert_success
+  assert_line "$root/repo/ok"
+  refute_line "victim"
 }

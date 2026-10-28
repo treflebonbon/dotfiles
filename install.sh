@@ -72,7 +72,7 @@ fi
 
 if ! command -v chezmoi &>/dev/null; then
   echo "chezmoi not found, installing via official installer..."
-  curl -fsLS get.chezmoi.io | sh -s -- -b ~/.local/bin
+  curl --proto "=https" --tlsv1.2 -fsLS https://get.chezmoi.io | sh -s -- -b ~/.local/bin
   hash -r # コマンドキャッシュを更新
   if ! command -v chezmoi &>/dev/null; then
     echo "Error: chezmoi installation failed. Please install manually: https://chezmoi.io"
