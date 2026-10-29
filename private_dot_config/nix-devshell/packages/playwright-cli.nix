@@ -1,15 +1,19 @@
 {
   buildNpmPackage,
-  curl,
   coreutils,
+  curl,
   git,
   lib,
   makeWrapper,
   nodejs,
   playwright-driver ? null,
+  skillsPluginSource,
   util-linux,
 }:
 
+let
+  browserPackage = "${skillsPluginSource}/packages/wsl2-browser";
+in
 buildNpmPackage {
   pname = "playwright-cli";
   version = "0.1.22";
@@ -23,16 +27,27 @@ buildNpmPackage {
   nativeBuildInputs = [ makeWrapper ];
 
   postInstall = ''
+    public="${browserPackage}"
     pkg="$out/lib/node_modules/playwright-cli-agent/node_modules/@playwright/cli"
-    program="$pkg/../../playwright-core/lib/tools/cli-client/program.js"
+    core="$pkg/../../playwright-core"
+    program="$core/lib/tools/cli-client/program.js"
 
-    patch --directory="$pkg/../../playwright-core" -p1 < ${./playwright-cli-sockets.patch}
-    cp ${./playwright-cli-sockets.cjs} "$pkg/../../playwright-core/lib/playwright-cli-sockets.cjs"
-
-    substituteInPlace "$program" \
-      --replace-fail \
-        'const toolText = await runInSessionOrStop(newEntry, clientInfo, { _: ["goto", ...params.length ? params : ["about:blank"]] }, output);' \
-        'const toolText = await runInSessionOrStop(newEntry, clientInfo, { _: [process.env.PWTEST_CLI_MANAGED_CHROME === "1" ? "tab-new" : "goto", ...params.length ? params : ["about:blank"]] }, output);'
+    patch --directory="$core" -p1 < "$public/libexec/playwright-cli-sockets.patch"
+    cp "$public/libexec/playwright-cli-sockets.cjs" "$core/lib/playwright-cli-sockets.cjs"
+    program_before="$(awk '/^--- / || /^\+\+\+ / { next } /^-/ { print substr($0, 2); exit }' \
+      "$public/libexec/playwright-cli-program.patch")"
+    program_after="$(awk '/^--- / || /^\+\+\+ / { next } /^\+/ { print substr($0, 2); exit }' \
+      "$public/libexec/playwright-cli-program.patch")"
+    program_before_count="$(awk '/^--- / || /^\+\+\+ / { next } /^-/ { count++ } END { print count + 0 }' \
+      "$public/libexec/playwright-cli-program.patch")"
+    program_after_count="$(awk '/^--- / || /^\+\+\+ / { next } /^\+/ { count++ } END { print count + 0 }' \
+      "$public/libexec/playwright-cli-program.patch")"
+    if [[ "$program_before_count" != 1 || "$program_after_count" != 1 || \
+      -z "$program_before" || -z "$program_after" ]]; then
+      echo "Playwright program patch must contain one non-empty replacement." >&2
+      exit 1
+    fi
+    substituteInPlace "$program" --replace-fail "$program_before" "$program_after"
 
     ${lib.optionalString (playwright-driver != null) ''
       chromium_executable="$(
@@ -61,7 +76,25 @@ buildNpmPackage {
       EOF
     ''}
 
-    mkdir -p "$out/bin" "$out/libexec" "$out/share/playwright-cli"
+    mkdir -p \
+      "$out/bin" \
+      "$out/libexec" \
+      "$out/share/licenses/playwright-cli" \
+      "$out/share/playwright-cli/references" \
+      "$out/share/playwright-cli/skills"
+    cp -R "$public/libexec/." "$out/libexec/"
+    cp "$public/bin/playwright-cli" "$out/libexec/playwright-cli-entrypoint"
+    cp "$public/bin/browser-attachments" "$out/libexec/browser-attachments-entrypoint"
+    cp "$public/references/playwright-cli-wsl.md" \
+      "$out/share/playwright-cli/references/playwright-cli-wsl.md"
+    cp "${skillsPluginSource}/LICENSE" "$out/share/licenses/playwright-cli/LICENSE"
+    cp "$public/THIRD_PARTY_NOTICES.md" \
+      "$out/share/licenses/playwright-cli/THIRD_PARTY_NOTICES.md"
+    for asset in "$public"/libexec/*; do
+      asset_name="$(basename "$asset")"
+      ln -s "../../libexec/$asset_name" "$out/share/playwright-cli/$asset_name"
+    done
+    ln -s ../../libexec/playwright-cli-cdp-close.js "$out/share/playwright-cli/cdp-close.js"
 
     makeWrapper ${nodejs}/bin/node "$out/libexec/playwright-cli-upstream" \
       ${
@@ -73,54 +106,60 @@ buildNpmPackage {
       --unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD \
       --add-flags "$pkg/playwright-cli.js"
 
-    cp ${./playwright-cli-cdp-close.js} "$out/share/playwright-cli/cdp-close.js"
     makeWrapper ${nodejs}/bin/node "$out/libexec/playwright-cli-cdp-close" \
-      --add-flags "$out/share/playwright-cli/cdp-close.js"
-
-    cp ${./playwright-cli-windows.ps1} "$out/share/playwright-cli/windows.ps1"
-    cp ${./dogfood-chrome-windows.ps1} "$out/share/playwright-cli/dogfood-chrome-windows.ps1"
-    cp ${./browser-attachments.mjs} "$out/share/playwright-cli/browser-attachments.mjs"
-    cp ${./pr-evidence.mjs} "$out/share/playwright-cli/pr-evidence.mjs"
-    makeWrapper ${nodejs}/bin/node "$out/bin/browser-attachments" \
-      --set-default MANAGED_CHROME_OWNER "$out/bin/managed-chrome-owner" \
-      --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
-      --add-flags "$out/share/playwright-cli/browser-attachments.mjs"
-    cp ${./browser-lock.mjs} "$out/share/playwright-cli/browser-lock.mjs"
-    cp ${./playwright-runtime.mjs} "$out/share/playwright-cli/playwright-runtime.mjs"
+      --add-flags "$out/libexec/playwright-cli-cdp-close.js"
     makeWrapper ${nodejs}/bin/node "$out/libexec/playwright-runtime" \
-      --add-flags "$out/share/playwright-cli/playwright-runtime.mjs"
-    cp ${./managed-chrome-owner.mjs} "$out/share/playwright-cli/managed-chrome-owner.mjs"
+      --add-flags "$out/libexec/playwright-runtime.mjs"
     makeWrapper ${nodejs}/bin/node "$out/bin/managed-chrome-owner" \
       --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
-      --add-flags "$out/share/playwright-cli/managed-chrome-owner.mjs"
-    cp ${./playwright-cli-wrapper.sh} "$out/bin/playwright-cli"
-    substituteInPlace "$out/bin/playwright-cli" \
-      --replace-fail '@playwrightCliUpstream@' "$out/libexec/playwright-cli-upstream" \
-      --replace-fail '@curl@' '${curl}' \
-      --replace-fail '@cdpClose@' "$out/libexec/playwright-cli-cdp-close" \
-      --replace-fail '@windowsScript@' "$out/share/playwright-cli/windows.ps1" \
-      --replace-fail '@managedChromeOwner@' "$out/bin/managed-chrome-owner" \
-      --replace-fail '@playwrightRuntime@' "$out/libexec/playwright-runtime" \
-      --replace-fail '@flock@' '${util-linux}/bin/flock'
-    chmod +x "$out/bin/playwright-cli"
-    wrapProgram "$out/bin/playwright-cli" --prefix PATH : ${
-      lib.makeBinPath [
-        git
-        coreutils
-      ]
-    }
+      --add-flags "$out/libexec/managed-chrome-owner.mjs"
 
-    mkdir -p "$out/share/playwright-cli/skills"
+    makeWrapper "$out/libexec/playwright-cli-entrypoint" "$out/bin/playwright-cli" \
+      --set-default PWCLI_UPSTREAM "$out/libexec/playwright-cli-upstream" \
+      --set-default PWCLI_CDP_CLOSE "$out/libexec/playwright-cli-cdp-close" \
+      --set-default PWCLI_WINDOWS_SCRIPT "$out/libexec/playwright-cli-windows.ps1" \
+      --set-default MANAGED_CHROME_OWNER "$out/bin/managed-chrome-owner" \
+      --set-default PWCLI_RUNTIME_COMMAND "$out/libexec/playwright-runtime" \
+      --set-default PWCLI_CURL '${curl}/bin/curl' \
+      --set-default PWCLI_FLOCK '${util-linux}/bin/flock' \
+      --prefix PATH : ${
+        lib.makeBinPath [
+          coreutils
+          git
+          nodejs
+          util-linux
+        ]
+      }
+
+    makeWrapper "$out/libexec/browser-attachments-entrypoint" "$out/bin/browser-attachments" \
+      --set-default MANAGED_CHROME_OWNER "$out/bin/managed-chrome-owner" \
+      --set-default PWCLI_WINDOWS_SCRIPT "$out/libexec/playwright-cli-windows.ps1" \
+      --set-default DOGFOOD_WINDOWS_SCRIPT "$out/libexec/dogfood-chrome-windows.ps1" \
+      --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
+      --set-default BROWSER_ATTACHMENTS_PLAYWRIGHT "$pkg/../../playwright-core/index.mjs" \
+      --prefix PATH : ${
+        lib.makeBinPath [
+          coreutils
+          curl
+          git
+          nodejs
+          util-linux
+        ]
+      }
+
     cp -R "$pkg/skills/playwright-cli" "$out/share/playwright-cli/skills/playwright-cli"
     printf '\n' >>"$out/share/playwright-cli/skills/playwright-cli/SKILL.md"
-    cat ${./playwright-cli-wsl-skill.md} \
+    cat "$public/references/playwright-cli-wsl.md" \
       >>"$out/share/playwright-cli/skills/playwright-cli/SKILL.md"
   '';
 
   meta = {
     description = "Playwright Agent CLI with locally installable coding-agent skills";
     homepage = "https://playwright.dev/agent-cli/intro";
-    license = lib.licenses.asl20;
+    license = [
+      lib.licenses.asl20
+      lib.licenses.mit
+    ];
     mainProgram = "playwright-cli";
     platforms = lib.platforms.unix;
   };
