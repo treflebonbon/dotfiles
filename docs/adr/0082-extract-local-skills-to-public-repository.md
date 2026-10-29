@@ -135,7 +135,7 @@ dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語�
 Nix なしという目標を全11件の全経路へ適用すると、既存の専用機能には移動以上の変更が必要になる。最終確認のためのソース調査で次を確認した。
 
 - [`git-push-topic`](../../private_dot_local/bin/executable_git-push-topic)、[`gh-review-thread`](../../private_dot_local/bin/executable_gh-review-thread)、[`orca-send`](../../private_dot_local/bin/executable_orca-send) は実装から Nix を呼ばない。[`codex-reviewer`](../../private_dot_local/bin/executable_codex-reviewer) も Nix を直接要求しないが、dotfiles 内の共有 Python module の切り出しが必要である。
-- [`playwright-cli.nix`](../../private_dot_config/nix-devshell/packages/playwright-cli.nix) はブラウザ関連の Node.js script、Playwright Core、補助ファイルなどの配布を担う。この配布方式は Nix なしへ移せるが、[`managed-chrome-owner.mjs`](../../private_dot_config/nix-devshell/packages/managed-chrome-owner.mjs) のプロセス識別は Linux の `/proc` を使う。
+- ブラウザ機能の正本は [`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) が固定する公開 `packages/wsl2-browser/` とする。[`playwright-cli.nix`](../../private_dot_config/nix-devshell/packages/playwright-cli.nix) は上流 `@playwright/cli` と browser driver の条件を保ち、公開 package の補助資産を Nix 用に包装する。`managed-chrome-owner.mjs` のプロセス識別は Linux の `/proc` を使う。
 - [`codex-worktree`](../../private_dot_local/bin/executable_codex-worktree) が使う [`devshell_environment.py`](../../private_dot_local/share/devshell-env/devshell_environment.py) と [隔離実装](../../private_dot_local/share/codex-isolation/secret-isolation-worktree.py) は Nix と対象 repo の `flake.nix` を要求する。[既存の対応範囲](../../runtime/shell-environment.md)も Linux／WSL2 で、macOS の raw 隔離は未対応である。
 
 このため、plugin の導入と汎用 skill を Nix 不要にし、既存の専用機能は機能ごとの OS・依存条件を維持する方針を採用した。Nix が配布だけを担う補助 CLI は独立配布へ切り出し、raw Codex の隔離起動などは必要条件を明示する。条件を満たさない場合は保護を弱めて代替せず、対象機能の処理前に案内する。専用機能も含めた全機能を Linux・macOS・WSL2 と Nix なしへ移植する案は、隔離機構などの再実装まで分離の範囲に加わるため採用しない。

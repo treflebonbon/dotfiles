@@ -269,14 +269,27 @@ PS
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-agent/package.json"
-  local wrapper="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wrapper.sh"
-  local windows="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
-  local skill="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wsl-skill.md"
 
   grep -q 'playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix' "$module"
+  grep -q 'skills-plugin.json' "$module"
+  grep -q 'pkgs.fetchFromGitHub' "$module"
+  grep -q 'hash = skillsPluginPin.nar_hash;' "$module"
+  grep -q 'inherit buildNpmPackage nodejs skillsPluginSource;' "$module"
   grep -q '^    playwright-cli$' "$module"
   grep -q 'share/playwright-cli/skills/playwright-cli' "$module"
   grep -q 'DOGFOOD_WINDOWS_SCRIPT' "$module"
+  grep -q 'skillsPluginSource' "$pkg"
+  grep -q 'packages/wsl2-browser' "$pkg"
+  grep -q 'playwright-cli-sockets.patch' "$pkg"
+  grep -q 'playwright-cli-program.patch' "$pkg"
+  grep -q 'playwright-cli-entrypoint' "$pkg"
+  grep -q 'PWCLI_CDP_CLOSE' "$pkg"
+  grep -q 'PWCLI_WINDOWS_SCRIPT' "$pkg"
+  grep -q 'PWCLI_RUNTIME_COMMAND' "$pkg"
+  grep -q 'BROWSER_ATTACHMENTS_PLAYWRIGHT' "$pkg"
+  grep -q 'references/playwright-cli-wsl.md' "$pkg"
+  grep -q 'THIRD_PARTY_NOTICES.md' "$pkg"
+  grep -q 'lib.licenses.mit' "$pkg"
   grep -q '\.agents/skills/playwright-cli' "$module"
   grep -q '\.claude/skills/playwright-cli' "$module"
   grep -q 'pname = "playwright-cli";' "$pkg"
@@ -288,18 +301,11 @@ PS
   grep -q 'PWTEST_CLI_GLOBAL_CONFIG' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_BROWSERS_PATH' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$pkg"
-  grep -q 'playwright-cli-wrapper.sh' "$pkg"
-  grep -q 'playwright-cli-windows.ps1' "$pkg"
-  grep -q 'dogfood-chrome-windows.ps1' "$pkg"
+  grep -Fq 'cp -R "$public/libexec/." "$out/libexec/"' "$pkg"
+  grep -q 'libexec/playwright-cli-windows.ps1' "$pkg"
+  grep -q 'libexec/dogfood-chrome-windows.ps1' "$pkg"
   grep -q 'playwright-cli-cdp-close.js' "$pkg"
-  grep -q 'PWTEST_CLI_MANAGED_CHROME' "$pkg"
-  grep -q 'playwright-cli-wsl-skill.md' "$pkg"
-  grep -Fq 'locate --role playwright --workspace "$pwcli_workspace"' "$wrapper"
-  grep -Fq 'read -r pwcli_identity pwcli_profile pwcli_cdp_endpoint pwcli_dashboard_port' "$wrapper"
-  grep -Fq 'aiakos\playwright-cli\chrome-profile' "$windows"
-  grep -Fq '$ProfileDir =' "$windows"
-  ! grep -Fq '$Profile =' "$windows"
-  grep -Fq 'PWTEST_CLI_GLOBAL_CONFIG' "$skill"
+  grep -q 'playwright-cli-program.patch' "$pkg"
   ! grep -Eq 'chromium-[0-9]+' "$pkg"
   grep -q 'version = "0.1.22";' "$pkg"
   grep -q '"@playwright/cli": "0.1.22"' "$package_json"
@@ -318,7 +324,13 @@ PS
           config.allowUnfree = true;
           overlays = [ flake.inputs.llm-agents.overlays.shared-nixpkgs ];
         };
+      pin = builtins.fromJSON (builtins.readFile (flake.outPath + "/skills-plugin.json"));
+      skillsPluginSource = pkgs.fetchFromGitHub {
+        inherit (pin) owner repo rev;
+        hash = pin.nar_hash;
+      };
       in (pkgs.callPackage (flake.outPath + "/packages/playwright-cli.nix") {
+      inherit skillsPluginSource;
         playwright-driver = null;
       }).drvPath
     '
@@ -343,14 +355,10 @@ PS
 }
 
 @test "WSL2 Playwright skill documents managed headless and headed workflows" {
-  local skill="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wsl-skill.md"
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
 
-  grep -Fq 'headless by default' "$skill"
-  grep -Fq '`open --headed`' "$skill"
-  grep -Fq '`PLAYWRIGHT_MCP_HEADLESS=true|1`' "$skill"
-  grep -Fq '`PLAYWRIGHT_MCP_HEADLESS=false|0`' "$skill"
-  grep -Fq '`show` and `show --annotate` require headed mode' "$skill"
-  grep -Fq 'manual authentication' "$skill"
+  grep -Fq 'references/playwright-cli-wsl.md' "$package"
+  grep -Fq 'cat "$public/references/playwright-cli-wsl.md"' "$package"
 }
 
 @test "nix-devshell exposes design.md aliases and document converters" {

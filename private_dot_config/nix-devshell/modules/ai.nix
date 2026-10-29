@@ -16,6 +16,11 @@ let
   patched = import inputs.nixpkgs-brotli-sources { inherit system; };
   nodejs = pkgs.nodejs-bin;
   buildNpmPackage = pkgs.buildNpmPackage.override { inherit nodejs; };
+  skillsPluginPin = builtins.fromJSON (builtins.readFile ../skills-plugin.json);
+  skillsPluginSource = pkgs.fetchFromGitHub {
+    inherit (skillsPluginPin) owner repo rev;
+    hash = skillsPluginPin.nar_hash;
+  };
 
   apmPkgs = import inputs.llm-agents.inputs.nixpkgs { inherit system; };
   apmGit = apmPkgs.gitMinimal.override {
@@ -93,7 +98,7 @@ let
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { inherit buildNpmPackage nodejs; };
   impeccable = pkgs.callPackage ../packages/impeccable.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix {
-    inherit buildNpmPackage nodejs;
+    inherit buildNpmPackage nodejs skillsPluginSource;
     playwright-driver = if browserless then null else pkgs.playwright-driver;
   };
   waza = pkgs.callPackage ../packages/waza.nix { };
@@ -146,7 +151,7 @@ in
 
   shellHook = ''
     export MANAGED_CHROME_OWNER="${playwright-cli}/bin/managed-chrome-owner"
-    export DOGFOOD_WINDOWS_SCRIPT="${playwright-cli}/share/playwright-cli/dogfood-chrome-windows.ps1"
+    export DOGFOOD_WINDOWS_SCRIPT="${playwright-cli}/libexec/dogfood-chrome-windows.ps1"
     mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
     ln -sfn "${playwright-cli}/share/playwright-cli/skills/playwright-cli" "$HOME/.agents/skills/playwright-cli"
     ln -sfn "../../.agents/skills/playwright-cli" "$HOME/.claude/skills/playwright-cli"
