@@ -24,6 +24,8 @@
 
 **ローカル skill**: dotfiles 自身がソースと配布を所有する user-scoped private skill。外部 package から取得する「導入済み Agent Skill セット」には含まれない。 _Avoid_: 外部 skill, APM skill, ローカル skill 上書き
 
+**独立 skill 配布元**: dotfiles を導入していない環境でも skill を取得・導入できる、独立して保守される公開リポジトリ。 _Avoid_: ローカル skill の保管先, dotfiles の複製
+
 **ローカル skill 撤去対象**: ローカル skill の配布終了を宣言し、既存の配備を取り除く対象として指定した名前。改名時は移行前の名前が該当する。 _Avoid_: orphan, 不在の skill, APM 撤去対象
 
 **検証済み Skill Pin**: 自動 hook やワークフロー契約との互換性を確認した Agent Skill の immutable revision。floating dependency の定期更新とは分け、契約を再検証したときだけ前進させる。 _Avoid_: 最新版, lock revision, floating pin

@@ -6,6 +6,8 @@ date: 2026-10-16
 
 # 元候補を固定して native peer 協働を明示依頼から進める peer-refactor skill を採用する
 
+2026-10-29 追記: [ADR-0082](0082-extract-local-skills-to-public-repository.md) により、独立 plugin への移行時は規範契約・専用補助 CLI・保護設定の正本と配布を skills リポジトリへ移す。元候補固定、通常の明示協働、専用 auto の起動条件・未有効時の保留、共通部分の同一性検証は維持する。新方式を実装・受入するまでは、以下の現行配布・正本を継続する。
+
 ## 背景
 
 `improve-codebase-architecture` は deepening 候補を HTML report で提示し、選んだ候補を `grilling` で人と詰める。人が提示済みの候補を、候補別 native workspace の writer と read-only peer で設計・実装・独立レビュー・PR まで進め、人の操作を merge に限定したいことがある。
