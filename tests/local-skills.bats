@@ -6,6 +6,94 @@ setup() {
   setup_local_skills_fixture
 }
 
+@test "migration preparation preserves edited legacy copies when the source changes" {
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  printf '\nuser edit\n' >>"$SKILL_HOME/.agents/skills/rop/SKILL.md"
+  printf '\nnew source\n' >>"$SKILL_SOURCE/local-skills/rop/SKILL.md"
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  grep -Fxq 'user edit' "$SKILL_HOME/.agents/skills/rop/SKILL.md"
+  ! grep -Fxq 'new source' "$SKILL_HOME/.agents/skills/rop/SKILL.md"
+  [[ "$output" == *'rop'*'SKILL.md'* ]]
+}
+
+@test "migration preparation preserves unknown legacy content and unrelated Claude skills" {
+  local dir
+  for dir in .agents .claude .codex .codex-app; do
+    mkdir -p "$SKILL_HOME/$dir/skills/rop" "$SKILL_HOME/$dir/skills/user-owned"
+    printf 'unknown legacy payload\n' >"$SKILL_HOME/$dir/skills/rop/SKILL.md"
+    printf 'user payload\n' >"$SKILL_HOME/$dir/skills/user-owned/SKILL.md"
+  done
+  for _ in 1 2; do
+    run run_skill_phase before_remove-orphan-claude-skills
+    [ "$status" -eq 0 ]
+    run run_skill_phase after_deploy-local-skills
+    [ "$status" -eq 0 ]
+    for dir in .agents .claude .codex .codex-app; do
+      grep -Fxq 'unknown legacy payload' "$SKILL_HOME/$dir/skills/rop/SKILL.md"
+      grep -Fxq 'user payload' "$SKILL_HOME/$dir/skills/user-owned/SKILL.md"
+    done
+  done
+}
+
+@test "migration preparation retains a legacy symlink and its external content" {
+  mkdir -p "$BATS_TEST_TMPDIR/user-rop" "$SKILL_HOME/.claude/skills"
+  printf 'user reference\n' >"$BATS_TEST_TMPDIR/user-rop/SKILL.md"
+  ln -s "$BATS_TEST_TMPDIR/user-rop" "$SKILL_HOME/.claude/skills/rop"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  [ -L "$SKILL_HOME/.claude/skills/rop" ]
+  grep -Fxq 'user reference' "$BATS_TEST_TMPDIR/user-rop/SKILL.md"
+}
+
+@test "migration preparation does not adopt an unknown CLI symlink even when its content is known" {
+  mkdir -p "$SKILL_HOME/.local/bin"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_orca-send" "$BATS_TEST_TMPDIR/external-cli"
+  chmod +x "$BATS_TEST_TMPDIR/external-cli"
+  ln -s "$BATS_TEST_TMPDIR/external-cli" "$SKILL_HOME/.local/bin/orca-send"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'未知の CLI 参照先'* ]]
+  [ -L "$SKILL_HOME/.local/bin/orca-send" ]
+  [ ! -e "$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/.local/bin/orca-send" ]
+  cmp "$PROJECT_ROOT/private_dot_local/bin/executable_orca-send" "$BATS_TEST_TMPDIR/external-cli"
+}
+
+@test "migration preparation saves known CLI implementations once without replacing a changed live CLI" {
+  mkdir -p "$SKILL_HOME/.local/bin" "$SKILL_HOME/.local/share/devshell-env"
+  local name
+  for name in git-push-topic gh-review-thread orca-send codex-reviewer; do
+    cp "$PROJECT_ROOT/private_dot_local/bin/executable_$name" "$SKILL_HOME/.local/bin/$name"
+    chmod +x "$SKILL_HOME/.local/bin/$name"
+  done
+  ln -s git-push-topic "$SKILL_HOME/.local/bin/git-push-reviewed"
+  cp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" "$SKILL_HOME/.local/share/devshell-env/"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  local saved="$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35"
+  [ -f "$saved/baseline.json" ]
+  for name in git-push-topic gh-review-thread orca-send codex-reviewer; do
+    cmp "$PROJECT_ROOT/private_dot_local/bin/executable_$name" "$saved/.local/bin/$name"
+    [ -x "$saved/.local/bin/$name" ]
+  done
+  cmp "$saved/.local/bin/git-push-topic" "$saved/.local/bin/git-push-reviewed"
+  cmp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" "$saved/.local/share/devshell-env/devshell_environment.py"
+  printf 'user CLI\n' >"$SKILL_HOME/.local/bin/git-push-topic"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  grep -Fxq 'user CLI' "$SKILL_HOME/.local/bin/git-push-topic"
+  cmp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$saved/.local/bin/git-push-topic"
+
+  printf 'damaged backup\n' >"$saved/.local/bin/git-push-topic"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'保存済みの旧 CLI が不正'* ]]
+  grep -Fxq 'user CLI' "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
 @test "PR screenshots deploys to both hubs while to-pr stays retired" {
   for _ in 1 2; do
     run run_skill_phase before_remove-orphan-claude-skills
@@ -211,7 +299,7 @@ EOF
   run skill_chezmoi apply
   [ "$status" -ne 0 ]
   [[ "$output" == *"apm CLI"* ]]
-  [ ! -e "$SKILL_HOME/.claude/skills/pdf" ]
+  [ -e "$SKILL_HOME/.claude/skills/pdf" ]
   [ "$(wc -l <"$SKILL_APM_LOG")" -eq 2 ]
 
   unset BASH_ENV

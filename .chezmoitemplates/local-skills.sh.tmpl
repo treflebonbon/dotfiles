@@ -54,4 +54,17 @@ retired_local_skills=(
 {{- end }}
 )
 
+legacy_skill_names=(
+{{- range $name, $_ := (include ".chezmoitemplates/local-skills-legacy.json" | fromJson).skills }}
+  {{ $name | printf "'%s'" }}
+{{- end }}
+)
+apm_skill_names=(
+{{- range $name, $_ := $apm }}
+  {{ $name | replace "'" "'\"'\"'" | printf "'%s'" }}
+{{- end }}
+)
+legacy_skill_manifest={{ include ".chezmoitemplates/local-skills-legacy.json" | replace "'" "'\"'\"'" | printf "'%s'" }}
+legacy_skill_code={{ include ".chezmoitemplates/local-skills-legacy.py" | replace "'" "'\"'\"'" | printf "'%s'" }}
+
 {{ include ".chezmoitemplates/local-skills.sh" }}

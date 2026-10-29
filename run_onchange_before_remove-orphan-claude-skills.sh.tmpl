@@ -15,6 +15,8 @@ fi
 
 {{ includeTemplate "local-skills.sh.tmpl" . }}
 
+legacy_skills prepare
+
 # APM が配備する mattpocock/skills の公式 full set。
 # ~/.agents/skills と ~/.claude/skills の real-dir cleanup から除外し、APM の
 # install/prune に managed payload の所有権を委ねる。lock の plugin record と同期させること。
@@ -50,7 +52,7 @@ managed_apm_skills=(
 
 is_managed_apm_skill() {
   local name="$1" p
-  for p in "${managed_apm_skills[@]}"; do
+  for p in "${managed_apm_skills[@]}" "${apm_skill_names[@]}" "${retired_apm_skills[@]}"; do
     [ "$name" = "$p" ] && return 0
   done
   return 1
@@ -93,22 +95,7 @@ cleanup_repo_local_apm_targets() {
 
 cleanup_repo_local_apm_targets
 
-if [ -d "$claude_skills_dir" ]; then
-  removed=0
-  while IFS= read -r -d '' entry; do
-    if is_preserved_local_skill "$(basename "$entry")" || \
-      is_managed_apm_skill "$(basename "$entry")"; then
-      continue
-    fi
-    rm -rf -- "$entry"
-    removed=$((removed + 1))
-  done < <(find "$claude_skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
-
-  if [ "$removed" -gt 0 ]; then
-    printf 'orphan-claude-skills: removed %d real directory entries from %s\n' \
-      "$removed" "$claude_skills_dir" >&2
-  fi
-fi
+# ADR-0082: 名前だけで所有者を確認できない実 directory は保持し、APM の資産は APM 自身へ委ねる。
 
 # Symlink 化石の常時除去:
 # APM_LEGACY_SKILL_PATHS=1 で apm が ~/.claude/skills/ や ~/.codex/skills/ に
@@ -131,6 +118,12 @@ cleanup_symlinks() {
 
   local removed=0
   while IFS= read -r -d '' link; do
+    if is_legacy_migration_skill "$(basename "$link")"; then
+      continue
+    fi
+    if ! is_managed_apm_skill "$(basename "$link")"; then
+      continue
+    fi
     local target
     target=$(readlink -- "$link" 2>/dev/null || true)
     local should_remove=0
@@ -157,14 +150,6 @@ cleanup_symlinks() {
   fi
 }
 
-cleanup_symlinks "$shared_skills_dir"
-cleanup_symlinks "$claude_skills_dir"
-cleanup_symlinks "${HOME}/.codex/skills"
-if [ -n "$extra_codex_home" ]; then
-  cleanup_symlinks "$extra_codex_home/skills"
-fi
-cleanup_symlinks "${HOME}/.copilot/skills"
-
 retired_apm_skills=(
   agent-browser
   autofix
@@ -178,6 +163,14 @@ retired_apm_skills=(
   webapp-testing
   writing-great-skills
 )
+
+cleanup_symlinks "$shared_skills_dir"
+cleanup_symlinks "$claude_skills_dir"
+cleanup_symlinks "${HOME}/.codex/skills"
+if [ -n "$extra_codex_home" ]; then
+  cleanup_symlinks "$extra_codex_home/skills"
+fi
+cleanup_symlinks "${HOME}/.copilot/skills"
 
 remove_retired_apm_skill_dirs() {
   local dir="$1" skill

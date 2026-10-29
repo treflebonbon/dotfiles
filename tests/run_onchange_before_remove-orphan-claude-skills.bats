@@ -14,13 +14,13 @@ run_script() {
   HOME="$FAKE_HOME" bash "$SCRIPT"
 }
 
-@test "removes real directories directly under ~/.claude/skills/" {
+@test "preserves real directories whose ownership is unknown" {
   mkdir -p "$FAKE_HOME/.claude/skills/orphan-skill"
   printf 'stub\n' >"$FAKE_HOME/.claude/skills/orphan-skill/SKILL.md"
 
   run run_script
   [ "$status" -eq 0 ]
-  [ ! -e "$FAKE_HOME/.claude/skills/orphan-skill" ]
+  [ -e "$FAKE_HOME/.claude/skills/orphan-skill/SKILL.md" ]
 }
 
 @test "preserves symlinks (does not follow or delete them)" {
@@ -40,13 +40,13 @@ run_script() {
   [ "$status" -eq 0 ]
 }
 
-@test "removes real directories recursively (nested files do not block deletion)" {
+@test "preserves unknown directories and their nested files" {
   mkdir -p "$FAKE_HOME/.claude/skills/orphan-skill/references"
   printf 'inner\n' >"$FAKE_HOME/.claude/skills/orphan-skill/references/note.md"
 
   run run_script
   [ "$status" -eq 0 ]
-  [ ! -e "$FAKE_HOME/.claude/skills/orphan-skill" ]
+  grep -Fxq 'inner' "$FAKE_HOME/.claude/skills/orphan-skill/references/note.md"
 }
 
 @test "resolves repo-local APM deploy targets via CHEZMOI_SOURCE_DIR when set" {
@@ -89,7 +89,7 @@ run_script() {
   [ ! -e "$repo/.claude/apm-hooks.json" ]
 }
 
-@test "removes nix-store symlinks under ~/.agents/skills when marker present" {
+@test "preserves unknown nix-store symlinks even when an old marker is present" {
   mkdir -p "$FAKE_HOME/.agents/skills"
   ln -s "/nix/store/aaaa-fake/skills/foo" "$FAKE_HOME/.agents/skills/foo"
   ln -s "/nix/store/bbbb-fake/skills/bar" "$FAKE_HOME/.agents/skills/bar"
@@ -97,8 +97,8 @@ run_script() {
 
   run run_script
   [ "$status" -eq 0 ]
-  [ ! -e "$FAKE_HOME/.agents/skills/foo" ]
-  [ ! -e "$FAKE_HOME/.agents/skills/bar" ]
+  [ -L "$FAKE_HOME/.agents/skills/foo" ]
+  [ -L "$FAKE_HOME/.agents/skills/bar" ]
   [ ! -f "$FAKE_HOME/.agents/skills/.managed-by-ai-nix" ]
 }
 
@@ -114,13 +114,13 @@ run_script() {
   [ ! -f "$FAKE_HOME/.agents/skills/.managed-by-ai-nix" ]
 }
 
-@test "removes nix-store symlinks under ~/.agents/skills when marker absent" {
+@test "preserves unknown nix-store symlinks when marker is absent" {
   mkdir -p "$FAKE_HOME/.agents/skills"
   ln -s "/nix/store/cccc-fake/skills/keep-me" "$FAKE_HOME/.agents/skills/keep-me"
 
   run run_script
   [ "$status" -eq 0 ]
-  [ ! -e "$FAKE_HOME/.agents/skills/keep-me" ]
+  [ -L "$FAKE_HOME/.agents/skills/keep-me" ]
 }
 
 @test "removes ai-nix companion symlinks under ~/.claude/skills when marker present" {
@@ -132,7 +132,7 @@ run_script() {
   run run_script
   [ "$status" -eq 0 ]
   [ ! -e "$FAKE_HOME/.claude/skills/agent-browser" ]
-  [ ! -e "$FAKE_HOME/.claude/skills/dogfood" ]
+  [ -L "$FAKE_HOME/.claude/skills/dogfood" ]
 }
 
 @test "preserves unrelated symlinks under ~/.claude/skills even when marker present" {
@@ -251,7 +251,7 @@ run_script() {
   [ -d "$codex_home/skills/frontend-design" ]
 }
 
-@test "removes local skill duplicates from Codex native skill dirs" {
+@test "preserves migrating local duplicates and still removes previously retired names" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills"; do
     mkdir -p "$dir/to-pr" "$dir/to-worktree" "$dir/dogfood" "$dir/ui-grill-with-docs" "$dir/frontend-design"
@@ -268,12 +268,12 @@ run_script() {
   [ -d "$FAKE_HOME/.claude/skills/ui-grill-with-docs" ]
   [ ! -e "$FAKE_HOME/.codex/skills/to-pr" ]
   [ ! -e "$FAKE_HOME/.codex/skills/to-worktree" ]
-  [ ! -e "$FAKE_HOME/.codex/skills/dogfood" ]
-  [ ! -e "$FAKE_HOME/.codex/skills/ui-grill-with-docs" ]
+  [ -d "$FAKE_HOME/.codex/skills/dogfood" ]
+  [ -d "$FAKE_HOME/.codex/skills/ui-grill-with-docs" ]
   [ ! -e "$codex_home/skills/to-pr" ]
   [ ! -e "$codex_home/skills/to-worktree" ]
-  [ ! -e "$codex_home/skills/dogfood" ]
-  [ ! -e "$codex_home/skills/ui-grill-with-docs" ]
+  [ -d "$codex_home/skills/dogfood" ]
+  [ -d "$codex_home/skills/ui-grill-with-docs" ]
   [ -d "$FAKE_HOME/.codex/skills/frontend-design" ]
   [ -d "$codex_home/skills/frontend-design" ]
 }
@@ -317,7 +317,7 @@ run_script() {
     [ -d "$dir/teach" ]
     [ -d "$dir/writing-for-agents" ]
     [ ! -e "$dir/writing-great-skills" ]
-    [ ! -e "$dir/modern-web-guidance" ]
+    [ -d "$dir/modern-web-guidance" ]
   done
 
   for dir in "${native_dirs[@]}"; do

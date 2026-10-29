@@ -3,6 +3,22 @@
 shared_skills_dir="$HOME/.agents/skills"
 claude_skills_dir="$HOME/.claude/skills"
 
+is_legacy_migration_skill() {
+  local name="$1" skill
+  # The template declares the immutable migration inputs.
+  # shellcheck disable=SC2154
+  for skill in "${legacy_skill_names[@]}"; do
+    [ "$name" = "$skill" ] && return 0
+  done
+  return 1
+}
+
+legacy_skills() {
+  # Embedded by local-skills.sh.tmpl before this module.
+  # shellcheck disable=SC2154
+  python3 -c "$legacy_skill_code" "$legacy_skill_manifest" "$@"
+}
+
 is_preserved_local_skill() {
   local name="$1" skill
   # shellcheck disable=SC2154
@@ -26,6 +42,10 @@ deploy_skill() {
   for target in \
     "$shared_skills_dir/$name" \
     "$claude_skills_dir/$name"; do
+
+    if is_legacy_migration_skill "$name" && ! legacy_skills check-skill "$name" "$target"; then
+      continue
+    fi
 
     mkdir -p "$(dirname "$target")"
     local tmp
@@ -59,6 +79,7 @@ deploy_skill() {
 }
 
 local_skills_deploy() {
+  legacy_skills prepare
   local skill
   for skill in "${local_skills[@]}"; do
     deploy_skill "$skill"
@@ -74,6 +95,9 @@ remove_named_skill_entries() {
   local removed=0
   local skill
   for skill in "$@"; do
+    if is_legacy_migration_skill "$skill"; then
+      continue
+    fi
     local entry="$dir/$skill"
     if [ -e "$entry" ] || [ -L "$entry" ]; then
       rm -rf -- "$entry"

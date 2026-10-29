@@ -53,7 +53,6 @@ setup_skill_apply() {
 set -euo pipefail
 printf '%s\n' "$*" >>"$SKILL_APM_LOG"
 if [ "$1" = install ]; then
-  [ ! -e "$HOME/.claude/skills/orphan" ]
   mkdir -p "$HOME/.claude/skills/pdf"
   printf 'APM payload\n' >"$HOME/.claude/skills/pdf/SKILL.md"
 fi
