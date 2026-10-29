@@ -2,6 +2,14 @@
 
 load local-skills-helper
 
+install_known_legacy_topic() {
+  mkdir -p "$SKILL_HOME/.local/bin"
+  git -C "$PROJECT_ROOT" show \
+    '6d5b73dd8b9c88531a74e724ca9d83fa34b44b35:private_dot_local/bin/executable_git-push-topic' \
+    >"$SKILL_HOME/.local/bin/git-push-topic"
+  chmod 755 "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
 setup() {
   setup_local_skills_fixture
 }
@@ -64,14 +72,14 @@ setup() {
 @test "migration preparation stops when an old CLI cannot be inspected" {
   [ "$(id -u)" -ne 0 ] || skip "root は directory の検査拒否を再現できない"
   mkdir -p "$SKILL_HOME/.local/bin"
-  cp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$SKILL_HOME/.local/bin/git-push-topic"
+  global_cli_source_body git-push-topic >"$SKILL_HOME/.local/bin/git-push-topic"
   chmod +x "$SKILL_HOME/.local/bin/git-push-topic"
   chmod 000 "$SKILL_HOME/.local/bin"
   run run_skill_phase before_remove-orphan-claude-skills
   chmod 700 "$SKILL_HOME/.local/bin"
   [ "$status" -ne 0 ]
   [[ "$output" == *'Permission denied'* ]]
-  cmp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$SKILL_HOME/.local/bin/git-push-topic"
+  diff -u <(global_cli_source_body git-push-topic) "$SKILL_HOME/.local/bin/git-push-topic"
 }
 
 @test "migration preparation preserves restrictive permissions on a known legacy file" {
@@ -94,7 +102,7 @@ setup() {
 
 @test "migration preparation does not adopt an unknown CLI symlink even when its content is known" {
   mkdir -p "$SKILL_HOME/.local/bin"
-  cp "$PROJECT_ROOT/private_dot_local/bin/executable_orca-send" "$BATS_TEST_TMPDIR/external-cli"
+  global_cli_source_body orca-send >"$BATS_TEST_TMPDIR/external-cli"
   chmod +x "$BATS_TEST_TMPDIR/external-cli"
   ln -s "$BATS_TEST_TMPDIR/external-cli" "$SKILL_HOME/.local/bin/orca-send"
   run run_skill_phase before_remove-orphan-claude-skills
@@ -102,7 +110,7 @@ setup() {
   [[ "$output" == *'未知の CLI 参照先'* ]]
   [ -L "$SKILL_HOME/.local/bin/orca-send" ]
   [ ! -e "$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/.local/bin/orca-send" ]
-  cmp "$PROJECT_ROOT/private_dot_local/bin/executable_orca-send" "$BATS_TEST_TMPDIR/external-cli"
+  diff -u <(global_cli_source_body orca-send) "$BATS_TEST_TMPDIR/external-cli"
 }
 
 @test "migration preparation saves known CLI implementations once without replacing a changed live CLI" {
@@ -156,6 +164,144 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *'保存済みの旧 CLI が不正'* ]]
   grep -Fxq 'user CLI' "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
+@test "individual CLI apply does not replace an unknown existing CLI" {
+  setup_skill_apply
+  mkdir -p "$SKILL_HOME/.local/bin"
+  printf 'unknown user CLI\n' >"$SKILL_HOME/.local/bin/git-push-topic"
+
+  run skill_chezmoi apply "$SKILL_HOME/.local/bin/git-push-topic"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'旧 CLI 切替を保留します'* ]]
+  grep -Fxq 'unknown user CLI' "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
+@test "full apply prepares and preserves a known old CLI before rendering its shim" {
+  setup_skill_apply
+  install_known_legacy_topic
+  ln -s git-push-topic "$SKILL_HOME/.local/bin/git-push-reviewed"
+
+  run skill_chezmoi apply
+
+  [ "$status" -eq 0 ]
+  global_cli_source_body git-push-topic | cmp - "$SKILL_HOME/.local/bin/git-push-topic"
+  global_cli_source_body git-push-reviewed | cmp - "$SKILL_HOME/.local/bin/git-push-reviewed"
+  [ ! -L "$SKILL_HOME/.local/bin/git-push-reviewed" ]
+  cmp \
+    <(git -C "$PROJECT_ROOT" show '6d5b73dd8b9c88531a74e724ca9d83fa34b44b35:private_dot_local/bin/executable_git-push-topic') \
+    "$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/.local/bin/git-push-topic"
+  cmp \
+    <(git -C "$PROJECT_ROOT" show '6d5b73dd8b9c88531a74e724ca9d83fa34b44b35:private_dot_local/bin/executable_git-push-topic') \
+    "$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/.local/bin/git-push-reviewed"
+  local dispatch_log="$BATS_TEST_TMPDIR/full-apply-dispatch.log"
+  mock_global_cli_dispatcher "$SKILL_HOME"
+  assert_global_cli_dispatch git-push-topic "$dispatch_log"
+  assert_global_cli_dispatch git-push-reviewed "$dispatch_log"
+}
+
+@test "individual apply resumes a known reviewed alias after the topic shim was installed" {
+  setup_skill_apply
+  install_known_legacy_topic
+  ln -s git-push-topic "$SKILL_HOME/.local/bin/git-push-reviewed"
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  global_cli_source_body git-push-topic >"$SKILL_HOME/.local/bin/git-push-topic"
+  local dispatch_log="$BATS_TEST_TMPDIR/partial-dispatch.log"
+  mock_global_cli_dispatcher "$SKILL_HOME"
+  assert_global_cli_dispatch git-push-reviewed "$dispatch_log"
+
+  run skill_chezmoi apply "$SKILL_HOME/.local/bin/git-push-reviewed"
+
+  [ "$status" -eq 0 ]
+  global_cli_source_body git-push-reviewed | cmp - "$SKILL_HOME/.local/bin/git-push-reviewed"
+  [ ! -L "$SKILL_HOME/.local/bin/git-push-reviewed" ]
+  assert_global_cli_dispatch git-push-topic "$dispatch_log"
+  assert_global_cli_dispatch git-push-reviewed "$dispatch_log"
+}
+
+@test "individual CLI apply retains a known old CLI when its backup is missing" {
+  setup_skill_apply
+  install_known_legacy_topic
+  cp "$SKILL_HOME/.local/bin/git-push-topic" "$BATS_TEST_TMPDIR/old-cli"
+
+  run skill_chezmoi apply "$SKILL_HOME/.local/bin/git-push-topic"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'固定 backup manifest がありません'* ]]
+  cmp "$BATS_TEST_TMPDIR/old-cli" "$SKILL_HOME/.local/bin/git-push-topic"
+  [ ! -e "$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35" ]
+}
+
+@test "individual CLI apply retains a known old CLI when its saved copy is corrupt" {
+  setup_skill_apply
+  install_known_legacy_topic
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  cp "$SKILL_HOME/.local/bin/git-push-topic" "$BATS_TEST_TMPDIR/old-cli"
+  printf 'corrupt backup\n' \
+    >"$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/.local/bin/git-push-topic"
+
+  run skill_chezmoi apply "$SKILL_HOME/.local/bin/git-push-topic"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'既知 backup がありません'* ]]
+  cmp "$BATS_TEST_TMPDIR/old-cli" "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
+@test "individual CLI apply rejects a corrupt backup and self-updated manifest together" {
+  setup_skill_apply
+  install_known_legacy_topic
+  run run_skill_phase before_remove-orphan-claude-skills
+  [ "$status" -eq 0 ]
+  local saved="$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35"
+  cp "$SKILL_HOME/.local/bin/git-push-topic" "$BATS_TEST_TMPDIR/old-cli"
+  python3 - "$saved" <<'PY'
+import hashlib, json, os, sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+payload = b"corrupt backup\n"
+cli = root / ".local/bin/git-push-topic"
+cli.write_bytes(payload)
+os.chmod(cli, 0o755)
+manifest = root / "baseline.json"
+baseline = json.loads(manifest.read_text(encoding="utf-8"))
+baseline["cli"][".local/bin/git-push-topic"] = {
+    "sha256": hashlib.sha256(payload).hexdigest(),
+    "mode": 0o755,
+}
+manifest.write_text(json.dumps(baseline, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+PY
+
+  run skill_chezmoi apply "$SKILL_HOME/.local/bin/git-push-topic"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'固定 backup manifest がありません'* ]]
+  cmp "$BATS_TEST_TMPDIR/old-cli" "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
+@test "legacy preparation and cutover reject relative XDG state without CWD writes" {
+  install_known_legacy_topic
+  local baseline_json
+  baseline_json="$(cat "$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.json")"
+  cd "$BATS_TEST_TMPDIR"
+
+  run env HOME="$SKILL_HOME" XDG_STATE_HOME=relative-state \
+    python3 "$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.py" "$baseline_json" prepare
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'XDG_STATE_HOME must be absolute'* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/relative-state" ]
+  grep -q 'set -euo pipefail' "$SKILL_HOME/.local/bin/git-push-topic"
+
+  run env HOME="$SKILL_HOME" XDG_STATE_HOME=relative-state \
+    python3 "$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.py" \
+      "$baseline_json" preflight-cli-cutover "$SKILL_SOURCE"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'XDG_STATE_HOME must be absolute'* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/relative-state" ]
+  grep -q 'set -euo pipefail' "$SKILL_HOME/.local/bin/git-push-topic"
 }
 
 @test "PR screenshots deploys to both hubs while to-pr stays retired" {

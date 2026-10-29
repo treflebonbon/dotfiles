@@ -10,7 +10,11 @@ default_permissions = "dotfiles-secure"
 {{ $pluginPin := mustFromJson (include "private_dot_config/nix-devshell/skills-plugin.json") -}}
 {{ $pluginSource := printf "%s/.cache/treflebonbon-skills/marketplaces/%s" .chezmoi.homeDir $pluginPin.rev -}}
 {{ $pluginCheckout := printf "%s/.cache/treflebonbon-skills/checkouts/%s" .chezmoi.homeDir $pluginPin.rev -}}
-{{ $stateHome := or (env "XDG_STATE_HOME") (printf "%s/.local/state" .chezmoi.homeDir) -}}
+{{ $xdgStateHome := env "XDG_STATE_HOME" -}}
+{{ if and $xdgStateHome (not (hasPrefix "/" $xdgStateHome)) -}}
+{{ fail "XDG_STATE_HOME must be absolute" }}
+{{- end -}}
+{{ $stateHome := or $xdgStateHome (printf "%s/.local/state" .chezmoi.homeDir) -}}
 {{ $pluginReceipt := printf "%s/treflebonbon-skills/plugin-sync/receipt.json" $stateHome -}}
 {{ $legacyCliRevision := (mustFromJson (include ".chezmoitemplates/local-skills-legacy.json")).revision -}}
 {{ $legacyCliBackup := printf "%s/treflebonbon-skills/legacy/%s" $stateHome $legacyCliRevision -}}

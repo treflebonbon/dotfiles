@@ -16,7 +16,7 @@ fi
 {{ includeTemplate "local-skills.sh.tmpl" . }}
 
 {{- range $name := list "git-push-topic" "git-push-reviewed" "gh-review-thread" "orca-send" "codex-reviewer" }}
-# CLI cutover source checksum: {{ include (printf "private_dot_local/bin/executable_%s" $name) | sha256sum }}
+# CLI cutover source checksum: {{ include (printf "private_dot_local/bin/executable_%s.tmpl" $name) | sha256sum }}
 {{- end }}
 
 legacy_skills prepare

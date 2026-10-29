@@ -134,7 +134,7 @@ dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語�
 
 Nix なしという目標を全11件の全経路へ適用すると、既存の専用機能には移動以上の変更が必要になる。最終確認のためのソース調査で次を確認した。
 
-- [`git-push-topic`](../../private_dot_local/bin/executable_git-push-topic)、[`gh-review-thread`](../../private_dot_local/bin/executable_gh-review-thread)、[`orca-send`](../../private_dot_local/bin/executable_orca-send) は実装から Nix を呼ばない。[`codex-reviewer`](../../private_dot_local/bin/executable_codex-reviewer) も Nix を直接要求しないが、dotfiles 内の共有 Python module の切り出しが必要である。
+- [`git-push-topic`](../../private_dot_local/bin/executable_git-push-topic.tmpl)、[`gh-review-thread`](../../private_dot_local/bin/executable_gh-review-thread.tmpl)、[`orca-send`](../../private_dot_local/bin/executable_orca-send.tmpl) は実装から Nix を呼ばない。[`codex-reviewer`](../../private_dot_local/bin/executable_codex-reviewer.tmpl) も Nix を直接要求しないが、dotfiles 内の共有 Python module の切り出しが必要である。
 - ブラウザ機能の正本は [`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) が固定する公開 `packages/wsl2-browser/` とする。[`playwright-cli.nix`](../../private_dot_config/nix-devshell/packages/playwright-cli.nix) は上流 `@playwright/cli` と browser driver の条件を保ち、公開 package の補助資産を Nix 用に包装する。`managed-chrome-owner.mjs` のプロセス識別は Linux の `/proc` を使う。
 - [`codex-worktree`](../../private_dot_local/bin/executable_codex-worktree) は固定版 plugin の `bin/codex-worktree` と共通 `lib/python` module へ接続し、隔離実装の正本を公開側に置く。raw 経路は引き続き Nix と対象 repo の `flake.nix` を要求する。[既存の対応範囲](../../runtime/shell-environment.md)も Linux／WSL2 で、macOS の raw 隔離は未対応である。
 

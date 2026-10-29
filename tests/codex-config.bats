@@ -438,6 +438,25 @@ assert_codex_strict_config() {
   assert_dotfiles_permission_profile "$config"
 }
 
+@test "Codex config refuses relative XDG state instead of granting the wrong path" {
+  local home="$BATS_TEST_TMPDIR/relative-state-home"
+  local config="$BATS_TEST_TMPDIR/relative-state.toml"
+  local error="$BATS_TEST_TMPDIR/relative-state.stderr"
+  local chezmoi_config="$BATS_TEST_TMPDIR/relative-state-chezmoi.yaml"
+  mkdir -p "$home"
+  printf '{}\n' >"$chezmoi_config"
+
+  if env HOME="$home" XDG_STATE_HOME=relative-state chezmoi \
+    --source "$PROJECT_ROOT" --destination "$home" --config "$chezmoi_config" \
+    execute-template --file "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" \
+    >"$config" 2>"$error"; then
+    return 1
+  fi
+
+  grep -q 'XDG_STATE_HOME must be absolute' "$error"
+  ! grep -q 'relative-state/treflebonbon-skills' "$config"
+}
+
 @test "Codex strict parser accepts rendered and merged managed config" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"

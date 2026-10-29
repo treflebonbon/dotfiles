@@ -8,7 +8,7 @@ setup_local_skills_fixture() {
   cp "$PROJECT_ROOT"/run_onchange_{before_remove-orphan-claude-skills,after_apm-install,after_deploy-local-skills}.sh.tmpl "$SKILL_SOURCE/"
   cp -a "$PROJECT_ROOT/local-skills" "$SKILL_SOURCE/"
   mkdir -p "$SKILL_SOURCE/private_dot_local/bin"
-  cp "$PROJECT_ROOT"/private_dot_local/bin/executable_{git-push-topic,git-push-reviewed,gh-review-thread,orca-send,codex-reviewer} \
+  cp "$PROJECT_ROOT"/private_dot_local/bin/executable_{git-push-topic,git-push-reviewed,gh-review-thread,orca-send,codex-reviewer}.tmpl \
     "$SKILL_SOURCE/private_dot_local/bin/"
   local dir
   for dir in .chezmoitemplates .chezmoidata; do
@@ -37,6 +37,30 @@ run_skill_phase() {
   local script="$BATS_TEST_TMPDIR/$phase.sh"
   skill_chezmoi execute-template --file "$SKILL_SOURCE/run_onchange_$phase.sh.tmpl" >"$script" || return
   CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" bash "$script"
+}
+
+global_cli_source_body() {
+  local name="$1"
+  sed '1d' "$PROJECT_ROOT/private_dot_local/bin/executable_${name}.tmpl"
+}
+
+mock_global_cli_dispatcher() {
+  local home="$1"
+  mkdir -p "$home/.local/bin"
+  cat >"$home/.local/bin/sync-skills-plugin" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$DISPATCH_LOG"
+SH
+  chmod +x "$home/.local/bin/sync-skills-plugin"
+}
+
+assert_global_cli_dispatch() {
+  local name="$1" log="$2"
+  run env HOME="$SKILL_HOME" DISPATCH_LOG="$log" \
+    "$SKILL_HOME/.local/bin/$name" --probe
+  [ "$status" -eq 0 ]
+  printf '%s\n' --run-cli "$name" -- --probe >"$BATS_TEST_TMPDIR/expected-dispatch.log"
+  cmp "$BATS_TEST_TMPDIR/expected-dispatch.log" "$log"
 }
 
 add_local_skill() {

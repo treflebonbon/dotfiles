@@ -1,7 +1,15 @@
 #!/usr/bin/env bats
 
+load global-cli-helper
+
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  CLI_BIN="$BATS_TEST_TMPDIR/global-cli-bin"
+  mkdir -p "$CLI_BIN"
+  local name
+  for name in git-push-topic git-push-reviewed gh-review-thread orca-send codex-reviewer; do
+    render_global_cli "$name" "$CLI_BIN/$name"
+  done
   TEST_HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$TEST_HOME/.local/bin"
   cat >"$TEST_HOME/.local/bin/sync-skills-plugin" <<'PY'
@@ -21,7 +29,7 @@ PY
 assert_dispatch() {
   local name="$1"
   shift
-  local entry="$PROJECT_ROOT/private_dot_local/bin/executable_$name"
+  local entry="$CLI_BIN/$name"
   local expected="$BATS_TEST_TMPDIR/expected.log"
   run env HOME="$TEST_HOME" DISPATCH_LOG="$DISPATCH_LOG" "$entry" "$@"
   [ "$status" -eq 0 ]
@@ -34,7 +42,7 @@ assert_dispatch() {
 }
 
 @test "git-push-reviewed keeps its regular entrypoint name for the public basename branch" {
-  local entry="$PROJECT_ROOT/private_dot_local/bin/executable_git-push-reviewed"
+  local entry="$CLI_BIN/git-push-reviewed"
   [ -f "$entry" ]
   [ ! -L "$entry" ]
   assert_dispatch git-push-reviewed --probe

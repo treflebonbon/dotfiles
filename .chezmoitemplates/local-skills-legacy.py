@@ -43,6 +43,16 @@ def save_once(path, payload, mode):
         os.link(temporary.name, path)
 
 
+def state_home(home):
+    configured = os.environ.get("XDG_STATE_HOME")
+    if configured:
+        state = Path(configured).expanduser()
+        if not state.is_absolute():
+            raise ValueError("XDG_STATE_HOME must be absolute")
+        return state
+    return home / ".local/state"
+
+
 def check_skill(name, root):
     expected = baseline["skills"][name]
     expected_dirs = baseline["directories"][name]
@@ -97,7 +107,7 @@ def check_skill(name, root):
 
 def prepare():
     home = Path(os.environ["HOME"]).resolve()
-    state = Path(os.environ.get("XDG_STATE_HOME", str(home / ".local/state"))).resolve()
+    state = state_home(home)
     destination = state / "treflebonbon-skills/legacy" / baseline["revision"]
     for path in reversed([destination, *destination.parents]):
         if is_symlink(path):
@@ -144,7 +154,7 @@ def prepare():
 
 def preflight_cli_cutover(source_root):
     home = Path(os.environ["HOME"]).resolve()
-    state = Path(os.environ.get("XDG_STATE_HOME", str(home / ".local/state"))).resolve()
+    state = state_home(home)
     destination = state / "treflebonbon-skills/legacy" / baseline["revision"]
     cli_names = (
         "git-push-topic",
@@ -154,6 +164,28 @@ def preflight_cli_cutover(source_root):
         "codex-reviewer",
     )
     source_root = Path(source_root).resolve(strict=True)
+
+    def shim_template(name):
+        source = source_root / "private_dot_local/bin" / f"executable_{name}.tmpl"
+        source_info = entry_info(source)
+        if (
+            source_info is None
+            or not stat.S_ISREG(source_info.st_mode)
+            or not source_info.st_mode & 0o111
+        ):
+            raise ValueError(f"新しい CLI shim がありません: {source}")
+        source_template = source.read_bytes()
+        guard, separator, rendered = source_template.partition(b"\n")
+        if (
+            not separator
+            or not guard.startswith(bytes((123, 123, 45)) + b' output "python3"')
+            or b"preflight-cli-cutover" not in guard
+            or not guard.endswith(bytes((45, 125, 125)))
+        ):
+            raise ValueError(f"新しい CLI shim に切替 preflight がありません: {source}")
+        return rendered, stat.S_IMODE(source_info.st_mode)
+
+    rendered_shims = {name: shim_template(name) for name in cli_names}
 
     def require_saved_backup(relative):
         manifest = destination / "baseline.json"
@@ -184,22 +216,15 @@ def preflight_cli_cutover(source_root):
     for name in cli_names:
         relative = f".local/bin/{name}"
         current = home / relative
-        source = source_root / "private_dot_local/bin" / f"executable_{name}"
-        source_info = entry_info(source)
-        if (
-            source_info is None
-            or not stat.S_ISREG(source_info.st_mode)
-            or not source_info.st_mode & 0o111
-        ):
-            raise ValueError(f"新しい CLI shim がありません: {source}")
+        rendered, mode = rendered_shims[name]
         current_info = entry_info(current)
         if current_info is None:
             continue
         if stat.S_ISREG(current_info.st_mode) and matches_file(
             current,
             {
-                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-                "mode": stat.S_IMODE(source_info.st_mode),
+                "sha256": hashlib.sha256(rendered).hexdigest(),
+                "mode": mode,
             },
         ):
             continue
@@ -208,10 +233,20 @@ def preflight_cli_cutover(source_root):
         known_legacy = not is_symlink(current) and matches_file(current, expected)
         if name == "git-push-reviewed" and is_symlink(current):
             alias = home / ".local/bin/git-push-topic"
+            topic_rendered, topic_mode = rendered_shims["git-push-topic"]
             known_legacy = (
                 os.readlink(current) == "git-push-topic"
                 and not is_symlink(alias)
-                and matches_file(alias, baseline["cli"][".local/bin/git-push-topic"])
+                and (
+                    matches_file(alias, baseline["cli"][".local/bin/git-push-topic"])
+                    or matches_file(
+                        alias,
+                        {
+                            "sha256": hashlib.sha256(topic_rendered).hexdigest(),
+                            "mode": topic_mode,
+                        },
+                    )
+                )
             )
         if not known_legacy:
             raise ValueError(
