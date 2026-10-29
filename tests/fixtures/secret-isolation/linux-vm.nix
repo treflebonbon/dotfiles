@@ -125,7 +125,7 @@ pkgs.testers.runNixOSTest {
 
       # Required by the probe's nested `bwrap --unshare-all`.
       security.allowUserNamespaces = true;
-      security.unprivilegedUsernsClone = true;
+      boot.kernel.sysctl."user.max_user_namespaces" = 1024;
     };
 
   testScript = ''

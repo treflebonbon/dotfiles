@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 0 ]; then
-  echo "Usage: sync-codex-managed-config" >&2
-  exit 2
+verify_only=0
+if [ "$#" -gt 0 ]; then
+  if [ "$#" -eq 1 ] && [ "$1" = "--verify-only" ]; then
+    verify_only=1
+  else
+    echo "Usage: sync-codex-managed-config [--verify-only]" >&2
+    exit 2
+  fi
 fi
 
 managed_root="$HOME/.config/codex"
@@ -14,6 +19,7 @@ staged_files=()
 targets=()
 phase="prepare"
 target="$managed_root"
+verified_plugin_state=""
 
 cleanup() {
   local status=$?
@@ -55,7 +61,7 @@ if [ -n "${CODEX_HOME:-}" ]; then
 fi
 
 merge_config() {
-  python3 - "$managed_config" "$1" "$2" <<'PY'
+  python3 - "$managed_config" "$1" "$2" "${3:-}" <<'PY'
 from __future__ import annotations
 
 import json
@@ -211,24 +217,126 @@ strip_retired_sandbox_settings(existing, managed)
 strip_managed_network_domains(existing, managed)
 
 
-def add_skills_plugin_cache_read(managed: dict[str, Any], codex_path: Path) -> None:
+SKILLS_PLUGIN_CACHE = Path("plugins/cache/treflebonbon/treflebonbon-skills")
+
+
+def verified_skills_plugin_cache(
+    codex_path: Path, verification: dict[str, Any] | None
+) -> Path | None:
+    if verification is None:
+        return None
+    pin = verification.get("pin")
+    version = pin.get("version") if isinstance(pin, dict) else None
+    if (
+        verification.get("status") != "verified"
+        or not isinstance(version, str)
+        or not version
+        or version in {".", ".."}
+        or Path(version).name != version
+        or "/" in version
+        or "\\" in version
+    ):
+        raise ValueError("skills plugin verification result is invalid")
+
+    home = codex_path.parent.resolve()
+    homes = verification.get("codex_homes")
+    if not isinstance(homes, list) or homes.count(str(home)) != 1:
+        raise ValueError(f"skills plugin verification omits Codex home {home}")
+    results = verification.get("results")
+    records = results.get("codex") if isinstance(results, dict) else None
+    matches = (
+        [
+            record
+            for record in records
+            if isinstance(record, dict)
+            and record.get("runtime") == "codex"
+            and record.get("codex_home") == str(home)
+        ]
+        if isinstance(records, list)
+        else []
+    )
+    if len(matches) != 1:
+        raise ValueError(f"skills plugin verification is ambiguous for {home}")
+
+    expected = home / SKILLS_PLUGIN_CACHE / version
+    result = matches[0]
+    if (
+        result.get("version") != version
+        or result.get("install_path") != str(expected)
+        or expected.is_symlink()
+        or not expected.is_dir()
+    ):
+        raise ValueError(f"skills plugin cache is not verified for {home}")
+    return expected
+
+
+def remove_managed_skills_plugin_cache_rules(
+    existing: dict[str, Any], managed: dict[str, Any], codex_path: Path
+) -> None:
+    existing_permissions = existing.get("permissions")
+    managed_permissions = managed.get("permissions")
+    if not isinstance(existing_permissions, dict) or not isinstance(
+        managed_permissions, dict
+    ):
+        return
+    cache_root = codex_path.parent.resolve() / SKILLS_PLUGIN_CACHE
+    for profile_name in ("dotfiles-secure", "dotfiles-peer"):
+        if profile_name not in managed_permissions:
+            continue
+        profile = existing_permissions.get(profile_name)
+        filesystem = profile.get("filesystem") if isinstance(profile, dict) else None
+        if not isinstance(filesystem, dict):
+            continue
+        for key in list(filesystem):
+            path = Path(key) if isinstance(key, str) else None
+            if path == cache_root or (path is not None and path.parent == cache_root):
+                del filesystem[key]
+
+
+def add_verified_skills_plugin_cache_read(
+    managed: dict[str, Any], codex_path: Path, verification: dict[str, Any] | None
+) -> None:
+    install_path = verified_skills_plugin_cache(codex_path, verification)
+    if install_path is None:
+        return
     permissions = managed.get("permissions")
     if not isinstance(permissions, dict):
         return
-    cache_path = str(
-        codex_path.parent.resolve()
-        / "plugins/cache/treflebonbon/treflebonbon-skills"
+    secure_profile = permissions.get("dotfiles-secure")
+    secure_filesystem = (
+        secure_profile.get("filesystem")
+        if isinstance(secure_profile, dict)
+        else None
     )
+    workspace_rules = (
+        secure_filesystem.get(":workspace_roots")
+        if isinstance(secure_filesystem, dict)
+        else None
+    )
+    denied_names = {
+        pattern: mode
+        for pattern, mode in workspace_rules.items()
+        if mode == "deny" and ".env" not in pattern
+    } if isinstance(workspace_rules, dict) else {}
     for profile_name in ("dotfiles-secure", "dotfiles-peer"):
         profile = permissions.get(profile_name)
         if not isinstance(profile, dict):
             continue
         filesystem = profile.setdefault("filesystem", {})
-        if isinstance(filesystem, dict):
-            filesystem[cache_path] = {".": "read"}
+        if not isinstance(filesystem, dict):
+            continue
+        filesystem[str(install_path)] = {".": "read", **denied_names}
 
 
-add_skills_plugin_cache_read(managed, codex_path)
+try:
+    verification = json.loads(sys.argv[4]) if sys.argv[4] else None
+    if verification is not None and not isinstance(verification, dict):
+        raise ValueError("skills plugin verification result is invalid")
+    remove_managed_skills_plugin_cache_rules(existing, managed, codex_path)
+    add_verified_skills_plugin_cache_read(managed, codex_path, verification)
+except (json.JSONDecodeError, ValueError) as error:
+    print(f"ERROR: {error}", file=sys.stderr)
+    sys.exit(1)
 
 for key in ("projects", "notice", "tui"):
     if key in managed:
@@ -273,23 +381,15 @@ def format_value(value: Any) -> str:
 
 
 def emit_table(path: list[str], table: dict[str, Any], lines: list[str]) -> None:
-    def inline_plugin_cache_rule(key: str, value: Any) -> bool:
-        return (
-            len(path) >= 1
-            and path[-1] == "filesystem"
-            and key.endswith("/plugins/cache/treflebonbon/treflebonbon-skills")
-            and value == {".": "read"}
-        )
-
     scalars = [
         (key, value)
         for key, value in table.items()
-        if not isinstance(value, dict) or inline_plugin_cache_rule(key, value)
+        if not isinstance(value, dict)
     ]
     children = [
         (key, value)
         for key, value in table.items()
-        if isinstance(value, dict) and not inline_plugin_cache_rule(key, value)
+        if isinstance(value, dict)
     ]
 
     if path and scalars:
@@ -353,9 +453,130 @@ plugin_sync_args=()
 for codex_home in "${codex_homes[@]}"; do
   plugin_sync_args+=(--codex-home "$codex_home")
 done
+
+verify_managed_cache_permissions() {
+  local verification
+  verification="$(sync-skills-plugin --verify-only "${plugin_sync_args[@]}")"
+  python3 - "$managed_config" "$verification" "${codex_homes[@]}" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+import tomllib
+from pathlib import Path
+
+managed_config = Path(sys.argv[1])
+verification = json.loads(sys.argv[2])
+requested_homes = [Path(path).expanduser().resolve(strict=True) for path in sys.argv[3:]]
+if not isinstance(verification, dict) or verification.get("status") != "verified":
+    raise SystemExit("ERROR: skills plugin installation is not verified")
+home_names = [str(home) for home in requested_homes]
+if verification.get("codex_homes") != home_names:
+    raise SystemExit("ERROR: verified Codex homes do not match managed homes")
+pin = verification.get("pin")
+version = pin.get("version") if isinstance(pin, dict) else None
+if not isinstance(version, str) or not version or Path(version).name != version:
+    raise SystemExit("ERROR: verified skills plugin version is invalid")
+results = verification.get("results")
+records = results.get("codex") if isinstance(results, dict) else None
+if not isinstance(records, list):
+    raise SystemExit("ERROR: verified Codex plugin results are invalid")
+record_homes = [record.get("codex_home") for record in records if isinstance(record, dict)]
+if record_homes != home_names:
+    raise SystemExit("ERROR: verified Codex plugin results do not match managed homes")
+managed = tomllib.loads(managed_config.read_text(encoding="utf-8"))
+managed_profiles = managed.get("permissions")
+if not isinstance(managed_profiles, dict):
+    raise SystemExit("ERROR: managed Codex permission profiles are invalid")
+relative_cache = Path("plugins/cache/treflebonbon/treflebonbon-skills")
+verified = []
+for home, record in zip(requested_homes, records, strict=True):
+    install = home / relative_cache / version
+    if (
+        record.get("runtime") != "codex"
+        or record.get("version") != version
+        or record.get("install_path") != str(install)
+        or install.is_symlink()
+        or not install.is_dir()
+    ):
+        raise SystemExit(f"ERROR: verified skills plugin cache path is invalid for {home}")
+    try:
+        config = tomllib.loads((home / "config.toml").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise SystemExit(f"ERROR: managed Codex config is unreadable for {home}") from error
+    permissions = config.get("permissions")
+    if not isinstance(permissions, dict):
+        raise SystemExit(f"ERROR: managed Codex permissions are missing for {home}")
+    cache_root = home / relative_cache
+    broad_roots = {
+        home / "plugins",
+        home / "plugins/cache",
+        home / "plugins/cache/treflebonbon",
+        cache_root,
+    }
+    profile_names = ("dotfiles-secure", "dotfiles-peer")
+    profile_results = []
+    for profile_name in profile_names:
+        managed_profile = managed_profiles.get(profile_name)
+        profile = permissions.get(profile_name)
+        filesystem = profile.get("filesystem") if isinstance(profile, dict) else None
+        managed_filesystem = (
+            managed_profile.get("filesystem")
+            if isinstance(managed_profile, dict)
+            else None
+        )
+        rule = filesystem.get(str(install)) if isinstance(filesystem, dict) else None
+        if not isinstance(rule, dict) or rule.get(".") != "read":
+            raise SystemExit(
+                f"ERROR: exact verified plugin cache read grant is missing for {profile_name} at {home}"
+            )
+        workspace_rules = (
+            managed_filesystem.get(":workspace_roots")
+            if isinstance(managed_filesystem, dict)
+            else None
+        )
+        denied = sorted(
+            pattern
+            for pattern, mode in workspace_rules.items()
+            if mode == "deny" and ".env" not in pattern
+        ) if isinstance(workspace_rules, dict) else []
+        if rule != {".": "read", **{pattern: "deny" for pattern in denied}}:
+            raise SystemExit(
+                f"ERROR: exact plugin cache permissions drifted for {profile_name} at {home}"
+            )
+        if not isinstance(filesystem, dict):
+            raise SystemExit(f"ERROR: filesystem permissions are missing for {profile_name} at {home}")
+        for key, value in filesystem.items():
+            if (
+                not isinstance(key, str)
+                or not isinstance(value, dict)
+                or value.get(".") not in {"read", "write"}
+            ):
+                continue
+            path = Path(key)
+            if path in broad_roots or (
+                path.is_relative_to(cache_root) and path != install
+            ) or (str(key).startswith(str(home / "plugins/cache") + "/") and "*" in key):
+                raise SystemExit(f"ERROR: broad skills plugin cache grant found for {profile_name} at {home}")
+        profile_results.append({"profile": profile_name, "install_path": str(install), "denied_globs": denied})
+    verified.append({"codex_home": str(home), "install_path": str(install), "profiles": profile_results})
+print(json.dumps({"status": "verified", "pin": pin, "codex_homes": home_names, "results": {"codex": verified}}, sort_keys=True))
+PY
+}
+
+if [ "$verify_only" -eq 1 ]; then
+  phase="skills plugin profile verification"
+  target="exact cache read permissions"
+  verify_managed_cache_permissions
+  exit 0
+fi
+
 phase="skills-plugin"
 target="treflebonbon-skills"
 sync-skills-plugin "${plugin_sync_args[@]}"
+phase="skills-plugin verification"
+target="verified Codex plugin payload"
+verified_plugin_state="$(sync-skills-plugin --verify-only "${plugin_sync_args[@]}")"
 
 refresh_config_stage() {
   local codex_home="$1"
@@ -375,7 +596,7 @@ refresh_config_stage() {
   replacement_stage="$(mktemp "$config_target.tmp.XXXXXX")"
   staged_files+=("$replacement_stage")
   replacement_index=$((${#staged_files[@]} - 1))
-  merge_config "$config_target" "$replacement_stage"
+  merge_config "$config_target" "$replacement_stage" "$verified_plugin_state"
   chmod 600 "$replacement_stage"
 
   previous_stage="${staged_files[$target_index]}"

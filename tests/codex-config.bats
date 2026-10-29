@@ -15,11 +15,53 @@ setup() {
 #!/usr/bin/env python3
 import json
 import os
-import sys
 from pathlib import Path
+import sys
 
-Path(os.environ["SKILLS_PLUGIN_SYNC_LOG"]).write_text(json.dumps(sys.argv[1:]))
-print("DISPATCHED")
+args = sys.argv[1:]
+Path(os.environ["SKILLS_PLUGIN_SYNC_LOG"]).write_text(json.dumps(args))
+homes = []
+index = 0
+while index < len(args):
+    if args[index] == "--codex-home" and index + 1 < len(args):
+        homes.append(Path(args[index + 1]).expanduser().resolve())
+        index += 2
+    else:
+        index += 1
+if not homes:
+    print("DISPATCHED")
+    sys.exit(0)
+pin_path = Path(os.environ["PROJECT_ROOT"]) / "private_dot_config/nix-devshell/skills-plugin.json"
+version = json.loads(pin_path.read_text())["version"]
+plugin_root = Path("plugins/cache/treflebonbon/treflebonbon-skills")
+if "--verify-only" in args:
+    if os.environ.get("SKILLS_PLUGIN_VERIFY_FAIL") == "1":
+        sys.exit(1)
+    records = []
+    for home in homes:
+        installed = home / plugin_root / version
+        skill = installed / "skills/fixture/SKILL.md"
+        if not skill.is_file() or skill.read_text() != "fixture cache\n":
+            print(f"unverified fixture cache: {installed}", file=sys.stderr)
+            sys.exit(1)
+        records.append({
+            "runtime": "codex", "codex_home": str(home), "version": version,
+            "install_path": str(installed),
+        })
+    print(json.dumps({
+        "status": "verified", "pin": {"version": version},
+        "codex_homes": [str(home) for home in homes],
+        "results": {"codex": records},
+    }))
+    sys.exit(0)
+for home in homes:
+    installed = home / plugin_root / version
+    skill = installed / "skills/fixture/SKILL.md"
+    reference = installed / "skills/fixture/references/usage.md"
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    reference.parent.mkdir(parents=True, exist_ok=True)
+    skill.write_text("fixture cache\n")
+    reference.write_text("fixture reference\n")
 PY
   chmod +x "$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin"
   export SKILLS_PLUGIN_SYNC_LOG="$BATS_TEST_TMPDIR/skills-plugin-sync.log"
@@ -1779,7 +1821,10 @@ EOF
       "$source_root/README.md" "$receipt" "$legacy_backup"; do
       run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
         codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$path"
-      [ "$status" -eq 0 ]
+      if [ "$status" -ne 0 ]; then
+        printf 'sandbox read failed (exit %s): %s\n' "$status" "$output" >&3
+        return 1
+      fi
       case "$path" in
       */skills-plugin.json) [[ "$output" == *"$plugin_rev"* ]] ;;
       */README.md) [[ "$output" == *PUBLIC_SOURCE_READABLE* ]] ;;
@@ -1822,6 +1867,108 @@ EOF
   for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
     cmp "$codex_home/first-sync.toml" "$codex_home/config.toml"
   done
+}
+
+@test "Codex sandbox reads only the verified treflebonbon skill cache and keeps secret names denied" {
+  local fixture_home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local probe="$BATS_TEST_TMPDIR/plugin-cache-probe.sh"
+  local bwrap bash_path store_path env_path
+  unset XDG_STATE_HOME
+  mkdir -p "$fixture_home" "$workspace"
+  prepare_codex_permission_roots "$fixture_home"
+  : >"$SKILLS_PLUGIN_SYNC_LOG"
+  cat >"$probe" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p "$HOME/.config/codex/environments" "$HOME/.config/codex/rules" \
+  "$HOME/.codex-app" "$HOME/explicit-codex-home"
+chezmoi --source /repo --destination "$HOME" execute-template \
+  -f /repo/private_dot_config/codex/config.toml.tmpl >"$HOME/.config/codex/config.toml"
+cp /repo/private_dot_config/codex/hooks.json "$HOME/.config/codex/hooks.json"
+cp /repo/private_dot_config/codex/rules/default.rules "$HOME/.config/codex/rules/default.rules"
+cp /repo/private_dot_config/codex/environments/environment.toml \
+  "$HOME/.config/codex/environments/environment.toml"
+cp /repo/private_dot_config/codex/AGENTS.md "$HOME/.config/codex/AGENTS.md"
+CODEX_HOME="$HOME/explicit-codex-home" bash \
+  /repo/private_dot_local/bin/executable_sync-codex-managed-config
+version="$(python3 -c 'import json; print(json.load(open("/repo/private_dot_config/nix-devshell/skills-plugin.json"))["version"])')"
+
+for codex_home in "$HOME/.codex" "$HOME/.codex-app" "$HOME/explicit-codex-home"; do
+  install="$codex_home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
+  cache_root="$(dirname "$install")"
+  printf 'dummy secret\n' >"$install/credentials.json"
+  for secret_name in private.key identity.pem bundle.pfx bundle.p12 credentials.prod.json \
+    secret.json secrets.json service-account-prod.json; do
+    printf 'dummy secret\n' >"$install/$secret_name"
+  done
+  printf 'cache parent\n' >"$cache_root/parent.txt"
+  mkdir -p "$cache_root/0.0.0-stale/skills/fixture" \
+    "$codex_home/plugins/cache/unrelated/plugin"
+  printf 'stale\n' >"$cache_root/0.0.0-stale/skills/fixture/SKILL.md"
+  printf 'unrelated\n' >"$codex_home/plugins/cache/unrelated/plugin/SKILL.md"
+  printf 'dummy secret\n' >"$codex_home/plugins/cache/unrelated/plugin/credentials.json"
+
+  for path in "$install/skills/fixture/SKILL.md" \
+    "$install/skills/fixture/references/usage.md"; do
+    output="$(CODEX_HOME="$codex_home" codex sandbox -P dotfiles-secure \
+      -C /work -- cat "$path" 2>&1)" || {
+      printf 'sandbox read failed for %s: %s\n' "$path" "$output" >&2
+      exit 1
+    }
+    [[ "$output" == *fixture* ]]
+  done
+
+  for path in "$cache_root/parent.txt" \
+    "$cache_root/0.0.0-stale/skills/fixture/SKILL.md" \
+    "$codex_home/plugins/cache/unrelated/plugin/SKILL.md" \
+    "$install/credentials.json" "$install/private.key" "$install/identity.pem" \
+    "$install/bundle.pfx" "$install/bundle.p12" "$install/credentials.prod.json" \
+    "$install/secret.json" "$install/secrets.json" "$install/service-account-prod.json" \
+    "$codex_home/plugins/cache/unrelated/plugin/credentials.json"; do
+    if CODEX_HOME="$codex_home" codex sandbox -P dotfiles-secure \
+      -C /work -- cat "$path" >/dev/null 2>&1; then
+      printf 'unexpectedly readable cache path: %s\n' "$path" >&2
+      exit 1
+    fi
+  done
+done
+printf 'CACHE_SANDBOX_PASS\n'
+SH
+
+  bwrap="$(command -v bwrap)"
+  bash_path="$(command -v bash)"
+  store_path="$(python3 -c 'import os; print(":".join(path for path in os.environ["PATH"].split(":") if path.startswith("/nix/store/")))')"
+  env_path="$(python3 -c 'import os; print(next(path + "/env" for path in os.environ["PATH"].split(":") if path.startswith("/nix/store/") and os.access(path + "/env", os.X_OK)))')"
+
+  run "$bwrap" --unshare-all --die-with-parent --new-session \
+    --tmpfs / --dev /dev --proc /proc \
+    --dir /nix --dir /nix/store --ro-bind /nix/store /nix/store \
+    --dir /tmp --dir /tmp/codex \
+    --dir /home --dir /home/probe --bind "$fixture_home" /home/probe \
+    --dir /work --bind "$workspace" /work \
+    --dir /repo --ro-bind "$PROJECT_ROOT" /repo \
+    --dir /run --dir /run/bin \
+    --ro-bind "$probe" /run/plugin-cache-probe.sh \
+    --ro-bind "$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin" /run/bin/sync-skills-plugin \
+    --bind "$SKILLS_PLUGIN_SYNC_LOG" /run/plugin-sync.log \
+    --dir /usr --dir /usr/bin --ro-bind "$env_path" /usr/bin/env \
+    --setenv PATH "/run/bin:$store_path" \
+    --setenv PROJECT_ROOT /repo \
+    --setenv SKILLS_PLUGIN_SYNC_LOG /run/plugin-sync.log \
+    --setenv HOME /home/probe \
+    --setenv CODEX_HOME /home/probe/.codex \
+    --setenv XDG_CONFIG_HOME /home/probe/.config \
+    --setenv XDG_CACHE_HOME /home/probe/.cache \
+    --setenv XDG_DATA_HOME /home/probe/.local/share \
+    --setenv XDG_STATE_HOME /home/probe/.local/state \
+    --setenv PONYTAIL_MARKETPLACE_SOURCE "" \
+    --setenv TMPDIR /tmp \
+    --chdir /work "$bash_path" /run/plugin-cache-probe.sh
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [[ "$output" == *CACHE_SANDBOX_PASS* ]]
 }
 
 @test "Codex config migration preserves an explicitly managed broad dotenv deny" {

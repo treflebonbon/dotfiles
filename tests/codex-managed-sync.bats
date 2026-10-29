@@ -15,26 +15,66 @@ setup() {
   PLUGIN_SYNC_LOG="$BATS_TEST_TMPDIR/plugin-sync.log"
   mkdir -p "$PLUGIN_SYNC_BIN"
   cat >"$PLUGIN_SYNC_BIN/sync-skills-plugin" <<'SH'
-#!/usr/bin/env bash
-printf '%s\0' "$@" >>"$PLUGIN_SYNC_LOG"
-printf '\0' >>"$PLUGIN_SYNC_LOG"
-if [ "${FAIL_SKILLS_PLUGIN_SYNC:-}" = "1" ]; then
-  exit 1
-fi
-if [ "${PLUGIN_SYNC_APPEND_CONFIG:-}" = "1" ]; then
-  while [ "$#" -gt 0 ]; do
-    if [ "$1" = "--codex-home" ]; then
-      codex_home="$2"
-      printf '\n[plugins."fixture-after-sync@fixture"]\nenabled = true\n' >>"$codex_home/config.toml"
-      shift 2
-    else
-      shift
-    fi
-  done
-fi
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+with open(os.environ["PLUGIN_SYNC_LOG"], "ab") as log:
+    log.write(b"\0".join(item.encode() for item in args) + b"\0\0")
+homes = []
+index = 0
+while index < len(args):
+    if args[index] == "--codex-home" and index + 1 < len(args):
+        homes.append(Path(args[index + 1]).expanduser().resolve())
+        index += 2
+    else:
+        index += 1
+if os.environ.get("FAIL_SKILLS_PLUGIN_SYNC") == "1":
+    sys.exit(1)
+pin = json.loads(Path(os.environ["PLUGIN_SYNC_PIN"]).read_text())
+version = pin["version"]
+plugin_id = "plugins/cache/treflebonbon/treflebonbon-skills"
+if "--verify-only" in args:
+    if os.environ.get("PLUGIN_SYNC_VERIFY_FAIL") == "1":
+        sys.exit(1)
+    records = []
+    for home in homes:
+        installed = home / plugin_id / version
+        skill = installed / "skills/fixture/SKILL.md"
+        if not skill.is_file() or skill.read_text() != "fixture cache\n":
+            print(f"unverified fixture cache: {installed}", file=sys.stderr)
+            sys.exit(1)
+        records.append({
+            "runtime": "codex", "codex_home": str(home), "version": version,
+            "install_path": str(installed),
+        })
+    print(json.dumps({
+        "status": "verified", "pin": {"version": version},
+        "codex_homes": [str(home) for home in homes],
+        "results": {"codex": records},
+    }))
+    sys.exit(0)
+for home in homes:
+    installed = home / plugin_id / version
+    skill = installed / "skills/fixture/SKILL.md"
+    reference = installed / "skills/fixture/references/usage.md"
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    reference.parent.mkdir(parents=True, exist_ok=True)
+    skill.write_text("fixture cache\n")
+    reference.write_text("fixture reference\n")
+if os.environ.get("PLUGIN_SYNC_APPEND_CONFIG") == "1":
+    for home in homes:
+        with (home / "config.toml").open("a") as config:
+            config.write('\n[plugins."fixture-after-sync@fixture"]\nenabled = true\n')
+if not homes:
+    print("DISPATCHED")
 SH
   chmod +x "$PLUGIN_SYNC_BIN/sync-skills-plugin"
   export PLUGIN_SYNC_LOG
+  export PLUGIN_SYNC_PIN="$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json"
   export PATH="$PLUGIN_SYNC_BIN:$PATH"
   mkdir -p "$TEST_HOME/.config/codex/rules" "$TEST_HOME/.config/codex/environments"
   printf 'model = "managed"\n' >"$TEST_HOME/.config/codex/config.toml"
@@ -105,9 +145,10 @@ PY
   python3 - "$PLUGIN_SYNC_LOG" "$TEST_HOME" "$codex_home" <<'PY'
 import sys
 from pathlib import Path
-args = Path(sys.argv[1]).read_bytes().split(b"\0")
-args = [item.decode() for item in args if item]
-assert args == ["--codex-home", f"{sys.argv[2]}/.codex", "--codex-home", f"{sys.argv[2]}/.codex-app", "--codex-home", sys.argv[3]]
+blocks = [block for block in Path(sys.argv[1]).read_bytes().split(b"\0\0") if block]
+calls = [[item.decode() for item in block.split(b"\0") if item] for block in blocks]
+homes = ["--codex-home", f"{sys.argv[2]}/.codex", "--codex-home", f"{sys.argv[2]}/.codex-app", "--codex-home", sys.argv[3]]
+assert calls == [homes, ["--verify-only", *homes]]
 PY
 }
 
@@ -125,7 +166,7 @@ PY
 
 @test "Codex 管理設定 rejects obsolete selectors without writing settings" {
   local selector
-  for selector in all config hooks rules environment agents unknown; do
+  for selector in all config hooks rules environment agents unknown --unknown; do
     run env -u CODEX_HOME HOME="$TEST_HOME" bash "$SYNC_COMMAND" "$selector"
     [ "$status" -eq 2 ]
     [[ "$output" == *'Usage: sync-codex-managed-config'* ]]
@@ -225,8 +266,10 @@ prepare_chezmoi_fixture() {
   local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
   SYNC_LOG_PATH="$BATS_TEST_TMPDIR/sync.log"
   local spy="$BATS_TEST_TMPDIR/count-sync"
-  mkdir -p "$CHEZMOI_SOURCE/private_dot_config" "$CHEZMOI_SOURCE/private_dot_local/bin" \
+  mkdir -p "$CHEZMOI_SOURCE/.chezmoitemplates" "$CHEZMOI_SOURCE/private_dot_config" "$CHEZMOI_SOURCE/private_dot_local/bin" \
     "$CHEZMOI_SOURCE/private_dot_config/nix-devshell"
+  cp "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json" \
+    "$CHEZMOI_SOURCE/.chezmoitemplates/local-skills-legacy.json"
   cp -R "$PROJECT_ROOT/private_dot_config/codex" "$CHEZMOI_SOURCE/private_dot_config/codex"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
     "$CHEZMOI_SOURCE/private_dot_config/nix-devshell/skills-plugin.json"
@@ -281,27 +324,163 @@ SH
 @test "Codex permissions read only the verified plugin cache for each managed home" {
   prepare_chezmoi_fixture
   local explicit_home="$BATS_TEST_TMPDIR/explicit-codex-home"
-  mkdir -p "$TEST_HOME/.codex-app"
+  local codex_home
+  mkdir -p "$TEST_HOME/.codex-app" "$explicit_home"
+  for codex_home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
+    mkdir -p "$codex_home"
+    printf '[permissions."dotfiles-secure".filesystem."%s"]\n"." = "read"\n[permissions."dotfiles-peer".filesystem."%s"]\n"." = "read"\n' \
+      "$codex_home/plugins/cache/treflebonbon/treflebonbon-skills" \
+      >"$codex_home/config.toml"
+  done
 
   run env CODEX_HOME="$explicit_home" "${CHEZMOI_APPLY[@]}"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
-  python3 - "$TEST_HOME/.codex/config.toml" "$TEST_HOME/.codex-app/config.toml" "$explicit_home/config.toml" <<'PY'
+  python3 - "$TEST_HOME/.codex/config.toml" "$TEST_HOME/.codex-app/config.toml" "$explicit_home/config.toml" \
+    "$TEST_HOME/.config/nix-devshell/skills-plugin.json" <<'PY'
+import json
 import sys, tomllib
 from pathlib import Path
-for config_path in sys.argv[1:]:
+version = json.loads(Path(sys.argv[4]).read_text())['version']
+for config_path in sys.argv[1:4]:
     config = tomllib.loads(Path(config_path).read_text())
-    cache_path = str(
+    cache_root = Path(
         Path(config_path).parent
         / "plugins/cache/treflebonbon/treflebonbon-skills"
     )
+    cache_path = str(cache_root / version)
     for profile_name in ("dotfiles-secure", "dotfiles-peer"):
         filesystem = config["permissions"][profile_name]["filesystem"]
         assert filesystem[":root"] == "deny"
-        assert filesystem[cache_path] == {".": "read"}
+        assert filesystem[cache_path]["."] == "read"
+        for pattern in (
+            "**/*.pem", "**/*.key", "**/*.pfx", "**/*.p12",
+            "**/credentials.json", "**/credentials.*.json",
+            "**/secret.json", "**/secrets.json", "**/service-account*.json",
+        ):
+            assert filesystem[cache_path][pattern] == "deny", pattern
+        assert str(cache_root) not in filesystem
+        assert str(cache_root.parent) not in filesystem
+        assert not any(
+            path.startswith(str(cache_root) + "/") and path != cache_path
+            for path in filesystem
+        )
         assert "~/.ssh" not in filesystem
-        assert str(Path(cache_path).parent.parent) not in filesystem
 PY
+}
+
+@test "Codex managed sync does not publish cache grants when payload verification fails" {
+  prepare_chezmoi_fixture
+  mkdir -p "$TEST_HOME/.codex"
+  printf 'model = "previous config"\n' >"$TEST_HOME/.codex/config.toml"
+
+  run env PLUGIN_SYNC_VERIFY_FAIL=1 "${CHEZMOI_APPLY[@]}"
+
+  [ "$status" -ne 0 ]
+  [ "$(cat "$TEST_HOME/.codex/config.toml")" = 'model = "previous config"' ]
+  [ ! -e "$TEST_HOME/.codex/hooks.json" ]
+}
+
+@test "Codex managed --verify-only checks exact cache grants without mutating installed state" {
+  prepare_chezmoi_fixture
+  local explicit_home="$BATS_TEST_TMPDIR/explicit-codex-home"
+  local home install index=0 version
+  mkdir -p "$TEST_HOME/.codex-app" "$explicit_home"
+  run env CODEX_HOME="$explicit_home" "${CHEZMOI_APPLY[@]}"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+
+  version="$(jq -r '.version' "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json")"
+  for home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
+    cp "$home/config.toml" "$BATS_TEST_TMPDIR/config-$index.toml"
+    install="$home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
+    cp -R "$install" "$BATS_TEST_TMPDIR/install-$index"
+    index=$((index + 1))
+  done
+  cp "$PLUGIN_SYNC_LOG" "$BATS_TEST_TMPDIR/sync-before-verify.log"
+
+  run env HOME="$TEST_HOME" CODEX_HOME="$explicit_home" \
+    "$TEST_HOME/.local/bin/sync-codex-managed-config" --verify-only
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" >"$BATS_TEST_TMPDIR/verify-output.json"
+  python3 - "$BATS_TEST_TMPDIR/verify-output.json" "$TEST_HOME" "$explicit_home" "$version" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+result = json.loads(Path(sys.argv[1]).read_text())
+root, explicit, version = sys.argv[2:]
+homes = [str(Path(root, ".codex").resolve()), str(Path(root, ".codex-app").resolve()), str(Path(explicit).resolve())]
+assert result["status"] == "verified"
+assert result["codex_homes"] == homes
+records = result["results"]["codex"]
+assert [record["codex_home"] for record in records] == homes
+for record in records:
+    assert record["install_path"].endswith(f"/plugins/cache/treflebonbon/treflebonbon-skills/{version}")
+    assert [profile["profile"] for profile in record["profiles"]] == ["dotfiles-secure", "dotfiles-peer"]
+    assert all("**/credentials.json" in profile["denied_globs"] for profile in record["profiles"])
+PY
+
+  index=0
+  for home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
+    cmp "$BATS_TEST_TMPDIR/config-$index.toml" "$home/config.toml"
+    diff -r "$BATS_TEST_TMPDIR/install-$index" "$home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
+    index=$((index + 1))
+  done
+  python3 - "$PLUGIN_SYNC_LOG" "$BATS_TEST_TMPDIR/sync-before-verify.log" <<'PY'
+import sys
+from pathlib import Path
+
+def calls(path):
+    return [
+        [item.decode() for item in block.split(b"\0") if item]
+        for block in Path(path).read_bytes().split(b"\0\0") if block
+    ]
+
+before = calls(sys.argv[2])
+after = calls(sys.argv[1])
+assert after[:-1] == before
+assert after[-1][0] == "--verify-only"
+assert sum("--verify-only" not in call for call in after) == 1
+PY
+
+  home="$TEST_HOME/.codex"
+  install="$home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
+  python3 - "$home/config.toml" "$install" "$(dirname "$install")" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+contents = path.read_text()
+assert sys.argv[2] in contents
+contents = contents.replace(sys.argv[2], sys.argv[3], 1)
+contents += f'\n[permissions."dotfiles-secure".filesystem."{sys.argv[2]}"]\n"." = "read"\n'
+for pattern in (
+    "**/*.pem", "**/*.key", "**/*.pfx", "**/*.p12",
+    "**/credentials.json", "**/credentials.*.json",
+    "**/secret.json", "**/secrets.json", "**/service-account*.json",
+):
+    contents += f'"{pattern}" = "deny"\n'
+path.write_text(contents)
+PY
+  cp "$home/config.toml" "$BATS_TEST_TMPDIR/broad-grant.toml"
+  run env HOME="$TEST_HOME" CODEX_HOME="$explicit_home" \
+    "$TEST_HOME/.local/bin/sync-codex-managed-config" --verify-only
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"broad skills plugin cache grant"* ]]
+  cmp "$BATS_TEST_TMPDIR/broad-grant.toml" "$home/config.toml"
+
+  cp "$BATS_TEST_TMPDIR/config-0.toml" "$home/config.toml"
+  local cache_root="$home/plugins/cache/treflebonbon/treflebonbon-skills"
+  printf '\n[permissions."dotfiles-secure".filesystem."%s"]\n"." = "write"\n' \
+    "$cache_root" >>"$home/config.toml"
+  cp "$home/config.toml" "$BATS_TEST_TMPDIR/broad-write-grant.toml"
+  run env HOME="$TEST_HOME" CODEX_HOME="$explicit_home" \
+    "$TEST_HOME/.local/bin/sync-codex-managed-config" --verify-only
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"broad skills plugin cache grant"* ]]
+  cmp "$BATS_TEST_TMPDIR/broad-write-grant.toml" "$home/config.toml"
 }
 
 @test "Codex managed sync preserves config changes made by plugin installation" {
