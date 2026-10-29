@@ -11,7 +11,14 @@ setup() {
 }
 
 run_script() {
-  HOME="$FAKE_HOME" bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" bash "$SCRIPT"
+}
+
+copy_cli_shims() {
+  local destination="$1"
+  mkdir -p "$destination/private_dot_local/bin"
+  cp "$PROJECT_ROOT"/private_dot_local/bin/executable_{git-push-topic,git-push-reviewed,gh-review-thread,orca-send,codex-reviewer} \
+    "$destination/private_dot_local/bin/"
 }
 
 @test "preserves real directories whose ownership is unknown" {
@@ -52,6 +59,7 @@ run_script() {
 @test "resolves repo-local APM deploy targets via CHEZMOI_SOURCE_DIR when set" {
   local repo="$BATS_TEST_TMPDIR/ghq-source"
   mkdir -p "$repo/.agents/skills/frontend-design" "$repo/.claude/commands"
+  copy_cli_shims "$repo"
   printf 'stub\n' >"$repo/.agents/skills/frontend-design/SKILL.md"
 
   HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR="$repo" run bash "$SCRIPT"
@@ -74,6 +82,7 @@ run_script() {
   printf 'stub\n' >"$repo/.codex/skills/frontend-design/SKILL.md"
   printf '{}\n' >"$repo/.codex/hooks.json"
   printf '{}\n' >"$repo/.claude/apm-hooks.json"
+  copy_cli_shims "$repo"
 
   HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR= run bash "$SCRIPT"
   [ "$status" -eq 0 ]
@@ -163,7 +172,7 @@ run_script() {
   ln -s "../../.agents/skills/find-skills" "$codex_home/skills/find-skills"
   : >"$FAKE_HOME/.agents/skills/.managed-by-ai-nix"
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
   [ ! -e "$FAKE_HOME/.codex/skills/find-skills" ]
   [ ! -e "$codex_home/skills/find-skills" ]
@@ -175,7 +184,7 @@ run_script() {
   ln -s "../../.agents/skills/find-skills" "$FAKE_HOME/.codex-app/skills/find-skills"
   : >"$FAKE_HOME/.agents/skills/.managed-by-ai-nix"
 
-  run env -u CODEX_HOME HOME="$FAKE_HOME" bash "$SCRIPT"
+  run env -u CODEX_HOME CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" bash "$SCRIPT"
   [ "$status" -eq 0 ]
   [ ! -e "$FAKE_HOME/.codex/skills/find-skills" ]
   [ ! -e "$FAKE_HOME/.codex-app/skills/find-skills" ]
@@ -186,7 +195,7 @@ run_script() {
   ln -s "../../.agents/skills/find-skills" "$FAKE_HOME/.codex/skills/find-skills"
   : >"$FAKE_HOME/.agents/skills/.managed-by-ai-nix"
 
-  run env -u CODEX_HOME HOME="$FAKE_HOME" bash "$SCRIPT"
+  run env -u CODEX_HOME CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" bash "$SCRIPT"
   [ "$status" -eq 0 ]
   [ ! -e "$FAKE_HOME/.codex/skills/find-skills" ]
   [ ! -d "$FAKE_HOME/.codex-app" ]
@@ -198,7 +207,7 @@ run_script() {
     mkdir -p "$dir/baseline-ui" "$dir/fixing-accessibility" "$dir/fixing-metadata" "$dir/fixing-motion-performance" "$dir/modern-web-guidance"
   done
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
@@ -233,7 +242,7 @@ run_script() {
     "$codex_home/skills/frontend-design"
   printf 'stub\n' >"$FAKE_HOME/.agents/skills/web-design-guidelines/SKILL.md"
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   [ -d "$FAKE_HOME/.agents/skills/effect-ts" ]
@@ -259,7 +268,7 @@ run_script() {
     printf 'stub\n' >"$dir/frontend-design/SKILL.md"
   done
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   [ ! -e "$FAKE_HOME/.agents/skills/to-pr" ]
@@ -299,7 +308,7 @@ run_script() {
     mkdir -p "$dir/agent-browser" "$dir/grill-me" "$dir/teach" "$dir/writing-for-agents" "$dir/writing-great-skills" "$dir/modern-web-guidance"
   done
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   for dir in "${hub_dirs[@]}"; do
@@ -386,7 +395,7 @@ run_script() {
     mkdir -p "$dir/writing-great-skills"
   done
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   for dir in "${managed_dirs[@]}"; do
@@ -410,7 +419,7 @@ run_script() {
     mkdir -p "$dir/autofix" "$dir/uxaudit" "$dir/modern-web-guidance"
   done
 
-  HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
+  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
   for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do

@@ -15,7 +15,7 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 - **ワークフロー**: herdr
 - **コードレビュー補助**: code-review-graph（CLI のみ常設、利用はリポジトリ単位で opt-in）
 
-外部 skill / plugin は apm が担当する（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。
+外部 skill / plugin は apm と公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。`treflebonbon-skills` の固定版は `~/.config/nix-devshell/skills-plugin.json` が所有し、共用 CLI と raw Codex 入口はこの pin の immutable source を検証して実行する。`sync-skills-plugin --verify-only` は同期を行わず、current pin・receipt・各 runtime 設定と cache を読み取り照合し、成功時に source path を JSON で返す。旧 CLI への復旧は既知の baseline と一致する backup だけを使う。raw 起動は固定 source が欠ける場合に停止する。
 
 ## Herdr の手動利用
 

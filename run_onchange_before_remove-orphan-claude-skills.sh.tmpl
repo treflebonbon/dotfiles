@@ -15,7 +15,12 @@ fi
 
 {{ includeTemplate "local-skills.sh.tmpl" . }}
 
+{{- range $name := list "git-push-topic" "git-push-reviewed" "gh-review-thread" "orca-send" "codex-reviewer" }}
+# CLI cutover source checksum: {{ include (printf "private_dot_local/bin/executable_%s" $name) | sha256sum }}
+{{- end }}
+
 legacy_skills prepare
+legacy_skills preflight-cli-cutover "${CHEZMOI_SOURCE_DIR:-${HOME}/.local/share/chezmoi}"
 
 # APM が配備する mattpocock/skills の公式 full set。
 # ~/.agents/skills と ~/.claude/skills の real-dir cleanup から除外し、APM の

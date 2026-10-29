@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 import tomllib
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from importlib.machinery import SourceFileLoader
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +57,20 @@ class VerifyCheckoutTests(unittest.TestCase):
         entrypoint = self.root / "bin/tool"
         entrypoint.write_text("#!/bin/sh\nexit 0\n")
         entrypoint.chmod(0o755)
+        for name in sync_skills_plugin.GLOBAL_CLI_NAMES:
+            public_entry = self.root / "bin" / name
+            public_entry.write_text(f"#!/bin/sh\n# fixture for {name}\nexit 0\n")
+            public_entry.chmod(0o755)
+        for name in ("devshell-env", "codex-worktree"):
+            public_entry = self.root / "bin" / name
+            public_entry.write_text(f"#!/bin/sh\n# fixture for {name}\nexit 0\n")
+            public_entry.chmod(0o755)
+        public_module = self.root / "lib/python/treflebonbon_skills"
+        public_module.mkdir(parents=True)
+        (public_module / "codex_reviewer.py").write_text("# public fixture module\n")
+        (public_module / "git_context.py").write_text("# shared fixture module\n")
         git(self.root, "add", "plugin.json", "README.md", "bin/tool")
+        git(self.root, "add", "bin", "lib")
         git(self.root, "commit", "-qm", "fixture")
         self.pin = {
             "owner": "treflebonbon",
@@ -63,7 +79,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             "tree": git(self.root, "rev-parse", "HEAD^{tree}"),
             "version": "0.2.1",
             "nar_hash": "sha256-fixture",
-            "file_count": 3,
+            "file_count": len(sync_skills_plugin.tracked_tree(self.root)),
         }
         self.source = sync_skills_plugin.ensure_marketplace_source(
             self.root,
@@ -632,6 +648,558 @@ class VerifyCheckoutTests(unittest.TestCase):
                 sync_skills_plugin.PluginSyncError, "README.md"
             ):
                 sync_skills_plugin.sync_codex(self.root, self.source, self.pin, home)
+
+    def test_read_only_verification_matches_current_homes_and_leaves_receipt_unchanged(
+        self,
+    ) -> None:
+        claude = self.make_mock_claude()
+        cli = self.make_mock_codex()
+        agy = self.make_mock_agy()
+        home = Path(self.temporary.name) / "managed-home"
+        claude_config = home / ".claude"
+        claude_config.mkdir(parents=True)
+        codex_app = home / ".codex-app"
+        codex_app.mkdir(parents=True)
+        explicit = Path(self.temporary.name) / "explicit-codex-home"
+        homes = [home / ".codex", codex_app, explicit]
+        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        environment = {
+            "PATH": f"{claude.parent}:{cli.parent}:{agy.parent}:{os.environ['PATH']}",
+            "HOME": str(home),
+            "CODEX_HOME": str(explicit),
+            "CLAUDE_CONFIG_DIR": str(claude_config),
+        }
+
+        with patch.dict(os.environ, environment):
+            sync_skills_plugin.sync_all(
+                homes,
+                pin=self.pin,
+                checkout=self.root,
+                source_root=self.source,
+                receipt_file=receipt_file,
+            )
+            before = receipt_file.read_bytes()
+            before_stat = receipt_file.stat()
+            command_counts = {
+                path: len((path / "codex-commands.jsonl").read_text().splitlines())
+                for path in homes
+            }
+            claude_log = home / "claude-commands.jsonl"
+            agy_log = home / "agy-commands.jsonl"
+            claude_count = len(claude_log.read_text().splitlines())
+            agy_count = len(agy_log.read_text().splitlines())
+            managed_files = [
+                claude_config / "settings.json",
+                claude_config / "plugins/known_marketplaces.json",
+                claude_config / "plugins/installed_plugins.json",
+                home / ".gemini/config/import_manifest.json",
+            ]
+            managed_before = {path: path.read_bytes() for path in managed_files}
+            cache_roots = [
+                claude_config / "plugins/cache",
+                home / ".gemini/config/plugins/treflebonbon-skills",
+                *(path / "plugins/cache" for path in homes),
+            ]
+            cache_before = {
+                root: sync_skills_plugin.filesystem_tree(root)[0]
+                for root in cache_roots
+            }
+
+            result = sync_skills_plugin.verify_current_installation(
+                sync_skills_plugin.current_codex_homes(),
+                pin=self.pin,
+                checkout=self.root,
+                source_root=self.source,
+                receipt_file=receipt_file,
+            )
+            cli_source = sync_skills_plugin.verify_cli_source(
+                sync_skills_plugin.current_codex_homes(),
+                pin=self.pin,
+                checkout=self.root,
+                source_root=self.source,
+                receipt_file=receipt_file,
+            )
+            self.assertEqual(cli_source["source"], str(self.source.resolve()))
+            for name in sync_skills_plugin.GLOBAL_CLI_NAMES:
+                self.assertEqual(
+                    sync_skills_plugin.public_cli_path(cli_source["source"], name),
+                    self.source / "bin" / name,
+                )
+
+        self.assertEqual(result["source"], str(self.source.resolve()))
+        self.assertEqual(result["codex_homes"], [str(path.resolve()) for path in homes])
+        self.assertEqual(receipt_file.read_bytes(), before)
+        self.assertEqual(receipt_file.stat().st_mtime_ns, before_stat.st_mtime_ns)
+        self.assertEqual(
+            {path: path.read_bytes() for path in managed_files}, managed_before
+        )
+        self.assertEqual(
+            {root: sync_skills_plugin.filesystem_tree(root)[0] for root in cache_roots},
+            cache_before,
+        )
+        for codex_home in homes:
+            commands = [
+                json.loads(line)
+                for line in (codex_home / "codex-commands.jsonl")
+                .read_text()
+                .splitlines()
+            ]
+            self.assertEqual(
+                commands[command_counts[codex_home] :],
+                [["plugin", "list", "--json"]],
+            )
+        self.assertEqual(
+            [json.loads(line) for line in claude_log.read_text().splitlines()][
+                claude_count:
+            ],
+            [["plugin", "list", "--json"]],
+        )
+        self.assertEqual(
+            [json.loads(line) for line in agy_log.read_text().splitlines()][agy_count:],
+            [["plugin", "list", "--json"]],
+        )
+        module = self.source / "lib/python/treflebonbon_skills/codex_reviewer.py"
+        module.write_text("tampered module\n")
+        with patch.dict(os.environ, environment):
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError,
+                "installed plugin content does not match pin: lib/python/treflebonbon_skills/codex_reviewer.py",
+            ):
+                sync_skills_plugin.verify_cli_source(
+                    homes,
+                    pin=self.pin,
+                    checkout=self.root,
+                    source_root=self.source,
+                    receipt_file=receipt_file,
+                )
+
+    def test_read_only_verification_rejects_duplicate_or_stale_codex_homes(
+        self,
+    ) -> None:
+        cli = self.make_mock_codex()
+        home = Path(self.temporary.name) / "managed-home"
+        codex_home = home / ".codex"
+        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                    "HOME": str(home),
+                },
+            ),
+            patch.object(
+                sync_skills_plugin,
+                "sync_claude",
+                return_value={"runtime": "claude"},
+            ),
+            patch.object(
+                sync_skills_plugin, "sync_agy", return_value={"runtime": "agy"}
+            ),
+        ):
+            sync_skills_plugin.sync_all(
+                [codex_home],
+                pin=self.pin,
+                checkout=self.root,
+                source_root=self.source,
+                receipt_file=receipt_file,
+            )
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "duplicate Codex home"
+            ):
+                sync_skills_plugin.verify_current_installation(
+                    [codex_home, codex_home],
+                    pin=self.pin,
+                    checkout=self.root,
+                    source_root=self.source,
+                    receipt_file=receipt_file,
+                )
+
+            (home / ".codex-app").mkdir()
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "current Codex homes"
+            ):
+                sync_skills_plugin.verify_current_installation(
+                    sync_skills_plugin.current_codex_homes(),
+                    pin=self.pin,
+                    checkout=self.root,
+                    source_root=self.source,
+                    receipt_file=receipt_file,
+                )
+
+            receipt = json.loads(receipt_file.read_text())
+            receipt["pin"]["rev"] = "0" * 40
+            receipt_file.write_text(json.dumps(receipt) + "\n")
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "receipt pin does not match"
+            ):
+                sync_skills_plugin.verify_current_installation(
+                    [codex_home],
+                    pin=self.pin,
+                    checkout=self.root,
+                    source_root=self.source,
+                    receipt_file=receipt_file,
+                )
+
+    def test_verify_only_command_reports_the_read_only_result(self) -> None:
+        result = {
+            "status": "verified",
+            "pin": self.pin,
+            "checkout": str(self.root),
+            "source": str(self.source),
+            "codex_homes": ["/fixture/.codex"],
+            "results": {"codex": []},
+        }
+        output = io.StringIO()
+        with (
+            patch.object(sys, "argv", [str(SCRIPT), "--verify-only"]),
+            patch.object(
+                sync_skills_plugin,
+                "verify_current_installation",
+                return_value=result,
+            ) as verify,
+            patch.object(sync_skills_plugin, "sync_all") as sync,
+            redirect_stdout(output),
+        ):
+            status = sync_skills_plugin.main()
+
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(output.getvalue()), result)
+        verify.assert_called_once_with(None)
+        sync.assert_not_called()
+
+    def test_verify_source_only_command_does_not_require_receipt_or_runtime_state(
+        self,
+    ) -> None:
+        result = sync_skills_plugin.verify_fixed_source(
+            pin=self.pin, checkout=self.root, source_root=self.source
+        )
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["checkout"], str(self.root))
+        self.assertEqual(result["source"], str(self.source))
+
+    def test_verify_source_only_cli_is_read_only(self) -> None:
+        result = {
+            "status": "verified",
+            "pin": self.pin,
+            "checkout": str(self.root),
+            "source": str(self.source),
+            "files": self.pin["file_count"],
+        }
+        output = io.StringIO()
+        with (
+            patch.object(sys, "argv", [str(SCRIPT), "--verify-source-only"]),
+            patch.object(
+                sync_skills_plugin, "verify_fixed_source", return_value=result
+            ) as verify,
+            patch.object(sync_skills_plugin, "sync_all") as sync,
+            redirect_stdout(output),
+        ):
+            status = sync_skills_plugin.main()
+
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(output.getvalue()), result)
+        verify.assert_called_once_with()
+        sync.assert_not_called()
+
+    def test_run_raw_command_uses_only_the_verified_public_entry(self) -> None:
+        entry = self.source / "bin/devshell-env"
+        entry.parent.mkdir(parents=True, exist_ok=True)
+        entry.write_text("#!/bin/sh\nexit 0\n")
+        entry.chmod(0o755)
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                return_value={"source": str(self.source)},
+            ),
+            patch.object(sync_skills_plugin.os, "execv") as execv,
+        ):
+            sync_skills_plugin.exec_raw_runtime(
+                "admit", ["--git-head", "a" * 40, "--", "flake.nix", "task.sh"]
+            )
+
+        execv.assert_called_once_with(
+            str(entry),
+            [str(entry), "admit", "--git-head", "a" * 40, "--", "flake.nix", "task.sh"],
+        )
+
+    def test_codex_worktree_uses_the_public_entry_without_a_command_prefix(
+        self,
+    ) -> None:
+        entry = self.source / "bin/codex-worktree"
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                return_value={"source": str(self.source)},
+            ),
+            patch.object(sync_skills_plugin.os, "execv") as execv,
+        ):
+            sync_skills_plugin.exec_raw_runtime(
+                "codex-worktree", ["--no-alt-screen", "task with spaces"]
+            )
+
+        execv.assert_called_once_with(
+            str(entry), [str(entry), "--no-alt-screen", "task with spaces"]
+        )
+
+    def test_run_raw_command_stops_when_the_public_entry_is_missing(self) -> None:
+        (self.source / "bin/devshell-env").unlink()
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                return_value={"source": str(self.source)},
+            ),
+            patch.object(sync_skills_plugin.os, "execv") as execv,
+        ):
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "pinned raw runtime unavailable"
+            ):
+                sync_skills_plugin.exec_raw_runtime("codex", ["--probe"])
+
+        execv.assert_not_called()
+
+    def test_raw_codex_worktree_stops_when_its_public_entry_is_missing(self) -> None:
+        (self.source / "bin/codex-worktree").unlink()
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                return_value={"source": str(self.source)},
+            ),
+            patch.object(sync_skills_plugin.os, "execv") as execv,
+        ):
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "pinned raw runtime unavailable"
+            ):
+                sync_skills_plugin.exec_raw_runtime("codex-worktree", ["--probe"])
+
+        execv.assert_not_called()
+
+    def test_current_codex_home_detection_deduplicates_default_and_explicit_paths(
+        self,
+    ) -> None:
+        home = Path(self.temporary.name) / "home"
+        desktop = home / ".codex-app"
+        desktop.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {"HOME": str(home), "CODEX_HOME": str(home / ".codex")},
+        ):
+            self.assertEqual(
+                sync_skills_plugin.current_codex_homes(),
+                [home / ".codex", desktop],
+            )
+
+    def test_current_receipt_does_not_fall_back_to_previous_verified_receipt(
+        self,
+    ) -> None:
+        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        receipt_file.parent.mkdir()
+        receipt_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "status": "failed",
+                    "previous_verified": {"schema_version": 1, "status": "verified"},
+                }
+            )
+            + "\n"
+        )
+        receipt_file.chmod(0o600)
+        with self.assertRaisesRegex(
+            sync_skills_plugin.PluginSyncError,
+            "current plugin sync receipt is not verified",
+        ):
+            sync_skills_plugin.read_verified_receipt(receipt_file)
+
+    def test_global_cli_dispatch_preserves_the_reviewed_entry_name(self) -> None:
+        selected = self.source / "bin/git-push-reviewed"
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                return_value={"source": str(self.source)},
+            ),
+            patch.object(
+                sync_skills_plugin.os, "execv", side_effect=RuntimeError("exec")
+            ) as execv,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exec"):
+                sync_skills_plugin.exec_global_cli("git-push-reviewed", ["--probe"])
+
+        execv.assert_called_once_with(str(selected), [str(selected), "--probe"])
+
+    def test_each_public_cli_start_failure_recovers_to_its_validated_backup(
+        self,
+    ) -> None:
+        for name in sorted(sync_skills_plugin.GLOBAL_CLI_NAMES):
+            backup = Path(self.temporary.name) / f"legacy/{name}"
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            backup.write_text("#!/bin/sh\nexit 0\n")
+            with (
+                patch.object(
+                    sync_skills_plugin,
+                    "verify_cli_source",
+                    return_value={"source": str(self.source)},
+                ),
+                patch.object(
+                    sync_skills_plugin,
+                    "verified_legacy_cli_backup",
+                    return_value=backup,
+                ),
+                patch.object(
+                    sync_skills_plugin.os,
+                    "execv",
+                    side_effect=[
+                        OSError("fixture startup failure"),
+                        RuntimeError("fallback exec"),
+                    ],
+                ) as execv,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "fallback exec"):
+                    sync_skills_plugin.exec_global_cli(name, ["--probe"])
+
+            self.assertEqual(
+                execv.call_args_list,
+                [
+                    call(
+                        str(self.source / "bin" / name),
+                        [str(self.source / "bin" / name), "--probe"],
+                    ),
+                    call(str(backup), [str(backup), "--probe"]),
+                ],
+            )
+
+    def test_missing_public_cli_uses_only_the_validated_legacy_backup(self) -> None:
+        backup = Path(self.temporary.name) / "legacy/orca-send"
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                return_value={
+                    "source": str(Path(self.temporary.name) / "missing-source")
+                },
+            ),
+            patch.object(
+                sync_skills_plugin,
+                "verified_legacy_cli_backup",
+                return_value=backup,
+            ),
+            patch.object(
+                sync_skills_plugin.os, "execv", side_effect=RuntimeError("exec")
+            ) as execv,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exec"):
+                sync_skills_plugin.exec_global_cli("orca-send", ["--probe"])
+
+        execv.assert_called_once_with(str(backup), [str(backup), "--probe"])
+
+    def test_global_cli_dispatch_uses_only_a_validated_legacy_backup_on_stale_state(
+        self,
+    ) -> None:
+        backup = Path(self.temporary.name) / "legacy/git-push-topic"
+        backup.parent.mkdir(parents=True)
+        backup.write_text("#!/bin/sh\nexit 0\n")
+        with (
+            patch.object(
+                sync_skills_plugin,
+                "verify_cli_source",
+                side_effect=sync_skills_plugin.PluginSyncError("stale receipt"),
+            ),
+            patch.object(
+                sync_skills_plugin,
+                "verified_legacy_cli_backup",
+                return_value=backup,
+            ),
+            patch.object(
+                sync_skills_plugin.os, "execv", side_effect=RuntimeError("exec")
+            ) as execv,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exec"):
+                sync_skills_plugin.exec_global_cli("git-push-topic", ["--probe"])
+
+        execv.assert_called_once_with(str(backup), [str(backup), "--probe"])
+
+    def test_legacy_backup_manifest_and_payload_cannot_be_changed_together(
+        self,
+    ) -> None:
+        backup_state = (
+            Path(self.temporary.name)
+            / ".local/state/treflebonbon-skills/plugin-sync/receipt.json"
+        )
+        legacy_root = (
+            backup_state.parents[2]
+            / "treflebonbon-skills/legacy"
+            / sync_skills_plugin.LEGACY_CLI_REVISION
+        )
+        names = {f".local/bin/{name}" for name in sync_skills_plugin.GLOBAL_CLI_NAMES}
+        names.add(".local/share/devshell-env/devshell_environment.py")
+        cli_manifest = {}
+        for relative in sorted(names):
+            cli_manifest[relative] = {
+                "sha256": sync_skills_plugin.hashlib.sha256(
+                    relative.encode()
+                ).hexdigest(),
+                "mode": 0o755 if relative.startswith(".local/bin/") else 0o644,
+            }
+        trusted = {
+            "revision": sync_skills_plugin.LEGACY_CLI_REVISION,
+            "cli": cli_manifest,
+        }
+        with (
+            patch.object(sync_skills_plugin, "state_path", return_value=backup_state),
+            patch.object(
+                sync_skills_plugin, "trusted_legacy_cli_manifest", return_value=trusted
+            ),
+        ):
+            for relative, expected in cli_manifest.items():
+                path = legacy_root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(relative.encode())
+                path.chmod(expected["mode"])
+            manifest_path = legacy_root / "baseline.json"
+            manifest_path.write_text(
+                json.dumps({**trusted, "skills": {}, "directories": {}}) + "\n"
+            )
+            manifest_path.chmod(0o600)
+
+            selected = sync_skills_plugin.verified_legacy_cli_backup("git-push-topic")
+            self.assertEqual(selected, legacy_root / ".local/bin/git-push-topic")
+
+            changed = legacy_root / ".local/bin/git-push-topic"
+            changed.write_text("altered payload\n")
+            changed.chmod(0o755)
+            changed_relative = ".local/bin/git-push-topic"
+            altered_manifest = json.loads(manifest_path.read_text())
+            altered_manifest["cli"][changed_relative]["sha256"] = (
+                sync_skills_plugin.hashlib.sha256(changed.read_bytes()).hexdigest()
+            )
+            manifest_path.write_text(json.dumps(altered_manifest) + "\n")
+            manifest_path.chmod(0o600)
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "manifest is invalid"
+            ):
+                sync_skills_plugin.verified_legacy_cli_backup("git-push-topic")
+
+    def test_read_only_verification_rejects_symlinked_source_before_resolving(
+        self,
+    ) -> None:
+        source_alias = Path(self.temporary.name) / "source-alias"
+        source_alias.symlink_to(self.source, target_is_directory=True)
+        with self.assertRaisesRegex(
+            sync_skills_plugin.PluginSyncError, "source snapshot root is a symlink"
+        ):
+            sync_skills_plugin.verify_pinned_source(
+                [Path(self.temporary.name) / "home/.codex"],
+                pin=self.pin,
+                checkout=self.root,
+                source_root=source_alias,
+                receipt_file=Path(self.temporary.name) / "missing-receipt.json",
+                require_existing_homes=False,
+            )
 
     def test_failed_codex_source_update_restores_previous_verified_registration(
         self,

@@ -28,10 +28,10 @@ Path(sys.argv[1]).write_text(r'''{
   }; };
 }''' % (bash, utils, python, system, system))
 PY
-  cp "$PROJECT_ROOT/tests/fixtures/secret-isolation/human-reviewed.py" "$RAW_BASE/work/reviewed.py"
-  cp "$PROJECT_ROOT/tests/fixtures/secret-isolation/human-boundary.py" "$RAW_BASE/work/task.py"
-  printf 'public fixture\n' > "$RAW_BASE/work/fixture.txt"
-  printf 'touch envrc-executed; exit 89\n' > "$RAW_BASE/work/.envrc"
+  cp "$PROJECT_ROOT/tests/fixtures/human-validation/human-reviewed.py" "$RAW_BASE/work/reviewed.py"
+  cp "$PROJECT_ROOT/tests/fixtures/human-validation/human-boundary.py" "$RAW_BASE/work/task.py"
+  printf 'public fixture\n' >"$RAW_BASE/work/fixture.txt"
+  printf 'touch envrc-executed; exit 89\n' >"$RAW_BASE/work/.envrc"
   raw_admit flake.nix reviewed.py task.py fixture.txt .envrc
   run python3 "$PROJECT_ROOT/tests/helpers/human-validation.py" "$RAW_BASE"
   raw_assert_status 0

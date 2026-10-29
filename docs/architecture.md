@@ -26,19 +26,15 @@ chezmoi 管理の dotfiles。DevPod / VS Code Dev Containers で自動デプロ�
 
 プロジェクト言語は per-repo `flake.nix` で供給する。新規 repo は `nix flake init -t 'github:treflebonbon/dotfiles#<lang>'`（go/rust/elixir/perl/gleam/bun）で展開する。テンプレ実体は `templates/<lang>/`、ルート `./flake.nix` の `templates` output で公開（`.chezmoiignore` で home には非配備）。
 
-6テンプレートは共通 `with-env` の検証済み dotfiles revision を flake input に固定し、言語用 nixpkgs を `follows` で共有する。生成先の `nix flake lock` で依存を確定し、`nix develop .#default` と `nix run .#with-env -- command` を `.envrc` なしで使える。各 devShell に同じ package を含め、準備済み raw Codex の `with-env --prepared` にも対応する。 raw Codex は公開入力だけを専用 store・HOME へ渡すため、この入口ではホスト dotenv を注入しない。共通の隔離実装は `private_dot_local/share/codex-isolation/` に置き、手動 probe と配備する launcher が共有する。独立 repo 向けの手順・言語別 app 組込み例は各テンプレートの `DEVELOPMENT.md`、生成先の dotenv 除外は `.gitignore` に同梱する。共通処理をテンプレートへコピーせず、更新時は6 input の revision と独立展開テストを揃える。
+6テンプレートは共通 `with-env` の検証済み dotfiles revision を flake input に固定し、言語用 nixpkgs を `follows` で共有する。生成先の `nix flake lock` で依存を確定し、`nix develop .#default` と `nix run .#with-env -- command` を `.envrc` なしで使える。各 devShell に同じ package を含め、準備済み raw Codex の `with-env --prepared` にも対応する。 raw Codex は公開入力だけを専用 store・HOME へ渡すため、この入口ではホスト dotenv を注入しない。隔離実装と共有 module は [固定版 plugin](../private_dot_config/nix-devshell/skills-plugin.json) の source を正本とし、Nix 配布と launcher はそこから読み込む。独立 repo 向けの手順・言語別 app 組込み例は各テンプレートの `DEVELOPMENT.md`、生成先の dotenv 除外は `.gitignore` に同梱する。共通処理をテンプレートへコピーせず、更新時は6 input の revision と独立展開テストを揃える。
 
 共有チャンネルより新しい Bun・Go・Perl・Gleam・Rust/Elixir の LSP は、汎用環境と対象テンプレートの `nixpkgs-language-sources` に同じ immutable revision を固定する。Bun はパッケージ定義だけを共有 nixpkgs へ取り込み、Go と Perl は compiler/interpreter と周辺ツールをその revision の package set からまとめて取得する。Gleam は compiler、Rust と Elixir は LSP だけをその package set から選ぶ。共通 `with-env` と formatter は既存チャンネルを使う。Node.js 24 は `packages/nodejs-bin.nix` で公式配布バイナリと OS／CPU ごとの hash を固定し、本体をコンパイルせずセキュリティ修正を届ける。`overlays/runtime-security.nix` は CLI の起動先と npm builder にも適用する。Bun テンプレートは独立展開のため同じ `nodejs-bin.nix` を持ち、版・hash を一緒に更新する。APM は `nixpkgs-brotli-sources` の修正版で既存 direct package の Python binding と Git / curl の Brotli 依存を再構築し、AI snapshot と APM payload の版は保つ。共有 package set 全体の Brotli は置換しない（[調査・検証記録](research/cve-2026-111497-brotli-20261027.md)）。
 
-## raw Codex の gateway 実行資源
-
-gateway 実行資源は `secret-isolation-gateway.py` の `gateway_scope` が所有する。呼び出し側には mount 用 directory を返し、部分起動・後続準備・隔離実行の失敗や Ctrl-C でも gateway と一時 directory の解放を試みる。一つの解放に失敗しても残りを試み、元の失敗を保持しながら解放失敗も診断に残す。解放だけが失敗した場合も非0終了し、復旧用 session は保持する。SIGTERM への追加対応と、処理中の通信の停止制御は含めない。資源所有の interface を通した回帰は `tests/gateway-lifecycle.bats` で検証する。
-
 ## プロジェクト環境準備
 
-`private_dot_local/share/devshell-env/devshell_environment.py` が Repository・trust・環境準備を共有する。`prepare_environment` は準備前後の Git 所属と flake の対応を確認してから環境を返し、`reuse_environment` は Nix を再評価せず準備済み環境を照合する。CLI・Claude・raw Codex は同じ module を読み、CLI の再実行で内部定義を取得しない。dotenv、Claude session、Codex の隔離・固定設定・起動・結果返却は各 adapter に残す。
+固定版 plugin の `lib/python/treflebonbon_skills/devshell_environment.py` が Repository・trust・環境準備を所有する。dotfiles は Nix shell と `with-env` app からこの module を供給し、generic CLI はそれを利用する。`prepare_environment` は準備前後の Git 所属と flake の対応を確認して環境を返し、`reuse_environment` は Nix を再評価せず準備済み環境を照合する。`.env` の読込み、Claude session、reload/hook、raw 起動 adapter は dotfiles 側に残す。
 
-chezmoi 配備・公開 Nix `with-env`・raw の隔離コピーは `bin/` と `share/devshell-env/` の配置を揃える。Python `-I` でも配備先の絶対パスから同じ module を読み込み、プロジェクトの cwd や `PYTHONPATH` に依存しない。共通化は raw の初期化場所を変えず、Nix の評価は隔離後に行う（[ADR-0044](adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)）。
+`devshell-env codex|admit` と `codex-worktree` は固定版の public entry を検証して起動する。public source と current installation の照合に失敗した raw 経路は保留し、旧ローカル実装へ無保護で fallback しない。共通化は raw の初期化場所を変えず、Nix の評価は隔離後に行う（[ADR-0044](adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)）。
 
 ## ツール追加先の使い分け
 

@@ -142,9 +142,92 @@ def prepare():
         save_once(target, payload, expected["mode"])
 
 
+def preflight_cli_cutover(source_root):
+    home = Path(os.environ["HOME"]).resolve()
+    state = Path(os.environ.get("XDG_STATE_HOME", str(home / ".local/state"))).resolve()
+    destination = state / "treflebonbon-skills/legacy" / baseline["revision"]
+    cli_names = (
+        "git-push-topic",
+        "git-push-reviewed",
+        "gh-review-thread",
+        "orca-send",
+        "codex-reviewer",
+    )
+    source_root = Path(source_root).resolve(strict=True)
+
+    def require_saved_backup(relative):
+        manifest = destination / "baseline.json"
+        info = entry_info(manifest)
+        expected_manifest = (
+            json.dumps(baseline, sort_keys=True, ensure_ascii=False) + "\n"
+        )
+        if (
+            info is None
+            or not stat.S_ISREG(info.st_mode)
+            or stat.S_IMODE(info.st_mode) != 0o600
+            or manifest.read_text(encoding="utf-8") != expected_manifest
+        ):
+            raise ValueError(
+                "旧 CLI 切替を保留します: 固定 backup manifest がありません"
+            )
+        expected = baseline["cli"][relative]
+        saved = destination / relative
+        if (
+            entry_info(saved) is None
+            or is_symlink(saved)
+            or not matches_file(saved, expected)
+        ):
+            raise ValueError(
+                f"旧 CLI 切替を保留します: 既知 backup がありません: {relative}"
+            )
+
+    for name in cli_names:
+        relative = f".local/bin/{name}"
+        current = home / relative
+        source = source_root / "private_dot_local/bin" / f"executable_{name}"
+        source_info = entry_info(source)
+        if (
+            source_info is None
+            or not stat.S_ISREG(source_info.st_mode)
+            or not source_info.st_mode & 0o111
+        ):
+            raise ValueError(f"新しい CLI shim がありません: {source}")
+        current_info = entry_info(current)
+        if current_info is None:
+            continue
+        if stat.S_ISREG(current_info.st_mode) and matches_file(
+            current,
+            {
+                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "mode": stat.S_IMODE(source_info.st_mode),
+            },
+        ):
+            continue
+
+        expected = baseline["cli"][relative]
+        known_legacy = not is_symlink(current) and matches_file(current, expected)
+        if name == "git-push-reviewed" and is_symlink(current):
+            alias = home / ".local/bin/git-push-topic"
+            known_legacy = (
+                os.readlink(current) == "git-push-topic"
+                and not is_symlink(alias)
+                and matches_file(alias, baseline["cli"][".local/bin/git-push-topic"])
+            )
+        if not known_legacy:
+            raise ValueError(
+                f"旧 CLI 切替を保留します: 未知の内容を保持します: {current}"
+            )
+
+        require_saved_backup(relative)
+        if name == "codex-reviewer":
+            require_saved_backup(".local/share/devshell-env/devshell_environment.py")
+
+
 try:
     if action == "prepare":
         prepare()
+    elif action == "preflight-cli-cutover":
+        preflight_cli_cutover(arguments[0])
     elif action == "check-skill":
         raise SystemExit(0 if check_skill(arguments[0], Path(arguments[1])) else 1)
     else:

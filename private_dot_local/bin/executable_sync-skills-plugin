@@ -36,6 +36,18 @@ class CodexMarketplaceUpdateError(PluginSyncError):
         self.recovery = recovery
 
 
+PIN_FIELDS = ("owner", "repo", "rev", "tree", "version", "nar_hash", "file_count")
+GLOBAL_CLI_NAMES = {
+    "git-push-topic",
+    "git-push-reviewed",
+    "gh-review-thread",
+    "orca-send",
+    "codex-reviewer",
+}
+RAW_RUNTIME_COMMANDS = {"codex", "admit", "codex-worktree"}
+LEGACY_CLI_REVISION = "6d5b73dd8b9c88531a74e724ca9d83fa34b44b35"
+
+
 def git(root: Path, *args: str) -> bytes:
     env = os.environ.copy()
     for key in tuple(env):
@@ -463,16 +475,19 @@ def codex_inventory_item(
 
 def require_marketplace_source(config: Path, checkout: Path) -> None:
     settings = read_json(config / "settings.json", "Claude settings")
-    marketplace = settings.get("extraKnownMarketplaces", {}).get("treflebonbon", {})
+    if not isinstance(settings, dict):
+        raise PluginSyncError("Claude settings are invalid")
+    known = settings.get("extraKnownMarketplaces", {})
+    enabled = settings.get("enabledPlugins", {})
+    if not isinstance(known, dict) or not isinstance(enabled, dict):
+        raise PluginSyncError("Claude managed settings are invalid")
+    marketplace = known.get("treflebonbon", {})
     source = marketplace.get("source", {}) if isinstance(marketplace, dict) else {}
     if source != {"source": "directory", "path": str(checkout)}:
         raise PluginSyncError(
             "Claude managed marketplace source does not match pinned checkout"
         )
-    if (
-        settings.get("enabledPlugins", {}).get("treflebonbon-skills@treflebonbon")
-        is not True
-    ):
+    if enabled.get("treflebonbon-skills@treflebonbon") is not True:
         raise PluginSyncError("Claude plugin is not enabled in managed settings")
 
 
@@ -1565,6 +1580,847 @@ def previous_verified_receipt(path: Path) -> dict[str, Any] | None:
     return None
 
 
+def current_codex_homes() -> list[Path]:
+    home = Path(os.environ.get("HOME", "~")).expanduser()
+    if not home.is_absolute():
+        raise PluginSyncError("HOME must be absolute")
+    homes = [home / ".codex"]
+    desktop = home / ".codex-app"
+    if desktop.is_dir():
+        homes.append(desktop)
+    explicit = os.environ.get("CODEX_HOME")
+    if explicit:
+        homes.append(Path(explicit).expanduser())
+    return normalize_codex_homes(homes, allow_duplicates=True, resolve_paths=False)
+
+
+def normalize_codex_homes(
+    codex_homes: Iterable[Path],
+    *,
+    require_existing: bool = False,
+    allow_duplicates: bool = False,
+    resolve_paths: bool = True,
+) -> list[Path]:
+    normalized: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in codex_homes:
+        path = Path(candidate).expanduser()
+        if not path.is_absolute():
+            raise PluginSyncError("CODEX_HOME must be absolute")
+        if resolve_paths:
+            try:
+                path = path.resolve(strict=require_existing)
+            except OSError as error:
+                raise PluginSyncError(
+                    f"Codex home is missing or unreadable: {path}"
+                ) from error
+        else:
+            path = Path(os.path.abspath(path))
+        if path in seen:
+            if allow_duplicates:
+                continue
+            raise PluginSyncError(f"duplicate Codex home: {path}")
+        seen.add(path)
+        if require_existing and not path.is_dir():
+            raise PluginSyncError(f"Codex home is missing or unreadable: {path}")
+        normalized.append(path)
+    if not normalized:
+        raise PluginSyncError("at least one current Codex home is required")
+    return normalized
+
+
+def read_verified_receipt(path: Path) -> dict[str, Any]:
+    path = Path(path)
+    try:
+        if not path.is_absolute() or path.resolve(strict=True) != path:
+            raise PluginSyncError("plugin sync receipt path is not canonical")
+        metadata = path.stat(follow_symlinks=False)
+    except OSError as error:
+        raise PluginSyncError(
+            "current plugin sync receipt is missing or unreadable"
+        ) from error
+    if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
+        raise PluginSyncError(
+            "current plugin sync receipt is not a private regular file"
+        )
+    receipt = read_json(path, "current plugin sync receipt")
+    if not isinstance(receipt, dict) or receipt.get("schema_version") != 1:
+        raise PluginSyncError("current plugin sync receipt schema is invalid")
+    if receipt.get("status") != "verified":
+        raise PluginSyncError("current plugin sync receipt is not verified")
+    return receipt
+
+
+def canonical_cache_path(
+    value: str | Path,
+    *,
+    expected: Path | None,
+    description: str,
+) -> Path:
+    path = Path(value)
+    if expected is not None and path != expected:
+        raise PluginSyncError(f"pinned {description} path does not match current pin")
+    if path.is_symlink():
+        raise PluginSyncError(f"pinned {description} root is a symlink")
+    try:
+        canonical = path.resolve(strict=True)
+    except OSError as error:
+        raise PluginSyncError(
+            f"pinned {description} is missing or unreadable"
+        ) from error
+    if canonical != path:
+        raise PluginSyncError(f"pinned {description} path is not canonical")
+    if not path.is_dir():
+        raise PluginSyncError(f"pinned {description} is not a directory")
+    return path
+
+
+def validate_receipt_codex_homes(
+    receipt: dict[str, Any],
+    codex_homes: Iterable[Path],
+    *,
+    require_existing: bool,
+) -> tuple[list[Path], dict[str, dict[str, Any]]]:
+    homes = normalize_codex_homes(
+        codex_homes,
+        require_existing=require_existing,
+        allow_duplicates=False,
+    )
+    current_names = [str(home) for home in homes]
+    receipt_homes = receipt.get("codex_homes")
+    if (
+        not isinstance(receipt_homes, list)
+        or any(not isinstance(home, str) for home in receipt_homes)
+        or len(set(receipt_homes)) != len(receipt_homes)
+        or set(receipt_homes) != set(current_names)
+    ):
+        raise PluginSyncError("receipt Codex homes do not match current Codex homes")
+
+    results = receipt.get("results")
+    codex_results = results.get("codex") if isinstance(results, dict) else None
+    if not isinstance(codex_results, list):
+        raise PluginSyncError("receipt Codex results are invalid")
+    records: dict[str, dict[str, Any]] = {}
+    for result in codex_results:
+        if not isinstance(result, dict) or not isinstance(
+            result.get("codex_home"), str
+        ):
+            raise PluginSyncError("receipt Codex result is invalid")
+        home = result["codex_home"]
+        if home in records:
+            raise PluginSyncError(f"duplicate Codex receipt result: {home}")
+        records[home] = result
+    if set(records) != set(current_names):
+        raise PluginSyncError("receipt Codex results do not match current Codex homes")
+    return homes, records
+
+
+def verify_pinned_source(
+    codex_homes: Iterable[Path] | None = None,
+    *,
+    pin: dict[str, Any] | None = None,
+    checkout: Path | None = None,
+    source_root: Path | None = None,
+    receipt_file: Path | None = None,
+    require_existing_homes: bool,
+) -> tuple[
+    dict[str, Any],
+    Path,
+    Path,
+    dict[str, tuple[str, str]],
+    list[Path],
+    dict[str, dict[str, Any]],
+    dict[str, Any],
+]:
+    pin = pin or load_pin()
+    checkout_override = checkout is not None
+    source_override = source_root is not None
+    if checkout_override != source_override:
+        raise PluginSyncError("pinned checkout and source must be supplied together")
+    checkout_path = Path(checkout or cache_root() / pin["rev"])
+    source_path = Path(source_root or marketplace_source_path(pin))
+    checkout_path = canonical_cache_path(
+        checkout_path,
+        expected=None if checkout_override else cache_root() / pin["rev"],
+        description="checkout",
+    )
+    source_path = canonical_cache_path(
+        source_path,
+        expected=None if source_override else marketplace_source_path(pin),
+        description="source snapshot",
+    )
+    receipt = read_verified_receipt(receipt_file or state_path())
+    expected_pin = {field: pin[field] for field in PIN_FIELDS}
+    if receipt.get("pin") != expected_pin:
+        raise PluginSyncError("receipt pin does not match current pin")
+    if receipt.get("checkout") != str(checkout_path) or receipt.get("source") != str(
+        source_path
+    ):
+        raise PluginSyncError("receipt source paths do not match current pin")
+
+    verify_checkout(checkout_path, pin)
+    expected = tracked_tree(checkout_path)
+    verify_payload(source_path, expected, pin)
+    homes, codex_records = validate_receipt_codex_homes(
+        receipt,
+        current_codex_homes() if codex_homes is None else codex_homes,
+        require_existing=require_existing_homes,
+    )
+    results = receipt.get("results")
+    claude = results.get("claude") if isinstance(results, dict) else None
+    agy = results.get("agy") if isinstance(results, dict) else None
+    if (
+        not isinstance(results, dict)
+        or set(results) != {"claude", "codex", "agy"}
+        or not isinstance(claude, dict)
+        or not isinstance(agy, dict)
+    ):
+        raise PluginSyncError("receipt Claude or Antigravity result is invalid")
+    for runtime, record in (("claude", claude), ("agy", agy)):
+        if (
+            record.get("runtime") != runtime
+            or not isinstance(record.get("cli_path"), str)
+            or not Path(record["cli_path"]).is_absolute()
+            or not isinstance(record.get("cli_version"), str)
+            or not record["cli_version"]
+            or record.get("checkout") != str(checkout_path)
+            or record.get("source") != str(source_path)
+            or record.get("version") != pin["version"]
+            or record.get("files") != len(expected)
+        ):
+            raise PluginSyncError(
+                f"receipt {runtime} result does not match current pin"
+            )
+    if not isinstance(claude.get("install_path"), str):
+        raise PluginSyncError("receipt Claude install path is invalid")
+    claude_install = Path(claude["install_path"])
+    if (
+        claude.get("plugin_id") != "treflebonbon-skills@treflebonbon"
+        or not claude_install.is_absolute()
+        or claude_install.parts[-5:]
+        != (
+            "plugins",
+            "cache",
+            "treflebonbon",
+            "treflebonbon-skills",
+            pin["version"],
+        )
+    ):
+        raise PluginSyncError("receipt Claude install path does not match current pin")
+    # The Claude cache root is configurable; its fixed package suffix must match.
+    agy_install_value = agy.get("install_path")
+    if not isinstance(agy_install_value, str):
+        raise PluginSyncError("receipt Antigravity install path is invalid")
+    agy_install = Path(agy_install_value)
+    if (
+        agy.get("plugin_id") != "treflebonbon-skills"
+        or not agy_install.is_absolute()
+        or agy_install.parts[-3:] != ("config", "plugins", "treflebonbon-skills")
+        or agy.get("skills") != plugin_skills(expected)
+    ):
+        raise PluginSyncError("receipt Antigravity result does not match current pin")
+    for home, record in codex_records.items():
+        if (
+            record.get("runtime") != "codex"
+            or record.get("plugin_id") != "treflebonbon-skills@treflebonbon"
+            or not isinstance(record.get("cli_path"), str)
+            or not Path(record["cli_path"]).is_absolute()
+            or not isinstance(record.get("cli_version"), str)
+            or not record["cli_version"]
+            or record.get("checkout") != str(checkout_path)
+            or record.get("source") != str(source_path)
+            or record.get("version") != pin["version"]
+            or record.get("files") != len(expected)
+            or record.get("install_path")
+            != str(
+                Path(home)
+                / "plugins/cache/treflebonbon/treflebonbon-skills"
+                / pin["version"]
+            )
+        ):
+            raise PluginSyncError(
+                f"receipt Codex result does not match current pin for {home}"
+            )
+    return pin, checkout_path, source_path, expected, homes, codex_records, receipt
+
+
+def verify_fixed_source(
+    *,
+    pin: dict[str, Any] | None = None,
+    checkout: Path | None = None,
+    source_root: Path | None = None,
+) -> dict[str, Any]:
+    pin = pin or load_pin()
+    checkout_override = checkout is not None
+    source_override = source_root is not None
+    if checkout_override != source_override:
+        raise PluginSyncError("pinned checkout and source must be supplied together")
+    checkout_path = canonical_cache_path(
+        Path(checkout or cache_root() / pin["rev"]),
+        expected=None if checkout_override else cache_root() / pin["rev"],
+        description="checkout",
+    )
+    source_path = canonical_cache_path(
+        Path(source_root or marketplace_source_path(pin)),
+        expected=None if source_override else marketplace_source_path(pin),
+        description="source snapshot",
+    )
+    verify_checkout(checkout_path, pin)
+    expected = tracked_tree(checkout_path)
+    verify_payload(source_path, expected, pin)
+    return {
+        "status": "verified",
+        "pin": {field: pin[field] for field in PIN_FIELDS},
+        "checkout": str(checkout_path),
+        "source": str(source_path),
+        "files": len(expected),
+    }
+
+
+def verify_codex_home(
+    codex_home: Path,
+    checkout: Path,
+    source_root: Path,
+    pin: dict[str, Any],
+    expected: dict[str, tuple[str, str]],
+) -> dict[str, Any]:
+    plugin_id = "treflebonbon-skills@treflebonbon"
+    home = Path(codex_home)
+    env = os.environ.copy()
+    env["CODEX_HOME"] = str(home)
+    cli = resolve_cli("codex")
+    version = cli_version("codex", cli, env)
+    item = codex_inventory_item(
+        run_cli(
+            "codex",
+            ["plugin", "list", "--json"],
+            f"Codex plugin inventory for {home}",
+            env=env,
+            executable=cli,
+        ),
+        plugin_id,
+        pin,
+        source_root,
+    )
+    del item
+
+    config_path = home / "config.toml"
+    try:
+        config_contents, _ = read_regular_file(config_path, "config.toml")
+        config = tomllib.loads(config_contents.decode("utf-8"))
+    except (
+        OSError,
+        UnicodeDecodeError,
+        tomllib.TOMLDecodeError,
+        PluginSyncError,
+    ) as error:
+        raise PluginSyncError(
+            f"Codex config is unreadable or invalid for {home}"
+        ) from error
+    marketplaces = config.get("marketplaces", {})
+    plugins = config.get("plugins", {})
+    if not isinstance(marketplaces, dict) or not isinstance(plugins, dict):
+        raise PluginSyncError(f"Codex managed config is invalid for {home}")
+    marketplace = marketplaces.get("treflebonbon", {})
+    plugin = plugins.get(plugin_id, {})
+    if not isinstance(marketplace, dict) or not isinstance(plugin, dict):
+        raise PluginSyncError(f"Codex managed config is invalid for {home}")
+    if (
+        marketplace.get("source_type") != "local"
+        or marketplace.get("source") != str(source_root)
+        or plugin.get("enabled") is not True
+    ):
+        raise PluginSyncError(
+            f"Codex managed marketplace config does not match pin for {home}"
+        )
+
+    install_path = (
+        home / "plugins/cache/treflebonbon/treflebonbon-skills" / pin["version"]
+    )
+    verify_payload(install_path, expected, pin)
+    return {
+        "runtime": "codex",
+        "cli_path": str(cli),
+        "cli_version": version,
+        "codex_home": str(home),
+        "plugin_id": plugin_id,
+        "checkout": str(checkout),
+        "version": pin["version"],
+        "source": str(source_root),
+        "install_path": str(install_path),
+        "files": len(expected),
+    }
+
+
+def verify_claude_installation(
+    checkout: Path,
+    source_root: Path,
+    pin: dict[str, Any],
+    expected: dict[str, tuple[str, str]],
+) -> dict[str, Any]:
+    config, plugin_state_root = claude_paths()
+    cli = resolve_cli("claude")
+    env = cli_environment()
+    plugin_id = "treflebonbon-skills@treflebonbon"
+    version = cli_version("claude", cli, env)
+    item = claude_inventory_item(
+        run_cli(
+            "claude",
+            ["plugin", "list", "--json"],
+            "Claude plugin inventory",
+            env=env,
+            executable=cli,
+        ),
+        plugin_id,
+    )
+    install_path = (
+        plugin_state_root / "cache/treflebonbon/treflebonbon-skills" / pin["version"]
+    )
+    if item is None or not claude_inventory_matches(
+        item, pin, source_root, install_path
+    ):
+        raise PluginSyncError("Claude plugin inventory does not match pinned source")
+
+    require_marketplace_source(config, source_root)
+    marketplaces = read_json(
+        plugin_state_root / "known_marketplaces.json", "Claude marketplace inventory"
+    )
+    if not isinstance(marketplaces, dict):
+        raise PluginSyncError("Claude marketplace inventory is invalid")
+    registered = marketplaces.get("treflebonbon")
+    if (
+        not isinstance(registered, dict)
+        or registered.get("installLocation") != str(source_root)
+        or registered.get("source") != {"source": "directory", "path": str(source_root)}
+    ):
+        raise PluginSyncError(
+            "Claude marketplace registration does not match pinned source"
+        )
+    installed = read_json(
+        plugin_state_root / "installed_plugins.json", "Claude installed plugin registry"
+    )
+    if not isinstance(installed, dict) or not isinstance(
+        installed.get("plugins"), dict
+    ):
+        raise PluginSyncError("Claude installed plugin registry is invalid")
+    registry = installed["plugins"].get(plugin_id, [])
+    if not isinstance(registry, list) or not any(
+        isinstance(entry, dict)
+        and entry.get("scope") == "user"
+        and entry.get("version") == pin["version"]
+        and entry.get("installPath") == str(install_path)
+        for entry in registry
+    ):
+        raise PluginSyncError(
+            "Claude installed plugin registry does not match pinned source"
+        )
+
+    verify_payload(install_path, expected, pin)
+    return {
+        "runtime": "claude",
+        "cli_path": str(cli),
+        "cli_version": version,
+        "plugin_id": plugin_id,
+        "checkout": str(checkout),
+        "version": pin["version"],
+        "source": str(source_root),
+        "install_path": str(install_path),
+        "files": len(expected),
+    }
+
+
+def verify_agy_installation(
+    checkout: Path,
+    source_root: Path,
+    pin: dict[str, Any],
+    expected: dict[str, tuple[str, str]],
+) -> dict[str, Any]:
+    home = Path(os.environ["HOME"]).expanduser()
+    if not home.is_absolute():
+        raise PluginSyncError("HOME must be absolute")
+    home = home.resolve()
+    install_path = home / ".gemini/config/plugins/treflebonbon-skills"
+    cli = resolve_cli("agy")
+    env = cli_environment()
+    version = cli_version("agy", cli, env)
+    try:
+        inventory = json.loads(
+            run_cli(
+                "agy",
+                ["plugin", "list", "--json"],
+                "Antigravity plugin inventory",
+                env=env,
+                executable=cli,
+            )
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError("Antigravity plugin inventory is invalid") from error
+    if not isinstance(inventory, list):
+        raise PluginSyncError("Antigravity plugin inventory is invalid")
+    matches = [
+        entry
+        for entry in inventory
+        if isinstance(entry, dict) and entry.get("name") == "treflebonbon-skills"
+    ]
+    skills = plugin_skills(expected)
+    if len(matches) != 1:
+        raise PluginSyncError(
+            "Antigravity inventory does not contain one pinned plugin"
+        )
+    item = matches[0]
+    if (
+        item.get("version") != pin["version"]
+        or item.get("enabled") is not True
+        or item.get("source") != "antigravity"
+        or item.get("path") != str(install_path)
+        or item.get("skills") != skills
+    ):
+        raise PluginSyncError(
+            "Antigravity plugin inventory does not match pinned source"
+        )
+    manifest = read_json(
+        home / ".gemini/config/import_manifest.json", "Antigravity import inventory"
+    )
+    if not isinstance(manifest, dict):
+        raise PluginSyncError("Antigravity import inventory is invalid")
+    imports = manifest.get("imports", [])
+    if (
+        not isinstance(imports, list)
+        or sum(
+            1
+            for entry in imports
+            if isinstance(entry, dict)
+            and entry.get("name") == "treflebonbon-skills"
+            and entry.get("source") == "antigravity"
+            and "skills" in entry.get("components", [])
+        )
+        != 1
+    ):
+        raise PluginSyncError("Antigravity import record does not match pinned source")
+    verify_payload(install_path, expected, pin)
+    return {
+        "runtime": "agy",
+        "cli_path": str(cli),
+        "cli_version": version,
+        "plugin_id": "treflebonbon-skills",
+        "checkout": str(checkout),
+        "version": pin["version"],
+        "source": str(source_root),
+        "install_path": str(install_path),
+        "files": len(expected),
+        "skills": skills,
+    }
+
+
+def verify_current_installation(
+    codex_homes: Iterable[Path] | None = None,
+    *,
+    pin: dict[str, Any] | None = None,
+    checkout: Path | None = None,
+    source_root: Path | None = None,
+    receipt_file: Path | None = None,
+) -> dict[str, Any]:
+    pin, checkout, source_root, expected, homes, codex_records, receipt = (
+        verify_pinned_source(
+            codex_homes,
+            pin=pin,
+            checkout=checkout,
+            source_root=source_root,
+            receipt_file=receipt_file,
+            require_existing_homes=True,
+        )
+    )
+    current_home_names = [str(home) for home in homes]
+    expected_pin = {field: pin[field] for field in PIN_FIELDS}
+    verified_homes = []
+    for home in homes:
+        result = verify_codex_home(home, checkout, source_root, pin, expected)
+        recorded = codex_records[str(home)]
+        for field in (
+            "runtime",
+            "cli_path",
+            "cli_version",
+            "plugin_id",
+            "checkout",
+            "version",
+            "source",
+            "install_path",
+            "files",
+        ):
+            if recorded.get(field) != result.get(field):
+                raise PluginSyncError(
+                    f"receipt Codex result does not match current install for {home}"
+                )
+        verified_homes.append(result)
+
+    results = receipt["results"]
+    claude = verify_claude_installation(checkout, source_root, pin, expected)
+    agy = verify_agy_installation(checkout, source_root, pin, expected)
+    for runtime, current in (("claude", claude), ("agy", agy)):
+        recorded = results[runtime]
+        for field, value in current.items():
+            if recorded.get(field) != value:
+                raise PluginSyncError(
+                    f"receipt {runtime} result does not match current install"
+                )
+
+    return {
+        "status": "verified",
+        "pin": expected_pin,
+        "checkout": str(checkout),
+        "source": str(source_root),
+        "codex_homes": current_home_names,
+        "results": {"claude": claude, "codex": verified_homes, "agy": agy},
+    }
+
+
+def verify_cli_source(
+    codex_homes: Iterable[Path] | None = None,
+    *,
+    pin: dict[str, Any] | None = None,
+    checkout: Path | None = None,
+    source_root: Path | None = None,
+    receipt_file: Path | None = None,
+) -> dict[str, Any]:
+    pin, checkout, source_root, expected, homes, _, _receipt = verify_pinned_source(
+        codex_homes,
+        pin=pin,
+        checkout=checkout,
+        source_root=source_root,
+        receipt_file=receipt_file,
+        require_existing_homes=False,
+    )
+    return {
+        "status": "verified",
+        "pin": {field: pin[field] for field in PIN_FIELDS},
+        "checkout": str(checkout),
+        "source": str(source_root),
+        "codex_homes": [str(home) for home in homes],
+        "files": len(expected),
+    }
+
+
+def verified_legacy_cli_backup(name: str) -> Path:
+    if name not in GLOBAL_CLI_NAMES:
+        raise PluginSyncError(f"unsupported global skills CLI: {name}")
+    legacy_root = (
+        state_path().parents[2] / "treflebonbon-skills/legacy" / LEGACY_CLI_REVISION
+    )
+    try:
+        if legacy_root.resolve(strict=True) != legacy_root:
+            raise PluginSyncError("legacy CLI backup path is not canonical")
+        manifest_path = legacy_root / "baseline.json"
+        manifest_stat = manifest_path.stat(follow_symlinks=False)
+        if (
+            not stat.S_ISREG(manifest_stat.st_mode)
+            or manifest_stat.st_mode & 0o077
+            or manifest_path.resolve(strict=True) != manifest_path
+        ):
+            raise PluginSyncError(
+                "legacy CLI backup manifest is not private and regular"
+            )
+        manifest = read_json(manifest_path, "legacy CLI backup manifest")
+    except OSError as error:
+        raise PluginSyncError("legacy CLI backup is missing or unreadable") from error
+    trusted = trusted_legacy_cli_manifest()
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("revision") != LEGACY_CLI_REVISION
+        or manifest.get("cli") != trusted["cli"]
+    ):
+        raise PluginSyncError("legacy CLI backup manifest is invalid")
+
+    cli_files = manifest["cli"]
+    expected_names = {f".local/bin/{cli}" for cli in GLOBAL_CLI_NAMES}
+    expected_names.add(".local/share/devshell-env/devshell_environment.py")
+    if set(cli_files) != expected_names:
+        raise PluginSyncError(
+            "legacy CLI backup manifest does not match the known files"
+        )
+
+    required = [f".local/bin/{name}"]
+    if name == "codex-reviewer":
+        required.append(".local/share/devshell-env/devshell_environment.py")
+    verified: dict[str, Path] = {}
+    for relative in required:
+        expected = cli_files[relative]
+        if (
+            not isinstance(expected, dict)
+            or not isinstance(expected.get("sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", expected["sha256"])
+            or not isinstance(expected.get("mode"), int)
+            or isinstance(expected.get("mode"), bool)
+        ):
+            raise PluginSyncError(
+                f"legacy CLI backup manifest entry is invalid: {relative}"
+            )
+        path = legacy_root / relative
+        try:
+            contents, metadata = read_regular_file(path, relative)
+        except PluginSyncError as error:
+            raise PluginSyncError(
+                f"legacy CLI backup is missing or invalid: {relative}"
+            ) from error
+        if (
+            stat.S_IMODE(metadata.st_mode) != expected["mode"]
+            or hashlib.sha256(contents).hexdigest() != expected["sha256"]
+        ):
+            raise PluginSyncError(f"legacy CLI backup is corrupted: {relative}")
+        verified[relative] = path
+    return verified[f".local/bin/{name}"]
+
+
+def trusted_legacy_cli_manifest() -> dict[str, Any]:
+    deployed = Path(__file__).with_name("skills-plugin-legacy-cli.json")
+    if deployed.exists() or deployed.is_symlink():
+        try:
+            metadata = deployed.stat(follow_symlinks=False)
+        except OSError as error:
+            raise PluginSyncError(
+                "trusted legacy CLI baseline is unreadable"
+            ) from error
+        if (
+            deployed.is_symlink()
+            or not stat.S_ISREG(metadata.st_mode)
+            or deployed.resolve(strict=True) != deployed
+        ):
+            raise PluginSyncError(
+                "trusted legacy CLI baseline is not a canonical regular file"
+            )
+        path = deployed
+    else:
+        source_root = Path(__file__).resolve().parents[2]
+        path = source_root / ".chezmoitemplates/local-skills-legacy.json"
+    try:
+        baseline = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError(
+            "trusted legacy CLI baseline is unreadable or invalid"
+        ) from error
+    if (
+        not isinstance(baseline, dict)
+        or baseline.get("revision") != LEGACY_CLI_REVISION
+        or not isinstance(baseline.get("cli"), dict)
+    ):
+        raise PluginSyncError("trusted legacy CLI baseline is invalid")
+    cli = baseline["cli"]
+    expected_names = {f".local/bin/{name}" for name in GLOBAL_CLI_NAMES}
+    expected_names.add(".local/share/devshell-env/devshell_environment.py")
+    if set(cli) != expected_names:
+        raise PluginSyncError("trusted legacy CLI baseline file set is invalid")
+    for relative, entry in cli.items():
+        expected_mode = 0o644 if relative.endswith(".py") else 0o755
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])
+            or entry.get("mode") != expected_mode
+        ):
+            raise PluginSyncError(
+                f"trusted legacy CLI baseline entry is invalid: {relative}"
+            )
+    return {"revision": baseline["revision"], "cli": cli}
+
+
+def public_cli_path(source: str | Path, name: str) -> Path:
+    if name not in GLOBAL_CLI_NAMES:
+        raise PluginSyncError(f"unsupported global skills CLI: {name}")
+    path = Path(source) / "bin" / name
+    try:
+        metadata = path.stat(follow_symlinks=False)
+    except OSError as error:
+        raise PluginSyncError(f"pinned CLI is missing: {name}") from error
+    if (
+        path.is_symlink()
+        or not stat.S_ISREG(metadata.st_mode)
+        or not metadata.st_mode & 0o111
+    ):
+        raise PluginSyncError(f"pinned CLI is not an executable regular file: {name}")
+    return path
+
+
+def public_raw_entry_path(source: str | Path, command: str) -> Path:
+    if command not in RAW_RUNTIME_COMMANDS:
+        raise PluginSyncError(f"unsupported raw runtime command: {command}")
+    relative = (
+        "bin/codex-worktree" if command == "codex-worktree" else "bin/devshell-env"
+    )
+    path = Path(source) / relative
+    try:
+        metadata = path.stat(follow_symlinks=False)
+    except OSError as error:
+        raise PluginSyncError(
+            f"pinned raw runtime entry is missing: {command}"
+        ) from error
+    if (
+        path.is_symlink()
+        or not stat.S_ISREG(metadata.st_mode)
+        or not metadata.st_mode & 0o111
+    ):
+        raise PluginSyncError(
+            f"pinned raw runtime entry is not an executable regular file: {command}"
+        )
+    return path
+
+
+def resolve_global_cli(
+    name: str, codex_homes: Iterable[Path] | None = None
+) -> tuple[Path, bool]:
+    try:
+        verified = verify_cli_source(codex_homes)
+        return public_cli_path(verified["source"], name), True
+    except (PluginSyncError, OSError) as pinned_error:
+        try:
+            return verified_legacy_cli_backup(name), False
+        except PluginSyncError as backup_error:
+            raise PluginSyncError(
+                f"pinned CLI unavailable ({pinned_error}); {backup_error}"
+            ) from backup_error
+
+
+def exec_global_cli(
+    name: str, arguments: list[str], codex_homes: Iterable[Path] | None = None
+) -> None:
+    executable, pinned = resolve_global_cli(name, codex_homes)
+    argv = [str(executable), *arguments]
+    try:
+        os.execv(str(executable), argv)
+    except OSError as error:
+        if not pinned:
+            raise PluginSyncError(
+                f"cannot execute validated legacy CLI: {name}"
+            ) from error
+        try:
+            fallback = verified_legacy_cli_backup(name)
+        except PluginSyncError as backup_error:
+            raise PluginSyncError(
+                f"pinned CLI could not start ({name}); {backup_error}"
+            ) from backup_error
+        print(
+            f"skills plugin: pinned CLI could not start; using the verified legacy {name}",
+            file=sys.stderr,
+        )
+        os.execv(str(fallback), [str(fallback), *arguments])
+
+
+def exec_raw_runtime(
+    command: str,
+    arguments: list[str],
+    codex_homes: Iterable[Path] | None = None,
+) -> None:
+    if command not in RAW_RUNTIME_COMMANDS:
+        raise PluginSyncError(f"unsupported raw runtime command: {command}")
+    try:
+        verified = verify_cli_source(codex_homes)
+        entry = public_raw_entry_path(verified["source"], command)
+    except (PluginSyncError, OSError) as error:
+        raise PluginSyncError(f"pinned raw runtime unavailable: {error}") from error
+    argv = [str(entry), *arguments]
+    if command != "codex-worktree":
+        argv.insert(1, command)
+    os.execv(str(entry), argv)
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -1577,6 +2433,7 @@ def sync_all(
     source_root: Path | None = None,
     receipt_file: Path | None = None,
 ) -> dict[str, Any]:
+    codex_homes = normalize_codex_homes(codex_homes)
     path = receipt_file or state_path()
     previous = previous_verified_receipt(path)
     attempted_runtimes: list[tuple[str, Path | None]] = []
@@ -1693,9 +2550,77 @@ def sync_all(
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="sync-skills-plugin")
-    parser.add_argument("--codex-home", action="append", required=True)
+    parser.add_argument("--codex-home", action="append", default=[])
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="read-only comparison of the current pin, receipt, source, and all managed runtimes",
+    )
+    parser.add_argument(
+        "--verify-source-only",
+        action="store_true",
+        help="read-only comparison of the current pin, checkout, and source snapshot",
+    )
+    parser.add_argument(
+        "--run-cli",
+        choices=sorted(GLOBAL_CLI_NAMES),
+        help="run a verified public CLI, falling back only to its verified legacy backup",
+    )
+    parser.add_argument(
+        "--run-raw",
+        choices=sorted(RAW_RUNTIME_COMMANDS),
+        help="run raw Codex through the verified public fixed source",
+    )
+    parser.add_argument("cli_arguments", nargs=argparse.REMAINDER)
     arguments = parser.parse_args()
     try:
+        if arguments.verify_only:
+            if (
+                arguments.verify_source_only
+                or arguments.run_cli
+                or arguments.run_raw
+                or arguments.cli_arguments
+            ):
+                parser.error("--verify-only cannot be combined with CLI execution")
+            result = verify_current_installation(
+                [Path(home) for home in arguments.codex_home] or None
+            )
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0
+        if arguments.verify_source_only:
+            if arguments.run_cli or arguments.run_raw or arguments.cli_arguments:
+                parser.error(
+                    "--verify-source-only cannot be combined with CLI execution"
+                )
+            result = verify_fixed_source()
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0
+        if arguments.run_cli:
+            if arguments.run_raw:
+                parser.error("--run-cli and --run-raw cannot be combined")
+            cli_arguments = arguments.cli_arguments
+            if cli_arguments[:1] == ["--"]:
+                cli_arguments = cli_arguments[1:]
+            exec_global_cli(
+                arguments.run_cli,
+                cli_arguments,
+                [Path(home) for home in arguments.codex_home] or None,
+            )
+            return 0
+        if arguments.run_raw:
+            cli_arguments = arguments.cli_arguments
+            if cli_arguments[:1] == ["--"]:
+                cli_arguments = cli_arguments[1:]
+            exec_raw_runtime(
+                arguments.run_raw,
+                cli_arguments,
+                [Path(home) for home in arguments.codex_home] or None,
+            )
+            return 0
+        if arguments.cli_arguments:
+            parser.error("positional arguments are only supported after --run-cli")
+        if not arguments.codex_home:
+            parser.error("--codex-home is required for mutating sync")
         receipt = sync_all([Path(home) for home in arguments.codex_home])
         print(
             "Verified treflebonbon-skills "

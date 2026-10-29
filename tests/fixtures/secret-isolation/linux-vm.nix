@@ -18,6 +18,13 @@
 let
   nixpkgs = builtins.toPath nixpkgsPath;
   pkgs = import nixpkgs { };
+  skillsPluginPin = builtins.fromJSON (
+    builtins.readFile "${repoPath}/private_dot_config/nix-devshell/skills-plugin.json"
+  );
+  skillsPluginSource = pkgs.fetchFromGitHub {
+    inherit (skillsPluginPin) owner repo rev;
+    hash = skillsPluginPin.nar_hash;
+  };
   toStorePath = value: builtins.storePath (toString value);
   cliRoots = map toStorePath [
     nixRoot
@@ -42,6 +49,8 @@ let
   ]
   ++ pkgs.lib.optional (withEnvRoot != null) (toStorePath withEnvRoot)
   ++ pkgs.lib.optional (herdrRoot != null) (toStorePath herdrRoot);
+  publicRawTests = "${skillsPluginSource}/tests/raw-codex";
+  publicIsolatedGithub = pkgs.lib.optional (builtins.pathExists "${publicRawTests}/isolated-github.bats") "${publicRawTests}/isolated-github.bats";
   probeSource = pkgs.runCommand "secret-isolation-probe-source" { } ''
     install -D -m 0444 \
       ${pkgs.writeText "secret-isolation-probe.py" (builtins.readFile "${repoPath}/scripts/secret-isolation-probe.py")} \
@@ -54,39 +63,18 @@ let
         install -D -m 0444 ${pkgs.writeText (builtins.baseNameOf name) (builtins.readFile "${repoPath}/${name}")} "$out/${name}"
       '')
       [
-        "scripts/secret-isolation-worktree.py"
         "scripts/herdr-codex-isolation.py"
         ".herdr/herdr-plugin.toml"
-        "tests/herdr-codex-isolation.bats"
-        "scripts/secret-isolation-gateway.py"
-        "private_dot_local/share/codex-isolation/secret-isolation-worktree.py"
-        "private_dot_local/share/codex-isolation/secret-isolation-gateway.py"
-        "private_dot_local/share/codex-isolation/codex-inner.py"
-        "private_dot_local/share/codex-isolation/codex-namespace.py"
-        "private_dot_local/share/codex-isolation/github-service.py"
-        "private_dot_local/share/codex-isolation/github-client.py"
-        "private_dot_local/bin/executable_devshell-env"
-        "private_dot_local/share/devshell-env/devshell_environment.py"
-        "private_dot_local/bin/executable_codex-worktree"
-        "private_dot_local/bin/executable_git-push-topic"
         "private_dot_config/codex/config.toml.tmpl"
-        "tests/helpers/raw-codex.bash"
-        "tests/helpers/herdr-codex-isolation.py"
-        "tests/devshell-env.bats"
-        "tests/raw-codex-integration.bats"
+        "private_dot_config/nix-devshell/skills-plugin.json"
+        ".chezmoitemplates/local-skills-legacy.json"
         "tests/human-validation.bats"
+        "tests/helpers/raw-codex.bash"
         "tests/helpers/human-validation.py"
-        "tests/fixtures/secret-isolation/human-reviewed.py"
-        "tests/fixtures/secret-isolation/human-boundary.py"
-        "tests/raw-codex-services.bats"
-        "tests/isolated-github.bats"
-        "tests/secret-isolation-gateway.bats"
-        "tests/secret-isolation-worktree.bats"
-        "tests/fixtures/secret-isolation/worktree-task.py"
-        "tests/fixtures/secret-isolation/github-push.py"
+        "tests/fixtures/human-validation/human-reviewed.py"
+        "tests/fixtures/human-validation/human-boundary.py"
       ]
     }
-    chmod +x "$out/private_dot_local/bin/"*
   '';
 in
 pkgs.testers.runNixOSTest {
@@ -129,6 +117,7 @@ pkgs.testers.runNixOSTest {
           ++ testTools
           ++ [
             probeSource
+            (toStorePath skillsPluginSource)
             (toStorePath batsRoot)
             pkgs.cacert
           ];
@@ -149,6 +138,7 @@ pkgs.testers.runNixOSTest {
     herdr_result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
       "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
       "${toStorePath pythonRoot}/bin/python3 ${probeSource}/scripts/herdr-codex-isolation.py "
       "--output /home/probe/herdr-273 > /home/probe/herdr-tests.log 2>&1'"
@@ -163,6 +153,7 @@ pkgs.testers.runNixOSTest {
     human_result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
       "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
       "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/human-validation.bats "
       "> /home/probe/human-tests.log 2>&1'"
@@ -184,9 +175,10 @@ pkgs.testers.runNixOSTest {
         live_result = machine.execute(
           "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
           "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+          "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
           "TMPDIR=/home/probe CODEX_ISOLATION_REAL_MCP=1 CODEX_ISOLATION_REAL_GITHUB=1 "
           "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
-          "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/raw-codex-services.bats "
+          "${toStorePath batsRoot}/bin/bats ${publicRawTests}/raw-codex-services.bats "
           "> /home/probe/live-services-tests.log 2>&1'"
         )
         machine.copy_from_machine("/home/probe/live-services-tests.log")
@@ -212,8 +204,10 @@ pkgs.testers.runNixOSTest {
     )
     worktree_result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
-      "env PATH=${pkgs.lib.makeBinPath cliRoots} SECRET_ISOLATION_REAL_RUNTIME=1 "
-      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/secret-isolation-worktree.bats "
+      "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
+      "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
+      "${toStorePath batsRoot}/bin/bats ${publicRawTests}/secret-isolation-worktree.bats "
       "> /home/probe/worktree-tests.log 2>&1'"
     )
     machine.copy_from_machine("/home/probe/worktree-tests.log")
@@ -221,8 +215,9 @@ pkgs.testers.runNixOSTest {
     raw_result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
       "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
-      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/devshell-env.bats ${probeSource}/tests/raw-codex-integration.bats "
+      "${toStorePath batsRoot}/bin/bats ${publicRawTests}/devshell-env.bats ${publicRawTests}/raw-codex-integration.bats "
       "> /home/probe/raw-tests.log 2>&1'"
     )
     machine.copy_from_machine("/home/probe/raw-tests.log")
@@ -230,8 +225,9 @@ pkgs.testers.runNixOSTest {
     services_result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
       "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
+      "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
       "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
-      "${toStorePath batsRoot}/bin/bats ${probeSource}/tests/raw-codex-services.bats ${probeSource}/tests/isolated-github.bats ${probeSource}/tests/secret-isolation-gateway.bats "
+      "${toStorePath batsRoot}/bin/bats ${publicRawTests}/raw-codex-services.bats ${publicIsolatedGithub} ${publicRawTests}/secret-isolation-gateway.bats "
       "> /home/probe/services-tests.log 2>&1'"
     )
     machine.copy_from_machine("/home/probe/services-tests.log")

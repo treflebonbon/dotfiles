@@ -67,7 +67,6 @@ else:
     )
     print("AI_EDITED", flush=True)
     assert sys.stdin.readline().strip() == "continue"
-    # Retry after the human has produced its private output and log.
     probe(paths)
     subprocess.run(
         ["with-env", "--prepared", "--", "python3", __file__, "probe", *paths],

@@ -1,12 +1,9 @@
 #!/usr/bin/env bats
 
 bats_require_minimum_version 1.5.0
-load helpers/raw-codex
-
-teardown() { raw_cleanup; }
-
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  export PROJECT_ROOT
   export CODEX_ORCA="$PROJECT_ROOT/private_dot_local/bin/executable_codex-orca"
   export CODEX_CONTEXT="$PROJECT_ROOT/private_dot_local/bin/executable_codex-context"
   export CODEX_WORKTREE="$BATS_TEST_TMPDIR/runtime-bin/codex-worktree"
@@ -14,14 +11,16 @@ setup() {
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
   mkdir -p "$BATS_TEST_TMPDIR/runtime-bin"
-  cat >"$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin" <<'SH'
-#!/usr/bin/env bash
-printf '%s\0' "$@" >>"$SKILLS_PLUGIN_SYNC_LOG"
-printf '\0' >>"$SKILLS_PLUGIN_SYNC_LOG"
-if [ "${FAIL_SKILLS_PLUGIN_SYNC:-}" = "1" ]; then
-  exit 1
-fi
-SH
+  cat >"$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin" <<'PY'
+#!/usr/bin/env python3
+import json
+import os
+import sys
+from pathlib import Path
+
+Path(os.environ["SKILLS_PLUGIN_SYNC_LOG"]).write_text(json.dumps(sys.argv[1:]))
+print("DISPATCHED")
+PY
   chmod +x "$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin"
   export SKILLS_PLUGIN_SYNC_LOG="$BATS_TEST_TMPDIR/skills-plugin-sync.log"
   export PATH="$BATS_TEST_TMPDIR/runtime-bin:$PATH"
@@ -83,6 +82,7 @@ install_codex_package_test_commands() {
   ln -s "$CODEX_CONTEXT" "$bin/codex-context"
   ln -s "$CODEX_ORCA" "$bin/codex-orca"
   cp "$CODEX_WORKTREE" "$bin/codex-worktree"
+  cp "$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin" "$bin/sync-skills-plugin"
   ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$bin/devshell-env"
 }
 
@@ -136,255 +136,6 @@ assert_codex_worktree_rejects_boundary_argument() {
   [ ! -e "$launched" ]
 }
 
-@test "codex-worktree launches actual Codex at the fixed root with only active Git metadata writable" {
-  raw_fixture
-  cat >"$RAW_BASE/work/task.sh" <<'SH'
-set -eu
-test -z "${GIT_DIR+x}${GIT_COMMON_DIR+x}${GIT_WORK_TREE+x}${CODEX_PERMISSION_PROFILE+x}"
-test -f flake.nix
-printf edited > ordinary.txt
-git add ordinary.txt
-if cat ../repo/.env >/dev/null 2>&1; then exit 1; fi
-if printf bad > .env 2>/dev/null; then exit 1; fi
-printf BOUNDARY_OK
-SH
-  raw_admit flake.nix task.sh
-  export GIT_DIR="$RAW_BASE/repo/.git" GIT_COMMON_DIR="$RAW_BASE/repo/.git" GIT_WORK_TREE="$RAW_BASE/repo"
-  export CODEX_PERMISSION_PROFILE=unrestricted
-  run raw_run sandbox -- bash task.sh
-  unset GIT_DIR GIT_COMMON_DIR GIT_WORK_TREE
-  raw_assert_status 0
-  [[ "$output" == *BOUNDARY_OK* ]]
-  [ "$(git -C "$RAW_BASE/work" diff --cached --name-only)" = ordinary.txt ]
-}
-
-@test "codex-worktree accepts metadata pointers relative to each owning metadata file" {
-  raw_fixture
-  python3 - "$RAW_BASE/work" <<'PYTHON'
-from pathlib import Path
-import os,subprocess,sys
-root=Path(sys.argv[1])
-gitdir=Path(subprocess.check_output(['git','-C',str(root),'rev-parse','--path-format=absolute','--git-dir'],text=True).strip())
-common=gitdir.parent.parent
-(root/'.git').write_text('gitdir: '+os.path.relpath(gitdir,root)+'\n')
-(gitdir/'commondir').write_text('../..\n')
-(gitdir/'gitdir').write_text(os.path.relpath(root/'.git',gitdir)+'\n')
-PYTHON
-  raw_admit flake.nix task.sh
-  run raw_run sandbox -- true
-  raw_assert_status 0
-}
-
-@test "codex-worktree rejects a primary checkout without launching Codex" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  mkdir -p "$repo"
-  git -C "$repo" init -q
-  install_codex_launch_sentinel "$bin"
-
-  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
-    'cd "$1" && exec "$2"' _ "$repo" "$CODEX_WORKTREE"
-
-  [ "$status" -ne 0 ]
-  [ ! -e "$launched" ]
-}
-
-@test "codex-worktree rejects a non-Git directory without launching Codex" {
-  local workspace="$BATS_TEST_TMPDIR/workspace"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  mkdir -p "$workspace"
-  install_codex_launch_sentinel "$bin"
-
-  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
-    'cd "$1" && exec "$2"' _ "$workspace" "$CODEX_WORKTREE"
-
-  [ "$status" -ne 0 ]
-  [ ! -e "$launched" ]
-}
-
-@test "codex-worktree rejects unresolved linked-worktree metadata without launching Codex" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  local git_dir
-  create_linked_worktree "$repo" "$worktree"
-  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
-  mv "$git_dir" "$git_dir.unresolved"
-  install_codex_launch_sentinel "$bin"
-
-  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
-    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
-
-  [ "$status" -ne 0 ]
-  [ ! -e "$launched" ]
-}
-
-@test "codex-worktree rejects linked-worktree metadata owned by another repository without launching Codex" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local foreign_repo="$BATS_TEST_TMPDIR/foreign-repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  local git_dir
-  local foreign_common_dir
-  create_linked_worktree "$repo" "$worktree"
-  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
-  git -C "$BATS_TEST_TMPDIR" init -q "$foreign_repo"
-  foreign_common_dir="$(git -C "$foreign_repo" rev-parse --path-format=absolute --git-common-dir)"
-  printf '%s\n' "$foreign_common_dir" >"$git_dir/commondir"
-  install_codex_launch_sentinel "$bin"
-
-  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
-    'cd "$1" && exec "$2"' _ "$worktree" "$CODEX_WORKTREE"
-
-  [ "$status" -ne 0 ]
-  [ ! -e "$launched" ]
-}
-
-@test "codex-worktree rejects arguments that can replace its working, permission, or trust boundary" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  create_linked_worktree "$repo" "$worktree"
-  install_codex_launch_sentinel "$bin"
-
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    -C "$BATS_TEST_TMPDIR/elsewhere"
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --cd="$BATS_TEST_TMPDIR/elsewhere"
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --add-dir "$BATS_TEST_TMPDIR/elsewhere"
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    -c 'permissions.dotfiles-secure.filesystem={"/"="write"}'
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --config='default_permissions="danger-full-access"'
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --disable network_proxy
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --disable=network_proxy
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --enable network_proxy
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --enable=network_proxy
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    features disable network_proxy
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    features enable network_proxy
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    exec --sandbox danger-full-access prompt
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --worktree
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --worktree=other
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --dangerously-bypass-approvals-and-sandbox
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --yolo
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --dangerously-bypass-hook-trust
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --profile unrestricted
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    --approve-for-me
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    exec --ignore-user-config prompt
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    exec --ignore-rules prompt
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    sandbox --permission-profile unrestricted -- true
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    sandbox --permissions-profile=unrestricted -- true
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-    sandbox --sandbox-state-json '{}' -- true
-}
-
-@test "codex-worktree accepts explicit effort forms and TOML strings without broadening config access" {
-  raw_fixture
-  raw_admit flake.nix task.sh
-  local value
-  for value in 'model_reasoning_effort="xhigh"' \
-    "model_reasoning_effort = 'xhigh'" \
-    'model_reasoning_effort="xh\u0069gh" # comment' \
-    $'model_reasoning_effort="""xh\\\n  igh"""' \
-    "model_reasoning_effort='''xhigh'''" \
-    $'model_reasoning_effort="""line one\nline two"""'; do
-    run raw_run --version --model gpt-6-luna -c "$value"
-    raw_assert_status 0
-    [[ "$output" == *codex-cli* ]]
-  done
-  for value in --config --config= -c; do
-    if [ "$value" = --config ]; then
-      run raw_run --version -m gpt-6-luna "$value" 'model_reasoning_effort="xhigh"'
-    else
-      run raw_run --version -m gpt-6-luna "${value}model_reasoning_effort=\"xhigh\""
-    fi
-    raw_assert_status 0
-    [[ "$output" == *codex-cli* ]]
-  done
-  run raw_run sandbox -c 'model_reasoning_effort="xhigh"' -- \
-    printf 'arg=<%s>\n' '-c sandbox_mode="danger-full-access"' '' 'prompt with space'
-  raw_assert_status 0
-  [[ "$output" == *$'arg=<-c sandbox_mode="danger-full-access">\narg=<>\narg=<prompt with space>'* ]]
-}
-
-@test "codex-worktree rejects malformed, disguised and duplicate effort before initialization" {
-  local repo="$BATS_TEST_TMPDIR/repo" worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin" launched="$BATS_TEST_TMPDIR/codex-launched" value
-  create_linked_worktree "$repo" "$worktree"
-  install_codex_launch_sentinel "$bin"
-  for value in '' -- --model 'model_reasoning_effort=xhigh' \
-    'model_reasoning_effort=""' 'model_reasoning_effort=1' 'model_reasoning_effort=true' \
-    'model_reasoning_effort=["xhigh"]' 'model_reasoning_effort={value="xhigh"}' \
-    'model_reasoning_effort="unterminated' \
-    '"model_reasoning_effort"="xhigh"' "'model_reasoning_effort'=\"xhigh\"" \
-    'model_reasoning_effort.value="xhigh"' \
-    $'model_reasoning_effort="xhigh"\nother="value"' \
-    $'model_reasoning_effort="xhigh"\n[permissions.dotfiles-secure.filesystem]\n"/"="write"' \
-    'model_provider="other"' 'features.network_proxy=false' \
-    'approval_policy="never"' 'projects."/tmp".trust_level="trusted"'; do
-    assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" -c "$value"
-    [[ "$output" == *'codex-worktree:'* ]]
-    [[ "$output" != *'isolated session'* ]]
-  done
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" -c
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" --config
-  assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" '-c=model_reasoning_effort="xhigh"'
-  for value in 'model_reasoning_effort="xhigh"' 'model_reasoning_effort="high"' 'sandbox_mode="danger-full-access"'; do
-    assert_codex_worktree_rejects_boundary_argument "$worktree" "$bin" "$launched" \
-      -c 'model_reasoning_effort="xhigh"' --config="$value"
-  done
-  [ ! -e "$XDG_STATE_HOME/devshell-env/sessions" ]
-}
-
-@test "codex-orca preserves every argument when forwarding to codex-worktree" {
-  local bin="$BATS_TEST_TMPDIR/bin"
-  mkdir -p "$bin"
-  cat >"$bin/codex-worktree" <<'EOF'
-#!/usr/bin/env bash
-printf 'forwarded=<%s>\n' "$@"
-EOF
-  cat >"$bin/codex" <<'EOF'
-#!/usr/bin/env bash
-printf 'wrong-entrypoint\n'
-EOF
-  chmod +x "$bin/codex-worktree" "$bin/codex"
-
-  run env PATH="$bin:$PATH" "$CODEX_ORCA" --model "model with space" -c 'model_reasoning_effort="xhigh"' "" "prompt with space"
-
-  [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "forwarded=<--model>" ]
-  [ "${lines[1]}" = "forwarded=<model with space>" ]
-  [ "${lines[2]}" = "forwarded=<-c>" ]
-  [ "${lines[3]}" = 'forwarded=<model_reasoning_effort="xhigh">' ]
-  [ "${lines[4]}" = "forwarded=<>" ]
-  [ "${lines[5]}" = "forwarded=<prompt with space>" ]
-  [ "${#lines[@]}" -eq 6 ]
-}
-
 assert_codex_managed_values() {
   python3 - "$@" <<'PY'
 import sys
@@ -420,8 +171,10 @@ PY
 assert_dotfiles_permission_profile() {
   python3 - "$@" <<'PY'
 import os
+import json
 import sys
 import tomllib
+from pathlib import Path
 
 expected_domains = {
     "registry.npmjs.org": "allow",
@@ -455,12 +208,25 @@ for path in sys.argv[1:]:
     assert profile["network"]["domains"] == expected_domains
 
     filesystem = profile["filesystem"]
+    plugin_source = Path(config["marketplaces"]["treflebonbon"]["source"])
+    plugin_pin = json.loads((Path(os.environ["PROJECT_ROOT"]) / "private_dot_config/nix-devshell/skills-plugin.json").read_text())
+    plugin_home = plugin_source.parents[3]
+    state_home = Path(os.environ["XDG_STATE_HOME"])
+    legacy_revision = json.loads((Path(os.environ["PROJECT_ROOT"]) / ".chezmoitemplates/local-skills-legacy.json").read_text())["revision"]
+    assert filesystem["~/.config/nix-devshell/skills-plugin.json"] == "read"
+    assert filesystem[str(plugin_source)] == "read"
+    assert filesystem[str(plugin_source.parents[1] / "checkouts" / plugin_pin["rev"])] == "read"
+    assert filesystem[str(state_home / "treflebonbon-skills/plugin-sync/receipt.json")] == "read"
+    assert filesystem[str(state_home / "treflebonbon-skills/legacy" / legacy_revision)] == "read"
+    assert str(state_home) not in filesystem
+    assert str(state_home / "treflebonbon-skills") not in filesystem
     assert filesystem[":workspace_roots"]["."] == "write"
     assert ".git" not in filesystem[":workspace_roots"]
     assert os.environ["CODEX_SOURCE_GIT_COMMON_DIR"] not in filesystem
     assert filesystem[":root"] == "deny"
     assert filesystem[":minimal"] == "read"
     assert filesystem[":slash_tmp"] == "deny"
+    assert filesystem["glob_scan_max_depth"] == 16
     assert filesystem["/tmp/codex"]["."] == "write"
     assert filesystem["/tmp/codex"]["**/.env"] == "deny"
     assert filesystem["/tmp/codex"]["**/*.key"] == "deny"
@@ -481,8 +247,62 @@ for path in sys.argv[1:]:
 PY
 }
 
+prepare_codex_permission_roots() {
+  local home="$1"
+  local state_home="${XDG_STATE_HOME:-$home/.local/state}"
+  local plugin_rev legacy_revision source_root legacy_root
+  plugin_rev="$(jq -r '.rev' "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json")"
+  legacy_revision="$(jq -r '.revision' "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json")"
+  source_root="$home/.cache/treflebonbon-skills/marketplaces/$plugin_rev"
+  legacy_root="$state_home/treflebonbon-skills/legacy/$legacy_revision"
+  mkdir -p \
+    "$home/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
+    "$source_root" \
+    "$home/.config/nix-devshell" "$home/.config/gh" "$home/.config/git" \
+    "$home/.local/bin" \
+    "$state_home/treflebonbon-skills/plugin-sync" "$legacy_root"
+  cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
+    "$home/.config/nix-devshell/skills-plugin.json"
+  printf 'PUBLIC_SOURCE_READABLE\n' >"$source_root/README.md"
+  printf '{"status":"verified"}\n' \
+    >"$state_home/treflebonbon-skills/plugin-sync/receipt.json"
+  printf '{"revision":"%s"}\n' "$legacy_revision" \
+    >"$legacy_root/baseline.json"
+  printf 'dummy-gh-config\n' >"$home/.config/gh/.env"
+  printf 'dummy-git-config\n' >"$home/.config/git/.env"
+  printf 'dummy-bin-entry\n' >"$home/.local/bin/.env"
+  : >"$home/.gitconfig"
+}
+
+run_codex_with_virtual_home() {
+  local home="$1"
+  local workspace="$2"
+  local codex bwrap store_path
+  shift 2
+  codex="$(command -v codex)"
+  bwrap="$(command -v bwrap)"
+  store_path="$(python3 -c 'import os; print(":".join(path for path in os.environ["PATH"].split(":") if path.startswith("/nix/store/")))')"
+  run "$bwrap" \
+    --unshare-all --die-with-parent --new-session \
+    --tmpfs / --dev /dev --proc /proc \
+    --dir /nix --dir /nix/store --ro-bind /nix/store /nix/store \
+    --dir /tmp --dir /tmp/codex --bind /tmp/codex /tmp/codex \
+    --dir /home --dir /home/probe --bind "$home" /home/probe \
+    --setenv PATH "$store_path" \
+    --setenv HOME /home/probe \
+    --setenv CODEX_HOME /home/probe/.codex \
+    --setenv XDG_CONFIG_HOME /home/probe/.config \
+    --setenv XDG_CACHE_HOME /home/probe/.cache \
+    --setenv XDG_DATA_HOME /home/probe/.local/share \
+    --setenv XDG_STATE_HOME "$XDG_STATE_HOME" \
+    --setenv TMPDIR /tmp \
+    --chdir "$workspace" \
+    "$codex" "$@"
+}
+
 stage_codex_managed_config() {
   local home="$1"
+  prepare_codex_permission_roots "$home"
   mkdir -p "$home/.config/codex/environments" "$home/.config/codex/rules"
   render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml" "$home"
   cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" "$home/.config/codex/hooks.json"
@@ -522,7 +342,9 @@ install_codex_managed_config_sync() {
 
 prepare_codex_chezmoi_source() {
   local source="$1"
-  mkdir -p "$source/private_dot_config/nix-devshell" "$source/private_dot_config" "$source/private_dot_local/bin"
+  mkdir -p "$source/.chezmoitemplates" "$source/private_dot_config/nix-devshell" "$source/private_dot_config" "$source/private_dot_local/bin"
+  cp "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json" \
+    "$source/.chezmoitemplates/local-skills-legacy.json"
   cp -R "$PROJECT_ROOT/private_dot_config/codex" "$source/private_dot_config/codex"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
     "$source/private_dot_config/nix-devshell/skills-plugin.json"
@@ -768,21 +590,30 @@ EOF
   grep -Fq '"**/.env*" = "deny"' "$home/.codex/config.toml"
 }
 
-@test "dotfiles-secure sandbox starts without expanding protected home trees" {
+@test "dotfiles-secure sandbox starts without declaring protected home-tree access" {
   local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home="$home/.codex"
   mkdir -p "$workspace" "$codex_home" "$home/.ssh"
+  prepare_codex_permission_roots "$home"
   printf 'protected\n' >"$home/.ssh/config"
-  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
+  assert_dotfiles_permission_profile "$codex_home/config.toml"
 
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-    codex sandbox -P dotfiles-secure -C "$workspace" -- true
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- true
 
   [ "$status" -eq 0 ]
 
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-    codex sandbox -P dotfiles-secure -C "$workspace" -- \
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- \
+    sh -c 'printf "workspace write allowed\\n" >"$1"' _ "$workspace/allowed.txt"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$workspace/allowed.txt")" = "workspace write allowed" ]
+
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- \
     sh -c 'printf "overwritten\\n" >"$HOME/.ssh/config"'
 
   [ "$status" -ne 0 ]
@@ -791,17 +622,17 @@ EOF
 
 @test "managed dependency policy permits official Node.js downloads and rejects lookalike hosts" {
   render_codex_managed_config "$PROJECT_ROOT" "$BATS_TEST_TMPDIR/config.toml"
-  run python3 - "$BATS_TEST_TMPDIR/config.toml" "$PROJECT_ROOT/private_dot_local/share/codex-isolation/secret-isolation-gateway.py" <<'PY'
-import runpy, sys, tomllib
+  run python3 - "$BATS_TEST_TMPDIR/config.toml" <<'PY'
+import sys, tomllib
 from pathlib import Path
 config = tomllib.loads(Path(sys.argv[1]).read_text())
-allowed = runpy.run_path(sys.argv[2])["allowed_destination"]
 for profile in ("dotfiles-secure", "dotfiles-peer"):
     policy = config["permissions"][profile]["network"]["domains"]
-    domains = [host for host, action in policy.items() if action == "allow"]
-    assert allowed("nodejs.org", domains)
-    for host in ("nodejs.org.evil.example", "evilnodejs.org", "www.nodejs.org"):
-        assert not allowed(host, domains), (profile, host)
+    assert policy["nodejs.org"] == "allow", profile
+    assert all(
+        host not in policy
+        for host in ("nodejs.org.evil.example", "evilnodejs.org", "www.nodejs.org", "**.nodejs.org")
+    ), profile
 PY
   [ "$status" -eq 0 ]
 }
@@ -811,8 +642,9 @@ PY
   local codex_home="$home/.codex"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   mkdir -p "$codex_home" "$workspace" "$home/other-repo"
+  prepare_codex_permission_roots "$home"
   printf 'protected\n' >"$home/other-repo/.env"
-  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
   run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
     codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$home/other-repo/.env"
   [ "$status" -ne 0 ]
@@ -828,7 +660,8 @@ PY
   local codex_home="$home/.codex"
   local path
   mkdir -p "$workspace/one/two/three" "$codex_home"
-  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  prepare_codex_permission_roots "$home"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
 
   assert_dotfiles_permission_profile "$codex_home/config.toml"
   grep -q '^\*\*Environment Contract File\*\*:' "$PROJECT_ROOT/GLOSSARY.md"
@@ -871,7 +704,8 @@ PY
   local codex_home="$home/.codex"
   local proxy_denied='CONNECT tunnel failed, response 403|Received HTTP code 403 from proxy after CONNECT'
   mkdir -p "$workspace" "$codex_home"
-  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml"
+  prepare_codex_permission_roots "$home"
+  render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
   assert_codex_managed_values "$codex_home/config.toml"
   assert_dotfiles_permission_profile "$codex_home/config.toml"
 
@@ -945,16 +779,42 @@ EOF
   [ "${#lines[@]}" -eq 2 ]
 }
 
-@test "bun codex routes a linked worktree through the isolated adapter without losing arguments" {
-  raw_fixture
-  cp "$PROJECT_ROOT/codex" "$RAW_BASE/work/codex"
-  cp "$PROJECT_ROOT/package.json" "$RAW_BASE/work/package.json"
-  ln -s "$CODEX_CONTEXT" "$RAW_BASE/bin/codex-context"
-  raw_admit flake.nix task.sh codex package.json
-  run env HOME="$RAW_BASE/home" CODEX_HOME="$RAW_BASE/home/.codex" XDG_STATE_HOME="$RAW_BASE/state" \
-    PATH="$RAW_BASE/bin:$PATH" bash -c 'cd "$1"; exec bun --silent codex sandbox -c '\''model_reasoning_effort="xhigh"'\'' -- printf "arg=<%s>\n" "model with space" "" "prompt with space"' _ "$RAW_BASE/work"
-  raw_assert_status 0
-  [[ "$output" == *'arg=<model with space>'* && "$output" == *'arg=<>'* && "$output" == *'arg=<prompt with space>'* ]]
+@test "bun codex routes linked worktrees through the fixed raw dispatcher with arguments intact" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  local worktree="$BATS_TEST_TMPDIR/worktree"
+  local bin="$BATS_TEST_TMPDIR/bin"
+  create_linked_worktree "$repo" "$worktree"
+  cp "$PROJECT_ROOT/package.json" "$worktree/package.json"
+  cp "$PROJECT_ROOT/codex" "$worktree/codex"
+  stage_codex_package_launcher "$worktree" "$bin"
+
+  run env PATH="$bin:$PATH" SKILLS_PLUGIN_SYNC_LOG="$SKILLS_PLUGIN_SYNC_LOG" bash -c \
+    'cd "$1" && exec bun --silent codex sandbox -c '\''model_reasoning_effort="xhigh"'\'' -- printf "arg=<%s>\\n" "model with space" "" "prompt with space"' \
+    _ "$worktree"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *DISPATCHED* ]]
+  python3 - "$SKILLS_PLUGIN_SYNC_LOG" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+arguments = json.loads(Path(sys.argv[1]).read_text())
+assert arguments == [
+    "--run-raw",
+    "codex-worktree",
+    "--",
+    "sandbox",
+    "-c",
+    'model_reasoning_effort="xhigh"',
+    "--",
+    "printf",
+    "arg=<%s>\\n",
+    "model with space",
+    "",
+    "prompt with space",
+]
+PY
 }
 
 @test "bun codex fails closed outside Git without launching Codex" {
@@ -971,40 +831,6 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"codex-context: current directory is not a Git checkout"* ]]
   [ ! -e "$launched" ]
-}
-
-@test "bun codex fails closed for unresolved linked-worktree metadata without launching Codex" {
-  local repo="$BATS_TEST_TMPDIR/repo"
-  local worktree="$BATS_TEST_TMPDIR/worktree"
-  local bin="$BATS_TEST_TMPDIR/bin"
-  local launched="$BATS_TEST_TMPDIR/codex-launched"
-  local git_dir
-  create_linked_worktree "$repo" "$worktree"
-  stage_codex_package_launcher "$worktree" "$bin"
-  install_codex_launch_sentinel "$bin"
-  git_dir="$(git -C "$worktree" rev-parse --path-format=absolute --git-dir)"
-  printf '%s\n' "$BATS_TEST_TMPDIR/missing/.git" >"$git_dir/gitdir"
-
-  run env PATH="$bin:$PATH" CODEX_LAUNCHED="$launched" bash -c \
-    'cd "$1" && exec bun --silent codex prompt' _ "$worktree"
-
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"codex-worktree: cannot resolve Git worktree metadata"* ]]
-  [ ! -e "$launched" ]
-}
-
-@test "codex-worktree preserves separate stage and commit operations while protected paths stay denied" {
-  raw_fixture
-  raw_admit flake.nix task.sh
-  run raw_run sandbox -- bash -c 'printf linked > linked.txt; git add linked.txt'
-  raw_assert_status 0
-  [ "$(git -C "$RAW_BASE/work" diff --cached --name-only)" = linked.txt ]
-  run raw_run sandbox -- git commit -qm 'test: linked worktree write'
-  raw_assert_status 0
-  [ "$(git -C "$RAW_BASE/work" log -1 --format=%s)" = 'test: linked worktree write' ]
-  run raw_run sandbox -- bash -c 'printf overwritten > .env'
-  [ "$status" -ne 0 ]
-  [ "$(cat "$RAW_BASE/work/.env")" = RAW_DUMMY_SECRET=dummy-root-secret ]
 }
 
 @test "Codex runtime directory remains unmanaged by chezmoi" {
@@ -1531,7 +1357,7 @@ EOF
   grep -q '^approvals_reviewer = "auto_review"$' "$home/.codex/config.toml"
   assert_dotfiles_permission_profile "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
-  grep -q '^glob_scan_max_depth = 4$' "$home/.codex/config.toml"
+  grep -q '^glob_scan_max_depth = 16$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"
   grep -q '^"\.env" = "deny"$' "$home/.codex/config.toml"
   grep -q '^"\*\*/\.env\.example?\*" = "deny"$' "$home/.codex/config.toml"
@@ -1904,9 +1730,14 @@ EOF
 @test "Codex config migration keeps dotenv denied and public examples readable without a raw read grant" {
   local fixture_home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
-  local codex_home path
+  local codex_home path plugin_rev source_root receipt legacy_backup
+  local state_home="${XDG_STATE_HOME:-$fixture_home/.local/state}"
   mkdir -p "$fixture_home/.codex" "$fixture_home/.codex-app" "$workspace/nested" "$fixture_home/other-repo"
   stage_codex_managed_config "$fixture_home"
+  plugin_rev="$(jq -r '.rev' "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json")"
+  source_root="$fixture_home/.cache/treflebonbon-skills/marketplaces/$plugin_rev"
+  receipt="$state_home/treflebonbon-skills/plugin-sync/receipt.json"
+  legacy_backup="$state_home/treflebonbon-skills/legacy/$(jq -r '.revision' "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json")/baseline.json"
   for path in .env .envrc .env.example .env.local nested/.env private.key credentials.json; do
     printf 'fixture\n' >"$workspace/$path"
   done
@@ -1923,6 +1754,20 @@ EOF
   for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
     assert_dotfiles_permission_profile "$codex_home/config.toml"
     cp "$codex_home/config.toml" "$codex_home/first-sync.toml"
+
+    for path in \
+      "$fixture_home/.config/nix-devshell/skills-plugin.json" \
+      "$source_root/README.md" "$receipt" "$legacy_backup"; do
+      run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+        codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$path"
+      [ "$status" -eq 0 ]
+      case "$path" in
+      */skills-plugin.json) [[ "$output" == *"$plugin_rev"* ]] ;;
+      */README.md) [[ "$output" == *PUBLIC_SOURCE_READABLE* ]] ;;
+      */receipt.json) [[ "$output" == *'"verified"'* ]] ;;
+      */baseline.json) [[ "$output" == *'"revision"'* ]] ;;
+      esac
+    done
 
     run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
       codex sandbox -P dotfiles-secure -C "$workspace" -- cat .env
@@ -1941,9 +1786,15 @@ EOF
     [ "$status" -ne 0 ]
     [ "$(cat "$workspace/.env")" = fixture ]
 
-    for path in .env .env.local nested/.env private.key credentials.json "$fixture_home/other-repo/.env"; do
+    for path in \
+      .env .env.local nested/.env private.key credentials.json \
+      "$fixture_home/.config/gh/.env" "$fixture_home/.config/git/.env" \
+      "$fixture_home/.local/bin/.env" "$fixture_home/other-repo/.env"; do
       run env HOME="$fixture_home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
         codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$path"
+      if [ "$status" -eq 0 ]; then
+        printf 'unexpectedly readable path: %s\n' "$path" >&3
+      fi
       [ "$status" -ne 0 ]
     done
   done

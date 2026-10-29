@@ -42,6 +42,7 @@
         "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems f;
+      skillsPluginPin = builtins.fromJSON (builtins.readFile ./skills-plugin.json);
     in
     {
       devShells = forAllSystems (
@@ -56,6 +57,10 @@
             ];
           };
           lib = pkgs.lib;
+          skillsPluginSource = pkgs.fetchFromGitHub {
+            inherit (skillsPluginPin) owner repo rev;
+            hash = skillsPluginPin.nar_hash;
+          };
 
           gwq = pkgs.callPackage ./packages/gwq.nix { };
           gws = pkgs.callPackage ./packages/gws.nix { };
@@ -118,6 +123,7 @@
               {
                 packages = mergedPackages ++ cicdPackages;
                 shellHook = mergedShellHook;
+                TREFLEBONBON_SKILLS_LIB = "${skillsPluginSource}/lib/python";
               }
               // mergedEnv
             );

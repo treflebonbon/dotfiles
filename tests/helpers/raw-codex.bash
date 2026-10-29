@@ -1,16 +1,18 @@
 # Real public raw entry fixtures. Only dummy, explicitly enumerated inputs enter.
 raw_fixture() {
   RAW_BASE="$BATS_TEST_TMPDIR/raw"
-  mkdir -p "$RAW_BASE/home/.codex" "$RAW_BASE/bin"
+  RAW_PLUGIN_PYTHON="${TREFLEBONBON_SKILLS_LIB:?run tests in the pinned skills-plugin devShell}"
+  RAW_PLUGIN_ROOT="$(cd "$RAW_PLUGIN_PYTHON/../.." && pwd)"
+  mkdir -p "$RAW_BASE/home/.codex" "$RAW_BASE/bin" "$RAW_BASE/state"
   git init -q "$RAW_BASE/repo"
   git -C "$RAW_BASE/repo" config user.name Fixture
   git -C "$RAW_BASE/repo" config user.email fixture@example.invalid
   git -C "$RAW_BASE/repo" commit --allow-empty -qm 'test: baseline'
   git -C "$RAW_BASE/repo" worktree add -qb task "$RAW_BASE/work"
-  cp "$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree" "$RAW_BASE/bin/codex-worktree"
-  chmod +x "$RAW_BASE/bin/codex-worktree"
-  ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$RAW_BASE/bin/devshell-env"
-  chezmoi --source "$PROJECT_ROOT" execute-template -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" >"$RAW_BASE/home/.codex/config.toml"
+  ln -s "$RAW_PLUGIN_ROOT/bin/codex-worktree" "$RAW_BASE/bin/codex-worktree"
+  ln -s "$RAW_PLUGIN_ROOT/bin/devshell-env" "$RAW_BASE/bin/devshell-env"
+  env HOME="$RAW_BASE/home" XDG_STATE_HOME="$RAW_BASE/state" \
+    chezmoi --source "$PROJECT_ROOT" execute-template -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" >"$RAW_BASE/home/.codex/config.toml"
   RAW_CA="${CODEX_ISOLATION_CA_BUNDLE:-${NIX_SSL_CERT_FILE:-${SSL_CERT_FILE:-}}}"
   [ -f "$RAW_CA" ]
   raw_flake

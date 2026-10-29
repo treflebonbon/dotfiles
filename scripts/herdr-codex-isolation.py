@@ -10,23 +10,36 @@ import shlex
 import shutil
 import stat
 import subprocess
-import tempfile
 import time
 
 
 class Probe:
     def __init__(self, output, control):
         self.output = output.resolve()
+        allowed_roots = []
+        vm_root = Path("/home/probe")
+        if vm_root.is_dir() and not vm_root.is_symlink():
+            allowed_roots.append(vm_root.resolve(strict=True))
+        if Path("/tmp/codex").exists():
+            allowed_roots.append(Path("/tmp/codex").resolve(strict=True))
+        if not any(self.output.is_relative_to(root) for root in allowed_roots):
+            raise ValueError(
+                "Herdr Nix evaluation requires output inside an isolated fixture root"
+            )
         self.output.mkdir(mode=0o700)
         self.source = Path(__file__).resolve().parents[1]
+        self.plugin_python = Path(os.environ["TREFLEBONBON_SKILLS_LIB"])
+        self.plugin_source = self.plugin_python.parent.parent
         self.repo = self.output / "source tree"
         self.work = self.output / "worktree"
         self.home = self.output / "home"
         self.control = control
         for directory in (
             self.home / ".codex",
+            control,
             self.output / "runtime",
             self.output / "bin",
+            self.output / "tmp",
         ):
             directory.mkdir(parents=True, mode=0o700)
         self.env = {
@@ -36,6 +49,8 @@ class Probe:
             "XDG_STATE_HOME": str(self.output / "state"),
             "XDG_CACHE_HOME": str(self.output / "cache"),
             "XDG_RUNTIME_DIR": str(self.output / "runtime"),
+            "TMPDIR": str(self.output / "tmp"),
+            "TREFLEBONBON_SKILLS_LIB": str(self.plugin_python),
             "CODEX_HOME": str(self.home / ".codex"),
             "CODEX_ISOLATION_CA_BUNDLE": os.environ["CODEX_ISOLATION_CA_BUNDLE"],
             "SHELL": str(Path(shutil.which("bash")).resolve()),
@@ -96,9 +111,7 @@ class Probe:
             (self.source / ".herdr/herdr-plugin.toml").read_bytes()
         )
         for name in ("codex-worktree", "devshell-env"):
-            (self.output / "bin" / name).symlink_to(
-                self.source / "private_dot_local/bin" / f"executable_{name}"
-            )
+            (self.output / "bin" / name).symlink_to(self.plugin_source / "bin" / name)
         config = self.run(
             [
                 "chezmoi",
@@ -607,19 +620,15 @@ if __name__ == "__main__":
         help="opt in to a hosted model turn using the existing host ChatGPT login",
     )
     arguments = parser.parse_args()
-    # Herdr's UNIX socket must fit sockaddr_un even under a long Bats TMPDIR.
-    with tempfile.TemporaryDirectory(prefix="h273-", dir="/tmp") as control:
-        probe = Probe(arguments.output, Path(control))
+    probe = Probe(arguments.output, arguments.output / "control")
+    if arguments.interactive:
+        probe.interactive_codex_home = Path(
+            os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+        ).resolve(strict=True)
+        if not (probe.interactive_codex_home / "auth.json").is_file():
+            parser.error("interactive probe requires the existing host ChatGPT login")
+    try:
+        probe.main()
+    finally:
         if arguments.interactive:
-            probe.interactive_codex_home = Path(
-                os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
-            ).resolve(strict=True)
-            if not (probe.interactive_codex_home / "auth.json").is_file():
-                parser.error(
-                    "interactive probe requires the existing host ChatGPT login"
-                )
-        try:
-            probe.main()
-        finally:
-            if arguments.interactive:
-                (probe.home / ".codex/auth.json").unlink(missing_ok=True)
+            (probe.home / ".codex/auth.json").unlink(missing_ok=True)

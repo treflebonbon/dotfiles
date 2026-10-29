@@ -18,7 +18,7 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - [shell-environment](shell-environment.md) — bash + starship/atuin/fzf/zoxide/ghq のシェル環境
 - [human-validation](human-validation.md) — 秘密なしの AI 開発と、人間による固定版の別環境検証
 - [skill-harness](skill-harness.md) — apm 経由の skill 群、mattpocock ワークフロー、playwright-cli
-- [autonomous-peer-contract](autonomous-peer-contract.md) — 元候補を保持する native peer 協働、承認範囲、独立レビュー、保留と報告
+- [autonomous-peer-contract](autonomous-peer-contract.md) — 固定 plugin source の peer 協働・専用 auto 保護契約への案内
 - [ai-runtimes](ai-runtimes.md) — nix-devshell の AI ツールと Claude/Codex マルチランタイム、更新経路
 - [investigation](investigation.md) — Google Cloud / GitHub の調査コマンド、機密項目の除外、未対応操作の実行前確認
 

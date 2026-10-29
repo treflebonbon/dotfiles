@@ -12,7 +12,6 @@ if sys.argv[1:] == ["human"]:
     reviewed_code = Path(__file__).read_bytes()
     print("HUMAN_READY", flush=True)
     assert sys.stdin.readline().strip() == "continue"
-    # The controller releases this only after the raw session edits its copy.
     assert Path("fixture.txt").read_text() == "public fixture\n"
     assert Path(__file__).read_bytes() == reviewed_code
     Path("../output/result.txt").write_text(os.environ["HUMAN_TOKEN"])

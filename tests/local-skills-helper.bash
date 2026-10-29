@@ -7,6 +7,9 @@ setup_local_skills_fixture() {
   printf '{}\n' >"$SKILL_CONFIG"
   cp "$PROJECT_ROOT"/run_onchange_{before_remove-orphan-claude-skills,after_apm-install,after_deploy-local-skills}.sh.tmpl "$SKILL_SOURCE/"
   cp -a "$PROJECT_ROOT/local-skills" "$SKILL_SOURCE/"
+  mkdir -p "$SKILL_SOURCE/private_dot_local/bin"
+  cp "$PROJECT_ROOT"/private_dot_local/bin/executable_{git-push-topic,git-push-reviewed,gh-review-thread,orca-send,codex-reviewer} \
+    "$SKILL_SOURCE/private_dot_local/bin/"
   local dir
   for dir in .chezmoitemplates .chezmoidata; do
     if [ -d "$PROJECT_ROOT/$dir" ]; then

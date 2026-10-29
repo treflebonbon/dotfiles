@@ -76,7 +76,7 @@ GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない
 
 ## 自律 agent の peer 協働
 
-- 元の候補を native peer と改善する契約は [`runtime/autonomous-peer-contract.md`](../runtime/autonomous-peer-contract.md) を正本とする（[ADR-0075](adr/0075-adopt-peer-refactor-skills.md)）。
+- 元の候補を native peer と改善する契約の正本は、固定 plugin source の `contracts/autonomous-peer-contract.md` と `contracts/auto-peer-protection.md`。source の解決方法は [`runtime/autonomous-peer-contract.md`](../runtime/autonomous-peer-contract.md) を参照する（[ADR-0075](adr/0075-adopt-peer-refactor-skills.md)）。
 
 ## 言語バージョンの更新
 

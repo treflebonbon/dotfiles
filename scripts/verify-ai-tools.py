@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -73,8 +74,18 @@ def main():
     for signum in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(signum, lambda received, _frame: sys.exit(128 + received))
     source = arguments.source.resolve(strict=True)
-    (source / "tmp").mkdir(exist_ok=True)
-    runtime = Path(tempfile.mkdtemp(prefix="ai-tools-", dir=source / "tmp"))
+    scratch_root = Path("/tmp/codex")
+    scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    root_metadata = scratch_root.stat(follow_symlinks=False)
+    if (
+        scratch_root.is_symlink()
+        or not stat.S_ISDIR(root_metadata.st_mode)
+        or root_metadata.st_uid != os.getuid()
+        or root_metadata.st_mode & 0o077
+    ):
+        raise RuntimeError("/tmp/codex must be a private directory owned by the current user")
+    scratch_root = scratch_root.resolve(strict=True)
+    runtime = Path(tempfile.mkdtemp(prefix="ai-tools-", dir=scratch_root))
     environment = os.environ.copy()
     # 同じWindows資源の予約を共有するため、XDG隔離前の記録先を保つ。
     if not environment.get("BROWSER_OWNERSHIP_DIR"):
@@ -93,12 +104,25 @@ def main():
         ("XDG_RUNTIME_DIR", "runtime"),
         ("XDG_CACHE_HOME", "cache"),
         ("XDG_STATE_HOME", "state"),
+        ("TMPDIR", "tmp"),
     ):
         path = runtime / directory
         path.mkdir(mode=0o700)
         environment[key] = str(path)
         # 隔離先は証拠ではない。tmp/ に壊れた symlink が残ると chezmoi が source 全体で失敗する。
         atexit.register(shutil.rmtree, path, ignore_errors=True)
+    for key in (
+        "HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_RUNTIME_DIR",
+        "XDG_CACHE_HOME",
+        "XDG_STATE_HOME",
+        "TMPDIR",
+    ):
+        path = Path(environment[key]).resolve(strict=True)
+        if not path.is_relative_to(runtime.resolve(strict=True)):
+            raise RuntimeError(f"{key} escaped the isolated /tmp/codex directory")
     for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR", "FORCE_COLOR"):
         environment.pop(key, None)
     environment.update(

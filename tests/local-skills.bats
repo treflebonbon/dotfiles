@@ -98,7 +98,7 @@ setup() {
   chmod +x "$BATS_TEST_TMPDIR/external-cli"
   ln -s "$BATS_TEST_TMPDIR/external-cli" "$SKILL_HOME/.local/bin/orca-send"
   run run_skill_phase before_remove-orphan-claude-skills
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
   [[ "$output" == *'未知の CLI 参照先'* ]]
   [ -L "$SKILL_HOME/.local/bin/orca-send" ]
   [ ! -e "$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/.local/bin/orca-send" ]
@@ -107,28 +107,49 @@ setup() {
 
 @test "migration preparation saves known CLI implementations once without replacing a changed live CLI" {
   mkdir -p "$SKILL_HOME/.local/bin" "$SKILL_HOME/.local/share/devshell-env"
-  local name
+  local name old_root="$BATS_TEST_TMPDIR/known-old"
+  mkdir -p "$old_root/.local/bin" "$old_root/.local/share/devshell-env"
   for name in git-push-topic gh-review-thread orca-send codex-reviewer; do
-    cp "$PROJECT_ROOT/private_dot_local/bin/executable_$name" "$SKILL_HOME/.local/bin/$name"
-    chmod +x "$SKILL_HOME/.local/bin/$name"
+    printf '#!/bin/sh\n# old CLI %s\n' "$name" >"$old_root/.local/bin/$name"
+    chmod 755 "$old_root/.local/bin/$name"
+    cp "$old_root/.local/bin/$name" "$SKILL_HOME/.local/bin/$name"
   done
   ln -s git-push-topic "$SKILL_HOME/.local/bin/git-push-reviewed"
-  cp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" "$SKILL_HOME/.local/share/devshell-env/"
+  printf '# trusted old devshell module\n' >"$old_root/.local/share/devshell-env/devshell_environment.py"
+  cp "$old_root/.local/share/devshell-env/devshell_environment.py" "$SKILL_HOME/.local/share/devshell-env/"
+  python3 - "$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.json" "$old_root" <<'PY'
+import hashlib, json, os, sys
+from pathlib import Path
+manifest = Path(sys.argv[1])
+root = Path(sys.argv[2])
+baseline = json.loads(manifest.read_text())
+for relative in baseline["cli"]:
+    path = root / relative
+    if relative.endswith("git-push-reviewed"):
+        path = root / ".local/bin/git-push-topic"
+    contents = path.read_bytes()
+    baseline["cli"][relative] = {
+        "sha256": hashlib.sha256(contents).hexdigest(),
+        "mode": os.stat(path).st_mode & 0o777,
+    }
+manifest.write_text(json.dumps(baseline, sort_keys=True, ensure_ascii=False, indent=2) + "\n")
+PY
   run run_skill_phase before_remove-orphan-claude-skills
   [ "$status" -eq 0 ]
   local saved="$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35"
   [ -f "$saved/baseline.json" ]
   for name in git-push-topic gh-review-thread orca-send codex-reviewer; do
-    cmp "$PROJECT_ROOT/private_dot_local/bin/executable_$name" "$saved/.local/bin/$name"
+    cmp "$old_root/.local/bin/$name" "$saved/.local/bin/$name"
     [ -x "$saved/.local/bin/$name" ]
   done
   cmp "$saved/.local/bin/git-push-topic" "$saved/.local/bin/git-push-reviewed"
-  cmp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" "$saved/.local/share/devshell-env/devshell_environment.py"
+  cmp "$old_root/.local/share/devshell-env/devshell_environment.py" "$saved/.local/share/devshell-env/devshell_environment.py"
   printf 'user CLI\n' >"$SKILL_HOME/.local/bin/git-push-topic"
   run run_skill_phase before_remove-orphan-claude-skills
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'旧 CLI 切替を保留します'* ]]
   grep -Fxq 'user CLI' "$SKILL_HOME/.local/bin/git-push-topic"
-  cmp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$saved/.local/bin/git-push-topic"
+  cmp "$old_root/.local/bin/git-push-topic" "$saved/.local/bin/git-push-topic"
 
   printf 'damaged backup\n' >"$saved/.local/bin/git-push-topic"
   run run_skill_phase before_remove-orphan-claude-skills
@@ -724,10 +745,9 @@ EOF
   done < <(find "$BATS_TEST_DIRNAME/../local-skills" -path '*/scripts/*.sh')
 }
 
-@test "peer contract Run Scope names the approved external operations" {
-  local scope
-  scope="$(grep -F 'Run Scope は' "$BATS_TEST_DIRNAME/../runtime/autonomous-peer-contract.md")"
-  printf '%s\n' "$scope" | grep -Fq 'git-push-topic'
-  printf '%s\n' "$scope" | grep -Fq 'draft PR'
-  printf '%s\n' "$scope" | grep -Fq 'ready 化・merge・close・force push・secret は承認に含めない'
+@test "peer contract points to the fixed plugin source as its normative source" {
+  local contract="$BATS_TEST_DIRNAME/../runtime/autonomous-peer-contract.md"
+  grep -Fq 'contracts/autonomous-peer-contract.md' "$contract"
+  grep -Fq 'contracts/auto-peer-protection.md' "$contract"
+  grep -Fq 'sync-skills-plugin --verify-only' "$contract"
 }

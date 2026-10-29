@@ -33,6 +33,9 @@
         }
       );
       pythonFor = forAllSystems (system: pkgsFor.${system}.python3.withPackages (p: [ p.python-dotenv ]));
+      skillsPluginPin = builtins.fromJSON (
+        builtins.readFile ./private_dot_config/nix-devshell/skills-plugin.json
+      );
     in
     {
       packages = forAllSystems (
@@ -40,9 +43,12 @@
         let
           pkgs = pkgsFor.${system};
           python = pythonFor.${system};
+          skillsPluginSource = pkgs.fetchFromGitHub {
+            inherit (skillsPluginPin) owner repo rev;
+            hash = skillsPluginPin.nar_hash;
+          };
           withEnvSource = pkgs.runCommand "with-env-source" { } ''
             install -D ${./private_dot_local/bin/executable_devshell-env} $out/bin/devshell-env
-            install -D ${./private_dot_local/share/devshell-env/devshell_environment.py} $out/share/devshell-env/devshell_environment.py
           '';
         in
         {
@@ -56,7 +62,8 @@
                   pkgs.bash
                 ]
               }"
-              exec ${python}/bin/python3 ${withEnvSource}/bin/devshell-env with-env "$@"
+              TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python \
+                exec ${python}/bin/python3 ${withEnvSource}/bin/devshell-env with-env "$@"
             '';
           };
         }
