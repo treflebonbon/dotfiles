@@ -13,16 +13,25 @@ baseline = json.loads(sys.argv[1])
 action, *arguments = sys.argv[2:]
 
 
-def matches_file(path, expected):
+def entry_info(path):
     try:
-        info = path.stat()
-        return (
-            stat.S_ISREG(info.st_mode)
-            and bool(info.st_mode & 0o111) == expected["executable"]
-            and hashlib.sha256(path.read_bytes()).hexdigest() == expected["sha256"]
-        )
-    except OSError:
-        return False
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+
+
+def is_symlink(path):
+    info = entry_info(path)
+    return info is not None and stat.S_ISLNK(info.st_mode)
+
+
+def matches_file(path, expected):
+    info = path.stat(follow_symlinks=False)
+    return (
+        stat.S_ISREG(info.st_mode)
+        and stat.S_IMODE(info.st_mode) == expected["mode"]
+        and hashlib.sha256(path.read_bytes()).hexdigest() == expected["sha256"]
+    )
 
 
 def save_once(path, payload, mode):
@@ -36,13 +45,21 @@ def save_once(path, payload, mode):
 
 def check_skill(name, root):
     expected = baseline["skills"][name]
-    if not root.exists() and not root.is_symlink():
+    expected_dirs = baseline["directories"][name]
+    try:
+        info = entry_info(root)
+    except OSError as error:
+        print(f"skills migration: 保持 {root}: 検査できません ({error.strerror})", file=sys.stderr)
+        return False
+    if info is None:
         return True
-    if root.is_symlink() or not root.is_dir():
+    if not stat.S_ISDIR(info.st_mode):
         print(f"skills migration: 保持 {root}: 実 directory と確認できません", file=sys.stderr)
         return False
     observed = set()
     differences = []
+    if stat.S_IMODE(info.st_mode) != expected_dirs["."]:
+        differences.append(".: directory の permission が不一致")
 
     def walk_error(error):
         raise error
@@ -52,11 +69,16 @@ def check_skill(name, root):
             for entry in dirs + files:
                 path = Path(directory) / entry
                 relative = path.relative_to(root).as_posix()
-                if path.is_symlink():
+                info = entry_info(path)
+                if info is None:
+                    differences.append(f"{relative}: 検査中に消失")
+                elif stat.S_ISLNK(info.st_mode):
                     differences.append(f"{relative}: symlink")
-                elif path.is_dir():
-                    if not any(key.startswith(relative + "/") for key in expected):
+                elif stat.S_ISDIR(info.st_mode):
+                    if relative not in expected_dirs:
                         differences.append(f"{relative}: 追加 directory")
+                    elif stat.S_IMODE(info.st_mode) != expected_dirs[relative]:
+                        differences.append(f"{relative}: directory の permission が不一致")
                 else:
                     observed.add(relative)
                     if relative not in expected:
@@ -78,14 +100,14 @@ def prepare():
     state = Path(os.environ.get("XDG_STATE_HOME", str(home / ".local/state"))).resolve()
     destination = state / "treflebonbon-skills/legacy" / baseline["revision"]
     for path in reversed([destination, *destination.parents]):
-        if path.is_symlink():
+        if is_symlink(path):
             raise ValueError(f"復旧先が symlink です: {path}")
     destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     manifest = destination / "baseline.json"
     contents = json.dumps(baseline, sort_keys=True, ensure_ascii=False) + "\n"
-    if manifest.is_symlink():
+    if is_symlink(manifest):
         raise ValueError("復旧用の比較基準が symlink です")
-    if manifest.exists():
+    if entry_info(manifest) is not None:
         if manifest.read_text() != contents:
             raise ValueError("復旧用の比較基準が既知の revision と一致しません")
     else:
@@ -93,21 +115,23 @@ def prepare():
     for relative, expected in baseline["cli"].items():
         source = home / relative
         target = destination / relative
-        if any(parent.is_symlink() for parent in target.parents):
+        if any(is_symlink(parent) for parent in target.parents):
             raise ValueError("復旧先の親が symlink です")
-        if target.exists() or target.is_symlink():
-            if target.is_symlink() or not matches_file(target, expected):
+        if entry_info(target) is not None:
+            if is_symlink(target) or not matches_file(target, expected):
                 raise ValueError(f"保存済みの旧 CLI が不正です: {relative}")
             continue
-        if not source.exists() and not source.is_symlink():
+        if entry_info(source) is None:
             continue
         alias = source.with_name("git-push-topic")
         known_alias = False
-        if source.is_symlink() and relative == ".local/bin/git-push-reviewed":
-            known_alias = os.readlink(source) == "git-push-topic" and not alias.is_symlink()
-        if (source.is_symlink() and not known_alias) or not source.resolve().is_relative_to(home):
+        if is_symlink(source) and relative == ".local/bin/git-push-reviewed":
+            known_alias = os.readlink(source) == "git-push-topic" and not is_symlink(alias)
+        if (is_symlink(source) and not known_alias) or not source.resolve(strict=True).is_relative_to(home):
             print(f"skills migration: 保持 {source}: 未知の CLI 参照先", file=sys.stderr)
             continue
+        if known_alias:
+            source = alias
         if not matches_file(source, expected):
             print(f"skills migration: 保持 {source}: 既知の旧 CLI と不一致", file=sys.stderr)
             continue
@@ -115,7 +139,7 @@ def prepare():
         payload = source.read_bytes()
         if hashlib.sha256(payload).hexdigest() != expected["sha256"]:
             raise ValueError(f"旧 CLI の内容が保存中に変化しました: {relative}")
-        save_once(target, payload, 0o755 if expected["executable"] else 0o644)
+        save_once(target, payload, expected["mode"])
 
 
 try:

@@ -49,6 +49,49 @@ setup() {
   grep -Fxq 'user reference' "$BATS_TEST_TMPDIR/user-rop/SKILL.md"
 }
 
+@test "migration preparation preserves a legacy copy when its parent cannot be inspected" {
+  [ "$(id -u)" -ne 0 ] || skip "root は directory の検査拒否を再現できない"
+  mkdir -p "$SKILL_HOME/.agents/skills/rop"
+  printf 'user payload\n' >"$SKILL_HOME/.agents/skills/rop/SKILL.md"
+  chmod 000 "$SKILL_HOME/.agents/skills"
+  run run_skill_phase after_deploy-local-skills
+  chmod 700 "$SKILL_HOME/.agents/skills"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'検査できません'* ]]
+  grep -Fxq 'user payload' "$SKILL_HOME/.agents/skills/rop/SKILL.md"
+}
+
+@test "migration preparation stops when an old CLI cannot be inspected" {
+  [ "$(id -u)" -ne 0 ] || skip "root は directory の検査拒否を再現できない"
+  mkdir -p "$SKILL_HOME/.local/bin"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$SKILL_HOME/.local/bin/git-push-topic"
+  chmod +x "$SKILL_HOME/.local/bin/git-push-topic"
+  chmod 000 "$SKILL_HOME/.local/bin"
+  run run_skill_phase before_remove-orphan-claude-skills
+  chmod 700 "$SKILL_HOME/.local/bin"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'Permission denied'* ]]
+  cmp "$PROJECT_ROOT/private_dot_local/bin/executable_git-push-topic" "$SKILL_HOME/.local/bin/git-push-topic"
+}
+
+@test "migration preparation preserves restrictive permissions on a known legacy file" {
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  chmod 600 "$SKILL_HOME/.agents/skills/rop/SKILL.md"
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  [ "$(python3 -c 'import os,sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o7777))' "$SKILL_HOME/.agents/skills/rop/SKILL.md")" = 0o600 ]
+}
+
+@test "migration preparation preserves restrictive permissions on a known legacy directory" {
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  chmod 700 "$SKILL_HOME/.agents/skills/rop/references"
+  run run_skill_phase after_deploy-local-skills
+  [ "$status" -eq 0 ]
+  [ "$(python3 -c 'import os,sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o7777))' "$SKILL_HOME/.agents/skills/rop/references")" = 0o700 ]
+}
+
 @test "migration preparation does not adopt an unknown CLI symlink even when its content is known" {
   mkdir -p "$SKILL_HOME/.local/bin"
   cp "$PROJECT_ROOT/private_dot_local/bin/executable_orca-send" "$BATS_TEST_TMPDIR/external-cli"

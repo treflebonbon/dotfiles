@@ -243,7 +243,7 @@ cleanup → APM install / prune → ローカル配備の順序を維持する�
 
 template 展開時に、ソースルート・各 skill の `SKILL.md`・名前の形式・配備対象と撤去対象の重複・APM の実配備先名との衝突を検査する。作業途中の skill は `local-skills/` の外に置き、APM 所有の名前をローカル配備で上書きしない。置換は配備先単位とし、途中失敗時は旧内容を保護するが、成功済みの更新は残る。修復後の再実行で両配備先を揃える。
 
-**独立 plugin への移行準備**（[ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md)、Issue #541）では、対象11件の移行前 revision とファイルごとの内容・実行属性を `.chezmoitemplates/local-skills-legacy.json` に固定する。対象の既存コピーに変更・追加・欠損・symlink がある場合は、差分の項目と理由を示して上書きを保留する。旧 Codex native location の対象11件も保持し、全 runtime の導入確認前には撤去しない。所有者を確認できない Claude の実 directory と symlink は保持し、APM の既知の配布・撤去対象の管理は継続する。
+**独立 plugin への移行準備**（[ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md)、Issue #541）では、対象11件の移行前 revision、ファイルの内容と permission、directory の permission を `.chezmoitemplates/local-skills-legacy.json` に固定する。対象の既存コピーに変更・追加・欠損・symlink がある場合は、差分の項目と理由を示して上書きを保留する。旧 Codex native location の対象11件も保持し、全 runtime の導入確認前には撤去しない。所有者を確認できない Claude の実 directory と symlink は保持し、APM の既知の配布・撤去対象の管理は継続する。
 
 同じ準備処理は、既知の旧 CLI 5入口と必要な共用 module を、既存の配備内容と照合して `$XDG_STATE_HOME/treflebonbon-skills/legacy/<revision>/`（未指定時は `~/.local/state/` 配下）へ一度だけ保存する。比較基準も同じ場所に保存し、後続の切替・復旧から参照できるようにする。未知の CLI は変更せず、保存済みの内容が不正なら処理を停止する。固定した比較基準と復旧資産を新版の source に合わせて更新しない。この段階では plugin の導入・グローバル CLI の切替・旧 source の撤去を行わない。
 
