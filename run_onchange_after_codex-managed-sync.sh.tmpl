@@ -5,6 +5,8 @@
 # Codex managed hooks hash: {{ include "private_dot_config/codex/hooks.json" | sha256sum }}
 # Codex managed rules hash: {{ include "private_dot_config/codex/rules/default.rules" | sha256sum }}
 # Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
+# Skills plugin pin hash: {{ include "private_dot_config/nix-devshell/skills-plugin.json" | sha256sum }}
+# Skills plugin sync hash: {{ include "private_dot_local/bin/executable_sync-skills-plugin" | sha256sum }}
 set -euo pipefail
 
 sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"

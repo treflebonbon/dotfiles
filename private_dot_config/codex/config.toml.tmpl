@@ -7,6 +7,12 @@ approval_policy = "on-request"
 approvals_reviewer = "auto_review"
 default_permissions = "dotfiles-secure"
 
+{{ $pluginPin := mustFromJson (include "private_dot_config/nix-devshell/skills-plugin.json") -}}
+{{ $pluginSource := printf "%s/.cache/treflebonbon-skills/marketplaces/%s" .chezmoi.homeDir $pluginPin.rev -}}
+[marketplaces.treflebonbon]
+source_type = "local"
+source = {{ printf "%q" $pluginSource }}
+
 [agents]
 default_subagent_model = "gpt-6-luna"
 default_subagent_reasoning_effort = "xhigh"
@@ -120,4 +126,7 @@ enabled = true
 enabled = true
 
 [plugins."ponytail@ponytail"]
+enabled = true
+
+[plugins."treflebonbon-skills@treflebonbon"]
 enabled = true

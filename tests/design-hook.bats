@@ -11,7 +11,10 @@ setup() {
   mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills" "$CODEX_HOME"
   ln -s "${RUNTIME%/scripts/impeccable}" "$HOME/.agents/skills/impeccable"
   ln -s "${RUNTIME%/scripts/impeccable}" "$HOME/.claude/skills/impeccable"
-  cp "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" "$HOME/.claude/settings.json"
+  printf '{}\n' >"$BATS_TEST_TMPDIR/chezmoi.yaml"
+  env HOME="$HOME" chezmoi --source "$PROJECT_ROOT" --destination "$HOME" \
+    --config "$BATS_TEST_TMPDIR/chezmoi.yaml" execute-template \
+    <"$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" >"$HOME/.claude/settings.json"
   cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" "$CODEX_HOME/hooks.json"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$PROJECT"

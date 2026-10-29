@@ -1,3 +1,5 @@
+{{ $pluginPin := mustFromJson (include "private_dot_config/nix-devshell/skills-plugin.json") -}}
+{{ $pluginSource := printf "%s/.cache/treflebonbon-skills/marketplaces/%s" .chezmoi.homeDir $pluginPin.rev -}}
 {
   "env": {
     "ENABLE_TOOL_SEARCH": "true",
@@ -196,7 +198,8 @@
     "rust-analyzer-lsp@claude-plugins-official": true,
     "codex@openai-codex": true,
     "security-guidance@claude-plugins-official": true,
-    "ponytail@ponytail": true
+    "ponytail@ponytail": true,
+    "treflebonbon-skills@treflebonbon": true
   },
   "extraKnownMarketplaces": {
     "openai-codex": {
@@ -209,6 +212,12 @@
       "source": {
         "source": "github",
         "repo": "dietrichgebert/ponytail"
+      }
+    },
+    "treflebonbon": {
+      "source": {
+        "source": "directory",
+        "path": {{ printf "%q" $pluginSource }}
       }
     }
   },

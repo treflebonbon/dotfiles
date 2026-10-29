@@ -14,6 +14,17 @@ setup() {
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
   mkdir -p "$BATS_TEST_TMPDIR/runtime-bin"
+  cat >"$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin" <<'SH'
+#!/usr/bin/env bash
+printf '%s\0' "$@" >>"$SKILLS_PLUGIN_SYNC_LOG"
+printf '\0' >>"$SKILLS_PLUGIN_SYNC_LOG"
+if [ "${FAIL_SKILLS_PLUGIN_SYNC:-}" = "1" ]; then
+  exit 1
+fi
+SH
+  chmod +x "$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin"
+  export SKILLS_PLUGIN_SYNC_LOG="$BATS_TEST_TMPDIR/skills-plugin-sync.log"
+  export PATH="$BATS_TEST_TMPDIR/runtime-bin:$PATH"
   cp "$PROJECT_ROOT/private_dot_local/bin/executable_codex-worktree" "$CODEX_WORKTREE"
   ln -s "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$BATS_TEST_TMPDIR/runtime-bin/devshell-env"
   export PATH="$BATS_TEST_TMPDIR/runtime-bin:$PATH"
@@ -473,11 +484,32 @@ PY
 stage_codex_managed_config() {
   local home="$1"
   mkdir -p "$home/.config/codex/environments" "$home/.config/codex/rules"
-  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.config/codex/config.toml" "$home"
   cp "$PROJECT_ROOT/private_dot_config/codex/hooks.json" "$home/.config/codex/hooks.json"
   cp "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules" "$home/.config/codex/rules/default.rules"
   cp "$PROJECT_ROOT/private_dot_config/codex/environments/environment.toml" "$home/.config/codex/environments/environment.toml"
   cp "$PROJECT_ROOT/private_dot_config/codex/AGENTS.md" "$home/.config/codex/AGENTS.md"
+}
+
+omit_skills_marketplace_from_fixture() {
+  local config="$1/.config/codex/config.toml"
+  python3 - "$config" <<'PY'
+import sys
+
+path = sys.argv[1]
+kept = []
+skip = False
+for line in open(path, encoding="utf-8"):
+    if line.strip() == "[marketplaces.treflebonbon]":
+        skip = True
+        continue
+    if skip and line.startswith("["):
+        skip = False
+    if not skip:
+        kept.append(line)
+with open(path, "w", encoding="utf-8") as stream:
+    stream.writelines(kept)
+PY
 }
 
 install_codex_managed_config_sync() {
@@ -490,10 +522,17 @@ install_codex_managed_config_sync() {
 
 prepare_codex_chezmoi_source() {
   local source="$1"
-  mkdir -p "$source/private_dot_config" "$source/private_dot_local/bin"
+  mkdir -p "$source/private_dot_config/nix-devshell" "$source/private_dot_config" "$source/private_dot_local/bin"
   cp -R "$PROJECT_ROOT/private_dot_config/codex" "$source/private_dot_config/codex"
+  cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
+    "$source/private_dot_config/nix-devshell/skills-plugin.json"
   cp "$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config" \
     "$source/private_dot_local/bin/executable_sync-codex-managed-config"
+  cat >"$source/private_dot_local/bin/executable_sync-skills-plugin" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+  chmod +x "$source/private_dot_local/bin/executable_sync-skills-plugin"
   cp "$PROJECT_ROOT/dot_bash_profile.tmpl" "$source/dot_bash_profile.tmpl"
   cp "$PROJECT_ROOT"/run_onchange_after_codex-*.sh.tmpl "$source/"
   git -C "$source" init -q
@@ -502,9 +541,21 @@ prepare_codex_chezmoi_source() {
 render_codex_managed_config() {
   local source="$1"
   local destination="$2"
-  chezmoi --source "$source" execute-template \
+  local home="${3:-$BATS_TEST_TMPDIR/chezmoi-render-home}"
+  mkdir -p "$home"
+  env HOME="$home" chezmoi --source "$source" --destination "$home" execute-template \
     -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" \
     >"$destination"
+}
+
+render_claude_settings() {
+  local destination="$1"
+  local home="$BATS_TEST_TMPDIR/claude-template-home"
+  local config="$BATS_TEST_TMPDIR/claude-template-chezmoi.yaml"
+  mkdir -p "$home"
+  printf '{}\n' >"$config"
+  env HOME="$home" chezmoi --source "$PROJECT_ROOT" --destination "$home" --config "$config" \
+    execute-template <"$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" >"$destination"
 }
 
 assert_codex_strict_config() {
@@ -617,23 +668,26 @@ PY
 @test "Codex managed sync installs and enables the ponytail plugin" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$home/.codex"
-  mkdir -p "$home/.config/codex" "$codex_home"
+  mkdir -p "$home/.config/codex" "$codex_home" "$home/tmp"
   stage_codex_managed_config "$home"
+  # This test exercises Ponytail's marketplace switching; the skills marketplace
+  # is not materialized in this isolated fixture and is intentionally omitted.
+  omit_skills_marketplace_from_fixture "$home"
   create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-marketplace-fixture"
   export PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-marketplace-fixture"
   export PONYTAIL_MARKETPLACE_REF=""
 
-  HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
-  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" codex plugin list --json
   [ "$status" -eq 0 ]
   assert_ponytail_plugin_installed_and_enabled "$output"
 
   # idempotent: a second sync must not error or change the outcome
-  run env HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" bash "$CODEX_MANAGED_CONFIG_SYNC"
   [ "$status" -eq 0 ]
 
-  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" codex plugin list --json
   [ "$status" -eq 0 ]
   assert_ponytail_plugin_installed_and_enabled "$output"
 }
@@ -641,15 +695,16 @@ PY
 @test "Codex managed sync re-registers the ponytail marketplace when its pinned source changes" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$home/.codex"
-  mkdir -p "$home/.config/codex" "$codex_home"
+  mkdir -p "$home/.config/codex" "$codex_home" "$home/tmp"
   stage_codex_managed_config "$home"
+  omit_skills_marketplace_from_fixture "$home"
   create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-v1" "1.0.0-fixture"
   create_ponytail_marketplace_fixture "$BATS_TEST_TMPDIR/ponytail-v2" "2.0.0-fixture"
 
   PONYTAIL_MARKETPLACE_REF="" PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-v1" \
-    HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+    HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
-  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" codex plugin list --json
   [ "$status" -eq 0 ]
   [[ "$output" == *'"version": "1.0.0-fixture"'* ]]
 
@@ -658,9 +713,9 @@ PY
   # rather than silently keeping the stale pin (fail-open must not mean
   # "never update").
   PONYTAIL_MARKETPLACE_REF="" PONYTAIL_MARKETPLACE_SOURCE="$BATS_TEST_TMPDIR/ponytail-v2" \
-    HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+    HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
-  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" codex plugin list --json
+  run --separate-stderr env HOME="$home" CODEX_HOME="$codex_home" TMPDIR="$home/tmp" codex plugin list --json
   [ "$status" -eq 0 ]
   [[ "$output" == *'"version": "2.0.0-fixture"'* ]]
 }
@@ -1043,7 +1098,8 @@ PY
 }
 
 @test "Claude settings keep read-only Edit denies and global hooks" {
-  local settings="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
+  local settings="$BATS_TEST_TMPDIR/settings.json"
+  render_claude_settings "$settings"
 
   python3 -m json.tool "$settings" >/dev/null
   python3 - "$settings" <<'PY'
@@ -1156,8 +1212,10 @@ PY
 }
 
 @test "Claude auto mode is managed in user settings without a package launcher alias" {
+  local settings="$BATS_TEST_TMPDIR/settings.json"
+  render_claude_settings "$settings"
   python3 - \
-    "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" \
+    "$settings" \
     "$PROJECT_ROOT/package.json" <<'PY'
 import json
 import sys
@@ -1186,9 +1244,11 @@ PY
   printf '#!/usr/bin/env node\nprocess.stdout.write("partial"); process.stderr.write("runtime failed\\n"); process.exit(42);\n' >"$engine"
   chmod +x "$engine"
 
+  local settings="$BATS_TEST_TMPDIR/settings.json"
+  render_claude_settings "$settings"
   mapfile -t commands < <(
     python3 - \
-      "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" \
+      "$settings" \
       "$PROJECT_ROOT/private_dot_config/codex/hooks.json" <<'PY'
 import json
 import sys
@@ -1783,9 +1843,10 @@ for path in sys.argv[1:]:
     assert filesystem[":root"] == "deny"
 PY
   cp "$home/.codex/config.toml" "$home/first-sync.toml"
+  cp "$codex_home/config.toml" "$home/codex-home-first-sync.toml"
   HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
   cmp "$home/first-sync.toml" "$home/.codex/config.toml"
-  cmp "$home/first-sync.toml" "$codex_home/config.toml"
+  cmp "$home/codex-home-first-sync.toml" "$codex_home/config.toml"
 }
 
 @test "Codex config merge script keeps path rules in user-defined profiles" {

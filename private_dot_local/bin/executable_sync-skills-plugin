@@ -1,0 +1,1712 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import tomllib
+from collections.abc import Iterable
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+class PluginSyncError(RuntimeError):
+    pass
+
+
+class PluginCliError(PluginSyncError):
+    def __init__(self, label: str, returncode: int, stderr: bytes | None):
+        super().__init__(f"{label} failed")
+        self.returncode = returncode
+        self.stderr = (stderr or b"").decode("utf-8", "replace")
+
+
+class CodexMarketplaceUpdateError(PluginSyncError):
+    def __init__(self, recovery: dict[str, Any]):
+        super().__init__("Codex marketplace update failed")
+        self.recovery = recovery
+
+
+def git(root: Path, *args: str) -> bytes:
+    env = os.environ.copy()
+    for key in tuple(env):
+        if key.startswith("GIT_"):
+            env.pop(key)
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise PluginSyncError(f"git {args[0]} failed") from error
+    return result.stdout
+
+
+def is_sensitive(path: str) -> bool:
+    for segment in path.split("/"):
+        name = segment.lower()
+        if (
+            name == ".env"
+            or name.startswith(".env.")
+            or name in {"credentials.json", "auth.json", "id_rsa", "id_ed25519"}
+            or name.endswith((".pem", ".key"))
+        ):
+            return True
+    return False
+
+
+def tracked_tree(root: Path) -> dict[str, tuple[str, str]]:
+    output = git(root, "ls-tree", "-rz", "--full-tree", "HEAD")
+    entries: dict[str, tuple[str, str]] = {}
+    for raw_entry in output.split(b"\0"):
+        if not raw_entry:
+            continue
+        metadata, raw_path = raw_entry.split(b"\t", 1)
+        mode, kind, oid = metadata.decode("ascii").split(" ")
+        path = os.fsdecode(raw_path)
+        if is_sensitive(path):
+            raise PluginSyncError(f"sensitive path in pinned tree: {path}")
+        if mode not in {"100644", "100755"} or kind != "blob":
+            raise PluginSyncError(f"unsupported Git entry in pinned tree: {path}")
+        entries[path] = (mode, oid)
+    return entries
+
+
+def filesystem_tree(
+    root: Path, *, allow_git_metadata: bool = False
+) -> tuple[dict[str, Path], set[str]]:
+    entries: dict[str, Path] = {}
+    directories: set[str] = set()
+    stack = [(root, "")]
+    while stack:
+        directory, prefix = stack.pop()
+        try:
+            children = sorted(os.scandir(directory), key=lambda child: child.name)
+        except OSError as error:
+            raise PluginSyncError(
+                f"cannot read checkout path: {prefix or '.'}"
+            ) from error
+        for child in children:
+            relative = f"{prefix}/{child.name}" if prefix else child.name
+            if not prefix and child.name == ".git":
+                if not allow_git_metadata:
+                    raise PluginSyncError("Git metadata found in plugin payload")
+                if child.is_symlink() or not child.is_dir(follow_symlinks=False):
+                    raise PluginSyncError("checkout .git metadata is not a directory")
+                continue
+            if is_sensitive(relative):
+                raise PluginSyncError(f"sensitive path in checkout: {relative}")
+            if child.is_symlink():
+                raise PluginSyncError(f"symlink in checkout: {relative}")
+            if child.is_dir(follow_symlinks=False):
+                directories.add(relative)
+                stack.append((Path(child.path), relative))
+            elif child.is_file(follow_symlinks=False):
+                entries[relative] = Path(child.path)
+            else:
+                raise PluginSyncError(
+                    f"unsupported filesystem entry in checkout: {relative}"
+                )
+    return entries, directories
+
+
+def expected_directories(paths: Iterable[str]) -> set[str]:
+    directories: set[str] = set()
+    for path in paths:
+        parts = path.split("/")[:-1]
+        for index in range(1, len(parts) + 1):
+            directories.add("/".join(parts[:index]))
+    return directories
+
+
+def read_regular_file(path: Path, relative: str) -> tuple[bytes, os.stat_result]:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise PluginSyncError(f"unsupported checkout file: {relative}")
+            contents = stream.read()
+            after = os.fstat(stream.fileno())
+        current = path.stat(follow_symlinks=False)
+    except OSError as error:
+        raise PluginSyncError(f"cannot read checkout file: {relative}") from error
+    if (before.st_ino, before.st_size, before.st_mtime_ns) != (
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    ):
+        raise PluginSyncError(f"checkout file changed while reading: {relative}")
+    if (after.st_ino, after.st_dev) != (current.st_ino, current.st_dev):
+        raise PluginSyncError(f"checkout file changed while reading: {relative}")
+    return contents, after
+
+
+def verify_checkout(root: Path, pin: dict[str, Any]) -> bool:
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        raise PluginSyncError("checkout root is missing or not a directory")
+    rev = pin.get("rev")
+    tree = pin.get("tree")
+    if not isinstance(rev, str) or not re.fullmatch(r"[0-9a-f]{40}", rev):
+        raise PluginSyncError("pin revision is not a full Git SHA")
+    head = git(root, "rev-parse", "HEAD").decode("ascii").strip()
+    actual_tree = git(root, "rev-parse", "HEAD^{tree}").decode("ascii").strip()
+    if head != rev:
+        raise PluginSyncError("checkout HEAD does not match pin")
+    if actual_tree != tree:
+        raise PluginSyncError("checkout Git tree does not match pin")
+
+    expected = tracked_tree(root)
+    actual, actual_directories = filesystem_tree(root, allow_git_metadata=True)
+    missing = sorted(expected.keys() - actual.keys())
+    extra = sorted(actual.keys() - expected.keys())
+    expected_dirs = expected_directories(expected.keys())
+    missing_dirs = sorted(expected_dirs - actual_directories)
+    extra_dirs = sorted(actual_directories - expected_dirs)
+    if missing:
+        raise PluginSyncError(f"missing checkout file: {missing[0]}")
+    if extra:
+        raise PluginSyncError(f"untracked checkout file: {extra[0]}")
+    if missing_dirs:
+        raise PluginSyncError(f"missing checkout directory: {missing_dirs[0]}")
+    if extra_dirs:
+        raise PluginSyncError(f"untracked checkout directory: {extra_dirs[0]}")
+    if pin.get("file_count") != len(expected):
+        raise PluginSyncError("pinned file count does not match Git tree")
+
+    for relative, (git_mode, oid) in expected.items():
+        contents, after = read_regular_file(actual[relative], relative)
+        if stat.S_IMODE(after.st_mode) & 0o7000:
+            raise PluginSyncError(
+                f"checkout file has special permission bits: {relative}"
+            )
+        actual_oid = hashlib.sha1(
+            b"blob " + str(len(contents)).encode() + b"\0" + contents
+        ).hexdigest()
+        if actual_oid != oid:
+            raise PluginSyncError(
+                f"checkout content does not match Git blob: {relative}"
+            )
+        executable = bool(after.st_mode & 0o111)
+        if executable != (git_mode == "100755"):
+            raise PluginSyncError(
+                f"checkout executable bit does not match Git tree: {relative}"
+            )
+
+    try:
+        metadata = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError("pinned plugin metadata is invalid") from error
+    if not isinstance(metadata, dict) or metadata.get("version") != pin.get("version"):
+        raise PluginSyncError("plugin version does not match pin")
+    return True
+
+
+def read_json(path: Path, description: str) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError(f"{description} is unreadable or invalid") from error
+
+
+def verify_payload(
+    root: Path,
+    expected: dict[str, tuple[str, str]],
+    pin: dict[str, Any],
+) -> bool:
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        raise PluginSyncError("installed plugin payload is missing or not a directory")
+    actual, actual_directories = filesystem_tree(root)
+    missing = sorted(expected.keys() - actual.keys())
+    extra = sorted(actual.keys() - expected.keys())
+    expected_dirs = expected_directories(expected.keys())
+    missing_dirs = sorted(expected_dirs - actual_directories)
+    extra_dirs = sorted(actual_directories - expected_dirs)
+    if missing:
+        raise PluginSyncError(f"missing installed plugin file: {missing[0]}")
+    if extra:
+        raise PluginSyncError(f"unexpected installed plugin file: {extra[0]}")
+    if missing_dirs:
+        raise PluginSyncError(f"missing installed plugin directory: {missing_dirs[0]}")
+    if extra_dirs:
+        raise PluginSyncError(f"unexpected installed plugin directory: {extra_dirs[0]}")
+    if len(actual) != pin["file_count"]:
+        raise PluginSyncError("installed plugin file count does not match pin")
+
+    for relative, (git_mode, oid) in expected.items():
+        contents, after = read_regular_file(actual[relative], relative)
+        if stat.S_IMODE(after.st_mode) & 0o7000:
+            raise PluginSyncError(
+                f"installed plugin file has special permission bits: {relative}"
+            )
+        actual_oid = hashlib.sha1(
+            b"blob " + str(len(contents)).encode() + b"\0" + contents
+        ).hexdigest()
+        if actual_oid != oid:
+            raise PluginSyncError(
+                f"installed plugin content does not match pin: {relative}"
+            )
+        if bool(after.st_mode & 0o111) != (git_mode == "100755"):
+            raise PluginSyncError(
+                f"installed plugin executable bit does not match pin: {relative}"
+            )
+
+    metadata = read_json(root / "plugin.json", "installed plugin metadata")
+    if not isinstance(metadata, dict) or metadata.get("version") != pin["version"]:
+        raise PluginSyncError("installed plugin version does not match pin")
+    return True
+
+
+def resolve_cli(name: str) -> Path:
+    candidate = shutil.which(name)
+    if candidate is None:
+        raise PluginSyncError(f"required CLI is missing: {name}")
+    try:
+        executable = Path(candidate).resolve(strict=True)
+    except OSError as error:
+        raise PluginSyncError(f"required CLI path is invalid: {name}") from error
+    if not executable.is_file() or not os.access(executable, os.X_OK):
+        raise PluginSyncError(f"required CLI is not executable: {name}")
+    return executable
+
+
+def cli_environment(base: dict[str, str] | None = None) -> dict[str, str]:
+    return dict(os.environ if base is None else base)
+
+
+def run_cli(
+    name: str,
+    args: list[str],
+    failure_label: str,
+    *,
+    env: dict[str, str] | None = None,
+    executable: Path | None = None,
+) -> bytes:
+    executable = executable or resolve_cli(name)
+    try:
+        result = subprocess.run(
+            [str(executable), *args],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=cli_environment(env),
+        )
+    except OSError as error:
+        raise PluginSyncError(f"{failure_label} could not start") from error
+    except subprocess.CalledProcessError as error:
+        raise PluginCliError(failure_label, error.returncode, error.stderr) from error
+    return result.stdout
+
+
+def cli_version(name: str, executable: Path, env: dict[str, str]) -> str:
+    output = run_cli(
+        name, ["--version"], f"{name} version check", env=env, executable=executable
+    )
+    version = output.decode("utf-8", "replace").strip()
+    if not version:
+        raise PluginSyncError(f"{name} version output is empty")
+    return version
+
+
+def codex_marketplace_source(codex_home: Path) -> str | None:
+    config_path = codex_home / "config.toml"
+    if not config_path.exists():
+        return None
+    try:
+        config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise PluginSyncError(
+            f"Codex config is unreadable or invalid for {codex_home}"
+        ) from error
+    marketplace = config.get("marketplaces", {}).get("treflebonbon", {})
+    if not isinstance(marketplace, dict) or marketplace.get("source_type") != "local":
+        return None
+    source = marketplace.get("source")
+    return source if isinstance(source, str) else None
+
+
+def validated_previous_codex_install(
+    previous_verified: dict[str, Any] | None,
+    codex_home: Path,
+) -> dict[str, Any] | None:
+    if (
+        not isinstance(previous_verified, dict)
+        or previous_verified.get("status") != "verified"
+    ):
+        return None
+    pin = previous_verified.get("pin")
+    if (
+        previous_verified.get("schema_version") != 1
+        or not isinstance(pin, dict)
+        or pin.get("owner") != "treflebonbon"
+        or pin.get("repo") != "skills"
+        or not isinstance(pin.get("rev"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", pin["rev"])
+        or not isinstance(pin.get("tree"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", pin["tree"])
+        or not isinstance(pin.get("version"), str)
+        or not pin["version"]
+        or not isinstance(pin.get("nar_hash"), str)
+        or not re.fullmatch(r"sha256-[A-Za-z0-9+/]+={0,2}", pin["nar_hash"])
+        or not isinstance(pin.get("file_count"), int)
+        or isinstance(pin.get("file_count"), bool)
+        or pin["file_count"] <= 0
+    ):
+        return None
+
+    checkout = cache_root() / pin["rev"]
+    source = marketplace_source_path(pin)
+    try:
+        if (
+            previous_verified.get("checkout") != str(checkout)
+            or previous_verified.get("source") != str(source)
+            or checkout.is_symlink()
+            or source.is_symlink()
+            or checkout.resolve(strict=True) != checkout
+            or source.resolve(strict=True) != source
+        ):
+            return None
+        verify_checkout(checkout, pin)
+        expected = tracked_tree(checkout)
+        verify_payload(source, expected, pin)
+    except (OSError, PluginSyncError):
+        return None
+
+    results = previous_verified.get("results")
+    previous_homes = previous_verified.get("codex_homes")
+    codex_results = results.get("codex") if isinstance(results, dict) else None
+    if (
+        not isinstance(previous_homes, list)
+        or str(codex_home) not in previous_homes
+        or not isinstance(codex_results, list)
+    ):
+        return None
+    matches = [
+        result
+        for result in codex_results
+        if isinstance(result, dict) and result.get("codex_home") == str(codex_home)
+    ]
+    install_path = (
+        codex_home / "plugins/cache/treflebonbon/treflebonbon-skills" / pin["version"]
+    )
+    if len(matches) != 1:
+        return None
+    result = matches[0]
+    if (
+        result.get("runtime") != "codex"
+        or result.get("plugin_id") != "treflebonbon-skills@treflebonbon"
+        or result.get("checkout") != str(checkout)
+        or result.get("source") != str(source)
+        or result.get("version") != pin["version"]
+        or result.get("install_path") != str(install_path)
+    ):
+        return None
+    return {
+        "pin": pin,
+        "checkout": checkout,
+        "source": source,
+        "install_path": install_path,
+        "expected": expected,
+    }
+
+
+def codex_inventory_item(
+    output: bytes,
+    plugin_id: str,
+    pin: dict[str, Any],
+    source: Path,
+) -> dict[str, Any]:
+    try:
+        inventory = json.loads(output)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError("Codex plugin inventory is invalid") from error
+    installed = inventory.get("installed") if isinstance(inventory, dict) else None
+    matches = [
+        entry
+        for entry in installed or []
+        if isinstance(entry, dict) and entry.get("pluginId") == plugin_id
+    ]
+    if len(matches) != 1:
+        raise PluginSyncError("Codex inventory does not contain one pinned plugin")
+    item = matches[0]
+    source = str(source)
+    if (
+        item.get("version") != pin["version"]
+        or item.get("installed") is not True
+        or item.get("enabled") is not True
+        or item.get("marketplaceName") != "treflebonbon"
+        or item.get("source") != {"source": "local", "path": source}
+        or item.get("marketplaceSource") != {"sourceType": "local", "source": source}
+    ):
+        raise PluginSyncError("Codex plugin inventory does not match pinned checkout")
+    return item
+
+
+def require_marketplace_source(config: Path, checkout: Path) -> None:
+    settings = read_json(config / "settings.json", "Claude settings")
+    marketplace = settings.get("extraKnownMarketplaces", {}).get("treflebonbon", {})
+    source = marketplace.get("source", {}) if isinstance(marketplace, dict) else {}
+    if source != {"source": "directory", "path": str(checkout)}:
+        raise PluginSyncError(
+            "Claude managed marketplace source does not match pinned checkout"
+        )
+    if (
+        settings.get("enabledPlugins", {}).get("treflebonbon-skills@treflebonbon")
+        is not True
+    ):
+        raise PluginSyncError("Claude plugin is not enabled in managed settings")
+
+
+def claude_paths() -> tuple[Path, Path]:
+    config_value = os.environ.get("CLAUDE_CONFIG_DIR")
+    config = (
+        Path(config_value).expanduser()
+        if config_value
+        else Path(os.environ["HOME"]) / ".claude"
+    )
+    if not config.is_absolute():
+        raise PluginSyncError("CLAUDE_CONFIG_DIR must be absolute")
+    config = config.resolve()
+    plugin_cache_value = os.environ.get("CLAUDE_CODE_PLUGIN_CACHE_DIR")
+    if plugin_cache_value:
+        plugin_state_root = Path(plugin_cache_value).expanduser()
+        if not plugin_state_root.is_absolute():
+            raise PluginSyncError("CLAUDE_CODE_PLUGIN_CACHE_DIR must be absolute")
+    else:
+        plugin_state_root = config / "plugins"
+    return config, plugin_state_root
+
+
+def claude_inventory_item(output: bytes, plugin_id: str) -> dict[str, Any] | None:
+    try:
+        inventory = json.loads(output)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError("Claude plugin inventory is invalid") from error
+    if not isinstance(inventory, list):
+        raise PluginSyncError("Claude plugin inventory is invalid")
+    matches = [
+        entry
+        for entry in inventory
+        if isinstance(entry, dict) and entry.get("id") == plugin_id
+    ]
+    if len(matches) > 1:
+        raise PluginSyncError(
+            "Claude installed plugin inventory contains duplicate plugin entries"
+        )
+    return matches[0] if matches else None
+
+
+def validated_previous_plugin_payload(
+    previous_verified: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if (
+        not isinstance(previous_verified, dict)
+        or previous_verified.get("schema_version") != 1
+        or previous_verified.get("status") != "verified"
+    ):
+        return None
+    pin = previous_verified.get("pin")
+    if (
+        not isinstance(pin, dict)
+        or pin.get("owner") != "treflebonbon"
+        or pin.get("repo") != "skills"
+        or not isinstance(pin.get("rev"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", pin["rev"])
+        or not isinstance(pin.get("tree"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", pin["tree"])
+        or not isinstance(pin.get("version"), str)
+        or not pin["version"]
+        or not isinstance(pin.get("nar_hash"), str)
+        or not re.fullmatch(r"sha256-[A-Za-z0-9+/]+={0,2}", pin["nar_hash"])
+        or not isinstance(pin.get("file_count"), int)
+        or isinstance(pin.get("file_count"), bool)
+        or pin["file_count"] <= 0
+    ):
+        return None
+
+    checkout = cache_root() / pin["rev"]
+    source = marketplace_source_path(pin)
+    try:
+        if (
+            previous_verified.get("checkout") != str(checkout)
+            or previous_verified.get("source") != str(source)
+            or checkout.is_symlink()
+            or source.is_symlink()
+            or checkout.resolve(strict=True) != checkout
+            or source.resolve(strict=True) != source
+        ):
+            return None
+        verify_checkout(checkout, pin)
+        expected = tracked_tree(checkout)
+        verify_payload(source, expected, pin)
+    except (OSError, PluginSyncError):
+        return None
+    return {
+        "pin": pin,
+        "checkout": checkout,
+        "source": source,
+        "expected": expected,
+    }
+
+
+def validated_previous_claude_install(
+    previous_verified: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    previous = validated_previous_plugin_payload(previous_verified)
+    if previous is None:
+        return None
+    results = previous_verified.get("results")
+    result = results.get("claude") if isinstance(results, dict) else None
+    if not isinstance(result, dict):
+        return None
+    config, plugin_state_root = claude_paths()
+    plugin_id = "treflebonbon-skills@treflebonbon"
+    pin = previous["pin"]
+    install_path = (
+        plugin_state_root / "cache/treflebonbon/treflebonbon-skills" / pin["version"]
+    )
+    if (
+        result.get("runtime") != "claude"
+        or result.get("plugin_id") != plugin_id
+        or result.get("checkout") != str(previous["checkout"])
+        or result.get("source") != str(previous["source"])
+        or result.get("version") != pin["version"]
+        or result.get("install_path") != str(install_path)
+        or result.get("files") != pin["file_count"]
+    ):
+        return None
+    return {
+        **previous,
+        "config": config,
+        "plugin_state_root": plugin_state_root,
+        "install_path": install_path,
+    }
+
+
+def claude_inventory_matches(
+    item: dict[str, Any], pin: dict[str, Any], source: Path, install_path: Path
+) -> bool:
+    return (
+        item.get("version") == pin["version"]
+        and item.get("folderVersion") == pin["version"]
+        and item.get("enabled") is True
+        and item.get("scope") == "user"
+        and item.get("installPath") == str(install_path)
+        and item.get("readFromFolder") == str(source)
+    )
+
+
+def sync_claude(
+    checkout: Path,
+    source_root: Path,
+    pin: dict[str, Any],
+    previous_verified: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    checkout = Path(checkout).resolve()
+    source_root = Path(source_root).resolve()
+    config, plugin_state_root = claude_paths()
+    cli = resolve_cli("claude")
+    env = cli_environment()
+    plugin_id = "treflebonbon-skills@treflebonbon"
+    install_root = plugin_state_root / "cache/treflebonbon/treflebonbon-skills"
+    install_path = install_root / pin["version"]
+    expected = tracked_tree(checkout)
+    verify_payload(source_root, expected, pin)
+    version = cli_version("claude", cli, env)
+
+    before = claude_inventory_item(
+        run_cli(
+            "claude",
+            ["plugin", "list", "--json"],
+            "Claude plugin inventory before sync",
+            env=env,
+            executable=cli,
+        ),
+        plugin_id,
+    )
+    previous = validated_previous_claude_install(previous_verified)
+    update_existing = False
+    if before is not None:
+        if previous is not None and claude_inventory_matches(
+            before,
+            previous["pin"],
+            previous["source"],
+            previous["install_path"],
+        ):
+            require_marketplace_source(previous["config"], previous["source"])
+            update_existing = True
+        elif claude_inventory_matches(before, pin, source_root, install_path):
+            verify_payload(install_path, expected, pin)
+            update_existing = True
+        else:
+            raise PluginSyncError(
+                "Claude already has a skills plugin outside the verified source"
+            )
+
+    run_cli(
+        "claude",
+        ["plugin", "marketplace", "add", str(source_root), "--scope", "user", "--json"],
+        "Claude marketplace registration",
+        env=env,
+        executable=cli,
+    )
+    run_cli(
+        "claude",
+        [
+            "plugin",
+            "update" if update_existing else "install",
+            plugin_id,
+            "--scope",
+            "user",
+            "--json",
+        ],
+        "Claude Code plugin update"
+        if update_existing
+        else "Claude Code plugin install",
+        env=env,
+        executable=cli,
+    )
+    item = claude_inventory_item(
+        run_cli(
+            "claude",
+            ["plugin", "list", "--json"],
+            "Claude plugin inventory",
+            env=env,
+            executable=cli,
+        ),
+        plugin_id,
+    )
+    if item is None:
+        raise PluginSyncError(
+            "Claude installed plugin inventory does not contain one pinned plugin"
+        )
+    if not claude_inventory_matches(item, pin, source_root, install_path):
+        raise PluginSyncError("Claude plugin inventory does not match pinned checkout")
+
+    require_marketplace_source(config, source_root)
+    marketplaces = read_json(
+        plugin_state_root / "known_marketplaces.json", "Claude marketplace inventory"
+    )
+    registered = marketplaces.get("treflebonbon")
+    if not isinstance(registered, dict) or registered.get("installLocation") != str(
+        source_root
+    ):
+        raise PluginSyncError(
+            "Claude marketplace registration does not match pinned checkout"
+        )
+    source = registered.get("source")
+    if source != {"source": "directory", "path": str(source_root)}:
+        raise PluginSyncError(
+            "Claude marketplace source does not match pinned checkout"
+        )
+
+    installed = read_json(
+        plugin_state_root / "installed_plugins.json", "Claude installed plugin registry"
+    )
+    registry = installed.get("plugins", {}).get(plugin_id, [])
+    if not isinstance(registry, list) or not any(
+        isinstance(entry, dict)
+        and entry.get("scope") == "user"
+        and entry.get("version") == pin["version"]
+        and entry.get("installPath") == str(install_path)
+        for entry in registry
+    ):
+        raise PluginSyncError(
+            "Claude installed plugin registry does not match pinned checkout"
+        )
+
+    verify_payload(install_path, expected, pin)
+    return {
+        "runtime": "claude",
+        "cli_path": str(cli),
+        "cli_version": version,
+        "plugin_id": plugin_id,
+        "checkout": str(checkout),
+        "version": pin["version"],
+        "source": str(source_root),
+        "install_path": str(install_path),
+        "files": len(expected),
+    }
+
+
+def restore_previous_codex_registration(
+    *,
+    cli: Path,
+    env: dict[str, str],
+    codex_home: Path,
+    previous: dict[str, Any],
+    attempted_source: Path,
+    plugin_id: str,
+) -> None:
+    current_source = codex_marketplace_source(codex_home)
+    if current_source != str(previous["source"]):
+        if current_source is not None and current_source != str(attempted_source):
+            raise PluginSyncError("Codex marketplace changed during rollback")
+        if current_source == str(attempted_source):
+            run_cli(
+                "codex",
+                ["plugin", "marketplace", "remove", "treflebonbon", "--json"],
+                f"Codex marketplace cleanup for {codex_home}",
+                env=env,
+                executable=cli,
+            )
+        run_cli(
+            "codex",
+            ["plugin", "marketplace", "add", str(previous["source"]), "--json"],
+            f"Codex previous marketplace restoration for {codex_home}",
+            env=env,
+            executable=cli,
+        )
+    if codex_marketplace_source(codex_home) != str(previous["source"]):
+        raise PluginSyncError("Codex previous marketplace source was not restored")
+    output = run_cli(
+        "codex",
+        ["plugin", "list", "--json"],
+        f"Codex previous plugin inventory for {codex_home}",
+        env=env,
+        executable=cli,
+    )
+    try:
+        codex_inventory_item(output, plugin_id, previous["pin"], previous["source"])
+        verify_payload(previous["install_path"], previous["expected"], previous["pin"])
+        return
+    except PluginSyncError:
+        run_cli(
+            "codex",
+            ["plugin", "add", plugin_id, "--json"],
+            f"Codex previous plugin restoration for {codex_home}",
+            env=env,
+            executable=cli,
+        )
+    output = run_cli(
+        "codex",
+        ["plugin", "list", "--json"],
+        f"Codex restored plugin inventory for {codex_home}",
+        env=env,
+        executable=cli,
+    )
+    codex_inventory_item(output, plugin_id, previous["pin"], previous["source"])
+    verify_payload(previous["install_path"], previous["expected"], previous["pin"])
+
+
+def restore_previous_claude_install(
+    previous_verified: dict[str, Any] | None,
+    attempted_source: Path | None,
+    attempted_pin: dict[str, Any],
+) -> None:
+    previous = validated_previous_claude_install(previous_verified)
+    if previous is None:
+        raise PluginSyncError("previous Claude installation is not verified")
+    cli = resolve_cli("claude")
+    env = cli_environment()
+    plugin_id = "treflebonbon-skills@treflebonbon"
+    current = claude_inventory_item(
+        run_cli(
+            "claude",
+            ["plugin", "list", "--json"],
+            "Claude plugin inventory before rollback",
+            env=env,
+            executable=cli,
+        ),
+        plugin_id,
+    )
+    allowed_sources = {str(previous["source"])}
+    if attempted_source is not None:
+        allowed_sources.add(str(attempted_source))
+    if current is not None:
+        current_source = current.get("readFromFolder")
+        if current_source not in allowed_sources:
+            raise PluginSyncError(
+                "Claude plugin source changed outside the attempted update"
+            )
+        if current_source == str(previous["source"]):
+            if current.get("version") != previous["pin"]["version"]:
+                raise PluginSyncError(
+                    "Claude plugin version changed outside the attempted update"
+                )
+            if claude_inventory_matches(
+                current,
+                previous["pin"],
+                previous["source"],
+                previous["install_path"],
+            ):
+                require_marketplace_source(previous["config"], previous["source"])
+                try:
+                    verify_payload(
+                        previous["install_path"],
+                        previous["expected"],
+                        previous["pin"],
+                    )
+                    return
+                except PluginSyncError:
+                    pass
+        else:
+            attempted_install = (
+                previous["plugin_state_root"]
+                / "cache/treflebonbon/treflebonbon-skills"
+                / attempted_pin["version"]
+            )
+            matches_attempt = attempted_source is not None and (
+                claude_inventory_matches(
+                    current, attempted_pin, attempted_source, attempted_install
+                )
+                or (
+                    current_source == str(attempted_source)
+                    and current.get("version") == previous["pin"]["version"]
+                    and current.get("scope") == "user"
+                    and current.get("enabled") is True
+                    and current.get("installPath") == str(previous["install_path"])
+                )
+            )
+            if not matches_attempt:
+                raise PluginSyncError(
+                    "Claude plugin inventory changed outside the attempted update"
+                )
+    else:
+        settings = read_json(previous["config"] / "settings.json", "Claude settings")
+        marketplace = settings.get("extraKnownMarketplaces", {}).get("treflebonbon", {})
+        source = marketplace.get("source", {}) if isinstance(marketplace, dict) else {}
+        if source.get("path") not in allowed_sources:
+            raise PluginSyncError(
+                "Claude marketplace source changed outside the attempted update"
+            )
+    run_cli(
+        "claude",
+        [
+            "plugin",
+            "marketplace",
+            "add",
+            str(previous["source"]),
+            "--scope",
+            "user",
+            "--json",
+        ],
+        "Claude previous marketplace restoration",
+        env=env,
+        executable=cli,
+    )
+    run_cli(
+        "claude",
+        ["plugin", "update", plugin_id, "--scope", "user", "--json"],
+        "Claude previous plugin restoration",
+        env=env,
+        executable=cli,
+    )
+    item = claude_inventory_item(
+        run_cli(
+            "claude",
+            ["plugin", "list", "--json"],
+            "Claude previous plugin inventory",
+            env=env,
+            executable=cli,
+        ),
+        plugin_id,
+    )
+    if item is None or not claude_inventory_matches(
+        item,
+        previous["pin"],
+        previous["source"],
+        previous["install_path"],
+    ):
+        raise PluginSyncError("Claude previous plugin is not active")
+    require_marketplace_source(previous["config"], previous["source"])
+    marketplaces = read_json(
+        previous["plugin_state_root"] / "known_marketplaces.json",
+        "Claude marketplace inventory",
+    )
+    registered = marketplaces.get("treflebonbon")
+    if (
+        not isinstance(registered, dict)
+        or registered.get("installLocation") != str(previous["source"])
+        or registered.get("source")
+        != {"source": "directory", "path": str(previous["source"])}
+    ):
+        raise PluginSyncError("Claude previous marketplace source is not active")
+    verify_payload(previous["install_path"], previous["expected"], previous["pin"])
+
+
+def restore_previous_agy_install(
+    previous_verified: dict[str, Any] | None,
+    attempted_pin: dict[str, Any],
+) -> None:
+    previous = validated_previous_plugin_payload(previous_verified)
+    if previous is None:
+        raise PluginSyncError("previous Antigravity source is not verified")
+    results = previous_verified.get("results")
+    result = results.get("agy") if isinstance(results, dict) else None
+    if not isinstance(result, dict):
+        raise PluginSyncError("previous Antigravity installation is not verified")
+    home = Path(os.environ["HOME"]).expanduser().resolve()
+    install_path = home / ".gemini/config/plugins/treflebonbon-skills"
+    pin = previous["pin"]
+    skills = plugin_skills(previous["expected"])
+    if (
+        result.get("runtime") != "agy"
+        or result.get("plugin_id") != "treflebonbon-skills"
+        or result.get("checkout") != str(previous["checkout"])
+        or result.get("source") != str(previous["source"])
+        or result.get("version") != pin["version"]
+        or result.get("install_path") != str(install_path)
+        or result.get("files") != pin["file_count"]
+        or result.get("skills") != skills
+    ):
+        raise PluginSyncError("previous Antigravity installation is not verified")
+    cli = resolve_cli("agy")
+    env = cli_environment()
+    try:
+        current_inventory = json.loads(
+            run_cli(
+                "agy",
+                ["plugin", "list", "--json"],
+                "Antigravity plugin inventory before rollback",
+                env=env,
+                executable=cli,
+            )
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError(
+            "Antigravity plugin inventory before rollback is invalid"
+        ) from error
+    current_matches = [
+        entry
+        for entry in current_inventory
+        if isinstance(entry, dict) and entry.get("name") == "treflebonbon-skills"
+    ]
+    if len(current_matches) > 1:
+        raise PluginSyncError("Antigravity inventory contains duplicate skills plugins")
+    if current_matches:
+        current = current_matches[0]
+        current_version = current.get("version")
+        if current_version == pin["version"]:
+            current_expected = previous["expected"]
+        elif current_version == attempted_pin.get("version"):
+            attempted = validated_previous_plugin_payload(
+                {
+                    "schema_version": 1,
+                    "status": "verified",
+                    "pin": attempted_pin,
+                    "checkout": str(cache_root() / attempted_pin["rev"]),
+                    "source": str(marketplace_source_path(attempted_pin)),
+                }
+            )
+            if attempted is None:
+                raise PluginSyncError(
+                    "attempted Antigravity source is not verified for rollback"
+                )
+            current_expected = attempted["expected"]
+        else:
+            raise PluginSyncError(
+                "Antigravity plugin version changed outside the attempted update"
+            )
+        current_skills = plugin_skills(current_expected)
+        if (
+            current.get("enabled") is not True
+            or current.get("source") != "antigravity"
+            or current.get("path") != str(install_path)
+            or current.get("skills") != current_skills
+        ):
+            raise PluginSyncError(
+                "Antigravity inventory changed outside the attempted update"
+            )
+        if current_version == pin["version"]:
+            try:
+                verify_payload(install_path, previous["expected"], pin)
+                return
+            except PluginSyncError:
+                pass
+    run_cli(
+        "agy",
+        ["plugin", "install", str(previous["source"])],
+        "Antigravity previous plugin restoration",
+        env=env,
+        executable=cli,
+    )
+    try:
+        inventory = json.loads(
+            run_cli(
+                "agy",
+                ["plugin", "list", "--json"],
+                "Antigravity previous plugin inventory",
+                env=env,
+                executable=cli,
+            )
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError(
+            "Antigravity previous plugin inventory is invalid"
+        ) from error
+    matches = [
+        entry
+        for entry in inventory
+        if isinstance(entry, dict) and entry.get("name") == "treflebonbon-skills"
+    ]
+    if len(matches) != 1:
+        raise PluginSyncError("Antigravity previous plugin is not active")
+    item = matches[0]
+    if (
+        item.get("version") != pin["version"]
+        or item.get("enabled") is not True
+        or item.get("source") != "antigravity"
+        or item.get("path") != str(install_path)
+        or item.get("skills") != skills
+    ):
+        raise PluginSyncError("Antigravity previous plugin inventory is not active")
+    manifest = read_json(
+        home / ".gemini/config/import_manifest.json",
+        "Antigravity import inventory",
+    )
+    imports = manifest.get("imports", [])
+    if (
+        sum(
+            1
+            for entry in imports
+            if isinstance(entry, dict)
+            and entry.get("name") == "treflebonbon-skills"
+            and entry.get("source") == "antigravity"
+            and "skills" in entry.get("components", [])
+        )
+        != 1
+    ):
+        raise PluginSyncError("Antigravity previous import record is not active")
+    verify_payload(install_path, previous["expected"], pin)
+
+
+def restore_previous_verified(
+    previous_verified: dict[str, Any],
+    runtimes: list[tuple[str, Path | None]],
+    attempted_source: Path | None,
+    attempted_pin: dict[str, Any],
+) -> dict[str, Any]:
+    recovery: dict[str, Any] = {"previous_version": None, "runtimes": {}}
+    previous_pin = previous_verified.get("pin")
+    if isinstance(previous_pin, dict):
+        recovery["previous_version"] = previous_pin.get("version")
+    for runtime, codex_home in runtimes:
+        key = f"{runtime}:{codex_home}" if codex_home is not None else runtime
+        try:
+            if runtime == "claude":
+                restore_previous_claude_install(
+                    previous_verified, attempted_source, attempted_pin
+                )
+            elif runtime == "codex" and codex_home is not None:
+                previous = validated_previous_codex_install(
+                    previous_verified, codex_home
+                )
+                if previous is None:
+                    raise PluginSyncError(
+                        f"previous Codex installation is not verified for {codex_home}"
+                    )
+                cli = resolve_cli("codex")
+                env = os.environ.copy()
+                env["CODEX_HOME"] = str(codex_home)
+                restore_previous_codex_registration(
+                    cli=cli,
+                    env=env,
+                    codex_home=codex_home,
+                    previous=previous,
+                    attempted_source=attempted_source or previous["source"],
+                    plugin_id="treflebonbon-skills@treflebonbon",
+                )
+            elif runtime == "agy":
+                restore_previous_agy_install(previous_verified, attempted_pin)
+            else:
+                raise PluginSyncError(f"unsupported runtime recovery target: {runtime}")
+            recovery["runtimes"][key] = {"usable": True}
+        except Exception as error:
+            recovery["runtimes"][key] = {
+                "usable": False,
+                "error_type": type(error).__name__,
+                "error": str(error),
+            }
+    recovery["all_usable"] = all(
+        item["usable"] for item in recovery["runtimes"].values()
+    )
+    return recovery
+
+
+def sync_codex(
+    checkout: Path,
+    source_root: Path,
+    pin: dict[str, Any],
+    codex_home: Path,
+    previous_verified: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    checkout = Path(checkout).resolve()
+    source_root = Path(source_root).resolve()
+    codex_home = Path(codex_home).expanduser()
+    if not codex_home.is_absolute():
+        raise PluginSyncError("CODEX_HOME must be absolute")
+    codex_home.mkdir(mode=0o700, parents=True, exist_ok=True)
+    codex_home = codex_home.resolve()
+    plugin_id = "treflebonbon-skills@treflebonbon"
+    install_path = (
+        codex_home / "plugins/cache/treflebonbon/treflebonbon-skills" / pin["version"]
+    )
+    expected = tracked_tree(checkout)
+    env = os.environ.copy()
+    env["CODEX_HOME"] = str(codex_home)
+    cli = resolve_cli("codex")
+    version = cli_version("codex", cli, env)
+    verify_payload(source_root, expected, pin)
+
+    try:
+        run_cli(
+            "codex",
+            ["plugin", "marketplace", "add", str(source_root), "--json"],
+            f"Codex marketplace registration for {codex_home}",
+            env=env,
+            executable=cli,
+        )
+    except PluginCliError as error:
+        conflict = "marketplace 'treflebonbon' is already added from a different source; remove it before adding this source"
+        if conflict not in error.stderr:
+            raise
+        previous = validated_previous_codex_install(previous_verified, codex_home)
+        if previous is None or codex_marketplace_source(codex_home) != str(
+            previous["source"]
+        ):
+            raise
+        run_cli(
+            "codex",
+            ["plugin", "marketplace", "remove", "treflebonbon", "--json"],
+            f"Codex marketplace replacement for {codex_home}",
+            env=env,
+            executable=cli,
+        )
+        try:
+            run_cli(
+                "codex",
+                ["plugin", "marketplace", "add", str(source_root), "--json"],
+                f"Codex marketplace registration for {codex_home}",
+                env=env,
+                executable=cli,
+            )
+        except PluginSyncError as add_error:
+            recovery: dict[str, Any] = {
+                "runtime": "codex",
+                "codex_home": str(codex_home),
+                "update_error_type": type(add_error).__name__,
+                "previous_source": str(previous["source"]),
+                "previous_version": previous["pin"]["version"],
+                "previous_plugin_usable": False,
+            }
+            try:
+                restore_previous_codex_registration(
+                    cli=cli,
+                    env=env,
+                    codex_home=codex_home,
+                    previous=previous,
+                    attempted_source=source_root,
+                    plugin_id=plugin_id,
+                )
+                recovery["previous_plugin_usable"] = True
+            except Exception as restore_error:
+                recovery["recovery_error_type"] = type(restore_error).__name__
+            raise CodexMarketplaceUpdateError(recovery) from add_error
+    run_cli(
+        "codex",
+        ["plugin", "add", plugin_id, "--json"],
+        f"Codex plugin install for {codex_home}",
+        env=env,
+        executable=cli,
+    )
+    try:
+        codex_inventory_item(
+            run_cli(
+                "codex",
+                ["plugin", "list", "--json"],
+                f"Codex plugin inventory for {codex_home}",
+                env=env,
+                executable=cli,
+            ),
+            plugin_id,
+            pin,
+            source_root,
+        )
+    except PluginSyncError as error:
+        raise PluginSyncError(
+            f"Codex plugin inventory does not match pinned checkout for {codex_home}"
+        ) from error
+
+    try:
+        config = tomllib.loads((codex_home / "config.toml").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise PluginSyncError(
+            f"Codex config is unreadable or invalid for {codex_home}"
+        ) from error
+    marketplace = config.get("marketplaces", {}).get("treflebonbon", {})
+    plugin = config.get("plugins", {}).get(plugin_id, {})
+    if (
+        marketplace.get("source_type") != "local"
+        or marketplace.get("source") != str(source_root)
+        or plugin.get("enabled") is not True
+    ):
+        raise PluginSyncError(
+            f"Codex managed marketplace config does not match pin for {codex_home}"
+        )
+
+    verify_payload(install_path, expected, pin)
+    return {
+        "runtime": "codex",
+        "cli_path": str(cli),
+        "cli_version": version,
+        "codex_home": str(codex_home),
+        "plugin_id": plugin_id,
+        "checkout": str(checkout),
+        "version": pin["version"],
+        "source": str(source_root),
+        "install_path": str(install_path),
+        "files": len(expected),
+    }
+
+
+def plugin_skills(expected: dict[str, tuple[str, str]]) -> list[str]:
+    prefix = "skills/"
+    suffix = "/SKILL.md"
+    return sorted(
+        path[len(prefix) : -len(suffix)]
+        for path in expected
+        if path.startswith(prefix) and path.endswith(suffix) and path.count("/") == 2
+    )
+
+
+def sync_agy(checkout: Path, source_root: Path, pin: dict[str, Any]) -> dict[str, Any]:
+    checkout = Path(checkout).resolve()
+    source_root = Path(source_root).resolve()
+    home = Path(os.environ["HOME"]).expanduser()
+    if not home.is_absolute():
+        raise PluginSyncError("HOME must be absolute")
+    home = home.resolve()
+    install_path = home / ".gemini/config/plugins/treflebonbon-skills"
+    expected = tracked_tree(checkout)
+    verify_payload(source_root, expected, pin)
+    cli = resolve_cli("agy")
+    env = cli_environment()
+    version = cli_version("agy", cli, env)
+    run_cli(
+        "agy",
+        ["plugin", "install", str(source_root)],
+        "Antigravity plugin install",
+        env=env,
+        executable=cli,
+    )
+    try:
+        inventory = json.loads(
+            run_cli(
+                "agy",
+                ["plugin", "list", "--json"],
+                "Antigravity plugin inventory",
+                env=env,
+                executable=cli,
+            )
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError("Antigravity plugin inventory is invalid") from error
+    matches = [
+        entry
+        for entry in inventory
+        if isinstance(entry, dict) and entry.get("name") == "treflebonbon-skills"
+    ]
+    if len(matches) != 1:
+        raise PluginSyncError(
+            "Antigravity inventory does not contain one pinned plugin"
+        )
+    item = matches[0]
+    if (
+        item.get("version") != pin["version"]
+        or item.get("enabled") is not True
+        or item.get("source") != "antigravity"
+        or item.get("path") != str(install_path)
+        or item.get("skills") != plugin_skills(expected)
+    ):
+        raise PluginSyncError(
+            "Antigravity plugin inventory does not match pinned checkout"
+        )
+
+    manifest = read_json(
+        home / ".gemini/config/import_manifest.json", "Antigravity import inventory"
+    )
+    imports = manifest.get("imports", [])
+    matching_imports = [
+        entry
+        for entry in imports
+        if isinstance(entry, dict)
+        and entry.get("name") == "treflebonbon-skills"
+        and entry.get("source") == "antigravity"
+        and "skills" in entry.get("components", [])
+    ]
+    if len(matching_imports) != 1:
+        raise PluginSyncError("Antigravity import record does not match plugin install")
+
+    verify_payload(install_path, expected, pin)
+    return {
+        "runtime": "agy",
+        "cli_path": str(cli),
+        "cli_version": version,
+        "plugin_id": "treflebonbon-skills",
+        "checkout": str(checkout),
+        "version": pin["version"],
+        "source": str(source_root),
+        "install_path": str(install_path),
+        "files": len(expected),
+        "skills": plugin_skills(expected),
+    }
+
+
+def pin_path() -> Path:
+    source_pin = (
+        Path(__file__).resolve().parents[2]
+        / "private_dot_config/nix-devshell/skills-plugin.json"
+    )
+    if source_pin.is_file():
+        return source_pin
+    home = Path(os.environ.get("HOME", "~")).expanduser()
+    return home / ".config/nix-devshell/skills-plugin.json"
+
+
+def load_pin(path: Path | None = None) -> dict[str, Any]:
+    try:
+        pin = json.loads((path or pin_path()).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PluginSyncError("skills plugin pin is unreadable or invalid") from error
+    if (
+        not isinstance(pin, dict)
+        or not isinstance(pin.get("owner"), str)
+        or not re.fullmatch(r"[A-Za-z0-9-]+", pin["owner"])
+        or not isinstance(pin.get("repo"), str)
+        or not re.fullmatch(r"[A-Za-z0-9_.-]+", pin["repo"])
+        or not isinstance(pin.get("rev"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", pin["rev"])
+        or not isinstance(pin.get("version"), str)
+        or not pin["version"]
+        or not isinstance(pin.get("nar_hash"), str)
+        or not re.fullmatch(r"sha256-[A-Za-z0-9+/]+={0,2}", pin["nar_hash"])
+        or not isinstance(pin.get("tree"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", pin["tree"])
+        or not isinstance(pin.get("file_count"), int)
+        or isinstance(pin.get("file_count"), bool)
+        or pin["file_count"] <= 0
+    ):
+        raise PluginSyncError("skills plugin pin fields are invalid")
+    return pin
+
+
+def cache_root() -> Path:
+    home = Path(os.environ.get("HOME", "~")).expanduser()
+    if not home.is_absolute():
+        raise PluginSyncError("HOME must be absolute")
+    return home / ".cache/treflebonbon-skills/checkouts"
+
+
+def ensure_checkout(pin: dict[str, Any], parent: Path | None = None) -> Path:
+    parent = parent or cache_root()
+    parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    destination = parent / pin["rev"]
+    lock_path = parent / f".{pin['rev']}.lock"
+    lock_flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    lock_fd = os.open(lock_path, lock_flags, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        if destination.exists() or destination.is_symlink():
+            verify_checkout(destination, pin)
+            return destination
+
+        staged = Path(tempfile.mkdtemp(prefix=f".{pin['rev']}.", dir=parent))
+        try:
+            git(staged, "init", "--template=/dev/null", "-q")
+            repository = f"https://github.com/{pin['owner']}/{pin['repo']}.git"
+            git(staged, "remote", "add", "origin", repository)
+            git(staged, "fetch", "--depth=1", "origin", pin["rev"])
+            git(staged, "checkout", "--detach", "--quiet", "FETCH_HEAD")
+            verify_checkout(staged, pin)
+            os.replace(staged, destination)
+        except Exception:
+            shutil.rmtree(staged, ignore_errors=True)
+            raise
+    finally:
+        os.close(lock_fd)
+    return destination
+
+
+def marketplace_source_path(pin: dict[str, Any], parent: Path | None = None) -> Path:
+    parent = parent or cache_root().parent / "marketplaces"
+    return parent / pin["rev"]
+
+
+def ensure_marketplace_source(
+    checkout: Path,
+    pin: dict[str, Any],
+    parent: Path | None = None,
+) -> Path:
+    checkout = Path(checkout)
+    expected = tracked_tree(checkout)
+    parent = parent or marketplace_source_path(pin).parent
+    parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    destination = parent / pin["rev"]
+    lock_path = parent / f".{pin['rev']}.lock"
+    lock_fd = os.open(
+        lock_path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        if destination.exists() or destination.is_symlink():
+            verify_payload(destination, expected, pin)
+            return destination
+
+        staged = Path(tempfile.mkdtemp(prefix=f".{pin['rev']}.", dir=parent))
+        try:
+            for relative, (git_mode, oid) in expected.items():
+                source_file = checkout / relative
+                contents, source_stat = read_regular_file(source_file, relative)
+                if stat.S_IMODE(source_stat.st_mode) & 0o7000:
+                    raise PluginSyncError(
+                        f"checkout file has special permission bits: {relative}"
+                    )
+                actual_oid = hashlib.sha1(
+                    b"blob " + str(len(contents)).encode() + b"\0" + contents
+                ).hexdigest()
+                if actual_oid != oid:
+                    raise PluginSyncError(
+                        f"checkout content changed during snapshot: {relative}"
+                    )
+                target = staged / relative
+                target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+                target.write_bytes(contents)
+                target.chmod(0o755 if git_mode == "100755" else 0o644)
+            for directory, dirs, _ in os.walk(staged, topdown=False):
+                Path(directory).chmod(0o755)
+            verify_payload(staged, expected, pin)
+            os.replace(staged, destination)
+        except Exception:
+            shutil.rmtree(staged, ignore_errors=True)
+            raise
+    finally:
+        os.close(lock_fd)
+    return destination
+
+
+def state_path() -> Path:
+    home = Path(os.environ.get("HOME", "~")).expanduser()
+    if not home.is_absolute():
+        raise PluginSyncError("HOME must be absolute")
+    value = os.environ.get("XDG_STATE_HOME")
+    if value:
+        parent = Path(value).expanduser()
+        if not parent.is_absolute():
+            raise PluginSyncError("XDG_STATE_HOME must be absolute")
+    else:
+        parent = home / ".local/state"
+    return parent / "treflebonbon-skills/plugin-sync/receipt.json"
+
+
+def write_receipt(path: Path, receipt: dict[str, Any]) -> None:
+    path = Path(path)
+    if path.is_symlink():
+        raise PluginSyncError("plugin sync receipt path is a symlink")
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if path.parent.is_symlink():
+        raise PluginSyncError("plugin sync receipt directory is a symlink")
+    os.chmod(path.parent, 0o700)
+    temp_fd, temp_name = tempfile.mkstemp(prefix=".receipt.", dir=path.parent)
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(temp_fd, "w", encoding="utf-8") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            json.dump(receipt, stream, ensure_ascii=False, sort_keys=True, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_path, path)
+        os.chmod(path, 0o600)
+    except Exception:
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def previous_verified_receipt(path: Path) -> dict[str, Any] | None:
+    path = Path(path)
+    if path.is_symlink():
+        return None
+    try:
+        metadata = path.stat(follow_symlinks=False)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
+            return None
+        receipt = read_json(path, "previous plugin sync receipt")
+    except (OSError, PluginSyncError):
+        return None
+    for _ in range(8):
+        if not isinstance(receipt, dict) or receipt.get("schema_version") != 1:
+            return None
+        if receipt.get("status") == "verified":
+            return receipt
+        receipt = receipt.get("previous_verified")
+    return None
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def sync_all(
+    codex_homes: list[Path],
+    *,
+    pin: dict[str, Any] | None = None,
+    checkout: Path | None = None,
+    source_root: Path | None = None,
+    receipt_file: Path | None = None,
+) -> dict[str, Any]:
+    path = receipt_file or state_path()
+    previous = previous_verified_receipt(path)
+    attempted_runtimes: list[tuple[str, Path | None]] = []
+    resolved_source_root: Path | None = None
+    receipt: dict[str, Any] = {
+        "schema_version": 1,
+        "status": "in_progress",
+        "started_at": utc_now(),
+        "updated_at": utc_now(),
+        "pin": None,
+        "codex_homes": [str(Path(home).expanduser().resolve()) for home in codex_homes],
+        "results": {"codex": []},
+    }
+    if previous is not None:
+        receipt["previous_verified"] = previous
+    write_receipt(path, receipt)
+    try:
+        pin = pin or load_pin()
+        receipt["pin"] = {
+            "owner": pin["owner"],
+            "repo": pin["repo"],
+            "rev": pin["rev"],
+            "tree": pin["tree"],
+            "version": pin["version"],
+            "nar_hash": pin["nar_hash"],
+            "file_count": pin["file_count"],
+        }
+        receipt["updated_at"] = utc_now()
+        write_receipt(path, receipt)
+
+        checkout = checkout or ensure_checkout(pin)
+        verify_checkout(checkout, pin)
+        checkout = Path(checkout).resolve()
+        resolved_source_root = source_root or ensure_marketplace_source(checkout, pin)
+        resolved_source_root = Path(resolved_source_root).resolve()
+        verify_payload(resolved_source_root, tracked_tree(checkout), pin)
+        receipt["checkout"] = str(checkout)
+        receipt["source"] = str(resolved_source_root)
+        receipt["updated_at"] = utc_now()
+        write_receipt(path, receipt)
+
+        attempted_runtimes.append(("claude", None))
+        receipt["results"]["claude"] = sync_claude(
+            checkout, resolved_source_root, pin, receipt.get("previous_verified")
+        )
+        receipt["updated_at"] = utc_now()
+        write_receipt(path, receipt)
+        for codex_home in codex_homes:
+            attempted_runtimes.append(
+                ("codex", Path(codex_home).expanduser().resolve())
+            )
+            receipt["results"]["codex"].append(
+                sync_codex(
+                    checkout,
+                    resolved_source_root,
+                    pin,
+                    codex_home,
+                    receipt.get("previous_verified"),
+                )
+            )
+            receipt["updated_at"] = utc_now()
+            write_receipt(path, receipt)
+        attempted_runtimes.append(("agy", None))
+        receipt["results"]["agy"] = sync_agy(checkout, resolved_source_root, pin)
+        receipt["updated_at"] = utc_now()
+        write_receipt(path, receipt)
+        receipt["status"] = "verified"
+        receipt.pop("previous_verified", None)
+        receipt.pop("recovery", None)
+        receipt["updated_at"] = utc_now()
+        write_receipt(path, receipt)
+        return receipt
+    except Exception as error:
+        receipt["status"] = "failed"
+        receipt["updated_at"] = utc_now()
+        receipt["failure"] = {"type": type(error).__name__, "message": str(error)}
+        recovery = getattr(error, "recovery", None)
+        if isinstance(recovery, dict):
+            receipt["recovery"] = recovery
+        if previous is not None and attempted_runtimes:
+            rollback_targets = list(attempted_runtimes)
+            already_usable: list[str] = []
+            if (
+                isinstance(recovery, dict)
+                and recovery.get("runtime") == "codex"
+                and recovery.get("previous_plugin_usable") is True
+            ):
+                recovered_home = recovery.get("codex_home")
+                rollback_targets = [
+                    (runtime, codex_home)
+                    for runtime, codex_home in attempted_runtimes
+                    if not (
+                        runtime == "codex"
+                        and codex_home is not None
+                        and str(codex_home) == recovered_home
+                    )
+                ]
+                already_usable.append(f"codex:{recovered_home}")
+            rollback = restore_previous_verified(
+                previous, rollback_targets, resolved_source_root, pin
+            )
+            for key in already_usable:
+                rollback["runtimes"][key] = {
+                    "usable": True,
+                    "verified_by": "Codex source update recovery",
+                }
+            rollback["all_usable"] = all(
+                item["usable"] for item in rollback["runtimes"].values()
+            )
+            receipt["rollback"] = rollback
+        write_receipt(path, receipt)
+        raise
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="sync-skills-plugin")
+    parser.add_argument("--codex-home", action="append", required=True)
+    arguments = parser.parse_args()
+    try:
+        receipt = sync_all([Path(home) for home in arguments.codex_home])
+        print(
+            "Verified treflebonbon-skills "
+            f"{receipt['pin']['version']} ({receipt['pin']['rev']}) for Claude Code, "
+            f"{len(receipt['results']['codex'])} Codex home(s), and Antigravity."
+        )
+        return 0
+    except PluginSyncError as error:
+        print(f"ERROR: skills plugin sync failed: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

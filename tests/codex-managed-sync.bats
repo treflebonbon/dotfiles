@@ -11,6 +11,31 @@ setup() {
   # throughout this file. An explicitly empty source skips it entirely.
   export PONYTAIL_MARKETPLACE_SOURCE=""
   TEST_HOME="$BATS_TEST_TMPDIR/home"
+  PLUGIN_SYNC_BIN="$BATS_TEST_TMPDIR/plugin-sync-bin"
+  PLUGIN_SYNC_LOG="$BATS_TEST_TMPDIR/plugin-sync.log"
+  mkdir -p "$PLUGIN_SYNC_BIN"
+  cat >"$PLUGIN_SYNC_BIN/sync-skills-plugin" <<'SH'
+#!/usr/bin/env bash
+printf '%s\0' "$@" >>"$PLUGIN_SYNC_LOG"
+printf '\0' >>"$PLUGIN_SYNC_LOG"
+if [ "${FAIL_SKILLS_PLUGIN_SYNC:-}" = "1" ]; then
+  exit 1
+fi
+if [ "${PLUGIN_SYNC_APPEND_CONFIG:-}" = "1" ]; then
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--codex-home" ]; then
+      codex_home="$2"
+      printf '\n[plugins."fixture-after-sync@fixture"]\nenabled = true\n' >>"$codex_home/config.toml"
+      shift 2
+    else
+      shift
+    fi
+  done
+fi
+SH
+  chmod +x "$PLUGIN_SYNC_BIN/sync-skills-plugin"
+  export PLUGIN_SYNC_LOG
+  export PATH="$PLUGIN_SYNC_BIN:$PATH"
   mkdir -p "$TEST_HOME/.config/codex/rules" "$TEST_HOME/.config/codex/environments"
   printf 'model = "managed"\n' >"$TEST_HOME/.config/codex/config.toml"
   printf '{"hooks":{}}\n' >"$TEST_HOME/.config/codex/hooks.json"
@@ -73,9 +98,29 @@ PY
 
 @test "Codex 管理設定 syncs native and explicit CODEX_HOME including WSL" {
   local codex_home="$BATS_TEST_TMPDIR/custom codex home"
+  mkdir -p "$TEST_HOME/.codex-app"
   HOME="$TEST_HOME" CODEX_HOME="$codex_home" WSL_DISTRO_NAME=Ubuntu-24.04 bash "$SYNC_COMMAND"
   assert_managed_home "$TEST_HOME/.codex"
   assert_managed_home "$codex_home"
+  python3 - "$PLUGIN_SYNC_LOG" "$TEST_HOME" "$codex_home" <<'PY'
+import sys
+from pathlib import Path
+args = Path(sys.argv[1]).read_bytes().split(b"\0")
+args = [item.decode() for item in args if item]
+assert args == ["--codex-home", f"{sys.argv[2]}/.codex", "--codex-home", f"{sys.argv[2]}/.codex-app", "--codex-home", sys.argv[3]]
+PY
+}
+
+@test "Codex 管理設定 reports required skills plugin sync failure" {
+  mkdir -p "$TEST_HOME/.codex"
+  printf 'model = "local before plugin sync"\n' >"$TEST_HOME/.codex/config.toml"
+
+  run env -u CODEX_HOME HOME="$TEST_HOME" FAIL_SKILLS_PLUGIN_SYNC=1 bash "$SYNC_COMMAND"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"skills-plugin"* ]]
+  [ "$(cat "$TEST_HOME/.codex/config.toml")" = 'model = "local before plugin sync"' ]
+  [ ! -e "$TEST_HOME/.codex/hooks.json" ]
 }
 
 @test "Codex 管理設定 rejects obsolete selectors without writing settings" {
@@ -180,9 +225,14 @@ prepare_chezmoi_fixture() {
   local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
   SYNC_LOG_PATH="$BATS_TEST_TMPDIR/sync.log"
   local spy="$BATS_TEST_TMPDIR/count-sync"
-  mkdir -p "$CHEZMOI_SOURCE/private_dot_config" "$CHEZMOI_SOURCE/private_dot_local/bin"
+  mkdir -p "$CHEZMOI_SOURCE/private_dot_config" "$CHEZMOI_SOURCE/private_dot_local/bin" \
+    "$CHEZMOI_SOURCE/private_dot_config/nix-devshell"
   cp -R "$PROJECT_ROOT/private_dot_config/codex" "$CHEZMOI_SOURCE/private_dot_config/codex"
+  cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
+    "$CHEZMOI_SOURCE/private_dot_config/nix-devshell/skills-plugin.json"
   cp "$SYNC_COMMAND" "$CHEZMOI_SOURCE/private_dot_local/bin/executable_sync-codex-managed-config"
+  cp "$PROJECT_ROOT/private_dot_local/bin/executable_sync-skills-plugin" \
+    "$CHEZMOI_SOURCE/private_dot_local/bin/executable_sync-skills-plugin"
   cp "$PROJECT_ROOT"/run_onchange_after_codex-*.sh.tmpl "$CHEZMOI_SOURCE/"
   printf '{}\n' >"$config"
   cat >"$spy" <<'SH'
@@ -208,7 +258,9 @@ SH
   local changed count=1
   for changed in private_dot_config/codex/AGENTS.md private_dot_config/codex/config.toml.tmpl \
     private_dot_config/codex/environments/environment.toml private_dot_config/codex/hooks.json \
-    private_dot_config/codex/rules/default.rules private_dot_local/bin/executable_sync-codex-managed-config; do
+    private_dot_config/codex/rules/default.rules private_dot_config/nix-devshell/skills-plugin.json \
+    private_dot_local/bin/executable_sync-codex-managed-config \
+    private_dot_local/bin/executable_sync-skills-plugin; do
     printf '\n' >>"$CHEZMOI_SOURCE/$changed"
     printf 'local drift\n' >"$TEST_HOME/.codex/AGENTS.md"
     run "${CHEZMOI_APPLY[@]}"
@@ -224,6 +276,45 @@ SH
   run "${CHEZMOI_APPLY[@]}"
   [ "$status" -eq 0 ]
   [ "$(wc -l <"$SYNC_LOG_PATH")" -eq "$count" ]
+}
+
+@test "Codex permissions read only the verified plugin cache for each managed home" {
+  prepare_chezmoi_fixture
+  local explicit_home="$BATS_TEST_TMPDIR/explicit-codex-home"
+  mkdir -p "$TEST_HOME/.codex-app"
+
+  run env CODEX_HOME="$explicit_home" "${CHEZMOI_APPLY[@]}"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  python3 - "$TEST_HOME/.codex/config.toml" "$TEST_HOME/.codex-app/config.toml" "$explicit_home/config.toml" <<'PY'
+import sys, tomllib
+from pathlib import Path
+for config_path in sys.argv[1:]:
+    config = tomllib.loads(Path(config_path).read_text())
+    cache_path = str(
+        Path(config_path).parent
+        / "plugins/cache/treflebonbon/treflebonbon-skills"
+    )
+    for profile_name in ("dotfiles-secure", "dotfiles-peer"):
+        filesystem = config["permissions"][profile_name]["filesystem"]
+        assert filesystem[":root"] == "deny"
+        assert filesystem[cache_path] == {".": "read"}
+        assert "~/.ssh" not in filesystem
+        assert str(Path(cache_path).parent.parent) not in filesystem
+PY
+}
+
+@test "Codex managed sync preserves config changes made by plugin installation" {
+  prepare_chezmoi_fixture
+  mkdir -p "$TEST_HOME/.codex"
+  printf 'model = "local before plugin sync"\n' >"$TEST_HOME/.codex/config.toml"
+
+  run env PLUGIN_SYNC_APPEND_CONFIG=1 "${CHEZMOI_APPLY[@]}"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  grep -Fq '[plugins."fixture-after-sync@fixture"]' "$TEST_HOME/.codex/config.toml"
+  grep -Fq 'model = "gpt-6.1-sol"' "$TEST_HOME/.codex/config.toml"
 }
 
 @test "Codex 管理設定 repairs target drift and new CODEX_HOME only on explicit sync" {

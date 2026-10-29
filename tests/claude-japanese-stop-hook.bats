@@ -3,6 +3,13 @@
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   HOOK="$PROJECT_ROOT/private_dot_local/bin/executable_claude-japanese-stop-hook"
+  SETTINGS="$BATS_TEST_TMPDIR/settings.json"
+  local home="$BATS_TEST_TMPDIR/home"
+  local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
+  mkdir -p "$home"
+  printf '{}\n' >"$config"
+  env HOME="$home" chezmoi --source "$PROJECT_ROOT" --destination "$home" --config "$config" \
+    execute-template <"$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" >"$SETTINGS"
 }
 
 stop_event() {
@@ -11,7 +18,7 @@ stop_event() {
 }
 
 @test "settings wire the Japanese Stop hook after the Design Hook" {
-  run jq -r '.hooks.Stop[1].hooks[0].command' "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
+  run jq -r '.hooks.Stop[1].hooks[0].command' "$SETTINGS"
   [ "$output" = '"$HOME/.local/bin/claude-japanese-stop-hook"' ]
 }
 

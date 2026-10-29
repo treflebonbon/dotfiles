@@ -9,6 +9,11 @@ setup() {
   export MOCK_GCLOUD_RESPONSE="$BATS_TEST_TMPDIR/response.json"
   export HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$BATS_TEST_TMPDIR/bin" "$HOME"
+  export CLAUDE_SETTINGS="$BATS_TEST_TMPDIR/claude-settings.json"
+  printf '{}\n' >"$BATS_TEST_TMPDIR/chezmoi.yaml"
+  env HOME="$HOME" chezmoi --source "$PROJECT_ROOT" --destination "$HOME" \
+    --config "$BATS_TEST_TMPDIR/chezmoi.yaml" execute-template \
+    <"$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" >"$CLAUDE_SETTINGS"
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
   cat >"$BATS_TEST_TMPDIR/bin/gcloud" <<'PY'
 #!/usr/bin/env python3
@@ -260,7 +265,7 @@ PY
 }
 
 @test "Claude permits safe investigation and retains the raw gcloud boundary" {
-  for settings in "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" "$PROJECT_ROOT/.claude/settings.json"; do
+  for settings in "$CLAUDE_SETTINGS" "$PROJECT_ROOT/.claude/settings.json"; do
     run jq -e '
       (.permissions.allow | index("Bash(gcloud-inspect:*)") != null)
       and (.permissions.deny | index("Bash(gcloud:*)") != null)

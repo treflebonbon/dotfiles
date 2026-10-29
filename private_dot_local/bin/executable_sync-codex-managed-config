@@ -210,6 +210,26 @@ strip_retired_plugins(existing)
 strip_retired_sandbox_settings(existing, managed)
 strip_managed_network_domains(existing, managed)
 
+
+def add_skills_plugin_cache_read(managed: dict[str, Any], codex_path: Path) -> None:
+    permissions = managed.get("permissions")
+    if not isinstance(permissions, dict):
+        return
+    cache_path = str(
+        codex_path.parent.resolve()
+        / "plugins/cache/treflebonbon/treflebonbon-skills"
+    )
+    for profile_name in ("dotfiles-secure", "dotfiles-peer"):
+        profile = permissions.get(profile_name)
+        if not isinstance(profile, dict):
+            continue
+        filesystem = profile.setdefault("filesystem", {})
+        if isinstance(filesystem, dict):
+            filesystem[cache_path] = {".": "read"}
+
+
+add_skills_plugin_cache_read(managed, codex_path)
+
 for key in ("projects", "notice", "tui"):
     if key in managed:
         print(f"ERROR: managed Codex config must not contain [{key}]", file=sys.stderr)
@@ -253,8 +273,24 @@ def format_value(value: Any) -> str:
 
 
 def emit_table(path: list[str], table: dict[str, Any], lines: list[str]) -> None:
-    scalars = [(key, value) for key, value in table.items() if not isinstance(value, dict)]
-    children = [(key, value) for key, value in table.items() if isinstance(value, dict)]
+    def inline_plugin_cache_rule(key: str, value: Any) -> bool:
+        return (
+            len(path) >= 1
+            and path[-1] == "filesystem"
+            and key.endswith("/plugins/cache/treflebonbon/treflebonbon-skills")
+            and value == {".": "read"}
+        )
+
+    scalars = [
+        (key, value)
+        for key, value in table.items()
+        if not isinstance(value, dict) or inline_plugin_cache_rule(key, value)
+    ]
+    children = [
+        (key, value)
+        for key, value in table.items()
+        if isinstance(value, dict) and not inline_plugin_cache_rule(key, value)
+    ]
 
     if path and scalars:
         if lines and lines[-1] != "":
@@ -311,6 +347,47 @@ for codex_home in "${codex_homes[@]}"; do
   if [ "$codex_home" = "$HOME/.codex-app" ]; then
     prepare_file /dev/null "$codex_home/.managed-config-seeded"
   fi
+done
+
+plugin_sync_args=()
+for codex_home in "${codex_homes[@]}"; do
+  plugin_sync_args+=(--codex-home "$codex_home")
+done
+phase="skills-plugin"
+target="treflebonbon-skills"
+sync-skills-plugin "${plugin_sync_args[@]}"
+
+refresh_config_stage() {
+  local codex_home="$1"
+  local config_target="$codex_home/config.toml"
+  local target_index="" index previous_stage replacement_index replacement_stage
+  for index in "${!targets[@]}"; do
+    if [ "${targets[$index]}" = "$config_target" ]; then
+      target_index="$index"
+      break
+    fi
+  done
+  if [ -z "$target_index" ]; then
+    echo "ERROR: Codex config stage not found: $config_target" >&2
+    return 1
+  fi
+
+  replacement_stage="$(mktemp "$config_target.tmp.XXXXXX")"
+  staged_files+=("$replacement_stage")
+  replacement_index=$((${#staged_files[@]} - 1))
+  merge_config "$config_target" "$replacement_stage"
+  chmod 600 "$replacement_stage"
+
+  previous_stage="${staged_files[$target_index]}"
+  staged_files[target_index]="$replacement_stage"
+  staged_files[replacement_index]="$previous_stage"
+  rm -f -- "$previous_stage"
+}
+
+phase="refresh"
+target="Codex plugin-managed config"
+for codex_home in "${codex_homes[@]}"; do
+  refresh_config_stage "$codex_home"
 done
 
 phase="apply"
