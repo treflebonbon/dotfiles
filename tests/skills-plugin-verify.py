@@ -329,15 +329,15 @@ class VerifyCheckoutTests(unittest.TestCase):
                 import json, os, shutil, sys
                 from pathlib import Path
                 args = sys.argv[1:]
+                if args == ["--version"]:
+                    print("2.1.312 (Claude Code)")
+                    sys.exit(0)
                 config = Path(os.environ["CLAUDE_CONFIG_DIR"])
                 state = config / "mock-marketplace-source"
                 log = config.parent / "claude-commands.jsonl"
                 plugin_id = "treflebonbon-skills@treflebonbon"
                 install_root = config / "plugins/cache/treflebonbon/treflebonbon-skills"
                 installed = config / "plugins/installed_plugins.json"
-                if args == ["--version"]:
-                    print("2.1.312 (Claude Code)")
-                    sys.exit(0)
                 with log.open("a") as stream:
                     stream.write(json.dumps(args) + "\\n")
                 if args[:3] == ["plugin", "marketplace", "add"]:
@@ -657,6 +657,221 @@ class VerifyCheckoutTests(unittest.TestCase):
             ):
                 sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
             self.assertEqual(legacy.read_text(), "legacy\n")
+
+    def run_native_acceptance(self, *, mode: str = "success"):
+        cli = self.make_mock_claude()
+        if mode in (
+            "success",
+            "rewrite-settings",
+            "fail-repeat",
+            "clean-environment",
+            "private-tmp-checkout",
+        ):
+            text = cli.read_text()
+            anchor = 'elif args[:3] == ["plugin", "list", "--json"]:\n'
+            if mode == "rewrite-settings":
+                injected = (
+                    'settings = config / "settings.json"\n'
+                    "if settings.exists():\n"
+                    "    settings.write_text(json.dumps(json.loads(settings.read_text())))\n"
+                )
+            elif mode == "fail-repeat":
+                injected = (
+                    'counter = config / "native-list-count"\n'
+                    "count = int(counter.read_text()) + 1 if counter.exists() else 1\n"
+                    "counter.write_text(str(count))\n"
+                    "if count == 3: sys.exit(75)\n"
+                )
+            elif mode in ("success", "private-tmp-checkout"):
+                checkout = (
+                    Path("/tmp/verification-public-checkout")
+                    if mode == "private-tmp-checkout"
+                    else self.root
+                )
+                injected = (
+                    "import errno\n"
+                    "try:\n"
+                    f"    Path({str(checkout / 'readonly-probe')!r}).write_text('changed')\n"
+                    "except OSError as error:\n"
+                    "    assert error.errno == errno.EROFS\n"
+                    "else:\n"
+                    "    raise AssertionError('checkout must be read-only')\n"
+                )
+            else:
+                injected = 'assert "NATIVE_PARENT_ONLY" not in os.environ\n'
+            replacement = anchor + textwrap.indent(injected, "    ")
+            self.assertEqual(text.count(anchor), 1)
+            cli.write_text(text.replace(anchor, replacement))
+        base = Path(self.temporary.name) / "native-base"
+        base.mkdir()
+        git(base, "init", "-q")
+        git(base, "config", "user.name", "Fixture")
+        git(base, "config", "user.email", "fixture@example.invalid")
+        for relative in (
+            "private_dot_local/bin/executable_sync-skills-plugin",
+            "private_dot_claude/settings.json.tmpl",
+        ):
+            target = base / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(PROJECT_ROOT / relative, target)
+        pin = base / "private_dot_config/nix-devshell/skills-plugin.json"
+        pin.parent.mkdir(parents=True)
+        pin.write_text(json.dumps(self.pin))
+        git(base, "add", ".")
+        git(base, "commit", "-qm", "native acceptance fixture")
+        source = Path(self.temporary.name) / "native-source"
+        git(base, "worktree", "add", "-b", "native", str(source))
+        original = Path(self.temporary.name) / "original-home"
+        original.mkdir()
+        sentinel = original / "sentinel"
+        sentinel.write_text("preserved")
+        command = [
+            sys.executable,
+            str(PROJECT_ROOT / "scripts/verify-claude-plugin-sync.py"),
+            str(source),
+            "--checkout",
+            str(self.root),
+        ]
+        if mode == "private-tmp-checkout":
+            command[-1] = "/tmp/verification-public-checkout"
+            for tool in ("codex", "copilot", "agy", "apm", "herdr"):
+                entry = cli.parent / tool
+                entry.write_text("#!/bin/sh\nprintf 'fixture\\n'\n")
+                entry.chmod(0o755)
+            nix = cli.parent / "nix"
+            nix.write_text(
+                "#!/usr/bin/env python3\nimport json, os, sys\nfrom pathlib import Path\n"
+                "if sys.argv[1] == 'eval':\n"
+                "    print(json.dumps([{'name': name, 'version': 'fixture', "
+                "'path': str(Path(__file__).parent / name)} for name in "
+                "('claude', 'codex', 'copilot', 'agy', 'apm', 'herdr')]))\n"
+                "else:\n"
+                "    command = sys.argv[sys.argv.index('--command') + 1:]\n"
+                "    os.execvpe(command[0], command, os.environ)\n"
+            )
+            nix.chmod(0o755)
+            command = [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts/verify-ai-tools.py"),
+                str(source),
+                "--read-only",
+                "/tmp/verification-public-checkout",
+                "--",
+                *command,
+            ]
+            command = [
+                "bwrap",
+                "--unshare-user",
+                "--unshare-pid",
+                "--ro-bind",
+                "/",
+                "/",
+                "--dev",
+                "/dev",
+                "--proc",
+                "/proc",
+                "--tmpfs",
+                "/tmp",
+                "--bind",
+                "/tmp/codex",
+                "/tmp/codex",
+                "--",
+                sys.executable,
+                "-c",
+                "import shutil, subprocess, sys; "
+                "shutil.copytree(sys.argv[1], '/tmp/verification-public-checkout'); "
+                "raise SystemExit(subprocess.call(sys.argv[2:]))",
+                str(self.root),
+                *command,
+            ]
+        result = subprocess.run(
+            command,
+            env={
+                **os.environ,
+                "HOME": str(original),
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "NATIVE_PARENT_ONLY": "fixture-parent-value",
+            },
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(sentinel.read_text(), "preserved")
+        output = result.stdout
+        if mode == "private-tmp-checkout":
+            roots = [
+                Path(line.removeprefix("検証ログ: "))
+                for line in output.splitlines()
+                if line.startswith("検証ログ: ")
+            ]
+            self.assertEqual(len(roots), 1, result.stderr)
+            output = (roots[0] / "startup.log").read_text()
+        records = [
+            line.removeprefix("検証ログ: ")
+            for line in output.splitlines()
+            if line.startswith("検証ログ: ")
+        ]
+        self.assertEqual(len(records), 1, output + result.stderr)
+        record = Path(records[0])
+        evidence = json.loads((record / "result.json").read_text())
+        return result, evidence
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_checks_two_repeats_with_managed_settings(self) -> None:
+        result, evidence = self.run_native_acceptance()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(evidence["status"], "passed")
+        self.assertEqual(len(evidence["repeated_syncs"]), 2)
+        self.assertTrue(
+            all(row["settings_bytes_preserved"] for row in evidence["repeated_syncs"])
+        )
+        self.assertEqual(evidence["pin"], self.pin)
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_reads_checkout_outside_shared_tmp_read_only(
+        self,
+    ) -> None:
+        result, evidence = self.run_native_acceptance(mode="private-tmp-checkout")
+        self.assertEqual(result.returncode, 0, evidence)
+        self.assertEqual(evidence["status"], "passed")
+        self.assertEqual(len(evidence["repeated_syncs"]), 2)
+        self.assertTrue(
+            all(row["settings_bytes_preserved"] for row in evidence["repeated_syncs"])
+        )
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_rejects_settings_rewritten_by_cli(self) -> None:
+        result, evidence = self.run_native_acceptance(mode="rewrite-settings")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(evidence["status"], "failed")
+        self.assertFalse(evidence["repeated_syncs"][0]["settings_bytes_preserved"])
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_retains_known_metadata_when_repeat_fails(self) -> None:
+        result, evidence = self.run_native_acceptance(mode="fail-repeat")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(evidence["pin"], self.pin)
+        self.assertTrue(evidence["cli_path"].endswith("/claude"))
+        self.assertIn("Claude Code", evidence["cli_version"])
+        self.assertEqual(evidence["repeated_syncs"][0]["iteration"], 1)
+        self.assertEqual(evidence["repeated_syncs"][0]["status"], "failed")
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_does_not_forward_arbitrary_parent_environment(
+        self,
+    ) -> None:
+        result, evidence = self.run_native_acceptance(mode="clean-environment")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(evidence["status"], "passed")
 
     def make_mock_codex(self) -> Path:
         codex_bin = Path(self.temporary.name) / "codex-bin"

@@ -1,16 +1,16 @@
 """隔離 HOME の user / repo devShell で候補 AI output と実起動を照合する。"""
 
 import argparse
-import atexit
 import json
 import os
 from pathlib import Path
-import shutil
 import signal
-import stat
 import subprocess
 import sys
-import tempfile
+
+sys.dont_write_bytecode = True
+
+from verification_env import create_environment, new_runtime, sandbox_prefix
 
 
 TOOLS = {
@@ -62,6 +62,9 @@ def main():
     parser.add_argument("source", type=Path)
     parser.add_argument("--shell", choices=("default", "wsl"), default="default")
     parser.add_argument(
+        "--read-only", type=Path, help="後続コマンドが使う読み取り専用入力"
+    )
+    parser.add_argument(
         "--no-codex-build",
         action="store_true",
         help="Codex の既存 output または binary cache を使い、新規ビルドが必要なら停止する",
@@ -74,66 +77,26 @@ def main():
     for signum in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(signum, lambda received, _frame: sys.exit(128 + received))
     source = arguments.source.resolve(strict=True)
-    scratch_root = Path("/tmp/codex")
-    scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    root_metadata = scratch_root.stat(follow_symlinks=False)
-    if (
-        scratch_root.is_symlink()
-        or not stat.S_ISDIR(root_metadata.st_mode)
-        or root_metadata.st_uid != os.getuid()
-        or root_metadata.st_mode & 0o077
-    ):
-        raise RuntimeError("/tmp/codex must be a private directory owned by the current user")
-    scratch_root = scratch_root.resolve(strict=True)
-    runtime = Path(tempfile.mkdtemp(prefix="ai-tools-", dir=scratch_root))
-    environment = os.environ.copy()
-    # 同じWindows資源の予約を共有するため、XDG隔離前の記録先を保つ。
-    if not environment.get("BROWSER_OWNERSHIP_DIR"):
-        environment["BROWSER_OWNERSHIP_DIR"] = str(
-            Path(
-                environment.get("XDG_RUNTIME_DIR")
-                or environment.get("TMPDIR")
-                or "/tmp"
-            )
-            / "browser-ownership"
+    runtime = new_runtime("ai-tools-")
+    print(f"検証ログ: {runtime}", flush=True)
+    try:
+        prefix = sandbox_prefix(
+            source, runtime, Path(os.environ["HOME"]), read_only=arguments.read_only
         )
-    for key, directory in (
-        ("HOME", "home"),
-        ("XDG_CONFIG_HOME", "config"),
-        ("XDG_DATA_HOME", "data"),
-        ("XDG_RUNTIME_DIR", "runtime"),
-        ("XDG_CACHE_HOME", "cache"),
-        ("XDG_STATE_HOME", "state"),
-        ("TMPDIR", "tmp"),
-    ):
-        path = runtime / directory
-        path.mkdir(mode=0o700)
-        environment[key] = str(path)
-        # 隔離環境は証拠ではないため、診断ログを残して環境 directory は終了時に削除する。
-        atexit.register(shutil.rmtree, path, ignore_errors=True)
-    for key in (
-        "HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_DATA_HOME",
-        "XDG_RUNTIME_DIR",
-        "XDG_CACHE_HOME",
-        "XDG_STATE_HOME",
-        "TMPDIR",
-    ):
-        path = Path(environment[key]).resolve(strict=True)
-        if not path.is_relative_to(runtime.resolve(strict=True)):
-            raise RuntimeError(f"{key} escaped the isolated /tmp/codex directory")
-    for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR", "FORCE_COLOR"):
-        environment.pop(key, None)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        (runtime / "exit-code").write_text("1\n")
+        print(f"REJECT: 書込み境界を準備できません: {error}", file=sys.stderr)
+        return 1
+    environment = create_environment(runtime)
     environment.update(
         AI_TOOL_SOURCE=str(source),
         AI_TOOL_SHELL=arguments.shell,
         AI_TOOL_SELECTION=json.dumps(TOOLS),
     )
-    print(f"検証ログ: {runtime}", flush=True)
     with (runtime / "evaluation.log").open("w") as log:
         result = subprocess.run(
             [
+                *prefix,
                 "nix",
                 "eval",
                 "--impure",
@@ -184,6 +147,7 @@ def main():
         with (runtime / "codex-cache.log").open("w") as log:
             result = subprocess.run(
                 [
+                    *prefix,
                     "nix",
                     "build",
                     "--out-link",
@@ -231,7 +195,7 @@ def main():
     ]
     with (runtime / "startup.log").open("w") as log:
         status = subprocess.run(
-            invocation, cwd=source, env=environment, stdout=log, stderr=log
+            [*prefix, *invocation], cwd=source, env=environment, stdout=log, stderr=log
         ).returncode
     status = shell_exit_code(status)
     (runtime / "exit-code").write_text(f"{status}\n")

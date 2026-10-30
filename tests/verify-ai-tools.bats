@@ -2,11 +2,18 @@
 
 setup() {
   bats_require_minimum_version 1.5.0
+  [ "$(uname -s)" = Linux ] || skip "write-protected verification requires Linux/WSL2"
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   PROBE="$PROJECT_ROOT/scripts/verify-ai-tools.py"
   SOURCE="$BATS_TEST_TMPDIR/source"
   BIN="$BATS_TEST_TMPDIR/bin"
   mkdir -p "$SOURCE" "$BIN" "$BATS_TEST_TMPDIR/original-home"
+  git init --quiet --initial-branch=main "$BATS_TEST_TMPDIR/original-home/base"
+  (
+    cd "$BATS_TEST_TMPDIR/original-home/base"
+    git -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet --allow-empty -m fixture
+    git worktree add --quiet -b task "$SOURCE"
+  )
   export AI_FIXTURE_BIN="$BIN"
   export AI_FIXTURE_LOG="$BATS_TEST_TMPDIR/commands.jsonl"
   cat >"$BIN/nix" <<'PY'
@@ -20,6 +27,8 @@ with open(os.environ['AI_FIXTURE_LOG'], 'a') as log:
     log.write(json.dumps(row) + '\n')
 if sys.argv[1] == 'eval':
     mode = os.environ.get('AI_FIXTURE_MODE')
+    if mode == 'write-original-home':
+        Path(os.environ['AI_HOST_SENTINEL']).write_text('changed')
     if mode == 'eval-failure':
         print('fixture evaluation failed', file=sys.stderr)
         sys.exit(17)
@@ -80,6 +89,194 @@ from pathlib import Path
 rows = [json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
 print(Path(rows[-1]["HOME"]).parent)
 PY
+}
+
+@test "AI candidate verification protects the original HOME before the first Nix evaluation" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf 'preserved' >"$original/sentinel"
+  run env PATH="$BIN:$PATH" HOME="$original" \
+    AI_FIXTURE_MODE=write-original-home AI_HOST_SENTINEL="$original/sentinel" \
+    python3 "$PROBE" "$SOURCE" -- bash -c 'printf "must-not-start\n"'
+
+  printf 'original HOME sentinel: %s\n' "$(cat "$original/sentinel")" >&3
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ "$status" -ne 0 ]
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ ! -e "$runtime/startup.log" ]
+}
+
+@test "verification entry points do not create import caches beside host launchers" {
+  local original="$BATS_TEST_TMPDIR/original-home" name launcher
+  for name in verify-ai-tools.py verify-claude-plugin-sync.py; do
+    launcher="$original/$name-launcher"
+    mkdir -p "$launcher"
+    cp "$PROJECT_ROOT/scripts/$name" "$launcher/$name"
+    cp "$PROJECT_ROOT/scripts/verification_env.py" "$launcher/verification_env.py"
+    run env -u PYTHONDONTWRITEBYTECODE -u PYTHONPYCACHEPREFIX HOME="$original" \
+      python3 "$launcher/$name" --help
+
+    [ "$status" -eq 0 ]
+    [ ! -e "$launcher/__pycache__" ]
+  done
+}
+
+@test "AI candidate verification protects the original HOME in the requested command" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf preserved >"$original/sentinel"
+  run env PATH="$BIN:$PATH" HOME="$original" AI_HOST_SENTINEL="$original/sentinel" \
+    python3 "$PROBE" "$SOURCE" -- bash -c 'printf changed >"$AI_HOST_SENTINEL"'
+
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ "$status" -ne 0 ]
+}
+
+@test "verification commands keep the original HOME protected during shell expansion" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf preserved >"$original/sentinel"
+  printf 'fixture\n' >"$SOURCE/text"
+  run env HOME="$original" AI_HOST_SENTINEL="$original/sentinel" \
+    python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'rg -n "$(printf changed >"$AI_HOST_SENTINEL")" text'
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [[ "$output" == *"Read-only file system"* ]]
+}
+
+@test "AI verification rejects an untrusted sandbox launcher before invoking Nix" {
+  printf '#!/bin/sh\ntouch "%s"\n' "$BATS_TEST_TMPDIR/launcher-called" >"$BIN/bwrap"
+  chmod +x "$BIN/bwrap"
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [ ! -e "$BATS_TEST_TMPDIR/launcher-called" ]
+}
+
+@test "verification commands can edit and commit only their task worktree" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf preserved >"$original/sentinel"
+  run env HOME="$original" python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'printf fixture > tracked; git add tracked; git -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m "feat: fixture"'
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ "$(cat "$SOURCE/tracked")" = fixture ]
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ ! -e "$original/base/tracked" ]
+}
+
+@test "AI verification rejects the primary checkout before invoking Nix" {
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$BATS_TEST_TMPDIR/original-home/base"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [[ "$output" == *"linked task worktree"* ]]
+}
+
+@test "verification commands discard inherited Git repository redirects" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  run env HOME="$original" GIT_DIR="$original/base/.git" GIT_WORK_TREE="$original/base" \
+    python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- git rev-parse --show-toplevel
+
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "$SOURCE" ]
+}
+
+@test "verification commands provide a private writable tmp without host artifacts" {
+  run python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'set -eu; path=$(mktemp -d /tmp/verification-private.XXXXXX); printf fixture >"$path/item"; test "$(cat "$path/item")" = fixture; printf "%s\n" "$path"'
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == /tmp/verification-private.* ]]
+  [ ! -e "${lines[-1]}" ]
+}
+
+@test "verification private tmp preserves existing browser ownership records read-only" {
+  local scratch="$BATS_TEST_TMPDIR/codex"
+  mkdir -m 700 "$scratch"
+  run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc \
+    --tmpfs /tmp --bind "$scratch" /tmp/codex \
+    --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" \
+    --dir /tmp/verification-browser-records -- \
+    env HOME="$BATS_TEST_TMPDIR/original-home" BROWSER_OWNERSHIP_DIR=/tmp/verification-browser-records \
+    python3 - "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" <<'PY'
+import os, subprocess, sys
+from pathlib import Path
+record = Path(os.environ['BROWSER_OWNERSHIP_DIR']) / 'record'
+record.write_text('preserved')
+probe = '''import errno, os
+from pathlib import Path
+record = Path(os.environ['BROWSER_OWNERSHIP_DIR']) / 'record'
+assert record.read_text() == 'preserved'
+try:
+    record.write_text('changed')
+except OSError as error:
+    assert error.errno == errno.EROFS
+else:
+    raise AssertionError('host browser ownership record was writable')
+'''
+result = subprocess.run([sys.executable, sys.argv[1], sys.argv[2], '--',
+                         sys.executable, '-c', probe])
+assert result.returncode == 0
+assert record.read_text() == 'preserved'
+PY
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "verification rejects the tmp root as browser ownership directory" {
+  run env PATH="$BIN:$PATH" BROWSER_OWNERSHIP_DIR=/tmp \
+    python3 "$PROBE" "$SOURCE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [[ "$output" == *"BROWSER_OWNERSHIP_DIR"* ]]
+}
+
+@test "verification browser ownership fixture runs with default tmp and no shared scratch" {
+  run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc \
+    --tmpfs /tmp --dir /tmp/verification-fixture-home -- \
+    env HOME=/tmp/verification-fixture-home TMPDIR=/tmp \
+    bats --tap --filter '^verification private tmp preserves existing browser ownership records read-only$' \
+    "$BATS_TEST_FILENAME"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "verification bootstrap matches the selected public Git environment contract" {
+  [ -n "${TREFLEBONBON_SKILLS_LIB:-}" ]
+  run python3 - "$PROJECT_ROOT/scripts" "$TREFLEBONBON_SKILLS_LIB" "$BATS_TEST_TMPDIR/parity" <<'PY'
+import os, sys
+from pathlib import Path
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import verification_env
+sys.path.insert(0, sys.argv[2])
+from treflebonbon_skills.git_context import git_environment
+for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_CONFIG_COUNT', 'GIT_INDEX_FILE'):
+    os.environ[name] = 'fixture-redirect'
+assert verification_env._git_environment() == git_environment(), 'public Git environment mismatch'
+runtime = Path(sys.argv[3])
+runtime.mkdir()
+environment = verification_env.create_environment(runtime)
+assert not any(name.startswith('GIT_') for name in environment), 'Git redirects retained'
+PY
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "verification rejects read-only input covering its writable worktree" {
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE" --read-only "$SOURCE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [[ "$output" == *"読み取り専用入力"* ]]
 }
 
 @test "AI candidate verification can require a prebuilt Codex before starting either shell" {
@@ -192,8 +389,7 @@ PY
 @test "AI candidate verification resolves browser ownership from the original runtime fallback" {
   local mode expected case_source
   for mode in xdg tmp default; do
-    case_source="$SOURCE/$mode"
-    mkdir -p "$case_source"
+    case_source="$SOURCE"
     case "$mode" in
     xdg)
       expected="$BATS_TEST_TMPDIR/original-runtime/browser-ownership"
@@ -268,8 +464,7 @@ PY
 @test "AI candidate verification rejects incomplete or malformed metadata before shell startup" {
   local mode case_source runtime
   for mode in missing duplicate wrong-type missing-path; do
-    case_source="$SOURCE/$mode"
-    mkdir -p "$case_source"
+    case_source="$SOURCE"
     run env PATH="$BIN:$PATH" AI_FIXTURE_MODE="$mode" \
       python3 "$PROBE" "$case_source" -- bash -c 'touch "$1"' -- "$BATS_TEST_TMPDIR/should-not-run"
 
@@ -317,8 +512,7 @@ PY
 @test "AI candidate verification reports signal termination consistently in its exit status and evidence" {
   local mode case_source runtime
   for mode in eval-signal startup-signal; do
-    case_source="$SOURCE/$mode"
-    mkdir -p "$case_source"
+    case_source="$SOURCE"
     run env PATH="$BIN:$PATH" AI_FIXTURE_MODE="$mode" \
       python3 "$PROBE" "$case_source" -- bash -c 'touch "$1"' -- "$BATS_TEST_TMPDIR/should-not-run"
 
