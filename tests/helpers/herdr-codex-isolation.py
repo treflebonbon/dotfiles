@@ -21,7 +21,12 @@ spec.loader.exec_module(herdr_probe)
 
 class ProbeRegression(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix="h273-regression-")
+        temporary_root = Path(os.environ["TMPDIR"]).resolve(strict=True)
+        if not temporary_root.is_relative_to(Path("/tmp/codex").resolve(strict=True)):
+            raise RuntimeError("Herdr Nix evaluation requires TMPDIR inside /tmp/codex")
+        temporary = tempfile.TemporaryDirectory(
+            prefix="h273-regression-", dir=temporary_root
+        )
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.probe = herdr_probe.Probe.__new__(herdr_probe.Probe)
@@ -37,6 +42,23 @@ class ProbeRegression(unittest.TestCase):
         self.probe.control.mkdir()
         (self.probe.control / "server.sock").touch()
         self.probe.env = {"SHELL": str(Path(shutil.which("bash")).resolve())}
+        environment = os.environ.copy()
+        for key in tuple(environment):
+            if key.startswith("NIX_"):
+                environment.pop(key)
+        for name in ("home", "cache", "config", "data", "state", "tmp"):
+            (self.root / "nix" / name).mkdir(parents=True, exist_ok=True)
+        environment.update(
+            {
+                "HOME": str(self.root / "nix/home"),
+                "XDG_CACHE_HOME": str(self.root / "nix/cache"),
+                "XDG_CONFIG_HOME": str(self.root / "nix/config"),
+                "XDG_DATA_HOME": str(self.root / "nix/data"),
+                "XDG_STATE_HOME": str(self.root / "nix/state"),
+                "TMPDIR": str(self.root / "nix/tmp"),
+                "NIX_CONFIG": "experimental-features = nix-command flakes\n",
+            }
+        )
         for architecture in ("x86_64", "aarch64"):
             with self.subTest(architecture=architecture):
                 target = self.root / architecture
@@ -57,6 +79,7 @@ class ProbeRegression(unittest.TestCase):
                         "--raw",
                         f"path:{target}#devShells.{system}.default.system",
                     ],
+                    env=environment,
                     text=True,
                     capture_output=True,
                     timeout=30,

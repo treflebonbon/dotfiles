@@ -1,19 +1,4 @@
-{{- $root := joinPath .chezmoi.sourceDir "local-skills" -}}
-{{- $rootInfo := stat $root -}}
-{{- if not (and $rootInfo $rootInfo.isDir) -}}
-  {{- fail (printf "local skill source missing: %s" $root) -}}
-{{- end -}}
 {{- $active := list -}}
-{{- range glob (joinPath $root "*") | sortAlpha }}
-{{- if (stat .).isDir }}
-  {{- $skillFile := joinPath . "SKILL.md" -}}
-  {{- $skillInfo := stat $skillFile -}}
-  {{- if not (and $skillInfo (eq $skillInfo.type "file")) -}}
-    {{- fail (printf "local skill SKILL.md missing: %s" $skillFile) -}}
-  {{- end -}}
-  {{- $active = append $active (base .) -}}
-{{- end }}
-{{- end }}
 {{- $apm := dict -}}
 {{- range (include "apm.lock.yaml" | fromYaml).dependencies -}}
   {{- range .deployed_files -}}
@@ -42,7 +27,6 @@
     {{- fail (printf "active local skill is also retired: %s" .) -}}
   {{- end -}}
 {{- end -}}
-src_root={{ $root | replace "'" "'\"'\"'" | printf "'%s'" }}
 local_skills=(
 {{- range $active }}
   {{ . | replace "'" "'\"'\"'" | printf "'%s'" }}
@@ -53,5 +37,18 @@ retired_local_skills=(
   {{ . | replace "'" "'\"'\"'" | printf "'%s'" }}
 {{- end }}
 )
+
+legacy_skill_names=(
+{{- range $name, $_ := (include ".chezmoitemplates/local-skills-legacy.json" | fromJson).skills }}
+  {{ $name | printf "'%s'" }}
+{{- end }}
+)
+apm_skill_names=(
+{{- range $name, $_ := $apm }}
+  {{ $name | replace "'" "'\"'\"'" | printf "'%s'" }}
+{{- end }}
+)
+legacy_skill_manifest={{ include ".chezmoitemplates/local-skills-legacy.json" | replace "'" "'\"'\"'" | printf "'%s'" }}
+legacy_skill_code={{ include ".chezmoitemplates/local-skills-legacy.py" | replace "'" "'\"'\"'" | printf "'%s'" }}
 
 {{ include ".chezmoitemplates/local-skills.sh" }}

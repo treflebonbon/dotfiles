@@ -1,5 +1,6 @@
 import hashlib
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -10,6 +11,13 @@ def fail_walk(error):
 
 root = Path(sys.argv[1])
 tree_hash = hashlib.sha256()
+try:
+    root_info = root.lstat()
+except FileNotFoundError:
+    print(tree_hash.hexdigest())
+    raise SystemExit(0)
+if stat.S_ISLNK(root_info.st_mode) or not stat.S_ISDIR(root_info.st_mode):
+    raise SystemExit(f"local skill source is not a real directory: {root}")
 for directory, dirs, files in os.walk(root, onerror=fail_walk):
     dirs.sort()
     for name in sorted(dirs + files):

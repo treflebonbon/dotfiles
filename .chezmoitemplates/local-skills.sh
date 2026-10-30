@@ -3,6 +3,22 @@
 shared_skills_dir="$HOME/.agents/skills"
 claude_skills_dir="$HOME/.claude/skills"
 
+is_legacy_migration_skill() {
+  local name="$1" skill
+  # The template declares the immutable migration inputs.
+  # shellcheck disable=SC2154
+  for skill in "${legacy_skill_names[@]}"; do
+    [ "$name" = "$skill" ] && return 0
+  done
+  return 1
+}
+
+legacy_skills() {
+  # Embedded by local-skills.sh.tmpl before this module.
+  # shellcheck disable=SC2154
+  python3 -c "$legacy_skill_code" "$legacy_skill_manifest" "$@"
+}
+
 is_preserved_local_skill() {
   local name="$1" skill
   # shellcheck disable=SC2154
@@ -10,59 +26,6 @@ is_preserved_local_skill() {
     [ "$name" = "$skill" ] && return 0
   done
   return 1
-}
-
-deploy_skill() {
-  local name="$1"
-  # shellcheck disable=SC2154
-  local src="$src_root/$name"
-
-  if [ ! -d "$src" ]; then
-    echo "ERROR: local skill source missing: $src" >&2
-    exit 1
-  fi
-
-  local target
-  for target in \
-    "$shared_skills_dir/$name" \
-    "$claude_skills_dir/$name"; do
-
-    mkdir -p "$(dirname "$target")"
-    local tmp
-    tmp="$(mktemp -d "${target}.tmp.XXXXXX")"
-
-    # -L: symlink を実ファイル化 / --delete: 撤去分を反映 / .gitkeep は除外
-    if ! rsync -a -L --delete --exclude '.gitkeep' "$src/" "$tmp/"; then
-      rm -rf "$tmp"
-      echo "ERROR: rsync failed for $name -> $target" >&2
-      exit 1
-    fi
-
-    local old="${target}.old.$$"
-    if [ -e "$target" ] || [ -L "$target" ]; then
-      mv "$target" "$old"
-    fi
-    if mv "$tmp" "$target"; then
-      rm -rf "$old"
-    else
-      rm -rf "$tmp"
-      if [ -e "$old" ] || [ -L "$old" ]; then
-        if ! mv "$old" "$target"; then
-          echo "ERROR: restore failed; previous skill preserved at $old" >&2
-          exit 1
-        fi
-      fi
-      echo "ERROR: could not place $target" >&2
-      exit 1
-    fi
-  done
-}
-
-local_skills_deploy() {
-  local skill
-  for skill in "${local_skills[@]}"; do
-    deploy_skill "$skill"
-  done
 }
 
 remove_named_skill_entries() {
@@ -74,6 +37,9 @@ remove_named_skill_entries() {
   local removed=0
   local skill
   for skill in "$@"; do
+    if is_legacy_migration_skill "$skill"; then
+      continue
+    fi
     local entry="$dir/$skill"
     if [ -e "$entry" ] || [ -L "$entry" ]; then
       rm -rf -- "$entry"

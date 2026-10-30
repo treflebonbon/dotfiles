@@ -6,6 +6,8 @@ date: 2026-10-16
 
 # 元候補を固定して native peer 協働を明示依頼から進める peer-refactor skill を採用する
 
+2026-10-30 追記: [ADR-0082](0082-extract-local-skills-to-public-repository.md) と #544 の実装により、規範契約・専用補助 CLI・保護設定の正本と配布は固定版の skills repository が所有する。dotfiles は pin と terminal-specific な config・導入・起動配線を維持する。元候補固定、通常の明示協働、専用 auto の起動条件と未有効時の保留も維持し、専用 auto の有効化や資格情報を自動で変更しない。以下は設計時の配布配置・検証方法を含む歴史記録で、現在の source は [runtime の契約案内](../../runtime/autonomous-peer-contract.md) から解決する。
+
 ## 背景
 
 `improve-codebase-architecture` は deepening 候補を HTML report で提示し、選んだ候補を `grilling` で人と詰める。人が提示済みの候補を、候補別 native workspace の writer と read-only peer で設計・実装・独立レビュー・PR まで進め、人の操作を merge に限定したいことがある。

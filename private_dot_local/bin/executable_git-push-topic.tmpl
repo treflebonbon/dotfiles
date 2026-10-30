@@ -1,0 +1,8 @@
+{{- output "python3" "-c" (include ".chezmoitemplates/local-skills-legacy.py") (include ".chezmoitemplates/local-skills-legacy.json") "preflight-cli-cutover" .chezmoi.sourceDir -}}
+#!/usr/bin/env bash
+set -euo pipefail
+cli=git-push-topic
+if [ "${0##*/}" = git-push-reviewed ]; then
+  cli=git-push-reviewed
+fi
+exec "$HOME/.local/bin/sync-skills-plugin" --run-cli "$cli" -- "$@"

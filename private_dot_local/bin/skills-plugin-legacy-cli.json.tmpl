@@ -1,0 +1,2 @@
+{{- $baseline := include ".chezmoitemplates/local-skills-legacy.json" | fromJson -}}
+{{ dict "revision" $baseline.revision "cli" $baseline.cli | toJson }}

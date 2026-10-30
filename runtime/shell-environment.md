@@ -68,6 +68,8 @@ dotfiles の WSL2 開発では `nix develop .#wsl` を使う。Nix 自体は `.w
 
 Linux／WSL2 の `codex-worktree` は、Nix 評価・shellHook より前に専用の filesystem・user・PID・network namespace を作る。空の HOME、選択した Nix ツール closure のコピー、明示した公開ファイルと Git 履歴だけで初期化し、同じ physical root と Active Git Metadata Boundary を隔離内に再構成する。ホストの HOME、Nix daemon、任意の継承変数、未登録ファイルは渡さない。
 
+グローバル `codex-worktree` と `devshell-env` は、current plugin pin・receipt・固定 source を確認してから公開 `bin/codex-worktree` / `bin/devshell-env` へ渡す。`devshell-env with-env`、Claude の dotenv、hook、reload は既存の汎用 adapter が担当する。固定 source の確認に失敗した raw 起動は停止し、無保護な local fallback を使わない。
+
 人間は validated linked worktree で、公開してよいファイルと **現在の HEAD から到達可能な Git 履歴全体** を確認してから登録する。`trust` は repo の初期化許可、`admit` はファイルの内容と公開 runtime 設定の宣言であり、別々に必要になる。
 
 ```bash

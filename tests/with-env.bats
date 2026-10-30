@@ -85,7 +85,7 @@ assert os.environ["GIT_DIR"] == os.environ["GIT_COMMON_DIR"] == os.environ["GIT_
   [ "$status" -eq 0 ]
 }
 
-@test "with-env accepts separate Git directories with absolute or relative gitfiles" {
+@test "with-env supports separate Git directories and raw startup holds without a verified plugin runtime" {
   git init -q --separate-git-dir "$FIXTURE/metadata" "$FIXTURE/separate"
   touch "$FIXTURE/separate/flake.nix"
   printf 'DUMMY_257=separate\n' >"$FIXTURE/separate/.env"
@@ -101,7 +101,7 @@ assert os.environ["GIT_DIR"] == os.environ["GIT_COMMON_DIR"] == os.environ["GIT_
   [ "$status" -ne 0 ]
   run env PATH="$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/separate" "$CLI"
   [ "$status" -ne 0 ]
-  [[ "$output" == *'not a linked Git worktree'* ]]
+  [[ "$output" == *'pinned raw runtime unavailable'* ]]
 }
 
 @test "with-env accepts a submodule and reads only its own root dotenv" {
@@ -147,57 +147,11 @@ EOF
   [ ! -e "$FIXTURE/separate/launched" ]
 }
 
-@test "raw Codex reuses the isolated prepared devShell without injecting host dotenv" {
-  raw_fixture
-  raw_admit flake.nix task.sh
-  run raw_run sandbox -- with-env --prepared -- bash -c 'test "$PUBLIC_VAR/$HOOK_VAR" = normal/ready; test -z "${RAW_DUMMY_SECRET+x}"'
-  raw_assert_status 0
-  [ "$(wc -l < "$RAW_BASE/work/hook-calls")" -eq 1 ]
-}
-
-@test "the normal entry prepares again even when it inherits a prepared context" {
-  raw_fixture
-  cat > "$RAW_BASE/work/task.sh" <<'SH'
-set -eu
-printf '{ outputs = _: throw "reprepare required"; }' > flake.nix
-with-env -- bash -c 'touch launched'
-SH
-  raw_admit flake.nix task.sh
-  run raw_run sandbox -- bash task.sh
-  raw_assert_status 1
-  [[ "$output" == *'Nix preparation failed'* ]]
-  [ ! -e "$RAW_BASE/work/launched" ]
-}
-
 @test "prepared entry refuses to execute without successful adapter preparation" {
   run env -u DEVSHELL_ENV_CONTEXT "$CLI" with-env --prepared -- touch "$FIXTURE/launched"
   [ "$status" -ne 0 ]
   [[ "$output" == *'no prepared devShell'* ]]
   [ ! -e "$FIXTURE/launched" ]
-}
-
-@test "with-env rejects a prepared context after root, output, flake or lock changes" {
-  raw_fixture
-  cat > "$RAW_BASE/work/task.sh" <<'SH'
-set -eu
-original=$DEVSHELL_ENV_CONTEXT
-for change in output flake lock; do
-  case "$change" in
-    output) export DEVSHELL_ENV_OUTPUT=custom;;
-    flake) unset DEVSHELL_ENV_OUTPUT; printf changed >> flake.nix;;
-    lock) printf changed > flake.lock;;
-  esac
-  if with-env --prepared -- touch launched; then exit 1; fi
-done
-git init -q "$TMPDIR/other"
-(cd "$TMPDIR/other"; if with-env --prepared -- true; then exit 1; fi)
-printf CONTEXT_REFUSED
-SH
-  raw_admit flake.nix task.sh
-  run raw_run sandbox -- bash task.sh
-  raw_assert_status 0
-  [[ "$output" == *CONTEXT_REFUSED* && "$output" == *'restart the session'* ]]
-  [ ! -e "$RAW_BASE/work/launched" ]
 }
 
 @test "dotenv parsing preserves values, expands variables with caller precedence, and never executes shell text" {
@@ -397,23 +351,6 @@ EOF
   done
 }
 
-@test "real raw Codex confines dotenv and Git metadata while executing the public with-env entry" {
-  raw_fixture
-  cat > "$RAW_BASE/work/task.sh" <<'SH'
-set -eu
-with-env --prepared -- bash -c 'test -z "${RAW_DUMMY_SECRET+x}"; test -z "$(cat .env 2>/dev/null || true)"; printf public > result.txt; git add result.txt'
-if cat ../repo/.env >/dev/null 2>&1; then exit 1; fi
-printf RAW_WITH_ENV_OK
-SH
-  raw_admit flake.nix task.sh
-  export RAW_DUMMY_SECRET=dummy-inherited-secret
-  run raw_run sandbox -- bash task.sh
-  raw_assert_status 0
-  [[ "$output" == *RAW_WITH_ENV_OK* ]]
-  [ "$(git -C "$RAW_BASE/work" diff --cached --name-only)" = result.txt ]
-}
-
-
 @test "the actual public Nix app package remains secret-free inside the raw runtime" {
   [ "${WITH_ENV_REAL_NIX:-0}" = 1 ] || skip "opt in with WITH_ENV_REAL_NIX=1; builds the public app inside the dedicated store"
   run python3 "$PROJECT_ROOT/tests/helpers/with-env-preflight.py"
@@ -423,17 +360,12 @@ SH
 
 @test "chezmoi deployed with-env runs under isolated Python without its source checkout" {
   local source="$FIXTURE/source" config="$FIXTURE/chezmoi.yaml"
-  mkdir -p "$source/private_dot_local/bin" "$source/private_dot_local/share/devshell-env"
+  mkdir -p "$source/private_dot_local/bin"
   cp "$CLI" "$source/private_dot_local/bin/executable_devshell-env"
-  cp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" \
-    "$source/private_dot_local/share/devshell-env/"
   cp "$PROJECT_ROOT/.chezmoiignore" "$source/.chezmoiignore"
-  mkdir -p "$source/private_dot_local/share/devshell-env/__pycache__"
-  printf 'stale bytecode\n' >"$source/private_dot_local/share/devshell-env/__pycache__/stale.pyc"
   printf '{}\n' >"$config"
   env HOME="$FIXTURE/home" chezmoi --source "$source" --destination "$FIXTURE/home" \
     --config "$config" --persistent-state "$FIXTURE/chezmoi-state.boltdb" apply
-  [ ! -e "$FIXTURE/home/.local/share/devshell-env/__pycache__/stale.pyc" ]
   mv "$source" "$FIXTURE/retired-source"
   printf 'raise RuntimeError("untrusted import")\n' >"$FIXTURE/worktree/devshell_environment.py"
   run env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" PYTHONPATH="$FIXTURE/worktree" \

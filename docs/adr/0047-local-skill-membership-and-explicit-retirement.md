@@ -9,6 +9,8 @@ status: accepted
 
 # ローカル skill の配備対象をソースから導出し、撤去対象は明示する
 
+2026-10-30 追記: [ADR-0082](0082-extract-local-skills-to-public-repository.md) と #544 の実装は、対象11件の配布所有権と旧配備撤去を公開固定版へ移した。全 runtime と Codex managed config の current state を検証してから、移行前の固定 baseline に一致するコピーだけを撤去する。以下は移行前の意思決定と採用理由を残す歴史記録で、対象11件の現行配布手順には適用しない。APM の所有権・更新 gate は維持する。
+
 ローカル skill の配備一覧と cleanup の保持一覧は同じ10件を別々に持ち、追加・改名時の手同期を要求している。候補01「Skill 配備の所有権」の設計対話で、次の方針を採用した。
 
 ## Decision

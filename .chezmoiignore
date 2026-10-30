@@ -66,21 +66,18 @@ tmp/**
 templates
 templates/**
 
-# chezmoi 配布のローカル skill ソース (SoT)。~/ へ直接 deploy せず、
-# run_onchange_after_deploy-local-skills.sh.tmpl が各ランタイムの skill dir
-# (~/.agents/skills, ~/.claude/skills) へ materialize する。
-# templates と同様、非 prefix トップレベルエントリなので明示除外する。
-local-skills
-local-skills/**
-
 # mattpocock engineering skill 向けの repo ローカル domain doc（GLOSSARY.md / ADR /
 # setup-matt-pocock-skills が生成する docs/agents）。product repo の慣習に合わせ
 # この repo に閉じる（~/GLOSSARY.md, ~/docs へ home-wide 配備しない — この repo 固有の
 # workflow 語彙が無関係な repo の ambient context に漏れるのを防ぐ）。
-# templates/local-skills と同様、非 prefix トップレベルエントリなので明示除外する。
+# templates と同様、非 prefix トップレベルエントリなので明示除外する。
 GLOSSARY.md
 docs
 docs/**
+
+# 未配備の旧 user-scoped skill source と空 directory を ~/ へ配備しない。
+local-skills
+local-skills/**
 
 # Python import caches are runtime state, not managed source.
 **/__pycache__/

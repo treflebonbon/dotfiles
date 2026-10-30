@@ -82,49 +82,6 @@ setup() {
   grep -q 'Start-Process -FilePath' "$powershell"
 }
 
-@test "Managed Dogfood Chrome rejects a zero DebugPort before launch" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
-
-  grep -Fq 'if ($DebugPort -le 0)' "$package"
-  grep -Fq 'Start requires a positive -DebugPort.' "$package"
-}
-
-@test "Managed Dogfood Chrome quotes Windows paths only when they contain whitespace" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
-
-  grep -Fq 'function Format-ChromePathArgument' "$package"
-  grep -Fq 'if ($Value -match "\s")' "$package"
-  grep -Fq "\$escapedValue = \$Value -replace '(\\\\+)$', '\$1\$1'" "$package"
-  grep -Fq "return ('\"' + \$escapedValue + '\"')" "$package"
-  grep -Fq 'return $Value' "$package"
-  grep -Fq '$ProfileArgument = Format-ChromePathArgument $ProfileDir' "$package"
-  grep -Fq '"--user-data-dir=$ProfileArgument"' "$package"
-  grep -Fq '$ExtensionArgument = Format-ChromePathArgument $ExtensionPath' "$package"
-  grep -Fq '"--disable-extensions-except=$ExtensionArgument"' "$package"
-  grep -Fq '"--load-extension=$ExtensionArgument"' "$package"
-}
-
-@test "Managed Dogfood Chrome doubles trailing backslashes in quoted paths" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
-
-  grep -Fq "\$escapedValue = \$Value -replace '(\\\\+)$', '\$1\$1'" "$package"
-  if ! command -v powershell.exe >/dev/null 2>&1; then
-    skip "powershell.exe unavailable"
-  fi
-
-  local script="$BATS_TEST_TMPDIR/format-chrome-path.ps1"
-  cat >"$script" <<'PS'
-$Value = 'C:\Temp\profile with spaces\'
-$escapedValue = $Value -replace '(\\+)$', '$1$1'
-if (('"' + $escapedValue + '"') -ne '"C:\Temp\profile with spaces\\"') {
-    exit 1
-}
-PS
-
-  run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$script"
-  [ "$status" -eq 0 ]
-}
-
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
@@ -269,14 +226,27 @@ PS
   local module="$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
   local package_json="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-agent/package.json"
-  local wrapper="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wrapper.sh"
-  local windows="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-windows.ps1"
-  local skill="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wsl-skill.md"
 
   grep -q 'playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix' "$module"
+  grep -q 'skills-plugin.json' "$module"
+  grep -q 'pkgs.fetchFromGitHub' "$module"
+  grep -q 'hash = skillsPluginPin.nar_hash;' "$module"
+  grep -q 'inherit buildNpmPackage nodejs skillsPluginSource;' "$module"
   grep -q '^    playwright-cli$' "$module"
   grep -q 'share/playwright-cli/skills/playwright-cli' "$module"
   grep -q 'DOGFOOD_WINDOWS_SCRIPT' "$module"
+  grep -q 'skillsPluginSource' "$pkg"
+  grep -q 'packages/wsl2-browser' "$pkg"
+  grep -q 'playwright-cli-sockets.patch' "$pkg"
+  grep -q 'playwright-cli-program.patch' "$pkg"
+  grep -q 'playwright-cli-entrypoint' "$pkg"
+  grep -q 'PWCLI_CDP_CLOSE' "$pkg"
+  grep -q 'PWCLI_WINDOWS_SCRIPT' "$pkg"
+  grep -q 'PWCLI_RUNTIME_COMMAND' "$pkg"
+  grep -q 'BROWSER_ATTACHMENTS_PLAYWRIGHT' "$pkg"
+  grep -q 'references/playwright-cli-wsl.md' "$pkg"
+  grep -q 'THIRD_PARTY_NOTICES.md' "$pkg"
+  grep -q 'lib.licenses.mit' "$pkg"
   grep -q '\.agents/skills/playwright-cli' "$module"
   grep -q '\.claude/skills/playwright-cli' "$module"
   grep -q 'pname = "playwright-cli";' "$pkg"
@@ -288,18 +258,11 @@ PS
   grep -q 'PWTEST_CLI_GLOBAL_CONFIG' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_BROWSERS_PATH' "$pkg"
   grep -q -- '--unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$pkg"
-  grep -q 'playwright-cli-wrapper.sh' "$pkg"
-  grep -q 'playwright-cli-windows.ps1' "$pkg"
-  grep -q 'dogfood-chrome-windows.ps1' "$pkg"
+  grep -Fq 'cp -R "$public/libexec/." "$out/libexec/"' "$pkg"
+  grep -q 'libexec/playwright-cli-windows.ps1' "$pkg"
+  grep -q 'libexec/dogfood-chrome-windows.ps1' "$pkg"
   grep -q 'playwright-cli-cdp-close.js' "$pkg"
-  grep -q 'PWTEST_CLI_MANAGED_CHROME' "$pkg"
-  grep -q 'playwright-cli-wsl-skill.md' "$pkg"
-  grep -Fq 'locate --role playwright --workspace "$pwcli_workspace"' "$wrapper"
-  grep -Fq 'read -r pwcli_identity pwcli_profile pwcli_cdp_endpoint pwcli_dashboard_port' "$wrapper"
-  grep -Fq 'aiakos\playwright-cli\chrome-profile' "$windows"
-  grep -Fq '$ProfileDir =' "$windows"
-  ! grep -Fq '$Profile =' "$windows"
-  grep -Fq 'PWTEST_CLI_GLOBAL_CONFIG' "$skill"
+  grep -q 'playwright-cli-program.patch' "$pkg"
   ! grep -Eq 'chromium-[0-9]+' "$pkg"
   grep -q 'version = "0.1.22";' "$pkg"
   grep -q '"@playwright/cli": "0.1.22"' "$package_json"
@@ -318,7 +281,13 @@ PS
           config.allowUnfree = true;
           overlays = [ flake.inputs.llm-agents.overlays.shared-nixpkgs ];
         };
+      pin = builtins.fromJSON (builtins.readFile (flake.outPath + "/skills-plugin.json"));
+      skillsPluginSource = pkgs.fetchFromGitHub {
+        inherit (pin) owner repo rev;
+        hash = pin.nar_hash;
+      };
       in (pkgs.callPackage (flake.outPath + "/packages/playwright-cli.nix") {
+      inherit skillsPluginSource;
         playwright-driver = null;
       }).drvPath
     '
@@ -343,14 +312,10 @@ PS
 }
 
 @test "WSL2 Playwright skill documents managed headless and headed workflows" {
-  local skill="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli-wsl-skill.md"
+  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/playwright-cli.nix"
 
-  grep -Fq 'headless by default' "$skill"
-  grep -Fq '`open --headed`' "$skill"
-  grep -Fq '`PLAYWRIGHT_MCP_HEADLESS=true|1`' "$skill"
-  grep -Fq '`PLAYWRIGHT_MCP_HEADLESS=false|0`' "$skill"
-  grep -Fq '`show` and `show --annotate` require headed mode' "$skill"
-  grep -Fq 'manual authentication' "$skill"
+  grep -Fq 'references/playwright-cli-wsl.md' "$package"
+  grep -Fq 'cat "$public/references/playwright-cli-wsl.md"' "$package"
 }
 
 @test "nix-devshell exposes design.md aliases and document converters" {
@@ -363,34 +328,6 @@ PS
   grep -q 'markitdown/default\.nix' "$module"
   grep -Fq '"$out/bin/design.md"' "$pkg"
   grep -Fq '"$out/bin/designmd"' "$pkg"
-}
-
-@test "ui grill skill keeps round sheets disposable and human answers authoritative" {
-  local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
-  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
-
-  grep -qx 'name: ui-grill-with-docs' "$skill"
-  grep -qx 'disable-model-invocation: true' "$skill"
-  [ -f "$PROJECT_ROOT/local-skills/ui-grill-with-docs/assets/round.html" ]
-  grep -Fq '[assets/round.html](assets/round.html)' "$skill"
-  grep -Fq 'Do not read browser drafts as submitted answers.' "$skill"
-  grep -Fq 'are never the source of truth.' "$skill"
-  grep -Fq 'ask the user to confirm cleanup' "$skill"
-  grep -Fq 'delete only the `tmp/ui-grill-<topic>.html` file owned by this session.' "$skill"
-  grep -Fq '`ui-grill-with-docs`' "$runtime"
-}
-
-@test "pre-commit applies OXC to local skills and the MV3 fixture" {
-  local config="$PROJECT_ROOT/lefthook.yml"
-  local fixture="$PROJECT_ROOT/local-skills/dogfood/references/fixtures/mv3-min"
-
-  ! sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
-  ! sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
-  sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
-  sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
-  [ -f "$fixture/service-worker.js" ]
-  [ ! -e "$fixture/service_worker.js" ]
-  grep -Fq '"service_worker": "service-worker.js"' "$fixture/manifest.json"
 }
 
 @test "gws package uses pinned 0.22.5 release binaries" {

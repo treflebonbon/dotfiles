@@ -6,8 +6,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 
 
 def main():
@@ -33,6 +35,58 @@ def main():
         parser.error(
             "--herdr, --real-services and --human-validation select separate verification runs"
         )
+    scratch_root = Path("/tmp/codex")
+    scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    root_metadata = scratch_root.stat(follow_symlinks=False)
+    if (
+        scratch_root.is_symlink()
+        or not stat.S_ISDIR(root_metadata.st_mode)
+        or root_metadata.st_uid != os.getuid()
+        or root_metadata.st_mode & 0o077
+    ):
+        raise ValueError(
+            "/tmp/codex must be a private directory owned by the current user"
+        )
+    scratch_root = scratch_root.resolve(strict=True)
+    scratch = Path(tempfile.mkdtemp(prefix="secret-isolation-vm-", dir=scratch_root))
+    environment = {
+        key: os.environ[key]
+        for key in (
+            "PATH",
+            "LANG",
+            "LC_ALL",
+            "NIX_SSL_CERT_FILE",
+            "SSL_CERT_FILE",
+            "CURL_CA_BUNDLE",
+        )
+        if key in os.environ
+    }
+    for name in ("home", "config", "data", "state", "cache", "runtime", "tmp"):
+        (scratch / name).mkdir(mode=0o700)
+    environment.update(
+        {
+            "HOME": str(scratch / "home"),
+            "XDG_CONFIG_HOME": str(scratch / "config"),
+            "XDG_DATA_HOME": str(scratch / "data"),
+            "XDG_STATE_HOME": str(scratch / "state"),
+            "XDG_CACHE_HOME": str(scratch / "cache"),
+            "XDG_RUNTIME_DIR": str(scratch / "runtime"),
+            "TMPDIR": str(scratch / "tmp"),
+            "NIX_CONFIG": "experimental-features = nix-command flakes\n",
+        }
+    )
+    for name in (
+        "HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_STATE_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_RUNTIME_DIR",
+        "TMPDIR",
+    ):
+        path = Path(environment[name]).resolve(strict=True)
+        if not path.is_relative_to(scratch):
+            raise ValueError(f"{name} escaped the isolated /tmp/codex directory")
     output = args.output.resolve()
     output.mkdir(mode=0o700)
     root = Path(__file__).resolve().parents[1]
@@ -47,6 +101,7 @@ def main():
             f"(builtins.getFlake {json.dumps(str(root))}).inputs.nixpkgs.outPath",
         ],
         text=True,
+        env=environment,
     ).strip()
     command = [
         "nix",
@@ -70,6 +125,7 @@ def main():
         app = subprocess.check_output(
             ["nix", "build", f"{root}#with-env", "--no-link", "--print-out-paths"],
             text=True,
+            env=environment,
         ).strip()
         command.extend(["--argstr", "withEnvRoot", app])
     selected_tools = [
@@ -95,11 +151,10 @@ def main():
             raise ValueError(f"a Nix store tool is required: {name}")
         command.extend(["--argstr", argument, str(Path(*path.parts[:4]))])
     with (output / "build.log").open("w") as log:
-        driver = subprocess.check_output(command, stderr=log, text=True).strip()
-    runtime = output / "runtime"
-    runtime.mkdir(mode=0o700)
+        driver = subprocess.check_output(
+            command, stderr=log, text=True, env=environment
+        ).strip()
     (output / "evidence").mkdir()
-    environment = os.environ | {"XDG_RUNTIME_DIR": str(runtime)}
     if args.real_services:
         selected = {
             "CODEX_ISOLATION_VM_CODEX_AUTH": Path(

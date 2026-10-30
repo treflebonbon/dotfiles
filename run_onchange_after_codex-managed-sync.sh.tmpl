@@ -5,7 +5,19 @@
 # Codex managed hooks hash: {{ include "private_dot_config/codex/hooks.json" | sha256sum }}
 # Codex managed rules hash: {{ include "private_dot_config/codex/rules/default.rules" | sha256sum }}
 # Codex managed sync hash: {{ include "private_dot_local/bin/executable_sync-codex-managed-config" | sha256sum }}
+# Skills plugin pin hash: {{ include "private_dot_config/nix-devshell/skills-plugin.json" | sha256sum }}
+# Skills plugin sync hash: {{ include "private_dot_local/bin/executable_sync-skills-plugin" | sha256sum }}
+{{ includeTemplate ".chezmoitemplates/local-skills.sh.tmpl" . }}
 set -euo pipefail
 
 sync_command="${CODEX_MANAGED_CONFIG_SYNC:-$HOME/.local/bin/sync-codex-managed-config}"
 "$sync_command"
+
+# Retire the fixed pre-plugin copies only after the mutating sync has completed and
+# both read-only verifiers have inspected current runtime state.
+source_root="${CHEZMOI_SOURCE_DIR:-${HOME}/.local/share/chezmoi}"
+managed_verification="$("$sync_command" --verify-only)"
+plugin_sync_command="${SKILLS_PLUGIN_SYNC:-$HOME/.local/bin/sync-skills-plugin}"
+plugin_verification="$("$plugin_sync_command" --verify-only)"
+legacy_skills retire-known-skills "$source_root" "$managed_verification" \
+  "$plugin_verification" "${apm_skill_names[@]}"

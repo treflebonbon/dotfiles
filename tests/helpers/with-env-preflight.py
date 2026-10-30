@@ -6,7 +6,10 @@ import subprocess
 import tempfile
 
 source = Path(__file__).resolve().parents[2]
-fixture = Path(tempfile.mkdtemp(prefix="with-env-271-preflight-", dir="/tmp"))
+temporary_root = Path(os.environ["TMPDIR"]).resolve(strict=True)
+if not temporary_root.is_relative_to(Path("/tmp/codex").resolve(strict=True)):
+    raise RuntimeError("raw Nix integration requires TMPDIR inside /tmp/codex")
+fixture = Path(tempfile.mkdtemp(prefix="with-env-271-preflight-", dir=temporary_root))
 environment = os.environ | {
     "PROJECT_ROOT": str(source),
     "BATS_TEST_TMPDIR": str(fixture),
@@ -15,10 +18,10 @@ script = r"""
 set -eu
 source "$PROJECT_ROOT/tests/helpers/raw-codex.bash"
 raw_fixture
-mkdir -p "$RAW_BASE/work/dotfiles/private_dot_local/bin" "$RAW_BASE/work/dotfiles/private_dot_local/share/devshell-env"
+mkdir -p "$RAW_BASE/work/dotfiles/private_dot_local/bin" "$RAW_BASE/work/dotfiles/private_dot_config/nix-devshell"
 cp "$PROJECT_ROOT/flake.nix" "$PROJECT_ROOT/flake.lock" "$RAW_BASE/work/dotfiles/"
 cp "$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env" "$RAW_BASE/work/dotfiles/private_dot_local/bin/"
-cp "$PROJECT_ROOT/private_dot_local/share/devshell-env/devshell_environment.py" "$RAW_BASE/work/dotfiles/private_dot_local/share/devshell-env/"
+cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" "$RAW_BASE/work/dotfiles/private_dot_config/nix-devshell/"
 cat > "$RAW_BASE/work/flake.nix" <<'NIX'
 {
   inputs.dotfiles.url = "path:./dotfiles";
@@ -56,7 +59,7 @@ git commit -qm 'test: public app inside isolation'
 printf PUBLIC_APP_ISOLATED_OK
 TASK
 printf 'touch envrc-executed\n' > "$RAW_BASE/work/.envrc"
-raw_admit flake.nix task.sh .envrc dotfiles/flake.nix dotfiles/flake.lock dotfiles/private_dot_local/bin/executable_devshell-env dotfiles/private_dot_local/share/devshell-env/devshell_environment.py
+raw_admit flake.nix task.sh .envrc dotfiles/flake.nix dotfiles/flake.lock dotfiles/private_dot_config/nix-devshell/skills-plugin.json dotfiles/private_dot_local/bin/executable_devshell-env
 export RAW_DUMMY_SECRET=dummy-inherited-public-app
 raw_run sandbox -- bash task.sh
 [ "$(git -C "$RAW_BASE/work" log -1 --format=%s)" = 'test: public app inside isolation' ]

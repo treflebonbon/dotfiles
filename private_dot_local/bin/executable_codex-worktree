@@ -1,13 +1,16 @@
 #!/usr/bin/env -S python3 -I
-"""Enter raw Codex without importing caller shell or Python startup code."""
+"""Run the pinned raw Codex worktree entry without importing startup code."""
 
 from pathlib import Path
 import runpy
 import sys
 
-helper = Path(__file__).absolute().parent / "devshell-env"
+directory = Path(__file__).absolute().parent
+installed = directory / "sync-skills-plugin"
+source = directory / "executable_sync-skills-plugin"
+helper = installed if installed.is_file() else source
 if not helper.is_file():
     print(f"codex-worktree: missing sibling helper: {helper}", file=sys.stderr)
     sys.exit(127)
-sys.argv = [str(helper), "codex", *sys.argv[1:]]
+sys.argv = [str(helper), "--run-raw", "codex-worktree", "--", *sys.argv[1:]]
 runpy.run_path(str(helper), run_name="__main__")

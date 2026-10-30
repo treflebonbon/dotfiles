@@ -1,6 +1,8 @@
 # Python 文字列に埋め込んだ bash への shellcheck
 
-`private_dot_local/share/codex-isolation/secret-isolation-worktree.py` の `bridge_startup` は、sandbox 内で実行する bash を Python の f-string として返す。この bash は lefthook の shellcheck／shfmt の対象外で、静的チェックの仕組みはあえて追加していない。
+このメモは #464 時点の dotfiles 内 raw Codex 実装について記録した。raw 実装と機能テストは固定版 plugin へ移管済みであり、以下の path と test 名は当時の記録として読む。現在の配布元とテスト所有者は [skills-plugin pin](../private_dot_config/nix-devshell/skills-plugin.json) が指す公開 source である。
+
+当時の `bridge_startup` は sandbox 内で実行する bash を Python の f-string として返していた。この bash は lefthook の shellcheck／shfmt の対象外で、静的チェックの仕組みはあえて追加していなかった。
 
 ## Why this is out of scope
 

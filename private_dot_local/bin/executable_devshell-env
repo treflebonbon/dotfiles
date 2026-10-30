@@ -4,10 +4,10 @@
 import argparse
 import fcntl
 import hashlib
+import importlib
 import json
 import os
 from pathlib import Path
-import runpy
 import re
 import shlex
 import stat
@@ -15,21 +15,67 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 
 
-# Use the installed source even under Python -I; never search the worktree.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "share/devshell-env"))
-from devshell_environment import (
-    InvalidContext,
-    PreparationError,
-    Repository,
-    executable,
-    prepare_environment,
-    reuse_environment,
-    selected_output,
-    trust_command,
-    trusted,
-)
+def sync_helper_path():
+    directory = Path(__file__).resolve().parent
+    installed = directory / "sync-skills-plugin"
+    source = directory / "executable_sync-skills-plugin"
+    return installed if installed.is_file() else source
+
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] in {"codex", "admit"}:
+    helper = sync_helper_path()
+    if not helper.is_file():
+        print(f"devshell-env: missing fixed plugin verifier: {helper}", file=sys.stderr)
+        raise SystemExit(127)
+    command, arguments = sys.argv[1], sys.argv[2:]
+    os.execv(
+        sys.executable,
+        [sys.executable, "-I", str(helper), "--run-raw", command, "--", *arguments],
+    )
+
+
+def shared_environment_module():
+    python_path = os.environ.get("TREFLEBONBON_SKILLS_LIB")
+    if python_path is None:
+        helper = sync_helper_path()
+        if not helper.is_file():
+            raise RuntimeError(f"missing fixed plugin verifier: {helper}")
+        loader = SourceFileLoader("skills_plugin_verifier", str(helper))
+        spec = spec_from_loader(loader.name, loader)
+        if spec is None:
+            raise RuntimeError("cannot load fixed plugin verifier")
+        verifier = module_from_spec(spec)
+        loader.exec_module(verifier)
+        verified = verifier.verify_fixed_source()
+        python_path = str(Path(verified["source"]) / "lib/python")
+    module_path = Path(python_path)
+    if not module_path.is_absolute() or not module_path.is_dir():
+        raise RuntimeError("fixed plugin Python module path is missing")
+    sys.path.insert(0, str(module_path))
+    return importlib.import_module("treflebonbon_skills.devshell_environment")
+
+
+try:
+    _shared_environment = shared_environment_module()
+except (ImportError, OSError, RuntimeError, ValueError) as error:
+    print(
+        f"devshell-env: fixed plugin environment unavailable: {error}", file=sys.stderr
+    )
+    raise SystemExit(1) from error
+
+InvalidContext = _shared_environment.InvalidContext
+PreparationError = _shared_environment.PreparationError
+Repository = _shared_environment.Repository
+executable = _shared_environment.executable
+prepare_environment = _shared_environment.prepare_environment
+reuse_environment = _shared_environment.reuse_environment
+selected_output = _shared_environment.selected_output
+trust_command = _shared_environment.trust_command
+trusted = _shared_environment.trusted
 
 
 def dotenv_environment(repo, prepared, inherited):
@@ -267,19 +313,6 @@ def claude_reload():
     return 0
 
 
-def isolation_module():
-    path = (
-        Path(__file__).resolve().parent.parent
-        / "share/codex-isolation/secret-isolation-worktree.py"
-    )
-    return runpy.run_path(str(path))
-
-
-def launch_codex(arguments):
-    module = isolation_module()
-    return module["launch"](arguments)
-
-
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "with-env":
         try:
@@ -315,50 +348,6 @@ def main():
                 )
             )
             return 0
-    if len(sys.argv) > 1 and sys.argv[1] == "codex":
-        try:
-            return launch_codex(sys.argv[2:])
-        except (
-            InvalidContext,
-            PreparationError,
-            OSError,
-            ValueError,
-            KeyError,
-            subprocess.SubprocessError,
-        ) as error:
-            print(f"codex-worktree: {error}", file=sys.stderr)
-            return 1
-    if len(sys.argv) > 1 and sys.argv[1] == "admit":
-        parser = argparse.ArgumentParser(
-            description="Declare these files and reachable Git history public inputs for raw Codex."
-        )
-        parser.add_argument("--git-head", required=True)
-        parser.add_argument(
-            "--mcp", action="append", choices=("context7", "serena"), default=[]
-        )
-        parser.add_argument("--github-policy", type=Path)
-        parser.add_argument("files", nargs="+")
-        args = parser.parse_args(sys.argv[2:])
-        try:
-            module = isolation_module()
-            repo = Repository.discover(Path.cwd(), linked_only=True)
-            module["admit"](
-                repo,
-                args.git_head,
-                args.files,
-                mcp=args.mcp,
-                github_policy=args.github_policy,
-            )
-            return 0
-        except (
-            OSError,
-            ValueError,
-            KeyError,
-            InvalidContext,
-            subprocess.SubprocessError,
-        ) as error:
-            print(f"devshell-env: {error}", file=sys.stderr)
-            return 1
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog="In a managed Claude Bash session, 'devshell-env reload' refreshes the next Bash command's environment.",

@@ -20,13 +20,17 @@
 
 **言語テンプレート**: dotfiles が新規プロジェクト向けに配布する、言語別の開発環境の雛形。展開済みプロジェクトの開発環境とは区別し、雛形の更新は既存プロジェクトへの反映を意味しない。 _Avoid_: テンプレートエンジン, 既存プロジェクトの言語環境
 
-**導入済み Agent Skill セット**: ユーザー環境が外部 package から取得・公開する Agent Skill の集合。dotfiles が所有するローカル skill は含まない。 _Avoid_: スキル, 全 skill, ローカル skill
+**導入済み Agent Skill セット**: runtime に導入された Agent Skill の集合。公開 plugin と第三者 package の skill を含み、導入を管理する repository と payload の所有者は区別する。 _Avoid_: 全 skill, dotfiles の skill source
 
-**ローカル skill**: dotfiles 自身がソースと配布を所有する user-scoped private skill。外部 package から取得する「導入済み Agent Skill セット」には含まれない。 _Avoid_: 外部 skill, APM skill, ローカル skill 上書き
+**旧ローカル skill**: 独立公開 package へ移管する前に dotfiles が source と runtime 配布を所有していた user-scoped skill。移管後の内容の正本・保守者は公開 package 側にある。 _Avoid_: 現行 dotfiles skill, 第三者 skill
 
-**ローカル skill 撤去対象**: ローカル skill の配布終了を宣言し、既存の配備を取り除く対象として指定した名前。改名時は移行前の名前が該当する。 _Avoid_: orphan, 不在の skill, APM 撤去対象
+**独立 skill 配布元**: dotfiles を導入していない環境でも skill を取得・導入できる、独立して保守される公開リポジトリ。 _Avoid_: ローカル skill の保管先, dotfiles の複製
 
-**検証済み Skill Pin**: 自動 hook やワークフロー契約との互換性を確認した Agent Skill の immutable revision。floating dependency の定期更新とは分け、契約を再検証したときだけ前進させる。 _Avoid_: 最新版, lock revision, floating pin
+**旧 skill 配備**: 移行前の source から作られ、runtime に残っている skill の実体。現行導入の成功だけで所有権や内容の一致を推定しない。 _Avoid_: plugin cache, APM 配備
+
+**ローカル skill 撤去対象**: 独立公開 package へ移す際、既知の旧配備から安全に撤去する対象として明示された名前。対象外の user skill や APM 資産とは区別する。 _Avoid_: orphan, 不在の skill, APM 撤去対象
+
+**検証済み Skill Pin**: 公開 plugin の immutable revision と、そこから導入された skill・共用資産の同一性および必要な runtime 契約を確認した版。floating dependency の定期更新とは分け、全対象を再検証したときだけ前進させる。 _Avoid_: 最新版, lock revision, floating pin
 
 **Design Hook 互換性ゲート**: Impeccable の更新候補が、Claude Code / Codex の quiet・fail-soft・per-edit / deep-pass 契約を維持できるかを判定する更新境界。契約変更へ追従できない候補は採用せず、最新の互換 revision に戻す。 _Avoid_: hook test, latest pin, smoke check
 

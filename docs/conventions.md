@@ -17,6 +17,8 @@ Standards 軸の判断基準（機械的な check にできないもの）は [c
 
 削除・権限判定の変更では、承認された要件に照らし、検査不能な状態を接続コードから最終操作まで追う。読取り失敗・一部しか見えない状態・検査中の対象消失をどう扱うか、許可条件と拒否条件の両方をレビュー担当が確認する。
 
+公開 skill plugin からの旧配備移行では、[ADR-0082](adr/0082-extract-local-skills-to-public-repository.md) の完全な現行状態照合を撤去直前に行い、既知の旧 baseline と一致しない項目は理由と path を残して保持する。receipt の過去成功や public payload との類似は撤去許可にならない。
+
 sandbox・権限・秘密値の境界を守る入力検査（起動引数、設定の上書き、受け付ける path など）は、通すものを列挙する許可リストで書く。拒否リストは、まだ知らない設定キーや入力の形（改行で区切った別の設定など）で境界を外から広げられる。レビュー担当は、許可した値ごとに境界を広げないことを確認する（[ADR-0080](adr/0080-grant-reviewer-codex-read-only-git-metadata.md) の `-c` 検査が実例）。
 
 確度ラベル（confirmed／inferred／unconfirmed）を使う文書では、レビュー担当が次を確認する。一般化は実測した条件・経路・件数の範囲に収まっていること。inferred・unconfirmed の項目を消すときは、解消・陳腐化・対象外化のどれによるかの根拠が書かれていること。
@@ -56,7 +58,7 @@ nix develop ./private_dot_config/nix-devshell#default --command \
   nix develop .#default --command lefthook run test
 ```
 
-ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。
+ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。文書 Markdown だけを検証し Codex build を省く場合は、隔離した WSL HOME/XDG から `python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- scripts/test-docs.sh` を実行する。
 
 Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。例外として `tests/dogfood.bats` は利用者の記録を汚さないよう `BATS_TEST_TMPDIR` 配下を使う。そのため実際のDogfood session や、Cleanup 失敗で残ったテストの Chrome と同時に動くと、`port-conflict` で失敗することがある。
 
@@ -68,7 +70,7 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test
 
 既存バイナリを使う方針の検証では `--no-codex-build` を指定する。最初の devShell 起動前に、選択された Codex output を既存の store または binary cache から確保し、取得できなければ後続の shellHook・コマンドを実行せず停止する。取得ログは `codex-cache.log`、検証中の GC を防ぐ output へのリンクは `codex` に残す。この指定は Codex に適用し、devShell や他の依存関係のビルドは従来どおり許可する。
 
-評価・起動ログ、Nix の metadata 出力、終了コードは `tmp/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。隔離した HOME／XDG ディレクトリは終了時に削除する（`tmp/` に壊れた symlink が残ると chezmoi が source 全体で失敗するため）。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。HOME／XDG の分離は秘密分離や OS sandbox の保証ではなく、品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
+評価・起動ログ、Nix の metadata 出力、終了コードは `/tmp/codex/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。隔離した HOME／XDG／TMP の各 directory は終了時に削除し、診断用の log root は残す。source tree には隔離用の `tmp/` を作らない。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。HOME／XDG の分離は秘密分離や OS sandbox の保証ではなく、品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
 
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
@@ -76,7 +78,7 @@ GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない
 
 ## 自律 agent の peer 協働
 
-- 元の候補を native peer と改善する契約は [`runtime/autonomous-peer-contract.md`](../runtime/autonomous-peer-contract.md) を正本とする（[ADR-0075](adr/0075-adopt-peer-refactor-skills.md)）。
+- 元の候補を native peer と改善する契約の正本は、固定 plugin source の `contracts/autonomous-peer-contract.md` と `contracts/auto-peer-protection.md`。source の解決方法は [`runtime/autonomous-peer-contract.md`](../runtime/autonomous-peer-contract.md) を参照する（[ADR-0075](adr/0075-adopt-peer-refactor-skills.md)）。
 
 ## 言語バージョンの更新
 

@@ -2,10 +2,16 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  SETTINGS="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
+  SETTINGS="$BATS_TEST_TMPDIR/settings.json"
+  local home="$BATS_TEST_TMPDIR/home"
+  local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
+  mkdir -p "$home"
+  printf '{}\n' >"$config"
+  env HOME="$home" chezmoi --source "$PROJECT_ROOT" --destination "$home" --config "$config" \
+    execute-template <"$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" >"$SETTINGS"
 }
 
-@test "settings.json.tmpl is valid JSON" {
+@test "rendered Claude settings are valid JSON" {
   run jq empty "$SETTINGS"
   [ "$status" -eq 0 ]
 }

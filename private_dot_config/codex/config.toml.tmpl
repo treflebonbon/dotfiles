@@ -7,6 +7,21 @@ approval_policy = "on-request"
 approvals_reviewer = "auto_review"
 default_permissions = "dotfiles-secure"
 
+{{ $pluginPin := mustFromJson (include "private_dot_config/nix-devshell/skills-plugin.json") -}}
+{{ $pluginSource := printf "%s/.cache/treflebonbon-skills/marketplaces/%s" .chezmoi.homeDir $pluginPin.rev -}}
+{{ $pluginCheckout := printf "%s/.cache/treflebonbon-skills/checkouts/%s" .chezmoi.homeDir $pluginPin.rev -}}
+{{ $xdgStateHome := env "XDG_STATE_HOME" -}}
+{{ if and $xdgStateHome (not (hasPrefix "/" $xdgStateHome)) -}}
+{{ fail "XDG_STATE_HOME must be absolute" }}
+{{- end -}}
+{{ $stateHome := or $xdgStateHome (printf "%s/.local/state" .chezmoi.homeDir) -}}
+{{ $pluginReceipt := printf "%s/treflebonbon-skills/plugin-sync/receipt.json" $stateHome -}}
+{{ $legacyCliRevision := (mustFromJson (include ".chezmoitemplates/local-skills-legacy.json")).revision -}}
+{{ $legacyCliBackup := printf "%s/treflebonbon-skills/legacy/%s" $stateHome $legacyCliRevision -}}
+[marketplaces.treflebonbon]
+source_type = "local"
+source = {{ printf "%q" $pluginSource }}
+
 [agents]
 default_subagent_model = "gpt-6-luna"
 default_subagent_reasoning_effort = "xhigh"
@@ -44,12 +59,17 @@ args = [
 extends = ":workspace"
 
 [permissions."{{ $profile.name }}".filesystem]
-glob_scan_max_depth = 4
+glob_scan_max_depth = 16
 ":root" = "deny"
 ":minimal" = "read"
 ":slash_tmp" = "deny"
 "/nix" = "read"
 "~/.gitconfig" = "read"
+"~/.config/nix-devshell/skills-plugin.json" = "read"
+{{ printf "%q" $pluginReceipt }} = "read"
+{{ printf "%q" $pluginCheckout }} = "read"
+{{ printf "%q" $pluginSource }} = "read"
+{{ printf "%q" $legacyCliBackup }} = "read"
 
 {{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" $profile.ghRoot "/tmp/codex" }}
 [permissions."{{ $profile.name }}".filesystem."{{ $root }}"]
@@ -120,4 +140,7 @@ enabled = true
 enabled = true
 
 [plugins."ponytail@ponytail"]
+enabled = true
+
+[plugins."treflebonbon-skills@treflebonbon"]
 enabled = true

@@ -2,6 +2,7 @@
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  SETTINGS="$BATS_TEST_TMPDIR/settings.json"
   CLI="$PROJECT_ROOT/private_dot_local/bin/executable_devshell-env"
   export HOME="$BATS_TEST_TMPDIR/home"
   export XDG_STATE_HOME="$HOME/state"
@@ -11,6 +12,10 @@ setup() {
   unset DEVSHELL_ENV_SESSION DEVSHELL_ENV_OUTPUT
   mkdir -p "$HOME/.local/bin" "$HOME/tools"
   ln -s "$CLI" "$HOME/.local/bin/devshell-env"
+  printf '{}\n' >"$BATS_TEST_TMPDIR/chezmoi.yaml"
+  env HOME="$HOME" chezmoi --source "$PROJECT_ROOT" --destination "$HOME" \
+    --config "$BATS_TEST_TMPDIR/chezmoi.yaml" execute-template \
+    <"$PROJECT_ROOT/private_dot_claude/settings.json.tmpl" >"$SETTINGS"
   PROJECT="$BATS_TEST_TMPDIR/project"
   git init -q "$PROJECT"
   printf 'fixture\n' >"$PROJECT/flake.nix"
@@ -37,7 +42,7 @@ EOF
 hook() {
   local event="$1" directory="$2"
   local command
-  command="$(jq -r --arg event "$event" '.hooks[$event][0].hooks[0].command' "$PROJECT_ROOT/private_dot_claude/settings.json.tmpl")"
+  command="$(jq -r --arg event "$event" '.hooks[$event][0].hooks[0].command' "$SETTINGS")"
   printf '%s' "$directory" >"$HOME/fixture-cwd"
   jq -nc --arg event "$event" --arg cwd "$directory" \
     '{session_id:"fixture-session",hook_event_name:$event,cwd:$cwd,new_cwd:$cwd,source:"startup"}' |
