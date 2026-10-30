@@ -11,17 +11,21 @@ chezmoi 管理の dotfiles。DevPod / VS Code Dev Containers で自動デプロ�
 
 **編集・配備ルール**: engineering change は validated task worktree 内の source で行う。`chezmoi source-path` が示す live source は配備元の確認に使い、未 merge の task worktree から `chezmoi apply` しない。受入後に live source で `chezmoi diff` を確認し、変更した対象を `chezmoi apply <配備先パス>` で `~/` へ反映する。パス指定の apply は `run_after_*` と `run_onchange_*` を実行しないため、`private_dot_config/nix-devshell/` を変えた場合は続けて `. ~/.config/nix-devshell/lib/refresh-cache.sh && NIX_DEVSHELL_CACHE_REQUIRED=1 refresh_nix_devshell_cache` で devShell のキャッシュを更新する。`private_dot_config/codex/` を変えた場合は続けて `sync-codex-managed-config` を実行する。Codex は同期先の `~/.codex` などを読むので、apply だけでは届かない。task worktree に隔離されたセッションは live source の `git pull` とこの更新を実行できないため、`git pull --ff-only`・`chezmoi diff`・apply・キャッシュ更新・Codex 同期のうち必要なものを、ユーザーが別ターミナルで実行する1つのコマンドとして渡す。無関係な差分は反映せずユーザーへ報告する。配備先がローカルで変更されていると、apply は TTY での上書き確認を求めて失敗する。差分をユーザーへ示して了承を得てから、そのパスだけ `chezmoi apply --force <配備先パス>` で上書きする。デプロイ先を直接編集した場合は `chezmoi re-add <file>` で source へ戻す。live source は init 時の `--source` が chezmoi.toml の `sourceDir` に永続化される。
 
-受入後の公開 skill 移行・撤去も対象限定配備を守る。live source だけを使い、`chezmoi diff` で意図した配備差分を確認する。未知または無関係な差分があれば保留して報告する。移行で5つの CLI shim を差し替える前に、まず旧実装 snapshot を準備する before hook を live source から render して実行し、その後に変更対象の配備先 path だけ `chezmoi apply <配備先パス>` する。全対象の apply 後は after hook を同様に明示実行する。path 指定 apply は onchange hook を起動しないため、after hook の実行が旧 copy の撤去まで完了させる。after hook 自身が mutating な `sync-codex-managed-config` を実行し、続けて `sync-codex-managed-config --verify-only`、`sync-skills-plugin --verify-only` の current state が両方成功した場合だけ `legacy_skills retire-known-skills` を呼ぶ。単独の同期コマンドでは撤去 gate を実行しない。
+受入後の公開 skill 移行・撤去も対象限定配備を守る。live source だけを使い、初回の `chezmoi diff` より前に旧 CLI snapshot の保存だけを実行する。`diff` も新しい shim を render するため、切替 preflight に必要な backup を先に用意する。その後の `chezmoi diff` で意図した配備差分を確認し、未知または無関係な差分があれば保留して報告する。移行で5つの CLI shim を差し替える前に、before hook を live source から render して実行し、その後に変更対象の配備先 path だけ `chezmoi apply <配備先パス>` する。全対象の apply 後は after hook を同様に明示実行する。path 指定 apply は onchange hook を起動しないため、after hook の実行が旧 copy の撤去まで完了させる。after hook 自身が mutating な `sync-codex-managed-config` を実行し、続けて `sync-codex-managed-config --verify-only`、`sync-skills-plugin --verify-only` の current state が両方成功した場合だけ `legacy_skills retire-known-skills` を呼ぶ。単独の同期コマンドでは撤去 gate を実行しない。
 
 hook は chezmoi 自動実行外で明示実行する場合も live source から取得する。以下は移行処理を手動で再現する手順であり、新しい CLI を追加しない。
 
 ```bash
 set -euo pipefail
 live_source="$(chezmoi source-path)"
+tmpdir="$(mktemp -d /tmp/codex/skills-retire.XXXXXX)"
+# 初回 diff の render に必要な旧 CLI backup だけを保存する。
+chezmoi --source "$live_source" execute-template \
+  '{{ includeTemplate "local-skills.sh.tmpl" . }}{{ "\n" }}legacy_skills prepare' > "$tmpdir/prepare"
+bash "$tmpdir/prepare"
 chezmoi --source "$live_source" diff
 # 差分が意図した内容だけであることを確認し、未知差分があれば保留する。
-tmpdir="$(mktemp -d /tmp/codex/skills-retire.XXXXXX)"
-# 5つの CLI shim を差し替えるときは、path apply より先に旧 CLI snapshot を準備する。
+# 確認後に before hook を実行し、変更対象だけを apply する。
 chezmoi --source "$live_source" execute-template --file "$live_source/run_onchange_before_remove-orphan-claude-skills.sh.tmpl" > "$tmpdir/before"
 CHEZMOI_SOURCE_DIR="$live_source" bash "$tmpdir/before"
 # 変更対象の配備先 path ごとに apply する。これは対象の一例。

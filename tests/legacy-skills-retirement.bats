@@ -422,6 +422,57 @@ PY
   fi
 }
 
+@test "documented first migration can show its diff while preserving old CLI and skill deployments" {
+  local cli="$SKILL_HOME/.local/bin/git-push-topic"
+  local legacy="$SKILL_HOME/.agents/skills/dogfood"
+  local apm="$SKILL_HOME/.agents/skills/domain-modeling"
+  local script="$BATS_TEST_TMPDIR/documented-diff.sh"
+  local real_chezmoi
+  real_chezmoi="$(command -v chezmoi)"
+  install_old_dogfood_copy "$legacy"
+  (cd "$PROJECT_ROOT" && git show \
+    '6d5b73dd8b9c88531a74e724ca9d83fa34b44b35:private_dot_local/bin/executable_git-push-topic') >"$cli"
+  chmod 755 "$cli"
+  cp "$cli" "$BATS_TEST_TMPDIR/old-cli"
+  ln -s /nix/store/old-apm-skill "$apm"
+
+  python3 - "$PROJECT_ROOT/docs/architecture.md" "$script" <<'PY'
+from pathlib import Path
+import sys
+
+document, script = map(Path, sys.argv[1:])
+example = document.read_text().split("```bash\n", 1)[1].split("```", 1)[0]
+before_confirmation, separator, _ = example.partition(
+    "# 差分が意図した内容だけであることを確認し、未知差分があれば保留する。"
+)
+assert separator, "移行手順の差分確認境界がありません"
+script.write_text(before_confirmation)
+PY
+  cat >"$BATS_TEST_TMPDIR/bin/chezmoi" <<'SH'
+#!/usr/bin/env bash
+exec "$REAL_CHEZMOI" --source "$SKILL_SOURCE" --destination "$SKILL_HOME" \
+  --config "$SKILL_CONFIG" --persistent-state "$BATS_TEST_TMPDIR/chezmoi-state.boltdb" \
+  --cache "$BATS_TEST_TMPDIR/chezmoi-cache" "$@"
+SH
+  chmod 755 "$BATS_TEST_TMPDIR/bin/chezmoi"
+
+  run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" REAL_CHEZMOI="$real_chezmoi" \
+    SKILL_SOURCE="$SKILL_SOURCE" SKILL_HOME="$SKILL_HOME" SKILL_CONFIG="$SKILL_CONFIG" \
+    bash "$script"
+
+  if [ "$status" -ne 0 ]; then
+    printf '%s\n' "$output" | sed -n '/^skills migration:/p' >&3
+  fi
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'git-push-topic'* ]]
+  local backup="$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35"
+  cmp "$BATS_TEST_TMPDIR/old-cli" "$backup/.local/bin/git-push-topic"
+  cmp "$BATS_TEST_TMPDIR/old-cli" "$cli"
+  [ -f "$legacy/SKILL.md" ]
+  [ "$(readlink "$apm")" = /nix/store/old-apm-skill ]
+  [ ! -s "$SYNC_LOG" ]
+}
+
 @test "targeted cutover prepares old CLI first and retires legacy copies only after the explicit sync hook" {
   local target="$SKILL_HOME/.agents/skills/dogfood"
   install_old_dogfood_copy "$target"
