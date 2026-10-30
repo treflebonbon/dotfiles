@@ -1,3 +1,4 @@
+import fcntl
 import importlib.util
 import json
 import os
@@ -18,6 +19,7 @@ SPEC = importlib.util.spec_from_file_location(
 publication = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(publication)
 REAL_RUN = subprocess.run
+REAL_FLOCK = fcntl.flock
 
 
 class PublicationTests(unittest.TestCase):
@@ -116,6 +118,58 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(self.receipt()["push"]["status"], "succeeded")
             self.assertEqual(self.receipt()["verification"]["status"], "pending")
             self.assertEqual(self.verify(), 0)
+        self.assertEqual(self.pushes, 1)
+
+    def test_concurrent_verification_preserves_the_completed_push(self):
+        push_started = threading.Event()
+        finish_push = threading.Event()
+        push_finished = threading.Event()
+        verification_ready = threading.Event()
+        verifier = None
+        self.answers = [self.observation()]
+
+        def command(argv, **kwargs):
+            if Path(argv[0]).name == "git-push-topic":
+                push_started.set()
+                self.assertTrue(finish_push.wait(timeout=30))
+            elif Path(argv[0]).name == "gh":
+                verification_ready.set()
+                self.assertTrue(push_finished.wait(timeout=30))
+            return self.command(argv, **kwargs)
+
+        def lock(descriptor, operation):
+            if threading.get_ident() == verifier:
+                verification_ready.set()
+            return REAL_FLOCK(descriptor, operation)
+
+        def pushing():
+            try:
+                return self.push()
+            finally:
+                push_finished.set()
+
+        def verifying():
+            nonlocal verifier
+            verifier = threading.get_ident()
+            return self.verify()
+
+        with (
+            patch.object(publication.subprocess, "run", side_effect=command),
+            patch.object(fcntl, "flock", side_effect=lock),
+            ThreadPoolExecutor(max_workers=2) as pool,
+        ):
+            pushed = pool.submit(pushing)
+            try:
+                self.assertTrue(push_started.wait(timeout=30))
+                verified = pool.submit(verifying)
+                self.assertTrue(verification_ready.wait(timeout=30))
+            finally:
+                finish_push.set()
+            self.assertEqual(pushed.result(timeout=30), 0)
+            self.assertEqual(verified.result(timeout=30), 0)
+        receipt = self.receipt()
+        self.assertEqual(receipt["push"], {"status": "succeeded", "exit_code": 0})
+        self.assertEqual(receipt["verification"]["status"], "confirmed")
         self.assertEqual(self.pushes, 1)
 
     def test_api_error_does_not_reclassify_push_as_failed(self):
@@ -230,19 +284,15 @@ class PublicationTests(unittest.TestCase):
         publication.dependencies()
         barrier = threading.Barrier(2)
 
-        def command(argv, **kwargs):
-            if Path(argv[0]).name == "git" and argv[-2:] == ["rev-parse", "HEAD"]:
-                barrier.wait(timeout=30)
-            return self.command(argv, **kwargs)
-
         def attempt():
+            barrier.wait(timeout=30)
             try:
                 return self.push()
             except (FileExistsError, ValueError):
                 return 1
 
         with (
-            patch.object(publication.subprocess, "run", side_effect=command),
+            patch.object(publication.subprocess, "run", side_effect=self.command),
             ThreadPoolExecutor(max_workers=2) as pool,
         ):
             results = list(pool.map(lambda _: attempt(), range(2)))

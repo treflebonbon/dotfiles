@@ -1,6 +1,8 @@
 """topic branch の push と、読み取り専用の PR 公開確認を別々に記録する。"""
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import importlib
 import json
 import os
@@ -58,9 +60,25 @@ def valid_repo(repo):
         raise ValueError("repository は OWNER/REPO で指定してください")
 
 
+@contextmanager
+def locked_record(directory):
+    path = record_path(directory)
+    # JSON は置換されるので、同じ inode を保つ記録 directory をロックする。
+    descriptor = os.open(path.parent, os.O_RDONLY)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield path
+    finally:
+        os.close(descriptor)
+
+
 def push(source, repo, directory):
     valid_repo(repo)
-    path = record_path(directory)
+    with locked_record(directory) as path:
+        return _push(source, repo, path)
+
+
+def _push(source, repo, path):
     if path.exists():
         raise ValueError(
             "既存の公開記録は verify で再開してください。push は再実行しません"
@@ -134,7 +152,11 @@ def push(source, repo, directory):
 
 
 def verify(directory, pr, timeout):
-    path = record_path(directory)
+    with locked_record(directory) as path:
+        return _verify(path, pr, timeout)
+
+
+def _verify(path, pr, timeout):
     receipt = json.loads(path.read_text())
     if (
         receipt.get("schema_version") != 1

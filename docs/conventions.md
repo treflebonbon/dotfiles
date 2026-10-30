@@ -117,7 +117,7 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
   python3 scripts/publish-topic.py verify "$publication_record" --pr NUMBER
 ```
 
-`publication.json` の `push` と `verification` は別の結果とする。観測したHEAD・branch・stateは `observations` に残る。確認が期限切れでもpushの成功は保持し、exit 2で照合待ちを示す。APIエラー・異なるbranch・閉じたPRは別の状態で停止する。`verify` を同じ記録で再開してもpushを実行しない。既存記録での `push` は拒否する。中断等で `push.status=started` が残る場合も、読取りで確認し、pushの終了状態を成功へ書き換えない。PR本文更新・返信・resolveは、公開確認後に既存の手順と `gh-review-thread` を使う。
+`publication.json` の `push` と `verification` は別の結果とする。同じ記録に対するpush・verifyは排他実行し、先行処理が終了してから最新の記録を読む。観測したHEAD・branch・stateは `observations` に残る。確認が期限切れでもpushの成功は保持し、exit 2で照合待ちを示す。APIエラー・異なるbranch・閉じたPRは別の状態で停止する。`verify` を同じ記録で再開してもpushを実行しない。既存記録での `push` は拒否する。中断等で `push.status=started` が残る場合も、読取りで確認し、pushの終了状態を成功へ書き換えない。PR本文更新・返信・resolveは、公開確認後に既存の手順と `gh-review-thread` を使う。
 
 ## 自律 agent の peer 協働
 
