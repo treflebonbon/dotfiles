@@ -2,11 +2,18 @@
 
 setup() {
   bats_require_minimum_version 1.5.0
+  [ "$(uname -s)" = Linux ] || skip "write-protected verification requires Linux/WSL2"
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   PROBE="$PROJECT_ROOT/scripts/verify-ai-tools.py"
   SOURCE="$BATS_TEST_TMPDIR/source"
   BIN="$BATS_TEST_TMPDIR/bin"
   mkdir -p "$SOURCE" "$BIN" "$BATS_TEST_TMPDIR/original-home"
+  git init --quiet --initial-branch=main "$BATS_TEST_TMPDIR/original-home/base"
+  (
+    cd "$BATS_TEST_TMPDIR/original-home/base"
+    git -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet --allow-empty -m fixture
+    git worktree add --quiet -b task "$SOURCE"
+  )
   export AI_FIXTURE_BIN="$BIN"
   export AI_FIXTURE_LOG="$BATS_TEST_TMPDIR/commands.jsonl"
   cat >"$BIN/nix" <<'PY'
@@ -20,6 +27,8 @@ with open(os.environ['AI_FIXTURE_LOG'], 'a') as log:
     log.write(json.dumps(row) + '\n')
 if sys.argv[1] == 'eval':
     mode = os.environ.get('AI_FIXTURE_MODE')
+    if mode == 'write-original-home':
+        Path(os.environ['AI_HOST_SENTINEL']).write_text('changed')
     if mode == 'eval-failure':
         print('fixture evaluation failed', file=sys.stderr)
         sys.exit(17)
@@ -80,6 +89,90 @@ from pathlib import Path
 rows = [json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
 print(Path(rows[-1]["HOME"]).parent)
 PY
+}
+
+@test "AI candidate verification protects the original HOME before the first Nix evaluation" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf 'preserved' >"$original/sentinel"
+  run env PATH="$BIN:$PATH" HOME="$original" \
+    AI_FIXTURE_MODE=write-original-home AI_HOST_SENTINEL="$original/sentinel" \
+    python3 "$PROBE" "$SOURCE" -- bash -c 'printf "must-not-start\n"'
+
+  printf 'original HOME sentinel: %s\n' "$(cat "$original/sentinel")" >&3
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ "$status" -ne 0 ]
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ ! -e "$runtime/startup.log" ]
+}
+
+@test "verification entry points do not create import caches beside host launchers" {
+  local original="$BATS_TEST_TMPDIR/original-home" name launcher
+  for name in verify-ai-tools.py verify-claude-plugin-sync.py; do
+    launcher="$original/$name-launcher"
+    mkdir -p "$launcher"
+    cp "$PROJECT_ROOT/scripts/$name" "$launcher/$name"
+    cp "$PROJECT_ROOT/scripts/verification_env.py" "$launcher/verification_env.py"
+    run env -u PYTHONDONTWRITEBYTECODE -u PYTHONPYCACHEPREFIX HOME="$original" \
+      python3 "$launcher/$name" --help
+
+    [ "$status" -eq 0 ]
+    [ ! -e "$launcher/__pycache__" ]
+  done
+}
+
+@test "AI candidate verification protects the original HOME in the requested command" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf preserved >"$original/sentinel"
+  run env PATH="$BIN:$PATH" HOME="$original" AI_HOST_SENTINEL="$original/sentinel" \
+    python3 "$PROBE" "$SOURCE" -- bash -c 'printf changed >"$AI_HOST_SENTINEL"'
+
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ "$status" -ne 0 ]
+}
+
+@test "verification commands keep the original HOME protected during shell expansion" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf preserved >"$original/sentinel"
+  printf 'fixture\n' >"$SOURCE/text"
+  run env HOME="$original" AI_HOST_SENTINEL="$original/sentinel" \
+    python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'rg -n "$(printf changed >"$AI_HOST_SENTINEL")" text'
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [[ "$output" == *"Read-only file system"* ]]
+}
+
+@test "AI verification rejects an untrusted sandbox launcher before invoking Nix" {
+  printf '#!/bin/sh\ntouch "%s"\n' "$BATS_TEST_TMPDIR/launcher-called" >"$BIN/bwrap"
+  chmod +x "$BIN/bwrap"
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [ ! -e "$BATS_TEST_TMPDIR/launcher-called" ]
+}
+
+@test "verification commands can edit and commit only their task worktree" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  printf preserved >"$original/sentinel"
+  run env HOME="$original" python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'printf fixture > tracked; git add tracked; git -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m "feat: fixture"'
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ "$(cat "$SOURCE/tracked")" = fixture ]
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ ! -e "$original/base/tracked" ]
+}
+
+@test "AI verification rejects the primary checkout before invoking Nix" {
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$BATS_TEST_TMPDIR/original-home/base"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [[ "$output" == *"linked task worktree"* ]]
 }
 
 @test "AI candidate verification can require a prebuilt Codex before starting either shell" {
@@ -192,8 +285,7 @@ PY
 @test "AI candidate verification resolves browser ownership from the original runtime fallback" {
   local mode expected case_source
   for mode in xdg tmp default; do
-    case_source="$SOURCE/$mode"
-    mkdir -p "$case_source"
+    case_source="$SOURCE"
     case "$mode" in
     xdg)
       expected="$BATS_TEST_TMPDIR/original-runtime/browser-ownership"
@@ -268,8 +360,7 @@ PY
 @test "AI candidate verification rejects incomplete or malformed metadata before shell startup" {
   local mode case_source runtime
   for mode in missing duplicate wrong-type missing-path; do
-    case_source="$SOURCE/$mode"
-    mkdir -p "$case_source"
+    case_source="$SOURCE"
     run env PATH="$BIN:$PATH" AI_FIXTURE_MODE="$mode" \
       python3 "$PROBE" "$case_source" -- bash -c 'touch "$1"' -- "$BATS_TEST_TMPDIR/should-not-run"
 
@@ -317,8 +408,7 @@ PY
 @test "AI candidate verification reports signal termination consistently in its exit status and evidence" {
   local mode case_source runtime
   for mode in eval-signal startup-signal; do
-    case_source="$SOURCE/$mode"
-    mkdir -p "$case_source"
+    case_source="$SOURCE"
     run env PATH="$BIN:$PATH" AI_FIXTURE_MODE="$mode" \
       python3 "$PROBE" "$case_source" -- bash -c 'touch "$1"' -- "$BATS_TEST_TMPDIR/should-not-run"
 

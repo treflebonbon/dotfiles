@@ -60,7 +60,15 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 
 実際の remote default branch を `git ls-remote --symref origin HEAD` で解決し、topic branch を `git-push-topic` で公開する。本文は新しい一時ファイルへ書き、`gh pr create --base <default-branch> --title <title> --body-file <file>`、既存 PR は `gh pr edit --body-file <file>` を使う。実装依頼だけで PR 公開を自動追加せず、force push・default branch への直接 push・PR merge は既存規則に従う。
 
+### 検証用の実行境界
+
+Linux／WSL2 の検証コマンドは、task worktree の `scripts/verification_env.py SOURCE -- COMMAND...` から開始する。Nix・commit hook・全 Bats を伴う検証は `scripts/verify-ai-tools.py` が同じ書込み境界を最初の Nix 評価から適用する。通常 HOME を read-only にし、対象 task worktree・Git metadata・`/tmp/codex` だけへ書き込める。条件不足や起動失敗は停止し、無保護の実行へ切り替えない。使い方と実 CLI の受入チェックは [検証手順](../docs/conventions.md#テスト)を読む。
+
+書込み保護を要求する Codex 検証セッションは、native に作成済みの task worktree から既存の `codex-worktree` で起動する。公開入力の登録・trust・モデル接続・結果返却は [raw Codex の隔離入口](shell-environment.md#raw-codex-のプロジェクト開発環境)に従う。既存セッションへ隔離を後付けしない。Claude／Antigravity の対話セッションを保護する起動経路は今回の対象外で、認証方式を含め別に設計する。
+
 ### Worktree の開始と復旧
+
+検証コマンドや検証用 Codex を起動する前に、前節「検証用の実行境界」の入口を選ぶ。
 
 Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に `git fetch origin` し、physical root、ブランチ、HEAD（`origin/<default>` との一致を含む。native 作成は fetch 前の古い参照から作ることがある）、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
 

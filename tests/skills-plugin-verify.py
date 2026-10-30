@@ -658,6 +658,91 @@ class VerifyCheckoutTests(unittest.TestCase):
                 sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
             self.assertEqual(legacy.read_text(), "legacy\n")
 
+    def run_native_acceptance(self, *, rewrite_settings: bool = False):
+        cli = self.make_mock_claude()
+        if rewrite_settings:
+            text = cli.read_text()
+            anchor = 'elif args[:3] == ["plugin", "list", "--json"]:\n'
+            replacement = anchor + textwrap.indent(
+                'settings = config / "settings.json"\n'
+                "if settings.exists():\n"
+                "    settings.write_text(json.dumps(json.loads(settings.read_text())))\n",
+                "    ",
+            )
+            self.assertEqual(text.count(anchor), 1)
+            cli.write_text(text.replace(anchor, replacement))
+        base = Path(self.temporary.name) / "native-base"
+        base.mkdir()
+        git(base, "init", "-q")
+        git(base, "config", "user.name", "Fixture")
+        git(base, "config", "user.email", "fixture@example.invalid")
+        for relative in (
+            "private_dot_local/bin/executable_sync-skills-plugin",
+            "private_dot_claude/settings.json.tmpl",
+        ):
+            target = base / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(PROJECT_ROOT / relative, target)
+        pin = base / "private_dot_config/nix-devshell/skills-plugin.json"
+        pin.parent.mkdir(parents=True)
+        pin.write_text(json.dumps(self.pin))
+        git(base, "add", ".")
+        git(base, "commit", "-qm", "native acceptance fixture")
+        source = Path(self.temporary.name) / "native-source"
+        git(base, "worktree", "add", "-b", "native", str(source))
+        original = Path(self.temporary.name) / "original-home"
+        original.mkdir()
+        sentinel = original / "sentinel"
+        sentinel.write_text("preserved")
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(PROJECT_ROOT / "scripts/verify-claude-plugin-sync.py"),
+                str(source),
+                "--checkout",
+                str(self.root),
+            ],
+            env={
+                **os.environ,
+                "HOME": str(original),
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+            },
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(sentinel.read_text(), "preserved")
+        records = [
+            line.removeprefix("検証ログ: ")
+            for line in result.stdout.splitlines()
+            if line.startswith("検証ログ: ")
+        ]
+        self.assertEqual(len(records), 1, result.stderr)
+        record = Path(records[0])
+        evidence = json.loads((record / "result.json").read_text())
+        return result, evidence
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_checks_two_repeats_with_managed_settings(self) -> None:
+        result, evidence = self.run_native_acceptance()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(evidence["status"], "passed")
+        self.assertEqual(len(evidence["repeated_syncs"]), 2)
+        self.assertTrue(
+            all(row["settings_bytes_preserved"] for row in evidence["repeated_syncs"])
+        )
+        self.assertEqual(evidence["pin"], self.pin)
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_rejects_settings_rewritten_by_cli(self) -> None:
+        result, evidence = self.run_native_acceptance(rewrite_settings=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(evidence["status"], "failed")
+        self.assertFalse(evidence["repeated_syncs"][0]["settings_bytes_preserved"])
+
     def make_mock_codex(self) -> Path:
         codex_bin = Path(self.temporary.name) / "codex-bin"
         codex_bin.mkdir()

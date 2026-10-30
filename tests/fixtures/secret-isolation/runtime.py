@@ -185,6 +185,8 @@ shell_snapshot = false
 extends = ":workspace"
 [permissions.fixture.filesystem]
 "/repo/.git" = "write"
+# Codex は worktree Git dir を独立した保護境界として扱う。
+"/repo/.git/worktrees/work" = "write"
 "/evidence" = "write"
 [permissions.fixture.network]
 enabled = true

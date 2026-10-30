@@ -51,26 +51,39 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 進捗は `python3 scripts/verify-canonical.py --status <canonical-run-directory>` でJSON表示する。この操作は保存記録を読むだけで、全Batsやruntime検査を開始しない。`state` は完了記録がなければ `incomplete`、`result.json` の終了コードが0なら `passed`、非0なら `failed`。`plan`／`pass`／`skip`／`fail` と `exit_code` を表示し、完了前の終了コードは `null`、完了後は記録の終了コードをコマンドの終了コードにも使う。`incomplete` は実行中か中断済みかを区別せず、TAPの全結果が出そろっても成功とはしない。JSON・終了コード・TAP集計形式の不正や、異なる実行のrunner参照は非0終了で拒否する。成功記録の件数合計と失敗0件も確認する。現在のsourceやruntimeの再検証は行わない。
 
-ローカルのユーザー devShell のツールと repo devShell を使い、Nix の取得・build 成果物とブラウザ環境を再利用する。環境を明示的に準備する場合は、worktree root から次を実行する。WSL2 では両方の `#default` を `#wsl` に置き換え、Managed Playwright Chrome を利用する。
+検証は Linux／WSL2 の linked task worktree から、[verify-ai-tools.py](../scripts/verify-ai-tools.py) を使って開始する。最初の Nix 評価より前に、一時 HOME・全 XDG・TMP と bubblewrap の書込み境界を用意する。コマンドと子プロセスから見えるホスト filesystem を read-only にし、書込み先は対象 task worktree、その Git metadata（common dir を含む）、`/tmp/codex` に限定する。Nix store の `bwrap` がない、linked worktree の所属が不正、または OS 境界を作れない場合は停止する。通常 Linux は `--shell default`、WSL2 は `--shell wsl` を指定する。Linux 以外の保護付き検証起動は未対応で拒否する。
 
 ```bash
-nix develop ./private_dot_config/nix-devshell#default --command \
-  nix develop .#default --command lefthook run test
+python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- lefthook run test
 ```
 
-ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。文書 Markdown だけを検証し Codex build を省く場合は、隔離した WSL HOME/XDG から `python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- scripts/test-docs.sh` を実行する。
+入口は source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。文書 Markdown だけの変更では、末尾を `scripts/test-docs.sh` に置き換える。
+
+Nix の準備を要しない調査・検証コマンドには [verification_env.py](../scripts/verification_env.py) を使う。環境変数の切替を省略しても、入口が一時環境と OS 境界を用意する。コマンドは `--` 以降の argv として渡す。
+
+```bash
+python3 scripts/verification_env.py "$PWD" -- rg -n --fixed-strings 'chezmoi apply' docs runtime
+```
 
 Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。例外として `tests/dogfood.bats` は利用者の記録を汚さないよう `BATS_TEST_TMPDIR` 配下を使う。そのため実際のDogfood session や、Cleanup 失敗で残ったテストの Chrome と同時に動くと、`port-conflict` で失敗することがある。
 
 WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`-Command "$script"` の引数で渡す（confirmed、2026-10-23、#496）。stdin（`-Command -`）で渡すと、`-NonInteractive` の有無にかかわらず、エラーも含めて出力が消えた。`MSFT_NetTCPConnection` の `-Filter` に `LocalPort >= …` のような範囲比較を書くと `0x80041017` で失敗するため、`State` などの等価条件だけをプロバイダに渡し、範囲の絞り込みは PowerShell 側の `Where-Object` で行う。
 
-```bash
-python3 scripts/verify-ai-tools.py "$PWD" --shell wsl -- lefthook run test
-```
-
 既存バイナリを使う方針の検証では `--no-codex-build` を指定する。最初の devShell 起動前に、選択された Codex output を既存の store または binary cache から確保し、取得できなければ後続の shellHook・コマンドを実行せず停止する。取得ログは `codex-cache.log`、検証中の GC を防ぐ output へのリンクは `codex` に残す。この指定は Codex に適用し、devShell や他の依存関係のビルドは従来どおり許可する。
 
-評価・起動ログ、Nix の metadata 出力、終了コードは `/tmp/codex/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。隔離した HOME／XDG／TMP の各 directory は終了時に削除し、診断用の log root は残す。source tree には隔離用の `tmp/` を作らない。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。HOME／XDG の分離は秘密分離や OS sandbox の保証ではなく、品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
+評価・起動ログ、Nix の metadata 出力、終了コードは `/tmp/codex/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。隔離した HOME／XDG／TMP の各 directory は終了時に削除し、診断用の log root は残す。source tree には隔離用の `tmp/` を作らない。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。認証・環境変数・network の分離が必要な Codex 検証セッションは、`runtime/skill-harness.md` の既存 raw Codex 入口を使う。現在のセッションや Claude／Antigravity の対話セッションの起動方法は、この検証 helper では変更しない。品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
+
+### Claude plugin の実 CLI 再同期確認
+
+[verify-claude-plugin-sync.py](../scripts/verify-claude-plugin-sync.py) は固定 pin と一致する既存の公開 checkout を検証し、専用 HOME 内へ local clone して公式 CLI で導入する。管理 `settings.json` を render した後、verified receipt を使って2回再同期し、設定 bytes と現在の inventory・登録・payload を確認する。CLI の対話・モデル呼出し・ログインは行わず、元 checkout と通常 HOME の plugin 配備は変更しない。
+
+```bash
+skills_checkout="$HOME/.cache/treflebonbon-skills/checkouts/$(jq -r .rev private_dot_config/nix-devshell/skills-plugin.json)"
+python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
+  python3 scripts/verify-claude-plugin-sync.py "$PWD" --checkout "$skills_checkout"
+```
+
+判定・CLI path/version・pin・各反復の結果は、表示された `/tmp/codex/claude-plugin-native.*/result.json` に残す。CLI の stdout/stderr は同じ領域へ保存し、設定本文は出力しない。通常の Bats では mock CLI による成功・設定書換えの検出を実行する。実 CLI の Bats は `CLAUDE_PLUGIN_NATIVE=1` と `CLAUDE_PLUGIN_NATIVE_CHECKOUT` を指定して `tests/claude-plugin-native.bats` を opt-in する。
 
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
