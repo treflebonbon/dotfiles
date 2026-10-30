@@ -17,6 +17,8 @@ Standards 軸の判断基準（機械的な check にできないもの）は [c
 
 削除・権限判定の変更では、承認された要件に照らし、検査不能な状態を接続コードから最終操作まで追う。読取り失敗・一部しか見えない状態・検査中の対象消失をどう扱うか、許可条件と拒否条件の両方をレビュー担当が確認する。
 
+公開 skill plugin からの旧配備移行では、[ADR-0082](adr/0082-extract-local-skills-to-public-repository.md) の完全な現行状態照合を撤去直前に行い、既知の旧 baseline と一致しない項目は理由と path を残して保持する。receipt の過去成功や public payload との類似は撤去許可にならない。
+
 sandbox・権限・秘密値の境界を守る入力検査（起動引数、設定の上書き、受け付ける path など）は、通すものを列挙する許可リストで書く。拒否リストは、まだ知らない設定キーや入力の形（改行で区切った別の設定など）で境界を外から広げられる。レビュー担当は、許可した値ごとに境界を広げないことを確認する（[ADR-0080](adr/0080-grant-reviewer-codex-read-only-git-metadata.md) の `-c` 検査が実例）。
 
 確度ラベル（confirmed／inferred／unconfirmed）を使う文書では、レビュー担当が次を確認する。一般化は実測した条件・経路・件数の範囲に収まっていること。inferred・unconfirmed の項目を消すときは、解消・陳腐化・対象外化のどれによるかの根拠が書かれていること。
@@ -56,7 +58,7 @@ nix develop ./private_dot_config/nix-devshell#default --command \
   nix develop .#default --command lefthook run test
 ```
 
-ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。
+ツール更新時の手動検証には [verify-ai-tools.py](../scripts/verify-ai-tools.py) を使う。Nix 評価と最初の shellHook より前に HOME と全 XDG directory を隔離し、source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。WSL2 では次のように `--shell wsl` を指定し、その他では `--shell default` を使う。文書 Markdown だけを検証し Codex build を省く場合は、隔離した WSL HOME/XDG から `python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- scripts/test-docs.sh` を実行する。
 
 Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。例外として `tests/dogfood.bats` は利用者の記録を汚さないよう `BATS_TEST_TMPDIR` 配下を使う。そのため実際のDogfood session や、Cleanup 失敗で残ったテストの Chrome と同時に動くと、`port-conflict` で失敗することがある。
 
