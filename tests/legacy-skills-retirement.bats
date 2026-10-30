@@ -446,7 +446,9 @@ before_confirmation, separator, _ = example.partition(
     "# 差分が意図した内容だけであることを確認し、未知差分があれば保留する。"
 )
 assert separator, "移行手順の差分確認境界がありません"
-script.write_text(before_confirmation)
+script.write_text(before_confirmation.replace(
+    "/tmp/codex/skills-retire.XXXXXX", str(script.parent / "skills-retire.XXXXXX")
+))
 PY
   cat >"$BATS_TEST_TMPDIR/bin/chezmoi" <<'SH'
 #!/usr/bin/env bash

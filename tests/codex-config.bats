@@ -329,11 +329,12 @@ run_codex_with_virtual_home() {
   codex="$(command -v codex)"
   bwrap="$(command -v bwrap)"
   store_path="$(python3 -c 'import os; print(":".join(path for path in os.environ["PATH"].split(":") if path.startswith("/nix/store/")))')"
+  # 他 suite の一時 directory 削除と Codex の glob scan を競合させない。
   run "$bwrap" \
     --unshare-all --die-with-parent --new-session \
     --tmpfs / --dev /dev --proc /proc \
     --dir /nix --dir /nix/store --ro-bind /nix/store /nix/store \
-    --dir /tmp --dir /tmp/codex --bind /tmp/codex /tmp/codex \
+    --dir /tmp --dir /tmp/codex --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" \
     --dir /home --dir /home/probe --bind "$home" /home/probe \
     --setenv PATH "$store_path" \
     --setenv HOME /home/probe \
