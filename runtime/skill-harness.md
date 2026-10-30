@@ -60,9 +60,13 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 
 実際の remote default branch を `git ls-remote --symref origin HEAD` で解決し、topic branch を `git-push-topic` で公開する。本文は新しい一時ファイルへ書き、`gh pr create --base <default-branch> --title <title> --body-file <file>`、既存 PR は `gh pr edit --body-file <file>` を使う。実装依頼だけで PR 公開を自動追加せず、force push・default branch への直接 push・PR merge は既存規則に従う。
 
+dotfiles の公開補助入口は `scripts/publish-topic.py`。pushと読取り専用の確認を分け、確認待ちからの再開でpushを繰り返さない。認証selectorの引継ぎと記録の扱いは [公開手順](../docs/conventions.md#topic-branch-の公開と確認)を読む。
+
 ### 検証用の実行境界
 
 Linux／WSL2 の検証コマンドは、task worktree の `scripts/verification_env.py SOURCE -- COMMAND...` から開始する。Nix・commit hook・全 Bats を伴う検証は `scripts/verify-ai-tools.py` が同じ書込み境界を最初の Nix 評価から適用する。通常 HOME を read-only にし、ホスト側では対象 task worktree・Git metadata・`/tmp/codex` だけへ書き込める。`/tmp` の固定利用には namespace 内の専用 tmpfs を与える。条件不足や起動失敗は停止し、無保護の実行へ切り替えない。使い方と実 CLI の受入チェックは [検証手順](../docs/conventions.md#テスト)を読む。
+
+canonical検証の準備から始める場合は `scripts/run-canonical.py` を使い、既存の検証本体へつなぐ。導入済みImpeccable hookが必要で、最初のNix評価から同じ境界を適用する。
 
 書込み保護を要求する Codex 検証セッションは、native に作成済みの task worktree から既存の `codex-worktree` で起動する。公開入力の登録・trust・モデル接続・結果返却は [raw Codex の隔離入口](shell-environment.md#raw-codex-のプロジェクト開発環境)に従う。既存セッションへ隔離を後付けしない。Claude／Antigravity の対話セッションを保護する起動経路は今回の対象外で、認証方式を含め別に設計する。
 

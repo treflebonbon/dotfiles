@@ -108,7 +108,7 @@ PY
 
 @test "verification entry points do not create import caches beside host launchers" {
   local original="$BATS_TEST_TMPDIR/original-home" name launcher
-  for name in verify-ai-tools.py verify-claude-plugin-sync.py; do
+  for name in verify-ai-tools.py verify-claude-plugin-sync.py publish-topic.py run-canonical.py; do
     launcher="$original/$name-launcher"
     mkdir -p "$launcher"
     cp "$PROJECT_ROOT/scripts/$name" "$launcher/$name"
