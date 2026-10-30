@@ -25,11 +25,14 @@ setup() {
 }
 
 @test "validated skills plugin is enabled and uses the immutable pinned checkout" {
+  local plugin_rev
+  plugin_rev="$(jq -r '.rev' "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json")"
+
   run jq -r '.enabledPlugins["treflebonbon-skills@treflebonbon"]' "$SETTINGS"
   [ "$status" -eq 0 ]
   [ "$output" = "true" ]
 
   run jq -c '.extraKnownMarketplaces.treflebonbon.source' "$SETTINGS"
   [ "$status" -eq 0 ]
-  [ "$output" = "{\"source\":\"directory\",\"path\":\"$BATS_TEST_TMPDIR/home/.cache/treflebonbon-skills/marketplaces/64823e6c65eece611021939ddebccf241f67252f\"}" ]
+  [ "$output" = "{\"source\":\"directory\",\"path\":\"$BATS_TEST_TMPDIR/home/.cache/treflebonbon-skills/marketplaces/$plugin_rev\"}" ]
 }

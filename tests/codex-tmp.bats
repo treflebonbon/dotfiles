@@ -10,10 +10,35 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   SHARED_TMP="$(mktemp -d /tmp/codex/test.XXXXXX)"
   FIXTURE_HOME="$BATS_TEST_TMPDIR/home"
+  STATE_HOME="$BATS_TEST_TMPDIR/state"
   WORKSPACE="$BATS_TEST_TMPDIR/workspace"
   SESSION_TMP="$BATS_TEST_TMPDIR/session-tmp"
-  mkdir -p "$FIXTURE_HOME/.codex" "$WORKSPACE" "$SESSION_TMP"
-  chezmoi --source "$PROJECT_ROOT" execute-template \
+  local plugin_rev legacy_rev
+  plugin_rev="$(jq -r '.rev' "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json")"
+  legacy_rev="$(jq -r '.revision' "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json")"
+  mkdir -p "$FIXTURE_HOME/.codex" "$WORKSPACE" "$SESSION_TMP" \
+    "$FIXTURE_HOME/.cache/treflebonbon-skills/marketplaces/$plugin_rev" \
+    "$FIXTURE_HOME/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
+    "$FIXTURE_HOME/.config/nix-devshell" "$FIXTURE_HOME/.config/gh" \
+    "$FIXTURE_HOME/.config/git" "$FIXTURE_HOME/.codex-peer/gh" \
+    "$FIXTURE_HOME/.local/bin" \
+    "$STATE_HOME/treflebonbon-skills/plugin-sync" \
+    "$STATE_HOME/treflebonbon-skills/legacy/$legacy_rev"
+  cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
+    "$FIXTURE_HOME/.config/nix-devshell/skills-plugin.json"
+  printf '[user]\n\temail = fixture@example.invalid\n' >"$FIXTURE_HOME/.gitconfig"
+  local mount_root
+  for mount_root in \
+    "$FIXTURE_HOME/.cache/treflebonbon-skills/marketplaces/$plugin_rev" \
+    "$FIXTURE_HOME/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
+    "$FIXTURE_HOME/.config/gh" "$FIXTURE_HOME/.config/git" \
+    "$FIXTURE_HOME/.codex-peer/gh" "$FIXTURE_HOME/.local/bin" \
+    "$STATE_HOME/treflebonbon-skills/plugin-sync" \
+    "$STATE_HOME/treflebonbon-skills/legacy/$legacy_rev"; do
+    : >"$mount_root/.env"
+  done
+  printf '{}\n' >"$STATE_HOME/treflebonbon-skills/plugin-sync/receipt.json"
+  env HOME="$FIXTURE_HOME" XDG_STATE_HOME="$STATE_HOME" chezmoi --source "$PROJECT_ROOT" execute-template \
     -f "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl" \
     >"$FIXTURE_HOME/.codex/config.toml"
 }
@@ -27,7 +52,7 @@ teardown() {
   printf 'outside-public\n' >"$OUTSIDE_TMP/public.txt"
   printf 'original\n' >"$SHARED_TMP/shared.txt"
 
-  run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" TMPDIR="$SESSION_TMP" \
+  run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
     codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- sh -c '
       set -eu
       test "$(cat "$1/shared.txt")" = original
@@ -59,12 +84,12 @@ teardown() {
   done
 
   for path in "${paths[@]}"; do
-    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" TMPDIR="$SESSION_TMP" \
+    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
       codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- cat "$SHARED_TMP/$path"
     [ "$status" -ne 0 ]
     [[ "$output" != *dummy-secret* ]]
 
-    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" TMPDIR="$SESSION_TMP" \
+    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
       codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- \
       sh -c 'printf overwritten >"$1"' _ "$SHARED_TMP/$path"
     [ "$status" -ne 0 ]
@@ -73,7 +98,7 @@ teardown() {
 
   for path in .envrc .env.example; do
     printf 'public\n' >"$SHARED_TMP/$path"
-    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" TMPDIR="$SESSION_TMP" \
+    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
       codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- \
       sh -c 'set -eu; test "$(cat "$1")" = public; printf updated >"$1"' _ "$SHARED_TMP/$path"
     [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3

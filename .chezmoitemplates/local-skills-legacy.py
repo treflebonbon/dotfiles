@@ -32,6 +32,7 @@ GLOBAL_CLI_NAMES = (
     "orca-send",
     "codex-reviewer",
 )
+DIR_FD_REQUIRED_OPERATIONS = (os.open, os.stat, os.unlink, os.rmdir)
 
 
 baseline = json.loads(sys.argv[1])
@@ -308,7 +309,13 @@ def validate_fixed_baseline():
 
 def safe_parent_chain(home, parent):
     current = home
-    snapshot = []
+    info = entry_info(current)
+    if info is None:
+        return None
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        hold(current, "親 path が symlink または directory ではありません")
+        return None
+    snapshot = [(current, info.st_dev, info.st_ino, info.st_mode)]
     for part in parent.parts:
         current = current / part
         info = entry_info(current)
@@ -319,6 +326,102 @@ def safe_parent_chain(home, parent):
             return None
         snapshot.append((current, info.st_dev, info.st_ino, info.st_mode))
     return snapshot
+
+
+def dir_fd_operations_supported():
+    supported = getattr(os, "supports_dir_fd", set())
+    follow_symlinks = getattr(os, "supports_follow_symlinks", set())
+    return (
+        hasattr(os, "O_DIRECTORY")
+        and hasattr(os, "O_NOFOLLOW")
+        and all(operation in supported for operation in DIR_FD_REQUIRED_OPERATIONS)
+        and os.stat in follow_symlinks
+    )
+
+
+def snapshot_index(*snapshots):
+    return {
+        path: (device, inode, mode)
+        for snapshot in snapshots
+        for path, device, inode, mode in snapshot
+    }
+
+
+def open_directory_fd(path, expected_snapshots):
+    path = Path(path)
+    if not path.is_absolute():
+        raise ValueError(f"dirfd path は absolute ではありません: {path}")
+    if not dir_fd_operations_supported():
+        raise OSError(errno.ENOTSUP, "安全な dirfd 相対操作を利用できません", str(path))
+
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    current = Path(path.anchor)
+    descriptor = os.open(path.anchor, flags)
+    try:
+        info = os.fstat(descriptor)
+        expected = expected_snapshots.get(current)
+        if not stat.S_ISDIR(info.st_mode) or (
+            expected is not None and (info.st_dev, info.st_ino, info.st_mode) != expected
+        ):
+            raise OSError(errno.ESTALE, "directory が初回確認後に変わりました", str(current))
+        for part in path.parts[1:]:
+            child = os.open(part, flags, dir_fd=descriptor)
+            child_path = current / part
+            info = os.fstat(child)
+            expected = expected_snapshots.get(child_path)
+            if not stat.S_ISDIR(info.st_mode) or (
+                expected is not None and (info.st_dev, info.st_ino, info.st_mode) != expected
+            ):
+                os.close(child)
+                raise OSError(errno.ESTALE, "directory が初回確認後に変わりました", str(child_path))
+            os.close(descriptor)
+            descriptor = child
+            current = child_path
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def matches_file_at(directory_fd, name, expected):
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | os.O_NOFOLLOW
+        | getattr(os, "O_NONBLOCK", 0)
+    )
+    descriptor = os.open(name, flags, dir_fd=directory_fd)
+    try:
+        opened = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or stat.S_IMODE(opened.st_mode) != expected["mode"]
+        ):
+            return False
+        digest = hashlib.sha256()
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+        after_read = os.fstat(descriptor)
+        current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        return (
+            stat.S_ISREG(current.st_mode)
+            and (opened.st_dev, opened.st_ino)
+            == (after_read.st_dev, after_read.st_ino)
+            == (current.st_dev, current.st_ino)
+            and (opened.st_mode, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns)
+            == (
+                after_read.st_mode,
+                after_read.st_size,
+                after_read.st_mtime_ns,
+                after_read.st_ctime_ns,
+            )
+            and digest.hexdigest() == expected["sha256"]
+        )
+    finally:
+        os.close(descriptor)
 
 
 def directory_snapshot(root, expected_dirs):
@@ -356,6 +459,9 @@ def directories_unchanged(snapshot, *, required=None):
 def remove_known_skill(name, target, parent_snapshot):
     if entry_info(target) is None:
         return
+    if not dir_fd_operations_supported():
+        hold(target, "安全な no-follow dirfd 相対削除を利用できません")
+        return
     if not check_skill(name, target):
         return
     expected_dirs = baseline["directories"][name]
@@ -363,6 +469,7 @@ def remove_known_skill(name, target, parent_snapshot):
     if skill_snapshot is None:
         return
     expected = baseline["skills"][name]
+    expected_snapshots = snapshot_index(parent_snapshot, skill_snapshot)
     current_path = target
     try:
         for relative in sorted(expected, key=lambda item: (item.count("/"), item), reverse=True):
@@ -379,20 +486,18 @@ def remove_known_skill(name, target, parent_snapshot):
                 or not directories_unchanged(skill_snapshot, required=parent_relatives)
             ):
                 return
-            if not matches_file(path, expected[relative]):
-                hold(path, "unlink 直前の内容・mode 再照合に失敗しました")
-                return
-            current = entry_info(path)
-            if (
-                current is None
-                or not stat.S_ISREG(current.st_mode)
-                or stat.S_IMODE(current.st_mode) != expected[relative]["mode"]
-                or not directories_unchanged(parent_snapshot)
-                or not directories_unchanged(skill_snapshot, required=parent_relatives)
-            ):
-                hold(path, "unlink 直前の path・親 directory 再照合に失敗しました")
-                return
-            path.unlink()
+            parent_fd = open_directory_fd(path.parent, expected_snapshots)
+            try:
+                if not directories_unchanged(parent_snapshot) or not directories_unchanged(
+                    skill_snapshot, required=parent_relatives
+                ):
+                    return
+                if not matches_file_at(parent_fd, path.name, expected[relative]):
+                    hold(path, "unlink 直前の内容・mode 再照合に失敗しました")
+                    return
+                os.unlink(path.name, dir_fd=parent_fd)
+            finally:
+                os.close(parent_fd)
         for relative in sorted(
             (item for item in expected_dirs if item != "."),
             key=lambda item: (item.count("/"), item),
@@ -410,29 +515,39 @@ def remove_known_skill(name, target, parent_snapshot):
                 or not directories_unchanged(skill_snapshot, required=required)
             ):
                 return
-            info = entry_info(path)
-            if (
-                info is None
-                or not stat.S_ISDIR(info.st_mode)
-                or stat.S_IMODE(info.st_mode) != expected_dirs[relative]
-            ):
-                hold(path, "directory の unlink 直前再照合に失敗しました")
-                return
-            path.rmdir()
+            parent_fd = open_directory_fd(path.parent, expected_snapshots)
+            try:
+                info = os.stat(path.name, dir_fd=parent_fd, follow_symlinks=False)
+                expected_identity = expected_snapshots[path]
+                if (
+                    not stat.S_ISDIR(info.st_mode)
+                    or (info.st_dev, info.st_ino, info.st_mode) != expected_identity
+                    or stat.S_IMODE(info.st_mode) != expected_dirs[relative]
+                ):
+                    hold(path, "directory の unlink 直前再照合に失敗しました")
+                    return
+                os.rmdir(path.name, dir_fd=parent_fd)
+            finally:
+                os.close(parent_fd)
         if not directories_unchanged(parent_snapshot):
             return
         if not directories_unchanged(skill_snapshot, required={target}):
             return
         current_path = target
-        info = entry_info(target)
-        if (
-            info is None
-            or not stat.S_ISDIR(info.st_mode)
-            or stat.S_IMODE(info.st_mode) != expected_dirs["."]
-        ):
-            hold(target, "root directory の unlink 直前再照合に失敗しました")
-            return
-        target.rmdir()
+        parent_fd = open_directory_fd(target.parent, expected_snapshots)
+        try:
+            info = os.stat(target.name, dir_fd=parent_fd, follow_symlinks=False)
+            expected_identity = expected_snapshots[target]
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or (info.st_dev, info.st_ino, info.st_mode) != expected_identity
+                or stat.S_IMODE(info.st_mode) != expected_dirs["."]
+            ):
+                hold(target, "root directory の unlink 直前再照合に失敗しました")
+                return
+            os.rmdir(target.name, dir_fd=parent_fd)
+        finally:
+            os.close(parent_fd)
         print(f"skills migration: 旧 baseline copy を撤去しました: {target}", file=sys.stderr)
     except OSError as error:
         if error.errno == errno.ENOTEMPTY:

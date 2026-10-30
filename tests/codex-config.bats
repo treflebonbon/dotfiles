@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+load codex-skills-fixture
+
 bats_require_minimum_version 1.5.0
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -10,6 +12,9 @@ setup() {
   export CODEX_MANAGED_CONFIG_SYNC="$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config"
   CODEX_SOURCE_GIT_COMMON_DIR="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir)"
   export CODEX_SOURCE_GIT_COMMON_DIR
+  PLUGIN_SYNC_SOURCE="$BATS_TEST_TMPDIR/plugin-source"
+  create_codex_skills_verifier_source "$PLUGIN_SYNC_SOURCE"
+  export PLUGIN_SYNC_SOURCE
   mkdir -p "$BATS_TEST_TMPDIR/runtime-bin"
   cat >"$BATS_TEST_TMPDIR/runtime-bin/sync-skills-plugin" <<'PY'
 #!/usr/bin/env python3
@@ -384,18 +389,71 @@ install_codex_managed_config_sync() {
 
 prepare_codex_chezmoi_source() {
   local source="$1"
-  mkdir -p "$source/.chezmoitemplates" "$source/private_dot_config/nix-devshell" "$source/private_dot_config" "$source/private_dot_local/bin"
-  cp "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json" \
-    "$source/.chezmoitemplates/local-skills-legacy.json"
+  mkdir -p "$source/private_dot_config/nix-devshell" "$source/private_dot_config" "$source/private_dot_local/bin"
+  copy_codex_skills_retirement_inputs "$source"
   cp -R "$PROJECT_ROOT/private_dot_config/codex" "$source/private_dot_config/codex"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
     "$source/private_dot_config/nix-devshell/skills-plugin.json"
   cp "$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config" \
     "$source/private_dot_local/bin/executable_sync-codex-managed-config"
-  cat >"$source/private_dot_local/bin/executable_sync-skills-plugin" <<'SH'
-#!/usr/bin/env bash
-exit 0
-SH
+  cat >"$source/private_dot_local/bin/executable_sync-skills-plugin" <<'PY'
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+source_root = Path(os.environ.get("CHEZMOI_SOURCE_DIR", Path.home() / ".local/share/chezmoi"))
+pin_path = source_root / "private_dot_config/nix-devshell/skills-plugin.json"
+if not pin_path.is_file():
+    pin_path = Path(os.environ["HOME"]) / ".config/nix-devshell/skills-plugin.json"
+pin = json.loads(pin_path.read_text(encoding="utf-8"))
+source = Path(os.environ["PLUGIN_SYNC_SOURCE"]).resolve(strict=True)
+version = pin["version"]
+homes = []
+index = 0
+while index < len(args):
+    if args[index] == "--verify-only":
+        index += 1
+    elif args[index] == "--codex-home" and index + 1 < len(args):
+        homes.append(Path(args[index + 1]).expanduser().resolve())
+        index += 2
+    else:
+        raise SystemExit("unexpected plugin sync argument")
+if not homes and "--verify-only" in args:
+    home = Path(os.environ["HOME"]).resolve()
+    homes = [home / ".codex"]
+    if (home / ".codex-app").is_dir():
+        homes.append(home / ".codex-app")
+    if os.environ.get("CODEX_HOME"):
+        extra = Path(os.environ["CODEX_HOME"]).expanduser().resolve()
+        if extra not in homes:
+            homes.append(extra)
+if not homes and "--verify-only" not in args:
+    print("DISPATCHED")
+    raise SystemExit(0)
+
+records = []
+for home in homes:
+    install = home / "plugins/cache/treflebonbon/treflebonbon-skills" / version
+    skill = install / "skills/fixture/SKILL.md"
+    if "--verify-only" in args:
+        if not skill.is_file() or skill.read_text(encoding="utf-8") != "fixture cache\n":
+            raise SystemExit(f"unverified fixture cache: {install}")
+    else:
+        skill.parent.mkdir(parents=True, exist_ok=True)
+        skill.write_text("fixture cache\n", encoding="utf-8")
+    records.append({
+        "runtime": "codex", "codex_home": str(home), "version": version,
+        "install_path": str(install),
+    })
+print(json.dumps({
+    "status": "verified", "pin": pin, "source": str(source),
+    "checkout": str(source.parent), "codex_homes": [str(home) for home in homes],
+    "results": {"codex": records},
+}))
+PY
   chmod +x "$source/private_dot_local/bin/executable_sync-skills-plugin"
   cp "$PROJECT_ROOT/dot_bash_profile.tmpl" "$source/dot_bash_profile.tmpl"
   cp "$PROJECT_ROOT"/run_onchange_after_codex-*.sh.tmpl "$source/"
@@ -1298,7 +1356,8 @@ PY
   mkdir -p "$home"
   printf '{}\n' >"$config"
 
-  env -u CODEX_HOME HOME="$home" chezmoi \
+  env -u CODEX_HOME HOME="$home" CHEZMOI_SOURCE_DIR="$source" \
+    PLUGIN_SYNC_SOURCE="$PLUGIN_SYNC_SOURCE" PATH="$home/.local/bin:$PATH" chezmoi \
     --source "$source" \
     --destination "$home" \
     --persistent-state "$BATS_TEST_TMPDIR/chezmoi-state.boltdb" \

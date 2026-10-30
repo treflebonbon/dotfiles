@@ -67,18 +67,38 @@ PY
   chmod +x "$BIN"/*
 }
 
+runtime_from_output() {
+  sed -n 's/^検証ログ: //p' <<<"$1" | tail -n 1
+}
+
+runtime_from_fixture_log() {
+  python3 - "$AI_FIXTURE_LOG" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+rows = [json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
+print(Path(rows[-1]["HOME"]).parent)
+PY
+}
+
 @test "AI candidate verification can require a prebuilt Codex before starting either shell" {
   run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE" --no-codex-build \
     -- bash -c 'printf "verified-command\n"'
 
   [ "$status" -eq 0 ]
-  python3 - "$AI_FIXTURE_LOG" "$SOURCE" <<'PY'
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  python3 - "$AI_FIXTURE_LOG" "$runtime" "$SOURCE" <<'PY'
 import json, sys
 from pathlib import Path
 rows=[json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
 assert [row['argv'][0] for row in rows]==['eval', 'build', 'develop', 'develop']
 home=Path(rows[1]['HOME'])
-assert home.is_relative_to(Path(sys.argv[2])/'tmp')
+assert home.parent == Path(sys.argv[2])
+assert Path(sys.argv[2]).parent == Path('/tmp/codex')
+assert not (Path(sys.argv[3])/'tmp').exists()
 assert rows[0]['HOME']==rows[1]['HOME']==rows[2]['HOME']
 assert (home.parent/'codex-cache.log').read_text().strip()=='fixture Codex output available'
 assert 'verified-command' in (home.parent/'startup.log').read_text()
@@ -93,10 +113,13 @@ PY
   [ "$status" -eq 29 ]
   [[ "$output" == *'Codex'*'ビルド'* ]]
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-  run ! compgen -G "$SOURCE/tmp/ai-tools-*/startup.log"
-  run ! compgen -G "$SOURCE/tmp/ai-tools-*/home/.agents"
-  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 29 ]
-  grep -q 'output unavailable' "$SOURCE"/tmp/ai-tools-*/codex-cache.log
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  [ ! -e "$runtime/startup.log" ]
+  [ ! -e "$runtime/home/.agents" ]
+  [ "$(cat "$runtime/exit-code")" -eq 29 ]
+  grep -q 'output unavailable' "$runtime/codex-cache.log"
   [ "$(wc -l <"$AI_FIXTURE_LOG")" -eq 2 ]
 }
 
@@ -105,9 +128,12 @@ PY
     python3 "$PROBE" "$SOURCE" --no-codex-build
 
   [ "$status" -eq 143 ]
-  run ! compgen -G "$SOURCE/tmp/ai-tools-*/startup.log"
-  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 143 ]
-  grep -q 'fixture Codex cache signal' "$SOURCE"/tmp/ai-tools-*/codex-cache.log
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  [ ! -e "$runtime/startup.log" ]
+  [ "$(cat "$runtime/exit-code")" -eq 143 ]
+  grep -q 'fixture Codex cache signal' "$runtime/codex-cache.log"
 }
 
 @test "AI candidate verification isolates shell hooks and runs the requested command after output checks" {
@@ -119,16 +145,21 @@ PY
   [ "$status" -eq 0 ]
   [[ "$output" == *'PASS: 6 CLI'* ]]
   [ ! -e "$BATS_TEST_TMPDIR/original-home/.agents" ]
-  python3 - "$AI_FIXTURE_LOG" "$SOURCE" <<'PY'
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  python3 - "$AI_FIXTURE_LOG" "$runtime" "$SOURCE" <<'PY'
 import json, sys
 from pathlib import Path
 rows=[json.loads(line) for line in Path(sys.argv[1]).read_text().splitlines()]
 assert len(rows)==3
 assert len({row['HOME'] for row in rows})==1
 home=Path(rows[0]['HOME'])
-assert home.is_relative_to(Path(sys.argv[2])/'tmp')
+assert home.parent == Path(sys.argv[2])
+assert Path(sys.argv[2]).parent == Path('/tmp/codex')
+assert not (Path(sys.argv[3])/'tmp').exists()
 assert 'verified-command/isolated' in (home.parent/'startup.log').read_text()
-# A leftover symlink under the source tmp/ makes chezmoi fail on the whole source.
+# 隔離 HOME と XDG の root は終了後にだけ削除され、source tree には作られない。
 for name in ['home', 'config', 'data', 'runtime', 'cache', 'state']:
     assert not (home.parent/name).exists(), name
 for row in rows:
@@ -203,14 +234,20 @@ PY
 
   [ "$status" -ne 0 ]
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-  grep -q 'codex のoutput不一致' "$SOURCE"/tmp/ai-tools-*/startup.log
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  grep -q 'codex のoutput不一致' "$runtime/startup.log"
 }
 
 @test "AI candidate verification preserves the requested command failure in its evidence" {
   run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE" -- bash -c 'exit 23'
 
   [ "$status" -eq 23 ]
-  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 23 ]
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  [ "$(cat "$runtime/exit-code")" -eq 23 ]
 }
 
 @test "AI candidate verification records invalid metadata and suppresses the requested command" {
@@ -219,14 +256,17 @@ PY
 
   [ "$status" -eq 1 ]
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 1 ]
-  grep -q 'invalid-json' "$SOURCE"/tmp/ai-tools-*/metadata.json
-  grep -q 'metadata' "$SOURCE"/tmp/ai-tools-*/evaluation.log
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  [ "$(cat "$runtime/exit-code")" -eq 1 ]
+  grep -q 'invalid-json' "$runtime/metadata.json"
+  grep -q 'metadata' "$runtime/evaluation.log"
   [ "$(wc -l <"$AI_FIXTURE_LOG")" -eq 1 ]
 }
 
 @test "AI candidate verification rejects incomplete or malformed metadata before shell startup" {
-  local mode case_source
+  local mode case_source runtime
   for mode in missing duplicate wrong-type missing-path; do
     case_source="$SOURCE/$mode"
     mkdir -p "$case_source"
@@ -235,9 +275,11 @@ PY
 
     [ "$status" -eq 1 ]
     [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-    run ! compgen -G "$case_source/tmp/ai-tools-*/startup.log"
-    [ "$(cat "$case_source"/tmp/ai-tools-*/exit-code)" -eq 1 ]
-    grep -q 'metadata不正' "$case_source"/tmp/ai-tools-*/evaluation.log
+    runtime="$(runtime_from_output "$output")"
+    [ -n "$runtime" ]
+    [ ! -e "$runtime/startup.log" ]
+    [ "$(cat "$runtime/exit-code")" -eq 1 ]
+    grep -q 'metadata不正' "$runtime/evaluation.log"
   done
   [ "$(wc -l <"$AI_FIXTURE_LOG")" -eq 4 ]
 }
@@ -248,9 +290,12 @@ PY
 
   [ "$status" -eq 17 ]
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-  run ! compgen -G "$SOURCE/tmp/ai-tools-*/startup.log"
-  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 17 ]
-  grep -q 'fixture evaluation failed' "$SOURCE"/tmp/ai-tools-*/evaluation.log
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  [ ! -e "$runtime/startup.log" ]
+  [ "$(cat "$runtime/exit-code")" -eq 17 ]
+  grep -q 'fixture evaluation failed' "$runtime/evaluation.log"
   [ "$(wc -l <"$AI_FIXTURE_LOG")" -eq 1 ]
 }
 
@@ -262,12 +307,15 @@ PY
 
   [ "$status" -eq 19 ]
   [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-  [ "$(cat "$SOURCE"/tmp/ai-tools-*/exit-code)" -eq 19 ]
-  grep -q 'fixture version failed' "$SOURCE"/tmp/ai-tools-*/startup.log
+  local runtime
+  runtime="$(runtime_from_output "$output")"
+  [ -n "$runtime" ]
+  [ "$(cat "$runtime/exit-code")" -eq 19 ]
+  grep -q 'fixture version failed' "$runtime/startup.log"
 }
 
 @test "AI candidate verification reports signal termination consistently in its exit status and evidence" {
-  local mode case_source
+  local mode case_source runtime
   for mode in eval-signal startup-signal; do
     case_source="$SOURCE/$mode"
     mkdir -p "$case_source"
@@ -276,8 +324,10 @@ PY
 
     [ "$status" -eq 143 ]
     [ ! -e "$BATS_TEST_TMPDIR/should-not-run" ]
-    [ "$(cat "$case_source"/tmp/ai-tools-*/exit-code)" -eq 143 ]
-    grep -q 'fixture .* signal' "$case_source"/tmp/ai-tools-*/*.log
+    runtime="$(runtime_from_output "$output")"
+    [ -n "$runtime" ]
+    [ "$(cat "$runtime/exit-code")" -eq 143 ]
+    grep -q 'fixture .* signal' "$runtime"/*.log
   done
 }
 
@@ -296,6 +346,12 @@ PY
   wait "$pid" || status=$?
 
   [ "$status" -eq 143 ]
-  # A leftover symlink under the source tmp/ makes chezmoi fail on the whole source.
-  run ! compgen -G "$SOURCE/tmp/ai-tools-*/home"
+  local runtime
+  runtime="$(runtime_from_fixture_log)"
+  [ -n "$runtime" ]
+  local name
+  for name in home config data runtime cache state tmp; do
+    [ ! -e "$runtime/$name" ]
+  done
+  [ ! -e "$SOURCE/tmp" ]
 }

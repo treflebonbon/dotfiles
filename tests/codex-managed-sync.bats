@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+load codex-skills-fixture
+
 setup() {
   unset CODEX_HOME
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -11,9 +13,12 @@ setup() {
   # throughout this file. An explicitly empty source skips it entirely.
   export PONYTAIL_MARKETPLACE_SOURCE=""
   TEST_HOME="$BATS_TEST_TMPDIR/home"
+  PLUGIN_SYNC_SOURCE="$BATS_TEST_TMPDIR/plugin-source"
   PLUGIN_SYNC_BIN="$BATS_TEST_TMPDIR/plugin-sync-bin"
   PLUGIN_SYNC_LOG="$BATS_TEST_TMPDIR/plugin-sync.log"
   mkdir -p "$PLUGIN_SYNC_BIN"
+  create_codex_skills_verifier_source "$PLUGIN_SYNC_SOURCE"
+  export PLUGIN_SYNC_SOURCE
   cat >"$PLUGIN_SYNC_BIN/sync-skills-plugin" <<'SH'
 #!/usr/bin/env python3
 import json
@@ -37,6 +42,16 @@ if os.environ.get("FAIL_SKILLS_PLUGIN_SYNC") == "1":
 pin = json.loads(Path(os.environ["PLUGIN_SYNC_PIN"]).read_text())
 version = pin["version"]
 plugin_id = "plugins/cache/treflebonbon/treflebonbon-skills"
+source = Path(os.environ["PLUGIN_SYNC_SOURCE"]).resolve(strict=True)
+if not homes and "--verify-only" in args:
+    home = Path(os.environ["HOME"]).resolve()
+    homes = [home / ".codex"]
+    if (home / ".codex-app").is_dir():
+        homes.append(home / ".codex-app")
+    if os.environ.get("CODEX_HOME"):
+        explicit = Path(os.environ["CODEX_HOME"]).expanduser().resolve()
+        if explicit not in homes:
+            homes.append(explicit)
 if "--verify-only" in args:
     if os.environ.get("PLUGIN_SYNC_VERIFY_FAIL") == "1":
         sys.exit(1)
@@ -52,7 +67,8 @@ if "--verify-only" in args:
             "install_path": str(installed),
         })
     print(json.dumps({
-        "status": "verified", "pin": {"version": version},
+        "status": "verified", "pin": pin, "source": str(source),
+        "checkout": str(source.parent),
         "codex_homes": [str(home) for home in homes],
         "results": {"codex": records},
     }))
@@ -167,7 +183,9 @@ for home in homes:
     })
 print(json.dumps({
     "status": "verified",
-    "pin": {"version": version},
+    "pin": pin,
+    "source": str(Path(os.environ["PLUGIN_SYNC_SOURCE"]).resolve(strict=True)),
+    "checkout": str(Path(os.environ["PLUGIN_SYNC_SOURCE"]).resolve(strict=True).parent),
     "codex_homes": [str(home) for home in homes],
     "results": {"codex": records},
 }))
@@ -348,10 +366,9 @@ prepare_chezmoi_fixture() {
   local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
   SYNC_LOG_PATH="$BATS_TEST_TMPDIR/sync.log"
   local spy="$BATS_TEST_TMPDIR/count-sync"
-  mkdir -p "$CHEZMOI_SOURCE/.chezmoitemplates" "$CHEZMOI_SOURCE/private_dot_config" "$CHEZMOI_SOURCE/private_dot_local/bin" \
+  mkdir -p "$CHEZMOI_SOURCE/private_dot_config" "$CHEZMOI_SOURCE/private_dot_local/bin" \
     "$CHEZMOI_SOURCE/private_dot_config/nix-devshell"
-  cp "$PROJECT_ROOT/.chezmoitemplates/local-skills-legacy.json" \
-    "$CHEZMOI_SOURCE/.chezmoitemplates/local-skills-legacy.json"
+  copy_codex_skills_retirement_inputs "$CHEZMOI_SOURCE"
   cp -R "$PROJECT_ROOT/private_dot_config/codex" "$CHEZMOI_SOURCE/private_dot_config/codex"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
     "$CHEZMOI_SOURCE/private_dot_config/nix-devshell/skills-plugin.json"
@@ -362,11 +379,13 @@ prepare_chezmoi_fixture() {
   printf '{}\n' >"$config"
   cat >"$spy" <<'SH'
 #!/usr/bin/env bash
-printf 'sync\n' >>"$SYNC_LOG"
+printf '%s\n' "${*:-sync}" >>"$SYNC_LOG"
 exec "$HOME/.local/bin/sync-codex-managed-config" "$@"
 SH
   chmod +x "$spy"
-  CHEZMOI_APPLY=(env HOME="$TEST_HOME" SYNC_LOG="$SYNC_LOG_PATH" CODEX_MANAGED_CONFIG_SYNC="$spy"
+  CHEZMOI_APPLY=(env HOME="$TEST_HOME" CHEZMOI_SOURCE_DIR="$CHEZMOI_SOURCE"
+    PLUGIN_SYNC_SOURCE="$PLUGIN_SYNC_SOURCE" SKILLS_PLUGIN_SYNC="$PLUGIN_SYNC_BIN/sync-skills-plugin"
+    PATH="$PLUGIN_SYNC_BIN:$TEST_HOME/.local/bin:$PATH" SYNC_LOG="$SYNC_LOG_PATH" CODEX_MANAGED_CONFIG_SYNC="$spy"
     chezmoi --source "$CHEZMOI_SOURCE" --destination "$TEST_HOME" --config "$config"
     --persistent-state "$BATS_TEST_TMPDIR/state.boltdb" apply)
 
@@ -377,10 +396,11 @@ SH
 
   run "${CHEZMOI_APPLY[@]}"
   [ "$status" -eq 0 ]
-  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 1 ]
+  printf 'sync\n--verify-only\n' >"$BATS_TEST_TMPDIR/expected-sync.log"
+  cmp "$BATS_TEST_TMPDIR/expected-sync.log" "$SYNC_LOG_PATH"
   [ ! -d "$TEST_HOME/.codex-app" ]
 
-  local changed count=1
+  local changed count=2
   for changed in private_dot_config/codex/AGENTS.md private_dot_config/codex/config.toml.tmpl \
     private_dot_config/codex/environments/environment.toml private_dot_config/codex/hooks.json \
     private_dot_config/codex/rules/default.rules private_dot_config/nix-devshell/skills-plugin.json \
@@ -390,7 +410,7 @@ SH
     printf 'local drift\n' >"$TEST_HOME/.codex/AGENTS.md"
     run "${CHEZMOI_APPLY[@]}"
     [ "$status" -eq 0 ]
-    count=$((count + 1))
+    count=$((count + 2))
     [ "$(wc -l <"$SYNC_LOG_PATH")" -eq "$count" ]
     cmp "$TEST_HOME/.config/codex/AGENTS.md" "$TEST_HOME/.codex/AGENTS.md"
     cmp "$TEST_HOME/.config/codex/hooks.json" "$TEST_HOME/.codex/hooks.json"
@@ -621,7 +641,7 @@ PY
   run env CODEX_HOME="$codex_home" "${CHEZMOI_APPLY[@]}"
 
   [ "$status" -eq 0 ]
-  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 1 ]
+  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 2 ]
   [ "$(cat "$TEST_HOME/.codex/hooks.json")" = 'local drift' ]
   [ ! -d "$codex_home" ]
 
@@ -644,17 +664,17 @@ PY
   for attempt in 2 3; do
     run "${CHEZMOI_APPLY[@]}"
     [ "$status" -ne 0 ]
-    [ "$(wc -l <"$SYNC_LOG_PATH")" -eq "$attempt" ]
+    [ "$(wc -l <"$SYNC_LOG_PATH")" -eq "$((attempt + 1))" ]
     cmp "$BATS_TEST_TMPDIR/previous-AGENTS.md" "$TEST_HOME/.codex/AGENTS.md"
     [ ! -e "$TEST_HOME/.codex-app/.managed-config-seeded" ]
   done
 
   printf 'model = "local"\n' >"$TEST_HOME/.codex-app/config.toml"
   "${CHEZMOI_APPLY[@]}"
-  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 4 ]
+  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 6 ]
   cmp "$TEST_HOME/.config/codex/AGENTS.md" "$TEST_HOME/.codex-app/AGENTS.md"
   [ -f "$TEST_HOME/.codex-app/.managed-config-seeded" ]
 
   "${CHEZMOI_APPLY[@]}"
-  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 4 ]
+  [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 6 ]
 }

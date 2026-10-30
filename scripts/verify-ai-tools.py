@@ -109,7 +109,7 @@ def main():
         path = runtime / directory
         path.mkdir(mode=0o700)
         environment[key] = str(path)
-        # 隔離先は証拠ではない。tmp/ に壊れた symlink が残ると chezmoi が source 全体で失敗する。
+        # 隔離環境は証拠ではないため、診断ログを残して環境 directory は終了時に削除する。
         atexit.register(shutil.rmtree, path, ignore_errors=True)
     for key in (
         "HOME",

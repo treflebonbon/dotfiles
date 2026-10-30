@@ -74,6 +74,34 @@ install_old_dogfood_copy() {
   [[ "$output" == *'devshell_environment.py'* ]]
 }
 
+@test "retirement holds known copies when safe dirfd operations are unavailable" {
+  local target="$SKILL_HOME/.agents/skills/dogfood"
+  local script="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.py"
+  local baseline="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.json"
+  install_old_dogfood_copy "$target"
+
+  run env HOME="$SKILL_HOME" python3 - "$script" "$baseline" <<'PY'
+import os
+from pathlib import Path
+import runpy
+import sys
+
+script, baseline_path = map(Path, sys.argv[1:])
+sys.argv = [str(script), baseline_path.read_text(encoding="utf-8")]
+module = runpy.run_path(str(script), run_name="legacy_test")
+module["remove_known_skill"].__globals__["dir_fd_operations_supported"] = lambda: False
+home = Path(os.environ["HOME"]).resolve()
+target = home / ".agents/skills/dogfood"
+snapshot = module["safe_parent_chain"](home, Path(".agents/skills"))
+module["remove_known_skill"]("dogfood", target, snapshot)
+assert (target / "SKILL.md").is_file()
+PY
+
+  [ "$status" -eq 0 ]
+  [ -f "$target/SKILL.md" ]
+  [[ "$output" == *'安全な no-follow dirfd 相対削除を利用できません'* ]]
+}
+
 @test "a changed legacy baseline cannot authorize source retirement" {
   local target="$SKILL_HOME/.agents/skills/dogfood"
   install_old_dogfood_copy "$target"
@@ -171,6 +199,120 @@ PY
   [ -f "$SKILL_HOME/.agents/skills-before-race/dogfood/SKILL.md" ]
 }
 
+@test "an ancestor changed immediately before unlink cannot redirect the unlink outside its open directory" {
+  local target="$SKILL_HOME/.agents/skills/dogfood"
+  local outside="$BATS_TEST_TMPDIR/outside-skills"
+  local script="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.py"
+  local baseline="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.json"
+  install_old_dogfood_copy "$target"
+  install_old_dogfood_copy "$outside/dogfood"
+  printf 'outside sentinel\n' >"$outside/sentinel.txt"
+  printf 'outside unknown\n' >"$outside/dogfood/user-owned.txt"
+
+  run env HOME="$SKILL_HOME" python3 - "$script" "$baseline" "$outside" <<'PY'
+import os
+from pathlib import Path
+import runpy
+import sys
+
+script, baseline_path, outside = map(Path, sys.argv[1:])
+sys.argv = [str(script), baseline_path.read_text(encoding="utf-8")]
+module = runpy.run_path(str(script), run_name="legacy_test")
+home = Path(os.environ["HOME"]).resolve()
+target = home / ".agents/skills/dogfood"
+parent = home / ".agents/skills"
+outside_copy = outside / "dogfood"
+snapshot = module["safe_parent_chain"](home, Path(".agents/skills"))
+first_relative = sorted(
+    module["baseline"]["skills"]["dogfood"],
+    key=lambda item: (item.count("/"), item),
+    reverse=True,
+)[0]
+original_unlink = os.unlink
+swapped = False
+
+def swap_then_unlink(path, *args, **kwargs):
+    global swapped
+    if not swapped:
+        parent.rename(home / ".agents/skills-before-unlink")
+        parent.symlink_to(outside, target_is_directory=True)
+        swapped = True
+    return original_unlink(path, *args, **kwargs)
+
+os.unlink = swap_then_unlink
+try:
+    module["remove_known_skill"]("dogfood", target, snapshot)
+finally:
+    os.unlink = original_unlink
+
+assert swapped
+assert (outside_copy / first_relative).is_file()
+assert (outside_copy / "user-owned.txt").read_text(encoding="utf-8") == "outside unknown\n"
+assert (outside / "sentinel.txt").read_text(encoding="utf-8") == "outside sentinel\n"
+PY
+  [ "$status" -eq 0 ]
+  [ -f "$outside/dogfood/SKILL.md" ]
+  [ -f "$outside/dogfood/user-owned.txt" ]
+  [ -f "$outside/sentinel.txt" ]
+}
+
+@test "an ancestor changed immediately before rmdir cannot redirect removal outside its open directory" {
+  local target="$SKILL_HOME/.agents/skills/dogfood"
+  local outside="$BATS_TEST_TMPDIR/outside-skills"
+  local script="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.py"
+  local baseline="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.json"
+  install_old_dogfood_copy "$target"
+  mkdir -p "$outside/dogfood"
+  chmod 755 "$outside/dogfood"
+  printf 'outside sentinel\n' >"$outside/sentinel.txt"
+  printf 'outside unknown\n' >"$outside/user-owned.txt"
+
+  run env HOME="$SKILL_HOME" python3 - "$script" "$baseline" "$outside" <<'PY'
+import os
+from pathlib import Path
+import runpy
+import sys
+
+script, baseline_path, outside = map(Path, sys.argv[1:])
+sys.argv = [str(script), baseline_path.read_text(encoding="utf-8")]
+module = runpy.run_path(str(script), run_name="legacy_test")
+home = Path(os.environ["HOME"]).resolve()
+target = home / ".agents/skills/dogfood"
+parent = home / ".agents/skills"
+snapshot = module["safe_parent_chain"](home, Path(".agents/skills"))
+original_rmdir = os.rmdir
+swapped = False
+
+def swap_then_rmdir(path, *args, **kwargs):
+    global swapped
+    is_target = (
+        os.fsdecode(path) == "dogfood"
+        if kwargs.get("dir_fd") is not None
+        else Path(path) == target
+    )
+    if not swapped and is_target:
+        parent.rename(home / ".agents/skills-before-rmdir")
+        parent.symlink_to(outside, target_is_directory=True)
+        swapped = True
+    return original_rmdir(path, *args, **kwargs)
+
+os.rmdir = swap_then_rmdir
+try:
+    module["remove_known_skill"]("dogfood", target, snapshot)
+finally:
+    os.rmdir = original_rmdir
+
+assert swapped
+assert (outside / "dogfood").is_dir()
+assert (outside / "sentinel.txt").read_text(encoding="utf-8") == "outside sentinel\n"
+assert (outside / "user-owned.txt").read_text(encoding="utf-8") == "outside unknown\n"
+PY
+  [ "$status" -eq 0 ]
+  [ -d "$outside/dogfood" ]
+  [ -f "$outside/sentinel.txt" ]
+  [ -f "$outside/user-owned.txt" ]
+}
+
 @test "a regular file changed to a FIFO before unlink is held without blocking" {
   local target="$SKILL_HOME/.agents/skills/dogfood"
   local script="$SKILL_SOURCE/.chezmoitemplates/local-skills-legacy.py"
@@ -228,22 +370,22 @@ module = runpy.run_path(str(script), run_name="legacy_test")
 home = Path(os.environ["HOME"]).resolve()
 root = home / ".agents/skills/dogfood"
 parent_snapshot = module["safe_parent_chain"](home, Path(".agents/skills"))
-original_unlink = Path.unlink
+original_unlink = os.unlink
 added = False
 
-def unlink_and_add(self, *args, **kwargs):
+def unlink_and_add(path, *args, **kwargs):
     global added
-    result = original_unlink(self, *args, **kwargs)
+    result = original_unlink(path, *args, **kwargs)
     if not added:
         (root / "late-added.txt").write_text("retain me\n", encoding="utf-8")
         added = True
     return result
 
-Path.unlink = unlink_and_add
+os.unlink = unlink_and_add
 try:
     module["remove_known_skill"]("dogfood", root, parent_snapshot)
 finally:
-    Path.unlink = original_unlink
+    os.unlink = original_unlink
 assert added
 assert (root / "late-added.txt").read_text(encoding="utf-8") == "retain me\n"
 PY
