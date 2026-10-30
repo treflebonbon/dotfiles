@@ -381,6 +381,12 @@ class VerifyCheckoutTests(unittest.TestCase):
                         print("[]")
                     else:
                         registry = json.loads(installed.read_text())["plugins"][plugin_id][0]
+                        tamper_after = config / "mock-tamper-after-list"
+                        if tamper_after.exists():
+                            remaining = int(tamper_after.read_text()) - 1
+                            tamper_after.write_text(str(remaining))
+                            if remaining == 0:
+                                (Path(registry["installPath"]) / "README.md").write_text("tampered during inventory\\n")
                         source = state.read_text()
                         plugin_version = json.loads((Path(source) / "plugin.json").read_text())["version"]
                         print(json.dumps([{
@@ -549,6 +555,40 @@ class VerifyCheckoutTests(unittest.TestCase):
                         sync_skills_plugin.tracked_tree(self.root),
                     )
                     self.assertEqual(verified["version"], self.pin["version"])
+
+    def test_claude_sync_rejects_payload_changed_during_inventory_verification(
+        self,
+    ) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+            log = home / "claude-commands.jsonl"
+            before = len(log.read_text().splitlines())
+            (config / "mock-tamper-after-list").write_text("2")
+
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "README.md"
+            ):
+                sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+            calls = [
+                json.loads(line) for line in log.read_text().splitlines()[before:]
+            ]
+            self.assertEqual(calls, [["plugin", "list", "--json"]] * 2)
+            install = config / "plugins/cache/treflebonbon/treflebonbon-skills/0.2.1"
+            self.assertEqual(
+                (install / "README.md").read_text(), "tampered during inventory\n"
+            )
 
     def test_claude_install_failure_keeps_existing_local_skill(self) -> None:
         cli = self.make_mock_claude()

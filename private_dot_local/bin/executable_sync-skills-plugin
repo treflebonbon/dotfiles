@@ -668,6 +668,7 @@ def sync_claude(
                     checkout, source_root, pin, expected
                 )
             except PluginSyncError:
+                verify_payload(install_path, expected, pin)
                 update_existing = True
         elif previous is not None and claude_inventory_matches(
             before,
