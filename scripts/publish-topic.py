@@ -141,6 +141,7 @@ def _push(source, repo, path):
             env=environment,
             stdout=output,
             stderr=error,
+            timeout=1800,
         )
     receipt["push"] = {
         "status": "succeeded" if result.returncode == 0 else "failed",
@@ -170,7 +171,7 @@ def _verify(path, pr, timeout):
         raise ValueError("公開記録または照合条件が不正です")
     valid_repo(receipt["repo"])
     previous = receipt.get("verification")
-    if previous and previous["pr"] != pr:
+    if previous and previous["observations"] and previous["pr"] != pr:
         raise ValueError("同じ公開記録の照合先 PR は変更できません")
     verification = {
         "pr": pr,

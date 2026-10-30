@@ -158,6 +158,39 @@ PY
   [ -f "$SOURCE/tmp/canonical-run.fixture/result.json" ]
 }
 
+@test "canonical preparation records a count timeout and suppresses the gate" {
+  python3 - "$SOURCE" "$BATS_TEST_TMPDIR/count-timeout" <<'PY'
+import importlib.util, json, os, subprocess, sys
+from pathlib import Path
+from unittest.mock import patch
+source, record = map(Path, sys.argv[1:])
+record.mkdir()
+sys.path.insert(0, str(source/'scripts'))
+spec = importlib.util.spec_from_file_location('preparation', source/'scripts/run-canonical.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+def command(argv, **kwargs):
+    if argv[0] == 'nix':
+        return os.environ['FIXTURE_PW_PACKAGE']+'\n'
+    assert argv == ['bats', '--count', 'tests/']
+    assert kwargs.get('timeout') == 300
+    raise subprocess.TimeoutExpired(argv, kwargs['timeout'])
+
+with patch.object(module.subprocess, 'check_output', side_effect=command), \
+     patch.object(module.subprocess, 'Popen') as gate:
+    status = module.prepare(source, record, Path.home()/'.agents/skills/impeccable/scripts/impeccable')
+    assert status == 1
+    gate.assert_not_called()
+result = json.loads((record/'result.json').read_text())
+assert result['phase'] == 'preparation'
+assert result['status'] == 'failed' and result['exit_code'] == 1
+assert result['canonical'] is None
+assert 'timed out' in result['error']
+assert not (record/'canonical-path').exists()
+PY
+}
+
 @test "canonical entry rejects a gate receipt from a different source directory" {
   export FIXTURE_MODE=wrong-path
   entry
@@ -169,7 +202,7 @@ PY
   export FIXTURE_MODE=gate-hang
   python3 "$SOURCE/scripts/run-canonical.py" --shell wsl >"$BATS_TEST_TMPDIR/entry.log" 2>&1 &
   local child=$! iteration
-  for ((iteration = 0; iteration < 300; iteration++)); do
+  for ((iteration = 0; iteration < 1200; iteration++)); do
     [ -f "$SOURCE/tmp/canonical-run.fixture/ready" ] && break
     sleep 0.1
   done

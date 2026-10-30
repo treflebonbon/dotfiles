@@ -49,7 +49,7 @@ canonical検証の環境準備から開始する場合は、linked task worktree
 python3 scripts/run-canonical.py --shell wsl --no-codex-build
 ```
 
-この入口は最初のNix評価から `verify-ai-tools.py` の境界を使い、両devShellとPlaywright packageを準備する。Impeccable hookは `IMPECCABLE_HOOK_RUNTIME` の明示指定、または呼出元の `~/.agents/skills/impeccable/scripts/impeccable` から取得する。不足時はNix起動前に停止し、APMの導入を自動追加しない。環境準備の記録は表示された `/tmp/codex/canonical-env.*/` に残り、`canonical-path` が検証本体の記録先を指す。中断時は保護された子プロセスを終了し、終了状態を保存する。
+この入口は最初のNix評価から `verify-ai-tools.py` の境界を使い、両devShellとPlaywright packageを準備する。Impeccable hookは `IMPECCABLE_HOOK_RUNTIME` の明示指定、または呼出元の `~/.agents/skills/impeccable/scripts/impeccable` から取得する。不足時はNix起動前に停止し、APMの導入を自動追加しない。`bats --count` の上限は300秒とし、超過時は準備失敗を保存して検証本体を起動しない。環境準備の記録は表示された `/tmp/codex/canonical-env.*/` に残り、`canonical-path` が検証本体の記録先を指す。中断時は保護された子プロセスを終了し、終了状態を保存する。
 
 検証本体は既存の `scripts/verify-canonical.py` とする。準備済み環境から直接呼ぶ場合は、`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` に準備済みの絶対パスを渡す。`lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。準備入口はsourceの全Bats件数とその実行のTAP計画も照合する。
 
@@ -117,7 +117,7 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
   python3 scripts/publish-topic.py verify "$publication_record" --pr NUMBER
 ```
 
-`publication.json` の `push` と `verification` は別の結果とする。同じ記録に対するpush・verifyは排他実行し、先行処理が終了してから最新の記録を読む。観測したHEAD・branch・stateは `observations` に残る。確認が期限切れでもpushの成功は保持し、exit 2で照合待ちを示す。APIエラー・異なるbranch・閉じたPRは別の状態で停止する。`verify` を同じ記録で再開してもpushを実行しない。既存記録での `push` は拒否する。中断等で `push.status=started` が残る場合も、読取りで確認し、pushの終了状態を成功へ書き換えない。PR本文更新・返信・resolveは、公開確認後に既存の手順と `gh-review-thread` を使う。
+`publication.json` の `push` と `verification` は別の結果とする。同じ記録に対するpush・verifyは排他実行し、先行処理が終了してから最新の記録を読む。観測したHEAD・branch・stateは `observations` に残る。観測が0件の間は、誤指定したPR番号を同じ記録で訂正できる。観測後は照合先を固定し、別PRの履歴を混ぜない。確認が期限切れでもpushの成功は保持し、exit 2で照合待ちを示す。APIエラー・異なるbranch・閉じたPRは別の状態で停止する。`verify` を同じ記録で再開してもpushを実行しない。既存記録での `push` は拒否する。pushの実行上限は1800秒とし、超過時は成否不明の `started` を維持する。中断等で `push.status=started` が残る場合も、読取りで確認し、pushの終了状態を成功へ書き換えない。PR本文更新・返信・resolveは、公開確認後に既存の手順と `gh-review-thread` を使う。
 
 ## 自律 agent の peer 協働
 

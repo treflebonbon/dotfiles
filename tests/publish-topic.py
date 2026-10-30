@@ -173,12 +173,21 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.pushes, 1)
 
     def test_api_error_does_not_reclassify_push_as_failed(self):
-        self.answers = [subprocess.TimeoutExpired("gh", 1)]
+        errors = [
+            subprocess.TimeoutExpired("gh", 1),
+            FileNotFoundError("gh"),
+            subprocess.CalledProcessError(1, "gh"),
+        ]
         with patch.object(publication.subprocess, "run", side_effect=self.command):
             self.assertEqual(self.push(), 0)
-            self.assertNotEqual(self.verify(), 0)
-        self.assertEqual(self.receipt()["push"]["status"], "succeeded")
-        self.assertEqual(self.receipt()["verification"]["status"], "api_error")
+            for error in errors:
+                with self.subTest(error=type(error).__name__):
+                    self.answers = [error]
+                    self.assertNotEqual(self.verify(), 0)
+                    self.assertEqual(self.receipt()["push"]["status"], "succeeded")
+                    self.assertEqual(
+                        self.receipt()["verification"]["status"], "api_error"
+                    )
 
     def test_closed_pr_is_recorded_and_not_retried(self):
         self.answers = [self.observation(state="CLOSED")]
@@ -243,6 +252,24 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.pushes, 1)
         self.assertEqual(self.receipt()["push"]["status"], "started")
 
+    def test_push_timeout_preserves_unknown_state_and_allows_verification(self):
+        self.answers = [self.observation()]
+
+        def command(argv, **kwargs):
+            if Path(argv[0]).name == "git-push-topic":
+                self.assertEqual(kwargs.get("timeout"), 1800)
+                self.push_error = subprocess.TimeoutExpired(argv, kwargs["timeout"])
+            return self.command(argv, **kwargs)
+
+        with patch.object(publication.subprocess, "run", side_effect=command):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                self.push()
+            self.assertEqual(self.receipt()["push"], {"status": "started"})
+            self.assertEqual(self.verify(), 0)
+        self.assertEqual(self.receipt()["push"], {"status": "started"})
+        self.assertEqual(self.receipt()["verification"]["status"], "confirmed")
+        self.assertEqual(self.pushes, 1)
+
     def test_malformed_api_response_is_recorded_as_a_verification_error(self):
         self.answers = [{}, [], None, self.observation(headRefOid="invalid")]
         with patch.object(publication.subprocess, "run", side_effect=self.command):
@@ -253,12 +280,29 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.receipt()["push"]["status"], "succeeded")
 
     def test_record_cannot_be_retargeted_to_another_pr(self):
-        self.answers = [self.observation()]
+        self.answers = [self.observation(headRefOid="0" * 40), self.observation()]
         with patch.object(publication.subprocess, "run", side_effect=self.command):
             self.assertEqual(self.push(), 0)
-            self.assertEqual(self.verify(), 0)
-            with self.assertRaises(ValueError):
-                publication.verify(self.record, 8, 0)
+            for expected in (2, 0):
+                self.assertEqual(self.verify(timeout=0), expected)
+                with self.assertRaises(ValueError):
+                    publication.verify(self.record, 8, 0)
+
+    def test_pr_can_be_corrected_after_api_error_without_observations(self):
+        self.answers = [
+            subprocess.CalledProcessError(1, "gh"),
+            self.observation(url="https://github.com/fixture/repo/pull/8"),
+        ]
+        with patch.object(publication.subprocess, "run", side_effect=self.command):
+            self.assertEqual(self.push(), 0)
+            self.assertEqual(self.verify(), 1)
+            self.assertEqual(self.receipt()["verification"]["observations"], [])
+            self.assertEqual(publication.verify(self.record, 8, 0), 0)
+        self.assertEqual(self.receipt()["verification"]["pr"], 8)
+        self.assertEqual(self.receipt()["verification"]["status"], "confirmed")
+        self.assertEqual(len(self.receipt()["verification"]["observations"]), 1)
+        self.assertEqual(self.receipt()["push"]["status"], "succeeded")
+        self.assertEqual(self.pushes, 1)
 
     def test_publication_record_rejects_symlinked_directories(self):
         alias = self.root / "alias"

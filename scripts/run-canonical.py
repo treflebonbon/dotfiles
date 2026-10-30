@@ -76,7 +76,11 @@ def prepare(source, directory, hook):
             + "\n"
         )
         count = subprocess.check_output(
-            ["bats", "--count", "tests/"], cwd=source, env=environment, text=True
+            ["bats", "--count", "tests/"],
+            cwd=source,
+            env=environment,
+            text=True,
+            timeout=300,
         ).strip()
         if not count.isdecimal() or int(count) < 1:
             raise ValueError("source の Bats 件数が不正です")
