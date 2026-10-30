@@ -2,9 +2,9 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -22,8 +22,8 @@ REAL_RUN = subprocess.run
 
 class PublicationTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.root = Path(self.temporary.name)
+        self.root = publication.new_runtime("test-publication.")
+        self.addCleanup(shutil.rmtree, self.root)
         self.base = self.root / "base"
         self.base.mkdir()
         self.git(self.base, "init", "-q", "--initial-branch=main")
@@ -50,9 +50,6 @@ class PublicationTests(unittest.TestCase):
         self.answers = []
         self.push_status = 0
         self.push_error = None
-
-    def tearDown(self):
-        self.temporary.cleanup()
 
     def git(self, root, *args):
         return REAL_RUN(
