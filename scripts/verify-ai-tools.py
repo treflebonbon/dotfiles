@@ -62,6 +62,9 @@ def main():
     parser.add_argument("source", type=Path)
     parser.add_argument("--shell", choices=("default", "wsl"), default="default")
     parser.add_argument(
+        "--read-only", type=Path, help="後続コマンドが使う読み取り専用入力"
+    )
+    parser.add_argument(
         "--no-codex-build",
         action="store_true",
         help="Codex の既存 output または binary cache を使い、新規ビルドが必要なら停止する",
@@ -77,7 +80,9 @@ def main():
     runtime = new_runtime("ai-tools-")
     print(f"検証ログ: {runtime}", flush=True)
     try:
-        prefix = sandbox_prefix(source, runtime, Path(os.environ["HOME"]))
+        prefix = sandbox_prefix(
+            source, runtime, Path(os.environ["HOME"]), read_only=arguments.read_only
+        )
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         (runtime / "exit-code").write_text("1\n")
         print(f"REJECT: 書込み境界を準備できません: {error}", file=sys.stderr)

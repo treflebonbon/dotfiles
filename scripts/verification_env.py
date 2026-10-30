@@ -68,7 +68,9 @@ def create_environment(runtime: Path) -> dict[str, str]:
     return environment
 
 
-def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str]:
+def sandbox_prefix(
+    source: Path, runtime: Path, original_home: Path, *, read_only: Path | None = None
+) -> list[str]:
     if sys.platform != "linux":
         raise ValueError("書込み保護付き検証は Linux / WSL2 が必要です")
     launcher = shutil.which("bwrap")
@@ -120,6 +122,10 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
     writable = (source, common, git_dir)
     if any(path == original_home or path in original_home.parents for path in writable):
         raise ValueError("通常 HOME 全体への書込みは許可できません")
+    if read_only is not None:
+        read_only = read_only.resolve(strict=True)
+        if any(path.is_relative_to(read_only) for path in (*writable, runtime)):
+            raise ValueError("読み取り専用入力が必須の書込み先を覆っています")
     ownership = Path(os.path.abspath(_browser_ownership_dir()))
     if ownership == Path("/tmp"):
         raise ValueError("BROWSER_OWNERSHIP_DIR に /tmp 全体は指定できません")
@@ -138,14 +144,10 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
         "/",
         "--tmpfs",
         "/tmp",
-        "--dev",
-        "/dev",
-        "--proc",
-        "/proc",
-        "--bind",
-        str(scratch),
-        str(scratch),
     ]
+    prefix.extend(
+        ["--dev", "/dev", "--proc", "/proc", "--bind", str(scratch), str(scratch)]
+    )
     # /tmp を固定利用する CLI へ private 領域を与え、既存の所有権記録は隠さない。
     if ownership.is_relative_to("/tmp") and not ownership.is_relative_to(scratch):
         prefix.extend(["--ro-bind-try", str(ownership), str(ownership)])
@@ -158,6 +160,8 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
     )
     for path in writable:
         prefix.extend(["--bind", str(path), str(path)])
+    if read_only is not None:
+        prefix.extend(["--ro-bind", str(read_only), str(read_only)])
     prefix.extend(["--chdir", str(source), "--"])
     (runtime / "boundary.json").write_text(
         json.dumps(
@@ -167,6 +171,7 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
                 "writable_paths": [str(path) for path in writable],
                 "scratch": str(scratch),
                 "private_tmp": "/tmp",
+                "read_only_input": str(read_only) if read_only is not None else None,
                 "protection": "read-only-host-filesystem",
             },
             ensure_ascii=False,

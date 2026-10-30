@@ -77,11 +77,11 @@ WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`
 
 ### Claude plugin の実 CLI 再同期確認
 
-[verify-claude-plugin-sync.py](../scripts/verify-claude-plugin-sync.py) は固定 pin と一致する既存の公開 checkout を検証し、専用 HOME 内へ local clone して公式 CLI で導入する。管理 `settings.json` を render した後、verified receipt を使って2回再同期し、設定 bytes と現在の inventory・登録・payload を確認する。CLI の対話・モデル呼出し・ログインは行わず、元 checkout と通常 HOME の plugin 配備は変更しない。
+[verify-claude-plugin-sync.py](../scripts/verify-claude-plugin-sync.py) は固定 pin と一致する既存の公開 checkout を検証し、専用 HOME 内へ local clone して公式 CLI で導入する。専用 `/tmp` で隠れる checkout も read-only bind で引き継ぐ。外側の `verify-ai-tools.py` にも `--read-only` で同じ入力を渡す。入力が共有 scratch 内にあっても read-only を維持し、task worktree・Git metadata・runtime 全体を覆う入力は拒否する。管理 `settings.json` を render した後、verified receipt を使って2回再同期し、設定 bytes と現在の inventory・登録・payload を確認する。CLI の対話・モデル呼出し・ログインは行わず、元 checkout と通常 HOME の plugin 配備は変更しない。
 
 ```bash
 skills_checkout="$HOME/.cache/treflebonbon-skills/checkouts/$(jq -r .rev private_dot_config/nix-devshell/skills-plugin.json)"
-python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
+python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build --read-only "$skills_checkout" -- \
   python3 scripts/verify-claude-plugin-sync.py "$PWD" --checkout "$skills_checkout"
 ```
 

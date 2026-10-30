@@ -141,7 +141,10 @@ def main() -> int:
     record = new_runtime("claude-plugin-native.")
     print(f"検証ログ: {record}", flush=True)
     try:
-        prefix = sandbox_prefix(args.source, record, Path(os.environ["HOME"]))
+        checkout = args.checkout.resolve(strict=True)
+        prefix = sandbox_prefix(
+            args.source, record, Path(os.environ["HOME"]), read_only=checkout
+        )
         environment = create_environment(record)
         environment = {
             key: value
@@ -174,7 +177,7 @@ def main() -> int:
             WORKER,
             str(Path(__file__).resolve()),
             str(args.source.resolve()),
-            str(args.checkout.absolute()),
+            str(checkout),
             str(record),
         ]
         with (

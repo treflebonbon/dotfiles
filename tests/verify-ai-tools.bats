@@ -195,10 +195,13 @@ PY
 }
 
 @test "verification private tmp preserves existing browser ownership records read-only" {
+  local scratch="$BATS_TEST_TMPDIR/codex"
+  mkdir -m 700 "$scratch"
   run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc \
-    --tmpfs /tmp --bind /tmp/codex /tmp/codex \
+    --tmpfs /tmp --bind "$scratch" /tmp/codex \
+    --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" \
     --dir /tmp/verification-browser-records -- \
-    env BROWSER_OWNERSHIP_DIR=/tmp/verification-browser-records \
+    env HOME="$BATS_TEST_TMPDIR/original-home" BROWSER_OWNERSHIP_DIR=/tmp/verification-browser-records \
     python3 - "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" <<'PY'
 import os, subprocess, sys
 from pathlib import Path
@@ -234,6 +237,17 @@ PY
   [[ "$output" == *"BROWSER_OWNERSHIP_DIR"* ]]
 }
 
+@test "verification browser ownership fixture runs with default tmp and no shared scratch" {
+  run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc \
+    --tmpfs /tmp --dir /tmp/verification-fixture-home -- \
+    env HOME=/tmp/verification-fixture-home TMPDIR=/tmp \
+    bats --tap --filter '^verification private tmp preserves existing browser ownership records read-only$' \
+    "$BATS_TEST_FILENAME"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "verification bootstrap matches the selected public Git environment contract" {
   [ -n "${TREFLEBONBON_SKILLS_LIB:-}" ]
   run python3 - "$PROJECT_ROOT/scripts" "$TREFLEBONBON_SKILLS_LIB" "$BATS_TEST_TMPDIR/parity" <<'PY'
@@ -255,6 +269,14 @@ PY
 
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
+}
+
+@test "verification rejects read-only input covering its writable worktree" {
+  run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE" --read-only "$SOURCE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [[ "$output" == *"読み取り専用入力"* ]]
 }
 
 @test "AI candidate verification can require a prebuilt Codex before starting either shell" {

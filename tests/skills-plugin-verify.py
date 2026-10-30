@@ -329,15 +329,15 @@ class VerifyCheckoutTests(unittest.TestCase):
                 import json, os, shutil, sys
                 from pathlib import Path
                 args = sys.argv[1:]
+                if args == ["--version"]:
+                    print("2.1.312 (Claude Code)")
+                    sys.exit(0)
                 config = Path(os.environ["CLAUDE_CONFIG_DIR"])
                 state = config / "mock-marketplace-source"
                 log = config.parent / "claude-commands.jsonl"
                 plugin_id = "treflebonbon-skills@treflebonbon"
                 install_root = config / "plugins/cache/treflebonbon/treflebonbon-skills"
                 installed = config / "plugins/installed_plugins.json"
-                if args == ["--version"]:
-                    print("2.1.312 (Claude Code)")
-                    sys.exit(0)
                 with log.open("a") as stream:
                     stream.write(json.dumps(args) + "\\n")
                 if args[:3] == ["plugin", "marketplace", "add"]:
@@ -660,7 +660,13 @@ class VerifyCheckoutTests(unittest.TestCase):
 
     def run_native_acceptance(self, *, mode: str = "success"):
         cli = self.make_mock_claude()
-        if mode in ("rewrite-settings", "fail-repeat", "clean-environment"):
+        if mode in (
+            "success",
+            "rewrite-settings",
+            "fail-repeat",
+            "clean-environment",
+            "private-tmp-checkout",
+        ):
             text = cli.read_text()
             anchor = 'elif args[:3] == ["plugin", "list", "--json"]:\n'
             if mode == "rewrite-settings":
@@ -675,6 +681,21 @@ class VerifyCheckoutTests(unittest.TestCase):
                     "count = int(counter.read_text()) + 1 if counter.exists() else 1\n"
                     "counter.write_text(str(count))\n"
                     "if count == 3: sys.exit(75)\n"
+                )
+            elif mode in ("success", "private-tmp-checkout"):
+                checkout = (
+                    Path("/tmp/verification-public-checkout")
+                    if mode == "private-tmp-checkout"
+                    else self.root
+                )
+                injected = (
+                    "import errno\n"
+                    "try:\n"
+                    f"    Path({str(checkout / 'readonly-probe')!r}).write_text('changed')\n"
+                    "except OSError as error:\n"
+                    "    assert error.errno == errno.EROFS\n"
+                    "else:\n"
+                    "    raise AssertionError('checkout must be read-only')\n"
                 )
             else:
                 injected = 'assert "NATIVE_PARENT_ONLY" not in os.environ\n'
@@ -704,14 +725,67 @@ class VerifyCheckoutTests(unittest.TestCase):
         original.mkdir()
         sentinel = original / "sentinel"
         sentinel.write_text("preserved")
-        result = subprocess.run(
-            [
+        command = [
+            sys.executable,
+            str(PROJECT_ROOT / "scripts/verify-claude-plugin-sync.py"),
+            str(source),
+            "--checkout",
+            str(self.root),
+        ]
+        if mode == "private-tmp-checkout":
+            command[-1] = "/tmp/verification-public-checkout"
+            for tool in ("codex", "copilot", "agy", "apm", "herdr"):
+                entry = cli.parent / tool
+                entry.write_text("#!/bin/sh\nprintf 'fixture\\n'\n")
+                entry.chmod(0o755)
+            nix = cli.parent / "nix"
+            nix.write_text(
+                "#!/usr/bin/env python3\nimport json, os, sys\nfrom pathlib import Path\n"
+                "if sys.argv[1] == 'eval':\n"
+                "    print(json.dumps([{'name': name, 'version': 'fixture', "
+                "'path': str(Path(__file__).parent / name)} for name in "
+                "('claude', 'codex', 'copilot', 'agy', 'apm', 'herdr')]))\n"
+                "else:\n"
+                "    command = sys.argv[sys.argv.index('--command') + 1:]\n"
+                "    os.execvpe(command[0], command, os.environ)\n"
+            )
+            nix.chmod(0o755)
+            command = [
                 sys.executable,
-                str(PROJECT_ROOT / "scripts/verify-claude-plugin-sync.py"),
+                str(PROJECT_ROOT / "scripts/verify-ai-tools.py"),
                 str(source),
-                "--checkout",
+                "--read-only",
+                "/tmp/verification-public-checkout",
+                "--",
+                *command,
+            ]
+            command = [
+                "bwrap",
+                "--unshare-user",
+                "--unshare-pid",
+                "--ro-bind",
+                "/",
+                "/",
+                "--dev",
+                "/dev",
+                "--proc",
+                "/proc",
+                "--tmpfs",
+                "/tmp",
+                "--bind",
+                "/tmp/codex",
+                "/tmp/codex",
+                "--",
+                sys.executable,
+                "-c",
+                "import shutil, subprocess, sys; "
+                "shutil.copytree(sys.argv[1], '/tmp/verification-public-checkout'); "
+                "raise SystemExit(subprocess.call(sys.argv[2:]))",
                 str(self.root),
-            ],
+                *command,
+            ]
+        result = subprocess.run(
+            command,
             env={
                 **os.environ,
                 "HOME": str(original),
@@ -722,12 +796,21 @@ class VerifyCheckoutTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(sentinel.read_text(), "preserved")
+        output = result.stdout
+        if mode == "private-tmp-checkout":
+            roots = [
+                Path(line.removeprefix("検証ログ: "))
+                for line in output.splitlines()
+                if line.startswith("検証ログ: ")
+            ]
+            self.assertEqual(len(roots), 1, result.stderr)
+            output = (roots[0] / "startup.log").read_text()
         records = [
             line.removeprefix("検証ログ: ")
-            for line in result.stdout.splitlines()
+            for line in output.splitlines()
             if line.startswith("検証ログ: ")
         ]
-        self.assertEqual(len(records), 1, result.stderr)
+        self.assertEqual(len(records), 1, output + result.stderr)
         record = Path(records[0])
         evidence = json.loads((record / "result.json").read_text())
         return result, evidence
@@ -744,6 +827,20 @@ class VerifyCheckoutTests(unittest.TestCase):
             all(row["settings_bytes_preserved"] for row in evidence["repeated_syncs"])
         )
         self.assertEqual(evidence["pin"], self.pin)
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_reads_checkout_outside_shared_tmp_read_only(
+        self,
+    ) -> None:
+        result, evidence = self.run_native_acceptance(mode="private-tmp-checkout")
+        self.assertEqual(result.returncode, 0, evidence)
+        self.assertEqual(evidence["status"], "passed")
+        self.assertEqual(len(evidence["repeated_syncs"]), 2)
+        self.assertTrue(
+            all(row["settings_bytes_preserved"] for row in evidence["repeated_syncs"])
+        )
 
     @unittest.skipUnless(
         sys.platform == "linux", "requires Linux/WSL2 write protection"
