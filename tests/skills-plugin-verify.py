@@ -377,6 +377,16 @@ class VerifyCheckoutTests(unittest.TestCase):
                     }}))
                     print(json.dumps({action: True}))
                 elif args[:3] == ["plugin", "list", "--json"]:
+                    fault_path = config / "mock-inventory-fault"
+                    if fault_path.exists():
+                        fault = json.loads(fault_path.read_text())
+                        fault["remaining"] -= 1
+                        fault_path.write_text(json.dumps(fault))
+                        if fault["remaining"] == 0:
+                            if fault["mode"] == "exit":
+                                sys.exit(75)
+                            print(fault["mode"])
+                            sys.exit(0)
                     if not installed.exists():
                         print("[]")
                     else:
@@ -589,6 +599,42 @@ class VerifyCheckoutTests(unittest.TestCase):
             self.assertEqual(
                 (install / "README.md").read_text(), "tampered during inventory\n"
             )
+
+    def test_claude_inventory_verification_errors_do_not_start_repairs(self) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+            settings = config / "settings.json"
+            settings.write_text(
+                json.dumps(json.loads(settings.read_text()), indent=2) + "\n"
+            )
+            managed_bytes = settings.read_bytes()
+            log = home / "claude-commands.jsonl"
+            for mode in ("exit", "{", "{}", "[]"):
+                with self.subTest(inventory_failure=mode):
+                    before = len(log.read_text().splitlines())
+                    (config / "mock-inventory-fault").write_text(
+                        json.dumps({"remaining": 2, "mode": mode})
+                    )
+
+                    with self.assertRaises(sync_skills_plugin.PluginSyncError):
+                        sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+                    calls = [
+                        json.loads(line) for line in log.read_text().splitlines()[before:]
+                    ]
+                    self.assertEqual(calls, [["plugin", "list", "--json"]] * 2)
+                    self.assertEqual(settings.read_bytes(), managed_bytes)
 
     def test_claude_install_failure_keeps_existing_local_skill(self) -> None:
         cli = self.make_mock_claude()
