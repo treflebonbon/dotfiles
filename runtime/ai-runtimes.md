@@ -15,7 +15,7 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 - **ワークフロー**: herdr
 - **コードレビュー補助**: code-review-graph（CLI のみ常設、利用はリポジトリ単位で opt-in）
 
-外部 skill / plugin は apm と公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリを供給する。`treflebonbon-skills` の固定版は `~/.config/nix-devshell/skills-plugin.json` が所有し、共用 CLI と raw Codex 入口はこの pin の immutable source を検証して実行する。`sync-skills-plugin --verify-only` は同期を行わず、current pin・receipt・各 runtime 設定と cache を読み取り照合し、成功時に source path を JSON で返す。旧 CLI への復旧は既知の baseline と一致する backup だけを使う。raw 起動は固定 source が欠ける場合に停止する。
+第三者 skill / plugin は APM、`treflebonbon-skills` は固定版の公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリと dotfiles 固有の配線を供給する。固定版 pin は `~/.config/nix-devshell/skills-plugin.json` に一つだけ置き、共用 CLI・raw Codex 入口・browser 補助資産は同じ immutable source を使う。移行前 copy の撤去許可には、まず `sync-codex-managed-config --verify-only` で各 managed Codex home の exact current version cache grant と deny を現行 config から照合し、続けて `sync-skills-plugin --verify-only` で current pin、source snapshot、receipt、Claude Code・各 Codex home・Antigravity CLI の現在の inventory と payload を照合する。後者の成功 JSON `source` が検証済み source path であり、receipt の過去成功だけでは current install を証明しない。旧 CLI は既知の baseline と一致する固定 snapshot だけへ fallback し、raw 起動は固定 source が欠ける場合に停止する。移行・復旧・適用範囲は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を参照する。
 
 ## Herdr の手動利用
 
@@ -128,7 +128,7 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 `sync-codex-managed-config` は引数なしで5種類をまとめて同期する。配備先は常に `~/.codex`、存在する場合の `~/.codex-app`、明示された `CODEX_HOME`。config.toml は managed 値を優先してマージし、project trust やローカル state を保持する。他4種類は管理ファイルで置換する。置換で `~/.codex/hooks.json` に Orca が登録した hook も消える（confirmed、2026-10-23）。Orca の起動時に再登録されるのはユーザーの申告で、この repo では未観測（unconfirmed）。
 
-管理ソースまたは同期処理が変わったときに chezmoi の `run_onchange_after_codex-managed-sync.sh.tmpl` が実行する。配備先の手編集や `CODEX_HOME` の変更だけでは再実行されないため、修復・新しい配備先への同期は `sync-codex-managed-config` を明示実行する。Desktop の初回ログインも同じコマンドを使い、同期済みならログイン時の再同期を省く。
+管理ソースまたは同期処理が変わったときに chezmoi の `run_onchange_after_codex-managed-sync.sh.tmpl` が実行する。配備先の手編集や `CODEX_HOME` の変更だけでは再実行されないため、修復・新しい配備先への同期は `sync-codex-managed-config` を明示実行する。Desktop の初回ログインも同じコマンドを使い、同期済みならログイン時の再同期を省く。公開 Agent Skills の旧配備撤去もこの hook を使い、mutating 同期成功後に `sync-codex-managed-config --verify-only` → `sync-skills-plugin --verify-only` → `legacy_skills retire-known-skills` の順に処理する。path 指定 apply ではこの hook が対象にならないため、旧配備は保持される（詳細は [skill-harness](skill-harness.md)）。
 
 全配備先の出力生成と事前検証が成功してから、ファイルごとに原子的に置換する。失敗時は診断の `prepare` / `apply` と対象パスを確認する。`prepare` の失敗では既存ファイルを置換しない。`apply` 中の障害では成功済みの更新が残るため、原因修正後にコマンドを再実行して揃える。chezmoi 経由の失敗は次回 apply でも再試行する（[ADR-0051](../docs/adr/0051-sync-codex-managed-settings-as-a-set.md)）。
 

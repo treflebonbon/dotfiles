@@ -1,7 +1,7 @@
 ---
 type: concept
 title: Skill harness
-description: apm 経由の外部 skill 群、mattpocock 設計→実装ワークフロー、chezmoi 配布のローカル skill、playwright-cli、Claude Code plugin の多層管理
+description: apm 管理の第三者 skill、公開固定版 skill plugin、mattpocock 設計→実装ワークフロー、playwright-cli、runtime plugin 設定
 tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 ---
 
@@ -31,7 +31,7 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `improve-codebase-architecture` の report が挙動を「バグ」や「非一貫」と断定する前に、その挙動を固定する既存テストと上流の正規化を読み、正規化後にも反例が残るかを確認する。sub-agent の報告は未検証の主張として扱う。既存テストがあるだけで正しい挙動とは判定しない。
 - `improve-codebase-architecture` の提示済み候補について人が peer 協働による改善を明示依頼した場合、固定 plugin の `herdr-peer-refactor` / `orca-peer-refactor` で元候補を固定し、通常 session でも native worktree・peer 相談・独立レビュー・PR まで進める。人が選んだ候補と既存承認を引き継ぐ。選択を委任された場合は peer が提示済み候補から選び、その元候補を pin して進む。上流 skill の探索と人の回答を待つ `grilling` 自体は fork せず変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
 - 同 skill の HTML report は生成後に固定 plugin source の `skills/{herdr,orca}-peer-refactor/scripts/check-architecture-report.py` で静的構造を検査し、実ブラウザで `check-architecture-render.js` を実行してから提示する。source の場所は [契約案内](autonomous-peer-contract.md) から現在の pin に合わせて解決する。Mermaid は `<pre class="mermaid">` 内の raw text とし、nested tag・HTML comment・declaration・processing instruction を許さないが、`&lt;` 等の文字参照は許す。描画検査は入力図数、HTTP 成功応答、各 `.mermaid` container の SVG ちょうど1個、Mermaid の error marker、uncaught error、および console error を機械判定する。favicon.ico の取得失敗だけは console error の例外として除外し、それ以外の console error は提示・pin を止める。Orca 内蔵 page は `orca-cli`、この検証用の外部 browser は `playwright-cli` を使う。静的検査は実描画検査の代わりにならない。提示前に検査していない既存 report は、検査後に同じ artifact を提示し直してから pin する。Markdown artifact の従来経路は維持する。上流 skill と `grilling` 自体は fork・変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
-- `herdr` から Claude / Codex を起動する手順と既知の癖は [Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動) を正本とする。peer 協働の起動の詳細は `local-skills/herdr-peer-refactor/references/herdr.md` にある。
+- `herdr` から Claude / Codex を起動する手順と既知の癖は [Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動) を正本とする。peer 協働の起動の詳細は、[固定版 source の解決方法](autonomous-peer-contract.md)に従って `skills/herdr-peer-refactor/references/herdr.md` を参照する。
 - `find-skills` はインストール手順として `npx skills add -g -y` を案内するが、外部 skill は `apm.yml` / `apm.lock.yaml` 経由でのみ導入する。このコマンドは実行せず、追加候補は `apm.yml` への追記として提示する。
 - `pdf` の SKILL.md は `REFERENCE.md` / `FORMS.md` を指すが、実ファイルは小文字の `reference.md` / `forms.md`。小文字のファイルを読む。
 - `wizard` に書く CLI コマンドは、書く前に `--help` で対話プロンプトと設定ファイルの自動更新の有無を確かめ、それを止めるフラグを付ける（例: `wrangler r2 bucket create` には `--update-config=false`。付けないと、バインディングを設定へ追加するかを尋ね、了承すると repo の設定ファイルを書き換える）。人が wizard を実行し終えたら、`git status` と `git diff` を実行前と比べ、想定外のファイル変更が無いことを確かめる。
@@ -69,7 +69,9 @@ Worktree Entry Point は、対象 task worktree を確認して作業を始め�
 - **読み取り専用レビュー役の Codex**: Herdr などの pane で task worktree の差分をレビューさせる Codex は、その linked worktree を cwd にした shell から `codex-reviewer [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 auto は固定 plugin source の `skills/herdr-peer-refactor/references/auto-session.md` と `contracts/auto-peer-protection.md` にある専用 preflight と起動 wrapper だけを通す。source、専用 home、deny 設定、実効保護がいずれか未確認なら専用 auto を保留し、通常 session へ切り替えない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで足すので、`git status` / `git diff` / `git show` は使えるが、Git 書込みや別 worktree は扱えない。`herdr agent start --kind codex` や単なる `codex` では Git dir を読めない。秘密隔離は提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
 - **Claude Code / Codex**: Claude Code は `EnterWorktree`、Codex app は native worktree、Codex CLI の新規作成は導入版の `codex --help` に従い `--worktree` を使う。native 作成と隔離起動は別の責務。raw Codex の秘密隔離が必要な場合は、作成済み linked worktree で既存 `codex-worktree` を使い、その公開入力登録・trust・返却契約に従う。
 
-Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。worker/coordinator が複数行または shell 記号を含む `status` / `dispatch` 本文を送る場合は、配備された `orca-send`（source: `private_dot_local/bin/executable_orca-send.tmpl`、target: `~/.local/bin/orca-send`）へ `--cli <選択済み Orca 実行ファイル> --body-file <UTF-8本文ファイル> -- <native send 引数>` を渡す。これは選択済み CLI の `orchestration send --body <本文> ...` を shell なしで呼ぶ入口で、native ID・権限・送信結果の契約を保つ。本文のサイズ上限と argv 露出の制約は [literal message body](../local-skills/orca-peer-refactor/references/orca.md#literal-message-body) に従う。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。**ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に [worker readiness 手順](../local-skills/orca-peer-refactor/references/orca.md#worktree-readiness)（配備先: `~/.agents/skills/orca-peer-refactor/references/orca.md#worktree-readiness`）を行い、worker 観測と割当時に固定した期待値の照合成功を待つ。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外。**
+ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に固定版 public source の `skills/orca-peer-refactor/references/orca.md#worktree-readiness` を確認します。source root は [契約案内](autonomous-peer-contract.md) にある検証済み plugin JSON の `source` から解決し、worker 観測と割当時に固定した期待値の照合成功を待ちます。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要します。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外です。
+
+Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。worker/coordinator が複数行または shell 記号を含む `status` / `dispatch` 本文を送る場合は、配備された `orca-send`（source: `private_dot_local/bin/executable_orca-send.tmpl`、target: `~/.local/bin/orca-send`）へ `--cli <選択済み Orca 実行ファイル> --body-file <UTF-8本文ファイル> -- <native send 引数>` を渡す。これは選択済み CLI の `orchestration send --body <本文> ...` を shell なしで呼ぶ入口で、native ID・権限・送信結果の契約を保つ。本文のサイズ上限と argv 露出の制約は `skills/orca-peer-refactor/references/orca.md#literal-message-body` に従う。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。**ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に `skills/orca-peer-refactor/references/orca.md#worktree-readiness`（固定版 source は [契約案内](autonomous-peer-contract.md) の JSON `source` から解決する）を行い、worker 観測と割当時に固定した期待値の照合成功を待つ。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外。**
 
 Git 管理情報を解決できない場合は編集・Git 書込みを保留し、以下を区別する。
 
@@ -228,41 +230,19 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 この hook は stdin の `tool_input.file_path` と `$CLAUDE_PROJECT_DIR` の絶対パスを解決し、project 内の通常ファイル1件だけを project の `node_modules/.bin/ultracite fix <file>` へ渡す。実行 cwd は project に固定する。入力不正・対象なし・範囲外（外向き symlink を含む）・競合記号・対象ファイルの repo で merge/rebase 中・Git 状態の検査不能時はスキップする。local CLI がなければ取得せず、整形の失敗は無言で編集を継続する。user-global hook の追加や project 設定の自動書換えは行わない。
 
-## chezmoi 配布のローカル skill
+## dotfiles 管理の公開 skill plugin
 
-apm 外の user-scoped private skill は chezmoi で配布する。`local-skills/<name>/SKILL.md` の配置自体を配備対象の宣言とし、別の配備・保持一覧への登録は不要とする。ソースは `.chezmoiignore` で `~/` へ直接 deploy せず、`run_onchange_after_deploy-local-skills.sh.tmpl` が各ランタイムの skill dir へ `rsync` で materialize する:
+11件の Agent Skill、5つの共用 CLI、規範契約と WSL2 browser 資産の正本は公開 `treflebonbon/skills` repository にある。dotfiles の唯一の版選択は `~/.config/nix-devshell/skills-plugin.json` で、Claude Code、Codex、Antigravity CLI の公式 plugin 導入と端末固有の config / Nix / dispatch 配線を管理する。第三者 skill は APM から別途導入し、公開 payload を dotfiles に複製したり、独自の dependency resolver を追加したりしない。
 
-- `~/.agents/skills/<name>/` — 共有ハブ。Antigravity / Codex はここを直接読む
-- `~/.claude/skills/<name>/` — Claude
+`sync-codex-managed-config --verify-only` は current Codex config の exact cache path / grant / deny を照合し、続く `sync-skills-plugin --verify-only` は current pin、固定 checkout、`.git` を除いた source snapshot、receipt、全 runtime の現在の plugin inventory と payload を照合する。成功時の JSON `source` が検証済み source の起点であり、個別資産はそこから `skills/<name>/...`、`contracts/...`、`bin/...` を解決する。receipt に過去の成功が残るだけでは現在の導入や旧配備の撤去を許可しない。いずれかが失敗・未確認なら移行前コピーを保持する。詳細な受入 pin と移行契約は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を正本とする。
 
-Codex native location（`${CODEX_HOME:-~/.codex}/skills`）へは配備しない。Codex は `~/.agents/skills/` で同じ skill を既に発見でき、native location にも置くと `dogfood` などのローカル skill が二重表示されるため。過去に native location へ materialize された Matt managed real directory も cleanup で撤去する。
+移行対象は `dogfood`、`domain-modeling-studio`、`herdr-peer-refactor`、`marp`、`md-agents-review`、`md-claude-review`、`orca-peer-refactor`、`pr-screenshots`、`rop`、`ui-grill-with-docs`、`worktree-gc`。旧配備から撤去できるのは移行前 revision `6d5b73dd8b9c88531a74e724ca9d83fa34b44b35` の既知の内容に一致する明示対象だけである。unknown、変更済み、読取不能、symlink / special file、検査中に消えた項目や新規追加は、理由と path を残して保持する。対象外の user skill と APM 配備は維持する。旧 source が空または不在でも現行 plugin の導入・同期が成立する。
 
-cleanup → APM install / prune → ローカル配備の順序を維持する。cleanup と配備は `.chezmoitemplates/local-skills.sh.tmpl` / `local-skills.sh` の共通 module を実行用 script に展開し、同じ配備対象を保持する。HOME へ先に配備される helper には依存しない。APM の配備先にある Matt Pocock の managed full set は従来の `managed_apm_skills` allowlist で保持し、APM lock と独立した採用ゲートで照合する。
+共用 CLI は `git-push-topic`、`git-push-reviewed`、`gh-review-thread`、`orca-send`、`codex-reviewer`。`sync-skills-plugin --run-cli <name> -- <arguments>` は current public source の CLI を検証して起動し、利用できない場合も固定 legacy snapshot が hash・mode と manifest に一致するときだけその旧 CLI に fallback する。snapshot は `$XDG_STATE_HOME/treflebonbon-skills/legacy/<revision>/`（`XDG_STATE_HOME` 未指定時は `~/.local/state/` 配下）にあり、未知または壊れた snapshot を使わない。raw Codex entry は public source 欠損時に旧 implementation へ fallback しない。
 
-撤去・改名時は `.chezmoidata/local-skills.yaml` の `localSkills.retired` に旧名を追加し、該当するソースを撤去・改名する。明示した旧名は共有ハブ・Claude と旧 Codex native location から除く。配備履歴は保存せず、過去の配備先にも適用できるよう撤去対象の名前を残す。共有ハブの未知のディレクトリを一括削除する処理は追加しない。既存の Claude orphan cleanup と、旧 `writing-great-skills` などの APM 撤去処理は維持する。ただし、現在は APM 所有でない旧名を有効なローカル skill が再使用する場合、共有ハブ・Claude の配備は保持する。
+新 pin への更新では `skills-plugin.json` の owner / repo / 完全な rev / tree / version / NAR hash / file count を同じ受入済み source の値に揃える。移行時の `run_onchange_after_codex-managed-sync.sh.tmpl` hook は mutating な `sync-codex-managed-config` の成功後に、`sync-codex-managed-config --verify-only`、`sync-skills-plugin --verify-only`、`legacy_skills retire-known-skills` をこの順で実行する。二つの verifier は現在の Codex cache grant / deny と3 runtime の plugin inventory / payload を読み取り照合し、receipt の過去成功だけでは撤去 gate を通さない。両方成功後に限り、helper が current pin・旧 baseline・5つの live CLI shim と pinned CLI / module / APM lock 所有権を確認し、既知の旧 copy を file 単位で再確認して撤去する。空 directory だけを rmdir する。失敗・不明の path は理由とともに保持する。通常の `chezmoi apply` がこの hook を実行するため、受入後の live source で `chezmoi diff` を確認し、差分が意図した内容だけのときに通常 apply する。`chezmoi apply <配備先パス>` は hook を起動せず、旧 copy を残す。旧版へ戻す場合は、過去に受け入れた pin record 全体を復元して通常の公式同期と両 read-only 検証を行う。専用 auto の保護設定、有効化、資格情報は自動変更しない。実効状態が未確認ならその起動を保留する。
 
-template 展開時に、ソースルート・各 skill の `SKILL.md`・名前の形式・配備対象と撤去対象の重複・APM の実配備先名との衝突を検査する。作業途中の skill は `local-skills/` の外に置き、APM 所有の名前をローカル配備で上書きしない。置換は配備先単位とし、途中失敗時は旧内容を保護するが、成功済みの更新は残る。修復後の再実行で両配備先を揃える。
-
-**独立 plugin への移行準備**（[ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md)、Issue #541）では、対象11件の移行前 revision、ファイルの内容と permission、directory の permission を `.chezmoitemplates/local-skills-legacy.json` に固定する。対象の既存コピーに変更・追加・欠損・symlink がある場合は、差分の項目と理由を示して上書きを保留する。旧 Codex native location の対象11件も保持し、全 runtime の導入確認前には撤去しない。所有者を確認できない Claude の実 directory と symlink は保持し、APM の既知の配布・撤去対象の管理は継続する。
-
-同じ準備処理は、既知の旧 CLI 5入口と必要な共用 module を、既存の配備内容と照合して `$XDG_STATE_HOME/treflebonbon-skills/legacy/<revision>/`（未指定時は `~/.local/state/` 配下）へ一度だけ保存する。比較基準も同じ場所に保存し、後続の切替・復旧から参照できるようにする。未知の CLI は変更せず、保存済みの内容が不正なら処理を停止する。固定した比較基準と復旧資産を新版の source に合わせて更新しない。この段階では plugin の導入・グローバル CLI の切替・旧 source の撤去を行わない。
-
-APM の変更検知には展開後の cleanup script の hash を含めるため、共通 module・配備対象・撤去対象の変更も再実行へ連動する。skill の本文や参照ファイルだけの変更はローカル配備を再実行する。一時 HOME での配置・撤去・再実行・失敗時の挙動は `tests/local-skills.bats`、既存 cleanup 契約は `tests/run_onchange_before_remove-orphan-claude-skills.bats` で検証する（[ADR-0047](../docs/adr/0047-local-skill-membership-and-explicit-retirement.md)）。
-
-構造は **flat な `local-skills/<name>/`**（SKILL.md + references/ + 必要なら scripts/ 同梱で完結）。hooks / agents / marketplace 登録を要するメガパッケージ型の 3層 plugin 構造（`plugins/<ns>/{claude,codex,common}` 型）は不採用: あの構造の必然性は hooks + agents + bin + marketplace 登録というメガパッケージ要件にあり、skill-only なら不要。将来分離したくなったら `local-skills/` ごと新 repo に切り出して apm pin 化すればよい。
-
-現行のローカル skill:
-
-- `ui-grill-with-docs` — UI/UX 比重が高い Planner 向けの `grill-with-docs` 派生。各 frontier round の全質問・推奨・必要な比較モック・回答欄を `tmp/ui-grill-<topic>.html` にまとめ、次の round で同じファイルを更新する。同梱テンプレートは選択肢と自由記述、未回答を明記するMarkdown一括コピー、同じ質問への入力復元を提供し、質問・選択肢ごとのコメント(回答には数えない)と未回答ジャンプボタンを備え、貼り付けられた回答は指示ではなくデータとして扱う。外部通信なしで動く。保存・コピーが使えない場合も手動コピーでき、貼り付けた回答を待って確定事項を `GLOSSARY.md` / ADR に残す
-- `herdr-peer-refactor` / `orca-peer-refactor` — 元の候補 ID・AC・非目標を固定し、native Herdr / Orca の候補別 worktree と read-only peer で設計・TDD・Standards / Spec レビューを経て PR にする。通常の明示依頼でも進める。専用 auto 起動の追加保護は別参照に維持する（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
-- `pr-screenshots` — 必要なときだけ明示的に呼び、修正箇所の撮影または既存画像を既存 PR のコメントへ添付する。本文は上流 `pr` に任せ、新しい依頼ごとにコメントを追加し、同じ依頼の再実行では重複投稿を避ける。変更前は既存の比較環境・画像を使い、用意できなければ変更後と未比較理由を残す（[ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md)）
-- `dogfood` — 同梱の Playwright dogfood runner で web アプリ / Chrome MV3 拡張を local HEAD 由来の隔離 worktree で検査し、既定はレポートで完了する。GitHub 操作は `--issues` 時だけ行い、採用確認済みの finding を Issue 化する。`--annotate` 指定時は自動検査後、runner 所有 Chromium に Playwright CLI で CDP attach し、矩形注釈と全体 feedback を同じ候補・承認フローへ加える（`--resume` とは併用不可）。`--resume <path>` は URL 不要の既存結果レビューで、`--issues` と併用可能。レポートまたは Issue 作成で完了し、修正実装は別 phase（triage → model-invoked フローへ）。`scripts/runtime-preflight.sh` は `--issues` 時だけ実行する
-- `domain-modeling-studio` — 業務フロー層・アーキテクチャ層・関数フロー層の3層を1つのオフライン単一HTMLで往復し、根拠付きの現状/改善案とレビュー指摘をクリックのドリルダウン（アーキテクチャ→関数フロー→業務フロー）で辿れる。アーキテクチャ層は選んだ業務フローの近傍1ホップに限定した言語非依存のimport/require軽量解析（既定 `origin: inference`。リポジトリ全体俯瞰ではなく近傍スコープを選んだ判断は[ADR-0062](../docs/adr/0062-scope-architecture-layer-to-neighborhood.md)）。関数フロー層はROP意味論（成功/失敗/回復/バイパス/終端/型外の異常）で、TypeScript Effectはast-grep抽出ヘルパー（`status: ok/unavailable/failed`を区別しフォールバックはソース読解）、Rust等はソース読解のみ（旧`rop-visualizer`を統合退役し継承、[ADR-0061](../docs/adr/0061-retire-rop-visualizer-into-domain-modeling-studio.md)）。生成物(HTML)の閲覧はランタイム依存なし、生成自体はNode、TypeScript関数フロー層の根拠収集だけPython + ast-grep（既存devShell配備済み）を要する
-- `marp` — markdown を Marp CLI で PDF スライド化（marp-cli は nix devshell 配備済み）
-- `md-agents-review` — AGENTS.md / Codex rules の対話式レビュー（trim / progressive disclosure）
-- `md-claude-review` — プロジェクト CLAUDE.md の対話式レビュー（humanlayer ベストプラクティス基準）。文言判定は実行モデルに合わせ、`claude-api` の `prompt-audit` に委譲し、使えない場合は best-practices ページを確認する代替手順に切り替える。評価用の `evals/`（シナリオとフィクスチャ）も他の同梱物と同じく rsync で配備される
-- `rop` — Railway Oriented Programming の two-track パターン強制（Elixir / Gleam / Rust / Effect-TS の言語別 references 同梱）
-- `worktree-gc` — 緊急時（fd/inotify 枯渇）の repo-local worktree 手動 GC。`scripts/worktree-gc.sh` 同梱。SessionStart 自動 GC hook は持ち込まない（手動起動のみ）
+peer 協働や browser 資産の共通契約は public pin が正本。source path は `sync-skills-plugin --verify-only` の JSON から解決し、`local-skills/` の旧 source copy を参照元にしない（[契約案内](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
 
 ### 解析不能 Bash コマンドの確認（現在は不要）
 
@@ -312,8 +292,8 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 
 プラグインは「配置（物流）」と「runtime 有効化」を別レイヤーで管理する:
 
-- `apm.yml` — 外部 plugin / skill の取得（hook を持たない外部 skill-only は apm 経由）
-- **chezmoi ローカル skill** — apm 外の user-scoped private skill（上記「chezmoi 配布のローカル skill」）。マルチランタイムへ materialize する自作 skill はこの経路
+- `apm.yml` — 第三者の外部 plugin / skill の取得（自作の公開 `treflebonbon-skills` は固定版 plugin 同期で管理）
+- **`treflebonbon-skills`** — 11件の skill と共用資産を公開固定版から Claude Code / Codex / Antigravity CLI の公式 plugin 経路へ同期する。pin と runtime-specific な設定・dispatch は dotfiles が所有し、payload の source は公開 repository が所有する（上記「dotfiles 管理の公開 skill plugin」、[ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md)）
 - `settings.json` `enabledPlugins` — runtime 有効化フラグ。hook を含む plugin（`security-guidance` / LSP 群 / `codex` / `ponytail`）はここで有効化する
 - `settings.json` `extraKnownMarketplaces` — 外部 marketplace 宣言（`openai-codex` / `ponytail`、[ADR-0058](../docs/adr/0058-adopt-ponytail-plugin.md)）
 

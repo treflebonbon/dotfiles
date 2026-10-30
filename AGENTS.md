@@ -17,9 +17,9 @@ flake devShell は、リポジトリ編集用の `./flake.nix` と、汎用ラ�
 
 ## Skill 配布経路の選択
 
-- 外部 skill / plugin は `apm.yml` / `apm.lock.yaml`
-- user-scoped private skill は `local-skills/<name>/`
-- CLI バイナリは nix devshell
+- 11件の Agent Skill と共用 CLI・契約・browser 資産の正本は公開 `treflebonbon/skills`。dotfiles の固定 pin は `private_dot_config/nix-devshell/skills-plugin.json`、導入確認は `sync-skills-plugin` が担う。
+- 第三者 skill は `apm.yml` / `apm.lock.yaml` から別途導入する。独自依存 resolver や payload の dotfiles 内コピーを追加しない。
+- dotfiles は固定版の選択、runtime ごとの公式導入・設定、Nix / 端末固有の配線、移行前コピーの安全な撤去を所有する。契約と復旧は [ADR-0082](docs/adr/0082-extract-local-skills-to-public-repository.md) と `runtime/skill-harness.md` を読む。
 
 配備先や lock 再生成手順を変更する前に `runtime/skill-harness.md` を読む。Codex 固有設定は `private_dot_config/codex/` を編集し、配備と `$CODEX_HOME` への同期は `docs/architecture.md` の編集・配備ルールに従う。
 

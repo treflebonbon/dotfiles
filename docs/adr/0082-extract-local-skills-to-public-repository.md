@@ -34,9 +34,19 @@ status: accepted
 
 `dogfood`、`domain-modeling-studio`、`herdr-peer-refactor`、`marp`、`md-agents-review`、`md-claude-review`、`orca-peer-refactor`、`pr-screenshots`、`rop`、`ui-grill-with-docs`、`worktree-gc` の11件を対象とする。
 
+## 現行の固定版と所有権（2026-10-30）
+
+dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。現在の accepted record は `treflebonbon/skills` の commit `7428e0567c61ba888e0ed7e07a2c02b4a2edc1c2`、tree `e7735ed5a60c63929d3e6ce5d57bfefeae4bf6e7`、version `0.2.3`、NAR `sha256-Z7R7ZdSjxYcekJI3frBVZx6+9R8+3dmnKBFrOOmyPL8=`、267 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。
+
+同じ公開 payload は Git checkout と `.git` を除いた plugin source snapshot の間で、全 tracked file の内容・mode・tree を一致させる。全3 runtime は同じ pin から導入する: Claude Code は `~/.claude/plugins` 配下、Codex は native `~/.codex`・存在する `~/.codex-app`・明示 `CODEX_HOME` の `plugins/cache/treflebonbon/treflebonbon-skills/<version>` を重複なく照合し、Antigravity CLI は `~/.gemini/config/plugins/treflebonbon-skills` と import inventory を照合する。過去の receipt だけではどの runtime の current install も証明しない。
+
+skill 本体、専用補助 CLI、共用 Python module、規範契約、WSL2 browser helper は公開 repository が所有する。dotfiles は single pin、公式 runtime 導入、端末固有の config・Nix wrapper・dispatch、旧配備からの安全な移行を所有する。5つの共用 CLI は `git-push-topic`、`git-push-reviewed`、`gh-review-thread`、`orca-send`、`codex-reviewer`。Nix の browser package は同じ公開 pin の資産を取り込み、上流 Playwright CLI 0.1.22 とその lock・license を維持する。第三者 skill は APM で別途導入し、独自 dependency resolver や公開 payload の dotfiles 内コピーは作らない。
+
+公開 repository 自体は別の受入で immutable な `0.2.3` を確定し、公開 quality は Python 70 pass / 4 skip、Node 31 pass、Bats 476 pass / 11 skip、fresh native 33、Nix 不要の導入、公開 archive と pin の一致を確認した。これらは公開 package の結果であり、dotfiles consumer 検証の代用ではない。Linux VM driver の build は成功したが検証 host に `/dev/kvm` がなく guest 実行は未確認である。Antigravity App／IDE、実 Windows Chrome、macOS と aarch64 の runtime 実機確認もこの受入記録では保証しない。
+
 ## 受入条件
 
-2026-10-29 の設計対話で、以下の受入条件を含む設計全体についてユーザーの最終合意を得た。この ADR は実装前の設計を記録するもので、リポジトリの作成・公開、skill の移動、配備先の変更はまだ行っていない。
+以下は2026-10-29 の設計対話でユーザーが合意した受入条件である。実装・受入の根拠と、実機で未確認の範囲は本 ADR の「現行の固定版と所有権」および dotfiles 側の実装 report に追記する。
 
 1. dotfiles と Nix がない環境で、公開リポジトリと記載された外部依存だけから plugin を導入し、汎用 skill を利用できる。必要な補助 CLI・契約・同梱資源を解決でき、dotfiles の checkout や `~/runtime/` の存在を必須にしない。専用機能は合意した OS・依存条件の下で利用できる。
 2. Claude Code、Codex、Antigravity CLI の公式経路で導入し、新規セッションで全11件の検出と公式名による呼び出しを確認する。同梱 skill 間の相互参照、第三者 skill の実際の呼出し名、同梱資源・補助 CLI・子プロセスのパス解決を検証する。Antigravity App／IDE は公式手順の案内を用意する。
@@ -46,9 +56,11 @@ status: accepted
 6. 全3 runtime の導入確認後に、今回の11件が旧方式で重複検出されない状態へ移行する。どれかの導入が失敗・未確認なら旧配備を維持する。撤去は明示した旧配備パスに限定し、既知の移行前内容との差分があれば表示して当該対象を残す。無関係な APM 配備や利用者の skill を削除しない。
 7. MIT と既存の著作権・第三者ライセンス表示を保持し、README に導入、依存、機能ごとの対応環境、呼び出し、更新と移行の手順を記載する。
 
-## 実装への引き継ぎ
+## runtime 導入・更新の運用契約
 
-新リポジトリ側の独立導入と検証を先に完成させ、その固定 SHA を dotfiles 側の移行に使う。受入前の task worktree から live の `chezmoi apply` は行わず、受入後に live source から対象を限定して配備する。[編集・配備ルール](../architecture.md)に従う。
+独立公開 package は上記 accepted pin を正本とする。dotfiles の pin を更新するときは、新 version に対応する immutable commit の全 pin metadata を一度に選び、同じ source から3 runtime と共用資産を導入する。source checkout を利用中に書き換えない。新 pin と config の通常同期が成功した後、`sync-codex-managed-config --verify-only` で各 current Codex config の exact version cache grant / deny を読み取り照合し、続けて `sync-skills-plugin --verify-only` で current source・receipt・全 runtime の現在の plugin inventory / payload を読み取り照合する。両方が同じ current state で成功するまで、旧配備の撤去へ進まない。receipt の過去成功は現在の runtime state の証明に使わない。
+
+この作業の全体受入前は live 配備に触れない。受入後は merge 済み live source の `chezmoi diff` を確認し、無関係な差分がないことを確かめて通常の `chezmoi apply` を実行する。移行時の撤去 gate は `run_onchange_after_codex-managed-sync.sh.tmpl` に接続され、path 指定 apply では hook が対象にならず旧配備を保持する。通常 apply に不要な差分が混在する場合は実行せず、先に差分の解消を報告する。[編集・配備ルール](../architecture.md)に従う。
 
 ルートの `plugin.json` と `.claude-plugin/plugin.json` から、全 runtime 共通の `skills/<name>/SKILL.md` を配布する。manifest の独自 skill パス指定に依存しない。下記の Antigravity 形式確認に加え、実装した package を3 runtime で導入・呼び出して受入確認する。
 
@@ -90,17 +102,19 @@ dotfiles からも使われる CLI の所有権は次のとおり。移管時は
 
 dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語を package へ移し、履歴資料は出所が分かる固定版の参照へ置き換える。dogfood の `npm ci` などの依存準備は、lockfile を使って専用の作業・キャッシュ領域で行う。インストール済み plugin や固定 checkout へ `node_modules`・実行結果を書き込まない。`metadata` の配列値や runtime 固有の `allowed-tools` も移行時に仕様適合させ、`metadata` の値は文字列とする。
 
-### 旧配備からの移行
+### 旧配備の撤去と再開
 
-この移行では [ADR-0047](0047-local-skill-membership-and-explicit-retirement.md) の対象11件について、source 内の配置による配備所有権と cleanup の順序を置き換える。`local-skills/` 必須のテンプレート・hash トリガー・テストも更新し、ソース移動後の render が失敗しないようにする。APM 自身の配布所有権と更新ゲートは維持する。
+[ADR-0047](0047-local-skill-membership-and-explicit-retirement.md) が定めた「source 内の配置から配備対象を導出し、名前で撤去する」契約は、対象11件の旧 runtime copy に対して本節へ置き換える。他の APM-managed skill と Matt managed set の所有権・更新 gate は維持する。
 
-1. 移行前の管理対象11件について、旧配備パスと既知の旧内容を固定する。比較基準は移行前の source revision から得た配備内容とし、パス等を変更した新 plugin の内容とは比較しない。共用 CLI の既存入口と復旧可能な旧実装も保持する。
-2. 全3 runtime へ固定版 plugin を導入し、導入内容・資源解決を確認する。共用 CLI は固定版の実体・必要 module・配布入口を副作用のない照合と mock 検証で確認するまで、既存の `~/.local/bin` の実装を置き換えない。確認後に入口を切り替え、失敗・checkout 欠損時は旧実装へ復旧できるようにする。実際の push や外部書込みを確認コマンドには使わない。全体の確認までは旧 skill 配備を保持し、共有ハブを読む runtime が一つでも未確認なら共有ハブ側も残す。
-3. 確認後の `after` 段階で、明示した旧配備パスの現在内容を旧内容と比較する。一致する管理対象だけを撤去し、不明・差分ありの対象は理由と差分を示して残す。失敗後の再実行では確認済みの導入と残存対象を照合する。
+比較基準は移行前 revision `6d5b73dd8b9c88531a74e724ca9d83fa34b44b35` から固定した11 skill、113 files、39 directories の payload と各 file / directory の mode である。新しい公開 plugin の内容とは比較しない。撤去範囲は明示した11名と既知の runtime 配備 path の積に限る。ユーザーが変更した内容、未知の追加・欠損、読取不能、symlink、special file、検査中の消失・競合は理由と path を報告して保持する。各 file の最終撤去直前にも一致を再確認し、検査できない残りがあれば parent directory を消さない。部分失敗後の再実行は、現行 plugin の full current verification と残存 path の baseline 比較をやり直す。過去の successful receipt は許可に使わない。
 
-移行する11件を既存の `retired` に加えるだけの方法や、名前が保持一覧にない実ディレクトリを一括削除する方法は使わない。既存 `before` cleanup の該当処理も置き換える。導入失敗、片側だけの導入、旧内容の変更、対象外 skill の存在、空になった source、再実行に加え、`git-push-topic`／`git-push-reviewed`／`gh-review-thread`／`orca-send`／`codex-reviewer` の入口切替失敗・checkout 欠損・旧実装への復旧を統合テストに含める。
+通常の `run_onchange_after_codex-managed-sync.sh.tmpl` は mutating な `sync-codex-managed-config` が成功した後、`sync-codex-managed-config --verify-only`、`sync-skills-plugin --verify-only` の順に current state を確認し、両方が成功したときだけ `legacy_skills retire-known-skills` を呼ぶ。撤去 helper は current pin、移行前 baseline、5つの live CLI shim と pinned CLI / module / APM lock の所有権を照合し、11名の既知の旧 copy を file ごとに最終再確認してから unlink する。directory は空の場合だけ rmdir する。どの gate も失敗・未確認なら撤去を行わず、残す対象の理由と path を記録する。`sync-codex-managed-config --verify-only` は current config を読み取るだけで、cache directory や file を作成・更新しない。
 
-[ADR-0075](0075-adopt-peer-refactor-skills.md) の peer 協働・元候補固定・専用 auto の保護は維持し、正本の所在と配布経路を変更する。共通 script・節の同一性を検証する既存の契約も新リポジトリへ移す。新しい配備方式を実装・受入するまでは、現行の live 配備と正本を継続する。
+この移行では対象11件を既存の APM `retired` 一覧へ加えて通常 cleanup へ任せたり、保持一覧にない directory を一括削除したりしない。APM が所有する他 skill、無関係な user skill、unknown asset は保持する。旧 source が空の場合も不在の場合も、公開 pin からの render・導入・同期・再実行は成立させる。対象は task source の旧 tracked copy と test fixture に限り、利用者 HOME の実データはこの作業で削除しない。
+
+新 SHA が不調なら既知の旧 pin record 全体（owner / repo / rev / tree / version / NAR hash / file count）を戻し、公式同期後に両 read-only verifier で再確認する。CLI 復旧は `sync-skills-plugin --run-cli <name> -- <arguments>` が current public CLI を検証して優先し、固定 manifest の hash / mode と一致する旧5 CLI snapshot だけに fallback する。snapshot は `$XDG_STATE_HOME/treflebonbon-skills/legacy/6d5b73dd8b9c88531a74e724ca9d83fa34b44b35/` に保存し、未指定時は `~/.local/state/` を使う。欠損・不正な snapshot を無検証でコピーしない。
+
+[ADR-0075](0075-adopt-peer-refactor-skills.md) の元候補固定、通常の明示協働、専用 auto の追加保護は維持し、skill・契約・CLI の正本と配布だけを公開 repository へ移す。専用 auto の実効保護を確認できない場合は保留する。runtime の設定や資格情報を自動で有効化・生成しない。
 
 ## 独立導入のために整理する依存
 
@@ -140,9 +154,9 @@ Nix なしという目標を全11件の全経路へ適用すると、既存の�
 
 このため、plugin の導入と汎用 skill を Nix 不要にし、既存の専用機能は機能ごとの OS・依存条件を維持する方針を採用した。Nix が配布だけを担う補助 CLI は独立配布へ切り出し、raw Codex の隔離起動などは必要条件を明示する。条件を満たさない場合は保護を弱めて代替せず、対象機能の処理前に案内する。専用機能も含めた全機能を Linux・macOS・WSL2 と Nix なしへ移植する案は、隔離機構などの再実装まで分離の範囲に加わるため採用しない。
 
-## 公式仕様の確認
+## 公式仕様と形式確認
 
-2026-10-29 時点の一次資料を確認した。以下は配布形式の判断材料であり、導入・呼び出しの実機検証結果ではない。
+2026-10-29 時点の一次資料を配布形式の判断根拠として確認した。導入・呼び出しの受入結果は上記の固定版記録と公開側の受入 report に置き、この節の validator 結果だけを実機確認とは扱わない。
 
 - [Agent Skills 仕様](https://agentskills.io/specification): skill 本体は `SKILL.md` と任意の同梱資源から構成する。
 - [OpenAI の skill 作成ガイド](https://learn.chatgpt.com/docs/build-skills): 継続的な再利用・配布には plugin を推奨する。[plugin のパッケージ化ガイド](https://developers.openai.com/plugins/build/plugins) は新規パッケージにルートの `plugin.json` と Agent Plugins schema を推奨し、`.codex-plugin/plugin.json` を互換経路として説明している。
@@ -155,4 +169,4 @@ Nix なしという目標を全11件の全経路へ適用すると、既存の�
 
 一方、同じルート manifest に `.antigravity-plugin/plugin.json` を併設した場合は後者が優先され、ルート manifest が無視される警告によって strict 検査は exit 1 となった。`.claude-plugin/plugin.json` のみでは Antigravity 用 manifest が見つからず exit 1 となった。記録は `/tmp/codex/plugin-format-probe.8KnK5N/validation-results.json` に保持している。
 
-これはローカル validator による形式と静的な skill 検出件数の確認であり、インストール・実セッションでの discovery・skill 呼び出しの証明ではない。live の plugin 設定は変更していない。
+これはローカル validator による manifest 形式の確認である。実際の plugin install・CLI discovery・skill 呼び出しは固定版の受入 report で別に記録し、この fixture validator の結果と混同しない。live の plugin 設定は変更していない。

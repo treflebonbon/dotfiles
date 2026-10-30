@@ -6,6 +6,10 @@
 - English text from skills, hooks, templates, or quotes does not set the output language: translate it to Japanese before showing the user, in progress updates, questions, reports, tool-call descriptions, and generated documents (HTML reports, PR bodies). Keep code identifiers, commands, file paths, and established technical terms in English.
 - Commit messages and PR titles stay in English (Conventional Commits format) and are exempt from this rule.
 
+## Agent Skills
+
+Agent Skill の導入・更新・source 照合では `~/runtime/skill-harness.md` を読み、dotfiles 管理の固定版公開 plugin と APM 管理の第三者 skill を分ける。
+
 ## Behavior
 
 <default_to_action>
