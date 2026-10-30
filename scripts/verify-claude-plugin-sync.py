@@ -39,6 +39,7 @@ def probe(source: Path, checkout: Path, record: Path) -> int:
         pin = module.load_pin(
             source / "private_dot_config/nix-devshell/skills-plugin.json"
         )
+        result["pin"] = pin
         module.verify_checkout(checkout, pin)
         cached = module.cache_root() / pin["rev"]
         cached.parent.mkdir(parents=True)
@@ -58,6 +59,11 @@ def probe(source: Path, checkout: Path, record: Path) -> int:
         config.mkdir(mode=0o700)
         os.environ["CLAUDE_CONFIG_DIR"] = str(config)
         os.environ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
+        cli = module.resolve_cli("claude")
+        result["cli_path"] = str(cli)
+        result["cli_version"] = module.cli_version(
+            "claude", cli, module.cli_environment()
+        )
         installed = module.sync_claude(cached, snapshot, pin)
         receipt = {
             "schema_version": 1,
@@ -86,6 +92,8 @@ def probe(source: Path, checkout: Path, record: Path) -> int:
         settings.write_bytes(rendered)
         expected = module.tracked_tree(cached)
         for iteration in (1, 2):
+            step = {"iteration": iteration, "status": "failed"}
+            result["repeated_syncs"].append(step)
             installed = module.sync_claude(
                 cached, snapshot, pin, previous_verified=receipt
             )
@@ -93,16 +101,14 @@ def probe(source: Path, checkout: Path, record: Path) -> int:
                 cached, snapshot, pin, expected
             )
             preserved = settings.read_bytes() == rendered
-            result["repeated_syncs"].append(
-                {
-                    "iteration": iteration,
-                    "settings_bytes_preserved": preserved,
-                    "version": verified["version"],
-                    "files": verified["files"],
-                }
+            step.update(
+                settings_bytes_preserved=preserved,
+                version=verified["version"],
+                files=verified["files"],
             )
             if not preserved:
                 raise ValueError("再同期で管理 settings.json の bytes が変化しました")
+            step["status"] = "passed"
             receipt["results"]["claude"] = installed
         result.update(
             status="passed",
@@ -114,6 +120,8 @@ def probe(source: Path, checkout: Path, record: Path) -> int:
         )
     except Exception as error:
         result["error"] = str(error)
+        if result["repeated_syncs"]:
+            result["repeated_syncs"][-1]["error"] = str(error)
     (record / "result.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     )
@@ -135,6 +143,28 @@ def main() -> int:
     try:
         prefix = sandbox_prefix(args.source, record, Path(os.environ["HOME"]))
         environment = create_environment(record)
+        environment = {
+            key: value
+            for key, value in environment.items()
+            if key
+            in {
+                "PATH",
+                "HOME",
+                "XDG_CONFIG_HOME",
+                "XDG_DATA_HOME",
+                "XDG_RUNTIME_DIR",
+                "XDG_CACHE_HOME",
+                "XDG_STATE_HOME",
+                "TMPDIR",
+                "LANG",
+                "LC_ALL",
+                "NIX_LD",
+                "NIX_LD_LIBRARY_PATH",
+                "SSL_CERT_FILE",
+                "SSL_CERT_DIR",
+                "NIX_SSL_CERT_FILE",
+            }
+        }
         command = [
             *prefix,
             sys.executable,

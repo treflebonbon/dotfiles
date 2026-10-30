@@ -28,8 +28,15 @@ def new_runtime(prefix: str) -> Path:
     return Path(tempfile.mkdtemp(prefix=prefix, dir=SCRATCH_ROOT))
 
 
+def _git_environment() -> dict[str, str]:
+    # Nix 前の bootstrap なので公開 package を import せず、固定版との同一性をテストする。
+    return {
+        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+    }
+
+
 def create_environment(runtime: Path) -> dict[str, str]:
-    environment = os.environ.copy()
+    environment = _git_environment()
     if not environment.get("BROWSER_OWNERSHIP_DIR"):
         environment["BROWSER_OWNERSHIP_DIR"] = str(
             Path(
@@ -83,9 +90,7 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
         raise ValueError("検証用の一時領域が不正です")
     source = source.resolve(strict=True)
     original_home = original_home.resolve(strict=True)
-    git_env = {
-        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
-    }
+    git_env = _git_environment()
     git_env.update(
         GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0"
     )

@@ -658,17 +658,27 @@ class VerifyCheckoutTests(unittest.TestCase):
                 sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
             self.assertEqual(legacy.read_text(), "legacy\n")
 
-    def run_native_acceptance(self, *, rewrite_settings: bool = False):
+    def run_native_acceptance(self, *, mode: str = "success"):
         cli = self.make_mock_claude()
-        if rewrite_settings:
+        if mode in ("rewrite-settings", "fail-repeat", "clean-environment"):
             text = cli.read_text()
             anchor = 'elif args[:3] == ["plugin", "list", "--json"]:\n'
-            replacement = anchor + textwrap.indent(
-                'settings = config / "settings.json"\n'
-                "if settings.exists():\n"
-                "    settings.write_text(json.dumps(json.loads(settings.read_text())))\n",
-                "    ",
-            )
+            if mode == "rewrite-settings":
+                injected = (
+                    'settings = config / "settings.json"\n'
+                    "if settings.exists():\n"
+                    "    settings.write_text(json.dumps(json.loads(settings.read_text())))\n"
+                )
+            elif mode == "fail-repeat":
+                injected = (
+                    'counter = config / "native-list-count"\n'
+                    "count = int(counter.read_text()) + 1 if counter.exists() else 1\n"
+                    "counter.write_text(str(count))\n"
+                    "if count == 3: sys.exit(75)\n"
+                )
+            else:
+                injected = 'assert "NATIVE_PARENT_ONLY" not in os.environ\n'
+            replacement = anchor + textwrap.indent(injected, "    ")
             self.assertEqual(text.count(anchor), 1)
             cli.write_text(text.replace(anchor, replacement))
         base = Path(self.temporary.name) / "native-base"
@@ -706,6 +716,7 @@ class VerifyCheckoutTests(unittest.TestCase):
                 **os.environ,
                 "HOME": str(original),
                 "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "NATIVE_PARENT_ONLY": "fixture-parent-value",
             },
             capture_output=True,
             text=True,
@@ -738,10 +749,32 @@ class VerifyCheckoutTests(unittest.TestCase):
         sys.platform == "linux", "requires Linux/WSL2 write protection"
     )
     def test_native_acceptance_rejects_settings_rewritten_by_cli(self) -> None:
-        result, evidence = self.run_native_acceptance(rewrite_settings=True)
+        result, evidence = self.run_native_acceptance(mode="rewrite-settings")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(evidence["status"], "failed")
         self.assertFalse(evidence["repeated_syncs"][0]["settings_bytes_preserved"])
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_retains_known_metadata_when_repeat_fails(self) -> None:
+        result, evidence = self.run_native_acceptance(mode="fail-repeat")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(evidence["pin"], self.pin)
+        self.assertTrue(evidence["cli_path"].endswith("/claude"))
+        self.assertIn("Claude Code", evidence["cli_version"])
+        self.assertEqual(evidence["repeated_syncs"][0]["iteration"], 1)
+        self.assertEqual(evidence["repeated_syncs"][0]["status"], "failed")
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux/WSL2 write protection"
+    )
+    def test_native_acceptance_does_not_forward_arbitrary_parent_environment(
+        self,
+    ) -> None:
+        result, evidence = self.run_native_acceptance(mode="clean-environment")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(evidence["status"], "passed")
 
     def make_mock_codex(self) -> Path:
         codex_bin = Path(self.temporary.name) / "codex-bin"

@@ -175,6 +175,38 @@ PY
   [[ "$output" == *"linked task worktree"* ]]
 }
 
+@test "verification commands discard inherited Git repository redirects" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  run env HOME="$original" GIT_DIR="$original/base/.git" GIT_WORK_TREE="$original/base" \
+    python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- git rev-parse --show-toplevel
+
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "$SOURCE" ]
+}
+
+@test "verification bootstrap matches the selected public Git environment contract" {
+  [ -n "${TREFLEBONBON_SKILLS_LIB:-}" ]
+  run python3 - "$PROJECT_ROOT/scripts" "$TREFLEBONBON_SKILLS_LIB" "$BATS_TEST_TMPDIR/parity" <<'PY'
+import os, sys
+from pathlib import Path
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import verification_env
+sys.path.insert(0, sys.argv[2])
+from treflebonbon_skills.git_context import git_environment
+for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_CONFIG_COUNT', 'GIT_INDEX_FILE'):
+    os.environ[name] = 'fixture-redirect'
+assert verification_env._git_environment() == git_environment(), 'public Git environment mismatch'
+runtime = Path(sys.argv[3])
+runtime.mkdir()
+environment = verification_env.create_environment(runtime)
+assert not any(name.startswith('GIT_') for name in environment), 'Git redirects retained'
+PY
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "AI candidate verification can require a prebuilt Codex before starting either shell" {
   run env PATH="$BIN:$PATH" python3 "$PROBE" "$SOURCE" --no-codex-build \
     -- bash -c 'printf "verified-command\n"'

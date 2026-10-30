@@ -83,7 +83,7 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
   python3 scripts/verify-claude-plugin-sync.py "$PWD" --checkout "$skills_checkout"
 ```
 
-判定・CLI path/version・pin・各反復の結果は、表示された `/tmp/codex/claude-plugin-native.*/result.json` に残す。CLI の stdout/stderr は同じ領域へ保存し、設定本文は出力しない。通常の Bats では mock CLI による成功・設定書換えの検出を実行する。実 CLI の Bats は `CLAUDE_PLUGIN_NATIVE=1` と `CLAUDE_PLUGIN_NATIVE_CHECKOUT` を指定して `tests/claude-plugin-native.bats` を opt-in する。
+判定・CLI path/version・pin・各反復の結果は、表示された `/tmp/codex/claude-plugin-native.*/result.json` に残す。途中で失敗した場合も、判明済みの情報と失敗した反復を保持する。CLI の stdout/stderr は同じ領域へ保存し、設定本文は出力しない。実 CLI の worker へ渡す環境変数は、一時 HOME・XDG・TMP、PATH、locale、Nix と TLS の実行に必要なものに限定する。通常の Bats では mock CLI による成功・設定書換え・途中失敗・親環境の除外を検証する。実 CLI の Bats は `CLAUDE_PLUGIN_NATIVE=1` と `CLAUDE_PLUGIN_NATIVE_CHECKOUT` を指定して `tests/claude-plugin-native.bats` を opt-in する。
 
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
