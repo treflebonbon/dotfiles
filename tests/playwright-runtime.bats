@@ -11,7 +11,7 @@
 }
 
 @test "distributed Playwright package protects the direct CLI and retains shared FDs" {
-  : "${TEST_PLAYWRIGHT_PACKAGE:?Set TEST_PLAYWRIGHT_PACKAGE to the built playwright-cli Nix output}"
+  [[ -n "${TEST_PLAYWRIGHT_PACKAGE:-}" ]] || skip "Set TEST_PLAYWRIGHT_PACKAGE to the built playwright-cli Nix output"
   local skills_root="$(cd "${TREFLEBONBON_SKILLS_LIB:?run tests in the pinned skills-plugin devShell}/../.." && pwd)"
   local package="$TEST_PLAYWRIGHT_PACKAGE"
   [ -x "$package/bin/managed-chrome-owner" ]
