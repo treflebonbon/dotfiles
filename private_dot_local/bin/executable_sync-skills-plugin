@@ -30,6 +30,10 @@ class PluginCliError(PluginSyncError):
         self.stderr = (stderr or b"").decode("utf-8", "replace")
 
 
+class ClaudeRegistrationError(PluginSyncError):
+    """Claude の管理設定または登録情報が固定版と一致しない。"""
+
+
 class CodexMarketplaceUpdateError(PluginSyncError):
     def __init__(self, recovery: dict[str, Any]):
         super().__init__("Codex marketplace update failed")
@@ -661,16 +665,22 @@ def sync_claude(
     previous = validated_previous_claude_install(previous_verified)
     update_existing = False
     if before is not None:
-        if previous is not None and claude_inventory_matches(
+        if claude_inventory_matches(before, pin, source_root, install_path):
+            verify_payload(install_path, expected, pin)
+            try:
+                return verify_claude_installation(
+                    checkout, source_root, pin, expected
+                )
+            except ClaudeRegistrationError:
+                verify_payload(install_path, expected, pin)
+                update_existing = True
+        elif previous is not None and claude_inventory_matches(
             before,
             previous["pin"],
             previous["source"],
             previous["install_path"],
         ):
             require_marketplace_source(previous["config"], previous["source"])
-            update_existing = True
-        elif claude_inventory_matches(before, pin, source_root, install_path):
-            verify_payload(install_path, expected, pin)
             update_existing = True
         else:
             raise PluginSyncError(
@@ -1981,39 +1991,43 @@ def verify_claude_installation(
     ):
         raise PluginSyncError("Claude plugin inventory does not match pinned source")
 
-    require_marketplace_source(config, source_root)
-    marketplaces = read_json(
-        plugin_state_root / "known_marketplaces.json", "Claude marketplace inventory"
-    )
-    if not isinstance(marketplaces, dict):
-        raise PluginSyncError("Claude marketplace inventory is invalid")
-    registered = marketplaces.get("treflebonbon")
-    if (
-        not isinstance(registered, dict)
-        or registered.get("installLocation") != str(source_root)
-        or registered.get("source") != {"source": "directory", "path": str(source_root)}
-    ):
-        raise PluginSyncError(
-            "Claude marketplace registration does not match pinned source"
+    try:
+        require_marketplace_source(config, source_root)
+        marketplaces = read_json(
+            plugin_state_root / "known_marketplaces.json", "Claude marketplace inventory"
         )
-    installed = read_json(
-        plugin_state_root / "installed_plugins.json", "Claude installed plugin registry"
-    )
-    if not isinstance(installed, dict) or not isinstance(
-        installed.get("plugins"), dict
-    ):
-        raise PluginSyncError("Claude installed plugin registry is invalid")
-    registry = installed["plugins"].get(plugin_id, [])
-    if not isinstance(registry, list) or not any(
-        isinstance(entry, dict)
-        and entry.get("scope") == "user"
-        and entry.get("version") == pin["version"]
-        and entry.get("installPath") == str(install_path)
-        for entry in registry
-    ):
-        raise PluginSyncError(
-            "Claude installed plugin registry does not match pinned source"
+        if not isinstance(marketplaces, dict):
+            raise PluginSyncError("Claude marketplace inventory is invalid")
+        registered = marketplaces.get("treflebonbon")
+        if (
+            not isinstance(registered, dict)
+            or registered.get("installLocation") != str(source_root)
+            or registered.get("source") != {"source": "directory", "path": str(source_root)}
+        ):
+            raise PluginSyncError(
+                "Claude marketplace registration does not match pinned source"
+            )
+        installed = read_json(
+            plugin_state_root / "installed_plugins.json", "Claude installed plugin registry"
         )
+        if not isinstance(installed, dict) or not isinstance(
+            installed.get("plugins"), dict
+        ):
+            raise PluginSyncError("Claude installed plugin registry is invalid")
+        registry = installed["plugins"].get(plugin_id, [])
+        if not isinstance(registry, list) or not any(
+            isinstance(entry, dict)
+            and entry.get("scope") == "user"
+            and entry.get("version") == pin["version"]
+            and entry.get("installPath") == str(install_path)
+            for entry in registry
+        ):
+            raise PluginSyncError(
+                "Claude installed plugin registry does not match pinned source"
+            )
+
+    except PluginSyncError as error:
+        raise ClaudeRegistrationError(str(error)) from error
 
     verify_payload(install_path, expected, pin)
     return {

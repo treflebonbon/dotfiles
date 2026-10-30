@@ -377,10 +377,26 @@ class VerifyCheckoutTests(unittest.TestCase):
                     }}))
                     print(json.dumps({action: True}))
                 elif args[:3] == ["plugin", "list", "--json"]:
+                    fault_path = config / "mock-inventory-fault"
+                    if fault_path.exists():
+                        fault = json.loads(fault_path.read_text())
+                        fault["remaining"] -= 1
+                        fault_path.write_text(json.dumps(fault))
+                        if fault["remaining"] == 0:
+                            if fault["mode"] == "exit":
+                                sys.exit(75)
+                            print(fault["mode"])
+                            sys.exit(0)
                     if not installed.exists():
                         print("[]")
                     else:
                         registry = json.loads(installed.read_text())["plugins"][plugin_id][0]
+                        tamper_after = config / "mock-tamper-after-list"
+                        if tamper_after.exists():
+                            remaining = int(tamper_after.read_text()) - 1
+                            tamper_after.write_text(str(remaining))
+                            if remaining == 0:
+                                (Path(registry["installPath"]) / "README.md").write_text("tampered during inventory\\n")
                         source = state.read_text()
                         plugin_version = json.loads((Path(source) / "plugin.json").read_text())["version"]
                         print(json.dumps([{
@@ -465,23 +481,6 @@ class VerifyCheckoutTests(unittest.TestCase):
                     ],
                     ["plugin", "list", "--json"],
                     ["plugin", "list", "--json"],
-                    [
-                        "plugin",
-                        "marketplace",
-                        "add",
-                        str(self.source),
-                        "--scope",
-                        "user",
-                        "--json",
-                    ],
-                    [
-                        "plugin",
-                        "update",
-                        "treflebonbon-skills@treflebonbon",
-                        "--scope",
-                        "user",
-                        "--json",
-                    ],
                     ["plugin", "list", "--json"],
                 ],
             )
@@ -494,6 +493,148 @@ class VerifyCheckoutTests(unittest.TestCase):
                 sync_skills_plugin.PluginSyncError, "README.md"
             ):
                 sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+    def test_unchanged_claude_sync_preserves_managed_settings_bytes(self) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            checkout = sync_skills_plugin.cache_root() / self.pin["rev"]
+            checkout.parent.mkdir(parents=True)
+            shutil.copytree(self.root, checkout)
+            source = sync_skills_plugin.ensure_marketplace_source(checkout, self.pin)
+            initial = sync_skills_plugin.sync_claude(checkout, source, self.pin)
+            receipt = {
+                "schema_version": 1,
+                "status": "verified",
+                "pin": self.pin,
+                "checkout": str(checkout),
+                "source": str(source),
+                "results": {"claude": initial},
+            }
+            settings = config / "settings.json"
+            settings.write_text(
+                json.dumps(json.loads(settings.read_text()), indent=2) + "\n"
+            )
+            managed_bytes = settings.read_bytes()
+
+            for previous in (None, receipt):
+                with self.subTest(previous_receipt=previous is not None):
+                    result = sync_skills_plugin.sync_claude(
+                        checkout, source, self.pin, previous_verified=previous
+                    )
+
+                    self.assertEqual(result["version"], self.pin["version"])
+                    self.assertEqual(settings.read_bytes(), managed_bytes)
+
+    def test_claude_sync_repairs_registration_with_current_payload(self) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+            for path in (
+                config / "settings.json",
+                config / "plugins/known_marketplaces.json",
+            ):
+                with self.subTest(registration=path.name):
+                    path.write_text("{}\n")
+
+                    sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+                    verified = sync_skills_plugin.verify_claude_installation(
+                        self.root,
+                        self.source,
+                        self.pin,
+                        sync_skills_plugin.tracked_tree(self.root),
+                    )
+                    self.assertEqual(verified["version"], self.pin["version"])
+
+    def test_claude_sync_rejects_payload_changed_during_inventory_verification(
+        self,
+    ) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+            log = home / "claude-commands.jsonl"
+            before = len(log.read_text().splitlines())
+            (config / "mock-tamper-after-list").write_text("2")
+
+            with self.assertRaisesRegex(
+                sync_skills_plugin.PluginSyncError, "README.md"
+            ):
+                sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+            calls = [
+                json.loads(line) for line in log.read_text().splitlines()[before:]
+            ]
+            self.assertEqual(calls, [["plugin", "list", "--json"]] * 2)
+            install = config / "plugins/cache/treflebonbon/treflebonbon-skills/0.2.1"
+            self.assertEqual(
+                (install / "README.md").read_text(), "tampered during inventory\n"
+            )
+
+    def test_claude_inventory_verification_errors_do_not_start_repairs(self) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+            settings = config / "settings.json"
+            settings.write_text(
+                json.dumps(json.loads(settings.read_text()), indent=2) + "\n"
+            )
+            managed_bytes = settings.read_bytes()
+            log = home / "claude-commands.jsonl"
+            for mode in ("exit", "{", "{}", "[]"):
+                with self.subTest(inventory_failure=mode):
+                    before = len(log.read_text().splitlines())
+                    (config / "mock-inventory-fault").write_text(
+                        json.dumps({"remaining": 2, "mode": mode})
+                    )
+
+                    with self.assertRaises(sync_skills_plugin.PluginSyncError):
+                        sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+                    calls = [
+                        json.loads(line) for line in log.read_text().splitlines()[before:]
+                    ]
+                    self.assertEqual(calls, [["plugin", "list", "--json"]] * 2)
+                    self.assertEqual(settings.read_bytes(), managed_bytes)
 
     def test_claude_install_failure_keeps_existing_local_skill(self) -> None:
         cli = self.make_mock_claude()
