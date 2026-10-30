@@ -314,9 +314,9 @@ def add_verified_skills_plugin_cache_read(
         else None
     )
     denied_names = {
-        pattern: mode
+        ("**/.env" if pattern == ".env" else pattern): mode
         for pattern, mode in workspace_rules.items()
-        if mode == "deny" and ".env" not in pattern
+        if mode == "deny"
     } if isinstance(workspace_rules, dict) else {}
     for profile_name in ("dotfiles-secure", "dotfiles-peer"):
         profile = permissions.get(profile_name)
@@ -536,9 +536,11 @@ for home, record in zip(requested_homes, records, strict=True):
             else None
         )
         denied = sorted(
-            pattern
-            for pattern, mode in workspace_rules.items()
-            if mode == "deny" and ".env" not in pattern
+            {
+                "**/.env" if pattern == ".env" else pattern
+                for pattern, mode in workspace_rules.items()
+                if mode == "deny"
+            }
         ) if isinstance(workspace_rules, dict) else []
         if rule != {".": "read", **{pattern: "deny" for pattern in denied}}:
             raise SystemExit(

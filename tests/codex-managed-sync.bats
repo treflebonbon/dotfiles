@@ -354,6 +354,8 @@ for config_path in sys.argv[1:4]:
         assert filesystem[":root"] == "deny"
         assert filesystem[cache_path]["."] == "read"
         for pattern in (
+            "**/.env", "*/**/.env", "**/.env[!.r]*", "**/.envrc?*",
+            "**/.env.example?*",
             "**/*.pem", "**/*.key", "**/*.pfx", "**/*.p12",
             "**/credentials.json", "**/credentials.*.json",
             "**/secret.json", "**/secrets.json", "**/service-account*.json",
@@ -453,15 +455,8 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 contents = path.read_text()
-assert sys.argv[2] in contents
-contents = contents.replace(sys.argv[2], sys.argv[3], 1)
-contents += f'\n[permissions."dotfiles-secure".filesystem."{sys.argv[2]}"]\n"." = "read"\n'
-for pattern in (
-    "**/*.pem", "**/*.key", "**/*.pfx", "**/*.p12",
-    "**/credentials.json", "**/credentials.*.json",
-    "**/secret.json", "**/secrets.json", "**/service-account*.json",
-):
-    contents += f'"{pattern}" = "deny"\n'
+assert f'filesystem."{sys.argv[3]}"' not in contents
+contents += f'\n[permissions."dotfiles-secure".filesystem."{sys.argv[3]}"]\n"." = "read"\n'
 path.write_text(contents)
 PY
   cp "$home/config.toml" "$BATS_TEST_TMPDIR/broad-grant.toml"
