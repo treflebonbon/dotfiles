@@ -60,7 +60,7 @@ skill 本体、専用補助 CLI、共用 Python module、規範契約、WSL2 bro
 
 独立公開 package は上記 accepted pin を正本とする。dotfiles の pin を更新するときは、新 version に対応する immutable commit の全 pin metadata を一度に選び、同じ source から3 runtime と共用資産を導入する。source checkout を利用中に書き換えない。新 pin と config の通常同期が成功した後、`sync-codex-managed-config --verify-only` で各 current Codex config の exact version cache grant / deny を読み取り照合し、続けて `sync-skills-plugin --verify-only` で current source・receipt・全 runtime の現在の plugin inventory / payload を読み取り照合する。両方が同じ current state で成功するまで、旧配備の撤去へ進まない。receipt の過去成功は現在の runtime state の証明に使わない。
 
-この作業の全体受入前は live 配備に触れない。受入後は merge 済み live source の `chezmoi diff` を確認し、無関係な差分がないことを確かめて通常の `chezmoi apply` を実行する。移行時の撤去 gate は `run_onchange_after_codex-managed-sync.sh.tmpl` に接続され、path 指定 apply では hook が対象にならず旧配備を保持する。通常 apply に不要な差分が混在する場合は実行せず、先に差分の解消を報告する。[編集・配備ルール](../architecture.md)に従う。
+この作業の全体受入前は live 配備に触れない。受入後は merge 済み live source の `chezmoi diff` を確認し、未知差分があれば保留する。変更対象の配備先 path だけを apply し、5つの CLI shim を差し替える場合は before hook で旧 CLI snapshot を先に準備する。対象 apply 後に after hook を明示実行して同期・current-state 検証・旧 copy 撤去を進める。詳細な実行順序とコマンドは [編集・配備ルール](../architecture.md#公開-agent-skills-plugin)に従う。task source は配備元として使わない。
 
 ルートの `plugin.json` と `.claude-plugin/plugin.json` から、全 runtime 共通の `skills/<name>/SKILL.md` を配布する。manifest の独自 skill パス指定に依存しない。下記の Antigravity 形式確認に加え、実装した package を3 runtime で導入・呼び出して受入確認する。
 
