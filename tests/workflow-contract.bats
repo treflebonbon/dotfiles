@@ -38,15 +38,9 @@ setup() {
 }
 
 @test "grilling uses frontier rounds and waits for human decisions" {
-  local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
-
   grep -Fq 'frontier round でまとめて提示し、各質問へ推奨を添え' "$RUNTIME"
   grep -Fq '各 round の人間の回答を待ち' "$RUNTIME"
   grep -Fq '未回答の decision を推測して先へ進まない' "$RUNTIME"
-  grep -Fq 'In each round, ask every decision whose prerequisites are' "$skill"
-  grep -Fq "wait for the human's answers" "$skill"
-  ! grep -Fq 'one-question-at-a-time' "$skill"
-  ! grep -Fq '一問一答' "$skill"
 }
 
 @test "phase boundaries use the official five-option order" {
@@ -204,7 +198,6 @@ setup() {
 }
 
 @test "native worktree guidance replaces the retired entry skill" {
-  [ ! -e "$PROJECT_ROOT/local-skills/to-worktree" ]
   for instructions in "$GLOBAL_CODEX" "$GLOBAL_CLAUDE"; do
     grep -Fq 'runtime/skill-harness.md' "$instructions"
     run grep -Fq '/to-worktree' "$instructions"
@@ -217,9 +210,9 @@ setup() {
   grep -Fq '**owner 側では有効、子から参照不能**' "$RUNTIME"
   grep -Fq '子が自分の環境で再検証に成功してから' "$RUNTIME"
   grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$RUNTIME"
-  grep -Fq '[worker readiness 手順](../local-skills/orca-peer-refactor/references/orca.md#worktree-readiness)' "$RUNTIME"
+  grep -Fq 'skills/orca-peer-refactor/references/orca.md#worktree-readiness' "$RUNTIME"
+  grep -Fq 'source root は [契約案内](autonomous-peer-contract.md) にある検証済み plugin JSON の `source` から解決し' "$RUNTIME"
   grep -Fq 'ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は' "$RUNTIME"
-  grep -Fq '配備先: `~/.agents/skills/orca-peer-refactor/references/orca.md#worktree-readiness`' "$RUNTIME"
   grep -Fq '同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する' "$RUNTIME"
   grep -Fq 'folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外' "$RUNTIME"
 }

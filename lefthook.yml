@@ -144,8 +144,6 @@ pre-commit:
         - "docs/architecture.md"
         - "docs/conventions.md"
         - "docs/adr/*.md"
-        - "local-skills/ui-grill-with-docs/SKILL.md"
-        - "local-skills/*-peer-refactor/**/*.md"
         - "tests/workflow-contract.bats"
         - "tests/autonomous-peer-contract.bats"
         - "tests/gh-review-thread.bats"

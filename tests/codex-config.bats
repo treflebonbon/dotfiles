@@ -1899,6 +1899,12 @@ for codex_home in "$HOME/.codex" "$HOME/.codex-app" "$HOME/explicit-codex-home";
   install="$codex_home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
   cache_root="$(dirname "$install")"
   printf 'dummy secret\n' >"$install/credentials.json"
+  printf 'dummy secret\n' >"$install/.env"
+  printf 'dummy secret\n' >"$install/.env.local"
+  printf 'allowed env fixture\n' >"$install/.envrc"
+  printf 'allowed env fixture\n' >"$install/.env.example"
+  mkdir -p "$install/nested"
+  printf 'dummy secret\n' >"$install/nested/.env"
   for secret_name in private.key identity.pem bundle.pfx bundle.p12 credentials.prod.json \
     secret.json secrets.json service-account-prod.json; do
     printf 'dummy secret\n' >"$install/$secret_name"
@@ -1920,9 +1926,20 @@ for codex_home in "$HOME/.codex" "$HOME/.codex-app" "$HOME/explicit-codex-home";
     [[ "$output" == *fixture* ]]
   done
 
+  for path in "$install/.envrc" "$install/.env.example"; do
+    output="$(CODEX_HOME="$codex_home" codex sandbox -P dotfiles-secure \
+      -C /work -- cat "$path" 2>&1)" || {
+      printf 'expected public environment contract file was denied: %s: %s\n' \
+        "$path" "$output" >&2
+      exit 1
+    }
+    [[ "$output" == *"allowed env fixture"* ]]
+  done
+
   for path in "$cache_root/parent.txt" \
     "$cache_root/0.0.0-stale/skills/fixture/SKILL.md" \
     "$codex_home/plugins/cache/unrelated/plugin/SKILL.md" \
+    "$install/.env" "$install/.env.local" "$install/nested/.env" \
     "$install/credentials.json" "$install/private.key" "$install/identity.pem" \
     "$install/bundle.pfx" "$install/bundle.p12" "$install/credentials.prod.json" \
     "$install/secret.json" "$install/secrets.json" "$install/service-account-prod.json" \

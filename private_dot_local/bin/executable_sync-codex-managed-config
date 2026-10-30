@@ -314,9 +314,9 @@ def add_verified_skills_plugin_cache_read(
         else None
     )
     denied_names = {
-        pattern: mode
+        ("**/.env" if pattern == ".env" else pattern): mode
         for pattern, mode in workspace_rules.items()
-        if mode == "deny" and ".env" not in pattern
+        if mode == "deny"
     } if isinstance(workspace_rules, dict) else {}
     for profile_name in ("dotfiles-secure", "dotfiles-peer"):
         profile = permissions.get(profile_name)
@@ -440,15 +440,6 @@ prepare_file() {
   chmod 600 "$staged"
 }
 
-for codex_home in "${codex_homes[@]}"; do
-  for relative_path in "${managed_files[@]}"; do
-    prepare_file "$managed_root/$relative_path" "$codex_home/$relative_path"
-  done
-  if [ "$codex_home" = "$HOME/.codex-app" ]; then
-    prepare_file /dev/null "$codex_home/.managed-config-seeded"
-  fi
-done
-
 plugin_sync_args=()
 for codex_home in "${codex_homes[@]}"; do
   plugin_sync_args+=(--codex-home "$codex_home")
@@ -536,9 +527,11 @@ for home, record in zip(requested_homes, records, strict=True):
             else None
         )
         denied = sorted(
-            pattern
-            for pattern, mode in workspace_rules.items()
-            if mode == "deny" and ".env" not in pattern
+            {
+                "**/.env" if pattern == ".env" else pattern
+                for pattern, mode in workspace_rules.items()
+                if mode == "deny"
+            }
         ) if isinstance(workspace_rules, dict) else []
         if rule != {".": "read", **{pattern: "deny" for pattern in denied}}:
             raise SystemExit(
@@ -570,6 +563,15 @@ if [ "$verify_only" -eq 1 ]; then
   verify_managed_cache_permissions
   exit 0
 fi
+
+for codex_home in "${codex_homes[@]}"; do
+  for relative_path in "${managed_files[@]}"; do
+    prepare_file "$managed_root/$relative_path" "$codex_home/$relative_path"
+  done
+  if [ "$codex_home" = "$HOME/.codex-app" ]; then
+    prepare_file /dev/null "$codex_home/.managed-config-seeded"
+  fi
+done
 
 phase="skills-plugin"
 target="treflebonbon-skills"

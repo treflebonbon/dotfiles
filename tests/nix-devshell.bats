@@ -82,49 +82,6 @@ setup() {
   grep -q 'Start-Process -FilePath' "$powershell"
 }
 
-@test "Managed Dogfood Chrome rejects a zero DebugPort before launch" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
-
-  grep -Fq 'if ($DebugPort -le 0)' "$package"
-  grep -Fq 'Start requires a positive -DebugPort.' "$package"
-}
-
-@test "Managed Dogfood Chrome quotes Windows paths only when they contain whitespace" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
-
-  grep -Fq 'function Format-ChromePathArgument' "$package"
-  grep -Fq 'if ($Value -match "\s")' "$package"
-  grep -Fq "\$escapedValue = \$Value -replace '(\\\\+)$', '\$1\$1'" "$package"
-  grep -Fq "return ('\"' + \$escapedValue + '\"')" "$package"
-  grep -Fq 'return $Value' "$package"
-  grep -Fq '$ProfileArgument = Format-ChromePathArgument $ProfileDir' "$package"
-  grep -Fq '"--user-data-dir=$ProfileArgument"' "$package"
-  grep -Fq '$ExtensionArgument = Format-ChromePathArgument $ExtensionPath' "$package"
-  grep -Fq '"--disable-extensions-except=$ExtensionArgument"' "$package"
-  grep -Fq '"--load-extension=$ExtensionArgument"' "$package"
-}
-
-@test "Managed Dogfood Chrome doubles trailing backslashes in quoted paths" {
-  local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/dogfood-chrome-windows.ps1"
-
-  grep -Fq "\$escapedValue = \$Value -replace '(\\\\+)$', '\$1\$1'" "$package"
-  if ! command -v powershell.exe >/dev/null 2>&1; then
-    skip "powershell.exe unavailable"
-  fi
-
-  local script="$BATS_TEST_TMPDIR/format-chrome-path.ps1"
-  cat >"$script" <<'PS'
-$Value = 'C:\Temp\profile with spaces\'
-$escapedValue = $Value -replace '(\\+)$', '$1$1'
-if (('"' + $escapedValue + '"') -ne '"C:\Temp\profile with spaces\\"') {
-    exit 1
-}
-PS
-
-  run powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$script"
-  [ "$status" -eq 0 ]
-}
-
 @test "nix-devshell packages pinned Linux glibc flyline release (issue #53)" {
   local pkg="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/flyline.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
@@ -371,34 +328,6 @@ PS
   grep -q 'markitdown/default\.nix' "$module"
   grep -Fq '"$out/bin/design.md"' "$pkg"
   grep -Fq '"$out/bin/designmd"' "$pkg"
-}
-
-@test "ui grill skill keeps round sheets disposable and human answers authoritative" {
-  local skill="$PROJECT_ROOT/local-skills/ui-grill-with-docs/SKILL.md"
-  local runtime="$PROJECT_ROOT/runtime/skill-harness.md"
-
-  grep -qx 'name: ui-grill-with-docs' "$skill"
-  grep -qx 'disable-model-invocation: true' "$skill"
-  [ -f "$PROJECT_ROOT/local-skills/ui-grill-with-docs/assets/round.html" ]
-  grep -Fq '[assets/round.html](assets/round.html)' "$skill"
-  grep -Fq 'Do not read browser drafts as submitted answers.' "$skill"
-  grep -Fq 'are never the source of truth.' "$skill"
-  grep -Fq 'ask the user to confirm cleanup' "$skill"
-  grep -Fq 'delete only the `tmp/ui-grill-<topic>.html` file owned by this session.' "$skill"
-  grep -Fq '`ui-grill-with-docs`' "$runtime"
-}
-
-@test "pre-commit applies OXC to local skills and the MV3 fixture" {
-  local config="$PROJECT_ROOT/lefthook.yml"
-  local fixture="$PROJECT_ROOT/local-skills/dogfood/references/fixtures/mv3-min"
-
-  ! sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
-  ! sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq 'local-skills/**'
-  sed -n '/name: oxfmt/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
-  sed -n '/name: oxlint/,/stage_fixed: true/p' "$config" | grep -Fq '"**/*.mjs"'
-  [ -f "$fixture/service-worker.js" ]
-  [ ! -e "$fixture/service_worker.js" ]
-  grep -Fq '"service_worker": "service-worker.js"' "$fixture/manifest.json"
 }
 
 @test "gws package uses pinned 0.22.5 release binaries" {

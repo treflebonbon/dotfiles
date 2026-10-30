@@ -7,6 +7,7 @@ The browser uses a routed localhost page; this does not verify file-URL permissi
 import argparse
 import base64
 import json
+import os
 from pathlib import Path
 import subprocess
 import uuid
@@ -16,7 +17,8 @@ parser.add_argument("--session", required=True)
 parser.add_argument("--output", type=Path, required=True)
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
-template = Path(__file__).resolve().parents[2] / "local-skills/ui-grill-with-docs/assets/round.html"
+skills_root = Path(os.environ["TREFLEBONBON_SKILLS_LIB"]).resolve().parents[1]
+template = skills_root / "skills/ui-grill-with-docs/assets/round.html"
 code = r"""async page => {
   const tab = await page.context().newPage();
   const errors = [], network = [], checks = [], screenshots = [];

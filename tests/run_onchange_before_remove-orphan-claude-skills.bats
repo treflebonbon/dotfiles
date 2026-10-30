@@ -17,7 +17,7 @@ run_script() {
 copy_cli_shims() {
   local destination="$1"
   mkdir -p "$destination/private_dot_local/bin"
-  cp "$PROJECT_ROOT"/private_dot_local/bin/executable_{git-push-topic,git-push-reviewed,gh-review-thread,orca-send,codex-reviewer} \
+  cp "$PROJECT_ROOT"/private_dot_local/bin/executable_{git-push-topic,git-push-reviewed,gh-review-thread,orca-send,codex-reviewer}.tmpl \
     "$destination/private_dot_local/bin/"
 }
 

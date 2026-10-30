@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# local skills tree hash: {{ output "python3" "-c" (include ".chezmoitemplates/local-skills-hash.py") (joinPath .chezmoi.sourceDir "local-skills") }}
-# Codex discovers local skills through the shared hub.
-set -euo pipefail
-
-{{ includeTemplate "local-skills.sh.tmpl" . }}
-local_skills_deploy

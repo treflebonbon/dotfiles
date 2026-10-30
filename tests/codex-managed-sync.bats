@@ -93,6 +93,88 @@ assert_managed_home() {
   done
 }
 
+snapshot_tree() {
+  python3 - "$@" <<'PY'
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+snapshots = []
+for root_text in sys.argv[1:]:
+    root = Path(root_text)
+    entries = []
+    for path in sorted((root, *root.rglob("*")), key=str):
+        info = path.lstat()
+        entry = {
+            "path": str(path.relative_to(root)) if path != root else ".",
+            "mode": info.st_mode,
+            "mtime_ns": info.st_mtime_ns,
+            "ctime_ns": info.st_ctime_ns,
+            "size": info.st_size,
+        }
+        if path.is_symlink():
+            entry["target"] = os.readlink(path)
+        elif path.is_file():
+            entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        elif path.is_dir():
+            entry["children"] = sorted(child.name for child in path.iterdir())
+        entries.append(entry)
+    snapshots.append({"root": str(root), "entries": entries})
+print(json.dumps(snapshots, sort_keys=True))
+PY
+}
+
+create_readonly_plugin_verifier() {
+  local bin="$1"
+  mkdir -p "$bin"
+  cat >"$bin/sync-skills-plugin" <<'PY'
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+if not args or args[0] != "--verify-only":
+    raise SystemExit("readonly verifier only accepts --verify-only")
+pin = json.loads(Path(os.environ["PLUGIN_SYNC_PIN"]).read_text())
+version = pin["version"]
+homes = []
+index = 0
+while index < len(args):
+    if args[index] == "--verify-only":
+        index += 1
+    elif args[index] == "--codex-home" and index + 1 < len(args):
+        homes.append(Path(args[index + 1]).expanduser().resolve())
+        index += 2
+    else:
+        raise SystemExit("unexpected verifier argument")
+
+records = []
+for home in homes:
+    install = home / "plugins/cache/treflebonbon/treflebonbon-skills" / version
+    skill = install / "skills/fixture/SKILL.md"
+    if not skill.is_file() or skill.read_text() != "fixture cache\n":
+        print(f"unverified fixture cache: {install}", file=sys.stderr)
+        raise SystemExit(1)
+    records.append({
+        "runtime": "codex",
+        "codex_home": str(home),
+        "version": version,
+        "install_path": str(install),
+    })
+print(json.dumps({
+    "status": "verified",
+    "pin": {"version": version},
+    "codex_homes": [str(home) for home in homes],
+    "results": {"codex": records},
+}))
+PY
+  chmod +x "$bin/sync-skills-plugin"
+}
+
 @test "Codex 管理設定 syncs all files to native home without creating Desktop home" {
   env -u CODEX_HOME HOME="$TEST_HOME" bash "$SYNC_COMMAND"
   assert_managed_home "$TEST_HOME/.codex"
@@ -354,6 +436,8 @@ for config_path in sys.argv[1:4]:
         assert filesystem[":root"] == "deny"
         assert filesystem[cache_path]["."] == "read"
         for pattern in (
+            "**/.env", "*/**/.env", "**/.env[!.r]*", "**/.envrc?*",
+            "**/.env.example?*",
             "**/*.pem", "**/*.key", "**/*.pfx", "**/*.p12",
             "**/credentials.json", "**/credentials.*.json",
             "**/secret.json", "**/secrets.json", "**/service-account*.json",
@@ -453,15 +537,8 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 contents = path.read_text()
-assert sys.argv[2] in contents
-contents = contents.replace(sys.argv[2], sys.argv[3], 1)
-contents += f'\n[permissions."dotfiles-secure".filesystem."{sys.argv[2]}"]\n"." = "read"\n'
-for pattern in (
-    "**/*.pem", "**/*.key", "**/*.pfx", "**/*.p12",
-    "**/credentials.json", "**/credentials.*.json",
-    "**/secret.json", "**/secrets.json", "**/service-account*.json",
-):
-    contents += f'"{pattern}" = "deny"\n'
+assert f'filesystem."{sys.argv[3]}"' not in contents
+contents += f'\n[permissions."dotfiles-secure".filesystem."{sys.argv[3]}"]\n"." = "read"\n'
 path.write_text(contents)
 PY
   cp "$home/config.toml" "$BATS_TEST_TMPDIR/broad-grant.toml"
@@ -481,6 +558,45 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *"broad skills plugin cache grant"* ]]
   cmp "$BATS_TEST_TMPDIR/broad-write-grant.toml" "$home/config.toml"
+}
+
+@test "Codex managed --verify-only verifies existing homes without preparing files" {
+  prepare_chezmoi_fixture
+  local explicit_home="$TEST_HOME/explicit codex home"
+  local missing_home="$TEST_HOME/missing codex home"
+  local verifier_bin="$BATS_TEST_TMPDIR/readonly-plugin-bin"
+  local before after missing_before missing_after result_status result_output real_chmod
+  mkdir -p "$TEST_HOME/.codex-app" "$explicit_home"
+  create_readonly_plugin_verifier "$verifier_bin"
+
+  run env CODEX_HOME="$explicit_home" "${CHEZMOI_APPLY[@]}"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+
+  missing_before="$(snapshot_tree "$TEST_HOME")"
+  run env HOME="$TEST_HOME" CODEX_HOME="$missing_home" PLUGIN_SYNC_PIN="$PLUGIN_SYNC_PIN" \
+    PATH="$verifier_bin:$PATH" bash "$SYNC_COMMAND" --verify-only
+  result_status="$status"
+  result_output="$output"
+  missing_after="$(snapshot_tree "$TEST_HOME")"
+  [ "$result_status" -ne 0 ]
+  [[ "$result_output" == *"unverified fixture cache"* ]]
+  [ "$missing_before" = "$missing_after" ]
+  [ ! -e "$missing_home" ]
+
+  real_chmod="$(command -v chmod)"
+  "$real_chmod" -R a-w "$TEST_HOME"
+  before="$(snapshot_tree "$TEST_HOME")"
+  run env HOME="$TEST_HOME" CODEX_HOME="$explicit_home" PLUGIN_SYNC_PIN="$PLUGIN_SYNC_PIN" \
+    PATH="$verifier_bin:$PATH" bash "$SYNC_COMMAND" --verify-only
+  result_status="$status"
+  result_output="$output"
+  after="$(snapshot_tree "$TEST_HOME")"
+  "$real_chmod" -R u+w "$TEST_HOME"
+  [ "$result_status" -eq 0 ] || printf '%s\n' "$result_output" >&3
+  [ "$result_status" -eq 0 ]
+  [ "$before" = "$after" ]
+  [ -z "$(find "$TEST_HOME" -name '*.tmp.*' -print)" ]
 }
 
 @test "Codex managed sync preserves config changes made by plugin installation" {

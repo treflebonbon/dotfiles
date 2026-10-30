@@ -5,7 +5,8 @@ bats_require_minimum_version 1.5.0
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CONTRACT="$PROJECT_ROOT/runtime/autonomous-peer-contract.md"
-  AUTO_SESSION="$PROJECT_ROOT/local-skills/herdr-peer-refactor/references/auto-session.md"
+  local skills_root="$(cd "${TREFLEBONBON_SKILLS_LIB:?run tests in the pinned skills-plugin devShell}/../.." && pwd)"
+  AUTO_SESSION="$skills_root/skills/herdr-peer-refactor/references/auto-session.md"
 }
 
 @test "contract stays indexed and instruction layers point to the fixed plugin source" {
@@ -33,21 +34,6 @@ setup() {
     run grep -Fq "$detail" "$CONTRACT"
     [ "$status" -eq 1 ]
   done
-}
-
-@test "legacy auto-session reference keeps dedicated launch checks separate from normal invocation" {
-  grep -Fq '専用起動前に配備済み' "$AUTO_SESSION"
-  grep -Fq 'mock 起動テストはこの観測の検査' "$AUTO_SESSION"
-  grep -Fq '実効性が確認不能なら保留' "$AUTO_SESSION"
-  [ -f "$AUTO_SESSION" ]
-  grep -Fq '通常の明示依頼からの peer 協働には、この起動ゲートを適用しない' "$AUTO_SESSION"
-  grep -Fq 'auto-peer-deny.json' "$AUTO_SESSION"
-  grep -Fq 'auto-peer.rules' "$AUTO_SESSION"
-  grep -Fq '起動チェック' "$AUTO_SESSION"
-  grep -Fq 'launch-child.sh' "$AUTO_SESSION"
-  grep -Fq 'plan-parallel.sh' "$AUTO_SESSION"
-  grep -Fq 'check-owned.sh' "$AUTO_SESSION"
-  grep -Fq '親停止' "$AUTO_SESSION"
 }
 
 # peer_deny in auto-peer.rules is the single source of what a dedicated auto peer must not
@@ -95,8 +81,7 @@ PY
   ! grep -Fq 'auto-peer.rules' "$sync"
   grep -Fq 'pattern = ["git", "push"]' "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules"
   ! grep -Fq '"git", "push"' "$rules"
-  grep -Fq 'GH_CONFIG_DIR=~/.codex-peer/gh' "$AUTO_SESSION"
-  grep -Fq 'CODEX_HOME=~/.codex-peer' "$AUTO_SESSION"
+  grep -Fq 'CODEX_HOME="$HOME/.codex-peer" GH_CONFIG_DIR="$HOME/.codex-peer/gh"' "$AUTO_SESSION"
   # --peer selects dotfiles-peer (tests/codex-reviewer.bats).
   grep -Fq 'codex-reviewer --peer --disable apps' "$AUTO_SESSION"
   grep -Fq '[apps.github]' "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl"
@@ -164,7 +149,6 @@ PY
 @test "Claude deny fragment is the projection of peer_deny and only applies to dedicated auto sessions" {
   local fragment="$PROJECT_ROOT/private_dot_claude/auto-peer-deny.json"
   [ -f "$fragment" ]
-  grep -Fq 'claude --permission-mode auto --settings ~/.claude/auto-peer-deny.json' "$AUTO_SESSION"
   [ "$(peer_deny projection)" = "$(cat "$fragment")" ]
   run peer_deny claude-examples
   [ "$status" -eq 0 ]
