@@ -43,7 +43,15 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 アーキテクチャHTML report checkerの実ブラウザ再検証は、全Batsへ組み込まず、repo root で `nix develop ./private_dot_config/nix-devshell --command nix develop . --command scripts/run-architecture-render-smoke.sh` を個別に実行する。`playwright-cli` が管理する一時session、loopback HTTP server、追跡fixtureを使う。実report用 `check-architecture-render.js` を正本とし、既存SKILL.mdの手順と同じ `sed '$s/;$//'` を `run-code` へ渡す一時入力にだけ適用する。Mermaid 11.17.2 をjsDelivrから一時web rootへ取得し、vendoringしない。`curl` / `python3` / `playwright-cli` とjsDelivrへの接続が実行前提であり、未達時は失敗理由を表示する。TAPとconsoleの記録は試行ごとに `.tmp/architecture-render-smoke.*` へ保持する。図なしHTMLはHTTP 200なら成功、HTTP 404なら失敗として検査する。
 
-更新時のcanonical検証には、repo内の手動入口 `python3 scripts/verify-canonical.py` を使える。入口自身が置かれたlinked task worktreeを対象にするため、検証する変更をcommitしてcleanにし、既存手順で両devShellとruntimeを準備してから起動する。`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` には準備済みの絶対パスを渡す。入口は `lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。
+canonical検証の環境準備から開始する場合は、linked task worktree で次の入口を使う。検証する変更をcommitしてcleanにし、関連テストとレビュー指摘の修正を終えたHEADで実行する。通常Linuxでは `--shell default`、WSL2では `--shell wsl` を選ぶ。
+
+```bash
+python3 scripts/run-canonical.py --shell wsl --no-codex-build
+```
+
+この入口は最初のNix評価から `verify-ai-tools.py` の境界を使い、両devShellとPlaywright packageを準備する。Impeccable hookは `IMPECCABLE_HOOK_RUNTIME` の明示指定、または呼出元の `~/.agents/skills/impeccable/scripts/impeccable` から取得する。不足時はNix起動前に停止し、APMの導入を自動追加しない。環境準備の記録は表示された `/tmp/codex/canonical-env.*/` に残り、`canonical-path` が検証本体の記録先を指す。中断時は保護された子プロセスを終了し、終了状態を保存する。
+
+検証本体は既存の `scripts/verify-canonical.py` とする。準備済み環境から直接呼ぶ場合は、`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` に準備済みの絶対パスを渡す。`lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。準備入口はsourceの全Bats件数とその実行のTAP計画も照合する。
 
 開始前は `git status` に加えて、全tracked内容とGit modeをHEADのtree/blobへ直接照合する。`assume-unchanged`／`skip-worktree` に隠れた未commitの変更もBats開始前に拒否し、flag自体は変更しない。実行後にHEADの内容・Git modeと異なるfileは `after.json` の `head_mismatches` に記録し、前後記録とTAPを保持する。
 
@@ -90,6 +98,26 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build --read-on
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
 
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。
+
+## topic branch の公開と確認
+
+公開の依頼を受けた場合、repo内の補助入口 `scripts/publish-topic.py` でpushと確認を分けて記録できる。既存の `git-push-topic` を使い、成功を保存してからPRの状態を読む。HOMEを切り替えた検証環境でも既存の認証を使えるよう、呼出元のGitHub CLI設定directoryをselectorとして引き継ぐ。認証値はコピー・出力しない。
+
+```bash
+export GH_CONFIG_DIR="${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}"
+publication_record="$(mktemp -d /tmp/codex/topic-publication.XXXXXX)"
+python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
+  python3 scripts/publish-topic.py push --repo treflebonbon/dotfiles --record "$publication_record"
+```
+
+初回公開では、この後に従来どおり `gh pr create --body-file ...` でPRを作る。既存PRへの更新では作成を省き、番号が確定したPRを次の読取り専用操作で確認する。
+
+```bash
+python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
+  python3 scripts/publish-topic.py verify "$publication_record" --pr NUMBER
+```
+
+`publication.json` の `push` と `verification` は別の結果とする。観測したHEAD・branch・stateは `observations` に残る。確認が期限切れでもpushの成功は保持し、exit 2で照合待ちを示す。APIエラー・異なるbranch・閉じたPRは別の状態で停止する。`verify` を同じ記録で再開してもpushを実行しない。既存記録での `push` は拒否する。中断等で `push.status=started` が残る場合も、読取りで確認し、pushの終了状態を成功へ書き換えない。PR本文更新・返信・resolveは、公開確認後に既存の手順と `gh-review-thread` を使う。
 
 ## 自律 agent の peer 協働
 

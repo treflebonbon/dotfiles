@@ -28,6 +28,16 @@ def new_runtime(prefix: str) -> Path:
     return Path(tempfile.mkdtemp(prefix=prefix, dir=SCRATCH_ROOT))
 
 
+def write_json(path: Path, value) -> None:
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as output:
+        json.dump(value, output, ensure_ascii=False, indent=2)
+        output.write("\n")
+        output.flush()
+        os.fsync(output.fileno())
+        temporary = output.name
+    os.replace(temporary, path)
+
+
 def _git_environment() -> dict[str, str]:
     # Nix 前の bootstrap なので公開 package を import せず、固定版との同一性をテストする。
     return {
