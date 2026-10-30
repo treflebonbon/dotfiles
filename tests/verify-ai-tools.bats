@@ -184,6 +184,56 @@ PY
   [ "${lines[-1]}" = "$SOURCE" ]
 }
 
+@test "verification commands provide a private writable tmp without host artifacts" {
+  run python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'set -eu; path=$(mktemp -d /tmp/verification-private.XXXXXX); printf fixture >"$path/item"; test "$(cat "$path/item")" = fixture; printf "%s\n" "$path"'
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [[ "${lines[-1]}" == /tmp/verification-private.* ]]
+  [ ! -e "${lines[-1]}" ]
+}
+
+@test "verification private tmp preserves existing browser ownership records read-only" {
+  run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc \
+    --tmpfs /tmp --bind /tmp/codex /tmp/codex \
+    --dir /tmp/verification-browser-records -- \
+    env BROWSER_OWNERSHIP_DIR=/tmp/verification-browser-records \
+    python3 - "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" <<'PY'
+import os, subprocess, sys
+from pathlib import Path
+record = Path(os.environ['BROWSER_OWNERSHIP_DIR']) / 'record'
+record.write_text('preserved')
+probe = '''import errno, os
+from pathlib import Path
+record = Path(os.environ['BROWSER_OWNERSHIP_DIR']) / 'record'
+assert record.read_text() == 'preserved'
+try:
+    record.write_text('changed')
+except OSError as error:
+    assert error.errno == errno.EROFS
+else:
+    raise AssertionError('host browser ownership record was writable')
+'''
+result = subprocess.run([sys.executable, sys.argv[1], sys.argv[2], '--',
+                         sys.executable, '-c', probe])
+assert result.returncode == 0
+assert record.read_text() == 'preserved'
+PY
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "verification rejects the tmp root as browser ownership directory" {
+  run env PATH="$BIN:$PATH" BROWSER_OWNERSHIP_DIR=/tmp \
+    python3 "$PROBE" "$SOURCE"
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$AI_FIXTURE_LOG" ]
+  [[ "$output" == *"BROWSER_OWNERSHIP_DIR"* ]]
+}
+
 @test "verification bootstrap matches the selected public Git environment contract" {
   [ -n "${TREFLEBONBON_SKILLS_LIB:-}" ]
   run python3 - "$PROJECT_ROOT/scripts" "$TREFLEBONBON_SKILLS_LIB" "$BATS_TEST_TMPDIR/parity" <<'PY'

@@ -35,17 +35,16 @@ def _git_environment() -> dict[str, str]:
     }
 
 
+def _browser_ownership_dir() -> str:
+    return os.environ.get("BROWSER_OWNERSHIP_DIR") or str(
+        Path(os.environ.get("XDG_RUNTIME_DIR") or os.environ.get("TMPDIR") or "/tmp")
+        / "browser-ownership"
+    )
+
+
 def create_environment(runtime: Path) -> dict[str, str]:
     environment = _git_environment()
-    if not environment.get("BROWSER_OWNERSHIP_DIR"):
-        environment["BROWSER_OWNERSHIP_DIR"] = str(
-            Path(
-                environment.get("XDG_RUNTIME_DIR")
-                or environment.get("TMPDIR")
-                or "/tmp"
-            )
-            / "browser-ownership"
-        )
+    environment["BROWSER_OWNERSHIP_DIR"] = _browser_ownership_dir()
     for key, name in (
         ("HOME", "home"),
         ("XDG_CONFIG_HOME", "config"),
@@ -121,6 +120,9 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
     writable = (source, common, git_dir)
     if any(path == original_home or path in original_home.parents for path in writable):
         raise ValueError("通常 HOME 全体への書込みは許可できません")
+    ownership = Path(os.path.abspath(_browser_ownership_dir()))
+    if ownership == Path("/tmp"):
+        raise ValueError("BROWSER_OWNERSHIP_DIR に /tmp 全体は指定できません")
     prefix = [
         bwrap,
         "--unshare-user",
@@ -134,6 +136,8 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
         "--ro-bind",
         "/",
         "/",
+        "--tmpfs",
+        "/tmp",
         "--dev",
         "/dev",
         "--proc",
@@ -141,10 +145,17 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
         "--bind",
         str(scratch),
         str(scratch),
-        "--ro-bind",
-        str(original_home),
-        str(original_home),
     ]
+    # /tmp を固定利用する CLI へ private 領域を与え、既存の所有権記録は隠さない。
+    if ownership.is_relative_to("/tmp") and not ownership.is_relative_to(scratch):
+        prefix.extend(["--ro-bind-try", str(ownership), str(ownership)])
+    prefix.extend(
+        [
+            "--ro-bind",
+            str(original_home),
+            str(original_home),
+        ]
+    )
     for path in writable:
         prefix.extend(["--bind", str(path), str(path)])
     prefix.extend(["--chdir", str(source), "--"])
@@ -155,6 +166,7 @@ def sandbox_prefix(source: Path, runtime: Path, original_home: Path) -> list[str
                 "original_home": str(original_home),
                 "writable_paths": [str(path) for path in writable],
                 "scratch": str(scratch),
+                "private_tmp": "/tmp",
                 "protection": "read-only-host-filesystem",
             },
             ensure_ascii=False,

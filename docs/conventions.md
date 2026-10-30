@@ -51,7 +51,7 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 進捗は `python3 scripts/verify-canonical.py --status <canonical-run-directory>` でJSON表示する。この操作は保存記録を読むだけで、全Batsやruntime検査を開始しない。`state` は完了記録がなければ `incomplete`、`result.json` の終了コードが0なら `passed`、非0なら `failed`。`plan`／`pass`／`skip`／`fail` と `exit_code` を表示し、完了前の終了コードは `null`、完了後は記録の終了コードをコマンドの終了コードにも使う。`incomplete` は実行中か中断済みかを区別せず、TAPの全結果が出そろっても成功とはしない。JSON・終了コード・TAP集計形式の不正や、異なる実行のrunner参照は非0終了で拒否する。成功記録の件数合計と失敗0件も確認する。現在のsourceやruntimeの再検証は行わない。
 
-検証は Linux／WSL2 の linked task worktree から、[verify-ai-tools.py](../scripts/verify-ai-tools.py) を使って開始する。最初の Nix 評価より前に、一時 HOME・全 XDG・TMP と bubblewrap の書込み境界を用意する。コマンドと子プロセスから見えるホスト filesystem を read-only にし、書込み先は対象 task worktree、その Git metadata（common dir を含む）、`/tmp/codex` に限定する。Nix store の `bwrap` がない、linked worktree の所属が不正、または OS 境界を作れない場合は停止する。通常 Linux は `--shell default`、WSL2 は `--shell wsl` を指定する。Linux 以外の保護付き検証起動は未対応で拒否する。
+検証は Linux／WSL2 の linked task worktree から、[verify-ai-tools.py](../scripts/verify-ai-tools.py) を使って開始する。最初の Nix 評価より前に、一時 HOME・全 XDG・TMP と bubblewrap の書込み境界を用意する。コマンドと子プロセスから見えるホスト filesystem を read-only にし、ホスト側の書込み先は対象 task worktree、その Git metadata（common dir を含む）、`/tmp/codex` に限定する。`/tmp` を固定利用する CLI には namespace 内の専用 tmpfs を与え、その中へ共有 `/tmp/codex` を bind する。専用 `/tmp` の内容はホストへ残らない。Nix store の `bwrap` がない、linked worktree の所属が不正、または OS 境界を作れない場合は停止する。通常 Linux は `--shell default`、WSL2 は `--shell wsl` を指定する。Linux 以外の保護付き検証起動は未対応で拒否する。
 
 ```bash
 python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- lefthook run test
@@ -66,6 +66,8 @@ python3 scripts/verification_env.py "$PWD" -- rg -n --fixed-strings 'chezmoi app
 ```
 
 Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。例外として `tests/dogfood.bats` は利用者の記録を汚さないよう `BATS_TEST_TMPDIR` 配下を使う。そのため実際のDogfood session や、Cleanup 失敗で残ったテストの Chrome と同時に動くと、`port-conflict` で失敗することがある。
+
+共通記録先が `/tmp/codex` 以外の `/tmp` 配下にある場合、既存 directory を read-only で引き継ぎ、専用 tmpfs で隠さない。`BROWSER_OWNERSHIP_DIR=/tmp` は専用 `/tmp` と競合するため拒否する。
 
 WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`-Command "$script"` の引数で渡す（confirmed、2026-10-23、#496）。stdin（`-Command -`）で渡すと、`-NonInteractive` の有無にかかわらず、エラーも含めて出力が消えた。`MSFT_NetTCPConnection` の `-Filter` に `LocalPort >= …` のような範囲比較を書くと `0x80041017` で失敗するため、`State` などの等価条件だけをプロバイダに渡し、範囲の絞り込みは PowerShell 側の `Where-Object` で行う。
 
