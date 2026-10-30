@@ -661,16 +661,21 @@ def sync_claude(
     previous = validated_previous_claude_install(previous_verified)
     update_existing = False
     if before is not None:
-        if previous is not None and claude_inventory_matches(
+        if claude_inventory_matches(before, pin, source_root, install_path):
+            verify_payload(install_path, expected, pin)
+            try:
+                return verify_claude_installation(
+                    checkout, source_root, pin, expected
+                )
+            except PluginSyncError:
+                update_existing = True
+        elif previous is not None and claude_inventory_matches(
             before,
             previous["pin"],
             previous["source"],
             previous["install_path"],
         ):
             require_marketplace_source(previous["config"], previous["source"])
-            update_existing = True
-        elif claude_inventory_matches(before, pin, source_root, install_path):
-            verify_payload(install_path, expected, pin)
             update_existing = True
         else:
             raise PluginSyncError(

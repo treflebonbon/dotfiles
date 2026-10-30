@@ -465,23 +465,6 @@ class VerifyCheckoutTests(unittest.TestCase):
                     ],
                     ["plugin", "list", "--json"],
                     ["plugin", "list", "--json"],
-                    [
-                        "plugin",
-                        "marketplace",
-                        "add",
-                        str(self.source),
-                        "--scope",
-                        "user",
-                        "--json",
-                    ],
-                    [
-                        "plugin",
-                        "update",
-                        "treflebonbon-skills@treflebonbon",
-                        "--scope",
-                        "user",
-                        "--json",
-                    ],
                     ["plugin", "list", "--json"],
                 ],
             )
@@ -494,6 +477,78 @@ class VerifyCheckoutTests(unittest.TestCase):
                 sync_skills_plugin.PluginSyncError, "README.md"
             ):
                 sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+    def test_unchanged_claude_sync_preserves_managed_settings_bytes(self) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            checkout = sync_skills_plugin.cache_root() / self.pin["rev"]
+            checkout.parent.mkdir(parents=True)
+            shutil.copytree(self.root, checkout)
+            source = sync_skills_plugin.ensure_marketplace_source(checkout, self.pin)
+            initial = sync_skills_plugin.sync_claude(checkout, source, self.pin)
+            receipt = {
+                "schema_version": 1,
+                "status": "verified",
+                "pin": self.pin,
+                "checkout": str(checkout),
+                "source": str(source),
+                "results": {"claude": initial},
+            }
+            settings = config / "settings.json"
+            settings.write_text(
+                json.dumps(json.loads(settings.read_text()), indent=2) + "\n"
+            )
+            managed_bytes = settings.read_bytes()
+
+            for previous in (None, receipt):
+                with self.subTest(previous_receipt=previous is not None):
+                    result = sync_skills_plugin.sync_claude(
+                        checkout, source, self.pin, previous_verified=previous
+                    )
+
+                    self.assertEqual(result["version"], self.pin["version"])
+                    self.assertEqual(settings.read_bytes(), managed_bytes)
+
+    def test_claude_sync_repairs_registration_with_current_payload(self) -> None:
+        cli = self.make_mock_claude()
+        home = Path(self.temporary.name) / "home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+            },
+        ):
+            sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+            for path in (
+                config / "settings.json",
+                config / "plugins/known_marketplaces.json",
+            ):
+                with self.subTest(registration=path.name):
+                    path.write_text("{}\n")
+
+                    sync_skills_plugin.sync_claude(self.root, self.source, self.pin)
+
+                    verified = sync_skills_plugin.verify_claude_installation(
+                        self.root,
+                        self.source,
+                        self.pin,
+                        sync_skills_plugin.tracked_tree(self.root),
+                    )
+                    self.assertEqual(verified["version"], self.pin["version"])
 
     def test_claude_install_failure_keeps_existing_local_skill(self) -> None:
         cli = self.make_mock_claude()
