@@ -9,13 +9,8 @@ let
   pkgs = import flake.inputs.nixpkgs {
     inherit system;
     config.allowUnfree = true;
-    overlays = [ flake.inputs.llm-agents.overlays.shared-nixpkgs ];
   };
-  original =
-    if tool == "claude-code" then
-      pkgs.llm-agents.claude-code
-    else
-      flake.inputs.llm-agents.packages.${system}.${tool};
+  original = flake.inputs.llm-agents.packages.${system}.${tool};
   # Keep a valid derivation with a distinct identity while replacing only metadata.
   candidate =
     if metadata == null then
@@ -28,19 +23,13 @@ let
   module = import ../../private_dot_config/nix-devshell/modules/ai.nix {
     inherit system;
     lib = pkgs.lib;
-    pkgs = pkgs // {
-      llm-agents =
-        pkgs.llm-agents
-        // pkgs.lib.optionalAttrs (tool == "claude-code") {
-          claude-code = candidate;
-        };
-    };
+    inherit pkgs;
     inputs = flake.inputs // {
       llm-agents = flake.inputs.llm-agents // {
         packages = flake.inputs.llm-agents.packages // {
-          ${system} =
-            flake.inputs.llm-agents.packages.${system}
-            // pkgs.lib.optionalAttrs (tool == "codex") { codex = candidate; };
+          ${system} = flake.inputs.llm-agents.packages.${system} // {
+            ${tool} = candidate;
+          };
         };
       };
     };

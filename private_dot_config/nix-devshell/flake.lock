@@ -64,27 +64,27 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1793142375,
-        "narHash": "sha256-PKsO8cr8AfjPCGAFBn5EidUqZxJaxqlbP7lM9VggWNE=",
+        "lastModified": 1793400419,
+        "narHash": "sha256-Ac2ml1HXQo7cYZ+3YoYaRLVcEJeEA3IYEXhXuSDYdz4=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9",
+        "rev": "2cae3bb5496cf25b2e951a69f8ecbee963e211c7",
         "type": "github"
       },
       "original": {
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9",
+        "rev": "2cae3bb5496cf25b2e951a69f8ecbee963e211c7",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1792116957,
-        "narHash": "sha256-EjZqHKObBfIOeHZnMRVV87HB3pPq/WBkmRJWyFxmZu8=",
+        "lastModified": 1793345420,
+        "narHash": "sha256-e/yiZ31gXRROBDcnOtT3YwDQ73NVG9Cepccbt86LIn8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f20cd90e28fe0403873f473b29e42662cd86e8c4",
+        "rev": "885ba4d038f10c3d17d7a92e8c3cc185b99c9158",
         "type": "github"
       },
       "original": {
@@ -108,23 +108,6 @@
         "owner": "NixOS",
         "repo": "nixpkgs",
         "rev": "d6524aaca2ff07876657ae2b323f24be4874944b",
-        "type": "github"
-      }
-    },
-    "nixpkgs-brotli-sources": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1792660224,
-        "narHash": "sha256-VW2dvDKzFrZG4onSrbbn4hz+3h82zZtUw+7FncP0ei8=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad",
         "type": "github"
       }
     },
@@ -166,7 +149,6 @@
         "llm-agents": "llm-agents",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-ai-sources": "nixpkgs-ai-sources",
-        "nixpkgs-brotli-sources": "nixpkgs-brotli-sources",
         "nixpkgs-language-sources": "nixpkgs-language-sources"
       }
     },

@@ -52,27 +52,28 @@ setup() {
   jq -e '[.[] | .[] | .[]] | length == 12' <<<"$output"
 }
 
-@test "APM runtime closure uses the patched Brotli library" {
-  run --separate-stderr nix build --no-link --print-out-paths --impure --no-write-lock-file --option warn-dirty false --expr '
+# 再構築を避けるユーザー方針により、AI package の依存修正は llm-agents が所有する。
+# upstream の Node / Brotli は修正済みとは扱わず、現状を更新記録へ残す。
+@test "llm-agents tools use unmodified upstream outputs on all supported systems" {
+  run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
       flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
-      packages = flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
-    in builtins.head (builtins.filter
-      (package: (package.pname or "") == "apm") packages)
+      names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
+    in builtins.mapAttrs (system: shells:
+      map (name:
+        let
+          selected = builtins.filter (p: (p.pname or "") == name) shells.wsl.nativeBuildInputs;
+          package = builtins.head selected;
+          upstream = flake.inputs.llm-agents.packages.${system}.${name};
+        in assert builtins.length selected == 1;
+           assert package.drvPath == upstream.drvPath;
+           assert toString package == toString upstream;
+           { inherit name; version = package.version; }
+      ) names
+    ) flake.devShells
   '
   [ "$status" -eq 0 ]
-  local package="$output"
-  run nix-store --query --requisites "$package"
-  [ "$status" -eq 0 ]
-  local path version found=0
-  while IFS= read -r path; do
-    if [[ "$path" =~ -brotli-([0-9]+\.[0-9]+\.[0-9]+)(-|$) ]]; then
-      version="${BASH_REMATCH[1]}"
-      [ "$(printf '%s\n' 1.2.1 "$version" | sort -V | head -n 1)" = 1.2.1 ]
-      found=1
-    fi
-  done <<<"$output"
-  [ "$found" -eq 1 ]
+  jq -e 'length == 3 and all(.[]; length == 7)' <<<"$output"
 }
 
 @test "managed Node.js uses hash-pinned official release binaries on all systems" {
@@ -102,13 +103,16 @@ setup() {
   jq -e '[.[] | .[]] | length == 6' <<<"$output"
 }
 
-@test "managed CLI runtime closures use patched Node.js and Brotli" {
+@test "locally packaged CLI runtime closures use patched Node.js and Brotli" {
   run --separate-stderr nix build --no-link --print-out-paths --impure --no-write-lock-file --option warn-dirty false --expr '
     let
       root = builtins.getEnv "PROJECT_ROOT";
       repo = builtins.getFlake root;
       user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
-      packages = flake: flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
+      upstreamTools = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
+      packages = flake: builtins.filter
+        (package: !(builtins.elem (package.pname or "") upstreamTools))
+        flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
     in packages repo ++ packages user
   '
   [ "$status" -eq 0 ]

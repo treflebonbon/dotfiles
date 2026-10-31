@@ -32,16 +32,16 @@ setup() {
   done
 
   grep -q 'nixpkgs-26\.05-darwin' "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
-  grep -q 'llm-agents\.overlays\.shared-nixpkgs' "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
+  grep -Fq 'llm = inputs.llm-agents.packages.${system};' "$PROJECT_ROOT/private_dot_config/nix-devshell/modules/ai.nix"
 }
 
 @test "user devShell selects the approved AI snapshot and stable package channel" {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9"' "$lock"
+  grep -q 'github:numtide/llm-agents\.nix/2cae3bb5496cf25b2e951a69f8ecbee963e211c7' "$flake"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "2cae3bb5496cf25b2e951a69f8ecbee963e211c7"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "2cae3bb5496cf25b2e951a69f8ecbee963e211c7"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 
@@ -178,20 +178,11 @@ setup() {
 
 @test "code-review-graph package meets its FastMCP floor on all supported systems (issue #136)" {
   local package="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/code-review-graph.nix"
-  local language_pack="$PROJECT_ROOT/private_dot_config/nix-devshell/packages/tree-sitter-language-pack-0_13.nix"
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell"
 
   grep -q 'minFastMcp = "3\.2\.4";' "$package"
-  grep -q 'nixpkgs-ai-sources.*fastmcp/default\.nix' "$package"
-  grep -q 'lib\.versionAtLeast python\.pkgs\.fastmcp\.version minFastMcp' "$package"
-  grep -q 'tree-sitter-language-pack-0_13\.nix' "$package"
-  grep -q 'version = "0\.13\.0";' "$language_pack"
-  grep -Fq 'sha256-AyA0xeJ7H24AcwuefC28ggO0cA0MaB/QGdbe/PYRg+w=' "$language_pack"
-  grep -q '"x86_64-linux"' "$package"
-  grep -q '"aarch64-linux"' "$package"
-  grep -q '"aarch64-darwin"' "$package"
-  run grep -q '"x86_64-darwin"' "$package"
-  [ "$status" -ne 0 ]
+  grep -Fq 'inputs.llm-agents.packages.${system}.code-review-graph' "$package"
+  grep -q 'lib\.versionAtLeast fastmcp\.version minFastMcp' "$package"
 
   run nix flake check --no-build --all-systems "path:$flake"
   [ "$status" -eq 0 ]

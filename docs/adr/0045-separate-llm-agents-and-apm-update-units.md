@@ -237,6 +237,14 @@ Tool Snapshotを exact revision `998b9f267c671917a0b9a88b01e287c3168f3c24` に�
 
 ユーザー判断により、repo独自のCodex patchを撤去した。上記の`codex-sandbox-cleanup.patch`とsingle-job source buildの維持は終了し、Codexはupstream（Numtide cache）の出力をそのまま使う。SIGKILL時に空dotenvが残り得る既知の回帰は許容する。以後の更新で独自patchを新規に追加しない。経緯と検証は[更新記録](../research/update-tools-skills-20261023.md)を参照する。
 
+## 2026-10-31 amendment: llm-agents の配布物を再構築せずに使う
+
+ユーザーの「自前ビルドしない。llm-agents のもの」を今回の更新方針とする。Claude Code、Codex、Copilot CLI、Antigravity CLI、APM、Herdr、code-review-graph は同一 snapshot の direct package に統一する。shared overlay での再計算、APM の Brotli 用 Python scope override、code-review-graph のローカル dependency / FastMCP patch は適用しない。Claude / Codex の品質 floor と FastMCP >=3.2.4 の確認は維持する。
+
+採用 snapshot `2cae3bb5496cf25b2e951a69f8ecbee963e211c7` の7 outputは x86_64-linux でビルドを禁止した取得に成功し、対応3 system計21 outputのNumtide cache登録も照合した。cacheが不足する候補を自前ビルドで補わない。通常APM、Impeccable、Matt managed set の互換性ゲートは引き続き分ける。
+
+この方針では `llm-agents` の Node.js 24.21.0 / Brotli 1.2.0 をローカルで修正しない。以前のAPM向けBrotli修正済み保証とは両立しないため、未修正依存を残課題として明示する。`tests/runtime-security.bats` は upstream 7 packageの完全なderivation一致と、別途ローカル配布するCLIのNode.js / Brotli修正を分けて検査する。前者の成功は脆弱性修正の保証ではない。採否・検証・未確認事項は[今回の更新記録](../research/update-tools-skills-20261031.md)を参照する。
+
 ## Consequences
 
 候補ごとの失敗を他の更新へ波及させず、snapshot packaging、通常の skill payload、hook runtime、workflow semantics をそれぞれの根拠で採否できる。一方、単一の一括更新より検証回数と順序制約は増える。
