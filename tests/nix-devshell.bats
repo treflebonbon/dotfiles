@@ -270,7 +270,6 @@ setup() {
         pkgs = import flake.inputs.nixpkgs.outPath {
           system = "x86_64-linux";
           config.allowUnfree = true;
-          overlays = [ flake.inputs.llm-agents.overlays.shared-nixpkgs ];
         };
       pin = builtins.fromJSON (builtins.readFile (flake.outPath + "/skills-plugin.json"));
       skillsPluginSource = pkgs.fetchFromGitHub {

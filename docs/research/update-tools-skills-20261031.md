@@ -22,9 +22,13 @@
 
 ## 再構築しない方針と残る依存
 
-最初の候補 `467c27cb…` は、既存のAPM向けBrotli修正を保つとGit 2.56.0と多数のPython 3.14依存を再構築した。追加指示を受けてその方式を却下し、APMのPython scope overrideと、code-review-graphのローカルdependency / FastMCP patchの適用を終了した。旧patchとparser定義のファイルは削除せず残すが、現行packageからは参照しない。shared overlayでAI packageを再計算せず、同じsnapshotのdirect outputを使う。Claude / Codexの品質floor（2.1.296 / 0.162.0）とFastMCP >=3.2.4は維持する。
+最初の候補 `467c27cb…` は、既存のAPM向けBrotli修正を保つとGit 2.56.0と多数のPython 3.14依存を再構築した。追加指示を受けてその方式を却下し、APMのPython scope overrideと、code-review-graphのローカルdependency / FastMCP patchの適用を終了した。旧patchとparser定義の3ファイルは、ファイル削除の事前確認を受けていないため残すが、現行packageからは参照しない。shared overlayでAI packageを再計算せず、同じsnapshotのdirect outputを使う。Claude / Codexの品質floor（2.1.296 / 0.162.0）とFastMCP >=3.2.4は維持する。
 
-**確認済み:** このsnapshotの依存にはNode.js 24.21.0 / Brotli 1.2.0がある。以前のローカルAPM再構築によるBrotli修正済み保証とは両立しない。Brotli 1.2.1は[CVE-2026-111497の修正release](https://github.com/google/brotli/releases/tag/v1.2.1)であり、今回のupstream依存を修正済みとは扱わない。ローカル配布CLIのNode.js修正検査と、upstream 7 packageの完全なderivation一致検査を分ける。後者の成功は脆弱性修正の保証ではない。攻撃者制御streamが各アプリに届く経路は未確認。upstreamへの書込みは行わない。
+**CRGの依存範囲変更（確認済み）:** CRG 2.3.9本体は`tree-sitter-language-pack>=0.3.0,<1`を宣言するが、採用するllm-agents packageは`pythonRelaxDeps`と`--skip-dependency-check`で上限を緩和し、1.4.1を使う。[導入時の不採用判断](code-review-graph-adoption.md)を今回のdirect package方針で改め、ローカルの`<1`検査と0.13.0の再構築経路を終了した。grammarの同梱と子プロセスprobe用Pythonの修正は上流packageが供給する。LinuxではPythonサンプルのgraph build / MCP呼出しが成功したが、Python以外の言語とARM / Darwinでのgrammar互換性は未確認である。
+
+**確認済み（x86_64-linux）:** 採用7 outputのclosureを`nix-store --query --requisites`で読み取り照会した。209 pathに独立した`nodejs` packageは0件で、APMのclosureには`brotli-1.2.0-lib`と`python3.14-brotli-1.2.0`がある。snapshotのpackage setの`pkgs.nodejs.version`は24.21.0だが、採用outputにその版が含まれることの根拠にはしない。ツール同梱Node runtimeの版と、ARM / DarwinのclosureにおけるNode / Brotliの実体は未確認である。
+
+以前のローカルAPM再構築によるBrotli修正済み保証とは両立しない。Brotli 1.2.1は[CVE-2026-111497の修正release](https://github.com/google/brotli/releases/tag/v1.2.1)であり、今回のAPM依存を修正済みとは扱わない。ローカル配布CLIのNode.js修正検査と、upstream 7 packageの完全なderivation一致検査を分ける。後者の成功は脆弱性修正の保証ではない。攻撃者制御streamが各アプリに届く経路は未確認。upstreamへの書込みは行わない。
 
 ## 検証と証跡
 
@@ -41,5 +45,13 @@
 - 文書変換の候補smokeは継承したPython 3.14向け`PYTHONPATH`がPython 3.13のNumPyと衝突した。`env -u PYTHONPATH`で同じ入力の変換が成功した。以降の検証からこの継承変数を外した。候補そのものは上記の理由で採用しない。
 - 実装commit `f44b0a1`に対するStandards / Specの独立レビューは両軸とも指摘なし。
 - source採用後のcanonical初回（`tmp/canonical-run.0ixpwk9u`、環境`/tmp/codex/canonical-env.aeta547l`）は全704件中成功689・既定skip14・失敗1。`tests/mattpocock-update-gate.bats`に残った旧Matt content hashの期待値が原因だった。上記の検証済みnative lockのhashに更新した。関連するgate / APMテスト36/36がskipなしで成功した（`/tmp/codex/ai-tools-zkmk0hbz/startup.log`）。実測137.604秒で、Design Hook13件・Playwright runtime2件はすべてskipなしで成功し、source / HEAD / runtimeの前後照合も一致した。修正後の再検証は別記録として残す。
-- hash期待値修正commit `f021913` の追加差分もStandards / Specとも指摘なし。最終canonical（`tmp/canonical-run.z34oyl6f`、環境`/tmp/codex/canonical-env.ox__ys9a`）は、cleanな同commitで `lefthook run test` を実行して成功した。全704件中成功690・既定skip14・失敗0、コマンドとrunnerのexitはともに0、実測148.725秒。Design Hook13件・Playwright runtime2件はすべてskipなしで成功し、source / HEAD / runtimeの前後照合も一致した。TAP SHA-256は`489f853ee5e7cf8bfc7f890a970399099e0187a7f3bd3c40b873f288722d9673`。この実行後の変更は本記録への結果追記だけで、実装・依存・テストは変更しない。
+- hash期待値修正commit `f021913` の追加差分もStandards / Specとも指摘なし。最終canonical（`tmp/canonical-run.z34oyl6f`、環境`/tmp/codex/canonical-env.ox__ys9a`）は、cleanな同commitで `lefthook run test` を実行して成功した。全704件中成功690・既定skip14・失敗0、コマンドとrunnerのexitはともに0、実測148.725秒。Design Hook13件・Playwright runtime2件はすべてskipなしで成功し、source / HEAD / runtimeの前後照合も一致した。TAP SHA-256は`489f853ee5e7cf8bfc7f890a970399099e0187a7f3bd3c40b873f288722d9673`。この成功後の`d12cf38`では記録だけを追記した。後段のHerdrレビュー対応は別の差分として検証する。
 - 旧候補の起動検証3件は方針相談時にSIGTERMで中断した（exit 143、テスト失敗と区別）。ARM / Darwin実機、実Windows Chrome、実モデル呼出し、live配備は検証に含めない。
+
+## Herdrレビューへの対応
+
+ユーザーの「推奨案で進めて」を受け、Node依存の確度表現、CRGの依存範囲変更の記録、Playwrightのテストfixtureに残る不要なshared overlay参照を修正した。package pin、APM manifest / lock、品質floorは維持し、自前ビルドやローカルpatchを追加しない。未使用3ファイルの削除は対象に含めない。
+
+既存storeの読み取り照会とCRG 2.3.9のsource確認は`/tmp/codex/fix-tools-review.Uzl4nO/dependency-inspection.json`に保存した。これはLinuxの採用7 outputに限る実測で、package setのNode版や同梱runtimeの版、他systemの実行結果へ一般化しない。floatingのorchestration / React View Transitionsはrevisionとcontent hashの両方が変わっており、通常APMの採否記録は変更しない。
+
+CRGの対応3 systemのdirect outputが1.4.1を参照することは、元の`remote-cache.json`でも照合した。grammar実行の互換性とは区別する。関連する`tests/nix-devshell.bats`は21/21、skipなしで成功した（`/tmp/codex/ai-tools-rq7nzhz0/startup.log`）。修正差分の再レビューと修正後のcanonical検証は、実施後に追記する。

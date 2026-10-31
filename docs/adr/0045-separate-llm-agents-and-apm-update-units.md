@@ -243,7 +243,9 @@ Tool Snapshotを exact revision `998b9f267c671917a0b9a88b01e287c3168f3c24` に�
 
 採用 snapshot `2cae3bb5496cf25b2e951a69f8ecbee963e211c7` の7 outputは x86_64-linux でビルドを禁止した取得に成功し、対応3 system計21 outputのNumtide cache登録も照合した。cacheが不足する候補を自前ビルドで補わない。通常APM、Impeccable、Matt managed set の互換性ゲートは引き続き分ける。
 
-この方針では `llm-agents` の Node.js 24.21.0 / Brotli 1.2.0 をローカルで修正しない。以前のAPM向けBrotli修正済み保証とは両立しないため、未修正依存を残課題として明示する。`tests/runtime-security.bats` は upstream 7 packageの完全なderivation一致と、別途ローカル配布するCLIのNode.js / Brotli修正を分けて検査する。前者の成功は脆弱性修正の保証ではない。採否・検証・未確認事項は[今回の更新記録](../research/update-tools-skills-20261031.md)を参照する。
+CRG 2.3.9本体の`tree-sitter-language-pack>=0.3.0,<1`に対し、llm-agents側が制約を緩和して1.4.1を供給する判断に従う。[導入時の不採用判断](../research/code-review-graph-adoption.md)を改め、ローカルの`<1`検査と0.13.0の再構築経路を終了する。grammarの同梱と子プロセスprobe用Pythonの修正は上流packageが供給する。LinuxのPythonサンプルではgraph build / MCP呼出しが成功し、他言語とARM / Darwinのgrammar互換性は未確認である。
+
+x86_64-linuxの採用7 outputのclosureでは、独立したnodejs packageは0件で、APMのBrotli 1.2.0依存は確認済みである。package setの`pkgs.nodejs.version`が24.21.0であることと、ツール同梱Node runtimeの版は区別し、後者は未確認として扱う。以前のAPM向けBrotli修正済み保証とは両立しないため、未修正依存を残課題として明示する。`tests/runtime-security.bats` は upstream 7 packageの完全なderivation一致と、別途ローカル配布するCLIのNode.js / Brotli修正を分けて検査する。前者の成功は脆弱性修正の保証ではない。採否・検証・未確認事項は[今回の更新記録](../research/update-tools-skills-20261031.md)を参照する。
 
 ## Consequences
 
