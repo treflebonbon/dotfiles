@@ -39,4 +39,6 @@
 - Matt native pairをsourceへ採用した後のAPM / workflow / orphan cleanup関連Batsは57/57、skipなしで成功した（`/tmp/codex/ai-tools-njgxf1ob/startup.log`）。
 - frozen root依存の導入、`bunx tsc --noEmit`、Nix / Markdown整形は成功。記録は `/tmp/codex/ai-tools-ge4rruyh/startup.log`。
 - 文書変換の候補smokeは継承したPython 3.14向け`PYTHONPATH`がPython 3.13のNumPyと衝突した。`env -u PYTHONPATH`で同じ入力の変換が成功した。以降の検証からこの継承変数を外した。候補そのものは上記の理由で採用しない。
-- 旧候補の起動検証3件は方針相談時にSIGTERMで中断した（exit 143、テスト失敗と区別）。source採用後の最終canonical全Bats、code-review、commitはこの時点では未完了。ARM / Darwin実機、実Windows Chrome、実モデル呼出し、live配備は検証に含めない。
+- 実装commit `f44b0a1`に対するStandards / Specの独立レビューは両軸とも指摘なし。
+- source採用後のcanonical初回（`tmp/canonical-run.0ixpwk9u`、環境`/tmp/codex/canonical-env.aeta547l`）は全704件中成功689・既定skip14・失敗1。`tests/mattpocock-update-gate.bats`に残った旧Matt content hashの期待値が原因だった。上記の検証済みnative lockのhashに更新した。関連するgate / APMテスト36/36がskipなしで成功した（`/tmp/codex/ai-tools-zkmk0hbz/startup.log`）。実測137.604秒で、Design Hook13件・Playwright runtime2件はすべてskipなしで成功し、source / HEAD / runtimeの前後照合も一致した。修正後の再検証は別記録として残す。
+- 旧候補の起動検証3件は方針相談時にSIGTERMで中断した（exit 143、テスト失敗と区別）。ARM / Darwin実機、実Windows Chrome、実モデル呼出し、live配備は検証に含めない。
