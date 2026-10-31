@@ -69,3 +69,13 @@ Impeccableの未リリースmainは採用せず、MattのHEADと1.3.2 pinは一�
 文書変換CLIには[Defuddle 0.19.6](https://github.com/kepano/defuddle/releases/tag/0.19.6)と[MarkItDown 0.1.9](https://github.com/microsoft/markitdown/releases/tag/v0.1.9)の新候補がある。以前に却下した0.19.5 / 0.1.8とは区別し、今回の新候補について自前ビルドなしのcache / 配布経路は未確認のため採用しない。source pinと既存版を維持する。Brotliの許容判断は旧S-2の保留状態を維持し、今回の再確認やPR公開を許容承認とは扱わない。
 
 採用後の`tests/apm-runtime.bats`は18/18、skipなしで成功した（`/tmp/codex/ai-tools-k8al1k5d/startup.log`）。追加差分commit `c8c3339`はHerdrのCodex（Standards）とClaude Opus（Spec）で再レビューし、両軸とも指摘なしだった。公開するHEADの検証結果はPR本文と公開記録へ残す。最新情報の再確認だけから、未実施のruntime検証やlive配備を完了扱いにしない。
+
+## PR #549 Review Round: 修正済みupstreamを待つ
+
+初期の実装依頼の後、ユーザーの`$pr`でtopic pushとPR公開が承認された。[review 5721661884](https://github.com/treflebonbon/dotfiles/pull/549#pullrequestreview-5721661884)のBrotli指摘に対し、ユーザーは「修正済みupstreamを待ち、このPRのmergeとAPM配備を保留する」を選択した。PRをdraftへ戻し、旧S-2のリスク許容判断は保留のまま維持する。APMの未修正依存が残るため、thread `PRRT_kwDOTMg6A86yOp1_`は未解決で残す。修正済みupstreamの選定・cache取得・依存確認・必要な検証が済むまで、mergeとAPM配備を再開しない。
+
+**confirmed:** 最新upstream `28d5a74ef304d1a3c7a5f6cacfb52bacbf922698`のimmutable sourceを取得し、IFDを禁止したmetadata評価を行った。対象7件×3 systemのversion・derivation・outputは採用snapshotとすべて一致し、Linuxの候補APM outputもBrotli 1.2.0依存を持つ同じoutputだった。snapshot pin・実行設定・APM manifest / lockは変更せず、自前ビルドは行っていない。
+
+**confirmed:** 現在PATHで選択される配備済みAPM `/nix/store/b57d3rsdby4w5pf67hs20y5ddp3kkach-apm-0.35.0`のclosureは、`brotli-1.2.1-lib`と`python3.14-brotli-1.2.1`を参照する。候補への切替を保留し、この配備は維持する。候補APMの`install/validation.py`には`requests.get(...)`があり、[Requestsの公式説明](https://requests.readthedocs.io/en/latest/user/quickstart/#binary-response-content)どおりBrotli libraryが導入されていると`br`応答は自動復号される。攻撃者が制御する応答の到達可能性は**unconfirmed**で、exploit可能とは断定しない。[Brotli 1.2.1](https://github.com/google/brotli/releases/tag/v1.2.1)の修正を候補APMへ適用済みとも扱わない。
+
+今回の証跡rootは`/tmp/codex/pr549-feedback.ZS6GDQ/`。`threads.json`、`llm-latest-metadata.json`、`latest-outputs.json`、`live-apm-closure.txt`に取得結果を残す。前節のorchestration更新の証跡は`/tmp/codex/tools-update-pr.4VKDFg/orchestration/`にある。公開HEADの検証結果と公開照合はPR本文・公開記録へ残す。
