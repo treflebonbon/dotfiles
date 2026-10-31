@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#490141501de5035d1d2fb975239ceb757f045bcb
+    - pbakaus/impeccable/.agents/skills/impeccable#414603bf14c7a344edb466bb1f85690c77ce8b7d
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -25,22 +25,22 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#6c67adcd9cdbe6eb84d76342da89b225f9161cb2
+    - remotion-dev/skills/skills/remotion-best-practices#30d4553ecd46fbc5212fd0ff006ae43af522158b
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#65e7edd67e77420eaf02c5df00fdc0521417d809
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#4f2b13e25c5815b3f080ca0d983e828d96561a0f
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # musoukun/skills
     - musoukun/skills/animated-arch-diagram
     # mattpocock/skills 公式27-skill collection — 公式 full set を一括管理。
     # 検証済み default-branch revision を pin し、APM の lock / frozen install で同期する。
-    - mattpocock/skills#49dd158d1076134a641b33efb035946536778336
+    - mattpocock/skills#a496f5513d4a4cf889bc48e189e579f4b0bdf6aa
     # Effect-TS/skills
     - Effect-TS/skills/skills/effect-ts
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli#aedb9305cd1b3de859b5eafc1ee0d77fa0df8963
+    - stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2
     - stablyai/orca/skills/orchestration
     - stablyai/orca/skills/computer-use
     # Herdr 0.9.5 同梱スキルと同じ revision を APM で配布する。

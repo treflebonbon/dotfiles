@@ -19,7 +19,7 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 ## Herdr の手動利用
 
-Herdr は `llm-agents.nix` の immutable snapshot と lock で固定し、ユーザー devShell の `default` / `wsl` から供給する。`inputs.llm-agents.packages.${system}.herdr` を直接参照して Numtide の binary cache と同じ derivation を使う。cache が利用できない場合は Rust / Zig によるソースビルドが必要になる。
+Herdr は `llm-agents.nix` の immutable snapshot と lock で固定し、ユーザー devShell の `default` / `wsl` から供給する。`inputs.llm-agents.packages.${system}.herdr` を直接参照して Numtide の binary cache と同じ derivation を使う。cache が利用できない更新候補は保留し、自前の Rust / Zig ビルドへ進まない。
 
 任意のプロジェクトディレクトリで起動する。
 
@@ -203,7 +203,7 @@ Claude Code でも利用する repository は、同じ server-side allowlist を
 
 baseline は `modules/ai.nix` の `minClaudeCode` / `minCodex` assert で床固定する。床の根拠はモデル品質・metadata の正確性（Sonnet 5 default / GPT-6 Astra catalog）、skill discovery / MCP 接続、および多 agent ワークフロー・worktree 隔離・permission/trust boundary の信頼性（error 伝搬・background daemon 安定化・worktree 隔離破れ・permission bypass・trust boundary の修正）。
 
-**pin と床は別物**として扱う。flake pin は毎回 upstream へ追従するが、床は release note でこの repo の根拠に当たる修正を確認できた回だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin の3つで、各 system とも同じ pin 済み `llm-agents` input の packageを使う。通常は shared overlay で consumer nixpkgs と dependency を共有するが、source/LTO build が大きい Codex は `inputs.llm-agents.packages.${system}.codex` を基底にする。upstream version は Numtide CI と同じ package set の binary cacheを利用し、consumer側のstable nixpkgsとの差による毎回のsource buildを避ける。Codex に repo 独自の patch は当てず、upstream の cache 済み出力をそのまま使う（2026-10-23 に撤去、[ADR-0045](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md)）。upstream 未収録版の一時的な local override も source build となり、収録後に override を削除する。x86_64-darwin の local override は [ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md) で廃止した。
+**pin と床は別物**として扱う。flake pin は upstream の immutable revision に固定し、床は release note で運用上必要な修正を確認した場合だけ上げる。対応 system は x86_64-linux / aarch64-linux / aarch64-darwin。Claude Code、Codex、Copilot CLI、Antigravity CLI、Herdr、code-review-graph は、同じ`llm-agents` inputの`packages.${system}`を加工せず直接使う。Numtide cacheと同じderivationを選び、自前ビルドや独自patchで補わない。APM本体・依存の切替は今回の更新対象から外し、`llm-agents-apm`の旧snapshotと既存のBrotli修正で更新前のoutputを維持する。管理スキルの更新は別単位として残す。CRGのdependency / FastMCP patchと`tree-sitter-language-pack<1`検査は終了し、llm-agents側が制約を緩和して供給する1.4.1を使う。Python以外のgrammar互換性とツール同梱Node runtimeの版は未確認である。採否・既存APMの再利用・検証範囲は[更新記録](../docs/research/update-tools-skills-20261031.md)と[ADR-0045](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md)を参照する。Codexの独自patchは2026-10-23に撤去済み。x86_64-darwinは[ADR-0034](../docs/adr/0034-update-ai-toolset-safety-baselines.md)で廃止した。
 
 2026-09-01 の Tool Snapshot（Issue #204）は、実装入口で upstream default branch を一度だけ再確認し、`llm-agents.nix` の immutable revision `ea1dc2132fb2669899dc8b3cbe6fe82ed10d23d6` を採用した。3 system の metadata は Claude Code 2.1.252、Codex 0.151.0、Copilot CLI 1.0.82、Antigravity CLI 1.1.22、RTK 0.46.0、APM 0.29.0 で一致する。Codex 0.152.0 は snapshot に未収録のため待機せず、repository から `tools.update_plan.enabled` を opt-in しない。OpenCode は upstream snapshot に存在しても user devShell へ配備しない。通常の APM skill manifest / lock payload は別の更新単位として維持する。Codex の direct output は3 systemとも Numtide cache に存在し、x86_64-linux の user devShell は source build対象を持たず shell derivationだけを2.00秒でbuildした。採用判断と検証 matrix は [ADR-0045](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md) を参照する。
 

@@ -8,11 +8,8 @@
 }:
 
 let
-  llm = pkgs.llm-agents;
-  # Codex is a large Rust/LTO build. Use the immutable llm-agents input's direct
-  # package so upstream versions match the Numtide cache even though this
-  # devShell keeps its shared nixpkgs on the stable branch.
-  codexPackage = inputs.llm-agents.packages.${system}.codex;
+  # upstream の derivation を保ち、Numtide の binary cache を再利用する。
+  llm = inputs.llm-agents.packages.${system};
   patched = import inputs.nixpkgs-brotli-sources { inherit system; };
   nodejs = pkgs.nodejs-bin;
   buildNpmPackage = pkgs.buildNpmPackage.override { inherit nodejs; };
@@ -22,12 +19,12 @@ let
     hash = skillsPluginPin.nar_hash;
   };
 
-  apmPkgs = import inputs.llm-agents.inputs.nixpkgs { inherit system; };
+  apmPkgs = import inputs.llm-agents-apm.inputs.nixpkgs { inherit system; };
   apmGit = apmPkgs.gitMinimal.override {
     curl = apmPkgs.curl.override { brotli = patched.brotli; };
   };
-  # Keep the approved APM release while rebuilding its affected Python dependencies.
-  apmPackage = inputs.llm-agents.packages.${system}.apm.override {
+  # 更新前と同じ修正済み APM を選び、既存 output を再利用する。
+  apmPackage = inputs.llm-agents-apm.packages.${system}.apm.override {
     python3 = apmPkgs.python3.override {
       packageOverrides = _: prev: {
         brotli = prev.brotli.override {
@@ -87,14 +84,14 @@ let
 
   codex = requireQualityFloor {
     name = "codex";
-    package = codexPackage;
+    package = llm.codex;
     minimum = minCodex;
     reason = "複数 denied file の Linux sandbox 起動、書込み可能な sandbox 構築用 executable、ripgrep 設定による deny-glob の弱体化を修正した版。";
     decision = "docs/adr/0045-separate-llm-agents-and-apm-update-units.md";
   };
 
   markitdown-cli = pkgs.python3Packages.toPythonApplication markitdown;
-  codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs; };
+  codeReviewGraph = pkgs.callPackage ../packages/code-review-graph.nix { inherit inputs system; };
   design-md-cli = pkgs.callPackage ../packages/design-md-cli.nix { inherit buildNpmPackage nodejs; };
   impeccable = pkgs.callPackage ../packages/impeccable.nix { };
   playwright-cli = pkgs.callPackage ../packages/playwright-cli.nix {
@@ -121,8 +118,7 @@ in
     llm.antigravity-cli
 
     # --- Terminal Workspaces ---
-    # Keep the derivation aligned with the pinned Numtide binary cache.
-    inputs.llm-agents.packages.${system}.herdr
+    llm.herdr
 
     # --- Code Review Context ---
     # CLI only. Each repository decides whether to build a graph and add a
@@ -145,7 +141,6 @@ in
     waza
 
     # --- Agent Package Manager ---
-    # The shared overlay can't supply upstream's installAgentSkills hook on stable nixpkgs.
     apmPackage
   ];
 

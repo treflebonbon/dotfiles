@@ -17,7 +17,7 @@
     };
 
     # Source only: backport selected package definitions onto 26.05 without
-    # moving the shared package set (document converters and FastMCP for CRG).
+    # moving the shared package set (document converters).
     nixpkgs-ai-sources = {
       url = "github:NixOS/nixpkgs/d6524aaca2ff07876657ae2b323f24be4874944b";
       flake = false;
@@ -25,8 +25,11 @@
 
     llm-agents = {
       # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
-      url = "github:numtide/llm-agents.nix/959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9";
+      url = "github:numtide/llm-agents.nix/2cae3bb5496cf25b2e951a69f8ecbee963e211c7";
     };
+
+    # APM は更新対象から外し、修正済みの既存 output を維持する（ADR-0045）。
+    llm-agents-apm.url = "github:numtide/llm-agents.nix/959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9";
   };
 
   outputs =
@@ -53,7 +56,6 @@
             config.allowUnfree = true;
             overlays = [
               (import ./overlays/runtime-security.nix)
-              inputs.llm-agents.overlays.shared-nixpkgs
             ];
           };
           lib = pkgs.lib;

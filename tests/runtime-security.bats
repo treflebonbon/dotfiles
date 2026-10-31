@@ -52,16 +52,64 @@ setup() {
   jq -e '[.[] | .[] | .[]] | length == 12' <<<"$output"
 }
 
-@test "APM runtime closure uses the patched Brotli library" {
-  run --separate-stderr nix build --no-link --print-out-paths --impure --no-write-lock-file --option warn-dirty false --expr '
+# 更新対象6件は upstream の出力を使い、APMは別テストで更新前の修正済み出力を照合する。
+@test "llm-agents tools use unmodified upstream outputs on all supported systems" {
+  run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
       flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
-      packages = flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
-    in builtins.head (builtins.filter
-      (package: (package.pname or "") == "apm") packages)
+      names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "herdr" "code-review-graph" ];
+    in builtins.mapAttrs (system: shells:
+      map (name:
+        let
+          selected = builtins.filter (p: (p.pname or "") == name) shells.wsl.nativeBuildInputs;
+          package = builtins.head selected;
+          upstream = flake.inputs.llm-agents.packages.${system}.${name};
+        in assert builtins.length selected == 1;
+           assert package.drvPath == upstream.drvPath;
+           assert toString package == toString upstream;
+           { inherit name; version = package.version; }
+      ) names
+    ) flake.devShells
   '
   [ "$status" -eq 0 ]
-  local package="$output"
+  jq -e 'length == 3 and all(.[]; length == 6)' <<<"$output"
+}
+
+@test "APM retains the pre-update outputs and patched Brotli closure" {
+  run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
+    let
+      flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
+    in {
+      host = builtins.currentSystem;
+      systems = builtins.mapAttrs (_: shells:
+        let
+          matches = builtins.filter (p: (p.pname or "") == "apm") shells.wsl.nativeBuildInputs;
+          package = builtins.head matches;
+        in assert builtins.length matches == 1; {
+          output = toString package;
+          derivation = package.drvPath;
+        }
+      ) flake.devShells;
+    }
+  '
+  [ "$status" -eq 0 ]
+  # 更新開始点 9782063 の3環境の出力。APMの依存再計算も検出する。
+  jq -e '.systems == {
+    "x86_64-linux": {
+      "output": "/nix/store/b57d3rsdby4w5pf67hs20y5ddp3kkach-apm-0.35.0",
+      "derivation": "/nix/store/fb0sjxmrbi9ava7f6knglrwsqppq0z9j-apm-0.35.0.drv"
+    },
+    "aarch64-linux": {
+      "output": "/nix/store/mqcnr5qzkkfv405yzf8zwx1h5lfzzl9b-apm-0.35.0",
+      "derivation": "/nix/store/qby915a132smkb5cr2qbccfhhvsvhl1m-apm-0.35.0.drv"
+    },
+    "aarch64-darwin": {
+      "output": "/nix/store/54n5hgrpwg7x44k3qja84mkw5n4273hz-apm-0.35.0",
+      "derivation": "/nix/store/0c1d98q808vffbw581rb9i0x368nvpji-apm-0.35.0.drv"
+    }
+  }' <<<"$output"
+  local package
+  package="$(jq -r '.systems[.host].output' <<<"$output")"
   run nix-store --query --requisites "$package"
   [ "$status" -eq 0 ]
   local path version found=0
@@ -102,13 +150,17 @@ setup() {
   jq -e '[.[] | .[]] | length == 6' <<<"$output"
 }
 
-@test "managed CLI runtime closures use patched Node.js and Brotli" {
+@test "locally packaged CLI runtime closures use patched Node.js and Brotli" {
   run --separate-stderr nix build --no-link --print-out-paths --impure --no-write-lock-file --option warn-dirty false --expr '
     let
       root = builtins.getEnv "PROJECT_ROOT";
       repo = builtins.getFlake root;
       user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
-      packages = flake: flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
+      # APM は専用テストで既存 output を照会し、この検査ではビルドしない。
+      separatelyChecked = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
+      packages = flake: builtins.filter
+        (package: !(builtins.elem (package.pname or "") separatelyChecked))
+        flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
     in packages repo ++ packages user
   '
   [ "$status" -eq 0 ]
