@@ -50,8 +50,8 @@
 
 ## Herdrレビューへの対応
 
-ユーザーの「推奨案で進めて」を受け、Node依存の確度表現、CRGの依存範囲変更の記録、Playwrightのテストfixtureに残る不要なshared overlay参照を修正した。package pin、APM manifest / lock、品質floorは維持し、自前ビルドやローカルpatchを追加しない。未使用3ファイルの削除は対象に含めない。
+ユーザーの「推奨案で進めて」を受け、Node依存の確度表現、CRGの依存範囲変更の記録、Playwrightのテストfixtureに残る不要なshared overlay参照を修正した。package pin、APM manifest / lock、品質floorは維持し、自前ビルドやローカルpatchを追加しない。未使用3ファイルの削除は対象に含めない。Brotliの未修正依存は既知の残課題として維持し、旧レビューS-2の脆弱性許容判断は保留する。今回の推奨案の承認からCVE再露出を許容する明示承認を推定せず、受入・merge時の判断に残す。
 
 既存storeの読み取り照会とCRG 2.3.9のsource確認は`/tmp/codex/fix-tools-review.Uzl4nO/dependency-inspection.json`に保存した。これはLinuxの採用7 outputに限る実測で、package setのNode版や同梱runtimeの版、他systemの実行結果へ一般化しない。floatingのorchestration / React View Transitionsはrevisionとcontent hashの両方が変わっており、通常APMの採否記録は変更しない。
 
-CRGの対応3 systemのdirect outputが1.4.1を参照することは、元の`remote-cache.json`でも照合した。grammar実行の互換性とは区別する。関連する`tests/nix-devshell.bats`は21/21、skipなしで成功した（`/tmp/codex/ai-tools-rq7nzhz0/startup.log`）。修正差分の再レビューと修正後のcanonical検証は、実施後に追記する。
+CRGの対応3 systemのdirect outputが1.4.1を参照することは、元の`remote-cache.json`でも照合した。grammar実行の互換性とは区別する。関連する`tests/nix-devshell.bats`は21/21、skipなしで成功した（`/tmp/codex/ai-tools-rq7nzhz0/startup.log`）。修正commit `9068cee`の再レビューはCodexのStandards軸で規約違反0件・smell0件だった。Claude OpusのSpec軸では旧S-2の追跡状態を明記する指摘が1件あり、上記の保留理由と判断時点を追記後、追加指摘なしを確認した。Brotliの許容判断を含む更新全体の受入は未完了として追跡する。今回の3点の修正後のcanonical検証は、実施後に追記する。
