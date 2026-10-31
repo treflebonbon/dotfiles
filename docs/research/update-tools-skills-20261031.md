@@ -1,6 +1,12 @@
 # AI ツール・管理スキル更新（2026-10-31）
 
-## 現在の要件
+## 現在の採用範囲（APM本体・依存の切替を除外）
+
+ユーザーの追加依頼「apm 関連だけ省いた更新」と選択「APM本体・依存の切替だけを外し、管理スキルの更新は残す」に従い、PR #549を再構成する。APM 0.35.0と既存のBrotli 1.2.1修正は更新前と同じoutputを維持し、Claude Code / Codex等の他6ツール・waza・管理スキルの更新を残す。未修正upstream APMへの切替は後続対応先未定の保留とし、この候補から除外する。自前ビルド・live apply・mergeは行わない。
+
+以下の初期候補とPR全体の保留判断は、追加依頼までの履歴である。現在の採否と外した差分は末尾の「APM除外版」で追跡する。
+
+## 初期要件と経緯
 
 依頼は「`implement` ツールとスキルの更新」。範囲はユーザーが選択した「AI ツール＋全管理スキル」。追加指示は「自前ビルドしない。llm-agents のもの」。開始点は main `97820638edf96c911b2e9a1bc2957856cc204706`、Codex native worktree `/home/ubuntu/.codex/worktrees/8bc3/dotfiles`、branch `chore/update-tools-skills-20261031`。公開・merge・live 配備は今回の実装依頼に含めない。
 
@@ -79,3 +85,22 @@ Impeccableの未リリースmainは採用せず、MattのHEADと1.3.2 pinは一�
 **confirmed:** 現在PATHで選択される配備済みAPM `/nix/store/b57d3rsdby4w5pf67hs20y5ddp3kkach-apm-0.35.0`のclosureは、`brotli-1.2.1-lib`と`python3.14-brotli-1.2.1`を参照する。候補への切替を保留し、この配備は維持する。候補APMの`install/validation.py`には`requests.get(...)`があり、[Requestsの公式説明](https://requests.readthedocs.io/en/latest/user/quickstart/#binary-response-content)どおりBrotli libraryが導入されていると`br`応答は自動復号される。攻撃者が制御する応答の到達可能性は**unconfirmed**で、exploit可能とは断定しない。[Brotli 1.2.1](https://github.com/google/brotli/releases/tag/v1.2.1)の修正を候補APMへ適用済みとも扱わない。
 
 今回の証跡rootは`/tmp/codex/pr549-feedback.ZS6GDQ/`。`threads.json`、`llm-latest-metadata.json`、`latest-outputs.json`、`live-apm-closure.txt`に取得結果を残す。前節のorchestration更新の証跡は`/tmp/codex/tools-update-pr.4VKDFg/orchestration/`にある。公開HEADの検証結果と公開照合はPR本文・公開記録へ残す。
+
+## APM除外版
+
+APM本体・依存の切替を除き、管理スキルの更新を残すユーザー選択に従う。PR全体を未修正APMの修正待ちとする直前のscopeを改め、APM切替だけを後続の更新単位へ保留する。PRのmerge・live配備は別途の受入後に行う。旧S-2の未修正Brotliを許容する判断は、本PRの対象外となり、APM切替の後続単位へ移す。
+
+| 元候補の差分 | 現在の扱い | 根拠と対応先 |
+| --- | --- | --- |
+| APMを新snapshotの未加工outputへ切り替え、Brotli修正用overrideを終了 | 本PRから除外・保留 | Brotli 1.2.0を再導入するため採用しない。修正済みupstreamへの切替は対応先未定。 |
+| 既存のAPM 0.35.0とBrotli修正 | 維持 | `llm-agents-apm`に旧snapshot `959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9`を固定し、既存の`nixpkgs-brotli-sources`とPython / Git依存修正をそのまま使う。 |
+| 他のllm-agents 6ツール・CRGのdirect output化 | 採用候補を維持 | 同じ`2cae3bb5`の未加工outputを使い、品質floorと18 outputのcache証拠を維持する。 |
+| 通常APM payload・Impeccable skill / engine・Matt managed set・waza | 採用候補を維持 | 管理スキルは更新済みmanifest / lockを維持し、保持するAPM outputでfrozen互換性を確認する。 |
+
+**confirmed（予備評価）:** 更新開始点`9782063`と同じAPM定義・依存入力から構成した3 systemのderivation・outputはすべて開始点と一致した。Linux outputは現在配備済みの`/nix/store/b57d3rsdby4w5pf67hs20y5ddp3kkach-apm-0.35.0`であり、既存storeから再利用できる。候補snapshot全体を旧版へ戻さず、APMの依存入力だけを分ける理由である。APMの新規patchや新規ビルドを追加しない。APMは従来の配布方式を維持し、新規端末へのcold installとARM / Darwin実機での実行は今回の確認範囲に含めない。
+
+証跡rootは`/tmp/codex/update-without-apm.aD5lCK/`。予備評価は`probe-apm.nix`と`probe-apm.json`。**confirmed（採用source）:** `final-matrix.json`でも3 systemのAPM derivation・outputが開始点と一致し、他6件は新snapshotのupstream出力と一致した。Linuxの計7 outputは`--max-jobs 0 --builders ''`で取得成功（`existing-outputs.log`、終了コード0の`existing-outputs.exit-code`、出力の`existing-outputs-result.json`）。保持APMのclosureはBrotli library / Python bindingとも1.2.1だった（`apm-closure.txt`）。
+
+保持するAPMで更新済みmanifest / lockを`frozen/`へ隔離導入し、frozen前後のlock SHA-256は`0a3cd0f61bc91cf85b1fdf11b030c52339ef28f5fa42619f72fbf8fc5e881f3d`で不変、audit 10/10。各targetの47 skill、追加・削除0、全1508 recordの既存owner / active_owner・共有ledger・root metadataを維持した。`tests/runtime-security.bats` / `tests/nix-devshell.bats` / `tests/apm-runtime.bats`は45件中44成功・runtimeによるrepo-local `.agents` mountのskip1・失敗0だった（`/tmp/codex/ai-tools-idbvlqgu/startup.log`）。公開HEADのcanonicalは別途PR本文・公開記録へ残す。review thread `PRRT_kwDOTMg6A86yOp1_`には、APM切替を外したcommitの公開確認後に変更と検証結果を返信する。
+
+APM除外版の初回canonicalはcleanな`30d7a93`で705件中690成功・skip15・失敗0だった（`tmp/canonical-run.nb3h83jc`、実測185.084秒）。CodexのStandards軸で、汎用closure検査が保持APMをビルド対象へ含める指摘が1件あり、APMを除外して専用の読み取り検査へ任せるよう修正した。Claude OpusのSpec軸は修正必須0件で、旧S-2の移管と取得終了コードの記録を明確化する提案を反映した。Brotli走査の共通化提案は、APMの存在必須検査とNodeの任意の共有library検査で条件が異なるため個別のまま維持する。修正後の公開HEADのcanonical結果はPR本文へ残す。

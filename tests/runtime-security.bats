@@ -52,13 +52,12 @@ setup() {
   jq -e '[.[] | .[] | .[]] | length == 12' <<<"$output"
 }
 
-# 再構築を避けるユーザー方針により、AI package の依存修正は llm-agents が所有する。
-# upstream の Node / Brotli は修正済みとは扱わず、現状を更新記録へ残す。
+# 更新対象6件は upstream の出力を使い、APMは別テストで更新前の修正済み出力を照合する。
 @test "llm-agents tools use unmodified upstream outputs on all supported systems" {
   run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
       flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
-      names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
+      names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "herdr" "code-review-graph" ];
     in builtins.mapAttrs (system: shells:
       map (name:
         let
@@ -73,7 +72,55 @@ setup() {
     ) flake.devShells
   '
   [ "$status" -eq 0 ]
-  jq -e 'length == 3 and all(.[]; length == 7)' <<<"$output"
+  jq -e 'length == 3 and all(.[]; length == 6)' <<<"$output"
+}
+
+@test "APM retains the pre-update outputs and patched Brotli closure" {
+  run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
+    let
+      flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
+    in {
+      host = builtins.currentSystem;
+      systems = builtins.mapAttrs (_: shells:
+        let
+          matches = builtins.filter (p: (p.pname or "") == "apm") shells.wsl.nativeBuildInputs;
+          package = builtins.head matches;
+        in assert builtins.length matches == 1; {
+          output = toString package;
+          derivation = package.drvPath;
+        }
+      ) flake.devShells;
+    }
+  '
+  [ "$status" -eq 0 ]
+  # 更新開始点 9782063 の3環境の出力。APMの依存再計算も検出する。
+  jq -e '.systems == {
+    "x86_64-linux": {
+      "output": "/nix/store/b57d3rsdby4w5pf67hs20y5ddp3kkach-apm-0.35.0",
+      "derivation": "/nix/store/fb0sjxmrbi9ava7f6knglrwsqppq0z9j-apm-0.35.0.drv"
+    },
+    "aarch64-linux": {
+      "output": "/nix/store/mqcnr5qzkkfv405yzf8zwx1h5lfzzl9b-apm-0.35.0",
+      "derivation": "/nix/store/qby915a132smkb5cr2qbccfhhvsvhl1m-apm-0.35.0.drv"
+    },
+    "aarch64-darwin": {
+      "output": "/nix/store/54n5hgrpwg7x44k3qja84mkw5n4273hz-apm-0.35.0",
+      "derivation": "/nix/store/0c1d98q808vffbw581rb9i0x368nvpji-apm-0.35.0.drv"
+    }
+  }' <<<"$output"
+  local package
+  package="$(jq -r '.systems[.host].output' <<<"$output")"
+  run nix-store --query --requisites "$package"
+  [ "$status" -eq 0 ]
+  local path version found=0
+  while IFS= read -r path; do
+    if [[ "$path" =~ -brotli-([0-9]+\.[0-9]+\.[0-9]+)(-|$) ]]; then
+      version="${BASH_REMATCH[1]}"
+      [ "$(printf '%s\n' 1.2.1 "$version" | sort -V | head -n 1)" = 1.2.1 ]
+      found=1
+    fi
+  done <<<"$output"
+  [ "$found" -eq 1 ]
 }
 
 @test "managed Node.js uses hash-pinned official release binaries on all systems" {
@@ -109,9 +156,10 @@ setup() {
       root = builtins.getEnv "PROJECT_ROOT";
       repo = builtins.getFlake root;
       user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
-      upstreamTools = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
+      # APM は専用テストで既存 output を照会し、この検査ではビルドしない。
+      separatelyChecked = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
       packages = flake: builtins.filter
-        (package: !(builtins.elem (package.pname or "") upstreamTools))
+        (package: !(builtins.elem (package.pname or "") separatelyChecked))
         flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
     in packages repo ++ packages user
   '

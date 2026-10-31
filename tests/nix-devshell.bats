@@ -42,6 +42,7 @@ setup() {
   grep -q 'github:numtide/llm-agents\.nix/2cae3bb5496cf25b2e951a69f8ecbee963e211c7' "$flake"
   jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "2cae3bb5496cf25b2e951a69f8ecbee963e211c7"' "$lock"
   jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "2cae3bb5496cf25b2e951a69f8ecbee963e211c7"' "$lock"
+  jq -e '.nodes[.nodes.root.inputs["llm-agents-apm"]].locked.rev == "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
 

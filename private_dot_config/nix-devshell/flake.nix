@@ -5,6 +5,11 @@
     # Keep the shared package set fixed while AI tools advance through pinned sources.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
+    nixpkgs-brotli-sources = {
+      url = "github:NixOS/nixpkgs/04b65f5f819c8f0d0592a4b34fb3ee57ac92b1ad";
+      flake = false;
+    };
+
     # 共有チャンネルに未収録の安定版言語パッケージの取得元。
     nixpkgs-language-sources = {
       url = "github:NixOS/nixpkgs/0d765791b09356dd5b356559c1b67c1600ca3c5b";
@@ -22,6 +27,9 @@
       # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
       url = "github:numtide/llm-agents.nix/2cae3bb5496cf25b2e951a69f8ecbee963e211c7";
     };
+
+    # APM は更新対象から外し、修正済みの既存 output を維持する（ADR-0045）。
+    llm-agents-apm.url = "github:numtide/llm-agents.nix/959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9";
   };
 
   outputs =

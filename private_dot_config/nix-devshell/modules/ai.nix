@@ -10,12 +10,33 @@
 let
   # upstream の derivation を保ち、Numtide の binary cache を再利用する。
   llm = inputs.llm-agents.packages.${system};
+  patched = import inputs.nixpkgs-brotli-sources { inherit system; };
   nodejs = pkgs.nodejs-bin;
   buildNpmPackage = pkgs.buildNpmPackage.override { inherit nodejs; };
   skillsPluginPin = builtins.fromJSON (builtins.readFile ../skills-plugin.json);
   skillsPluginSource = pkgs.fetchFromGitHub {
     inherit (skillsPluginPin) owner repo rev;
     hash = skillsPluginPin.nar_hash;
+  };
+
+  apmPkgs = import inputs.llm-agents-apm.inputs.nixpkgs { inherit system; };
+  apmGit = apmPkgs.gitMinimal.override {
+    curl = apmPkgs.curl.override { brotli = patched.brotli; };
+  };
+  # 更新前と同じ修正済み APM を選び、既存 output を再利用する。
+  apmPackage = inputs.llm-agents-apm.packages.${system}.apm.override {
+    python3 = apmPkgs.python3.override {
+      packageOverrides = _: prev: {
+        brotli = prev.brotli.override {
+          brotli = patched.brotli;
+        };
+        gitpython = prev.gitpython.override {
+          pkgs = apmPkgs // {
+            gitMinimal = apmGit;
+          };
+        };
+      };
+    };
   };
 
   # Evaluate only these newer package definitions against the shared package set.
@@ -120,7 +141,7 @@ in
     waza
 
     # --- Agent Package Manager ---
-    llm.apm
+    apmPackage
   ];
 
   shellHook = ''

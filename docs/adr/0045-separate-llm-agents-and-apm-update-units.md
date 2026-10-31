@@ -237,15 +237,15 @@ Tool Snapshotを exact revision `998b9f267c671917a0b9a88b01e287c3168f3c24` に�
 
 ユーザー判断により、repo独自のCodex patchを撤去した。上記の`codex-sandbox-cleanup.patch`とsingle-job source buildの維持は終了し、Codexはupstream（Numtide cache）の出力をそのまま使う。SIGKILL時に空dotenvが残り得る既知の回帰は許容する。以後の更新で独自patchを新規に追加しない。経緯と検証は[更新記録](../research/update-tools-skills-20261023.md)を参照する。
 
-## 2026-10-31 amendment: llm-agents の配布物を再構築せずに使う
+## 2026-10-31 amendment: APMを除いてllm-agentsの出力を更新する
 
-ユーザーの「自前ビルドしない。llm-agents のもの」を今回の更新方針とする。Claude Code、Codex、Copilot CLI、Antigravity CLI、APM、Herdr、code-review-graph は同一 snapshot の direct package に統一する。shared overlay での再計算、APM の Brotli 用 Python scope override、code-review-graph のローカル dependency / FastMCP patch は適用しない。Claude / Codex の品質 floor と FastMCP >=3.2.4 の確認は維持する。
+ユーザーの「自前ビルドしない。llm-agents のもの」に従い、Claude Code、Codex、Copilot CLI、Antigravity CLI、Herdr、code-review-graphの6件をsnapshot `2cae3bb5496cf25b2e951a69f8ecbee963e211c7`のdirect packageに統一する。shared overlayでの再計算とCRGのローカルdependency / FastMCP patchを終了し、Claude / Codexの品質floorとFastMCP >=3.2.4を維持する。6件のLinux outputはビルド禁止で取得でき、対応3 system計18 outputのNumtide cache登録も確認した。
 
-採用 snapshot `2cae3bb5496cf25b2e951a69f8ecbee963e211c7` の7 outputは x86_64-linux でビルドを禁止した取得に成功し、対応3 system計21 outputのNumtide cache登録も照合した。cacheが不足する候補を自前ビルドで補わない。通常APM、Impeccable、Matt managed set の互換性ゲートは引き続き分ける。
+APMは未加工outputにBrotli 1.2.0が残るため、ユーザーの追加選択に従って本体・依存の切替を今回の更新から外す。`llm-agents-apm`を旧snapshot `959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9`へ独立して固定し、`nixpkgs-brotli-sources`と既存のPython / Git依存修正を維持する。3 systemのAPM derivation・outputが更新開始点と一致することを検査し、Linuxでは既存の修正済みoutputを再利用する。新しいAPMビルド・新規patchを追加せず、修正済みupstreamへのAPM切替は後続の更新単位に保留する。通常APM payload、Impeccable、Matt managed setの更新は残し、それぞれの互換性ゲートを維持する。
 
 CRG 2.3.9本体の`tree-sitter-language-pack>=0.3.0,<1`に対し、llm-agents側が制約を緩和して1.4.1を供給する判断に従う。[導入時の不採用判断](../research/code-review-graph-adoption.md)を改め、ローカルの`<1`検査と0.13.0の再構築経路を終了する。grammarの同梱と子プロセスprobe用Pythonの修正は上流packageが供給する。LinuxのPythonサンプルではgraph build / MCP呼出しが成功し、他言語とARM / Darwinのgrammar互換性は未確認である。
 
-x86_64-linuxの採用7 outputのclosureでは、独立したnodejs packageは0件で、APMのBrotli 1.2.0依存は確認済みである。package setの`pkgs.nodejs.version`が24.21.0であることと、ツール同梱Node runtimeの版は区別し、後者は未確認として扱う。以前のAPM向けBrotli修正済み保証とは両立しないため、未修正依存を残課題として明示する。`tests/runtime-security.bats` は upstream 7 packageの完全なderivation一致と、別途ローカル配布するCLIのNode.js / Brotli修正を分けて検査する。前者の成功は脆弱性修正の保証ではない。採否・検証・未確認事項は[今回の更新記録](../research/update-tools-skills-20261031.md)を参照する。
+package setの`pkgs.nodejs.version`とツール同梱Node runtimeの版を区別し、後者は未確認として扱う。`tests/runtime-security.bats`はupstream 6 packageのderivation一致と、APMの更新前output維持・Brotli修正を別々に検査する。前者の成功は脆弱性修正の保証ではない。今回外したAPM切替、採用する管理スキル、検証範囲は[更新記録](../research/update-tools-skills-20261031.md)で追跡する。
 
 ## Consequences
 
