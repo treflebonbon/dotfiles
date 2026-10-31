@@ -29,7 +29,7 @@
 ## 検証と証跡
 
 - `scripts/verification_env.py` / `verify-ai-tools.py` の保護境界を使い、通常HOMEを変更しない。cache照会は `direct-metadata.json` / `remote-cache.json`、7件のビルド禁止取得は `direct-cache.log`（exit 0）。共通rootは `/tmp/codex/update-tools-skills.PG6k7U/`。
-- 通常APMは同rootの`ordinary/`、Impeccableは`impeccable/`。frozen SHA-256は `a31572a4f20cdf0e8c396a7738efc429b8104d21f20e8641e7077fecb909defe`。両targetのbytes / hash / discovery、候補外と共有owner ledger、既存owner / active_ownerを照合した。
+- 通常APMは同rootの`ordinary/`、Impeccableは`impeccable/`。Impeccable採用後のfrozen SHA-256は `a31572a4f20cdf0e8c396a7738efc429b8104d21f20e8641e7077fecb909defe`。両targetのbytes / hash / discovery、候補外と共有owner ledger、既存owner / active_ownerを照合した。
 - Impeccableの3 assetは候補skillの`engine-checksums.txt`にも一致し、Design Hook 13件をskipなしで検証した。
 - 採用するClaude CLIの実同期記録は `/tmp/codex/claude-plugin-native.66opwq9n/result.json`。前候補の同じ版に対する記録`mopb4o7g`とは区別する。
 - 関連Bats初回は83件中81成功・2失敗。失敗はfloatingのOrca revisionと、更新済みReact View Transitionsの旧hash期待値。floatingは40桁revisionの形式と承認済みcontent hashで検査し、exact pinのmanifest/lock一致は維持した。Reactのgolden hashを採用payloadへ更新後、`tests/apm-runtime.bats` 18/18成功。
@@ -41,4 +41,5 @@
 - 文書変換の候補smokeは継承したPython 3.14向け`PYTHONPATH`がPython 3.13のNumPyと衝突した。`env -u PYTHONPATH`で同じ入力の変換が成功した。以降の検証からこの継承変数を外した。候補そのものは上記の理由で採用しない。
 - 実装commit `f44b0a1`に対するStandards / Specの独立レビューは両軸とも指摘なし。
 - source採用後のcanonical初回（`tmp/canonical-run.0ixpwk9u`、環境`/tmp/codex/canonical-env.aeta547l`）は全704件中成功689・既定skip14・失敗1。`tests/mattpocock-update-gate.bats`に残った旧Matt content hashの期待値が原因だった。上記の検証済みnative lockのhashに更新した。関連するgate / APMテスト36/36がskipなしで成功した（`/tmp/codex/ai-tools-zkmk0hbz/startup.log`）。実測137.604秒で、Design Hook13件・Playwright runtime2件はすべてskipなしで成功し、source / HEAD / runtimeの前後照合も一致した。修正後の再検証は別記録として残す。
+- hash期待値修正commit `f021913` の追加差分もStandards / Specとも指摘なし。最終canonical（`tmp/canonical-run.z34oyl6f`、環境`/tmp/codex/canonical-env.ox__ys9a`）は、cleanな同commitで `lefthook run test` を実行して成功した。全704件中成功690・既定skip14・失敗0、コマンドとrunnerのexitはともに0、実測148.725秒。Design Hook13件・Playwright runtime2件はすべてskipなしで成功し、source / HEAD / runtimeの前後照合も一致した。TAP SHA-256は`489f853ee5e7cf8bfc7f890a970399099e0187a7f3bd3c40b873f288722d9673`。この実行後の変更は本記録への結果追記だけで、実装・依存・テストは変更しない。
 - 旧候補の起動検証3件は方針相談時にSIGTERMで中断した（exit 143、テスト失敗と区別）。ARM / Darwin実機、実Windows Chrome、実モデル呼出し、live配備は検証に含めない。
