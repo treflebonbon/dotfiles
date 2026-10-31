@@ -137,7 +137,7 @@ assert_lock_entry() {
     'sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
     '[0-9a-f]{40}' \
-    'sha256:2535c5d1f0f49f537cc7d523f015667d9a4478c5782d5414f7d44b3237f96e42'
+    'sha256:591831560700d73c2bc1ca6658dddb6e91f1b52264d116e8ab9095ec3a80bdf0'
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
       awk '{

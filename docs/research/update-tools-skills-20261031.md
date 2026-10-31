@@ -55,3 +55,17 @@
 既存storeの読み取り照会とCRG 2.3.9のsource確認は`/tmp/codex/fix-tools-review.Uzl4nO/dependency-inspection.json`に保存した。これはLinuxの採用7 outputに限る実測で、package setのNode版や同梱runtimeの版、他systemの実行結果へ一般化しない。floatingのorchestration / React View Transitionsはrevisionとcontent hashの両方が変わっており、通常APMの採否記録は変更しない。
 
 CRGの対応3 systemのdirect outputが1.4.1を参照することは、元の`remote-cache.json`でも照合した。grammar実行の互換性とは区別する。関連する`tests/nix-devshell.bats`は21/21、skipなしで成功した（`/tmp/codex/ai-tools-rq7nzhz0/startup.log`）。修正commit `9068cee`の再レビューはCodexのStandards軸で規約違反0件・smell0件だった。Claude OpusのSpec軸では旧S-2の追跡状態を明記する指摘が1件あり、上記の保留理由と判断時点を追記後、追加指摘なしを確認した。Brotliの許容判断を含む更新全体の受入は未完了として追跡する。今回の3点の修正後のcanonical検証（`tmp/canonical-run.0y7t6af0`、環境`/tmp/codex/canonical-env._drivf9i`）はcleanな`f0b18bc`で成功した。全704件中成功689・skip15・失敗0、コマンドとrunnerのexitはともに0、実測146.231秒。従来の既定skip14件に、現在のagent runtimeがrepo-localの`.agents`をmountしていることによるskip1件が加わった。Design Hook13件とPlaywright runtime2件はskipなしで成功し、source / HEAD / runtimeの前後記録も一致した。TAP SHA-256は`6f04150333e4255f90ab694951e68cdded3fa5e852ac2117ae2d60669d002512`。この実行後は検証結果の記録だけを追記し、実装・依存・テストは変更していない。
+
+## PR公開前の鮮度再確認（2026-10-31）
+
+追加依頼を受け、HerdrのCodexとClaude OpusでUTC 05:40〜05:46（JST 14:40〜14:46）に公開情報を再取得した。AIツール7件の採用版、waza 0.39.1、Impeccable skill 4.8.0 / engine 0.1.18、design.md 0.4.0、Playwright CLI 0.1.22は公開releaseと一致する。
+
+llm-agentsのmainは[`19fcd79d82aaf136a14c77d40607dd9510bbda27`](https://github.com/numtide/llm-agents.nix/tree/19fcd79d82aaf136a14c77d40607dd9510bbda27)へ進んでいた。親側でimmutable sourceを取得し、IFDを禁止したmetadata評価で採用snapshotと比較したところ、7件×3 systemの21 packageはversion・derivation・outputがすべて一致した。このためsnapshot pinは維持する。証跡は`/tmp/codex/tools-update-pr.4VKDFg/llm-head-outputs.json`。取得・評価だけでツールの自前ビルドは行っておらず、APMのBrotli依存も変更しない。
+
+Orcaのmainは調査時点で`99cddd97962479cbea92f2da634684334d8d3cf3`だった。[PR #36498](https://github.com/stablyai/orca/pull/36498)のselected skill差分はorchestrationの「--jsonを優先する」案内の削除だけで、他の契約は維持される。通常APMの別更新単位としてnative生成・frozen no-rewrite・audit 10/10・配備比較を通し、解決された`1bd67185489c66a9e0d841e0134727f171a33764`をlockへ採用した。orchestrationのcontent hashは`sha256:591831560700d73c2bc1ca6658dddb6e91f1b52264d116e8ab9095ec3a80bdf0`、frozen前後のlock SHA-256は`0a3cd0f61bc91cf85b1fdf11b030c52339ef28f5fa42619f72fbf8fc5e881f3d`。他20依存のselected payload、各targetの47 skill、追加・削除0、全1508 ledger recordの既存owner / active_owner・共有ownerとroot metadataを維持した。computer-useのrevision-only進行もnative lockへ自然反映し、orca-cliのexact pinは維持する。証跡は同rootの`orchestration/`に保存した。
+
+Impeccableの未リリースmainは採用せず、MattのHEADと1.3.2 pinは一致する。公開skills pluginのmain `629d10fb926b31a633b52adf7cacd50fcd780d8a`とpinは前回と同じなので、以前の同一payload照合を参照して0.2.3を維持する（今回267 fileを再比較したとは扱わない）。Ponytail 5.3.3とcodex plugin 1.0.6等の公開版を確認したが、runtimeが自動管理するpluginの導入済み版とchrome pluginの公開配布元は未確認である。
+
+文書変換CLIには[Defuddle 0.19.6](https://github.com/kepano/defuddle/releases/tag/0.19.6)と[MarkItDown 0.1.9](https://github.com/microsoft/markitdown/releases/tag/v0.1.9)の新候補がある。以前に却下した0.19.5 / 0.1.8とは区別し、今回の新候補について自前ビルドなしのcache / 配布経路は未確認のため採用しない。source pinと既存版を維持する。Brotliの許容判断は旧S-2の保留状態を維持し、今回の再確認やPR公開を許容承認とは扱わない。
+
+採用後の`tests/apm-runtime.bats`は18/18、skipなしで成功した（`/tmp/codex/ai-tools-k8al1k5d/startup.log`）。公開するHEADの検証結果はPR本文と公開記録へ残す。最新情報の再確認だけから、未実施のruntime検証やlive配備を完了扱いにしない。

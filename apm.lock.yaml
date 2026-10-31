@@ -2495,7 +2495,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: computer-use
   host: github.com
-  resolved_commit: bd82832a53afe74b971f0a9f6cdc4fd828bfee1a
+  resolved_commit: 1bd67185489c66a9e0d841e0134727f171a33764
   version: unknown
   virtual_path: skills/computer-use
   is_virtual: true
@@ -2530,7 +2530,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: bd82832a53afe74b971f0a9f6cdc4fd828bfee1a
+  resolved_commit: 1bd67185489c66a9e0d841e0134727f171a33764
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -2541,9 +2541,9 @@ dependencies:
   - .claude/skills/orchestration
   - .claude/skills/orchestration/SKILL.md
   deployed_file_hashes:
-    .agents/skills/orchestration/SKILL.md: sha256:24c5392fe1734c3dcf63d1a05ab4ac75eaa70e4d880f590a4a33ec83e4a2cc6a
-    .claude/skills/orchestration/SKILL.md: sha256:24c5392fe1734c3dcf63d1a05ab4ac75eaa70e4d880f590a4a33ec83e4a2cc6a
-  content_hash: sha256:2535c5d1f0f49f537cc7d523f015667d9a4478c5782d5414f7d44b3237f96e42
+    .agents/skills/orchestration/SKILL.md: sha256:66d4c60a3ead54eb063a57341278cccaf28e016c2847a6f1808a0d4d2d163606
+    .claude/skills/orchestration/SKILL.md: sha256:66d4c60a3ead54eb063a57341278cccaf28e016c2847a6f1808a0d4d2d163606
+  content_hash: sha256:591831560700d73c2bc1ca6658dddb6e91f1b52264d116e8ab9095ec3a80bdf0
 - repo_url: supabase/agent-skills
   name: supabase-postgres-best-practices
   host: github.com
@@ -6275,7 +6275,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:24c5392fe1734c3dcf63d1a05ab4ac75eaa70e4d880f590a4a33ec83e4a2cc6a
+  content_hash: sha256:66d4c60a3ead54eb063a57341278cccaf28e016c2847a6f1808a0d4d2d163606
 - kind: project-relative
   target: claude
   value: .claude/skills/pdf
@@ -13061,7 +13061,7 @@ deployments:
   owners:
   - stablyai/orca/skills/orchestration
   active_owner: stablyai/orca/skills/orchestration
-  content_hash: sha256:24c5392fe1734c3dcf63d1a05ab4ac75eaa70e4d880f590a4a33ec83e4a2cc6a
+  content_hash: sha256:66d4c60a3ead54eb063a57341278cccaf28e016c2847a6f1808a0d4d2d163606
 - kind: project-relative
   target: codex
   value: .agents/skills/pdf
