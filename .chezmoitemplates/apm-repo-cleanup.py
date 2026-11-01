@@ -7,6 +7,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import uuid
 from contextlib import ExitStack
 
 
@@ -83,37 +84,67 @@ def open_parent(path, stack):
 
 directories = set()
 for path, digest in sorted(hashes.items()):
-    if not os.path.lexists(root / path):
-        continue
     try:
+        before_claim = (root / path).lstat()
+        if not stat.S_ISREG(before_claim.st_mode):
+            raise OSError("通常 file ではありません")
         with ExitStack() as stack:
             parent = open_parent(path, stack)
             name = PurePosixPath(path).name
-            descriptor = os.open(
-                name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent
+            quarantine = ".apm-retire." + uuid.uuid4().hex
+            os.mkdir(quarantine, mode=0o700, dir_fd=parent)
+            quarantine_fd = os.open(
+                quarantine, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent
             )
-            with os.fdopen(descriptor, "rb") as stream:
-                before = os.fstat(stream.fileno())
-                if not stat.S_ISREG(before.st_mode):
-                    raise OSError("通常 file ではありません")
-                contents = stream.read()
-                after = os.fstat(stream.fileno())
-            if identity(before) != identity(after):
-                raise OSError("検査中に file が変更されました")
-            if digest not in {
-                "sha256:" + hashlib.sha256(value).hexdigest()
-                for value in (contents, contents.replace(b"\r\n", b"\n"))
-            }:
-                hold(path, "APM 台帳と内容が一致しません")
-                continue
-            parent = open_parent(path, stack)
-            current = os.stat(name, dir_fd=parent, follow_symlinks=False)
-            if identity(after) != identity(current):
-                raise OSError("検査中に file が変更されました")
-            os.unlink(name, dir_fd=parent)
-            for directory in PurePosixPath(path).parents:
-                if in_scope(str(directory)):
-                    directories.add(str(directory))
+            stack.callback(os.close, quarantine_fd)
+            claimed = False
+            try:
+                # 元の path への並行書込みと、撤去する inode を分ける。
+                os.rename(name, "payload", src_dir_fd=parent, dst_dir_fd=quarantine_fd)
+                claimed = True
+                descriptor = os.open(
+                    "payload", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=quarantine_fd,
+                )
+                with os.fdopen(descriptor, "rb") as stream:
+                    before = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(before.st_mode):
+                        raise OSError("通常 file ではありません")
+                    contents = stream.read()
+                    after = os.fstat(stream.fileno())
+                if identity(before_claim) != identity(before) or identity(before) != identity(after):
+                    raise OSError("検査中に file が変更されました")
+                if digest not in {
+                    "sha256:" + hashlib.sha256(value).hexdigest()
+                    for value in (contents, contents.replace(b"\r\n", b"\n"))
+                }:
+                    hold(path, "APM 台帳と内容が一致しません")
+                    continue
+                open_parent(path, stack)
+                current = os.stat("payload", dir_fd=quarantine_fd, follow_symlinks=False)
+                if identity(after) != identity(current):
+                    raise OSError("検査中に file が変更されました")
+                os.unlink("payload", dir_fd=quarantine_fd)
+                claimed = False
+                for directory in PurePosixPath(path).parents:
+                    if in_scope(str(directory)):
+                        directories.add(str(directory))
+            finally:
+                if claimed:
+                    try:
+                        # 既に作成された新しい file を上書きせず、元の directory へ戻す。
+                        os.link(
+                            "payload", name, src_dir_fd=quarantine_fd,
+                            dst_dir_fd=parent, follow_symlinks=False,
+                        )
+                        os.unlink("payload", dir_fd=quarantine_fd)
+                    except OSError as error:
+                        hold(str(PurePosixPath(path).parent / quarantine / "payload"),
+                             f"元の path へ復元できないため退避を保持します: {error}")
+                try:
+                    os.rmdir(quarantine, dir_fd=parent)
+                except OSError as error:
+                    hold(str(PurePosixPath(path).parent / quarantine), str(error))
     except FileNotFoundError:
         continue
     except OSError as error:
@@ -131,5 +162,11 @@ for path in sorted(directories, key=lambda value: (value.count("/"), value), rev
         hold(path, str(error))
 
 for path in targets:
-    if os.path.lexists(root / path):
+    try:
+        (root / path).lstat()
+    except FileNotFoundError:
+        continue
+    except OSError as error:
+        hold(path, str(error))
+    else:
         hold(path, "台帳で撤去を確認できない項目が残っています")

@@ -152,7 +152,7 @@ outside = root / 'moved-directory'
 original_open = os.open
 def replace_parent(path, *args, **kwargs):
     descriptor = original_open(path, *args, **kwargs)
-    if path == 'SKILL.md' and not outside.exists():
+    if path in ('SKILL.md', 'payload') and not outside.exists():
         parent.rename(outside)
         parent.mkdir()
     return descriptor
@@ -163,6 +163,59 @@ assert (outside / 'SKILL.md').read_text() == 'fixture\n'
 assert parent.is_dir()
 PY
   [ "$status" -eq 0 ]
+}
+
+@test "削除直前の差し替え・読取不能・復元先の競合でもデータを保持する" {
+  local mode repo
+  for mode in replacement unreadable restore-conflict; do
+    repo="$BATS_TEST_TMPDIR/$mode"
+    create_repo_apm_fixture "$repo"
+    run python3 -I - "$PROJECT_ROOT/.chezmoitemplates/apm-repo-cleanup.py" "$repo" "$SKILL_SOURCE/apm.lock.yaml" "$mode" <<'PY'
+import io, os, runpy, sys
+from contextlib import redirect_stderr
+from pathlib import Path
+from unittest.mock import patch
+code, root, lock = map(Path, sys.argv[1:4])
+mode = sys.argv[4]
+target = root / '.agents/skills/frontend-design/SKILL.md'
+original_unlink, original_lstat, original_link = os.unlink, Path.lstat, os.link
+changed = False
+def replace_before_unlink(path, *args, **kwargs):
+    global changed
+    if not changed and path in ('SKILL.md', 'payload'):
+        target.write_text('new edits\n')
+        changed = True
+    return original_unlink(path, *args, **kwargs)
+def unreadable(path, *args, **kwargs):
+    if path == target:
+        raise PermissionError('fixture-denied')
+    return original_lstat(path, *args, **kwargs)
+def conflict(*args, **kwargs):
+    target.write_text('new edits\n')
+    return original_link(*args, **kwargs)
+if mode == 'restore-conflict':
+    target.write_text('customized\n')
+selected = {
+    'replacement': ('os.unlink', replace_before_unlink),
+    'unreadable': ('pathlib.Path.lstat', unreadable),
+    'restore-conflict': ('os.link', conflict),
+}[mode]
+sys.argv = [str(code), str(root)]
+errors = io.StringIO()
+with patch(*selected), patch('sys.stdin', io.StringIO(lock.read_text())), redirect_stderr(errors):
+    runpy.run_path(str(code), run_name='__main__')
+if mode == 'unreadable':
+    assert target.read_text() == 'fixture\n'
+    assert str(target) in errors.getvalue() and 'fixture-denied' in errors.getvalue()
+else:
+    assert target.read_text() == 'new edits\n'
+    if mode == 'restore-conflict':
+        saved = list(target.parent.glob('.apm-retire.*/payload'))
+        assert len(saved) == 1 and saved[0].read_text() == 'customized\n'
+        assert '退避を保持' in errors.getvalue()
+PY
+    [ "$status" -eq 0 ]
+  done
 }
 
 @test "preserves unknown nix-store symlinks even when an old marker is present" {

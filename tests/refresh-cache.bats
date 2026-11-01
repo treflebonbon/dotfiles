@@ -11,9 +11,7 @@ setup() {
   mkdir -p "$FAKE_HOME/.config/nix-devshell" "$FAKE_HOME/.cache"
   : >"$FAKE_HOME/.config/nix-devshell/flake.nix"
   : >"$FAKE_HOME/.config/nix-devshell/flake.lock"
-  mkdir -p "$FAKE_HOME/.cache"
-  # Nix stub が保持する profile を模擬する。
-  ln -s "$BATS_TEST_TMPDIR" "$FAKE_HOME/.cache/nix-devshell-global-env.bash.profile"
+  stub_nix_cache_profile "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
 
   stub_real_cmd find
   stub_real_cmd grep

@@ -48,9 +48,7 @@ STUB
 
   # chezmoi が配備する入力を用意し、キャッシュ生成は実際の lib を通す。
   local test_home="$BATS_TEST_TMPDIR/home" cmd
-  mkdir -p "$test_home/.cache"
-  # Nix stub が保持する profile を模擬する。
-  ln -s "$BATS_TEST_TMPDIR" "$test_home/.cache/nix-devshell-global-env.bash.profile"
+  stub_nix_cache_profile "$test_home/.cache/nix-devshell-global-env.bash"
   mkdir -p "$test_home/.config/nix-devshell/lib"
   touch "$test_home/.config/nix-devshell/flake.nix"
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
