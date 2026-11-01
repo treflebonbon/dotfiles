@@ -32,6 +32,12 @@ STUB_EOF
   chmod +x "$TEST_BIN_DIR/$name"
 }
 
+# Nix stub が保持する profile を模擬する。
+stub_nix_cache_profile() {
+  mkdir -p "$(dirname "$1")"
+  ln -s "$BATS_TEST_TMPDIR" "$1.profile"
+}
+
 # OS のコマンドを同じ順序で解決する。
 system_cmd_path() {
   local path="/bin/$1"

@@ -11,6 +11,7 @@ setup() {
   mkdir -p "$FAKE_HOME/.config/nix-devshell" "$FAKE_HOME/.cache"
   : >"$FAKE_HOME/.config/nix-devshell/flake.nix"
   : >"$FAKE_HOME/.config/nix-devshell/flake.lock"
+  stub_nix_cache_profile "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
 
   stub_real_cmd find
   stub_real_cmd grep
@@ -172,8 +173,86 @@ STUB
 
   assert_success
   assert_log_contains "nix print-dev-env"
+  assert_log_contains "--profile $FAKE_HOME/.cache/nix-devshell-global-env.bash.profile"
   grep -q '/nix/store/fake/bin' "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
   echo "$output" | grep -q "cache refreshed"
+}
+
+@test "profile の欠落やリンク切れは入力が同じでも再評価する" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+[[ "$3" == --profile ]] || exit 99
+/bin/ln -sfn "$HOME/.config/nix-devshell" "$4"
+echo 'export CACHE_VERSION=fresh'
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+  run_required_refresh
+  assert_success
+  local profile="$FAKE_HOME/.cache/nix-devshell-global-env.bash.profile"
+  local state
+  for state in missing dangling; do
+    rm -f "$profile"
+    [ "$state" != dangling ] || ln -s "$FAKE_HOME/absent-store-path" "$profile"
+    : >"$TEST_LOG"
+
+    run_required_refresh
+
+    assert_success
+    assert_log_contains 'nix print-dev-env'
+    assert_log_contains "--profile $profile"
+    [ -L "$profile" ] && [ -e "$profile" ]
+  done
+}
+
+@test "相対キャッシュの profile は Nix 評価先でなく呼出元の保存先に作る" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+[[ "$3" == --profile && "$4" == "$HOME/.cache/nix-devshell-global-env.bash.profile" ]] || exit 37
+echo 'relative stderr fixture' >&2
+echo 'export CACHE_VERSION=fresh'
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+
+  run /usr/bin/env -i PATH="$TEST_BIN_DIR" HOME="$FAKE_HOME" TEST_LOG="$TEST_LOG" \
+    NIX_DEVSHELL_CACHE_REQUIRED=1 /bin/bash -c '
+      . "$1"
+      cd "$HOME"
+      refresh_nix_devshell_cache .config/nix-devshell .cache/nix-devshell-global-env.bash .cache/refresh.log
+    ' _ "$LIB"
+
+  assert_success
+  refute_output --partial 'No such file or directory'
+  grep -q 'relative stderr fixture' "$FAKE_HOME/.cache/refresh.log"
+  assert_cache_version fresh
+}
+
+@test "Nix が成功しても profile を保持できなければキャッシュを採用しない" {
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  rm "$cache.profile"
+  printf 'export CACHE_VERSION=old\n' >"$cache"
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+
+  run_required_refresh
+
+  assert_failure
+  [ "$(cat "$cache")" = 'export CACHE_VERSION=old' ]
+}
+
+@test "profile 欠落時の再生成失敗は必須更新を止め旧キャッシュを保持する" {
+  stub_cmd_with_output nix 'export CACHE_VERSION=fresh'
+  run_required_refresh
+  assert_success
+  local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
+  cp "$cache" "$FAKE_HOME/saved-cache"
+  rm "$cache.profile"
+  stub_cmd nix 23
+
+  run_required_refresh
+
+  assert_failure
+  cmp "$cache" "$FAKE_HOME/saved-cache"
 }
 
 @test "cache 生成時に nix の SHELL/BASH を保存しない" {
@@ -400,7 +479,7 @@ STUB
   cat >"$TEST_BIN_DIR/nix" <<'STUB'
 #!/bin/bash
 echo "$0 $*" >> "$TEST_LOG"
-if [[ "$*" == 'print-dev-env .#wsl' ]]; then
+if [[ "$2" == .#wsl ]]; then
   echo 'export CACHE_VERSION=wsl'
 else
   echo 'export CACHE_VERSION=default'

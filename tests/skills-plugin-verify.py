@@ -18,6 +18,9 @@ from unittest.mock import call, patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+from verification_env import new_runtime
+
 SCRIPT = PROJECT_ROOT / "private_dot_local/bin/executable_sync-skills-plugin"
 LOADER = SourceFileLoader("sync_skills_plugin", str(SCRIPT))
 SPEC = importlib.util.spec_from_loader("sync_skills_plugin", LOADER)
@@ -43,8 +46,12 @@ def git(root: Path, *args: str, input: bytes | None = None) -> str:
 
 class VerifyCheckoutTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = tempfile.TemporaryDirectory()
-        self.root = Path(self.temporary.name) / "checkout"
+        self.temporary = (
+            new_runtime("skills-plugin-test.")
+            if sys.platform == "linux"
+            else Path(tempfile.mkdtemp(prefix="skills-plugin-test."))
+        ).resolve()
+        self.root = self.temporary / "checkout"
         self.root.mkdir()
         git(self.root, "init", "-q")
         git(self.root, "config", "user.name", "Fixture")
@@ -84,11 +91,11 @@ class VerifyCheckoutTests(unittest.TestCase):
         self.source = sync_skills_plugin.ensure_marketplace_source(
             self.root,
             self.pin,
-            Path(self.temporary.name) / "marketplaces",
+            self.temporary / "marketplaces",
         )
         self.real_git = shutil.which("git")
         assert self.real_git is not None
-        self.git_wrapper_dir = Path(self.temporary.name) / "bin"
+        self.git_wrapper_dir = self.temporary / "bin"
         self.git_wrapper_dir.mkdir()
         wrapper = self.git_wrapper_dir / "git"
         wrapper.write_text(
@@ -100,16 +107,16 @@ class VerifyCheckoutTests(unittest.TestCase):
             "os.execv(os.environ['REAL_GIT'], [os.environ['REAL_GIT'], *args])\n"
         )
         wrapper.chmod(0o755)
-        self.checkout_parent = Path(self.temporary.name) / "checkouts"
+        self.checkout_parent = self.temporary / "checkouts"
 
     def tearDown(self) -> None:
-        self.temporary.cleanup()
+        shutil.rmtree(self.temporary)
 
     def test_accepts_checkout_when_head_tree_content_and_modes_match(self) -> None:
         self.assertTrue(sync_skills_plugin.verify_checkout(self.root, self.pin))
 
     def test_pin_path_uses_the_deployed_chezmoi_config_from_local_bin(self) -> None:
-        home = Path(self.temporary.name) / "deployed-home"
+        home = self.temporary / "deployed-home"
         executable = home / ".local/bin/sync-skills-plugin"
         executable.parent.mkdir(parents=True)
         executable.write_text("#!/usr/bin/env python3\n")
@@ -137,7 +144,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             sync_skills_plugin.ensure_marketplace_source(
                 self.root,
                 self.pin,
-                Path(self.temporary.name) / "marketplaces",
+                self.temporary / "marketplaces",
             ),
             self.source,
         )
@@ -146,7 +153,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             sync_skills_plugin.ensure_marketplace_source(
                 self.root,
                 self.pin,
-                Path(self.temporary.name) / "marketplaces",
+                self.temporary / "marketplaces",
             )
         self.assertEqual((self.source / "README.md").read_text(), "tampered\n")
 
@@ -319,7 +326,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             )
 
     def make_mock_claude(self) -> Path:
-        claude_bin = Path(self.temporary.name) / "claude-bin"
+        claude_bin = self.temporary / "claude-bin"
         claude_bin.mkdir()
         cli = claude_bin / "claude"
         cli.write_text(
@@ -417,15 +424,15 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         cli = self.make_mock_claude()
-        config = Path(self.temporary.name) / "claude-config"
+        config = self.temporary / "claude-config"
         config.mkdir()
         (config / "settings.json").write_text('{"env":{"PRESERVE":"yes"}}')
-        log = Path(self.temporary.name) / "claude-commands.jsonl"
+        log = self.temporary / "claude-commands.jsonl"
         with patch.dict(
             os.environ,
             {
                 "PATH": f"{cli.parent}:{os.environ['PATH']}",
-                "HOME": str(Path(self.temporary.name) / "home"),
+                "HOME": str(self.temporary / "home"),
                 "CLAUDE_CONFIG_DIR": str(config),
             },
         ):
@@ -496,7 +503,7 @@ class VerifyCheckoutTests(unittest.TestCase):
 
     def test_unchanged_claude_sync_preserves_managed_settings_bytes(self) -> None:
         cli = self.make_mock_claude()
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         config = home / ".claude"
         config.mkdir(parents=True)
         with patch.dict(
@@ -537,7 +544,7 @@ class VerifyCheckoutTests(unittest.TestCase):
 
     def test_claude_sync_repairs_registration_with_current_payload(self) -> None:
         cli = self.make_mock_claude()
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         config = home / ".claude"
         config.mkdir(parents=True)
         with patch.dict(
@@ -570,7 +577,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         cli = self.make_mock_claude()
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         config = home / ".claude"
         config.mkdir(parents=True)
         with patch.dict(
@@ -602,7 +609,7 @@ class VerifyCheckoutTests(unittest.TestCase):
 
     def test_claude_inventory_verification_errors_do_not_start_repairs(self) -> None:
         cli = self.make_mock_claude()
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         config = home / ".claude"
         config.mkdir(parents=True)
         with patch.dict(
@@ -638,7 +645,7 @@ class VerifyCheckoutTests(unittest.TestCase):
 
     def test_claude_install_failure_keeps_existing_local_skill(self) -> None:
         cli = self.make_mock_claude()
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         config = home / ".claude"
         legacy = config / "skills/local-skill/SKILL.md"
         legacy.parent.mkdir(parents=True)
@@ -702,7 +709,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             replacement = anchor + textwrap.indent(injected, "    ")
             self.assertEqual(text.count(anchor), 1)
             cli.write_text(text.replace(anchor, replacement))
-        base = Path(self.temporary.name) / "native-base"
+        base = self.temporary / "native-base"
         base.mkdir()
         git(base, "init", "-q")
         git(base, "config", "user.name", "Fixture")
@@ -719,9 +726,9 @@ class VerifyCheckoutTests(unittest.TestCase):
         pin.write_text(json.dumps(self.pin))
         git(base, "add", ".")
         git(base, "commit", "-qm", "native acceptance fixture")
-        source = Path(self.temporary.name) / "native-source"
+        source = self.temporary / "native-source"
         git(base, "worktree", "add", "-b", "native", str(source))
-        original = Path(self.temporary.name) / "original-home"
+        original = self.temporary / "original-home"
         original.mkdir()
         sentinel = original / "sentinel"
         sentinel.write_text("preserved")
@@ -874,7 +881,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self.assertEqual(evidence["status"], "passed")
 
     def make_mock_codex(self) -> Path:
-        codex_bin = Path(self.temporary.name) / "codex-bin"
+        codex_bin = self.temporary / "codex-bin"
         codex_bin.mkdir()
         cli = codex_bin / "codex"
         cli.write_text(
@@ -958,7 +965,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         cli = self.make_mock_codex()
-        home = Path(self.temporary.name) / "codex home"
+        home = self.temporary / "codex home"
         legacy = home / "skills/local-skill/SKILL.md"
         legacy.parent.mkdir(parents=True)
         legacy.write_text("legacy\n")
@@ -967,7 +974,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             os.environ,
             {
                 "PATH": f"{cli.parent}:{os.environ['PATH']}",
-                "HOME": str(Path(self.temporary.name) / "home"),
+                "HOME": str(self.temporary / "home"),
                 "CODEX_HOME": str(home),
             },
         ):
@@ -1011,14 +1018,14 @@ class VerifyCheckoutTests(unittest.TestCase):
         claude = self.make_mock_claude()
         cli = self.make_mock_codex()
         agy = self.make_mock_agy()
-        home = Path(self.temporary.name) / "managed-home"
+        home = self.temporary / "managed-home"
         claude_config = home / ".claude"
         claude_config.mkdir(parents=True)
         codex_app = home / ".codex-app"
         codex_app.mkdir(parents=True)
-        explicit = Path(self.temporary.name) / "explicit-codex-home"
+        explicit = self.temporary / "explicit-codex-home"
         homes = [home / ".codex", codex_app, explicit]
-        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        receipt_file = self.temporary / "state/receipt.json"
         environment = {
             "PATH": f"{claude.parent}:{cli.parent}:{agy.parent}:{os.environ['PATH']}",
             "HOME": str(home),
@@ -1133,9 +1140,9 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         cli = self.make_mock_codex()
-        home = Path(self.temporary.name) / "managed-home"
+        home = self.temporary / "managed-home"
         codex_home = home / ".codex"
-        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        receipt_file = self.temporary / "state/receipt.json"
         with (
             patch.dict(
                 os.environ,
@@ -1337,7 +1344,7 @@ class VerifyCheckoutTests(unittest.TestCase):
     def test_current_codex_home_detection_deduplicates_default_and_explicit_paths(
         self,
     ) -> None:
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         desktop = home / ".codex-app"
         desktop.mkdir(parents=True)
         with patch.dict(
@@ -1352,7 +1359,7 @@ class VerifyCheckoutTests(unittest.TestCase):
     def test_current_receipt_does_not_fall_back_to_previous_verified_receipt(
         self,
     ) -> None:
-        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        receipt_file = self.temporary / "state/receipt.json"
         receipt_file.parent.mkdir()
         receipt_file.write_text(
             json.dumps(
@@ -1392,7 +1399,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         for name in sorted(sync_skills_plugin.GLOBAL_CLI_NAMES):
-            backup = Path(self.temporary.name) / f"legacy/{name}"
+            backup = self.temporary / f"legacy/{name}"
             backup.parent.mkdir(parents=True, exist_ok=True)
             backup.write_text("#!/bin/sh\nexit 0\n")
             with (
@@ -1430,13 +1437,13 @@ class VerifyCheckoutTests(unittest.TestCase):
             )
 
     def test_missing_public_cli_uses_only_the_validated_legacy_backup(self) -> None:
-        backup = Path(self.temporary.name) / "legacy/orca-send"
+        backup = self.temporary / "legacy/orca-send"
         with (
             patch.object(
                 sync_skills_plugin,
                 "verify_cli_source",
                 return_value={
-                    "source": str(Path(self.temporary.name) / "missing-source")
+                    "source": str(self.temporary / "missing-source")
                 },
             ),
             patch.object(
@@ -1456,7 +1463,7 @@ class VerifyCheckoutTests(unittest.TestCase):
     def test_global_cli_dispatch_uses_only_a_validated_legacy_backup_on_stale_state(
         self,
     ) -> None:
-        backup = Path(self.temporary.name) / "legacy/git-push-topic"
+        backup = self.temporary / "legacy/git-push-topic"
         backup.parent.mkdir(parents=True)
         backup.write_text("#!/bin/sh\nexit 0\n")
         with (
@@ -1483,7 +1490,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         backup_state = (
-            Path(self.temporary.name)
+            self.temporary
             / ".local/state/treflebonbon-skills/plugin-sync/receipt.json"
         )
         legacy_root = (
@@ -1543,17 +1550,17 @@ class VerifyCheckoutTests(unittest.TestCase):
     def test_read_only_verification_rejects_symlinked_source_before_resolving(
         self,
     ) -> None:
-        source_alias = Path(self.temporary.name) / "source-alias"
+        source_alias = self.temporary / "source-alias"
         source_alias.symlink_to(self.source, target_is_directory=True)
         with self.assertRaisesRegex(
             sync_skills_plugin.PluginSyncError, "source snapshot root is a symlink"
         ):
             sync_skills_plugin.verify_pinned_source(
-                [Path(self.temporary.name) / "home/.codex"],
+                [self.temporary / "home/.codex"],
                 pin=self.pin,
                 checkout=self.root,
                 source_root=source_alias,
-                receipt_file=Path(self.temporary.name) / "missing-receipt.json",
+                receipt_file=self.temporary / "missing-receipt.json",
                 require_existing_homes=False,
             )
 
@@ -1561,7 +1568,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         cli = self.make_mock_codex()
-        home = Path(self.temporary.name) / "home"
+        home = self.temporary / "home"
         codex_home = home / "codex"
         legacy = codex_home / "skills/local-skill/SKILL.md"
         legacy.parent.mkdir(parents=True)
@@ -1576,7 +1583,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         new_source = sync_skills_plugin.ensure_marketplace_source(
             self.root,
             self.pin,
-            Path(self.temporary.name) / "new-marketplaces",
+            self.temporary / "new-marketplaces",
         )
         receipt_file = (
             home / ".local/state/treflebonbon-skills/plugin-sync/receipt.json"
@@ -1727,7 +1734,7 @@ class VerifyCheckoutTests(unittest.TestCase):
             )
 
     def make_mock_agy(self) -> Path:
-        agy_bin = Path(self.temporary.name) / "agy-bin"
+        agy_bin = self.temporary / "agy-bin"
         agy_bin.mkdir()
         cli = agy_bin / "agy"
         cli.write_text(
@@ -1791,7 +1798,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         self,
     ) -> None:
         cli = self.make_mock_agy()
-        home = Path(self.temporary.name) / "agy home"
+        home = self.temporary / "agy home"
         legacy = home / ".gemini/skills/local-skill/SKILL.md"
         legacy.parent.mkdir(parents=True)
         legacy.write_text("legacy\n")
@@ -1833,7 +1840,7 @@ class VerifyCheckoutTests(unittest.TestCase):
 
     def test_antigravity_install_failure_keeps_existing_local_skill(self) -> None:
         cli = self.make_mock_agy()
-        home = Path(self.temporary.name) / "agy-home"
+        home = self.temporary / "agy-home"
         legacy = home / ".gemini/skills/local-skill/SKILL.md"
         legacy.parent.mkdir(parents=True)
         legacy.write_text("legacy\n")
@@ -1852,10 +1859,10 @@ class VerifyCheckoutTests(unittest.TestCase):
         self.assertEqual(legacy.read_text(), "legacy\n")
 
     def test_receipt_is_verified_only_after_all_runtime_checks_finish(self) -> None:
-        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        receipt_file = self.temporary / "state/receipt.json"
         codex_homes = [
-            Path(self.temporary.name) / "codex-one",
-            Path(self.temporary.name) / "codex-two",
+            self.temporary / "codex-one",
+            self.temporary / "codex-two",
         ]
         with (
             patch.object(
@@ -1893,7 +1900,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         claude = self.make_mock_claude()
         codex = self.make_mock_codex()
         agy = self.make_mock_agy()
-        home = Path(self.temporary.name) / "partial-update-home"
+        home = self.temporary / "partial-update-home"
         codex_homes = [home / ".codex", home / ".codex-app"]
         (home / ".claude").mkdir(parents=True)
         checkout_root = home / ".cache/treflebonbon-skills/checkouts"
@@ -2021,10 +2028,10 @@ class VerifyCheckoutTests(unittest.TestCase):
     def test_failed_retry_replaces_old_success_receipt_and_retains_legacy_skill(
         self,
     ) -> None:
-        receipt_file = Path(self.temporary.name) / "state/receipt.json"
+        receipt_file = self.temporary / "state/receipt.json"
         receipt_file.parent.mkdir(parents=True)
         receipt_file.write_text('{"status":"verified","rev":"previous"}\n')
-        legacy = Path(self.temporary.name) / "legacy/SKILL.md"
+        legacy = self.temporary / "legacy/SKILL.md"
         legacy.parent.mkdir()
         legacy.write_text("legacy\n")
         with patch.object(
@@ -2038,7 +2045,7 @@ class VerifyCheckoutTests(unittest.TestCase):
                 sync_skills_plugin.PluginSyncError, "Claude Code plugin install"
             ):
                 sync_skills_plugin.sync_all(
-                    [Path(self.temporary.name) / "codex"],
+                    [self.temporary / "codex"],
                     pin=self.pin,
                     checkout=self.root,
                     source_root=self.source,

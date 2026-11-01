@@ -69,33 +69,9 @@ cleanup_repo_local_apm_targets() {
   local repo="${CHEZMOI_SOURCE_DIR:-${HOME}/.local/share/chezmoi}"
   [ -d "$repo" ] || return 0
 
-  local removed=0
-  local entry
-  for entry in \
-    "$repo/.agents" \
-    "$repo/.codex/agents" \
-    "$repo/.codex/hooks.json" \
-    "$repo/.codex/skills" \
-    "$repo/.claude/agents" \
-    "$repo/.claude/commands" \
-    "$repo/.claude/hooks" \
-    "$repo/.claude/skills" \
-    "$repo/.claude/apm-hooks.json"; do
-    [ -e "$entry" ] || [ -L "$entry" ] || continue
-
-    if mountpoint -q "$entry"; then
-      printf 'orphan-claude-skills: skipping mounted repo-local APM target %s\n' "$entry" >&2
-      continue
-    fi
-
-    rm -rf -- "$entry"
-    removed=$((removed + 1))
-  done
-
-  if [ "$removed" -gt 0 ]; then
-    printf 'orphan-claude-skills: removed %d repo-local APM deploy targets from %s\n' \
-      "$removed" "$repo" >&2
-  fi
+  python3 -c {{ include ".chezmoitemplates/apm-repo-cleanup.py" | replace "'" "'\"'\"'" | printf "'%s'" }} "$repo" <<'APM_LEDGER'
+{{ include "apm.lock.yaml" | fromYaml | toJson }}
+APM_LEDGER
 }
 
 cleanup_repo_local_apm_targets

@@ -16,6 +16,7 @@ setup() {
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/lib/"{refresh-cache,ensure-env}.sh \
     "$SKILL_HOME/.config/nix-devshell/lib/"
   touch "$SKILL_HOME/.config/nix-devshell/flake.nix"
+  stub_nix_cache_profile "$SKILL_HOME/.cache/nix-devshell-global-env.bash"
   echo 'export CACHE_VERSION=old' >"$SKILL_HOME/.cache/nix-devshell-global-env.bash"
   touch -t 202001010000 "$SKILL_HOME/.cache/nix-devshell-global-env.bash"
   stub_cmd_with_output nix 'export CACHE_VERSION=fresh'

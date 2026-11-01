@@ -11,6 +11,7 @@ setup() {
   printf 'fresh\n' >"$FAKE_HOME/.config/nix-devshell/payload"
   CACHE="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
   printf 'export CACHE_VERSION=old\n' >"$CACHE"
+  stub_nix_cache_profile "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
   PIDS=()
   local cmd
   for cmd in find grep mkdir mv rm tee cat dirname mktemp date tail readlink perl; do

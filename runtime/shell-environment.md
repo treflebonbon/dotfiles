@@ -54,9 +54,9 @@ dotfiles の WSL2 開発では `nix develop .#wsl` を使う。Nix 自体は `.w
 
 ## nix-devshell グローバル env キャッシュ
 
-`~/.config/nix-devshell` の共通ツールをプロジェクト開発シェルの外でも有効化するため、`nix print-dev-env` の出力を `~/.cache/nix-devshell-global-env.bash` にキャッシュし stale-while-revalidate で更新する。実体は `~/.config/nix-devshell/lib/{ensure-env,refresh-cache}.sh`（bash 関数）。`.bashrc` は起動時に現行キャッシュを source し、背景で次回向けに再生成、`PROMPT_COMMAND` で mtime 変化時にリロード（`chezmoi apply` 連携）。出力は bash として直接 source 可能なため zcompile は不要。
+`~/.config/nix-devshell` の共通ツールをプロジェクト開発シェルの外でも有効化するため、`nix print-dev-env` の出力を `~/.cache/nix-devshell-global-env.bash` にキャッシュし stale-while-revalidate で更新する。実体は `~/.config/nix-devshell/lib/{ensure-env,refresh-cache}.sh`（bash 関数）。`.bashrc` は起動時に現行キャッシュを source し、背景で次回向けに再生成する。作業中の PATH や仮想環境を保つため、既存シェルへ自動再読込みせず、新しいシェルで更新を取り込む。出力は bash として直接 source 可能なため zcompile は不要。
 
-通常の `chezmoi apply`、APM 配備、初回導入は `NIX_DEVSHELL_CACHE_REQUIRED=1` で更新し、必要な更新や前提の確認に失敗したら停止する。途中まで出力した Nix の非0終了、空・bash 構文不正の出力、キャッシュ置換の失敗は旧キャッシュを保持する。対話シェルの背景更新は引き続き起動を止めない。鮮度は devShell 配下のソースの内容・追加・削除と WSL／通常環境の選択で判定し、入力が同じなら再評価しない。ルートの `.git`／`.direnv` と Nix の `result`／`result-*` symlink は実行時状態として除外する。対応する入力情報をキャッシュ本体に含め、検査後に一緒に置換する。旧形式はそのまま読め、次の更新で再生成へ移行する。初回を含む毎回の更新で、排他には PATH 上の system `perl`、鮮度判定には `sha256sum` または `shasum` を使う（[ADR-0050](../docs/adr/0050-user-environment-cache-freshness.md)）。
+通常の `chezmoi apply`、APM 配備、初回導入は `NIX_DEVSHELL_CACHE_REQUIRED=1` で更新し、必要な更新や前提の確認に失敗したら停止する。途中まで出力した Nix の非0終了、空・bash 構文不正の出力、キャッシュ置換の失敗は旧キャッシュを保持する。対話シェルの背景更新は引き続き起動を止めない。鮮度は devShell 配下のソースの内容・追加・削除と WSL／通常環境の選択で判定し、入力が同じで対応する profile が有効なら再評価しない。`nix print-dev-env --profile` が作る `~/.cache/nix-devshell-global-env.bash.profile` と世代リンクで、環境を Nix の GC から保護する。profile が欠落・リンク切れなら、入力が同じでも再生成する。ルートの `.git`／`.direnv` と Nix の `result`／`result-*` symlink は実行時状態として除外する。対応する入力情報をキャッシュ本体に含め、検査後に一緒に置換する。旧形式はそのまま読め、次の更新で再生成へ移行する。初回を含む毎回の更新で、排他には PATH 上の system `perl`、鮮度判定には `sha256sum` または `shasum` を使う（[ADR-0050](../docs/adr/0050-user-environment-cache-freshness.md)）。
 
 同じキャッシュの背景更新は競合時に待たず省略し、必須更新は先行更新を待って入力を再確認する。評価前後の照合で入力の変化を検出した場合は結果を採用せず1回だけ再試行し、再び検出すれば旧キャッシュを保持して必須更新を失敗させる。更新元の終了でロックは解放され、残った一時出力は次回の更新が回収する。`~/.cache/nix-devshell-global-env.bash.lock` は常設ファイルであり、存在自体は更新中の意味ではない。実行中のロックファイルを削除すると排他を壊すため、そのまま通常の更新を再実行する。
 

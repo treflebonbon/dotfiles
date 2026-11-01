@@ -12,6 +12,7 @@ setup() {
   mkdir -p "$FAKE_HOME/.config/nix-devshell/lib" "$FAKE_HOME/.cache"
   : >"$FAKE_HOME/.config/nix-devshell/flake.nix"
   : >"$FAKE_HOME/.config/nix-devshell/flake.lock"
+  stub_nix_cache_profile "$FAKE_HOME/.cache/nix-devshell-global-env.bash"
 
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
     "$FAKE_HOME/.config/nix-devshell/lib/refresh-cache.sh"

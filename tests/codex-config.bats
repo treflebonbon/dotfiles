@@ -823,13 +823,22 @@ PY
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local codex_home="$home/.codex"
   local proxy_denied='CONNECT tunnel failed, response 403|Received HTTP code 403 from proxy after CONNECT'
+  local -a isolated_tmp=()
   mkdir -p "$workspace" "$codex_home"
   prepare_codex_permission_roots "$home"
   render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
   assert_codex_managed_values "$codex_home/config.toml"
   assert_dotfiles_permission_profile "$codex_home/config.toml"
 
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+  if [ "$(uname -s)" = Linux ]; then
+    # 通信の検査を他 suite の一時 directory 撤去と競合させない。
+    isolated_tmp=(bwrap --unshare-user --die-with-parent --ro-bind / / \
+      --tmpfs /tmp --dir /tmp/codex \
+      --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" --dev /dev --proc /proc \
+      --chdir "$workspace")
+  fi
+
+  run "${isolated_tmp[@]}" env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
     codex sandbox -P dotfiles-secure -C "$workspace" -- \
     sh -c 'test -n "$CODEX_NETWORK_PROXY_ACTIVE" && curl --silent --show-error --fail --max-time 20 https://registry.npmjs.org/-/ping >/dev/null'
 
@@ -838,7 +847,7 @@ PY
   fi
   [ "$status" -eq 0 ]
 
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
+  run "${isolated_tmp[@]}" env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
     codex sandbox -P dotfiles-secure -C "$workspace" -- \
     curl --silent --show-error --output /dev/null --max-time 20 https://example.com/
 

@@ -39,6 +39,8 @@ Codex の managed 設定だけを変更する場合は、通常の設定同期�
 
 `runtime/` バンドルは chezmoi が `~/runtime/` へ配備する（agent 向け知識バンドル）。グローバル指示の実体は `private_dot_claude/CLAUDE.md`（→ `~/.claude/CLAUDE.md`）と `private_dot_config/codex/AGENTS.md`（→ `$CODEX_HOME/AGENTS.md`）で、repo 直下の `CLAUDE.md` / `AGENTS.md` は dotfiles repo 編集用として `.chezmoiignore` で非配備にする（[ADR-0078](adr/0078-keep-repo-instructions-out-of-home.md)）。この `docs/architecture.md` 自体は repo ローカル専用（`.chezmoiignore` で `~/docs/` へは非配備）— dotfiles repo 自身の構造説明は他 repo で作業中の agent には価値が無いため。
 
+repo 内の旧 APM 配備物は、現行 lock の配備先と hash が一致する file だけを撤去する。未知・変更済み・読取不能の項目と symlink／mount は保持して理由を報告する。削除する file は親 directory 内の private な `.apm-retire.<ID>/payload` へ退避して再照合し、不一致なら元の path を上書きせずに戻す。競合や中断で退避が残った場合は、報告された path と元の path の内容を確認してから復旧し、退避を一括削除しない。
+
 ## 2 種類の flake devShell
 
 混同しないこと:
