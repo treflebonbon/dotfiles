@@ -55,6 +55,8 @@ def shared_environment_module():
     module_path = Path(python_path)
     if not module_path.is_absolute() or not module_path.is_dir():
         raise RuntimeError("fixed plugin Python module path is missing")
+    # The verified source must stay byte-identical to the pin for the next check.
+    sys.dont_write_bytecode = True
     sys.path.insert(0, str(module_path))
     return importlib.import_module("treflebonbon_skills.devshell_environment")
 

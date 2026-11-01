@@ -99,6 +99,28 @@ PY
   [[ "$output" == *"usage: devshell-env"* ]]
 }
 
+@test "generic devshell-env never writes bytecode into the fixed source tree" {
+  local module_root="$BATS_TEST_TMPDIR/fixed/lib/python/treflebonbon_skills"
+  mkdir -p "$module_root"
+  : >"$module_root/__init__.py"
+  cat >"$module_root/devshell_environment.py" <<'PY'
+class InvalidContext(Exception): pass
+class PreparationError(Exception): pass
+class Repository: pass
+def executable(*args): return None
+def prepare_environment(*args, **kwargs): return {}
+def reuse_environment(*args, **kwargs): return {}
+def selected_output(*args, **kwargs): return None
+def trust_command(*args, **kwargs): return None
+def trusted(*args, **kwargs): return False
+PY
+  run env -u PYTHONDONTWRITEBYTECODE -u PYTHONPYCACHEPREFIX HOME="$TEST_HOME" \
+    TREFLEBONBON_SKILLS_LIB="$BATS_TEST_TMPDIR/fixed/lib/python" \
+    "$TEST_HOME/.local/bin/devshell-env" --help
+  [ "$status" -eq 0 ]
+  [ -z "$(find "$BATS_TEST_TMPDIR/fixed" -name '__pycache__' -o -name '*.pyc')" ]
+}
+
 @test "codex-worktree starts only through the verified public raw entry" {
   run env HOME="$TEST_HOME" DISPATCH_LOG="$DISPATCH_LOG" \
     "$TEST_HOME/.local/bin/codex-worktree" --no-alt-screen "task with spaces"
