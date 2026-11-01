@@ -76,6 +76,10 @@ _nix_devshell_refresh_locked() {
   local CACHE="${2:-$HOME/.cache/nix-devshell-global-env.bash}"
   local LOG="${3:-$HOME/.cache/nix-devshell-refresh.log}"
   local required="${NIX_DEVSHELL_CACHE_REQUIRED:-0}"
+  case "$CACHE" in
+  /*) ;;
+  *) CACHE="$(pwd -P)/$CACHE" || return 1 ;;
+  esac
   local profile="${CACHE}.profile"
 
   if [ ! -f "$DIR/flake.nix" ] || ! command -v nix >/dev/null 2>&1; then

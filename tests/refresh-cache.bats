@@ -205,6 +205,29 @@ STUB
   done
 }
 
+@test "相対キャッシュの profile は Nix 評価先でなく呼出元の保存先に作る" {
+  cat >"$TEST_BIN_DIR/nix" <<'STUB'
+#!/bin/bash
+echo "$0 $*" >> "$TEST_LOG"
+[[ "$3" == --profile && "$4" == "$HOME/.cache/nix-devshell-global-env.bash.profile" ]] || exit 37
+echo 'relative stderr fixture' >&2
+echo 'export CACHE_VERSION=fresh'
+STUB
+  chmod +x "$TEST_BIN_DIR/nix"
+
+  run /usr/bin/env -i PATH="$TEST_BIN_DIR" HOME="$FAKE_HOME" TEST_LOG="$TEST_LOG" \
+    NIX_DEVSHELL_CACHE_REQUIRED=1 /bin/bash -c '
+      . "$1"
+      cd "$HOME"
+      refresh_nix_devshell_cache .config/nix-devshell .cache/nix-devshell-global-env.bash .cache/refresh.log
+    ' _ "$LIB"
+
+  assert_success
+  refute_output --partial 'No such file or directory'
+  grep -q 'relative stderr fixture' "$FAKE_HOME/.cache/refresh.log"
+  assert_cache_version fresh
+}
+
 @test "Nix が成功しても profile を保持できなければキャッシュを採用しない" {
   local cache="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
   rm "$cache.profile"
