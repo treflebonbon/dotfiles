@@ -1938,7 +1938,7 @@ EOF
   done
 }
 
-@test "Codex sandbox reads only the verified treflebonbon skill cache and keeps secret names denied" {
+@test "Codex sandbox enforces verified cache access and distinguishes recursive grants" {
   local fixture_home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
   local probe="$BATS_TEST_TMPDIR/plugin-cache-probe.sh"
@@ -2019,6 +2019,53 @@ for codex_home in "$HOME/.codex" "$HOME/.codex-app" "$HOME/explicit-codex-home";
       exit 1
     fi
   done
+done
+cat >"$HOME/cache-probe.toml" <<'EOF'
+[permissions.cache-probe]
+extends = ":workspace"
+[permissions.cache-probe.filesystem]
+":root" = "deny"
+":minimal" = "read"
+":slash_tmp" = "deny"
+"/nix" = "read"
+EOF
+target="$HOME/.codex/plugins/cache/old/probe.txt"
+mkdir -p "$(dirname "$target")"
+for rule in '' '~/.codex/plugins/**' '~/.codex/**' '~/.codex/plugins/*'; do
+  cp "$HOME/cache-probe.toml" "$HOME/.codex/config.toml"
+  if [ -n "$rule" ]; then
+    printf '"%s" = "write"\n' "$rule" >>"$HOME/.codex/config.toml"
+  fi
+  printf 'before\n' >"$target"
+  result=0
+  CODEX_HOME="$HOME/.codex" codex sandbox -P cache-probe -C /work -- \
+    sh -c 'printf "WRITE_ATTEMPT\n"; printf "public fixture\n" >"$1"' sh "$target" \
+    >"$HOME/cache-probe.log" 2>&1 || result=$?
+  case "$rule" in
+    '~/.codex/plugins/**' | '~/.codex/**')
+      if [ "$result" -ne 0 ]; then
+        printf 'recursive grant failed: %s\n' "$rule" >&2
+        cat "$HOME/cache-probe.log" >&2
+        exit 1
+      fi
+      grep -Fxq WRITE_ATTEMPT "$HOME/cache-probe.log"
+      [ "$(cat "$target")" = 'public fixture' ]
+      ;;
+    '~/.codex/plugins/*')
+      [ "$result" -ne 0 ]
+      grep -Fq 'filesystem glob path `~/.codex/plugins/*` only supports `deny` access' "$HOME/cache-probe.log"
+      if grep -Fxq WRITE_ATTEMPT "$HOME/cache-probe.log"; then
+        printf 'unsupported glob unexpectedly executed the write attempt\n' >&2
+        exit 1
+      fi
+      [ "$(cat "$target")" = before ]
+      ;;
+    *)
+      [ "$result" -ne 0 ]
+      grep -Fxq WRITE_ATTEMPT "$HOME/cache-probe.log"
+      [ "$(cat "$target")" = before ]
+      ;;
+  esac
 done
 printf 'CACHE_SANDBOX_PASS\n'
 SH
