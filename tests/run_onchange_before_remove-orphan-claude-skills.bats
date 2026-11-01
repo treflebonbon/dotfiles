@@ -30,6 +30,33 @@ copy_cli_shims() {
   [ -e "$FAKE_HOME/.claude/skills/orphan-skill/SKILL.md" ]
 }
 
+@test "廃止名や Codex 重複名でも独立導入・編集済みの skill を保持する" {
+  local codex_home="$BATS_TEST_TMPDIR/codex-home" dir
+  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" \
+    "$FAKE_HOME/.codex/skills" "$codex_home/skills" \
+    "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
+    mkdir -p "$dir/baseline-ui" "$dir/research" "$dir/to-pr"
+    printf '利用者の編集\n' >"$dir/baseline-ui/SKILL.md"
+    printf '独立導入\n' >"$dir/research/SKILL.md"
+    printf '旧ローカル名の再利用\n' >"$dir/to-pr/SKILL.md"
+    printf '利用者のファイル\n' >"$dir/autofix"
+    ln -s research "$dir/uxaudit"
+  done
+
+  run env CODEX_HOME="$codex_home" CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" \
+    "$FAKE_HOME/.codex/skills" "$codex_home/skills" \
+    "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
+    grep -Fxq '利用者の編集' "$dir/baseline-ui/SKILL.md"
+    grep -Fxq '独立導入' "$dir/research/SKILL.md"
+    grep -Fxq '旧ローカル名の再利用' "$dir/to-pr/SKILL.md"
+    grep -Fxq '利用者のファイル' "$dir/autofix"
+    [ -L "$dir/uxaudit" ]
+  done
+  [[ "$output" == *"保持"* ]]
+}
+
 @test "preserves symlinks (does not follow or delete them)" {
   mkdir -p "$BATS_TEST_TMPDIR/elsewhere/my-custom-skill"
   ln -s "$BATS_TEST_TMPDIR/elsewhere/my-custom-skill" "$FAKE_HOME/.claude/skills/my-custom-skill"
@@ -337,29 +364,6 @@ PY
   [ ! -d "$FAKE_HOME/.codex-app" ]
 }
 
-@test "removes retired APM UI skill real directories from agent runtimes" {
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
-    mkdir -p "$dir/baseline-ui" "$dir/fixing-accessibility" "$dir/fixing-metadata" "$dir/fixing-motion-performance" "$dir/modern-web-guidance"
-  done
-
-  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
-  [ "$status" -eq 0 ]
-
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
-    [ ! -e "$dir/baseline-ui" ]
-    [ ! -e "$dir/fixing-accessibility" ]
-    [ ! -e "$dir/fixing-metadata" ]
-    [ ! -e "$dir/fixing-motion-performance" ]
-  done
-
-  [ -d "$FAKE_HOME/.agents/skills/modern-web-guidance" ]
-  [ -d "$FAKE_HOME/.codex/skills/modern-web-guidance" ]
-  [ -d "$codex_home/skills/modern-web-guidance" ]
-  [ -d "$FAKE_HOME/.gemini/skills/modern-web-guidance" ]
-  [ -d "$FAKE_HOME/.copilot/skills/modern-web-guidance" ]
-}
-
 @test "preserves external APM skills in ~/.agents for Codex Desktop discovery" {
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
   mkdir -p \
@@ -394,173 +398,4 @@ PY
   [ -d "$FAKE_HOME/.codex/skills/shadcn" ]
   [ -d "$codex_home/skills/effect-ts" ]
   [ -d "$codex_home/skills/frontend-design" ]
-}
-
-@test "preserves migrating local duplicates and still removes previously retired names" {
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.claude/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills"; do
-    mkdir -p "$dir/to-pr" "$dir/to-worktree" "$dir/dogfood" "$dir/ui-grill-with-docs" "$dir/frontend-design"
-    printf 'stub\n' >"$dir/to-pr/SKILL.md"
-    printf 'stub\n' >"$dir/frontend-design/SKILL.md"
-  done
-
-  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
-  [ "$status" -eq 0 ]
-
-  [ ! -e "$FAKE_HOME/.agents/skills/to-pr" ]
-  [ ! -e "$FAKE_HOME/.claude/skills/to-pr" ]
-  [ -d "$FAKE_HOME/.agents/skills/ui-grill-with-docs" ]
-  [ -d "$FAKE_HOME/.claude/skills/ui-grill-with-docs" ]
-  [ ! -e "$FAKE_HOME/.codex/skills/to-pr" ]
-  [ ! -e "$FAKE_HOME/.codex/skills/to-worktree" ]
-  [ -d "$FAKE_HOME/.codex/skills/dogfood" ]
-  [ -d "$FAKE_HOME/.codex/skills/ui-grill-with-docs" ]
-  [ ! -e "$codex_home/skills/to-pr" ]
-  [ ! -e "$codex_home/skills/to-worktree" ]
-  [ -d "$codex_home/skills/dogfood" ]
-  [ -d "$codex_home/skills/ui-grill-with-docs" ]
-  [ -d "$FAKE_HOME/.codex/skills/frontend-design" ]
-  [ -d "$codex_home/skills/frontend-design" ]
-}
-
-@test "removes retired agent-browser and obsolete writing skill while preserving official Matt skills" {
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  local hub_dirs=(
-    "$FAKE_HOME/.agents/skills"
-  )
-  local claude_dirs=(
-    "$FAKE_HOME/.claude/skills"
-  )
-  local native_dirs=(
-    "$FAKE_HOME/.codex/skills"
-    "$codex_home/skills"
-  )
-  local other_dirs=(
-    "$FAKE_HOME/.gemini/skills"
-    "$FAKE_HOME/.copilot/skills"
-  )
-
-  for dir in "${hub_dirs[@]}" "${claude_dirs[@]}" "${native_dirs[@]}" "${other_dirs[@]}"; do
-    mkdir -p "$dir/agent-browser" "$dir/grill-me" "$dir/teach" "$dir/writing-for-agents" "$dir/writing-great-skills" "$dir/modern-web-guidance"
-  done
-
-  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
-  [ "$status" -eq 0 ]
-
-  for dir in "${hub_dirs[@]}"; do
-    [ ! -e "$dir/agent-browser" ]
-    [ -d "$dir/grill-me" ]
-    [ -d "$dir/teach" ]
-    [ -d "$dir/writing-for-agents" ]
-    [ ! -e "$dir/writing-great-skills" ]
-    [ -d "$dir/modern-web-guidance" ]
-  done
-
-  for dir in "${claude_dirs[@]}"; do
-    [ ! -e "$dir/agent-browser" ]
-    [ -d "$dir/grill-me" ]
-    [ -d "$dir/teach" ]
-    [ -d "$dir/writing-for-agents" ]
-    [ ! -e "$dir/writing-great-skills" ]
-    [ -d "$dir/modern-web-guidance" ]
-  done
-
-  for dir in "${native_dirs[@]}"; do
-    [ ! -e "$dir/agent-browser" ]
-    [ ! -e "$dir/grill-me" ]
-    [ ! -e "$dir/teach" ]
-    [ ! -e "$dir/writing-for-agents" ]
-    [ ! -e "$dir/writing-great-skills" ]
-    [ -d "$dir/modern-web-guidance" ]
-  done
-
-  for dir in "${other_dirs[@]}"; do
-    [ ! -e "$dir/agent-browser" ]
-    [ -d "$dir/grill-me" ]
-    [ -d "$dir/teach" ]
-    [ -d "$dir/writing-for-agents" ]
-    [ ! -e "$dir/writing-great-skills" ]
-    [ -d "$dir/modern-web-guidance" ]
-  done
-}
-
-@test "preserves every Matt Pocock skill across managed runtime directories" {
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  local matt_skills=(
-    ask-matt
-    code-review
-    codebase-design
-    diagnosing-bugs
-    domain-modeling
-    grill-me
-    grill-with-docs
-    grilling
-    handoff
-    implement
-    implement-spec
-    improve-codebase-architecture
-    pr
-    prototype
-    research
-    retro
-    setup-matt-pocock-skills
-    tdd
-    teach
-    to-questionnaire
-    to-spec
-    to-tickets
-    triage
-    wait-what
-    wayfinder
-    wizard
-    writing-for-agents
-  )
-  local managed_dirs=(
-    "$FAKE_HOME/.agents/skills"
-    "$FAKE_HOME/.claude/skills"
-  )
-  local native_dirs=(
-    "$FAKE_HOME/.codex/skills"
-    "$codex_home/skills"
-  )
-
-  for dir in "${managed_dirs[@]}" "${native_dirs[@]}"; do
-    for skill in "${matt_skills[@]}"; do
-      mkdir -p "$dir/$skill"
-    done
-    mkdir -p "$dir/writing-great-skills"
-  done
-
-  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
-  [ "$status" -eq 0 ]
-
-  for dir in "${managed_dirs[@]}"; do
-    for skill in "${matt_skills[@]}"; do
-      [ -d "$dir/$skill" ]
-    done
-    [ ! -e "$dir/writing-great-skills" ]
-  done
-
-  for dir in "${native_dirs[@]}"; do
-    for skill in "${matt_skills[@]}"; do
-      [ ! -e "$dir/$skill" ]
-    done
-    [ ! -e "$dir/writing-great-skills" ]
-  done
-}
-
-@test "removes retired coderabbit (autofix) and uxaudit skills from agent runtime skill dirs" {
-  local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
-    mkdir -p "$dir/autofix" "$dir/uxaudit" "$dir/modern-web-guidance"
-  done
-
-  CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" CODEX_HOME="$codex_home" run bash "$SCRIPT"
-  [ "$status" -eq 0 ]
-
-  for dir in "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$codex_home/skills" "$FAKE_HOME/.gemini/skills" "$FAKE_HOME/.copilot/skills"; do
-    [ ! -e "$dir/autofix" ]
-    [ ! -e "$dir/uxaudit" ]
-    [ -d "$dir/modern-web-guidance" ]
-  done
 }

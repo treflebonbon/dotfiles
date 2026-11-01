@@ -236,6 +236,42 @@ PY
   [ -f "$TEST_HOME/.codex-app/.managed-config-seeded" ]
 }
 
+@test "Codex 初回同期はキャッシュ内だけにある AI CLI を読み込む" {
+  local runtime_bin="$BATS_TEST_TMPDIR/ai-runtime" tool
+  mkdir -p "$runtime_bin" "$TEST_HOME/.cache" "$TEST_HOME/.config/nix-devshell/lib"
+  cp "$PROJECT_ROOT/private_dot_config/nix-devshell/lib/ensure-env.sh" \
+    "$TEST_HOME/.config/nix-devshell/lib/ensure-env.sh"
+  for tool in claude codex agy; do
+    printf '#!/bin/sh\nexit 0\n' >"$runtime_bin/$tool"
+    chmod +x "$runtime_bin/$tool"
+  done
+  printf 'export PATH=%q\n' "$runtime_bin:$PATH" >"$TEST_HOME/.cache/nix-devshell-global-env.bash"
+  python3 - "$PLUGIN_SYNC_BIN/sync-skills-plugin" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+source = path.read_text().replace('args = sys.argv[1:]', '''import subprocess
+for tool in ("claude", "codex", "agy"):
+    subprocess.run([tool, "--version"], check=True)
+args = sys.argv[1:]''')
+path.write_text(source)
+PY
+  # 呼出元に既存 CLI があっても、cache の読込み前はこの検査を失敗させる。
+  mkdir -p "$BATS_TEST_TMPDIR/bootstrap-bin"
+  local executable
+  for tool in python3 mkdir dirname mktemp cp chmod mv rm; do
+    executable="$(command -v "$tool")"
+    ln -s "$executable" "$BATS_TEST_TMPDIR/bootstrap-bin/$tool"
+  done
+
+  run env HOME="$TEST_HOME" PATH="$PLUGIN_SYNC_BIN:$BATS_TEST_TMPDIR/bootstrap-bin" /bin/bash "$SYNC_COMMAND"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ -f "$TEST_HOME/.codex/AGENTS.md" ]
+}
+
 @test "Codex 管理設定 syncs native and explicit CODEX_HOME including WSL" {
   local codex_home="$BATS_TEST_TMPDIR/custom codex home"
   mkdir -p "$TEST_HOME/.codex-app"
@@ -578,6 +614,45 @@ PY
   [ "$status" -ne 0 ]
   [[ "$output" == *"broad skills plugin cache grant"* ]]
   cmp "$BATS_TEST_TMPDIR/broad-write-grant.toml" "$home/config.toml"
+}
+
+@test "Codex 権限検査は文字列形式と tilde 形式の広い cache 許可も拒否する" {
+  prepare_chezmoi_fixture
+  run "${CHEZMOI_APPLY[@]}"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  local config="$TEST_HOME/.codex/config.toml" profile mode root
+  cp "$config" "$BATS_TEST_TMPDIR/clean-config.toml"
+  for profile in dotfiles-secure dotfiles-peer; do
+    for mode in read write; do
+      for root in "$TEST_HOME/.codex/plugins/cache" \
+        "$TEST_HOME/.codex/plugins/cache/treflebonbon/treflebonbon-skills/old" \
+        '~/.codex/plugins/cache' '~/.codex/plugins/cache/treflebonbon/treflebonbon-skills'; do
+        python3 - "$BATS_TEST_TMPDIR/clean-config.toml" "$config" "$profile" "$root" "$mode" <<'PY'
+import json
+import re
+import sys
+import tomllib
+from pathlib import Path
+
+source, target, profile, root, mode = sys.argv[1:]
+contents, count = re.subn(
+    rf'(?m)^\[permissions\.{re.escape(profile)}\.filesystem\]$',
+    lambda match: match[0] + f'\n{json.dumps(root)} = {json.dumps(mode)}',
+    Path(source).read_text(),
+)
+assert count == 1
+assert tomllib.loads(contents)['permissions'][profile]['filesystem'][root] == mode
+Path(target).write_text(contents)
+PY
+        cp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+        run env HOME="$TEST_HOME" "$SYNC_COMMAND" --verify-only
+        [ "$status" -ne 0 ]
+        [[ "$output" == *"broad skills plugin cache grant"* ]]
+        cmp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+      done
+    done
+  done
 }
 
 @test "Codex managed --verify-only verifies existing homes without preparing files" {

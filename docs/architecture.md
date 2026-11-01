@@ -41,6 +41,8 @@ Codex の managed 設定だけを変更する場合は、通常の設定同期�
 
 repo 内の旧 APM 配備物は、現行 lock の配備先と hash が一致する file だけを撤去する。未知・変更済み・読取不能の項目と symlink／mount は保持して理由を報告する。削除する file は親 directory 内の private な `.apm-retire.<ID>/payload` へ退避して再照合し、不一致なら元の path を上書きせずに戻す。競合や中断で退避が残った場合は、報告された path と元の path の内容を確認してから復旧し、退避を一括削除しない。
 
+HOME 内の廃止 skill 名や Codex native location の重複候補は、名前だけでは所有権を確かめられないため保持して path を報告する。APM の所有物は APM 自身の prune に委ねる。既知の旧 symlink と、固定 baseline・現行 plugin の検証を通過した移行対象11件だけを従来の撤去条件で扱う。
+
 ## 2 種類の flake devShell
 
 混同しないこと:

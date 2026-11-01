@@ -680,7 +680,11 @@ def sync_claude(
             previous["source"],
             previous["install_path"],
         ):
-            require_marketplace_source(previous["config"], previous["source"])
+            verify_payload(previous["install_path"], previous["expected"], previous["pin"])
+            try:
+                require_marketplace_source(previous["config"], source_root)
+            except PluginSyncError:
+                require_marketplace_source(previous["config"], previous["source"])
             update_existing = True
         else:
             raise PluginSyncError(
@@ -2152,8 +2156,6 @@ def verify_current_installation(
         recorded = codex_records[str(home)]
         for field in (
             "runtime",
-            "cli_path",
-            "cli_version",
             "plugin_id",
             "checkout",
             "version",
@@ -2173,6 +2175,9 @@ def verify_current_installation(
     for runtime, current in (("claude", claude), ("agy", agy)):
         recorded = results[runtime]
         for field, value in current.items():
+            # CLI の更新だけでは、現在の inventory と payload の照合を無効にしない。
+            if field in {"cli_path", "cli_version"}:
+                continue
             if recorded.get(field) != value:
                 raise PluginSyncError(
                     f"receipt {runtime} result does not match current install"
