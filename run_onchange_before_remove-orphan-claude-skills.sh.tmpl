@@ -153,7 +153,7 @@ if [ -n "$extra_codex_home" ]; then
 fi
 cleanup_symlinks "${HOME}/.copilot/skills"
 
-remove_retired_apm_skill_dirs() {
+retain_retired_apm_skill_dirs() {
   local dir="$1" skill
   local retired=()
   for skill in "${retired_apm_skills[@]}"; do
@@ -168,25 +168,24 @@ remove_retired_apm_skill_dirs() {
     fi
     retired+=("$skill")
   done
-  remove_named_skill_entries "$dir" "apm" "${retired[@]}"
+  retain_named_skill_entries "$dir" "apm" "${retired[@]}"
 }
 
-remove_retired_apm_skill_dirs "$shared_skills_dir"
-remove_retired_apm_skill_dirs "$claude_skills_dir"
-remove_retired_apm_skill_dirs "${HOME}/.codex/skills"
+retain_retired_apm_skill_dirs "$shared_skills_dir"
+retain_retired_apm_skill_dirs "$claude_skills_dir"
+retain_retired_apm_skill_dirs "${HOME}/.codex/skills"
 if [ -n "$extra_codex_home" ]; then
-  remove_retired_apm_skill_dirs "$extra_codex_home/skills"
+  retain_retired_apm_skill_dirs "$extra_codex_home/skills"
 fi
-remove_retired_apm_skill_dirs "${HOME}/.gemini/skills"
-remove_retired_apm_skill_dirs "${HOME}/.copilot/skills"
+retain_retired_apm_skill_dirs "${HOME}/.gemini/skills"
+retain_retired_apm_skill_dirs "${HOME}/.copilot/skills"
 
 local_skills_cleanup
 
-# APM は Codex native location へ配備しないため、過去の Matt managed payloadも
-# shared hub の重複として撤去する。.agents/skills は APM の所有先なので保持する。
-remove_named_skill_entries "${HOME}/.codex/skills" "codex APM duplicate" "${managed_apm_skills[@]}"
+# Codex native location の独立導入と旧 APM copy は名前だけでは区別できない。
+retain_named_skill_entries "${HOME}/.codex/skills" "codex APM duplicate" "${managed_apm_skills[@]}"
 if [ -n "$extra_codex_home" ]; then
-  remove_named_skill_entries "$extra_codex_home/skills" "codex APM duplicate" "${managed_apm_skills[@]}"
+  retain_named_skill_entries "$extra_codex_home/skills" "codex APM duplicate" "${managed_apm_skills[@]}"
 fi
 
 # 化石 marker が残っていれば掃除 (旧 ai.nix の名残、再発防止)

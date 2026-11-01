@@ -28,13 +28,12 @@ is_preserved_local_skill() {
   return 1
 }
 
-remove_named_skill_entries() {
+retain_named_skill_entries() {
   local dir="$1"
   local label="$2"
   shift 2
   [ -d "$dir" ] || return 0
 
-  local removed=0
   local skill
   for skill in "$@"; do
     if is_legacy_migration_skill "$skill"; then
@@ -42,25 +41,20 @@ remove_named_skill_entries() {
     fi
     local entry="$dir/$skill"
     if [ -e "$entry" ] || [ -L "$entry" ]; then
-      rm -rf -- "$entry"
-      removed=$((removed + 1))
+      printf 'orphan-claude-skills: 保持 %s: %s の名前だけでは所有権を確認できません\n' \
+        "$entry" "$label" >&2
     fi
   done
-
-  if [ "$removed" -gt 0 ]; then
-    printf "orphan-claude-skills: removed %d retired %s skill entries from %s\n" \
-      "$removed" "$label" "$dir" >&2
-  fi
 }
 
 local_skills_cleanup() {
   local dir
   for dir in "$shared_skills_dir" "$claude_skills_dir"; do
     # shellcheck disable=SC2154
-    remove_named_skill_entries "$dir" "local" "${retired_local_skills[@]}"
+    retain_named_skill_entries "$dir" "local" "${retired_local_skills[@]}"
   done
   for dir in "$HOME/.codex/skills" "${extra_codex_home:+$extra_codex_home/skills}"; do
     [ -n "$dir" ] || continue
-    remove_named_skill_entries "$dir" "codex local duplicate" "${local_skills[@]}" "${retired_local_skills[@]}"
+    retain_named_skill_entries "$dir" "codex local duplicate" "${local_skills[@]}" "${retired_local_skills[@]}"
   done
 }

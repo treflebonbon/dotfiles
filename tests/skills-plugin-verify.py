@@ -542,6 +542,79 @@ class VerifyCheckoutTests(unittest.TestCase):
                     self.assertEqual(result["version"], self.pin["version"])
                     self.assertEqual(settings.read_bytes(), managed_bytes)
 
+    def test_claude_pin_update_accepts_new_settings_with_previous_payload(self) -> None:
+        cli = self.make_mock_claude()
+        home = self.temporary / "upgrade-home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        with patch.dict(
+            os.environ,
+            {
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+                "PATH": f"{cli.parent}:{os.environ['PATH']}",
+            },
+        ):
+            old_checkout = sync_skills_plugin.cache_root() / self.pin["rev"]
+            old_checkout.parent.mkdir(parents=True)
+            shutil.copytree(self.root, old_checkout)
+            old_source = sync_skills_plugin.ensure_marketplace_source(
+                old_checkout, self.pin
+            )
+            initial = sync_skills_plugin.sync_claude(old_checkout, old_source, self.pin)
+            receipt = {
+                "schema_version": 1,
+                "status": "verified",
+                "pin": self.pin,
+                "checkout": str(old_checkout),
+                "source": str(old_source),
+                "results": {"claude": initial},
+            }
+            (self.root / "plugin.json").write_text(
+                json.dumps({"name": "treflebonbon-skills", "version": "0.2.2"}) + "\n"
+            )
+            git(self.root, "add", "plugin.json")
+            git(self.root, "commit", "-qm", "fixture upgrade")
+            new_pin = dict(
+                self.pin,
+                rev=git(self.root, "rev-parse", "HEAD"),
+                tree=git(self.root, "rev-parse", "HEAD^{tree}"),
+                version="0.2.2",
+            )
+            checkout = sync_skills_plugin.cache_root() / new_pin["rev"]
+            shutil.copytree(self.root, checkout)
+            source = sync_skills_plugin.ensure_marketplace_source(checkout, new_pin)
+            settings = config / "settings.json"
+            managed = json.loads(settings.read_text())
+            managed["extraKnownMarketplaces"]["treflebonbon"]["source"]["path"] = str(source)
+            settings.write_text(json.dumps(managed))
+            # settings が先に新 pin へ変わっても、inventory は旧 install を指す。
+
+            old_payload = Path(initial["install_path"]) / "README.md"
+            original = old_payload.read_bytes()
+            old_payload.write_text("利用者の編集\n")
+            with self.assertRaises(sync_skills_plugin.PluginSyncError):
+                sync_skills_plugin.sync_claude(checkout, source, new_pin, receipt)
+            self.assertEqual(old_payload.read_text(), "利用者の編集\n")
+            old_payload.write_bytes(original)
+
+            declared = managed["extraKnownMarketplaces"]["treflebonbon"]["source"]
+            declared["path"] = str(self.temporary / "unknown-source")
+            settings.write_text(json.dumps(managed))
+            with self.assertRaises(sync_skills_plugin.PluginSyncError):
+                sync_skills_plugin.sync_claude(checkout, source, new_pin, receipt)
+            self.assertEqual(json.loads(settings.read_text()), managed)
+            declared["path"] = str(source)
+            settings.write_text(json.dumps(managed))
+
+            result = sync_skills_plugin.sync_claude(checkout, source, new_pin, receipt)
+
+            self.assertEqual(result["version"], "0.2.2")
+            sync_skills_plugin.verify_claude_installation(
+                checkout, source, new_pin, sync_skills_plugin.tracked_tree(checkout)
+            )
+            self.assertEqual(old_payload.read_bytes(), original)
+
     def test_claude_sync_repairs_registration_with_current_payload(self) -> None:
         cli = self.make_mock_claude()
         home = self.temporary / "home"
@@ -1135,6 +1208,62 @@ class VerifyCheckoutTests(unittest.TestCase):
                     source_root=self.source,
                     receipt_file=receipt_file,
                 )
+
+    def test_current_payload_remains_verified_after_cli_paths_and_versions_change(self) -> None:
+        clis = [self.make_mock_claude(), self.make_mock_codex(), self.make_mock_agy()]
+        home = self.temporary / "cli-update-home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        homes = [home / ".codex"]
+        receipt_file = self.temporary / "cli-update-receipt.json"
+        with patch.dict(
+            os.environ,
+            {
+                "HOME": str(home),
+                "CLAUDE_CONFIG_DIR": str(config),
+                "PATH": os.pathsep.join([
+                    *(str(cli.parent) for cli in clis), os.environ["PATH"]
+                ]),
+            },
+        ):
+            sync_skills_plugin.sync_all(
+                homes,
+                pin=self.pin,
+                checkout=self.root,
+                source_root=self.source,
+                receipt_file=receipt_file,
+            )
+            receipt_before = receipt_file.read_bytes()
+            upgraded = self.temporary / "upgraded-clis"
+            upgraded.mkdir()
+            for cli in clis:
+                entry = upgraded / cli.name
+                entry.write_text(
+                    "#!/usr/bin/env python3\nimport os, sys\n"
+                    "if sys.argv[1:] == ['--version']:\n"
+                    f"    print({cli.name + ' fixture updated'!r})\n"
+                    "    raise SystemExit(0)\n"
+                    f"os.execv({str(cli)!r}, [{str(cli)!r}, *sys.argv[1:]])\n"
+                )
+                entry.chmod(0o755)
+            with patch.dict(os.environ, {"PATH": f"{upgraded}:{os.environ['PATH']}"}):
+                result = sync_skills_plugin.verify_current_installation(
+                    homes,
+                    pin=self.pin,
+                    checkout=self.root,
+                    source_root=self.source,
+                    receipt_file=receipt_file,
+                )
+
+            self.assertEqual(result["status"], "verified")
+            for record in [
+                result["results"]["claude"],
+                result["results"]["agy"],
+                *result["results"]["codex"],
+            ]:
+                self.assertEqual(Path(record["cli_path"]).parent, upgraded)
+                self.assertTrue(record["cli_version"].endswith("fixture updated"))
+            self.assertEqual(receipt_file.read_bytes(), receipt_before)
 
     def test_read_only_verification_rejects_duplicate_or_stale_codex_homes(
         self,
