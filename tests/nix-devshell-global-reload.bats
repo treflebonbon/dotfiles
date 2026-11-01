@@ -1,59 +1,24 @@
 #!/usr/bin/env bats
-# dot_bashrc.tmpl の _nix_devshell_global_reload が GNU/BSD 両方の stat で
-# 正しく mtime を取得できるかを検証する（issue #42）。
 
 load 'test_helper'
 
-readonly SRC="$BATS_TEST_DIRNAME/../dot_bashrc.tmpl"
-
-setup() {
+@test "キャッシュ更新後のプロンプトで作業中の PATH と仮想環境を上書きしない" {
   setup_test_env
-  export FAKE_HOME="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$FAKE_HOME/.cache"
-  : >"$FAKE_HOME/.cache/nix-devshell-global-env.bash"
-}
-
-# BSD/macOS の stat（`-f FORMAT`）のみ受け付け、GNU の `-c` は拒否するスタブ
-stub_bsd_stat() {
-  cat >"$TEST_BIN_DIR/stat" <<'STUB_EOF'
-#!/bin/bash
-echo "$0 $*" >> "$TEST_LOG"
-if [ "$1" = "-c" ]; then
-  echo "stat: illegal option -- c" >&2
-  exit 1
-fi
-if [ "$1" = "-f" ]; then
-  echo "1700000000"
-  exit 0
-fi
-exit 1
-STUB_EOF
-  chmod +x "$TEST_BIN_DIR/stat"
-}
-
-run_reload() {
-  run /usr/bin/env -i \
-    PATH="$TEST_BIN_DIR" \
-    HOME="$FAKE_HOME" \
-    TEST_LOG="$TEST_LOG" \
-    /bin/bash -c "
-      ensure_nix_devshell_env() { echo \"ensure_nix_devshell_env \$*\" >> \"\$TEST_LOG\"; }
-      _nix_devshell_prune_zed_env() { echo _nix_devshell_prune_zed_env >> \"\$TEST_LOG\"; }
-      $(extract_function "$SRC" _nix_devshell_global_reload)
-      _nix_devshell_global_reload
-    "
-}
-
-@test "BSD stat (-f) でも global reload が発火する" {
-  stub_bsd_stat
-  run_reload
+  local test_home="$BATS_TEST_TMPDIR/home" source="$BATS_TEST_DIRNAME/.."
+  mkdir -p "$test_home/.config/nix-devshell/lib" "$test_home/.cache" "$test_home/project-tools"
+  cp "$source/private_dot_config/nix-devshell/lib/ensure-env.sh" "$test_home/.config/nix-devshell/lib/"
+  printf 'export PATH=/usr/bin:/bin\n' >"$test_home/.cache/nix-devshell-global-env.bash"
+  sed "s#{{ .workspace_folder }}#$test_home#g" "$source/dot_bashrc.tmpl" >"$test_home/bashrc"
+  stub_cmd nix
+  run env -i HOME="$test_home" PATH="$TEST_BIN_DIR:/usr/bin:/bin" TEST_LOG="$TEST_LOG" \
+    NIX_PROFILES=fixture TERM=dumb /bin/bash --noprofile --norc -ic '
+      . "$HOME/bashrc"
+      PATH="$HOME/project-tools:$PATH"
+      export VIRTUAL_ENV="$HOME/venv"
+      printf "export PATH=/usr/bin:/bin\nexport VIRTUAL_ENV=wrong\n" >"$HOME/.cache/nix-devshell-global-env.bash"
+      eval "${PROMPT_COMMAND:-:}"
+      [[ "$PATH" == "$HOME/project-tools:/usr/bin:/bin" ]]
+      [[ "$VIRTUAL_ENV" == "$HOME/venv" ]]
+    '
   assert_success
-  assert_log_contains "ensure_nix_devshell_env"
-}
-
-@test "GNU stat (-c) では従来通り global reload が発火する（回帰なし）" {
-  stub_real_cmd stat
-  run_reload
-  assert_success
-  assert_log_contains "ensure_nix_devshell_env"
 }

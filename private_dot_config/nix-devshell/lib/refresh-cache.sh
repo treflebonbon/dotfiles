@@ -76,6 +76,7 @@ _nix_devshell_refresh_locked() {
   local CACHE="${2:-$HOME/.cache/nix-devshell-global-env.bash}"
   local LOG="${3:-$HOME/.cache/nix-devshell-refresh.log}"
   local required="${NIX_DEVSHELL_CACHE_REQUIRED:-0}"
+  local profile="${CACHE}.profile"
 
   if [ ! -f "$DIR/flake.nix" ] || ! command -v nix >/dev/null 2>&1; then
     [ "$required" = "1" ] && return 1
@@ -116,7 +117,7 @@ _nix_devshell_refresh_locked() {
       printf 'refresh-nix-devshell-cache: cannot fingerprint devshell inputs\n' >&2
       break
     fi
-    if [ -f "$CACHE" ]; then
+    if [ -f "$CACHE" ] && [ -L "$profile" ] && [ -e "$profile" ]; then
       cached_id=$(tail -n 1 "$CACHE") || cached_id=""
       [ "$cached_id" != "# nix-devshell-input-v1: $input_id" ] || return 0
     fi
@@ -131,9 +132,10 @@ _nix_devshell_refresh_locked() {
     if (
       exec 9>&-
       set -o pipefail
-      cd "$DIR" && nix print-dev-env ".#$selected_output" 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)='
+      cd "$DIR" && nix print-dev-env ".#$selected_output" --profile "$profile" 2> >(tee -a "$err" >&2) | grep -v '^LINENO=' | grep -Ev '^(BASH|SHELL)='
     ) >"$tmp" &&
-      [ -s "$tmp" ] && "$BASH" -n "$tmp" 9>&- 2>>"$err"; then
+      [ -s "$tmp" ] && [ -L "$profile" ] && [ -e "$profile" ] &&
+      "$BASH" -n "$tmp" 9>&- 2>>"$err"; then
       candidate_ok=1
     fi
 

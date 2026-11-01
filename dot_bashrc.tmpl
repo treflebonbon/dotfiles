@@ -54,15 +54,13 @@ if [ -d "$HOME/.config/nix-devshell" ] && command -v nix >/dev/null 2>&1; then
   _nd_cache="$HOME/.cache/nix-devshell-global-env.bash"
   _nd_lib="$HOME/.config/nix-devshell/lib"
 
-  # ensure-env lib を読み込み関数を定義（cache 未作成でも下の PROMPT_COMMAND
-  # reload を登録できるよう、cache の有無に依らず source する）。cache があれば即反映。
+  # 起動時のキャッシュを反映する。更新後は新しいシェルで取り込む。
   if [ -f "$_nd_lib/ensure-env.sh" ]; then
     # shellcheck source=/dev/null
     . "$_nd_lib/ensure-env.sh"
     if [ -f "$_nd_cache" ]; then
       ensure_nix_devshell_env "$_nd_cache"
       _nix_devshell_prune_zed_env
-      _ND_CACHE_MTIME="$(stat -c %Y "$_nd_cache" 2>/dev/null || echo 0)"
     fi
   fi
 
@@ -73,26 +71,6 @@ if [ -d "$HOME/.config/nix-devshell" ] && command -v nix >/dev/null 2>&1; then
     disown 2>/dev/null || true
   fi
   unset _nd_cache _nd_lib
-fi
-
-# nix-devshell キャッシュ更新を次プロンプトで自動反映（chezmoi apply 連携）
-_nix_devshell_global_reload() {
-  local cache="$HOME/.cache/nix-devshell-global-env.bash"
-  [ -f "$cache" ] || return
-  local mt
-  # GNU stat (Linux) は `-c %Y`、BSD/macOS stat は `-f %m`。
-  mt="$(stat -c %Y "$cache" 2>/dev/null)" || mt="$(stat -f %m "$cache" 2>/dev/null)" || return
-  if [ "${_ND_CACHE_MTIME:-0}" != "$mt" ]; then
-    ensure_nix_devshell_env "$cache" 2>/dev/null
-    _nix_devshell_prune_zed_env
-    _ND_CACHE_MTIME="$mt"
-  fi
-}
-if declare -F ensure_nix_devshell_env >/dev/null 2>&1; then
-  case ";${PROMPT_COMMAND};" in
-    *";_nix_devshell_global_reload;"*) ;;
-    *) PROMPT_COMMAND="_nix_devshell_global_reload${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
-  esac
 fi
 
 # ワークスペースを Git ルートから動的に解決（サブモジュール対応）

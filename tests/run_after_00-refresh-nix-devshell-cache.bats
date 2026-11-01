@@ -12,6 +12,9 @@ setup() {
   mkdir -p "$FAKE_HOME/.config/nix-devshell/lib" "$FAKE_HOME/.cache"
   : >"$FAKE_HOME/.config/nix-devshell/flake.nix"
   : >"$FAKE_HOME/.config/nix-devshell/flake.lock"
+  mkdir -p "$FAKE_HOME/.cache"
+  # Nix stub が保持する profile を模擬する。
+  ln -s "$BATS_TEST_TMPDIR" "$FAKE_HOME/.cache/nix-devshell-global-env.bash.profile"
 
   cp "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/lib/refresh-cache.sh" \
     "$FAKE_HOME/.config/nix-devshell/lib/refresh-cache.sh"

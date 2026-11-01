@@ -119,9 +119,8 @@ restart_nix_daemon() {
 
 restart_nix_daemon
 
-# 旧 user-level ~/.config/nix/nix.conf 残骸を削除 (chezmoi unmanage 化したファイル)
+# 旧管理内容の比較基準がないため、利用者の設定を保持する。
 USER_NIX_CONF="$HOME/.config/nix/nix.conf"
-if [ -f "$USER_NIX_CONF" ]; then
-  rm -f "$USER_NIX_CONF"
-  echo "nix: $USER_NIX_CONF を削除しました (system-level に格上げ済み)"
+if [ -e "$USER_NIX_CONF" ] || [ -L "$USER_NIX_CONF" ]; then
+  echo "nix: $USER_NIX_CONF を保持しました。system 設定との重複は手動で確認してください" >&2
 fi

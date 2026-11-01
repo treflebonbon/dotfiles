@@ -56,46 +56,113 @@ copy_cli_shims() {
   grep -Fxq 'inner' "$FAKE_HOME/.claude/skills/orphan-skill/references/note.md"
 }
 
-@test "resolves repo-local APM deploy targets via CHEZMOI_SOURCE_DIR when set" {
-  local repo="$BATS_TEST_TMPDIR/ghq-source"
-  mkdir -p "$repo/.agents/skills/frontend-design" "$repo/.claude/commands"
+create_repo_apm_fixture() {
+  local repo="$1"
   copy_cli_shims "$repo"
-  printf 'stub\n' >"$repo/.agents/skills/frontend-design/SKILL.md"
+  python3 - "$repo" "$SKILL_SOURCE/apm.lock.yaml" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+root, lock = map(Path, sys.argv[1:])
+files = {
+    '.agents/skills/frontend-design/SKILL.md': b'fixture\n',
+    '.claude/skills/frontend-design/SKILL.md': b'fixture\n',
+    '.codex/hooks.json': b'{}\n',
+}
+for name, contents in files.items():
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(contents)
+lock.write_text(json.dumps({'dependencies': [{
+    'deployed_files': list(files),
+    'deployed_file_hashes': {
+        name: 'sha256:' + hashlib.sha256(contents).hexdigest()
+        for name, contents in files.items()
+    },
+}]}))
+PY
+  skill_chezmoi execute-template --file "$SKILL_SOURCE/run_onchange_before_remove-orphan-claude-skills.sh.tmpl" >"$SCRIPT"
+}
+
+@test "source 指定先の APM 台帳と一致する file だけを撤去する" {
+  local repo="$BATS_TEST_TMPDIR/ghq-source"
+  create_repo_apm_fixture "$repo"
+  mkdir -p "$repo/.claude/commands"
+  printf 'personal\n' >"$repo/.claude/commands/personal.md"
 
   HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR="$repo" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
   [ ! -e "$repo/.agents" ]
-  [ ! -e "$repo/.claude/commands" ]
+  [ ! -e "$repo/.claude/skills" ]
+  [ ! -e "$repo/.codex/hooks.json" ]
+  [ "$(cat "$repo/.claude/commands/personal.md")" = personal ]
 }
 
-@test "removes repo-local APM deploy targets when they are not mounted" {
+@test "既定 source の変更済み file と未知の追加項目を保持する" {
   local repo="$FAKE_HOME/.local/share/chezmoi"
-  mkdir -p \
-    "$repo/.agents/skills/frontend-design" \
-    "$repo/.codex/agents" \
-    "$repo/.codex/skills/frontend-design" \
-    "$repo/.claude/skills/frontend-design" \
-    "$repo/.claude/agents" \
-    "$repo/.claude/commands" \
-    "$repo/.claude/hooks"
-  printf 'stub\n' >"$repo/.agents/skills/frontend-design/SKILL.md"
-  printf 'stub\n' >"$repo/.codex/skills/frontend-design/SKILL.md"
-  printf '{}\n' >"$repo/.codex/hooks.json"
-  printf '{}\n' >"$repo/.claude/apm-hooks.json"
-  copy_cli_shims "$repo"
+  create_repo_apm_fixture "$repo"
+  printf 'customized\n' >"$repo/.agents/skills/frontend-design/SKILL.md"
+  printf 'personal\n' >"$repo/.agents/personal-notes.md"
 
   HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR= run bash "$SCRIPT"
   [ "$status" -eq 0 ]
 
-  [ ! -e "$repo/.agents" ]
-  [ ! -e "$repo/.codex/agents" ]
-  [ ! -e "$repo/.codex/skills" ]
+  [ "$(cat "$repo/.agents/skills/frontend-design/SKILL.md")" = customized ]
+  [ "$(cat "$repo/.agents/personal-notes.md")" = personal ]
   [ ! -e "$repo/.codex/hooks.json" ]
   [ ! -e "$repo/.claude/skills" ]
-  [ ! -e "$repo/.claude/agents" ]
-  [ ! -e "$repo/.claude/commands" ]
-  [ ! -e "$repo/.claude/hooks" ]
-  [ ! -e "$repo/.claude/apm-hooks.json" ]
+}
+
+@test "repo 内の symlink 親から外部の同内容 file を削除しない" {
+  local repo="$BATS_TEST_TMPDIR/ghq-source"
+  create_repo_apm_fixture "$repo"
+  mv "$repo/.agents" "$BATS_TEST_TMPDIR/outside"
+  ln -s "$BATS_TEST_TMPDIR/outside" "$repo/.agents"
+
+  HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR="$repo" run bash "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [ -L "$repo/.agents" ]
+  [ -f "$BATS_TEST_TMPDIR/outside/skills/frontend-design/SKILL.md" ]
+}
+
+@test "mount の検査失敗や mounted な配備先は保持する" {
+  local repo="$BATS_TEST_TMPDIR/ghq-source" result
+  create_repo_apm_fixture "$repo"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  for result in 0 1; do
+    printf '#!/bin/sh\nexit %s\n' "$result" >"$BATS_TEST_TMPDIR/bin/mountpoint"
+    chmod +x "$BATS_TEST_TMPDIR/bin/mountpoint"
+    HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR="$repo" PATH="$BATS_TEST_TMPDIR/bin:$PATH" run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [ -f "$repo/.agents/skills/frontend-design/SKILL.md" ]
+    [ -f "$repo/.claude/skills/frontend-design/SKILL.md" ]
+  done
+}
+
+@test "file を開いた後で親 directory が入れ替わったら撤去しない" {
+  local repo="$BATS_TEST_TMPDIR/ghq-source"
+  create_repo_apm_fixture "$repo"
+  run python3 -I - "$PROJECT_ROOT/.chezmoitemplates/apm-repo-cleanup.py" "$repo" "$SKILL_SOURCE/apm.lock.yaml" <<'PY'
+import io, json, os, runpy, sys
+from pathlib import Path
+from unittest.mock import patch
+code, root, lock = map(Path, sys.argv[1:])
+parent = root / '.agents/skills/frontend-design'
+outside = root / 'moved-directory'
+original_open = os.open
+def replace_parent(path, *args, **kwargs):
+    descriptor = original_open(path, *args, **kwargs)
+    if path == 'SKILL.md' and not outside.exists():
+        parent.rename(outside)
+        parent.mkdir()
+    return descriptor
+sys.argv = [str(code), str(root)]
+with patch('os.open', replace_parent), patch('sys.stdin', io.StringIO(lock.read_text())):
+    runpy.run_path(str(code), run_name='__main__')
+assert (outside / 'SKILL.md').read_text() == 'fixture\n'
+assert parent.is_dir()
+PY
+  [ "$status" -eq 0 ]
 }
 
 @test "preserves unknown nix-store symlinks even when an old marker is present" {

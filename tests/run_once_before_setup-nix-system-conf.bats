@@ -154,12 +154,14 @@ STUB
   grep -Eq 'sudo "\$nix_daemon_bin".*>.*2>&1[[:space:]]*&' "$SUT"
 }
 
-@test "旧 user-level ~/.config/nix/nix.conf 残骸が削除される" {
+@test "独自の user-level nix.conf を system 設定へ移さず削除しない" {
   : >"$FAKE_ETC/nix.conf"
-  echo "extra-substituters = https://stale.example" >"$FAKE_HOME/.config/nix/nix.conf"
+  printf 'max-jobs = 2\nextra-substituters = https://personal.example\n' >"$FAKE_HOME/.config/nix/nix.conf"
+  cp "$FAKE_HOME/.config/nix/nix.conf" "$BATS_TEST_TMPDIR/original-nix.conf"
   [ -f "$FAKE_HOME/.config/nix/nix.conf" ]
 
   run_sut
   assert_success
-  [ ! -f "$FAKE_HOME/.config/nix/nix.conf" ]
+  cmp "$FAKE_HOME/.config/nix/nix.conf" "$BATS_TEST_TMPDIR/original-nix.conf"
+  assert_output --partial '保持しました'
 }

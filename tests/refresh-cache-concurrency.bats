@@ -11,6 +11,9 @@ setup() {
   printf 'fresh\n' >"$FAKE_HOME/.config/nix-devshell/payload"
   CACHE="$FAKE_HOME/.cache/nix-devshell-global-env.bash"
   printf 'export CACHE_VERSION=old\n' >"$CACHE"
+  mkdir -p "$FAKE_HOME/.cache"
+  # Nix stub が保持する profile を模擬する。
+  ln -s "$BATS_TEST_TMPDIR" "$FAKE_HOME/.cache/nix-devshell-global-env.bash.profile"
   PIDS=()
   local cmd
   for cmd in find grep mkdir mv rm tee cat dirname mktemp date tail readlink perl; do
