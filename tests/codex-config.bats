@@ -2039,7 +2039,7 @@ for rule in '' '~/.codex/plugins/**' '~/.codex/**' '~/.codex/plugins/*'; do
   printf 'before\n' >"$target"
   result=0
   CODEX_HOME="$HOME/.codex" codex sandbox -P cache-probe -C /work -- \
-    sh -c 'printf "public fixture\n" >"$1"' sh "$target" \
+    sh -c 'printf "WRITE_ATTEMPT\n"; printf "public fixture\n" >"$1"' sh "$target" \
     >"$HOME/cache-probe.log" 2>&1 || result=$?
   case "$rule" in
     '~/.codex/plugins/**' | '~/.codex/**')
@@ -2048,10 +2048,21 @@ for rule in '' '~/.codex/plugins/**' '~/.codex/**' '~/.codex/plugins/*'; do
         cat "$HOME/cache-probe.log" >&2
         exit 1
       fi
+      grep -Fxq WRITE_ATTEMPT "$HOME/cache-probe.log"
       [ "$(cat "$target")" = 'public fixture' ]
+      ;;
+    '~/.codex/plugins/*')
+      [ "$result" -ne 0 ]
+      grep -Fq 'filesystem glob path `~/.codex/plugins/*` only supports `deny` access' "$HOME/cache-probe.log"
+      if grep -Fxq WRITE_ATTEMPT "$HOME/cache-probe.log"; then
+        printf 'unsupported glob unexpectedly executed the write attempt\n' >&2
+        exit 1
+      fi
+      [ "$(cat "$target")" = before ]
       ;;
     *)
       [ "$result" -ne 0 ]
+      grep -Fxq WRITE_ATTEMPT "$HOME/cache-probe.log"
       [ "$(cat "$target")" = before ]
       ;;
   esac
