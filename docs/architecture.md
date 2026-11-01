@@ -13,6 +13,14 @@ chezmoi 管理の dotfiles。DevPod / VS Code Dev Containers で自動デプロ�
 
 受入後の公開 skill 移行・撤去も対象限定配備を守る。live source だけを使い、初回の `chezmoi diff` より前に旧 CLI snapshot の保存だけを実行する。`diff` も新しい shim を render するため、切替 preflight に必要な backup を先に用意する。その後の `chezmoi diff` で意図した配備差分を確認し、未知または無関係な差分があれば保留して報告する。移行で5つの CLI shim を差し替える前に、before hook を live source から render して実行し、その後に変更対象の配備先 path だけ `chezmoi apply <配備先パス>` する。全対象の apply 後は after hook を同様に明示実行する。path 指定 apply は onchange hook を起動しないため、after hook の実行が旧 copy の撤去まで完了させる。after hook 自身が mutating な `sync-codex-managed-config` を実行し、続けて `sync-codex-managed-config --verify-only`、`sync-skills-plugin --verify-only` の current state が両方成功した場合だけ `legacy_skills retire-known-skills` を呼ぶ。単独の同期コマンドでは撤去 gate を実行しない。
 
+一時ファイル用の `umask` 変更は、その作成処理の subshell 内に限定する。chezmoi は実行時の `umask` を配備先 mode の計算に使うため、`diff` と `apply` は同じ通常の `umask` で実行する。
+
+配備の完了は次の条件で判断し、完了報告にも結果を記す。
+
+- 変更対象の配備先を指定した `chezmoi verify <配備先パス>...` が成功している。
+- 変更内容に必要なキャッシュ更新・Codex 同期と、公開 skill plugin に関わる場合の両 verifier が成功している。
+- `chezmoi status` に残る実行待ち script は、変更内容と実行条件から「今回必要」「対象外」「必要性が未確認」を理由付きで判定している。今回必要な処理が未実行、または必要性が未確認なら、ファイル反映済みの範囲と未完了の処理を分けて報告する。
+
 hook は chezmoi 自動実行外で明示実行する場合も live source から取得する。以下は移行処理を手動で再現する手順であり、新しい CLI を追加しない。
 
 ```bash
