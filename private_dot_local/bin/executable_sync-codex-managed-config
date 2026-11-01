@@ -548,8 +548,11 @@ for home, record in zip(requested_homes, records, strict=True):
             raise SystemExit(f"ERROR: filesystem permissions are missing for {profile_name} at {home}")
         for key, value in filesystem.items():
             path = Path(key).expanduser()
-            if path in broad_roots or (
-                path.is_relative_to(cache_root) and path != install
+            subtree_root = path.parent if path.name == "**" else path
+            if subtree_root in broad_roots or (
+                subtree_root.is_relative_to(cache_root) and subtree_root != install
+            ) or (
+                path.name == "**" and cache_root.is_relative_to(subtree_root)
             ) or (str(path).startswith(str(home / "plugins/cache") + "/") and "*" in key):
                 if value == "deny" or (
                     isinstance(value, dict)

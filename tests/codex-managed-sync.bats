@@ -616,7 +616,7 @@ PY
   cmp "$BATS_TEST_TMPDIR/broad-write-grant.toml" "$home/config.toml"
 }
 
-@test "Codex 権限検査は文字列形式と tilde 形式の広い cache 許可も拒否する" {
+@test "Codex 権限検査は文字列・tilde・再帰 glob の広い cache 許可を拒否する" {
   prepare_chezmoi_fixture
   run "${CHEZMOI_APPLY[@]}"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
@@ -627,7 +627,8 @@ PY
     for mode in read write; do
       for root in "$TEST_HOME/.codex/plugins/cache" \
         "$TEST_HOME/.codex/plugins/cache/treflebonbon/treflebonbon-skills/old" \
-        '~/.codex/plugins/cache' '~/.codex/plugins/cache/treflebonbon/treflebonbon-skills'; do
+        '~/.codex/plugins/cache' '~/.codex/plugins/cache/treflebonbon/treflebonbon-skills' \
+        '~/.codex/plugins/**' '~/.codex/**' '/**'; do
         python3 - "$BATS_TEST_TMPDIR/clean-config.toml" "$config" "$profile" "$root" "$mode" <<'PY'
 import json
 import re
@@ -660,11 +661,12 @@ PY
   run "${CHEZMOI_APPLY[@]}"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
-  local config="$TEST_HOME/.codex/config.toml" value
+  local config="$TEST_HOME/.codex/config.toml" root value
   cp "$config" "$BATS_TEST_TMPDIR/clean-config.toml"
-  for value in '"deny"' '{".": "deny", "**/credentials.json": "deny"}' \
-    '{".": "deny", "old/**": "read"}' '"future-mode"' '["read"]'; do
-    python3 - "$BATS_TEST_TMPDIR/clean-config.toml" "$config" "$TEST_HOME/.codex/plugins/cache" "$value" <<'PY'
+  for root in "$TEST_HOME/.codex/plugins/cache" '~/.codex/plugins/**' '~/.codex/**' '/**'; do
+    for value in '"deny"' '{".": "deny", "**/credentials.json": "deny"}' \
+      '{".": "deny", "old/**": "read"}' '"future-mode"' '["read"]'; do
+      python3 - "$BATS_TEST_TMPDIR/clean-config.toml" "$config" "$root" "$value" <<'PY'
 import json
 import re
 import sys
@@ -684,16 +686,17 @@ contents, count = re.subn(
 assert count == 1
 Path(target).write_text(contents)
 PY
-    cp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
-    run env HOME="$TEST_HOME" "$SYNC_COMMAND" --verify-only
-    case "$value" in
-    '"deny"' | '{".": "deny", "**/credentials.json": "deny"}') [ "$status" -eq 0 ] ;;
-    *)
-      [ "$status" -ne 0 ]
-      [[ "$output" == *"broad skills plugin cache grant"* ]]
-      ;;
-    esac
-    cmp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+      cp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+      run env HOME="$TEST_HOME" "$SYNC_COMMAND" --verify-only
+      case "$value" in
+      '"deny"' | '{".": "deny", "**/credentials.json": "deny"}') [ "$status" -eq 0 ] ;;
+      *)
+        [ "$status" -ne 0 ]
+        [[ "$output" == *"broad skills plugin cache grant"* ]]
+        ;;
+      esac
+      cmp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+    done
   done
 }
 
