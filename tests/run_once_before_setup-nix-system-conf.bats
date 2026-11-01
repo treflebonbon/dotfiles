@@ -165,3 +165,17 @@ STUB
   cmp "$FAKE_HOME/.config/nix/nix.conf" "$BATS_TEST_TMPDIR/original-nix.conf"
   assert_output --partial '保持しました'
 }
+
+@test "非対話 sudo 不可でも user-level nix.conf の保持を通知する" {
+  : >"$FAKE_ETC/nix.conf"
+  printf 'max-jobs = 2\n' >"$FAKE_HOME/.config/nix/nix.conf"
+  printf '#!/bin/bash\nexit 1\n' >"$TEST_BIN_DIR/sudo"
+
+  run_sut
+
+  assert_success
+  assert_output --partial '保持しました'
+  assert_output --partial '非対話 sudo 不可'
+  [ "$(cat "$FAKE_HOME/.config/nix/nix.conf")" = 'max-jobs = 2' ]
+  [ ! -e "$FAKE_ETC/nix.custom.conf" ]
+}

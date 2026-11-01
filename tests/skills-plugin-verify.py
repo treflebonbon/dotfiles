@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import tomllib
 import unittest
@@ -45,7 +46,11 @@ def git(root: Path, *args: str, input: bytes | None = None) -> str:
 
 class VerifyCheckoutTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = new_runtime("skills-plugin-test.")
+        self.temporary = (
+            new_runtime("skills-plugin-test.")
+            if sys.platform == "linux"
+            else Path(tempfile.mkdtemp(prefix="skills-plugin-test."))
+        ).resolve()
         self.root = self.temporary / "checkout"
         self.root.mkdir()
         git(self.root, "init", "-q")

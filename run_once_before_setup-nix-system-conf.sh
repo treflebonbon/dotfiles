@@ -12,6 +12,12 @@ SYSTEMD_RUNTIME_DIR="${SYSTEMD_RUNTIME_DIR:-/run/systemd/system}"
 # Nix 未インストール環境はスキップ
 [ -f "$NIX_CONF" ] || exit 0
 
+# 旧管理内容の比較基準がないため、利用者の設定を保持する。
+USER_NIX_CONF="$HOME/.config/nix/nix.conf"
+if [ -e "$USER_NIX_CONF" ] || [ -L "$USER_NIX_CONF" ]; then
+  echo "nix: $USER_NIX_CONF を保持しました。system 設定との重複は手動で確認してください" >&2
+fi
+
 # 非対話 sudo が使えない環境 (CI / sudo 未設定コンテナ / TTY 無しの apply) では、
 # sudo を要する system conf 書き込みを graceful に degrade する。下部の
 # restart_nix_daemon と同じ方針。TTY がある対話実行 (install.sh 等) では sudo が
@@ -118,9 +124,3 @@ restart_nix_daemon() {
 }
 
 restart_nix_daemon
-
-# 旧管理内容の比較基準がないため、利用者の設定を保持する。
-USER_NIX_CONF="$HOME/.config/nix/nix.conf"
-if [ -e "$USER_NIX_CONF" ] || [ -L "$USER_NIX_CONF" ]; then
-  echo "nix: $USER_NIX_CONF を保持しました。system 設定との重複は手動で確認してください" >&2
-fi

@@ -11,7 +11,7 @@ import uuid
 from contextlib import ExitStack
 
 
-root = Path(sys.argv[1])
+root = Path(sys.argv[1]).resolve()
 targets = (
     ".agents", ".codex/agents", ".codex/hooks.json", ".codex/skills",
     ".claude/agents", ".claude/commands", ".claude/hooks",

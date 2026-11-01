@@ -97,6 +97,22 @@ PY
   [ "$(cat "$repo/.claude/commands/personal.md")" = personal ]
 }
 
+@test "source が symlink でも台帳と一致する file だけを撤去する" {
+  local repo="$BATS_TEST_TMPDIR/ghq-source"
+  local source_link="$BATS_TEST_TMPDIR/source-link"
+  create_repo_apm_fixture "$repo"
+  printf 'customized\n' >"$repo/.agents/skills/frontend-design/SKILL.md"
+  ln -s "$repo" "$source_link"
+
+  HOME="$FAKE_HOME" CHEZMOI_SOURCE_DIR="$source_link" run bash "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [ -L "$source_link" ]
+  [ ! -e "$repo/.claude/skills" ]
+  [ ! -e "$repo/.codex/hooks.json" ]
+  [ "$(cat "$repo/.agents/skills/frontend-design/SKILL.md")" = customized ]
+}
+
 @test "既定 source の変更済み file と未知の追加項目を保持する" {
   local repo="$FAKE_HOME/.local/share/chezmoi"
   create_repo_apm_fixture "$repo"
