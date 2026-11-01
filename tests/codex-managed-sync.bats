@@ -655,6 +655,48 @@ PY
   done
 }
 
+@test "Codex cache の広いルールは既知の deny だけを安全と判定する" {
+  prepare_chezmoi_fixture
+  run "${CHEZMOI_APPLY[@]}"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  local config="$TEST_HOME/.codex/config.toml" value
+  cp "$config" "$BATS_TEST_TMPDIR/clean-config.toml"
+  for value in '"deny"' '{".": "deny", "**/credentials.json": "deny"}' \
+    '{".": "deny", "old/**": "read"}' '"future-mode"' '["read"]'; do
+    python3 - "$BATS_TEST_TMPDIR/clean-config.toml" "$config" "$TEST_HOME/.codex/plugins/cache" "$value" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+source, target, root, encoded = sys.argv[1:]
+value = json.loads(encoded)
+if isinstance(value, dict):
+    rendered = '{' + ', '.join(f'{json.dumps(k)} = {json.dumps(v)}' for k, v in value.items()) + '}'
+else:
+    rendered = json.dumps(value)
+contents, count = re.subn(
+    r'(?m)^\[permissions\.dotfiles-secure\.filesystem\]$',
+    lambda match: match[0] + f'\n{json.dumps(root)} = {rendered}',
+    Path(source).read_text(),
+)
+assert count == 1
+Path(target).write_text(contents)
+PY
+    cp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+    run env HOME="$TEST_HOME" "$SYNC_COMMAND" --verify-only
+    case "$value" in
+    '"deny"' | '{".": "deny", "**/credentials.json": "deny"}') [ "$status" -eq 0 ] ;;
+    *)
+      [ "$status" -ne 0 ]
+      [[ "$output" == *"broad skills plugin cache grant"* ]]
+      ;;
+    esac
+    cmp "$config" "$BATS_TEST_TMPDIR/permission-before.toml"
+  done
+}
+
 @test "Codex managed --verify-only verifies existing homes without preparing files" {
   prepare_chezmoi_fixture
   local explicit_home="$TEST_HOME/explicit codex home"

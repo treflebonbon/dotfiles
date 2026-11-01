@@ -547,17 +547,16 @@ for home, record in zip(requested_homes, records, strict=True):
         if not isinstance(filesystem, dict):
             raise SystemExit(f"ERROR: filesystem permissions are missing for {profile_name} at {home}")
         for key, value in filesystem.items():
-            mode = value.get(".") if isinstance(value, dict) else value
-            if (
-                not isinstance(key, str)
-                or not isinstance(mode, str)
-                or mode not in {"read", "write"}
-            ):
-                continue
             path = Path(key).expanduser()
             if path in broad_roots or (
                 path.is_relative_to(cache_root) and path != install
             ) or (str(path).startswith(str(home / "plugins/cache") + "/") and "*" in key):
+                if value == "deny" or (
+                    isinstance(value, dict)
+                    and value.get(".") == "deny"
+                    and all(mode == "deny" for mode in value.values())
+                ):
+                    continue
                 raise SystemExit(f"ERROR: broad skills plugin cache grant found for {profile_name} at {home}")
         profile_results.append({"profile": profile_name, "install_path": str(install), "denied_globs": denied})
     verified.append({"codex_home": str(home), "install_path": str(install), "profiles": profile_results})
