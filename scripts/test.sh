@@ -12,7 +12,8 @@ mkdir -p tmp
 log_dir=$(mktemp -d tmp/test-run.XXXXXX)
 date +%s%N >"$log_dir/started"
 active_runner_pid=
-trap 'printf "%s\n" "$?" >"$log_dir/exit-code"' EXIT
+scratch_tmpdir=
+trap 'printf "%s\n" "$?" >"$log_dir/exit-code"; [[ -z "$scratch_tmpdir" ]] || rm -rf "$scratch_tmpdir"' EXIT
 stop() {
   local status=$1
   local signal_name=TERM
@@ -269,6 +270,28 @@ then
   printf '%s\n' 'テスト環境が不完全です。docs/conventions.md の devShell 手順で再実行してください。' | tee -a "$log_dir/setup.log" >&2
   exit 1
 fi
+
+# bats 本体は setup_suite より前に TMPDIR から一時領域を作る。検証用 bwrap が書込み可で残すのは /tmp/codex だけで、
+# それ以外の TMPDIR では fixture が隠れるか書き込めないため、Linux では bats の起動前にその配下へ寄せる。
+case $(uname -s):${TMPDIR:-} in
+Linux:/tmp/codex | Linux:/tmp/codex/*) ;;
+Linux:*)
+  scratch_tmpdir=$(
+    python3 -I - "$(dirname "$0")" <<'PY'
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from verification_env import new_runtime
+
+try:
+    print(new_runtime("bats-tmp."))
+except (OSError, ValueError) as error:
+    raise SystemExit(f"Bats の一時領域を用意できません: {error}") from None
+PY
+  )
+  export TMPDIR=$scratch_tmpdir
+  ;;
+esac
 
 run_logged "$log_dir/setup.log" append bun install --frozen-lockfile
 # ファイル内並列は bats がテストを SIGINT 無視で起動し、シグナル系テストが壊れるためファイル間だけ並列化する。

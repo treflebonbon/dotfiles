@@ -11,12 +11,14 @@ setup() {
   if [ -f "$BATS_TEST_DIRNAME/../scripts/test.sh" ]; then
     cp "$BATS_TEST_DIRNAME/../scripts/test.sh" "$RUN_ROOT/scripts/"
   fi
+  cp "$BATS_TEST_DIRNAME/../scripts/verification_env.py" "$RUN_ROOT/scripts/"
   ln -s "$(command -v python3)" "$TEST_BIN_DIR/python3"
   ln -s "$(command -v with-env)" "$TEST_BIN_DIR/with-env"
   stub_cmd bun
   cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
 #!/bin/bash
 echo "$0 $*" >> "$TEST_LOG"
+printf '%s\n' "$TMPDIR" >> "$TEST_LOG.tmpdir"
 printf '%s\n' "${BATS_STUB_TAP-$'1..1\nok 1 fixture'}"
 exit "${BATS_STUB_STATUS:-0}"
 STUB_EOF
@@ -24,8 +26,34 @@ STUB_EOF
   cd "$RUN_ROOT"
 }
 
+teardown() {
+  [ -z "${SCRATCH_KEEP:-}" ] || rmdir "$SCRATCH_KEEP"
+}
+
 run_entry() {
   run /usr/bin/env PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+}
+
+@test "the entry hands bats a TMPDIR under the scratch root when TMPDIR is outside it" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local outside handed
+  outside=$(mktemp -d /var/tmp/test-entry-outside.XXXXXX)
+  run /usr/bin/env TMPDIR="$outside" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  rmdir "$outside"
+  [ "$status" -eq 0 ]
+  handed=$(<"$TEST_LOG.tmpdir")
+  [[ "$handed" == /tmp/codex/* ]]
+  [ ! -e "$handed" ]
+}
+
+@test "the entry keeps a TMPDIR that is already under the scratch root" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  mkdir -p -m 700 /tmp/codex
+  SCRATCH_KEEP=$(mktemp -d /tmp/codex/test-entry-keep.XXXXXX)
+  run /usr/bin/env TMPDIR="$SCRATCH_KEEP" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  [ "$status" -eq 0 ]
+  [ "$(<"$TEST_LOG.tmpdir")" = "$SCRATCH_KEEP" ]
+  [ -d "$SCRATCH_KEEP" ]
 }
 
 write_stalling_stub() {
