@@ -257,17 +257,17 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["gh", "issue", ["view", "list", "create", "edit", "comment"]],
+    pattern = ["gh", "issue", ["view", "list", "create", "edit", "comment", "close"]],
     decision = "allow",
     justification = "内容確定後の定型 issue 操作は二重確認せず実行する。",
-    match = ["gh issue create --title t", "gh issue edit 904 --add-label ready-for-agent", "gh issue view 904"],
+    match = ["gh issue create --title t", "gh issue edit 904 --add-label ready-for-agent", "gh issue view 904", "gh issue close 904"],
 )
 
 prefix_rule(
-    pattern = ["gh", "issue", ["close", "reopen", "delete"]],
+    pattern = ["gh", "issue", ["reopen", "delete"]],
     decision = "prompt",
     justification = "Issue state transitions and deletion remain user-reviewed.",
-    match = ["gh issue close 904", "gh issue reopen 904", "gh issue delete 904"],
+    match = ["gh issue reopen 904", "gh issue delete 904"],
 )
 
 prefix_rule(
