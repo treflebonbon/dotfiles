@@ -9,7 +9,7 @@ setup() {
   local base="$BATS_TEST_TMPDIR/base"
   export SOURCE="$BATS_TEST_TMPDIR/worktree"
   mkdir -p "$base/scripts"
-  cp "$project_root/scripts/test.sh" "$project_root/scripts/verification_env.py" "$base/scripts/"
+  cp "$project_root/scripts/test.sh" "$project_root/scripts/verification_env.py" "$project_root/scripts/scratch-tmpdir.sh" "$base/scripts/"
   if [[ -f "$project_root/scripts/verify-canonical.py" ]]; then
     cp "$project_root/scripts/verify-canonical.py" "$base/scripts/"
   fi
