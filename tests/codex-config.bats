@@ -1128,6 +1128,7 @@ for rule in [
     "Bash(gh issue create:*)",
     "Bash(gh issue edit:*)",
     "Bash(gh issue comment:*)",
+    "Bash(gh issue close:*)",
     "Bash(gh label create:*)",
     "Bash(gh label edit:*)",
 ]:
@@ -1305,6 +1306,7 @@ PY
     "gh issue create --title test --body test" \
     "gh issue edit 123 --add-label ready-for-agent" \
     "gh issue comment 123 --body test" \
+    "gh issue close 123" \
     "gh label create test --color 000000" \
     "gh label edit test --color ffffff"; do
     run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
@@ -1317,8 +1319,8 @@ PY
     "gh pr close 123" \
     "gh pr merge 123" \
     "gh pr reopen 123" \
-    "gh issue close 123" \
-    "gh issue reopen 123"; do
+    "gh issue reopen 123" \
+    "gh issue delete 123"; do
     run bash -c "codex execpolicy check --pretty --rules '$rules' -- $command"
     [ "$status" -eq 0 ]
     [[ "$output" == *'"decision": "prompt"'* ]]
