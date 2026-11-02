@@ -10,6 +10,7 @@ setup() {
 
 teardown() {
   [ -z "${KEPT_TMPDIR:-}" ] || rmdir "$KEPT_TMPDIR"
+  [ -z "${DECOY_TMPDIR:-}" ] || rmdir "$DECOY_TMPDIR"$'\n' "$DECOY_TMPDIR" 2>/dev/null || true
 }
 
 # 受け取った TMPDIR を記録するだけの bats。呼ばれるたびに1行足す。
@@ -120,4 +121,22 @@ EOF
   [ "$status" -eq 0 ]
   PATH="$BATS_TEST_TMPDIR/bin:$PATH" run scripts/test-docs.sh runtime/index.md tests/with-env.bats
   [ "$status" -eq 2 ]
+}
+
+@test "a docs-only run keeps a TMPDIR that ends with a newline and never removes a directory it did not create" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local with_newline
+  write_tmpdir_stub
+  mkdir -p -m 700 /tmp/codex
+  [ -O /tmp/codex ] && [ ! -L /tmp/codex ]
+  # 末尾の改行を落とした名前の directory（別物）が残っていなければならない。
+  DECOY_TMPDIR=$(mktemp -d /tmp/codex/test-docs-decoy.XXXXXX)
+  with_newline="$DECOY_TMPDIR"$'\n'
+  mkdir "$with_newline"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" TMPDIR="$with_newline" run scripts/test-docs.sh runtime/skill-harness.md
+  [ "$status" -eq 0 ]
+  # bats は2回呼ばれ、どちらも元の TMPDIR（末尾の改行を含む）をそのまま受け取る。
+  printf '%s\n%s\n' "$with_newline" "$with_newline" | cmp - "$BATS_TEST_TMPDIR/tmpdirs"
+  [ -d "$DECOY_TMPDIR" ]
+  [ -d "$with_newline" ]
 }

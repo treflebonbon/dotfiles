@@ -3,7 +3,8 @@
 # bats 本体は setup_suite より前に TMPDIR から一時領域を作る。検証用 bwrap が書込み可で残すのは scratch root（/tmp/codex）
 # だけで、それ以外の TMPDIR では fixture が隠れるか書き込めない。Linux では bats の起動前に、既存の TMPDIR が解決先まで
 # scratch root 配下ならそのまま、そうでなければ配下の新しい一時領域へ寄せる。どちらも scratch root を検査する。
-# 新しい一時領域を作ったときは scratch_tmpdir にその path を入れる。呼出元が終了時に削除する。
+# 新しい一時領域を作ったときだけ scratch_tmpdir にその path を入れ、TMPDIR をそれに置き換える。呼出元が終了時に削除する。
+# 既存の TMPDIR を採用するときは何も出力せず、値は文字列として再取得しない（末尾の改行を含む名前も変えない）。
 use_scratch_tmpdir() {
   [[ "$(uname -s)" == Linux ]] || return 0
   local bats_tmpdir
@@ -19,18 +20,16 @@ from verification_env import ensure_scratch_root, new_runtime
 try:
     root = ensure_scratch_root()
     current = os.environ.get("TMPDIR")
-    if current and Path(current).resolve().is_relative_to(root):
-        print(current)
-    else:
+    if not (current and Path(current).resolve().is_relative_to(root)):
         print(new_runtime("bats-tmp."))
 except (OSError, ValueError) as error:
     raise SystemExit(f"Bats の一時領域を用意できません: {error}") from None
 PY
   )
-  if [[ "$bats_tmpdir" != "${TMPDIR:-}" ]]; then
+  if [[ -n "$bats_tmpdir" ]]; then
     # 呼出元が終了時の削除に使う。
     # shellcheck disable=SC2034
     scratch_tmpdir=$bats_tmpdir
+    export TMPDIR=$bats_tmpdir
   fi
-  export TMPDIR=$bats_tmpdir
 }
