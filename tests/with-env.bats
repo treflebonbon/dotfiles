@@ -99,7 +99,7 @@ assert os.environ["GIT_DIR"] == os.environ["GIT_COMMON_DIR"] == os.environ["GIT_
   done
   run env HOME="$FIXTURE/home" XDG_STATE_HOME="$FIXTURE/state" "$CLI" trust "$FIXTURE/separate"
   [ "$status" -ne 0 ]
-  run env PATH="$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/separate" "$CLI"
+  run env HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" bash -c 'cd "$1"; exec "$2" codex' _ "$FIXTURE/separate" "$CLI"
   [ "$status" -ne 0 ]
   [[ "$output" == *'pinned raw runtime unavailable'* ]]
 }
