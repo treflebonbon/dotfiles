@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 load 'test_helper'
+load 'helpers/outside-tmpdir'
 
 setup() {
   setup_test_env
@@ -11,7 +12,7 @@ setup() {
   if [ -f "$BATS_TEST_DIRNAME/../scripts/test.sh" ]; then
     cp "$BATS_TEST_DIRNAME/../scripts/test.sh" "$RUN_ROOT/scripts/"
   fi
-  cp "$BATS_TEST_DIRNAME/../scripts/verification_env.py" "$RUN_ROOT/scripts/"
+  cp "$BATS_TEST_DIRNAME/../scripts/verification_env.py" "$BATS_TEST_DIRNAME/../scripts/scratch-tmpdir.sh" "$RUN_ROOT/scripts/"
   ln -s "$(command -v python3)" "$TEST_BIN_DIR/python3"
   ln -s "$(command -v with-env)" "$TEST_BIN_DIR/with-env"
   stub_cmd bun
@@ -28,14 +29,6 @@ STUB_EOF
 
 teardown() {
   [ -z "${KEPT_TMPDIR:-}" ] || rmdir "$KEPT_TMPDIR"
-}
-
-# /tmp/codex の外で、保護された検証経路でも書き込める task worktree の ignore 済み tmp/ に作る。
-make_outside_tmpdir() {
-  local repo_tmp
-  repo_tmp="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/tmp"
-  mkdir -p "$repo_tmp"
-  mktemp -d "$repo_tmp/test-entry-outside.XXXXXX"
 }
 
 run_entry() {

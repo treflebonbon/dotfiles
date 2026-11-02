@@ -60,5 +60,11 @@ printf '  %s\n' "${files[@]}" >&2
 
 # git hook 由来の GIT_DIR 等は Bats の fixture を実 repo へ向けるため外す（scripts/test.sh と同じ）。
 while IFS= read -r git_var; do unset "$git_var"; done < <(git rev-parse --local-env-vars)
+# Bats の起動前に TMPDIR を scratch root 配下へ寄せる（判定は scripts/test.sh と共有）。新しく作った一時領域は終了時に消す。
+scratch_tmpdir=
+trap '[[ -z "$scratch_tmpdir" ]] || rm -rf "$scratch_tmpdir"' EXIT
+# shellcheck source=scripts/scratch-tmpdir.sh
+. "$(dirname "$0")/scratch-tmpdir.sh"
+use_scratch_tmpdir
 bats "${files[@]}"
 bats --filter 'Review Round contract' tests/gh-review-thread.bats
