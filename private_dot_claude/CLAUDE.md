@@ -38,11 +38,11 @@ Confirm before executing hard-to-reverse or shared-system-affecting actions:
 
 - Destructive: deleting files/branches, dropping DB tables, `rm -rf`
 - Hard-to-reverse: `git reset --hard`, amending published commits
-- High-impact or shared: direct pushes to a default branch, merging/closing/reopening/deleting PRs, reopening/deleting issues, releases, workflow dispatches, repository settings or secrets, non-GitHub messages, and shared infrastructure
+- High-impact or shared: direct pushes to a default branch, merging/closing/reopening/deleting PRs, reopening/deleting issues (except reopening through the GitHub app), releases, workflow dispatches, repository settings or secrets, non-GitHub messages, and shared infrastructure
 
 Keep secret values, including ones you just generated, off the screen, the conversation, and logs; this also covers commands you hand to the user. Pipe a secret straight into its approved destination or pass it through a mode-0600 temporary file, use `wizard` only for the steps a human must perform, and confirm registration by the command's success without reading the value back.
 
-Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues, and closing issues; reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
+Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues, closing issues, and reopening issues through the GitHub app (its tool is not gated and the reopen is reversible; `gh issue reopen` still needs confirmation); reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
 
 Requests to address pull request review feedback authorize a Review Round. For that workflow, use `gh-review-thread` rather than the GitHub plugin for thread-aware reads and writes. Group the selected threads into one `fix: address PR review feedback` commit, verify the changes, publish with `git-push-topic`, then post a Japanese reply with the short commit SHA, change summary, and verification result to each addressed thread and resolve it. Mark explanation-only threads with `--explanation-only` and do not create an empty commit. Continue after per-thread failures; leave ambiguous, rejected, failed-verification, unpublished, or failed threads open and report why.
 
@@ -101,7 +101,7 @@ Google Cloud の自動調査は `gcloud-inspect`、GitHub は明示的に許可�
 
 - Agent Skill の導入・更新・source 照合では `~/runtime/skill-harness.md` を読み、dotfiles 管理の固定版公開 plugin と APM 管理の第三者 skill を分ける。
 
-- `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、reopen/delete は確認する。
+- `triage` は推薦根拠の read-only 検証を先に実行できる。内容確定後の定型 issue/label 書込みは再確認せず、reopen/delete は確認する（GitHub app 経由の reopen を除く）。
 - Builder-Evaluator 内の `code-review` は既知の base（通常 `origin/main`）を使う。standalone で base が不明な場合は確認する。
 - `gh-address-comments` は thread-aware な read/write を `gh-review-thread` に統一する（二重管理による thread 状態の不整合を防ぐため）。review コメントの修正依頼は、選択 thread 群を1つの Review Round として修正・検証・1 commit・`git-push-topic`・日本語返信・resolve まで行う承認を含む。
 - `empirical-prompt-tuning` は `tool_uses` または `duration_ms` を取得できない round を strict convergence の判定に含めない。`qualitative plateau; quantitative convergence unverified` と報告して metadata を提供する runtime で再評価するか、明示的な `resource cutoff` として終了する。
