@@ -97,3 +97,27 @@ EOF
   [[ "$handed" == /tmp/codex/* ]]
   [[ "$handed" != *..* ]]
 }
+
+@test "a docs-only run refuses an invalid scratch root before bats, and plan and out-of-scope runs never reach it" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local fixture="$BATS_TEST_TMPDIR/fixture" loose="$BATS_TEST_TMPDIR/loose-scratch"
+  mkdir -p "$fixture/scripts"
+  mkdir -m 755 "$loose"
+  cp scripts/test-docs.sh scripts/scratch-tmpdir.sh scripts/verification_env.py "$fixture/scripts/"
+  # 実物の /tmp/codex は壊さず、fixture 内の検査対象だけを緩い権限の directory に向ける。
+  sed -i "s#Path(\"/tmp/codex\")#Path(\"$loose\")#" "$fixture/scripts/verification_env.py"
+  grep -q "Path(\"$loose\")" "$fixture/scripts/verification_env.py"
+  write_tmpdir_stub
+  cd "$fixture"
+
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" run scripts/test-docs.sh runtime/skill-harness.md
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Bats の一時領域を用意できません"* ]]
+  [ ! -e "$BATS_TEST_TMPDIR/tmpdirs" ]
+
+  # 不正な root でも、bats を起動しない経路はその判定に触れない。
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" run scripts/test-docs.sh --plan runtime/skill-harness.md
+  [ "$status" -eq 0 ]
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" run scripts/test-docs.sh runtime/index.md tests/with-env.bats
+  [ "$status" -eq 2 ]
+}
