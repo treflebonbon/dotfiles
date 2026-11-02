@@ -7,7 +7,7 @@ tags: [conventions, git, lint, lefthook]
 
 # Conventions
 
-- **コミット**: Conventional Commits 形式（`cog verify` で検証、`commit-msg` hook）
+- **コミット**: Conventional Commits 形式（`cog verify` で検証、`commit-msg` hook）。squash merge では PR タイトルが commit message になるので、PR タイトルも同じ形式にし、CI の [`conventional-commits`](../.github/workflows/ci.yml) が検査する
 - **Linting / format**: lefthook `pre-commit` hook で自動実行（`lefthook.yml`）。pinact / shfmt / oxfmt / oxlint / ghalint / actionlint / shellcheck / gitleaks / typecheck の汎用品質ゲートと、指示ファイル変更時の `instruction-contract`
 - **認証**: HTTPS + `gh auth git-credential`。SSH は不使用
 
@@ -97,7 +97,7 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build --read-on
 
 判定・CLI path/version・pin・各反復の結果は、表示された `/tmp/codex/claude-plugin-native.*/result.json` に残す。途中で失敗した場合も、判明済みの情報と失敗した反復を保持する。CLI の stdout/stderr は同じ領域へ保存し、設定本文は出力しない。実 CLI の worker へ渡す環境変数は、一時 HOME・XDG・TMP、PATH、locale、Nix と TLS の実行に必要なものに限定する。通常の Bats では mock CLI による成功・設定書換え・途中失敗・親環境の除外を検証する。実 CLI の Bats は `CLAUDE_PLUGIN_NATIVE=1` と `CLAUDE_PLUGIN_NATIVE_CHECKOUT` を指定して `tests/claude-plugin-native.bats` を opt-in する。
 
-GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。
+GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。PR タイトルの Conventional Commits 検査（[`ci.yml`](../.github/workflows/ci.yml) の `conventional-commits`、token は `GITHUB_TOKEN`）も GitHub Actions で実行する。
 
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。
 
