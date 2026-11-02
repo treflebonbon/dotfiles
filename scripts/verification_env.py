@@ -15,7 +15,7 @@ import tempfile
 SCRATCH_ROOT = Path("/tmp/codex")
 
 
-def new_runtime(prefix: str) -> Path:
+def ensure_scratch_root() -> Path:
     SCRATCH_ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
     metadata = SCRATCH_ROOT.stat(follow_symlinks=False)
     if (
@@ -25,7 +25,11 @@ def new_runtime(prefix: str) -> Path:
         or metadata.st_mode & 0o077
     ):
         raise ValueError("/tmp/codex は本人所有の private directory が必要です")
-    return Path(tempfile.mkdtemp(prefix=prefix, dir=SCRATCH_ROOT))
+    return SCRATCH_ROOT
+
+
+def new_runtime(prefix: str) -> Path:
+    return Path(tempfile.mkdtemp(prefix=prefix, dir=ensure_scratch_root()))
 
 
 def write_json(path: Path, value) -> None:

@@ -74,11 +74,25 @@ run_entry() {
   # 実物の /tmp/codex は壊さず、fixture 内の検査対象だけを緩い権限の directory に向ける。
   sed -i "s#Path(\"/tmp/codex\")#Path(\"$loose\")#" "$RUN_ROOT/scripts/verification_env.py"
   grep -q "Path(\"$loose\")" "$RUN_ROOT/scripts/verification_env.py"
-  run /usr/bin/env TMPDIR="$outside" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  # 外の TMPDIR（新しく作る経路）と、緩い scratch root 配下の TMPDIR（そのまま維持する経路）の両方を拒否する。
+  local given
+  for given in "$outside" "$loose/keep"; do
+    run /usr/bin/env TMPDIR="$given" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Bats の一時領域を用意できません"* ]]
+    [ ! -e "$TEST_LOG.tmpdir" ]
+  done
   rmdir "$outside"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"Bats の一時領域を用意できません"* ]]
-  [ ! -e "$TEST_LOG.tmpdir" ]
+}
+
+@test "the entry does not trust a TMPDIR that only starts with the scratch root path" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local handed
+  run /usr/bin/env TMPDIR=/tmp/codex/../not-the-scratch-root PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  [ "$status" -eq 0 ]
+  handed=$(<"$TEST_LOG.tmpdir")
+  [[ "$handed" == /tmp/codex/* ]]
+  [[ "$handed" != *..* ]]
 }
 
 write_stalling_stub() {
