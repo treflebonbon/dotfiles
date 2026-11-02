@@ -30,6 +30,14 @@ teardown() {
   [ -z "${KEPT_TMPDIR:-}" ] || rmdir "$KEPT_TMPDIR"
 }
 
+# /tmp/codex の外で、保護された検証経路でも書き込める task worktree の ignore 済み tmp/ に作る。
+make_outside_tmpdir() {
+  local repo_tmp
+  repo_tmp="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/tmp"
+  mkdir -p "$repo_tmp"
+  mktemp -d "$repo_tmp/test-entry-outside.XXXXXX"
+}
+
 run_entry() {
   run /usr/bin/env PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
 }
@@ -37,7 +45,7 @@ run_entry() {
 @test "the entry hands bats a TMPDIR under the scratch root when TMPDIR is outside it" {
   [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
   local outside handed
-  outside=$(mktemp -d /var/tmp/test-entry-outside.XXXXXX)
+  outside=$(make_outside_tmpdir)
   run /usr/bin/env TMPDIR="$outside" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
   rmdir "$outside"
   [ "$status" -eq 0 ]
@@ -60,7 +68,7 @@ run_entry() {
 @test "the entry refuses to run bats when the scratch root is not a private directory" {
   [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
   local outside loose
-  outside=$(mktemp -d /var/tmp/test-entry-outside.XXXXXX)
+  outside=$(make_outside_tmpdir)
   loose="$BATS_TEST_TMPDIR/loose-scratch"
   mkdir -m 755 "$loose"
   # 実物の /tmp/codex は壊さず、fixture 内の検査対象だけを緩い権限の directory に向ける。
