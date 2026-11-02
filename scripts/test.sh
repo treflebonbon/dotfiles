@@ -12,7 +12,8 @@ mkdir -p tmp
 log_dir=$(mktemp -d tmp/test-run.XXXXXX)
 date +%s%N >"$log_dir/started"
 active_runner_pid=
-trap 'printf "%s\n" "$?" >"$log_dir/exit-code"' EXIT
+scratch_tmpdir=
+trap 'printf "%s\n" "$?" >"$log_dir/exit-code"; [[ -z "$scratch_tmpdir" ]] || rm -rf "$scratch_tmpdir"' EXIT
 stop() {
   local status=$1
   local signal_name=TERM
@@ -268,6 +269,36 @@ then
   cat "$log_dir/setup.log" >&2
   printf '%s\n' 'テスト環境が不完全です。docs/conventions.md の devShell 手順で再実行してください。' | tee -a "$log_dir/setup.log" >&2
   exit 1
+fi
+
+# bats 本体は setup_suite より前に TMPDIR から一時領域を作る。検証用 bwrap が書込み可で残すのは scratch root（/tmp/codex）
+# だけで、それ以外の TMPDIR では fixture が隠れるか書き込めない。Linux では bats の起動前に、既存の TMPDIR が解決先まで
+# scratch root 配下ならそのまま、そうでなければ配下の新しい一時領域へ寄せる。どちらも scratch root を検査する。
+if [[ "$(uname -s)" == Linux ]]; then
+  bats_tmpdir=$(
+    python3 -B -I - "$(dirname "$0")" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from verification_env import ensure_scratch_root, new_runtime
+
+try:
+    root = ensure_scratch_root()
+    current = os.environ.get("TMPDIR")
+    if current and Path(current).resolve().is_relative_to(root):
+        print(current)
+    else:
+        print(new_runtime("bats-tmp."))
+except (OSError, ValueError) as error:
+    raise SystemExit(f"Bats の一時領域を用意できません: {error}") from None
+PY
+  )
+  if [[ "$bats_tmpdir" != "${TMPDIR:-}" ]]; then
+    scratch_tmpdir=$bats_tmpdir
+  fi
+  export TMPDIR=$bats_tmpdir
 fi
 
 run_logged "$log_dir/setup.log" append bun install --frozen-lockfile

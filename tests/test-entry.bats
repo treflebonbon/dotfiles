@@ -11,12 +11,14 @@ setup() {
   if [ -f "$BATS_TEST_DIRNAME/../scripts/test.sh" ]; then
     cp "$BATS_TEST_DIRNAME/../scripts/test.sh" "$RUN_ROOT/scripts/"
   fi
+  cp "$BATS_TEST_DIRNAME/../scripts/verification_env.py" "$RUN_ROOT/scripts/"
   ln -s "$(command -v python3)" "$TEST_BIN_DIR/python3"
   ln -s "$(command -v with-env)" "$TEST_BIN_DIR/with-env"
   stub_cmd bun
   cat >"$TEST_BIN_DIR/bats" <<'STUB_EOF'
 #!/bin/bash
 echo "$0 $*" >> "$TEST_LOG"
+printf '%s\n' "$TMPDIR" >> "$TEST_LOG.tmpdir"
 printf '%s\n' "${BATS_STUB_TAP-$'1..1\nok 1 fixture'}"
 exit "${BATS_STUB_STATUS:-0}"
 STUB_EOF
@@ -24,8 +26,73 @@ STUB_EOF
   cd "$RUN_ROOT"
 }
 
+teardown() {
+  [ -z "${KEPT_TMPDIR:-}" ] || rmdir "$KEPT_TMPDIR"
+}
+
+# /tmp/codex の外で、保護された検証経路でも書き込める task worktree の ignore 済み tmp/ に作る。
+make_outside_tmpdir() {
+  local repo_tmp
+  repo_tmp="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/tmp"
+  mkdir -p "$repo_tmp"
+  mktemp -d "$repo_tmp/test-entry-outside.XXXXXX"
+}
+
 run_entry() {
   run /usr/bin/env PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+}
+
+@test "the entry hands bats a TMPDIR under the scratch root when TMPDIR is outside it" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local outside handed
+  outside=$(make_outside_tmpdir)
+  run /usr/bin/env TMPDIR="$outside" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  rmdir "$outside"
+  [ "$status" -eq 0 ]
+  handed=$(<"$TEST_LOG.tmpdir")
+  [[ "$handed" == /tmp/codex/* ]]
+  [ ! -e "$handed" ]
+}
+
+@test "the entry keeps a TMPDIR that is already under the scratch root" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  mkdir -p -m 700 /tmp/codex
+  [ -O /tmp/codex ] && [ ! -L /tmp/codex ]
+  KEPT_TMPDIR=$(mktemp -d /tmp/codex/test-entry-keep.XXXXXX)
+  run /usr/bin/env TMPDIR="$KEPT_TMPDIR" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  [ "$status" -eq 0 ]
+  [ "$(<"$TEST_LOG.tmpdir")" = "$KEPT_TMPDIR" ]
+  [ -d "$KEPT_TMPDIR" ]
+}
+
+@test "the entry refuses to run bats when the scratch root is not a private directory" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local outside loose
+  outside=$(make_outside_tmpdir)
+  loose="$BATS_TEST_TMPDIR/loose-scratch"
+  mkdir -m 755 "$loose"
+  # 実物の /tmp/codex は壊さず、fixture 内の検査対象だけを緩い権限の directory に向ける。
+  sed -i "s#Path(\"/tmp/codex\")#Path(\"$loose\")#" "$RUN_ROOT/scripts/verification_env.py"
+  grep -q "Path(\"$loose\")" "$RUN_ROOT/scripts/verification_env.py"
+  # 外の TMPDIR（新しく作る経路）と、緩い scratch root 配下の TMPDIR（そのまま維持する経路）の両方を拒否する。
+  local given
+  for given in "$outside" "$loose/keep"; do
+    run /usr/bin/env TMPDIR="$given" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Bats の一時領域を用意できません"* ]]
+    [ ! -e "$TEST_LOG.tmpdir" ]
+  done
+  rmdir "$outside"
+}
+
+@test "the entry does not trust a TMPDIR that only starts with the scratch root path" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local handed
+  run /usr/bin/env TMPDIR=/tmp/codex/../not-the-scratch-root PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  [ "$status" -eq 0 ]
+  handed=$(<"$TEST_LOG.tmpdir")
+  [[ "$handed" == /tmp/codex/* ]]
+  [[ "$handed" != *..* ]]
 }
 
 write_stalling_stub() {
