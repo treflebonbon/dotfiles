@@ -27,7 +27,7 @@ STUB_EOF
 }
 
 teardown() {
-  [ -z "${SCRATCH_KEEP:-}" ] || rmdir "$SCRATCH_KEEP"
+  [ -z "${KEPT_TMPDIR:-}" ] || rmdir "$KEPT_TMPDIR"
 }
 
 run_entry() {
@@ -49,11 +49,28 @@ run_entry() {
 @test "the entry keeps a TMPDIR that is already under the scratch root" {
   [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
   mkdir -p -m 700 /tmp/codex
-  SCRATCH_KEEP=$(mktemp -d /tmp/codex/test-entry-keep.XXXXXX)
-  run /usr/bin/env TMPDIR="$SCRATCH_KEEP" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  [ -O /tmp/codex ] && [ ! -L /tmp/codex ]
+  KEPT_TMPDIR=$(mktemp -d /tmp/codex/test-entry-keep.XXXXXX)
+  run /usr/bin/env TMPDIR="$KEPT_TMPDIR" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
   [ "$status" -eq 0 ]
-  [ "$(<"$TEST_LOG.tmpdir")" = "$SCRATCH_KEEP" ]
-  [ -d "$SCRATCH_KEEP" ]
+  [ "$(<"$TEST_LOG.tmpdir")" = "$KEPT_TMPDIR" ]
+  [ -d "$KEPT_TMPDIR" ]
+}
+
+@test "the entry refuses to run bats when the scratch root is not a private directory" {
+  [ "$(uname -s)" = Linux ] || skip "the scratch root belongs to the Linux write-protected verification"
+  local outside loose
+  outside=$(mktemp -d /var/tmp/test-entry-outside.XXXXXX)
+  loose="$BATS_TEST_TMPDIR/loose-scratch"
+  mkdir -m 755 "$loose"
+  # 実物の /tmp/codex は壊さず、fixture 内の検査対象だけを緩い権限の directory に向ける。
+  sed -i "s#Path(\"/tmp/codex\")#Path(\"$loose\")#" "$RUN_ROOT/scripts/verification_env.py"
+  grep -q "Path(\"$loose\")" "$RUN_ROOT/scripts/verification_env.py"
+  run /usr/bin/env TMPDIR="$outside" PATH="$TEST_BIN_DIR:$PATH" "$BUN_BIN" run test
+  rmdir "$outside"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Bats の一時領域を用意できません"* ]]
+  [ ! -e "$TEST_LOG.tmpdir" ]
 }
 
 write_stalling_stub() {
