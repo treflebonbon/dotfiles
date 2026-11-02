@@ -49,9 +49,9 @@ Confirm before executing hard-to-reverse or shared-system-affecting actions:
 
 - Destructive: deleting files/branches, dropping DB tables, `rm -rf`
 - Hard-to-reverse: `git reset --hard`, amending published commits
-- High-impact or shared: direct pushes to a default branch, merging/closing/reopening/deleting PRs, reopening/deleting issues, releases, workflow dispatches, repository settings or secrets, non-GitHub messages, and shared infrastructure
+- High-impact or shared: direct pushes to a default branch, merging/closing/reopening/deleting PRs, reopening/deleting issues (except reopening through the GitHub app), releases, workflow dispatches, repository settings or secrets, non-GitHub messages, and shared infrastructure
 
-Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues, and closing issues; reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
+Routine GitHub collaboration writes do not need a second confirmation once the user has requested the outcome and the content is settled. This covers non-force pushes from the current topic branch using `git-push-topic`; creating, editing, or commenting on PRs and issues, closing issues, and reopening issues through the GitHub app (its tool is not gated and the reopen is reversible; `gh issue reopen` still needs confirmation); reviewing or marking a PR ready; and creating or editing labels. This does not expand the task's scope.
 
 Requests to address pull request review feedback authorize a Review Round. For that workflow, use `gh-review-thread` rather than the GitHub plugin for thread-aware reads and writes. Group the selected threads into one `fix: address PR review feedback` commit, verify the changes, publish with `git-push-topic`, then post a Japanese reply with the short commit SHA, change summary, and verification result to each addressed thread and resolve it. Mark explanation-only threads with `--explanation-only` and do not create an empty commit. Continue after per-thread failures; leave ambiguous, rejected, failed-verification, unpublished, or failed threads open and report why.
 
