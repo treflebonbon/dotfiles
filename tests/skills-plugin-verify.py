@@ -343,8 +343,9 @@ class VerifyCheckoutTests(unittest.TestCase):
                 state = config / "mock-marketplace-source"
                 log = config.parent / "claude-commands.jsonl"
                 plugin_id = "treflebonbon-skills@treflebonbon"
-                install_root = config / "plugins/cache/treflebonbon/treflebonbon-skills"
-                installed = config / "plugins/installed_plugins.json"
+                plugin_state = Path(os.environ.get("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(config / "plugins")))
+                install_root = plugin_state / "cache/treflebonbon/treflebonbon-skills"
+                installed = plugin_state / "installed_plugins.json"
                 with log.open("a") as stream:
                     stream.write(json.dumps(args) + "\\n")
                 if args[:3] == ["plugin", "marketplace", "add"]:
@@ -355,7 +356,7 @@ class VerifyCheckoutTests(unittest.TestCase):
                         "source": {"source": "directory", "path": args[3]}
                     }
                     settings_path.write_text(json.dumps(settings))
-                    marketplaces = config / "plugins/known_marketplaces.json"
+                    marketplaces = plugin_state / "known_marketplaces.json"
                     marketplaces.parent.mkdir(parents=True, exist_ok=True)
                     marketplaces.write_text(json.dumps({"treflebonbon": {
                         "source": {"source": "directory", "path": args[3]},
@@ -1208,6 +1209,31 @@ class VerifyCheckoutTests(unittest.TestCase):
                     source_root=self.source,
                     receipt_file=receipt_file,
                 )
+
+    def test_custom_claude_cache_can_be_verified_after_sync(self) -> None:
+        clis = [self.make_mock_claude(), self.make_mock_codex(), self.make_mock_agy()]
+        home = self.temporary / "custom-cache-home"
+        config = home / ".claude"
+        config.mkdir(parents=True)
+        homes = [home / ".codex"]
+        receipt_file = self.temporary / "custom-cache-receipt.json"
+        with patch.dict(os.environ, {
+            "PATH": ":".join(str(cli.parent) for cli in clis) + ":" + os.environ["PATH"],
+            "HOME": str(home),
+            "CLAUDE_CONFIG_DIR": str(config),
+            "CLAUDE_CODE_PLUGIN_CACHE_DIR": str(home / "custom-plugin-cache"),
+        }):
+            sync_skills_plugin.sync_all(
+                homes, pin=self.pin, checkout=self.root, source_root=self.source,
+                receipt_file=receipt_file,
+            )
+            before = receipt_file.read_bytes()
+            result = sync_skills_plugin.verify_current_installation(
+                homes, pin=self.pin, checkout=self.root, source_root=self.source,
+                receipt_file=receipt_file,
+            )
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(receipt_file.read_bytes(), before)
 
     def test_current_payload_remains_verified_after_cli_paths_and_versions_change(self) -> None:
         clis = [self.make_mock_claude(), self.make_mock_codex(), self.make_mock_agy()]

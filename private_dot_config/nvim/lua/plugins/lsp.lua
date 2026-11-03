@@ -163,8 +163,9 @@ return {
   -- Treesitter
   {
     "nvim-treesitter/nvim-treesitter",
+    commit = "0195cd62fa89950f34c0e0d648ea7897ab85d4d3",
+    lazy = false,
     build = ":TSUpdate",
-    event = { "BufReadPost", "BufNewFile" },
     opts = {
       ensure_installed = {
         "bash",
@@ -186,20 +187,38 @@ return {
         "vimdoc",
         "yaml",
       },
-      highlight = { enable = true },
-      indent = { enable = true },
-      incremental_selection = {
-        enable = true,
-        keymaps = {
-          init_selection = "<C-space>",
-          node_incremental = "<C-space>",
-          scope_incremental = false,
-          node_decremental = "<bs>",
-        },
-      },
     },
     config = function(_, opts)
-      require("nvim-treesitter.configs").setup(opts)
+      local treesitter = require("nvim-treesitter")
+      treesitter.setup()
+      local function enable(buf)
+        if not pcall(vim.treesitter.start, buf) then
+          return
+        end
+        vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        vim.keymap.set({ "n", "x" }, "<C-space>", function()
+          -- 初回はカーソル上の最小要素を選び、選択中は親へ拡大する。
+          vim.treesitter.select(vim.fn.mode() == "n" and "child" or "parent")
+        end, { buffer = buf, desc = "構文要素の選択を拡大" })
+        vim.keymap.set("x", "<bs>", function()
+          vim.treesitter.select("child")
+        end, { buffer = buf, desc = "構文要素の選択を縮小" })
+      end
+      vim.api.nvim_create_autocmd("FileType", {
+        group = vim.api.nvim_create_augroup("Treesitter", { clear = true }),
+        callback = function(event)
+          enable(event.buf)
+        end,
+      })
+      treesitter.install(opts.ensure_installed):await(function()
+        vim.schedule(function()
+          for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            if vim.api.nvim_buf_is_loaded(buf) then
+              enable(buf)
+            end
+          end
+        end)
+      end)
     end,
   },
 }

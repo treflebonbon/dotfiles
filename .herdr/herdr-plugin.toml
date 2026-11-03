@@ -14,6 +14,10 @@ fail() {
   printf 'copy-env: %s\n' "$1" >&2
   exit 1
 }
+git_environment=("${!GIT_@}")
+for variable in "${git_environment[@]}"; do
+  unset "$variable"
+done
 repo=$(jq -er '.data.workspace.worktree.repo_root | select(type == "string" and startswith("/"))' <<<"$HERDR_PLUGIN_EVENT_JSON") || fail 'event requires an absolute repo_root'
 worktree=$(jq -er '.data.worktree.path | select(type == "string" and startswith("/"))' <<<"$HERDR_PLUGIN_EVENT_JSON") || fail 'event requires an absolute worktree path'
 repo=$(cd "$repo" && pwd -P)

@@ -79,10 +79,15 @@ PY
   git -C "$other" worktree add -q -b test/unrelated "$other-linked"
   HERDR_PLUGIN_EVENT_JSON=$(jq --arg target "$other-linked" '.data.worktree.path = $target' <<<"$HERDR_PLUGIN_EVENT_JSON")
 
-  run_copy_env
-
-  [ "$status" -ne 0 ]
-  [ ! -e "$other-linked/.env" ]
+  local context
+  for context in clean inherited; do
+    if [ "$context" = inherited ]; then
+      export GIT_DIR="$SOURCE_TREE/.git" GIT_WORK_TREE="$SOURCE_TREE"
+    fi
+    run_copy_env
+    [ "$status" -ne 0 ]
+    [ ! -e "$other-linked/.env" ]
+  done
 }
 
 @test "Herdr event refuses an existing destination .env without changing it" {

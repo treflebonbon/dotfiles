@@ -59,6 +59,36 @@ init_repo() {
   assert_output --partial "WARN add .codex to .gitignore: $repo"
 }
 
+@test "codex repo state preserves a tracked file when the Git index is unreadable" {
+  local repo="$BATS_TEST_TMPDIR/ghq/github.com/example/broken-index"
+  init_repo "$repo"
+  : >"$repo/.codex"
+  git -C "$repo" add .codex
+  printf 'broken index\n' >"$repo/.git/index"
+
+  run "$PROJECT_ROOT/private_dot_local/bin/executable_codex-repo-state" --apply "$BATS_TEST_TMPDIR/ghq"
+
+  assert_failure
+  assert_output --partial "ERROR cannot determine tracked state"
+  [ -f "$repo/.codex" ]
+}
+
+@test "codex repo state checks each repository instead of inherited Git context" {
+  local repo="$BATS_TEST_TMPDIR/ghq/github.com/example/tracked"
+  local other="$BATS_TEST_TMPDIR/other"
+  init_repo "$repo"
+  init_repo "$other"
+  : >"$repo/.codex"
+  git -C "$repo" add .codex
+
+  run env GIT_DIR="$other/.git" GIT_WORK_TREE="$other" \
+    "$PROJECT_ROOT/private_dot_local/bin/executable_codex-repo-state" --apply "$BATS_TEST_TMPDIR/ghq"
+
+  assert_success
+  assert_output --partial "SKIP tracked .codex file: $repo/.codex"
+  [ -f "$repo/.codex" ]
+}
+
 @test "codex repo state repairs untracked zero-byte .codex files when apply is explicit" {
   local repo="$BATS_TEST_TMPDIR/ghq/github.com/example/repair"
   init_repo "$repo"

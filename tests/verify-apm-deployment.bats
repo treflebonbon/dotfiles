@@ -167,6 +167,16 @@ PY
   [[ "$output" == *'discovery 不一致'* ]]
 }
 
+@test "APM deployment verification rejects an unlisted script inside a managed skill" {
+  mkdir -p "$FIXTURE/runtime/.agents/skills/alpha/scripts"
+  printf 'print("unlisted fixture")\n' >"$FIXTURE/runtime/.agents/skills/alpha/scripts/extra.py"
+
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'台帳外の配備file'*'scripts/extra.py'* ]]
+}
+
 @test "APM deployment verification rejects a discovered SKILL.md omitted from the hash ledger" {
   mutate_fixture untracked-skill
   run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"

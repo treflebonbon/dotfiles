@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+git_environment=("${!GIT_@}")
+for variable in "${git_environment[@]}"; do
+  unset "$variable"
+done
+
 apply=0
 root="${CODEX_REPO_STATE_ROOT:-$HOME/ghq}"
 
@@ -35,11 +40,6 @@ if [ ! -d "$root" ]; then
   echo "ERROR root not found: $root" >&2
   exit 1
 fi
-
-is_tracked() {
-  local repo="$1"
-  git -C "$repo" ls-files --error-unmatch .codex >/dev/null 2>&1
-}
 
 is_ignored() {
   local repo="$1"
@@ -78,7 +78,11 @@ while IFS= read -r git_dir; do
     continue
   fi
 
-  if is_tracked "$repo"; then
+  if ! tracked=$(git -C "$repo" ls-files -- .codex 2>/dev/null); then
+    echo "ERROR cannot determine tracked state: $codex_path" >&2
+    exit 1
+  fi
+  if [ -n "$tracked" ]; then
     echo "SKIP tracked .codex file: $codex_path"
     continue
   fi

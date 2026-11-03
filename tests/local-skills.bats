@@ -233,14 +233,10 @@ PY
   grep -q 'set -euo pipefail' "$SKILL_HOME/.local/bin/git-push-topic"
 }
 
-@test "empty and absent legacy source render cleanup hooks and share a stable empty hash" {
-  local empty_hash absent_hash rendered absent_rendered
-  local hash_helper="$SKILL_SOURCE/.chezmoitemplates/local-skills-hash.py"
+@test "empty and absent legacy source render identical cleanup hooks" {
+  local rendered absent_rendered
   local render_file="$BATS_TEST_TMPDIR/local-skills-phase.sh"
   rm -rf -- "$SKILL_SOURCE/local-skills"
-  run python3 "$hash_helper" "$SKILL_SOURCE/local-skills"
-  [ "$status" -eq 0 ]
-  absent_hash="$output"
   skill_chezmoi execute-template --file "$SKILL_SOURCE/.chezmoitemplates/local-skills.sh.tmpl" \
     >"$BATS_TEST_TMPDIR/local-skills-absent.sh"
   skill_chezmoi execute-template --file "$SKILL_SOURCE/run_onchange_before_remove-orphan-claude-skills.sh.tmpl" \
@@ -258,10 +254,6 @@ PY
   [ "$status" -eq 0 ]
 
   mkdir -p "$SKILL_SOURCE/local-skills"
-  run python3 "$hash_helper" "$SKILL_SOURCE/local-skills"
-  [ "$status" -eq 0 ]
-  empty_hash="$output"
-  [ "$empty_hash" = "$absent_hash" ]
   skill_chezmoi execute-template --file "$SKILL_SOURCE/.chezmoitemplates/local-skills.sh.tmpl" \
     >"$BATS_TEST_TMPDIR/local-skills-empty.sh"
   skill_chezmoi execute-template --file "$SKILL_SOURCE/run_onchange_before_remove-orphan-claude-skills.sh.tmpl" \
