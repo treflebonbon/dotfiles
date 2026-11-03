@@ -62,6 +62,18 @@ const verifyUnchanged = (previous, dependency, identity) => {
   }
 };
 
+const verifySkillFiles = (directory, runtime, verifiedFiles) => {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      verifySkillFiles(file, runtime, verifiedFiles);
+    } else {
+      const relative = path.relative(runtime, file);
+      assert.ok(verifiedFiles.has(relative), `台帳外の配備file: ${relative}`);
+    }
+  }
+};
+
 const verify = (baseFile, runtimeDirectory, planFile) => {
   const runtime = realpathSync(runtimeDirectory);
   const base = indexDependencies(readYaml(baseFile).dependencies);
@@ -187,6 +199,7 @@ const verify = (baseFile, runtimeDirectory, planFile) => {
         verifiedFiles.has(`${target}/skills/${name}/SKILL.md`),
         `未検証の SKILL.md: ${target}/${name}`
       );
+      verifySkillFiles(path.join(directory, name), runtime, verifiedFiles);
     }
   }
   console.log(

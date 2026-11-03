@@ -5,6 +5,7 @@
     # Editors
     neovim
     tmux
+    tree-sitter
 
     # LSP (for neovim)
     lua-language-server

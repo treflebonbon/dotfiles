@@ -30,7 +30,8 @@ setup() {
 }
 
 run_copy_env() {
-  run python3 - "$MANIFEST" <<'PY'
+  run python3 - "$MANIFEST" "${1:-}" <<'PY'
+import os
 import subprocess
 import sys
 import tomllib
@@ -39,10 +40,22 @@ with open(sys.argv[1], "rb") as file:
     manifest = tomllib.load(file)
 command = next(event["command"] for event in manifest["events"]
                if event["on"] == "worktree.created")
+command[0] = os.environ.get("TEST_COMPAT_BASH", command[0])
 # Observe the final shell cwd after the actual command, keeping its errexit flags.
 command[-1] += '\npwd -P > "$TEST_CWD_RESULT"\n'
-sys.exit(subprocess.run(command).returncode)
+environment = os.environ.copy()
+if sys.argv[2] == "without-git-environment":
+    environment = {key: value for key, value in environment.items()
+                   if not key.startswith("GIT_")}
+sys.exit(subprocess.run(command, env=environment).returncode)
 PY
+}
+
+@test "Herdr event copies .env without inherited Git variables" {
+  run_copy_env without-git-environment
+
+  [ "$status" -eq 0 ]
+  cmp "$SOURCE_TREE/.env" "$WORKTREE/.env"
 }
 
 @test "Herdr event copies only root .env independently and finishes in the new worktree" {
@@ -79,10 +92,15 @@ PY
   git -C "$other" worktree add -q -b test/unrelated "$other-linked"
   HERDR_PLUGIN_EVENT_JSON=$(jq --arg target "$other-linked" '.data.worktree.path = $target' <<<"$HERDR_PLUGIN_EVENT_JSON")
 
-  run_copy_env
-
-  [ "$status" -ne 0 ]
-  [ ! -e "$other-linked/.env" ]
+  local context
+  for context in clean inherited; do
+    if [ "$context" = inherited ]; then
+      export GIT_DIR="$SOURCE_TREE/.git" GIT_WORK_TREE="$SOURCE_TREE"
+    fi
+    run_copy_env
+    [ "$status" -ne 0 ]
+    [ ! -e "$other-linked/.env" ]
+  done
 }
 
 @test "Herdr event refuses an existing destination .env without changing it" {
@@ -111,6 +129,54 @@ PY
 
   [ "$status" -ne 0 ]
   [ ! -e "$WORKTREE/.env" ]
+}
+
+@test "Herdr event does not use global ignore rules to authorize copying .env" {
+  printf '# no dotenv exclusions\n' >"$WORKTREE/.gitignore"
+  export HOME="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$HOME"
+  printf '.env\n' >"$HOME/global-ignore"
+  printf '[core]\n\texcludesFile = %s/global-ignore\n' "$HOME" >"$HOME/.gitconfig"
+
+  run_copy_env
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'destination .env must be ignored by Git'* ]]
+  [ ! -e "$WORKTREE/.env" ]
+}
+
+@test "Herdr event does not use the default XDG ignore file to authorize copying .env" {
+  printf '# no dotenv exclusions\n' >"$WORKTREE/.gitignore"
+  export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config"
+  mkdir -p "$XDG_CONFIG_HOME/git"
+  printf '.env\n' >"$XDG_CONFIG_HOME/git/ignore"
+
+  run_copy_env
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'destination .env must be ignored by Git'* ]]
+  [ ! -e "$WORKTREE/.env" ]
+}
+
+@test "Herdr event does not use core.excludesFile from local config to authorize copying .env" {
+  printf '# no dotenv exclusions\n' >"$WORKTREE/.gitignore"
+  printf '.env\n' >"$BATS_TEST_TMPDIR/external-ignore"
+  git -C "$SOURCE_TREE" config core.excludesFile "$BATS_TEST_TMPDIR/external-ignore"
+
+  run_copy_env
+
+  [ "$status" -ne 0 ]
+  [ ! -e "$WORKTREE/.env" ]
+}
+
+@test "Herdr event accepts repository info/exclude rules" {
+  printf '# no dotenv exclusions\n' >"$WORKTREE/.gitignore"
+  printf '.env\n' >>"$SOURCE_TREE/.git/info/exclude"
+
+  run_copy_env
+
+  [ "$status" -eq 0 ]
+  cmp "$SOURCE_TREE/.env" "$WORKTREE/.env"
 }
 
 @test "Herdr event rejects relative source and destination paths" {

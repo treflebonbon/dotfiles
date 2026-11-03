@@ -364,48 +364,13 @@ def validated_previous_codex_install(
     previous_verified: dict[str, Any] | None,
     codex_home: Path,
 ) -> dict[str, Any] | None:
-    if (
-        not isinstance(previous_verified, dict)
-        or previous_verified.get("status") != "verified"
-    ):
+    previous = validated_previous_plugin_payload(previous_verified)
+    if previous is None:
         return None
-    pin = previous_verified.get("pin")
-    if (
-        previous_verified.get("schema_version") != 1
-        or not isinstance(pin, dict)
-        or pin.get("owner") != "treflebonbon"
-        or pin.get("repo") != "skills"
-        or not isinstance(pin.get("rev"), str)
-        or not re.fullmatch(r"[0-9a-f]{40}", pin["rev"])
-        or not isinstance(pin.get("tree"), str)
-        or not re.fullmatch(r"[0-9a-f]{40}", pin["tree"])
-        or not isinstance(pin.get("version"), str)
-        or not pin["version"]
-        or not isinstance(pin.get("nar_hash"), str)
-        or not re.fullmatch(r"sha256-[A-Za-z0-9+/]+={0,2}", pin["nar_hash"])
-        or not isinstance(pin.get("file_count"), int)
-        or isinstance(pin.get("file_count"), bool)
-        or pin["file_count"] <= 0
-    ):
-        return None
-
-    checkout = cache_root() / pin["rev"]
-    source = marketplace_source_path(pin)
-    try:
-        if (
-            previous_verified.get("checkout") != str(checkout)
-            or previous_verified.get("source") != str(source)
-            or checkout.is_symlink()
-            or source.is_symlink()
-            or checkout.resolve(strict=True) != checkout
-            or source.resolve(strict=True) != source
-        ):
-            return None
-        verify_checkout(checkout, pin)
-        expected = tracked_tree(checkout)
-        verify_payload(source, expected, pin)
-    except (OSError, PluginSyncError):
-        return None
+    pin = previous["pin"]
+    checkout = previous["checkout"]
+    source = previous["source"]
+    expected = previous["expected"]
 
     results = previous_verified.get("results")
     previous_homes = previous_verified.get("codex_homes")
@@ -1811,9 +1776,8 @@ def verify_pinned_source(
     if (
         claude.get("plugin_id") != "treflebonbon-skills@treflebonbon"
         or not claude_install.is_absolute()
-        or claude_install.parts[-5:]
+        or claude_install.parts[-4:]
         != (
-            "plugins",
             "cache",
             "treflebonbon",
             "treflebonbon-skills",

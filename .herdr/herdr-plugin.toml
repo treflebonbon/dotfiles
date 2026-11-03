@@ -14,6 +14,12 @@ fail() {
   printf 'copy-env: %s\n' "$1" >&2
   exit 1
 }
+git_environment=("${!GIT_@}")
+for variable in ${git_environment[@]+"${git_environment[@]}"}; do
+  unset "$variable"
+done
+# コピーの許可判定に HOME や system の ignore 設定を使わない。
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 repo=$(jq -er '.data.workspace.worktree.repo_root | select(type == "string" and startswith("/"))' <<<"$HERDR_PLUGIN_EVENT_JSON") || fail 'event requires an absolute repo_root'
 worktree=$(jq -er '.data.worktree.path | select(type == "string" and startswith("/"))' <<<"$HERDR_PLUGIN_EVENT_JSON") || fail 'event requires an absolute worktree path'
 repo=$(cd "$repo" && pwd -P)
@@ -27,7 +33,8 @@ if [ ! -e "$repo/.env" ] && [ ! -L "$repo/.env" ]; then
 fi
 [ -f "$repo/.env" ] && [ ! -L "$repo/.env" ] || fail 'source .env must be a regular file'
 [ ! -e "$worktree/.env" ] && [ ! -L "$worktree/.env" ] || fail 'destination .env already exists'
-git -C "$worktree" check-ignore -q .env || fail 'destination .env must be ignored by Git'
+# 許可判定は .gitignore と .git/info/exclude に限定する。
+git -C "$worktree" -c core.excludesFile=/dev/null check-ignore -q .env || fail 'destination .env must be ignored by Git'
 umask 077
 cp "$repo/.env" "$worktree/.env"
 cd "$worktree" || exit
