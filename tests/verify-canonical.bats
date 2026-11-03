@@ -54,9 +54,12 @@ ok 14 Playwright runtime keeps locks and fails closed across records and process
 ok 15 distributed Playwright package protects the direct CLI and retains shared FDs
 ok 16 optional # skip 未設定
 TAP
+  export LEFTHOOK_ENV_LOG="$BATS_TEST_TMPDIR/lefthook-env.log"
+  export BATS_ARGS_LOG="$BATS_TEST_TMPDIR/bats-args.log"
   cat >"$TEST_BIN_DIR/lefthook" <<'SH'
 #!/bin/bash
 printf 'lefthook %s\n' "$*" >> "$TEST_LOG"
+printf '%s %s\n' "${DOTFILES_CANONICAL_PATH_RECEIPT-unset}" "${DOTFILES_CANONICAL_SOURCE_TEST_COUNT-unset}" >> "$LEFTHOOK_ENV_LOG"
 status=0
 bash "$SOURCE/scripts/test.sh" || status=$?
 if [[ ${CANONICAL_FIXTURE_MODE:-} == empty-runtime ]]; then
@@ -76,6 +79,7 @@ exit "$status"
 SH
   cat >"$TEST_BIN_DIR/bats" <<'SH'
 #!/bin/bash
+printf '%s\n' "$*" >> "$BATS_ARGS_LOG"
 cat "$CANONICAL_FIXTURE_TAP"
 case ${CANONICAL_FIXTURE_MODE:-} in
   source-change) printf 'changed\n' > "$SOURCE/tracked-file" ;;
@@ -464,4 +468,85 @@ assert result["tap"] is None and result["errors"]
 assert "command-started" in (attempt / "command.log").read_text()
 PY
   assert_success
+}
+
+@test "canonical検証は今回のattempt pathを既存形式のreceiptへ公開し子へ制御値を渡さない" {
+  local receipt="$BATS_TEST_TMPDIR/handoff/canonical-path"
+  mkdir "$BATS_TEST_TMPDIR/handoff"
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$receipt" DOTFILES_CANONICAL_SOURCE_TEST_COUNT=16 \
+    python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_success
+  local attempt
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+  [ -f "$receipt" ] && [ ! -L "$receipt" ]
+  [ "$(cat "$receipt")" = "$attempt" ]
+  [ "$(wc -l <"$receipt")" -eq 1 ]
+  [ "$(find "$BATS_TEST_TMPDIR/handoff" -type f | wc -l)" -eq 1 ]
+  [ "$(cat "$LEFTHOOK_ENV_LOG")" = "unset unset" ]
+  [ "$(grep -c '^lefthook run test$' "$TEST_LOG")" -eq 1 ]
+}
+
+@test "canonical検証はsource件数とTAP計画の不一致を記録して拒否し全suiteは一度だけ実行する" {
+  mkdir "$BATS_TEST_TMPDIR/handoff"
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$BATS_TEST_TMPDIR/handoff/canonical-path" \
+    DOTFILES_CANONICAL_SOURCE_TEST_COUNT=15 python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_failure 1
+  assert_output --partial "件数"
+  python3 -I - "$SOURCE" <<'PY'
+import json, sys
+from pathlib import Path
+attempt = next((Path(sys.argv[1]) / "tmp").glob("canonical-run.*"))
+result = json.loads((attempt / "result.json").read_text())
+assert result["command_exit"] == 0 and result["exit_code"] == 1
+assert result["tap"]["plan"] == 16 and result["tap"]["pass"] == 15
+assert any("件数" in error for error in result["errors"])
+PY
+  [ "$(grep -c '^lefthook run test$' "$TEST_LOG")" -eq 1 ]
+}
+
+@test "canonical検証は不正な制御値の組やreceiptの上書きをBats開始前に拒否する" {
+  local value receipt="$BATS_TEST_TMPDIR/receipt-existing" target="$BATS_TEST_TMPDIR/receipt-target"
+  for value in abc 0 -1 ''; do
+    run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$BATS_TEST_TMPDIR/fresh" \
+      DOTFILES_CANONICAL_SOURCE_TEST_COUNT="$value" python3 "$SOURCE/scripts/verify-canonical.py"
+    assert_failure 1
+  done
+  [ ! -e "$BATS_TEST_TMPDIR/fresh" ]
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_SOURCE_TEST_COUNT=16 python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_failure 1
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$BATS_TEST_TMPDIR/fresh" python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_failure 1
+  [ ! -e "$BATS_TEST_TMPDIR/fresh" ]
+  printf 'earlier\n' >"$receipt"
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$receipt" DOTFILES_CANONICAL_SOURCE_TEST_COUNT=16 \
+    python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_failure 1
+  [ "$(cat "$receipt")" = earlier ]
+  rm "$receipt"
+  printf 'earlier\n' >"$target"
+  ln -s "$target" "$receipt"
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$receipt" DOTFILES_CANONICAL_SOURCE_TEST_COUNT=16 \
+    python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_failure 1
+  [ "$(cat "$target")" = earlier ]
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT=relative DOTFILES_CANONICAL_SOURCE_TEST_COUNT=16 \
+    python3 "$SOURCE/scripts/verify-canonical.py"
+  assert_failure 1
+  [ ! -s "$TEST_LOG" ]
+}
+
+@test "canonical検証は制御値がなくても新しいBats件数測定を追加しない" {
+  run_canonical
+  assert_success
+  [ ! -e "$BATS_ARGS_LOG" ] || ! grep -q -- '--count' "$BATS_ARGS_LOG"
+}
+
+@test "canonical進捗は制御値があっても受渡しやsuiteを開始しない" {
+  local attempt="$SOURCE/tmp/canonical-run.status" receipt="$BATS_TEST_TMPDIR/status-receipt"
+  mkdir -p "$attempt"
+  run env PATH="$TEST_BIN_DIR:$PATH" DOTFILES_CANONICAL_PATH_RECEIPT="$receipt" DOTFILES_CANONICAL_SOURCE_TEST_COUNT=abc \
+    python3 "$SOURCE/scripts/verify-canonical.py" --status "$attempt"
+  assert_success
+  [ ! -e "$receipt" ]
+  [ ! -s "$TEST_LOG" ]
 }

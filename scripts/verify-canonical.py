@@ -35,6 +35,12 @@ REQUIRED_TESTS = (
 )
 
 
+HANDOFF_ENVIRONMENT = (
+    "DOTFILES_CANONICAL_PATH_RECEIPT",
+    "DOTFILES_CANONICAL_SOURCE_TEST_COUNT",
+)
+
+
 def save_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
@@ -202,6 +208,17 @@ def tap_record(path):
     }, errors
 
 
+def publish_receipt(receipt, attempt):
+    # 既存・symlink の receipt は上書きせず、途中の内容を読み手に見せない。
+    handle, temporary = tempfile.mkstemp(dir=receipt.parent, prefix=receipt.name + ".")
+    try:
+        with os.fdopen(handle, "w") as output:
+            output.write(f"{attempt}\n")
+        os.link(temporary, receipt)
+    finally:
+        os.unlink(temporary)
+
+
 def runner_directory(receipt, temporary):
     directory = Path(read_record(receipt).removesuffix("\n"))
     if (
@@ -331,6 +348,8 @@ def main():
     environment = {
         key: value for key, value in os.environ.items() if not key.startswith("GIT_")
     }
+    # 準備入口からの一時値は一度だけ読み、lefthook・Batsへは渡さない。
+    handoff = [environment.pop(name, None) for name in HANDOFF_ENVIRONMENT]
     attempt = None
     result = {
         "command": ["lefthook", "run", "test"],
@@ -344,6 +363,14 @@ def main():
     }
     errors = result["errors"]
     try:
+        handoff_receipt, count = handoff
+        if (handoff_receipt is None) != (count is None):
+            raise ValueError("記録先と件数の受渡し値は両方設定するか両方省略してください")
+        if count is not None:
+            if not re.fullmatch(r"[1-9][0-9]*", count):
+                raise ValueError("source のBats件数が不正です")
+            if not Path(handoff_receipt).is_absolute():
+                raise ValueError("記録先の受渡し値は絶対pathである必要があります")
         before_source = source_record(source, environment)
         if before_source["status"]:
             raise ValueError("開始時の作業ツリーがcleanではありません")
@@ -358,6 +385,8 @@ def main():
         temporary.mkdir(exist_ok=True)
         attempt = Path(tempfile.mkdtemp(prefix="canonical-run.", dir=temporary))
         print(f"検証記録: {attempt}", flush=True)
+        if handoff_receipt is not None:
+            publish_receipt(Path(handoff_receipt), attempt)
         before = {"source": before_source, "runtime": runtime_record(environment)}
         save_json(attempt / "before.json", before)
         receipt = attempt / "runner-path"
@@ -402,6 +431,8 @@ def main():
         result["runner_environment"] = observed
         result["tap"], tap_errors = tap_record(directory / "tap.log")
         errors.extend(tap_errors)
+        if count is not None and result["tap"]["plan"] != int(count):
+            errors.append(f"TAPの計画がsourceのBats件数({count})と一致しません")
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         errors.append(str(error))
     result["exit_code"] = (
