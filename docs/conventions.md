@@ -51,9 +51,9 @@ canonical検証の環境準備から開始する場合は、linked task worktree
 python3 scripts/run-canonical.py --shell wsl --no-codex-build
 ```
 
-この入口は最初のNix評価から `verify-ai-tools.py` の境界を使い、両devShellとPlaywright packageを準備する。Impeccable hookは `IMPECCABLE_HOOK_RUNTIME` の明示指定、または呼出元の `~/.agents/skills/impeccable/scripts/impeccable` から取得する。不足時はNix起動前に停止し、APMの導入を自動追加しない。`bats --count` の上限は300秒とし、超過時は準備失敗を保存して検証本体を起動しない。環境準備の記録は表示された `/tmp/codex/canonical-env.*/` に残り、`canonical-path` が検証本体の記録先を指す。中断時は保護された子プロセスを終了し、終了状態を保存する。
+この入口は最初のNix評価から `verify-ai-tools.py` の境界を使い、両devShellとPlaywright packageを準備する。Impeccable hookは `IMPECCABLE_HOOK_RUNTIME` の明示指定、または呼出元の `~/.agents/skills/impeccable/scripts/impeccable` から取得する。不足時はNix起動前に停止し、APMの導入を自動追加しない。`bats --count` の上限は300秒とし、超過時は準備失敗を保存して検証本体を起動しない。環境準備の記録は表示された `/tmp/codex/canonical-env.*/` に残り、検証本体が書く `canonical-path` がその記録先を指す。検証本体の出力は `canonical.log` へ保存する。中断時は保護された子プロセスを終了し、終了状態を保存する。
 
-検証本体は既存の `scripts/verify-canonical.py` とする。準備済み環境から直接呼ぶ場合は、`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` に準備済みの絶対パスを渡す。`lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。準備入口はsourceの全Bats件数とその実行のTAP計画も照合する。
+検証本体は既存の `scripts/verify-canonical.py` とする。準備済み環境から直接呼ぶ場合は、`IMPECCABLE_HOOK_RUNTIME`、`IMPECCABLE_BIN`、`TEST_PLAYWRIGHT_PACKAGE` に準備済みの絶対パスを渡す。`lefthook run test` を一度だけ呼び、開始前後のHEAD・全tracked内容・runtime、同じ実行のTAP・終了コード、Design Hook 13件とPlaywright runtime 2件の存在・成功・skipなしを照合する。準備入口は `bats --count` でsourceの全Bats件数を測り、一時的な環境値 `DOTFILES_CANONICAL_SOURCE_TEST_COUNT` と `DOTFILES_CANONICAL_PATH_RECEIPT`（`canonical-path` の保存先）を検証本体へ渡す。検証本体は新しい記録directoryの絶対pathを既存形式のreceiptへ一度だけ公開し、その実行のTAP計画と件数を照合して不一致を `errors` に記録する。2つの値は検証本体が読んだ後に除き、`lefthook` やBatsへは渡さない。片方だけの指定、不正な件数、既存・symlinkのreceiptは検証前に拒否する。値を渡さない直接実行は、件数を新たに測らず従来どおり動く。準備入口は表示ログを解析せず、receiptと終了状態だけを受け取り、記録先が現在のsourceの `tmp/canonical-run.*` の通常directoryで `result.json` が通常fileであることだけを確かめ、その中身は読まない。
 
 開始前は `git status` に加えて、全tracked内容とGit modeをHEADのtree/blobへ直接照合する。`assume-unchanged`／`skip-worktree` に隠れた未commitの変更もBats開始前に拒否し、flag自体は変更しない。実行後にHEADの内容・Git modeと異なるfileは `after.json` の `head_mismatches` に記録し、前後記録とTAPを保持する。
 

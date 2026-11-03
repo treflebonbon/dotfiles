@@ -18,16 +18,35 @@ import json, os, sys
 import time
 from pathlib import Path
 source = Path(__file__).resolve().parents[1]
+mode = os.environ.get('FIXTURE_MODE')
 record = source / 'tmp/canonical-run.fixture'
-record.mkdir(parents=True)
-if os.environ.get('FIXTURE_MODE') != 'no-receipt':
-    print('検証記録: ' + ('/tmp/foreign-canonical' if os.environ.get('FIXTURE_MODE') == 'wrong-path' else str(record)), flush=True)
-if os.environ.get('FIXTURE_MODE') == 'gate-hang':
+if mode == 'symlink-attempt':
+    (source / 'tmp/real-canonical').mkdir(parents=True)
+    record.symlink_to('real-canonical')
+    record = source / 'tmp/real-canonical'
+else:
+    record.mkdir(parents=True)
+# 表示文言は受渡しに使わない。受渡しは receipt だけで行う。
+print('recorded in a different wording', flush=True)
+receipt = Path(os.environ['DOTFILES_CANONICAL_PATH_RECEIPT'])
+if mode == 'wrong-path':
+    foreign = source.parent / 'foreign-canonical/canonical-run.fixture'
+    foreign.mkdir(parents=True)
+    receipt.write_text(str(foreign) + '\n')
+elif mode == 'symlink-receipt':
+    (receipt.parent / 'receipt-target').write_text(str(source / 'tmp/canonical-run.fixture') + '\n')
+    receipt.symlink_to('receipt-target')
+elif mode != 'no-receipt':
+    receipt.write_text(str(source / 'tmp/canonical-run.fixture') + '\n')
+if mode == 'gate-hang':
     (record/'ready').touch()
     time.sleep(60)
-count = 2 if os.environ.get('FIXTURE_MODE') == 'wrong-count' else 3
-status = 7 if os.environ.get('FIXTURE_MODE') == 'gate-failure' else 0
-(record/'result.json').write_text(json.dumps({'exit_code':status,'tap':{'plan':count}}))
+count = os.environ['DOTFILES_CANONICAL_SOURCE_TEST_COUNT']
+(record/'handoff.json').write_text(json.dumps({'count': count}))
+status = 7 if mode == 'gate-failure' else 1 if mode == 'wrong-count' else 0
+if mode != 'missing-result':
+    # adapter は canonical result.json の中身を解釈しない。
+    (record/'result.json').write_text('not json' if mode == 'opaque-result' else json.dumps({'opaque': True}))
 (record/'runtime.json').write_text(json.dumps({key:os.environ[key] for key in
     ('IMPECCABLE_HOOK_RUNTIME','IMPECCABLE_BIN','TEST_PLAYWRIGHT_PACKAGE')}))
 raise SystemExit(status)
@@ -111,7 +130,19 @@ assert runtime['TEST_PLAYWRIGHT_PACKAGE'] == os.environ['FIXTURE_PW_PACKAGE']
 rows = [json.loads(line) for line in Path(os.environ['FIXTURE_LOG']).read_text().splitlines()]
 assert all(row['HOME'] != str(home) for row in rows)
 assert sum('--file' in row['args'] for row in rows) == 1
+# 表示ログは保存するだけで解析せず、source 件数は gate へ渡す。
+assert 'recorded in a different wording' in (root/'canonical.log').read_text()
+handoff = json.loads((source/'tmp/canonical-run.fixture/handoff.json').read_text())
+assert handoff['count'] == '3' and result['source_test_count'] == 3
+assert result['canonical'] == str(source/'tmp/canonical-run.fixture')
 PY
+}
+
+@test "canonical entry accepts a gate whose result.json it does not interpret" {
+  export FIXTURE_MODE=opaque-result
+  entry
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
 }
 
 @test "canonical entry stops before Nix when the installed runtime is missing" {
@@ -151,11 +182,13 @@ PY
   [ -f "$SOURCE/tmp/canonical-run.fixture/result.json" ]
 }
 
-@test "canonical entry rejects a gate result that does not cover the source test count" {
+@test "canonical entry keeps the gate's source count rejection and its record" {
   export FIXTURE_MODE=wrong-count
   entry
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [ -f "$SOURCE/tmp/canonical-run.fixture/result.json" ]
+  [ "$(cat "$RECORD/canonical-path")" = "$SOURCE/tmp/canonical-run.fixture" ]
+  [ "$(jq -r '.canonical' "$RECORD/result.json")" = "$SOURCE/tmp/canonical-run.fixture" ]
 }
 
 @test "canonical preparation records a count timeout and suppresses the gate" {
@@ -195,7 +228,8 @@ PY
   export FIXTURE_MODE=wrong-path
   entry
   [ "$status" -ne 0 ]
-  [ ! -f "$RECORD/canonical-path" ]
+  [ "$(jq -r '.canonical' "$RECORD/result.json")" = null ]
+  [ "$(jq -r '.status' "$RECORD/result.json")" = failed ]
 }
 
 @test "canonical entry records interruption and stops its protected child" {
@@ -223,6 +257,25 @@ result = json.loads(Path(sys.argv[1]).read_text())
 assert result['status'] == 'interrupted'
 assert result['exit_code'] == 143
 PY
+}
+
+@test "canonical entry rejects a successful gate without a trustworthy current record" {
+  local mode
+  for mode in symlink-receipt symlink-attempt missing-result; do
+    export FIXTURE_MODE="$mode"
+    rm -rf "$SOURCE/tmp"
+    entry
+    [ "$status" -ne 0 ] || printf '%s: %s\n' "$mode" "$output" >&3
+    [ "$status" -ne 0 ]
+    python3 - "$RECORD" <<'PY'
+import json, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+result = json.loads((root/'result.json').read_text())
+assert result['status'] == 'failed' and result['exit_code'] != 0
+assert 'recorded in a different wording' in (root/'canonical.log').read_text()
+PY
+  done
 }
 
 @test "canonical entry rejects incomplete runtime, count, and receipt inputs" {

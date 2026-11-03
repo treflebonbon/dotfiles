@@ -7,6 +7,7 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import time
 
 sys.dont_write_bytecode = True
 
@@ -26,6 +27,21 @@ raise SystemExit(module.prepare(*map(Path, sys.argv[2:])))
 
 def save(directory, result):
     write_json(directory / "result.json", result)
+
+
+def current_record(source, receipt):
+    """verifier が公開した receipt が、この source の通常の canonical 記録を指すことを確かめる。"""
+    if receipt.is_symlink() or not receipt.is_file():
+        raise ValueError("canonical の受渡し記録が不正です")
+    path = Path(receipt.read_text().removesuffix("\n"))
+    if (
+        path.parent != source / "tmp"
+        or not path.name.startswith("canonical-run.")
+        or path.is_symlink()
+        or not path.is_dir()
+    ):
+        raise ValueError("canonical の記録先が不正です")
+    return path
 
 
 def prepare(source, directory, hook):
@@ -86,39 +102,48 @@ def prepare(source, directory, hook):
             raise ValueError("source の Bats 件数が不正です")
         result.update(phase="canonical", source_test_count=int(count))
         save(directory, result)
-        process = subprocess.Popen(
-            [sys.executable, str(source / "scripts/verify-canonical.py")],
-            cwd=source,
-            env=environment,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+        receipt = directory / "canonical-path"
+        environment.update(
+            DOTFILES_CANONICAL_PATH_RECEIPT=str(receipt),
+            DOTFILES_CANONICAL_SOURCE_TEST_COUNT=str(int(count)),
         )
-        with (directory / "canonical.log").open("w") as log:
-            for line in process.stdout:
-                log.write(line)
-                log.flush()
-                if line.startswith("検証記録: "):
-                    path = Path(line.removeprefix("検証記録: ").strip())
-                    if path.parent != source / "tmp" or not path.name.startswith(
-                        "canonical-run."
-                    ):
-                        process.terminate()
-                        process.wait()
-                        raise ValueError("canonical の記録先が不正です")
-                    result["canonical"] = str(path)
-                    (directory / "canonical-path").write_text(str(path) + "\n")
-                    save(directory, result)
+
+        def note_record():
+            if result["canonical"] is None and os.path.lexists(receipt):
+                result["canonical"] = str(current_record(source, receipt))
+                save(directory, result)
+
+        # 表示ログは保存だけで解析せず、受渡しは verifier が公開する receipt で行う。
+        with (directory / "canonical.log").open("wb") as log:
+            process = subprocess.Popen(
+                [sys.executable, str(source / "scripts/verify-canonical.py")],
+                cwd=source,
+                env=environment,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+            )
+            try:
+                while process.poll() is None:
+                    note_record()
+                    time.sleep(0.1)
+            except ValueError:
+                process.terminate()
+                process.wait()
+                raise
         status = process.wait()
         status = status if status >= 0 else 128 - status
         if status == 0:
+            note_record()
             if result["canonical"] is None:
                 raise ValueError("canonical の記録先が取得できません")
-            canonical = json.loads(
-                (Path(result["canonical"]) / "result.json").read_text()
-            )
-            if canonical["exit_code"] != 0 or canonical["tap"]["plan"] != int(count):
-                raise ValueError("canonical 結果と source 件数が一致しません")
+            completion = Path(result["canonical"]) / "result.json"
+            if completion.is_symlink() or not completion.is_file():
+                raise ValueError("canonical の完了記録がありません")
+        else:
+            try:
+                note_record()
+            except ValueError as error:
+                result["error"] = str(error)
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         result["error"] = str(error)
         status = 1
