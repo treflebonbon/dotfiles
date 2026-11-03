@@ -33,3 +33,18 @@ Herdr の継承 Git context、壊れた Git index、独自 Claude cache、APM �
 関連7 suite は63件が成功した。APM のファイル列挙を lint の複雑度上限に合わせて分離した後も、同 suite の20件が成功した。Treesitter の最後の確認では固定 commit と全設定言語の対応も照合し、標準 API の代用・実 plugin の両方で2件が成功した。parser の新規ダウンロード・コンパイルは行わず、同梱済み Lua parser を使った検証である。
 
 保護された両 devShell で6 AI CLI の出力・実起動が一致し、追加した tree-sitter CLI も0.26.8で起動した。6件だけを実装した時点の途中の全 Bats は、Treesitter 方針の確定後に SIGTERM で中断した（exit 143）。これは最終結果やテスト失敗として扱わない。
+
+### 最終確認
+
+実装 commit `4257ffc` の clean な worktree から `scripts/run-canonical.py --shell default --no-codex-build` を実行した。実 plugin の checkout は `NVIM_TREESITTER_RUNTIME` で指定した。
+
+- 全746件: 成功732、既定 skip14、失敗0。コマンドと runner はともに exit 0、実測188.518秒。
+- source／HEAD／runtime の前後照合は一致し、canonical の `errors` は空。
+- 必須の Design Hook 13件・Playwright runtime 2件、Treesitter の2件はすべて skip なしで成功。
+- TAP SHA-256: `e26cace2c3f2fa1d938cc872d1da5fee8cdd31bfaca486bced3bbfffe7d4734b`。
+- 記録: `tmp/canonical-run.aj39yiw8/`、runner は `tmp/test-run.MeUYiC/`、準備記録は `/tmp/codex/canonical-env.26y93c9o/`。
+- 追加 CLI は対応3 systemすべてで tree-sitter 0.26.8 を選択することを Nix 評価で確認。実起動確認は x86_64-linux のみ。
+
+独立レビューは Standards の明示規約違反0件、Spec の指摘0件。Standards の助言は Git 環境除去4行の重複1件だった。Herdr イベントと単独の修復 CLI を共通 Python module へ接続すると、現在不要な Python・公開 plugin の起動依存を追加するため、既存 `codex-context` と同じ小さな Bash 処理を維持する。現在の誤動作を指摘するものではなく、両入口の継承 Git context は回帰テストで確認している。
+
+14件の skip は実 CLI・実モデル・raw 隔離・独立した言語環境等の opt-in 検証である。macOS／Windows／aarch64 実機、新規 parser の取得・コンパイル、live 配備は未確認。本節は検証後の記録追記であり、コード・設定・テストは上記の実装 commit から変更していない。
