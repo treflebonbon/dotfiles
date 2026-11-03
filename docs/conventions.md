@@ -45,6 +45,8 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 アーキテクチャHTML report checkerの実ブラウザ再検証は、全Batsへ組み込まず、repo root で `nix develop ./private_dot_config/nix-devshell --command nix develop . --command scripts/run-architecture-render-smoke.sh` を個別に実行する。`playwright-cli` が管理する一時session、loopback HTTP server、追跡fixtureを使う。実report用 `check-architecture-render.js` を正本とし、既存SKILL.mdの手順と同じ `sed '$s/;$//'` を `run-code` へ渡す一時入力にだけ適用する。Mermaid 11.17.2 をjsDelivrから一時web rootへ取得し、vendoringしない。`curl` / `python3` / `playwright-cli` とjsDelivrへの接続が実行前提であり、未達時は失敗理由を表示する。TAPとconsoleの記録は試行ごとに `.tmp/architecture-render-smoke.*` へ保持する。図なしHTMLはHTTP 200なら成功、HTTP 404なら失敗として検査する。
 
+`assume-unchanged` または `skip-worktree` が付いた tracked file は、`git status` が clean でも実内容の変更を隠せる。未検証 tree の公開前検証はこれらのフラグを拒否し、検証済み記録も作らない。検査は呼出元の directory にかかわらず repo 全体を対象にし、Git status・フラグ列挙の失敗も非0終了する。テスト後にフラグを検出した場合も push を拒否する。フラグを解除してから再検証する。
+
 canonical検証の環境準備から開始する場合は、linked task worktree で次の入口を使う。検証する変更をcommitしてcleanにし、関連テストとレビュー指摘の修正を終えたHEADで実行する。通常Linuxでは `--shell default`、WSL2では `--shell wsl` を選ぶ。
 
 ```bash

@@ -1,10 +1,13 @@
+{{- define "git-config-value" -}}
+"{{ . | replace "\\" "\\\\" | replace "\"" "\\\"" | replace "\n" "\\n" | replace "\t" "\\t" | replace "\b" "\\b" }}"
+{{- end -}}
 # Git configuration managed by chezmoi (treflebonbon/dotfiles)
 
 {{ if or .git_user_name .git_user_email -}}
 [user]
-{{ if .git_user_name }}    name = {{ .git_user_name }}
+{{ if .git_user_name }}    name = {{ template "git-config-value" .git_user_name }}
 {{ end -}}
-{{ if .git_user_email }}    email = {{ .git_user_email }}
+{{ if .git_user_email }}    email = {{ template "git-config-value" .git_user_email }}
 {{ end -}}
 {{ end -}}
 [core]

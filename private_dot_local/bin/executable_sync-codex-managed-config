@@ -21,7 +21,7 @@ fi
 managed_root="$HOME/.config/codex"
 managed_config="$managed_root/config.toml"
 managed_files=(config.toml hooks.json rules/default.rules environments/environment.toml AGENTS.md)
-codex_homes=("$HOME/.codex")
+codex_homes=()
 staged_files=()
 targets=()
 phase="prepare"
@@ -50,9 +50,21 @@ for relative_path in "${managed_files[@]}"; do
 done
 
 append_codex_home() {
-  local candidate="$1"
+  local candidate
+  candidate="$(
+    python3 - "$1" <<'PY' && printf '.'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1]).expanduser()
+if not path.is_absolute():
+    raise SystemExit("ERROR: CODEX_HOME must be absolute")
+print(path.resolve(), end="")
+PY
+  )"
+  candidate="${candidate%.}"
   local existing
-  for existing in "${codex_homes[@]}"; do
+  for existing in "${codex_homes[@]+"${codex_homes[@]}"}"; do
     if [ "$existing" = "$candidate" ]; then
       return
     fi
@@ -60,6 +72,7 @@ append_codex_home() {
   codex_homes+=("$candidate")
 }
 
+append_codex_home "$HOME/.codex"
 if [ -d "$HOME/.codex-app" ]; then
   append_codex_home "$HOME/.codex-app"
 fi
@@ -68,10 +81,11 @@ if [ -n "${CODEX_HOME:-}" ]; then
 fi
 
 merge_config() {
-  python3 - "$managed_config" "$1" "$2" "${3:-}" <<'PY'
+  python3 - "$managed_config" "$1" "$2" "${3:-}" "${4:-}" <<'PY'
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import tomllib
@@ -84,16 +98,15 @@ codex_path = Path(sys.argv[2])
 tmp_path = Path(sys.argv[3])
 
 
-def load_toml(path: Path, *, missing_ok: bool = False) -> dict[str, Any]:
-    if missing_ok and not path.exists():
-        return {}
+def load_toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as f:
         return tomllib.load(f)
 
 
 try:
     managed = load_toml(managed_path)
-    existing = load_toml(codex_path, missing_ok=True)
+    original = codex_path.read_bytes() if codex_path.exists() else None
+    existing = tomllib.loads(original.decode("utf-8")) if original is not None else {}
 except tomllib.TOMLDecodeError as e:
     print(f"ERROR: invalid TOML: {e}", file=sys.stderr)
     sys.exit(1)
@@ -424,6 +437,11 @@ for key, value in result.items():
         emit_table([key], value, lines)
 
 tmp_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+if sys.argv[5] == "apply":
+    current = codex_path.read_bytes() if codex_path.exists() else None
+    if current != original:
+        raise SystemExit(f"ERROR: Codex config changed during merge; retry sync: {codex_path}")
+    os.replace(tmp_path, codex_path)
 PY
 }
 
@@ -574,11 +592,15 @@ if [ "$verify_only" -eq 1 ]; then
   exit 0
 fi
 
+# ロック用 inode を保持し、別の同期が plugin 更新や設定置換へ割り込むのを防ぐ。
+exec 9>>"$managed_root/.managed-sync.lock"
+python3 -I -c 'import fcntl, sys; fcntl.flock(sys.stdin.fileno(), fcntl.LOCK_EX)' <&9
+
 for codex_home in "${codex_homes[@]}"; do
   for relative_path in "${managed_files[@]}"; do
     prepare_file "$managed_root/$relative_path" "$codex_home/$relative_path"
   done
-  if [ "$codex_home" = "$HOME/.codex-app" ]; then
+  if [ "$codex_home" -ef "$HOME/.codex-app" ]; then
     prepare_file /dev/null "$codex_home/.managed-config-seeded"
   fi
 done
@@ -626,7 +648,11 @@ done
 phase="apply"
 for index in "${!targets[@]}"; do
   target="${targets[$index]}"
-  mv -- "${staged_files[$index]}" "$target"
+  if [ "${target##*/}" = config.toml ]; then
+    merge_config "$target" "${staged_files[$index]}" "$verified_plugin_state" apply
+  else
+    mv -- "${staged_files[$index]}" "$target"
+  fi
 done
 
 sync_ponytail_plugin() {

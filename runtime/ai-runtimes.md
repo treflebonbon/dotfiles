@@ -126,6 +126,8 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 ### Codex 管理設定の同期
 
+同期先は絶対パスへ正規化し、末尾の `/` や symlink で同じ HOME を指す指定を重複排除する。同じ管理ソースからの同期は `.managed-sync.lock` で直列化する。このロックを共有しない外部アプリケーションとの同時保存は防げないため、外部の設定保存を完了してから同期を実行する。config.toml は適用時にも再読込みしてマージし、そのマージ前後で変更を検出した場合は上書きせず非0終了する。ただし最後の内容比較と `os.replace` の間に外部保存が入る狭い競合窓は残る。競合を検出した場合は、外部保存を終えてから同期を再実行する。
+
 `sync-codex-managed-config` は引数なしで5種類をまとめて同期する。初回配備でも AI CLI を解決できるよう、同期前に既存のユーザー環境キャッシュを読み込む。配備先は常に `~/.codex`、存在する場合の `~/.codex-app`、明示された `CODEX_HOME`。config.toml は managed 値を優先してマージし、project trust やローカル state を保持する。他4種類は管理ファイルで置換する。置換で `~/.codex/hooks.json` に Orca が登録した hook も消える（confirmed、2026-10-23）。Orca の起動時に再登録されるのはユーザーの申告で、この repo では未観測（unconfirmed）。
 
 管理ソースまたは同期処理が変わったときに chezmoi の `run_onchange_after_codex-managed-sync.sh.tmpl` が実行する。配備先の手編集や `CODEX_HOME` の変更だけでは再実行されないため、修復・新しい配備先への同期は `sync-codex-managed-config` を明示実行する。Desktop の初回ログインも同じコマンドを使い、同期済みならログイン時の再同期を省く。公開 Agent Skills の旧配備撤去では live source の after hook を明示実行する。この hook 自身が mutating 同期成功後に `sync-codex-managed-config --verify-only` → `sync-skills-plugin --verify-only` → `legacy_skills retire-known-skills` の順に処理する。path 指定 apply は hook を起動しないため、対象 path の apply 後に hook を render / execute する（手順は [Architecture](../docs/architecture.md#公開-agent-skills-plugin)）。単独の `sync-codex-managed-config` では旧配備を撤去しない。
