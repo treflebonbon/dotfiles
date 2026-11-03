@@ -4,6 +4,7 @@
 #         scripts/pre-push.sh record  clean な tree を検証済みとして記録する
 set -euo pipefail
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
@@ -44,6 +45,7 @@ record() {
     return 0
   fi
   check_hidden_paths || return 1
+  python3 -B "$script_dir/runtime_test_checks.py" || return 1
   echo "$head_tree" >>"$tested_trees"
 }
 
@@ -84,6 +86,7 @@ if [[ -n "$working_status" ]]; then
   exit 1
 fi
 check_hidden_paths
+python3 -B "$script_dir/runtime_test_checks.py" --validate-only
 
 docs_cmd=${DOTFILES_PRE_PUSH_DOCS_CMD:-scripts/test-docs.sh}
 full_cmd=${DOTFILES_PRE_PUSH_FULL_CMD:-bun run test}
