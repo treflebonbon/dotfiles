@@ -288,6 +288,95 @@ assert calls == [homes, ["--verify-only", *homes]]
 PY
 }
 
+@test "Codex managed sync deduplicates trailing slashes and aliases of the same home" {
+  mkdir -p "$TEST_HOME/.codex"
+  local alias="$BATS_TEST_TMPDIR/codex-alias" selected
+  ln -s "$TEST_HOME/.codex" "$alias"
+  for selected in "$TEST_HOME/.codex/" "$alias"; do
+    : >"$PLUGIN_SYNC_LOG"
+    run env HOME="$TEST_HOME" CODEX_HOME="$selected" bash "$SYNC_COMMAND"
+    [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+    [ "$status" -eq 0 ]
+    python3 - "$PLUGIN_SYNC_LOG" "$TEST_HOME/.codex" <<'PY'
+import sys
+from pathlib import Path
+for call in Path(sys.argv[1]).read_bytes().split(b"\0\0"):
+    if call:
+        arguments = call.decode().split("\0")
+        assert arguments.count("--codex-home") == 1, arguments
+        assert arguments[arguments.index("--codex-home") + 1] == sys.argv[2]
+PY
+  done
+}
+
+@test "Codex managed sync preserves settings saved after the final merge process" {
+  local real_python
+  real_python="$(command -v python3)"
+  mkdir -p "$TEST_HOME/.codex"
+  printf 'model = "local"\n' >"$TEST_HOME/.codex/config.toml"
+  cat >"$PLUGIN_SYNC_BIN/python3" <<'SH'
+#!/usr/bin/env bash
+"$REAL_PYTHON" "$@" || exit "$?"
+if [[ "${2:-}" == "$HOME/.config/codex/config.toml" ]]; then
+  count=0
+  [[ ! -f "$HOME/merge-count" ]] || count=$(cat "$HOME/merge-count")
+  printf '%s\n' "$((count + 1))" >"$HOME/merge-count"
+  if ((count == 1)); then
+    printf '\n[projects."/fixture/new-project"]\ntrust_level = "trusted"\n' >>"$HOME/.codex/config.toml"
+    touch "$HOME/settings-saved"
+  fi
+fi
+SH
+  chmod +x "$PLUGIN_SYNC_BIN/python3"
+
+  run env HOME="$TEST_HOME" REAL_PYTHON="$real_python" bash "$SYNC_COMMAND"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ -f "$TEST_HOME/settings-saved" ]
+  grep -Fq '[projects."/fixture/new-project"]' "$TEST_HOME/.codex/config.toml"
+  grep -Fq 'trust_level = "trusted"' "$TEST_HOME/.codex/config.toml"
+}
+
+@test "Codex managed sync rejects an update during merge without overwriting it" {
+  local real_python
+  real_python="$(command -v python3)"
+  mkdir -p "$TEST_HOME/.codex"
+  printf 'model = "local"\n' >"$TEST_HOME/.codex/config.toml"
+  cat >"$PLUGIN_SYNC_BIN/python3" <<'SH'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "$HOME/.config/codex/config.toml" ]]; then
+  exec "$REAL_PYTHON" -c '
+import os, sys
+from pathlib import Path
+sys.argv = sys.argv[1:]
+original_write = Path.write_text
+home = Path(os.environ["HOME"])
+def write(path, *args, **kwargs):
+    result = original_write(path, *args, **kwargs)
+    if path.name.startswith("config.toml.tmp."):
+        counter = home / "merge-count"
+        count = int(counter.read_text()) + 1 if counter.exists() else 1
+        original_write(counter, str(count))
+        with (home / ".codex/config.toml").open("a") as output:
+            output.write(f"\n[projects.\"/fixture/concurrent-{count}\"]\ntrust_level = \"trusted\"\n")
+    return result
+Path.write_text = write
+exec(compile(sys.stdin.read(), "<stdin>", "exec"))
+' "$@"
+fi
+exec "$REAL_PYTHON" "$@"
+SH
+  chmod +x "$PLUGIN_SYNC_BIN/python3"
+
+  run env HOME="$TEST_HOME" REAL_PYTHON="$real_python" bash "$SYNC_COMMAND"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"changed during merge"* ]]
+  grep -Fq '[projects."/fixture/concurrent-3"]' "$TEST_HOME/.codex/config.toml"
+  [ -z "$(find "$TEST_HOME" -name '*.tmp.*' -print)" ]
+}
+
 @test "Codex 管理設定 reports required skills plugin sync failure" {
   mkdir -p "$TEST_HOME/.codex"
   printf 'model = "local before plugin sync"\n' >"$TEST_HOME/.codex/config.toml"

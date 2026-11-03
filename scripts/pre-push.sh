@@ -9,10 +9,24 @@ zero=0000000000000000000000000000000000000000
 tested_trees=$(git rev-parse --git-path tested-trees)
 head_tree=$(git rev-parse 'HEAD^{tree}')
 
+has_hidden_paths() {
+  local entry
+  while IFS= read -r -d '' entry; do
+    case "${entry:0:1}" in
+    S | [a-z]) return 0 ;;
+    esac
+  done < <(git ls-files -v -z)
+  return 1
+}
+
 record() {
   # 未 commit・未追跡の内容は tree に反映されず、検証した内容と HEAD の tree が食い違うので記録しない。
   if [[ -n $(git status --porcelain) ]]; then
     echo "未 commit または未追跡の変更があるため、検証済みとして記録しない" >&2
+    return 0
+  fi
+  if has_hidden_paths; then
+    echo "assume-unchanged または skip-worktree があるため、検証済みとして記録しない" >&2
     return 0
   fi
   echo "$head_tree" >>"$tested_trees"
@@ -48,6 +62,10 @@ fi
 # テストと文書判定は作業ツリーを見るため、未 commit・未追跡の変更があると push する tree とは別の内容を検証してしまう。
 if [[ -n $(git status --porcelain) ]]; then
   echo "未 commit または未追跡の変更があるため、push する tree を検証できない。commit または退避してから push する" >&2
+  exit 1
+fi
+if has_hidden_paths; then
+  echo "assume-unchanged または skip-worktree を解除してから、push する tree を検証してください" >&2
   exit 1
 fi
 

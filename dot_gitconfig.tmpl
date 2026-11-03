@@ -2,9 +2,9 @@
 
 {{ if or .git_user_name .git_user_email -}}
 [user]
-{{ if .git_user_name }}    name = {{ .git_user_name }}
+{{ if .git_user_name }}    name = {{ .git_user_name | quote }}
 {{ end -}}
-{{ if .git_user_email }}    email = {{ .git_user_email }}
+{{ if .git_user_email }}    email = {{ .git_user_email | quote }}
 {{ end -}}
 {{ end -}}
 [core]

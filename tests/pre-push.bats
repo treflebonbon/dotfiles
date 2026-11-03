@@ -154,3 +154,23 @@ push_refs() {
   DOCS_STATUS=2 run -0 push_refs "$HEAD_SHA"
   [ "$(cat "$CALLS")" = $'docs\nfull' ]
 }
+
+@test "hidden index changes cannot be tested or recorded as the committed tree" {
+  printf 'committed\n' >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m fixture
+  local flag
+  for flag in assume-unchanged skip-worktree; do
+    git update-index "--$flag" file
+    printf 'only in the working tree\n' >file
+    [ -z "$(git status --porcelain)" ]
+
+    run -1 push_refs "$(git rev-parse HEAD)"
+    [ ! -s "$CALLS" ]
+    run -0 "$PROJECT_ROOT/scripts/pre-push.sh" record
+    [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+
+    git update-index "--no-$flag" file
+    printf 'committed\n' >file
+  done
+}
