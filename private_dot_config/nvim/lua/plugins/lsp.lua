@@ -191,18 +191,32 @@ return {
     config = function(_, opts)
       local treesitter = require("nvim-treesitter")
       treesitter.setup()
+      local indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+      local function expand_selection()
+        -- 初回はカーソル上の最小要素を選び、選択中は親へ拡大する。
+        vim.treesitter.select(vim.fn.mode() == "n" and "child" or "parent")
+      end
+      local function shrink_selection()
+        vim.treesitter.select("child")
+      end
       local function enable(buf)
         if not pcall(vim.treesitter.start, buf) then
+          vim.treesitter.stop(buf)
+          for _, mode in ipairs({ "n", "x" }) do
+            for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(buf, mode)) do
+              if mapping.callback == expand_selection or mapping.callback == shrink_selection then
+                vim.keymap.del(mode, mapping.lhs, { buffer = buf })
+              end
+            end
+          end
+          if vim.bo[buf].indentexpr == indentexpr then
+            vim.bo[buf].indentexpr = ""
+          end
           return
         end
-        vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-        vim.keymap.set({ "n", "x" }, "<C-space>", function()
-          -- 初回はカーソル上の最小要素を選び、選択中は親へ拡大する。
-          vim.treesitter.select(vim.fn.mode() == "n" and "child" or "parent")
-        end, { buffer = buf, desc = "構文要素の選択を拡大" })
-        vim.keymap.set("x", "<bs>", function()
-          vim.treesitter.select("child")
-        end, { buffer = buf, desc = "構文要素の選択を縮小" })
+        vim.bo[buf].indentexpr = indentexpr
+        vim.keymap.set({ "n", "x" }, "<C-space>", expand_selection, { buffer = buf, desc = "構文要素の選択を拡大" })
+        vim.keymap.set("x", "<bs>", shrink_selection, { buffer = buf, desc = "構文要素の選択を縮小" })
       end
       vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("Treesitter", { clear = true }),

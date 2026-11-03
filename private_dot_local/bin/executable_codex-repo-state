@@ -2,7 +2,7 @@
 set -euo pipefail
 
 git_environment=("${!GIT_@}")
-for variable in "${git_environment[@]}"; do
+for variable in ${git_environment[@]+"${git_environment[@]}"}; do
   unset "$variable"
 done
 

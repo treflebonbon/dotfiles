@@ -59,10 +59,36 @@ assert(press("<C-Space>") == "1 + 2", "親の構文要素へ拡大できませ�
 assert(press("<BS>") == "1", "子の構文要素へ縮小できません")
 vim.api.nvim_feedkeys(vim.keycode("<Esc>"), "xt", false)
 
+local original = vim.api.nvim_get_current_buf()
 vim.cmd("enew")
 vim.cmd("setfiletype audit_unknown_language")
 assert(not vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()])
 vim.cmd("enew")
 vim.cmd("setfiletype lua")
-assert(vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()], "新しい buffer のハイライトが有効ではありません")
+local other = vim.api.nvim_get_current_buf()
+assert(vim.treesitter.highlighter.active[other], "新しい buffer のハイライトが有効ではありません")
+vim.api.nvim_set_current_buf(original)
+-- 他の FileType handler による停止に頼らず、この設定自身の解除を検証する。
+vim.cmd("noautocmd setlocal filetype=audit_unknown_language")
+assert(vim.treesitter.highlighter.active[original])
+vim.api.nvim_exec_autocmds("FileType", { group = "Treesitter", buffer = original })
+assert(not vim.treesitter.highlighter.active[original], "filetype 変更後に古いハイライトが残っています")
+assert(vim.bo.indentexpr == "", "filetype 変更後に古いインデント設定が残っています")
+assert(vim.fn.maparg("<C-Space>", "n") == "", "通常モードの選択キーが残っています")
+assert(vim.fn.maparg("<C-Space>", "x") == "", "選択拡大キーが残っています")
+assert(vim.fn.maparg("<BS>", "x") == "", "選択縮小キーが残っています")
+assert(vim.treesitter.highlighter.active[other], "別 buffer のハイライトが解除されました")
+
+vim.bo.filetype = "lua"
+assert(vim.treesitter.highlighter.active[original], "対応 filetype に戻しても有効になりません")
+local user_mapping = function() end
+vim.keymap.set("n", "<C-Space>", user_mapping, { buffer = original })
+vim.bo.filetype = "audit_unknown_language"
+assert(not vim.treesitter.highlighter.active[original])
+assert(vim.fn.maparg("<C-Space>", "n", false, true).callback == user_mapping, "利用者の mapping が削除されました")
+assert(vim.fn.maparg("<C-Space>", "x") == "")
+assert(vim.fn.maparg("<BS>", "x") == "")
+vim.bo.indentexpr = "0"
+vim.api.nvim_exec_autocmds("FileType", { group = "Treesitter", buffer = original })
+assert(vim.bo.indentexpr == "0", "利用者のインデント設定が削除されました")
 vim.cmd("qa!")

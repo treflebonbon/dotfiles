@@ -48,3 +48,10 @@ Herdr の継承 Git context、壊れた Git index、独自 Claude cache、APM �
 独立レビューは Standards の明示規約違反0件、Spec の指摘0件。Standards の助言は Git 環境除去4行の重複1件だった。Herdr イベントと単独の修復 CLI を共通 Python module へ接続すると、現在不要な Python・公開 plugin の起動依存を追加するため、既存 `codex-context` と同じ小さな Bash 処理を維持する。現在の誤動作を指摘するものではなく、両入口の継承 Git context は回帰テストで確認している。
 
 14件の skip は実 CLI・実モデル・raw 隔離・独立した言語環境等の opt-in 検証である。macOS／Windows／aarch64 実機、新規 parser の取得・コンパイル、live 配備は未確認。本節は検証後の記録追記であり、コード・設定・テストは上記の実装 commit から変更していない。
+
+## PR #567 のレビュー対応
+
+- `GIT_*` が空の環境を追加し、Linux 用の配布済み Bash 3.2.39 で Herdr と `codex-repo-state` が `unbound variable` で終了することを再現した。空配列を安全に展開し、`nounset` は維持した。検証専用バイナリは Debian archive から `/tmp/codex` 配下へ展開したもので、通常のランタイムや配布依存には追加していない。
+- Herdr は既存の共通 module と同じく継承 `GIT_*` を除去し、その後 `GIT_CONFIG_NOSYSTEM=1` と `GIT_CONFIG_GLOBAL=/dev/null` を明示する。コピーの許可判定は対象 repo の `.gitignore`・`.git/info/exclude` に限定する。`core.excludesFile` は設定がなくても [XDG 配下の既定ファイルを読む](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coreexcludesFile)ため、判定コマンドで `/dev/null` を明示する。global config・既定 XDG ignore・local config の外部 ignore だけが `.env` を無視する場合は拒否し、`.git/info/exclude` による許可は維持する。
+- Treesitter の開始失敗時は対象 buffer の highlighter と、この設定の callback に一致する mapping、同じ `indentexpr` だけを解除する。同じ buffer の Lua → 未対応 filetype → Lua、別 buffer の維持、利用者が上書きした mapping・indentexpr の維持を実 Neovim 0.12.4 で確認した。他の FileType handler に依存しない停止確認も含む。
+- 対象テストは31件。うち Herdr の21件と `codex-repo-state` の空 Git 環境1件は Bash 3.2.39 でも検証する。Neovim は固定版 plugin の実 API を使う検証も含む。macOS 実機の検証ではない。全体テストと公開 commit の対応は PR のレビュー返信に記録する。
