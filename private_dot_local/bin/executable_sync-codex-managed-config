@@ -52,16 +52,17 @@ done
 append_codex_home() {
   local candidate
   candidate="$(
-    python3 - "$1" <<'PY'
+    python3 - "$1" <<'PY' && printf '.'
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1]).expanduser()
 if not path.is_absolute():
     raise SystemExit("ERROR: CODEX_HOME must be absolute")
-print(path.resolve())
+print(path.resolve(), end="")
 PY
   )"
+  candidate="${candidate%.}"
   local existing
   for existing in "${codex_homes[@]+"${codex_homes[@]}"}"; do
     if [ "$existing" = "$candidate" ]; then

@@ -13,7 +13,7 @@ has_hidden_paths() {
   local entry
   while IFS= read -r -d '' entry; do
     case "${entry:0:1}" in
-    S | [a-z]) return 0 ;;
+    S | [[:lower:]]) return 0 ;;
     esac
   done < <(git ls-files -v -z)
   return 1

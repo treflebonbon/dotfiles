@@ -309,6 +309,18 @@ PY
   done
 }
 
+@test "Codex managed sync preserves a trailing newline in an explicit home path" {
+  local codex_home="$BATS_TEST_TMPDIR/"$'custom-home\n'
+  mkdir -p "$codex_home"
+
+  run env HOME="$TEST_HOME" CODEX_HOME="$codex_home" bash "$SYNC_COMMAND"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ -f "$codex_home/config.toml" ]
+  [ ! -e "${codex_home%$'\n'}/config.toml" ]
+}
+
 @test "Codex managed sync preserves settings saved after the final merge process" {
   local real_python
   real_python="$(command -v python3)"
