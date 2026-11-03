@@ -4,31 +4,46 @@
 #         scripts/pre-push.sh record  clean な tree を検証済みとして記録する
 set -euo pipefail
 
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
 zero=0000000000000000000000000000000000000000
 # 検証済み tree の一覧。worktree ごとの git dir に置くので、追跡対象にも tmp/ の掃除にも巻き込まれない。
 tested_trees=$(git rev-parse --git-path tested-trees)
 head_tree=$(git rev-parse 'HEAD^{tree}')
 
-has_hidden_paths() {
-  local entry
-  while IFS= read -r -d '' entry; do
-    case "${entry:0:1}" in
-    S | [[:lower:]]) return 0 ;;
-    esac
-  done < <(git ls-files -v -z)
-  return 1
+check_hidden_paths() {
+  local hidden
+  if ! hidden="$(git ls-files -v -z | {
+    local entry found=0
+    while IFS= read -r -d '' entry; do
+      case "${entry:0:1}" in
+      S | [[:lower:]]) found=1 ;;
+      esac
+    done
+    printf '%s' "$found"
+  })"; then
+    echo "Git のフラグ検査に失敗したため、検証済みとして扱えません" >&2
+    return 1
+  fi
+  if [[ "$hidden" == 1 ]]; then
+    echo "assume-unchanged または skip-worktree を解除してから、push する tree を検証してください" >&2
+    return 1
+  fi
 }
 
 record() {
+  local working_status
+  if ! working_status=$(git status --porcelain); then
+    echo "Git status の検査に失敗したため、検証済みとして記録しません" >&2
+    return 1
+  fi
   # 未 commit・未追跡の内容は tree に反映されず、検証した内容と HEAD の tree が食い違うので記録しない。
-  if [[ -n $(git status --porcelain) ]]; then
+  if [[ -n "$working_status" ]]; then
     echo "未 commit または未追跡の変更があるため、検証済みとして記録しない" >&2
     return 0
   fi
-  if has_hidden_paths; then
-    echo "assume-unchanged または skip-worktree があるため、検証済みとして記録しない" >&2
-    return 0
-  fi
+  check_hidden_paths || return 1
   echo "$head_tree" >>"$tested_trees"
 }
 
@@ -60,14 +75,15 @@ fi
 ((needs_run)) || exit 0
 
 # テストと文書判定は作業ツリーを見るため、未 commit・未追跡の変更があると push する tree とは別の内容を検証してしまう。
-if [[ -n $(git status --porcelain) ]]; then
+if ! working_status=$(git status --porcelain); then
+  echo "Git status の検査に失敗したため、push する tree を検証できません" >&2
+  exit 1
+fi
+if [[ -n "$working_status" ]]; then
   echo "未 commit または未追跡の変更があるため、push する tree を検証できない。commit または退避してから push する" >&2
   exit 1
 fi
-if has_hidden_paths; then
-  echo "assume-unchanged または skip-worktree を解除してから、push する tree を検証してください" >&2
-  exit 1
-fi
+check_hidden_paths
 
 docs_cmd=${DOTFILES_PRE_PUSH_DOCS_CMD:-scripts/test-docs.sh}
 full_cmd=${DOTFILES_PRE_PUSH_FULL_CMD:-bun run test}

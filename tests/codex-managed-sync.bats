@@ -290,6 +290,8 @@ PY
 
 @test "Codex managed sync deduplicates trailing slashes and aliases of the same home" {
   mkdir -p "$TEST_HOME/.codex"
+  ln -s "$TEST_HOME" "$BATS_TEST_TMPDIR/home-alias"
+  TEST_HOME="$BATS_TEST_TMPDIR/home-alias"
   local alias="$BATS_TEST_TMPDIR/codex-alias" selected
   ln -s "$TEST_HOME/.codex" "$alias"
   for selected in "$TEST_HOME/.codex/" "$alias"; do
@@ -304,7 +306,7 @@ for call in Path(sys.argv[1]).read_bytes().split(b"\0\0"):
     if call:
         arguments = call.decode().split("\0")
         assert arguments.count("--codex-home") == 1, arguments
-        assert arguments[arguments.index("--codex-home") + 1] == sys.argv[2]
+        assert arguments[arguments.index("--codex-home") + 1] == str(Path(sys.argv[2]).resolve())
 PY
   done
 }

@@ -11,8 +11,8 @@ readonly TEMPLATE="$BATS_TEST_DIRNAME/../.chezmoi.toml.tmpl"
   fi
 }
 
-@test "Git identity preserves quotes, comments, backslashes and Japanese text" {
-  local name='Alice #One "Q" C:\Users 日本語' email='"quoted\\user"@example.invalid'
+assert_git_identity() {
+  local name="$1" email="$2"
   local config="$BATS_TEST_TMPDIR/identity.json" rendered="$BATS_TEST_TMPDIR/gitconfig"
   jq -nc --arg name "$name" --arg email "$email" \
     '{data:{git_user_name:$name,git_user_email:$email}}' >"$config"
@@ -25,4 +25,12 @@ readonly TEMPLATE="$BATS_TEST_DIRNAME/../.chezmoi.toml.tmpl"
   run git config --file "$rendered" --get user.email
   assert_success
   assert_output "$email"
+}
+
+@test "Git identity preserves quotes, comments, backslashes and Japanese text" {
+  assert_git_identity 'Alice #One "Q" C:\Users 日本語' '"quoted\\user"@example.invalid'
+}
+
+@test "Git identity preserves nonbreaking Unicode spaces" {
+  assert_git_identity $'Alice\u00a0日本語\u2007Name\u202f' $'alice\u00a0@example.invalid'
 }

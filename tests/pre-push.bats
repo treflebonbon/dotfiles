@@ -167,10 +167,63 @@ push_refs() {
 
     run -1 push_refs "$(git rev-parse HEAD)"
     [ ! -s "$CALLS" ]
-    run -0 "$PROJECT_ROOT/scripts/pre-push.sh" record
+    run -1 "$PROJECT_ROOT/scripts/pre-push.sh" record
     [ ! -s "$(git rev-parse --git-path tested-trees)" ]
 
     git update-index "--no-$flag" file
     printf 'committed\n' >file
   done
+}
+
+@test "record from a subdirectory checks hidden files elsewhere in the repository" {
+  printf 'committed\n' >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m fixture
+  git update-index --assume-unchanged file
+  printf 'hidden change\n' >file
+  mkdir subdirectory
+  cd subdirectory
+
+  run -1 "$PROJECT_ROOT/scripts/pre-push.sh" record
+
+  [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+}
+
+@test "failed Git inspections refuse both recording and an unverified push" {
+  local bin="$BATS_TEST_TMPDIR/bin" real_git command
+  real_git=$(command -v git)
+  mkdir "$bin"
+  cat >"$bin/git" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "$FAIL_GIT_COMMAND" ]]; then
+  printf 'simulated Git inspection failure\n' >&2
+  exit 128
+fi
+exec "$REAL_GIT" "$@"
+SH
+  chmod +x "$bin/git"
+  for command in status ls-files; do
+    run -1 env PATH="$bin:$PATH" REAL_GIT="$real_git" FAIL_GIT_COMMAND="$command" \
+      "$PROJECT_ROOT/scripts/pre-push.sh" record
+    [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+    run -1 env PATH="$bin:$PATH" REAL_GIT="$real_git" FAIL_GIT_COMMAND="$command" \
+      "$PROJECT_ROOT/scripts/pre-push.sh" <<<"refs/heads/topic $HEAD_SHA refs/heads/topic $ZERO"
+    [ ! -s "$CALLS" ]
+    [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+  done
+}
+
+@test "hidden changes introduced by the tests also refuse the push" {
+  printf 'committed\n' >file
+  git add file
+  git -c user.name=t -c user.email=t@example.com commit -q -m fixture
+  cat >"$BATS_TEST_TMPDIR/full" <<'SH'
+#!/usr/bin/env bash
+git update-index --assume-unchanged file
+printf 'only tested locally\n' >file
+SH
+
+  DOCS_STATUS=2 run -1 push_refs "$(git rev-parse HEAD)"
+
+  [ ! -s "$(git rev-parse --git-path tested-trees)" ]
 }
