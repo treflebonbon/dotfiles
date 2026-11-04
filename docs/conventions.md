@@ -31,7 +31,7 @@ sandbox・権限・秘密値の境界を守る入力検査（起動引数、設�
 
 ## テスト
 
-Linux の `tests/skills-plugin.bats` は専用の `/tmp` namespace から起動し、その内側の `/tmp/codex` に fixture を置く。他 suite の Codex glob scan と一時 directory の作成・撤去を競合させない。
+Linux の `tests/skills-plugin.bats` の検証と `tests/codex-tmp.bats` の sandbox probe は、専用の `/tmp` namespace で実行する。Codex の probe には自分の fixture・共有領域・許可外の比較対象だけを bind し、他 suite の一時 directory の作成・撤去や unreadable fixture を glob scan に見せない。共有 `/tmp/codex` の権限は、session TMPDIR と別の fixture で確認する。
 
 `lefthook run test` で `tests/` の全 Bats を実行し、install.sh / nix-devshell / direnv / codex-config / apm-runtime / zsh→bash 移行等を検証する。lefthook の `test` は `bun run test` → `scripts/test.sh` を呼ぶ。入口で実際の `python3 -I` が `dotenv.parser` を import でき、`with-env` と `parallel` が Nix store 内へ解決されることを確認してから、依存関係の frozen install と Bats の実行を行う。Bats はテストファイルを CPU コア数で並列に、ファイル内のテストを直列に実行し、GNU parallel は repo の devShell が提供する（[ADR-0079](adr/0079-run-bats-files-in-parallel.md)）。テストはファイルをまたいで共有資源を使わず、`BATS_TEST_TMPDIR` などテストごとの領域を使う。pre-push など git hook が設定する `GIT_DIR` 等は fixture の git を実 repo へ向けるため、`scripts/test.sh` と `tests/setup_suite.bash` の両方で外す（直接 `bats` を実行しても外れる。`tests/suite-git-env.bats` が使い捨て repo で検証する）。不足時は devShell を準備して再実行する。Linux では、入口（`scripts/test.sh` と、文書だけの変更用の `scripts/test-docs.sh`。判定は `scripts/scratch-tmpdir.sh` で共有する）が Bats の起動前に `TMPDIR` を `/tmp/codex` 配下へ寄せる（既存の `TMPDIR` は解決先が配下ならそのまま使い、どちらの場合も `/tmp/codex` の所有者・権限・symlink を検査して不正なら失敗する。検証用 bwrap が書込み可で残すのは `/tmp/codex` だけで、`bats` 本体は `setup_suite` より前に `TMPDIR` から一時領域を作るため、設定は入口で行う）。入口を通さず直接 `bats` を実行するときは `TMPDIR=/tmp/codex` を付ける。付けないと `verify-ai-tools`・`run-canonical`・`codex-config` などの bwrap 関連が環境起因で失敗する。statusline は `tests/statusline_smoke.sh`（手動実行の smoke スクリプト、Bats 非対象）。`.chezmoiignore` で home には非配備。
 
