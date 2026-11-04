@@ -14,6 +14,10 @@ import sys
 import tempfile
 import time
 
+sys.dont_write_bytecode = True
+
+from runtime_test_checks import required_tests, runtime_paths
+
 
 # bf31e700 の承認済みfixture。変更中のテストや今回のTAPから導出しない。
 REQUIRED_TESTS = (
@@ -116,8 +120,8 @@ def source_record(source, environment):
     }
 
 
-def runtime_record(environment):
-    paths = {}
+def runtime_record(environment, targeted=()):
+    paths = runtime_paths(targeted, environment)
     for name in (
         "IMPECCABLE_HOOK_RUNTIME",
         "IMPECCABLE_BIN",
@@ -156,6 +160,7 @@ def runtime_record(environment):
             "playwright_module",
             "playwright_lock",
             "TEST_PLAYWRIGHT_RUNTIME_MODULE",
+            "treesitter_module",
         ) and not os.access(path, os.X_OK):
             raise ValueError(f"runtimeを実行できません: {name}")
         with path.open("rb") as content:
@@ -168,7 +173,7 @@ def runtime_record(environment):
     return result
 
 
-def tap_record(path):
+def tap_record(path, required_tests=REQUIRED_TESTS):
     plans, rows, errors = [], [], []
     content = read_record(path)
     for line in content.splitlines():
@@ -192,7 +197,7 @@ def tap_record(path):
     ):
         errors.append("TAPの計画・件数・連番が不整合です")
     required = []
-    for name in REQUIRED_TESTS:
+    for name in required_tests:
         matches = [row for row in rows if row[1] == name]
         if len(matches) != 1 or not matches[0][2] or matches[0][3]:
             errors.append(f"必須fixtureが欠落・重複・失敗・skipしています: {name}")
@@ -362,6 +367,7 @@ def main():
         "errors": [],
     }
     errors = result["errors"]
+    required = REQUIRED_TESTS
     try:
         handoff_receipt, count = handoff
         if (handoff_receipt is None) != (count is None):
@@ -379,6 +385,8 @@ def main():
                 "tracked内容・Git modeがHEADと不一致です: "
                 + ", ".join(before_source["head_mismatches"])
             )
+        targeted = required_tests(source, environment)
+        required = (*REQUIRED_TESTS, *targeted)
         temporary = source / "tmp"
         if temporary.is_symlink():
             raise ValueError("tmpをsymlinkとして利用できません")
@@ -387,7 +395,10 @@ def main():
         print(f"検証記録: {attempt}", flush=True)
         if handoff_receipt is not None:
             publish_receipt(Path(handoff_receipt), attempt)
-        before = {"source": before_source, "runtime": runtime_record(environment)}
+        before = {
+            "source": before_source,
+            "runtime": runtime_record(environment, targeted),
+        }
         save_json(attempt / "before.json", before)
         receipt = attempt / "runner-path"
         environment["DOTFILES_TEST_RUN_RECEIPT"] = str(receipt)
@@ -398,7 +409,7 @@ def main():
         try:
             after = {
                 "source": source_record(source, environment),
-                "runtime": runtime_record(environment),
+                "runtime": runtime_record(environment, targeted),
             }
             save_json(attempt / "after.json", after)
             if before["source"] != after["source"]:
@@ -429,7 +440,7 @@ def main():
         if set(runtimes) != {"python3", "with-env"}:
             raise ValueError("実行runtimeの記録が欠落しています")
         result["runner_environment"] = observed
-        result["tap"], tap_errors = tap_record(directory / "tap.log")
+        result["tap"], tap_errors = tap_record(directory / "tap.log", required)
         errors.extend(tap_errors)
         if count is not None and result["tap"]["plan"] != int(count):
             errors.append(f"TAPの計画がsourceのBats件数({count})と一致しません")
@@ -454,7 +465,7 @@ def main():
         print(f"全Batsコマンド実測: {result['elapsed_seconds']:.3f}秒")
     if tap := result["tap"]:
         print(
-            f"TAP: plan={tap['plan']} pass={tap['pass']} skip={tap['skip']} fail={tap['fail']} 必須={len(tap['required'])}/{len(REQUIRED_TESTS)}"
+            f"TAP: plan={tap['plan']} pass={tap['pass']} skip={tap['skip']} fail={tap['fail']} 必須={len(tap['required'])}/{len(required)}"
         )
     for error in errors:
         print(f"REJECT: {error}", file=sys.stderr)

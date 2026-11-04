@@ -18,11 +18,92 @@ setup() {
   export DOTFILES_PRE_PUSH_DOCS_CMD="$BATS_TEST_TMPDIR/docs"
   ZERO=0000000000000000000000000000000000000000
   HEAD_SHA=$(git rev-parse HEAD)
+  git update-ref refs/remotes/origin/main "$HEAD_SHA"
 }
 
 push_refs() {
   # git が pre-push hook の stdin へ渡す形: <local ref> <local sha> <remote ref> <remote sha>
   printf 'refs/heads/topic %s refs/heads/topic %s\n' "$1" "$ZERO" | "$PROJECT_ROOT/scripts/pre-push.sh" origin url
+}
+
+change_bash_entry() {
+  mkdir -p private_dot_local/bin
+  printf '#!/bin/bash\n' >private_dot_local/bin/executable_codex-repo-state
+  git add .
+  git -c user.name=t -c user.email=t@example.com commit -qm 'test: change repo state'
+}
+
+@test "runtime-sensitive changes cannot be recorded without Bash 3.2" {
+  change_bash_entry
+
+  run -1 env -u TEST_COMPAT_BASH "$PROJECT_ROOT/scripts/pre-push.sh" record
+
+  [[ "$output" == *TEST_COMPAT_BASH* ]]
+  [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+}
+
+@test "renaming a runtime-sensitive path still requires its runtime" {
+  change_bash_entry
+  git update-ref refs/remotes/origin/main HEAD
+  git mv private_dot_local/bin/executable_codex-repo-state moved-script
+  git -c user.name=t -c user.email=t@example.com commit -qm 'test: rename repo state'
+
+  run -1 env -u TEST_COMPAT_BASH "$PROJECT_ROOT/scripts/pre-push.sh" record
+
+  [[ "$output" == *TEST_COMPAT_BASH* ]]
+  [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+}
+
+@test "runtime-sensitive changes reject a newer Bash before starting the full suite" {
+  change_bash_entry
+  printf '#!/bin/sh\nprintf 5.3\n' >"$BATS_TEST_TMPDIR/new-bash"
+  chmod +x "$BATS_TEST_TMPDIR/new-bash"
+
+  DOCS_STATUS=2 run -1 env TEST_COMPAT_BASH="$BATS_TEST_TMPDIR/new-bash" \
+    "$PROJECT_ROOT/scripts/pre-push.sh" < <(printf 'refs/heads/topic %s refs/heads/topic %s\n' "$(git rev-parse HEAD)" "$ZERO")
+
+  [[ "$output" == *'Bash 3.2'* ]]
+  [ ! -s "$CALLS" ]
+}
+
+@test "runtime gate refuses skipped or missing tests even when Bats succeeds" {
+  change_bash_entry
+  local bin="$BATS_TEST_TMPDIR/bin" mode
+  mkdir -p "$bin"
+  printf '#!/bin/sh\nprintf 3.2\n' >"$bin/bash32"
+  cat >"$bin/bats" <<'SH'
+#!/bin/sh
+printf '1..2\nok 1 Herdr event copies .env without inherited Git variables\n'
+if [ "$RUNTIME_TAP_MODE" = skip ]; then
+  printf 'ok 2 codex repo state works without inherited Git variables # skip 未指定\n'
+else
+  printf 'ok 2 unrelated test\n'
+fi
+SH
+  chmod +x "$bin/bash32" "$bin/bats"
+  for mode in skip missing; do
+    run -1 env PATH="$bin:$PATH" TEST_COMPAT_BASH="$bin/bash32" RUNTIME_TAP_MODE="$mode" \
+      "$PROJECT_ROOT/scripts/pre-push.sh" record
+    [[ "$output" == *'必須fixtureが欠落・重複・失敗・skip'* ]]
+    [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+  done
+}
+
+@test "runtime gate records the tree only after both required tests pass" {
+  change_bash_entry
+  local bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$bin"
+  printf '#!/bin/sh\nprintf 3.2\n' >"$bin/bash32"
+  cat >"$bin/bats" <<'SH'
+#!/bin/sh
+printf '1..2\nok 1 Herdr event copies .env without inherited Git variables\nok 2 codex repo state works without inherited Git variables\n'
+SH
+  chmod +x "$bin/bash32" "$bin/bats"
+
+  run -0 env PATH="$bin:$PATH" TEST_COMPAT_BASH="$bin/bash32" \
+    "$PROJECT_ROOT/scripts/pre-push.sh" record
+
+  grep -qxF "$(git rev-parse 'HEAD^{tree}')" "$(git rev-parse --git-path tested-trees)"
 }
 
 @test "a push that only deletes a ref runs nothing" {

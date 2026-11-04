@@ -87,6 +87,54 @@ WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`
 
 評価・起動ログ、Nix の metadata 出力、終了コードは `/tmp/codex/ai-tools-*/` の `evaluation.log`／`startup.log`／`metadata.json`／`exit-code` に残す。隔離した HOME／XDG／TMP の各 directory は終了時に削除し、診断用の log root は残す。source tree には隔離用の `tmp/` を作らない。不正 metadata の原文と診断も保持し、評価・metadata・version 検証に失敗した場合は後続コマンドを実行しない。後続テストの TAP は既存の `tmp/test-run.*/tap.log` で確認する。この helper は repo 内の手動入口で、HOME への配備や既存 runner／hook への自動配線はしない。認証・環境変数・network の分離が必要な Codex 検証セッションは、`runtime/skill-harness.md` の既存 raw Codex 入口を使う。現在のセッションや Claude／Antigravity の対話セッションの起動方法は、この検証 helper では変更しない。品質 floor の根拠機能、Playwright／Impeccable の runtime は既存の個別 gate で検証する。
 
+### 変更対象の実ランタイム検証
+
+`scripts/runtime_test_checks.py` は `origin/main` との merge-base から公開する HEAD の変更を調べる。Herdr のコピー処理・`codex-repo-state`、Treesitter 設定と各回帰テストを変更した場合、対応する実ランタイムの検証を必須にする。対象パスと必須テスト名の正本はこのスクリプトに置く。スクリプト自身の変更では両方を検証する。
+
+- Bash 対象では `TEST_COMPAT_BASH` に実行可能な Bash 3.2 の絶対パスを指定する。実行して版を確認し、新しい Bash による代用を拒否する。macOS では、版が一致する既存の `/bin/bash` を使える。
+- Treesitter 対象では `NVIM_TREESITTER_RUNTIME` に plugin の checkout の絶対パスを指定する。変更や追加ファイル（ignore 対象の生成物も含む）がない検証用 checkout を使う。`private_dot_config/nvim/lua/plugins/lsp.lua` に記載された固定 commit との一致は、既存の実 API テストが確認する。
+
+pre-push は未検証の対象変更で準備不足なら全 Bats の開始前に停止する。全 Bats の成功後も、検証済み tree の記録直前に対象の回帰テストを実行し、欠落・重複・失敗・skip を拒否する。同じ tree の成功記録は従来どおり再利用する。canonical 検証も対応テストを必須一覧へ追加し、準備した Bash と Treesitter module の指紋を前後記録へ含める。対象外の変更では、これらのランタイムを要求しない。
+
+```bash
+TEST_COMPAT_BASH=/absolute/path/to/bash-3.2 \
+NVIM_TREESITTER_RUNTIME=/absolute/path/to/nvim-treesitter \
+python3 scripts/run-canonical.py --shell default --no-codex-build
+```
+
+Linux x86_64 で Bash 3.2 が未導入の場合は、検証専用に Debian archive の配布済みバイナリを使える。以下は `curl`・`dpkg-deb`・`sha256sum` がある環境向けで、リポジトリ root から実行する。既存の `ensure_scratch_root()` で一時領域の作成・所有権・権限を確認し、通常の PATH は変更しない。他の OS／architecture では、その環境で実行できる Bash 3.2 を明示指定する。
+
+```bash
+compat_runtime="$(
+  python3 -B -c 'from scripts.verification_env import ensure_scratch_root; ensure_scratch_root()' &&
+    mktemp -d /tmp/codex/bash32-runtime.XXXXXX
+)" &&
+(
+set -eu
+curl --fail --location --silent --show-error \
+  https://archive.debian.org/debian/pool/main/b/bash/bash_3.2-4_amd64.deb \
+  --output "$compat_runtime/bash.deb"
+curl --fail --location --silent --show-error \
+  https://archive.debian.org/debian/pool/main/n/ncurses/libncurses5_5.7+20081213-1_amd64.deb \
+  --output "$compat_runtime/ncurses.deb"
+(
+  cd "$compat_runtime" || exit
+  sha256sum --check <<'SUMS'
+76d5970005b906dc662d7945575804cba1b4dd72b97bae0cea0a76d7bb7ea5b7  bash.deb
+0f8ed8c1a85b27011af342bec58a6bd851d27720d2ed58e632d34d385461a48a  ncurses.deb
+SUMS
+)
+dpkg-deb --extract "$compat_runtime/bash.deb" "$compat_runtime/runtime"
+dpkg-deb --extract "$compat_runtime/ncurses.deb" "$compat_runtime/runtime"
+cat >"$compat_runtime/bash" <<EOF
+#!/bin/sh
+export LD_LIBRARY_PATH='$compat_runtime/runtime/lib' LC_ALL=C
+exec '$compat_runtime/runtime/bin/bash' "\$@"
+EOF
+chmod +x "$compat_runtime/bash"
+) && export TEST_COMPAT_BASH="$compat_runtime/bash"
+```
+
 ### Claude plugin の実 CLI 再同期確認
 
 [verify-claude-plugin-sync.py](../scripts/verify-claude-plugin-sync.py) は固定 pin と一致する既存の公開 checkout を検証し、専用 HOME 内へ local clone して公式 CLI で導入する。専用 `/tmp` で隠れる checkout も read-only bind で引き継ぐ。外側の `verify-ai-tools.py` にも `--read-only` で同じ入力を渡す。入力が共有 scratch 内にあっても read-only を維持し、task worktree・Git metadata・runtime 全体を覆う入力は拒否する。管理 `settings.json` を render した後、verified receipt を使って2回再同期し、設定 bytes と現在の inventory・登録・payload を確認する。CLI の対話・モデル呼出し・ログインは行わず、元 checkout と通常 HOME の plugin 配備は変更しない。

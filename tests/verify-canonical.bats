@@ -9,7 +9,7 @@ setup() {
   local base="$BATS_TEST_TMPDIR/base"
   export SOURCE="$BATS_TEST_TMPDIR/worktree"
   mkdir -p "$base/scripts"
-  cp "$project_root/scripts/test.sh" "$project_root/scripts/verification_env.py" "$project_root/scripts/scratch-tmpdir.sh" "$base/scripts/"
+  cp "$project_root/scripts/test.sh" "$project_root/scripts/verification_env.py" "$project_root/scripts/scratch-tmpdir.sh" "$project_root/scripts/runtime_test_checks.py" "$base/scripts/"
   if [[ -f "$project_root/scripts/verify-canonical.py" ]]; then
     cp "$project_root/scripts/verify-canonical.py" "$base/scripts/"
   fi
@@ -19,6 +19,7 @@ setup() {
   git init --quiet --initial-branch=main "$base"
   git -C "$base" add .
   git -C "$base" -c user.name=Fixture -c user.email=fixture@example.test commit --quiet -m fixture
+  git -C "$base" update-ref refs/remotes/origin/main HEAD
   git -C "$base" worktree add --quiet -b task "$SOURCE"
 
   export IMPECCABLE_HOOK_RUNTIME="$BATS_TEST_TMPDIR/hook"
@@ -85,6 +86,11 @@ case ${CANONICAL_FIXTURE_MODE:-} in
   source-change) printf 'changed\n' > "$SOURCE/tracked-file" ;;
   head-change) git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit --quiet --allow-empty -m changed ;;
   runtime-change) printf '# changed\n' >> "$IMPECCABLE_BIN" ;;
+  treesitter-change)
+    printf '%s\n' '-- changed' >> "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+    git -C "$NVIM_TREESITTER_RUNTIME" add .
+    git -C "$NVIM_TREESITTER_RUNTIME" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change plugin'
+    ;;
   exit-mismatch) exit 1 ;;
 esac
 SH
@@ -94,6 +100,125 @@ SH
 
 run_canonical() {
   run env PATH="$TEST_BIN_DIR:$PATH" python3 "$SOURCE/scripts/verify-canonical.py"
+}
+
+change_treesitter() {
+  mkdir -p "$SOURCE/private_dot_config/nvim/lua/plugins"
+  printf 'return {}\n' >"$SOURCE/private_dot_config/nvim/lua/plugins/lsp.lua"
+  git -C "$SOURCE" add .
+  git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change Treesitter'
+  export NVIM_TREESITTER_RUNTIME="$BATS_TEST_TMPDIR/treesitter"
+  mkdir -p "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter"
+  : >"$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+  git -C "$NVIM_TREESITTER_RUNTIME" init -q
+  git -C "$NVIM_TREESITTER_RUNTIME" add .
+  git -C "$NVIM_TREESITTER_RUNTIME" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: seed plugin'
+  sed -i '1s/16/18/' "$CANONICAL_FIXTURE_TAP"
+  cat >>"$CANONICAL_FIXTURE_TAP" <<'TAP'
+ok 17 Treesitter の設定を読み込み、標準 API で選択を拡大・縮小できる
+ok 18 固定版 Treesitter の実 API でも設定と選択が動く
+TAP
+}
+
+@test "Treesitter 変更時は実 plugin のテストを skip した canonical 結果を拒否する" {
+  change_treesitter
+  sed -i '$s/$/ # skip 未指定/' "$CANONICAL_FIXTURE_TAP"
+
+  run_canonical
+
+  assert_failure
+  assert_output --partial '必須fixtureが欠落・重複・失敗・skipしています: 固定版 Treesitter'
+}
+
+@test "Treesitter 変更時は実 plugin の検証成功と runtime の指紋を記録する" {
+  change_treesitter
+
+  run_canonical
+
+  assert_success
+  local attempt
+  attempt=$(find "$SOURCE/tmp" -maxdepth 1 -type d -name 'canonical-run.*' -print -quit)
+  jq -e '.tap.required | index("固定版 Treesitter の実 API でも設定と選択が動く") != null' "$attempt/result.json"
+  jq -e '.runtime.treesitter_module.sha256 | length == 64' "$attempt/before.json"
+}
+
+@test "Treesitter 変更時は plugin 未指定で全 suite を開始しない" {
+  change_treesitter
+  unset NVIM_TREESITTER_RUNTIME
+
+  run_canonical
+
+  assert_failure
+  assert_output --partial NVIM_TREESITTER_RUNTIME
+  [ ! -s "$TEST_LOG" ]
+}
+
+@test "Treesitter checkout の変更と ignore で隠れた追加ファイルを検証開始前に拒否する" {
+  change_treesitter
+  local pristine="$NVIM_TREESITTER_RUNTIME" mode
+  for mode in staged unstaged untracked info-ignored config-ignored; do
+    export NVIM_TREESITTER_RUNTIME="$BATS_TEST_TMPDIR/$mode"
+    git clone -q "$pristine" "$NVIM_TREESITTER_RUNTIME"
+    if [[ "$mode" == untracked || "$mode" == *-ignored ]]; then
+      printf 'return {}\n' >"$NVIM_TREESITTER_RUNTIME/untracked.lua"
+      if [[ "$mode" == info-ignored ]]; then
+        printf 'untracked.lua\n' >"$NVIM_TREESITTER_RUNTIME/.git/info/exclude"
+      elif [[ "$mode" == config-ignored ]]; then
+        printf 'untracked.lua\n' >"$BATS_TEST_TMPDIR/global-ignore"
+        git -C "$NVIM_TREESITTER_RUNTIME" config core.excludesFile "$BATS_TEST_TMPDIR/global-ignore"
+      fi
+    else
+      printf '%s\n' '-- changed' >>"$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+      [[ "$mode" != staged ]] || git -C "$NVIM_TREESITTER_RUNTIME" add .
+    fi
+    if [[ "$mode" == *-ignored ]]; then
+      run git -C "$NVIM_TREESITTER_RUNTIME" status --porcelain --untracked-files=all
+      assert_success
+      [ -z "$output" ]
+    fi
+
+    run_canonical
+
+    assert_failure
+    assert_output --partial 'checkout は clean である必要があります'
+    [ ! -s "$TEST_LOG" ]
+  done
+}
+
+@test "Treesitter checkout の Git 状態を確認できなければ検証を開始しない" {
+  change_treesitter
+  export NVIM_TREESITTER_RUNTIME="$BATS_TEST_TMPDIR/not-a-checkout"
+  mkdir -p "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter"
+  : >"$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+
+  run_canonical
+
+  assert_failure
+  [ ! -s "$TEST_LOG" ]
+}
+
+@test "Treesitter の実 module が検証中に変われば canonical を拒否する" {
+  change_treesitter
+  export CANONICAL_FIXTURE_MODE=treesitter-change
+
+  run_canonical
+
+  assert_failure
+  assert_output --partial runtimeの前後記録が不一致
+}
+
+@test "Bash 対象変更時は未準備の Bash 3.2 で canonical を開始しない" {
+  mkdir -p "$SOURCE/.herdr"
+  printf 'version = "test"\n' >"$SOURCE/.herdr/herdr-plugin.toml"
+  git -C "$SOURCE" add .
+  git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change Herdr'
+  unset TEST_COMPAT_BASH
+
+  run_canonical
+
+  assert_failure
+  assert_output --partial TEST_COMPAT_BASH
+  [ ! -s "$TEST_LOG" ]
 }
 
 @test "canonical検証のhelpは全suiteを開始しない" {
