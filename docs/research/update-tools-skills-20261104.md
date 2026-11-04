@@ -25,13 +25,13 @@
 
 | 更新単位 | 採否と根拠 |
 | --- | --- |
-| AI snapshot | `2cae3bb5…` → [`78f777ba4f6141fca604a5cee3f6ff8dfab09f48`](https://github.com/numtide/llm-agents.nix/tree/78f777ba4f6141fca604a5cee3f6ff8dfab09f48) を採用候補とする。Claude Code は 2.1.314 → 2.1.317。他5件は version・derivation・output が3 system とも不変。upstream の flake-parts 更新も native lock に反映し、共有 nixpkgs と独立した APM input は維持する。 |
+| AI snapshot | `2cae3bb5…` → [`78f777ba4f6141fca604a5cee3f6ff8dfab09f48`](https://github.com/numtide/llm-agents.nix/tree/78f777ba4f6141fca604a5cee3f6ff8dfab09f48) を採用する。Claude Code は 2.1.314 → 2.1.317。他5件は version・derivation・output が3 system とも不変。upstream の flake-parts 更新も native lock に反映し、共有 nixpkgs と独立した APM input は維持する。 |
 | 通常 APM | Modern Web Guidance を [`34126856…`](https://github.com/GoogleChrome/modern-web-guidance/tree/341268561baaff256927c931ec8215dbd30e3cee/skills/modern-web-guidance)、Remotion を [`c7cb2fdc…`](https://github.com/remotion-dev/skills/tree/c7cb2fdcacd134fb2ccb9b7a44f9ffa44e467271/skills/remotion-best-practices) へ更新する。Web guide の整理・noise reduction ガイド追加、Remotion 4.0.540 のライセンス案内・同梱 browser 利用案内が主な差分。 |
 | Orca computer-use | 調査時 HEAD `68ba160c…` では selected subtree が削除されていた。削除・配布機能の廃止を採用せず、既存の解決済み revision `1bd67185489c66a9e0d841e0134727f171a33764` へ exact pin を追加する。本文と hash は維持する。 |
 | Matt Pocock | 現行 `a496f551…` / 1.3.2 を維持する。HEAD `4ae2317d…` の変更は管理対象外の in-progress skill で、公式27件の engineering / productivity subtree と plugin manifest は不変。専用 ordered gate を必要とする payload 更新は採用しない。通常 lock 再生成で `package_type` だけが `marketplace_plugin` → `apm_package` に変わる。runtime/skill-harness.md の native 出力方針に従い、そのまま採用する。 |
 | Impeccable | [Skill 4.8.0](https://github.com/pbakaus/impeccable/releases/tag/skill-v4.8.0) / [engine 0.1.18](https://github.com/pbakaus/impeccable/releases/tag/engine-v0.1.18) が最新の安定 release であり維持する。未リリース HEAD の変更は却下する。 |
 | 公開 skills plugin | [v0.2.5](https://github.com/treflebonbon/skills/releases/tag/v0.2.5) `6f8a02f3…` を検証したが、strict validator が失敗したため却下し、既存0.2.3の pin record 全体を維持する。候補は282 files、tree `b381bdf0ac8cdc407348c3acafbb537c7f077c2b`、NAR `sha256-a9dpV/dyRuGlhY0UsjovnWCrmrZaPB6Mc3UB5gqLmjw=`。11 skill と contracts / lib / packages / share は現行と同一で、CLI の merged PR 検査とリリース運用等に差分がある。 |
-| Playwright CLI | [0.1.23](https://github.com/microsoft/playwright-cli/releases/tag/v0.1.23) を候補に採用する。npm native lock と依存 hash を再生成し、既存の公開 browser 資産・patch・配布方式を維持する。依存する Playwright / playwright-core は上流 CLI が指定する `1.65.0-alpha-2026-10-30`。 |
+| Playwright CLI | [0.1.23](https://github.com/microsoft/playwright-cli/releases/tag/v0.1.23) を採用する。npm native lock と依存 hash を再生成し、既存の公開 browser 資産・patch・配布方式を維持する。依存する Playwright / playwright-core は上流 CLI が指定する `1.65.0-alpha-2026-10-30`。 |
 | その他の CLI / plugin | waza 0.39.1、design.md 0.4.0、Ponytail 5.3.3 は公開安定版と一致し維持する。runtime が自動管理する plugin の導入状態や chrome plugin の配布元は今回の source 更新に含めない。 |
 | 文書変換 CLI | 公開候補は Defuddle 0.19.6 / MarkItDown 0.1.9。現行 source-only Nix 定義の更新・新規 source build なしで配布できることを今回検証していないため候補を採用せず、既存0.19.3 / 0.1.7と pin を維持する。新しい独自 override や配布経路は追加しない。 |
 
@@ -46,4 +46,16 @@
 - **確認済み（公開 plugin 候補）:** package static は17/17成功。公式CLIの4テストは3成功・1失敗で、Antigravity 1.4.12のstrict validatorが、候補に新設されたroot `AGENTS.md` はpluginの規則として読み込まれないというwarningを返しexit1となった（`plugin-agy-validation.json`、`plugin-cli.log`）。Codex / Claude / Antigravityの公式installは成功し、Codex導入物のCLIテストも成功したが、strict失敗を覆す根拠にはしない。上流のテスト・payload・validatorの判定を変更せず候補を却下した。新規モデルsessionは呼んでいない。最初のstatic検証は実在しないclass名を指定して起動に失敗したため、正しいclass名での再実行と記録を分けた（`plugin-static.log` / `plugin-static-2.log`）。
 - **確認済み（Playwright候補）:** npm native lock の生成・frozen install、CLIの0.1.23表示、既存socket patchのdry-runが成功。npm依存は既存配布済み`prefetch-npm-deps`で取得し、hash `sha256-qclb2w06hyqJ9hMerj1WbtuQYLn45z+eHcW524PWCGw=` を採用した。後続のNix package組立ても成功している。本体のsource buildや新しいpatchの追加は行っていない。
 
-ARM / Darwin は metadata と cache の評価範囲であり、実機起動は未確認。モデル呼出し、実Windows Chrome、通常HOMEへの配備、公開・mergeは検証に含めない。全体回帰と独立レビューの結果は実施後に追記する。
+ARM / Darwin は metadata と cache の評価範囲であり、実機起動は未確認。モデル呼出し、実Windows Chrome、通常HOMEへの配備、公開・mergeは検証に含めない。
+
+## 最終検証とレビュー
+
+- **確認済み:** 両flakeの `nix flake check --no-build --all-systems` は成功。root側の app に `meta` がない既存warningは残る。root依存のfrozen install、TypeScript型検査、整形、commit hookも成功した。
+- **確認済み:** 関連Batsは70/70、skip0・失敗0。Design Hook、Playwrightの実package・runtime、品質floor、3 systemのupstream direct output、保持APMの既存outputと修正済みBrotli closureを含む。記録は `related.tap`、実行入口の終了コードは `/tmp/codex/ai-tools-5mp_by2g/exit-code` の0。
+- **確認済み:** 最終採用する公開plugin0.2.3をClaude Code2.1.317で公式導入し、render済み管理設定を使って2回再同期した。両回とも設定bytesと267fileを保持し、inventory・version・payload照合が成功した。実行記録は `/tmp/codex/claude-plugin-native.te_8wdl6/result.json`。却下した0.2.5の検証結果と区別する。
+- **確認済み:** 実装commit `dc02fae` を固定した独立Standards / Specレビューは両軸0件。現在の要件・適用ADR・本記録・外した候補の理由を両担当へ渡した。検証結果は `review-result.json` に保存した。
+- **確認済み:** cleanな `dc02fae` でcanonical入口を一度実行した。`lefthook run test` は全764件中749成功・15 skip・失敗0、command / runnerともexit0、実測191.500秒。必須のDesign Hook13件とPlaywright runtime2件はすべて成功・skipなし。HEAD・tracked source・runtimeの前後照合は一致し、証拠の `errors` は空だった。TAP SHA-256は `900d27ec601d50ce0d2b72df5b2a0c42f80e8ef10f99ff2471796f483c0af3b2`。
+
+canonical本体の記録は task worktree の `tmp/canonical-run.mw3akd89/`、対応するTAPは `tmp/test-run.AhsEiT/`、保護された環境準備の記録は `/tmp/codex/canonical-env.cqk1y60k/`。15件のskipはモデル・Herdr・raw隔離・独立テンプレート等のopt-inと、実Treesitter / Bash3.2を必要とする条件付き検証で、必須15件とは別である。Claude実同期のopt-inはcanonical内でskipだが、上記の実CLI検証で別途成功している。
+
+このcanonical成功後の変更は本記録への結果追記だけであり、実装・依存・テストは変更していない。sourceでの更新・検証・レビュー・コミットまでを完了範囲とし、公開・merge・live配備は未実施である。
