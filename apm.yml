@@ -25,9 +25,9 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#30d4553ecd46fbc5212fd0ff006ae43af522158b
+    - remotion-dev/skills/skills/remotion-best-practices#c7cb2fdcacd134fb2ccb9b7a44f9ffa44e467271
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#4f2b13e25c5815b3f080ca0d983e828d96561a0f
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#341268561baaff256927c931ec8215dbd30e3cee
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # musoukun/skills
@@ -42,6 +42,7 @@ dependencies:
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
     - stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2
     - stablyai/orca/skills/orchestration
-    - stablyai/orca/skills/computer-use
+    # upstream HEAD では削除済みのため、既存 payload を保持する revision に固定する。
+    - stablyai/orca/skills/computer-use#1bd67185489c66a9e0d841e0134727f171a33764
     # Herdr 0.9.5 同梱スキルと同じ revision を APM で配布する。
     - herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01

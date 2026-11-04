@@ -101,8 +101,8 @@ assert_lock_entry() {
 
   # floating の revision は形式を検査し、受け入れた payload は content hash で固定する。
 
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#4f2b13e25c5815b3f080ca0d983e828d96561a0f' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#30d4553ecd46fbc5212fd0ff006ae43af522158b' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#341268561baaff256927c931ec8215dbd30e3cee' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#c7cb2fdcacd134fb2ccb9b7a44f9ffa44e467271' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2' "$manifest"
   grep -Fq 'herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
@@ -112,8 +112,8 @@ assert_lock_entry() {
   ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
   assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
-    '4f2b13e25c5815b3f080ca0d983e828d96561a0f' \
-    'sha256:4132180012a70c5552d55cf5b3a4be8ba571da5c60b7acfc4d8c06c027210008'
+    '341268561baaff256927c931ec8215dbd30e3cee' \
+    'sha256:4013ac03e5f1d53df1e9d93e525247529291a748082085a02ee51533def1a11e'
   assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
     '[0-9a-f]{40}' \
     'sha256:69e2ac9eb2bbe2881df26acc53b46b39a15cfda206f5357e5f9c83feb0fadcc7'
@@ -121,8 +121,8 @@ assert_lock_entry() {
     '[0-9a-f]{40}' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    '30d4553ecd46fbc5212fd0ff006ae43af522158b' \
-    'sha256:8c28a53f8d0f70ad6fec905e0216364bd78a47cb86432aa5dd725af5120f7070'
+    'c7cb2fdcacd134fb2ccb9b7a44f9ffa44e467271' \
+    'sha256:d43226e1aeb2a2dadefe88c22cbe1340343162a78bcc7b9a932a4ab36d6e7a12'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
     '[0-9a-f]{40}' \
     'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'

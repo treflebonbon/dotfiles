@@ -182,6 +182,8 @@ root lock metadata、`deployments` の owner／active_owner／共有 owner ledge
 
 ### 過去の更新記録
 
+2026-11-04 の更新では、Modern Web Guidance と Remotion の selected payload を前進させ、upstream から削除された Orca computer-use は既存 revision に固定して保持した。Matt 1.3.2 の公式27件と Impeccable の安定版は維持する。通常 native lock の Matt `package_type` だけの変化は配備 bytes 不変を確認して採用した。公開 skills plugin 0.2.5 は Antigravity の strict validator に失敗したため却下し、0.2.3 の pin record 全体を保持する。ツール・スキルごとの採否と検証は [更新記録](https://github.com/treflebonbon/dotfiles/blob/35d779204e6493f13481ce20db90275e0b6a107c/docs/research/update-tools-skills-20261104.md)を参照する。
+
 以下は各時点の記録であり、現行の採用内容は上記 revision と ADR-0071 に従う。
 
 2026-07-21 の上流更新では mattpocock workflow を commit `9603c1c` に統一し、各 skill の Codex metadata（`agents/openai.yaml`）と最新の grilling / ticket / wayfinding guidance を取り込んだ。repo 固有の main-flow と上書き契約は引き続き `AGENTS.md` / ADR を優先する。Impeccable は commit `4d849eb` に更新し、Design Hook の重複 finding 修正と検出精度改善を quiet hook テストで検証した。未固定の APM 依存も同時に再解決し、Remotion は上流の canonical path `remotion-best-practices` へ追従した。lock は APM 0.26.0 の隔離 runtime layout で再生成し、同じ環境の `apm install --frozen` が書き戻しなしになることを確認した。
