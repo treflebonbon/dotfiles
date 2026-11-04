@@ -42,6 +42,26 @@ print({
   [ "$(field command <<<"$output")" = "gcloud-inspect logging read 'severity>=ERROR' --project p" ]
 }
 
+@test "cf と公式別名 cloudflare を Cloudflare の検査入口へ接続する" {
+  local cli
+  for cli in cf cloudflare; do
+    run -0 hook "$cli workers scripts search --name 'a b'"
+    [ "$(field command <<<"$output")" = "cloudflare-inspect workers scripts search --name 'a b'" ]
+    [ "$(field description <<<"$output")" = d ]
+  done
+}
+
+@test "cf の未対応構文と reviewed は案内つきで拒否し、文字列への言及は変更しない" {
+  local command
+  for command in 'cf d1 list | jq .' 'TOKEN=x cf d1 list' 'cf d1 list >out' 'cf d1 list --name $NAME' 'cf --reviewed d1 get id' 'echo "$(cf d1 list)"' 'cloudflare d1 list; echo x'; do
+    run -0 hook "$command"
+    [ "$(field decision <<<"$output")" = deny ]
+    [[ "$(field reason <<<"$output")" == *cf* || "$(field reason <<<"$output")" == *cloudflare* ]]
+  done
+  run -0 hook 'echo cf cloudflare'
+  [ -z "$output" ]
+}
+
 @test "書換え時に command 以外の tool_input を保つ" {
   run -0 hook "gcloud projects list"
   [ "$(field description <<<"$output")" = "d" ]

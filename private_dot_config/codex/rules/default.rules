@@ -38,6 +38,34 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["cloudflare-inspect"],
+    decision = "allow",
+    justification = "Cloudflare の確認済み Read 操作と出力を検査する入口。",
+    match = ["cloudflare-inspect d1 list"],
+)
+
+prefix_rule(
+    pattern = ["cloudflare-inspect", "--reviewed"],
+    decision = "prompt",
+    justification = "追加の Read 参照は対象・操作・理由を示して人に確認する。",
+    match = ["cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef"],
+)
+
+prefix_rule(
+    pattern = [["cf", "cloudflare", "/bin/cf", "/usr/bin/cf", "/bin/cloudflare", "/usr/bin/cloudflare"]],
+    decision = "forbidden",
+    justification = "Cloudflare 調査は hook 経由の検査入口を使い、未検査の実行を拒否する。",
+    match = ["cf d1 list", "cloudflare deploy", "/usr/bin/cf auth login"],
+)
+
+prefix_rule(
+    pattern = [["command", "env"], ["cf", "cloudflare"]],
+    decision = "forbidden",
+    justification = "wrapper で Cloudflare の検査を迂回せず、検査入口を使う。",
+    match = ["command cf d1 list", "env cloudflare d1 list"],
+)
+
+prefix_rule(
     pattern = ["gcloud-inspect"],
     decision = "allow",
     justification = "読み取り操作と出力を検証する限定入口。対応外は実行せず確認を要求する。",

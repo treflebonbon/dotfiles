@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 実機の Claude / Codex に1回だけ Bash を呼ばせ、hook とダミーの記録を残す。
-# 使い方: live-hook-agent.sh claude|codex WORK_DIR HOOK PROMPT
+# 使い方: live-hook-agent.sh claude|codex WORK_DIR HOOK PROMPT [gcloud|cf|cloudflare] [allow|deny|ask|hook-fail|helper-fail]
 # WORK_DIR に bin/（ダミー）、stub.log、hook.log.in/out、agent.out、agent.exit を作る。
 # モデルを呼ぶので opt-in 専用。Codex は host の ~/.codex/auth.json を symlink で借りる。
 #
@@ -12,9 +12,16 @@
 #   - `| tail` は timeout の Terminated を隠し、終了コードも tail のものになる → ファイルへ出して終了コードを別に記録する
 set -euo pipefail
 agent=$1 work=$2 hook=$3 prompt=$4
+raw=${5:-gcloud} decision=${6:-allow}
+case "$raw" in
+gcloud) inspector=gcloud-inspect ;;
+cf | cloudflare) inspector=cloudflare-inspect ;;
+*) exit 2 ;;
+esac
+case "$decision" in allow | deny | ask | hook-fail | helper-fail) ;; *) exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$work/bin"
-for name in gcloud gcloud-inspect; do
+for name in gcloud gcloud-inspect cf cloudflare cloudflare-inspect; do
   cp "$here/live-hook-stub.sh" "$work/bin/$name"
   chmod +x "$work/bin/$name"
 done
@@ -22,20 +29,33 @@ export STUB_LOG="$work/stub.log" HOOK_LOG="$work/hook.log" PATH="$work/bin:$PATH
 : >"$STUB_LOG"
 wrapper="$here/live-hook-wrapper.sh"
 printf -v command_line 'bash %q %q' "$wrapper" "$hook"
+[ "$decision" != hook-fail ] || command_line=false
+export LIVE_HOOK_STUB_EXIT=0
+[ "$decision" != helper-fail ] || export LIVE_HOOK_STUB_EXIT=1
+policy=$decision
+case "$decision" in hook-fail | helper-fail) policy=allow ;; esac
 
 case "$agent" in
 claude)
   settings="$work/settings.json"
-  jq -n --arg c "$command_line" '{hooks: {PreToolUse: [{matcher: "Bash", hooks: [{type: "command", command: $c}]}]}}' >"$settings"
-  cmd=(claude -p "$prompt" --settings "$settings" --allowedTools Bash)
+  jq -n --arg c "$command_line" --arg raw "Bash($raw:*)" --arg target "Bash($inspector:*)" --arg policy "$policy" \
+    '{hooks: {PreToolUse: [{matcher: "Bash", hooks: [{type: "command", command: $c}]}]}, permissions: {deny: [$raw]} } | .permissions[$policy] += [$target]' >"$settings"
+  export CLAUDE_CONFIG_DIR="$work/claude-home"
+  mkdir -p "$CLAUDE_CONFIG_DIR"
+  ln -s "${LIVE_HOOK_CLAUDE_AUTH:-$HOME/.claude/.credentials.json}" "$CLAUDE_CONFIG_DIR/.credentials.json"
+  cmd=(claude -p "$prompt" --settings "$settings" --allowedTools Bash --output-format json)
   ;;
 codex)
   export CODEX_HOME="$work/codex-home"
   mkdir -p "$CODEX_HOME"
-  ln -sf "$HOME/.codex/auth.json" "$CODEX_HOME/auth.json"
+  ln -s "${LIVE_HOOK_CODEX_AUTH:-$HOME/.codex/auth.json}" "$CODEX_HOME/auth.json"
   printf '[features]\nhooks = true\n' >"$CODEX_HOME/config.toml"
   jq -n --arg c "$command_line" '{hooks: {PreToolUse: [{matcher: "Bash", hooks: [{type: "command", command: $c}]}]}}' >"$CODEX_HOME/hooks.json"
-  cmd=(codex exec --skip-git-repo-check --sandbox workspace-write -C "$work" "$prompt")
+  mkdir -p "$CODEX_HOME/rules"
+  case "$policy" in deny) policy=forbidden ;; ask) policy=prompt ;; esac
+  printf 'prefix_rule(pattern = ["%s"], decision = "forbidden")\nprefix_rule(pattern = ["%s"], decision = "%s")\n' \
+    "$raw" "$inspector" "$policy" >"$CODEX_HOME/rules/default.rules"
+  cmd=(codex exec --json --model gpt-6-luna -c 'model_reasoning_effort="xhigh"' --skip-git-repo-check --sandbox workspace-write -C "$work" "$prompt")
   [ "${CODEX_BYPASS_HOOK_TRUST:-0}" = 1 ] && cmd+=(--dangerously-bypass-hook-trust)
   ;;
 *)

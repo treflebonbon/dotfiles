@@ -5,3 +5,4 @@
   printf ' [%s]' "$@"
   printf '\n'
 } >>"${STUB_LOG:?}"
+exit "${LIVE_HOOK_STUB_EXIT:-0}"

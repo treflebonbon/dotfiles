@@ -44,7 +44,39 @@ setup() {
 }
 
 teardown() {
-  rm -rf -- "$SHARED_TMP" "${OUTSIDE_TMP:-$SHARED_TMP}"
+  rm -rf -- "$SHARED_TMP" "${OUTSIDE_TMP:-$SHARED_TMP}" "${OTHER_SUITE:-$SHARED_TMP}"
+}
+
+codex_probe() {
+  if [ "$(uname -s)" != Linux ]; then
+    "$@"
+    return
+  fi
+  # 他 suite の生成・撤去や unreadable fixture を Codex の glob scan に見せない。
+  local -a namespace=(
+    bwrap --unshare-user --die-with-parent --ro-bind / /
+    --tmpfs /tmp --dir /tmp/codex --chmod 0700 /tmp/codex
+    --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR"
+    --bind "$SHARED_TMP" "$SHARED_TMP"
+    --dev /dev --proc /proc
+  )
+  if [[ -n "${OUTSIDE_TMP:-}" ]]; then
+    namespace+=(--bind "$OUTSIDE_TMP" "$OUTSIDE_TMP")
+  fi
+  "${namespace[@]}" "$@"
+}
+
+@test "Codex tmp probes do not observe another suite's shared scratch" {
+  [ "$(uname -s)" = Linux ] || skip "Linux の namespace 分離を確認する"
+  OTHER_SUITE="$(mktemp -d /tmp/codex/another-suite.XXXXXX)"
+  printf 'other suite\n' >"$OTHER_SUITE/public.txt"
+  run codex_probe env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
+    codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- sh -c '
+      if test -e "$1"; then printf "other suite is visible\n" >&2; exit 1; fi
+    ' _ "$OTHER_SUITE/public.txt"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ "$(cat "$OTHER_SUITE/public.txt")" = 'other suite' ]
 }
 
 @test "Codex shares /tmp/codex outside its session TMPDIR and denies other /tmp files" {
@@ -52,7 +84,7 @@ teardown() {
   printf 'outside-public\n' >"$OUTSIDE_TMP/public.txt"
   printf 'original\n' >"$SHARED_TMP/shared.txt"
 
-  run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
+  run codex_probe env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
     codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- sh -c '
       set -eu
       test "$(cat "$1/shared.txt")" = original
@@ -84,12 +116,12 @@ teardown() {
   done
 
   for path in "${paths[@]}"; do
-    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
+    run codex_probe env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
       codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- cat "$SHARED_TMP/$path"
     [ "$status" -ne 0 ]
     [[ "$output" != *dummy-secret* ]]
 
-    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
+    run codex_probe env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
       codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- \
       sh -c 'printf overwritten >"$1"' _ "$SHARED_TMP/$path"
     [ "$status" -ne 0 ]
@@ -98,7 +130,7 @@ teardown() {
 
   for path in .envrc .env.example; do
     printf 'public\n' >"$SHARED_TMP/$path"
-    run env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
+    run codex_probe env HOME="$FIXTURE_HOME" CODEX_HOME="$FIXTURE_HOME/.codex" XDG_STATE_HOME="$STATE_HOME" TMPDIR="$SESSION_TMP" \
       codex sandbox -P dotfiles-secure -C "$WORKSPACE" -- \
       sh -c 'set -eu; test "$(cat "$1")" = public; printf updated >"$1"' _ "$SHARED_TMP/$path"
     [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
