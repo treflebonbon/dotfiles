@@ -42,6 +42,18 @@ change_bash_entry() {
   [ ! -s "$(git rev-parse --git-path tested-trees)" ]
 }
 
+@test "renaming a runtime-sensitive path still requires its runtime" {
+  change_bash_entry
+  git update-ref refs/remotes/origin/main HEAD
+  git mv private_dot_local/bin/executable_codex-repo-state moved-script
+  git -c user.name=t -c user.email=t@example.com commit -qm 'test: rename repo state'
+
+  run -1 env -u TEST_COMPAT_BASH "$PROJECT_ROOT/scripts/pre-push.sh" record
+
+  [[ "$output" == *TEST_COMPAT_BASH* ]]
+  [ ! -s "$(git rev-parse --git-path tested-trees)" ]
+}
+
 @test "runtime-sensitive changes reject a newer Bash before starting the full suite" {
   change_bash_entry
   printf '#!/bin/sh\nprintf 5.3\n' >"$BATS_TEST_TMPDIR/new-bash"

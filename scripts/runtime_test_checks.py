@@ -40,7 +40,7 @@ def required_tests(source, environment):
     base = git("merge-base", "origin/main", "HEAD").decode().strip()
     changed = {
         os.fsdecode(path)
-        for path in git("diff", "--name-only", "-z", base, "HEAD").split(b"\0")
+        for path in git("diff", "--no-renames", "--name-only", "-z", base, "HEAD").split(b"\0")
         if path
     }
     return (
