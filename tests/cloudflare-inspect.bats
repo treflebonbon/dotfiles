@@ -4,15 +4,16 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  SCRIPT="$PROJECT_ROOT/private_dot_local/bin/executable_cloudflare-inspect"
+  SCRIPT="$BATS_TEST_TMPDIR/bin/cloudflare-inspect"
   export CF_TEST_LOG="$BATS_TEST_TMPDIR/calls.jsonl"
   export CF_TEST_RESPONSE="$BATS_TEST_TMPDIR/response.json"
   export CLOUDFLARE_API_TOKEN="DUMMY_CF_TOKEN"
   export CLOUDFLARE_ACCOUNT_ID="0123456789abcdef0123456789abcdef"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
+  install -m 755 "$PROJECT_ROOT/private_dot_config/nix-devshell/packages/cloudflare-cli/cloudflare-inspect.py" "$SCRIPT"
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
-  cat >"$BATS_TEST_TMPDIR/bin/cf" <<'PY'
-#!/usr/bin/env python3
+  printf '#!%s\n' "$(command -v python3)" >"$BATS_TEST_TMPDIR/bin/cf"
+  cat >>"$BATS_TEST_TMPDIR/bin/cf" <<'PY'
 import json, os, pathlib, sys
 fixture = pathlib.Path(__file__).resolve().parent.parent
 if sys.argv[1:] == ['--version']:
@@ -65,6 +66,24 @@ PY
   [ "$(jq -r '.[0].name' <<<"$output")" = example ]
   run jq -se '.[0] == ["d1", "list", "--page=2", "--per-page=20"]' "$CF_TEST_LOG"
   [ "$status" -eq 0 ]
+}
+
+@test "Cloudflare の helper は PATH 上で版を偽装する cf に token を渡さない" {
+  mkdir -p "$BATS_TEST_TMPDIR/untrusted"
+  cat >"$BATS_TEST_TMPDIR/untrusted/cf" <<'SH'
+#!/bin/sh
+if [ "$1" = --version ]; then
+  printf '%s\n' 1.0.0-beta.24
+else
+  printf '%s\n' '{"name":"UNTRUSTED"}'
+fi
+SH
+  chmod +x "$BATS_TEST_TMPDIR/untrusted/cf"
+  export PATH="$BATS_TEST_TMPDIR/untrusted:$PATH"
+  run python3 -I "$SCRIPT" d1 list
+  [ "$status" -eq 0 ]
+  [ -e "$CF_TEST_LOG" ]
+  [ "$(jq -r '.[0].name' <<<"$output")" = example ]
 }
 
 @test "Cloudflare の初期4操作は対象とページを検証して実行する" {
@@ -141,6 +160,28 @@ PY
   run python3 -I "$SCRIPT" d1 list
   [ "$status" -ne 0 ]
   [[ "$output" != *DUMMY_CF_TOKEN* && "$output" != *DUMMY_SECRET* ]]
+}
+
+@test "Cloudflare の CLI 起動失敗は秘密値を含まない診断を返す" {
+  mv "$BATS_TEST_TMPDIR/bin/cf" "$BATS_TEST_TMPDIR/bin/unavailable"
+  run python3 -I "$SCRIPT" d1 list
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'Cloudflare の参照を安全に完了できませんでした'* ]]
+  [[ "$output" != *Traceback* && "$output" != *DUMMY_CF_TOKEN* ]]
+  [ ! -e "$CF_TEST_LOG" ]
+}
+
+@test "Cloudflare の CLI timeout は外部境界の診断値を表示しない" {
+  run python3 -I - "$SCRIPT" <<'PY'
+import runpy, subprocess, sys
+from unittest.mock import patch
+sys.argv = [sys.argv[1], 'd1', 'list']
+with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('DUMMY_CF_TOKEN', 120, output='DUMMY_SECRET')):
+    runpy.run_path(sys.argv[0], run_name='__main__')
+PY
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'Cloudflare の参照を安全に完了できませんでした'* ]]
+  [[ "$output" != *DUMMY_CF_TOKEN* && "$output" != *DUMMY_SECRET* && "$output" != *Traceback* ]]
 }
 
 @test "Cloudflare の検査入口を許可し reviewed を確認、生 CLI を拒否する" {

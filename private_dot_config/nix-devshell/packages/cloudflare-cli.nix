@@ -3,6 +3,7 @@
   lib,
   makeWrapper,
   nodejs,
+  python3,
 }:
 
 buildNpmPackage {
@@ -16,6 +17,10 @@ buildNpmPackage {
   nativeBuildInputs = [ makeWrapper ];
 
   postInstall = ''
+    mkdir -p "$out/bin"
+    substitute "$src/cloudflare-inspect.py" "$out/bin/cloudflare-inspect" \
+      --replace-fail '#!/usr/bin/env -S python3 -I' '#!${python3}/bin/python3 -I'
+    chmod +x "$out/bin/cloudflare-inspect"
     cli="$out/lib/node_modules/dotfiles-cloudflare-cli/node_modules/cf/bin/cf"
     for name in cf cloudflare; do
       makeWrapper ${nodejs}/bin/node "$out/bin/$name" \

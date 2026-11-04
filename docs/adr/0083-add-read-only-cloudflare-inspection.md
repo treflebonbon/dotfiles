@@ -23,7 +23,7 @@ Workers Logs の `o11y telemetry query` は問い合わせであっても公式�
 
 CLI はユーザー環境の Nix package で公式 npm `cf@1.0.0-beta.24` と依存関係を固定する。公開日時は 2026-10-27T20:48:41.841Z で、採用時点で満7日以上経過している。Node 要件は `^22.23.0 || ^24.22.0 || ^26.12.0`、管理下の Node 24.22.1 は適合する。ソースビルドせず公式 npm 配布物を使い、install script を実行しない。helper の版照合と `CF_DELEGATION=1` で、project 内の別版への委譲による pin の無効化を防ぐ。[公式配布情報](https://registry.npmjs.org/cf/1.0.0-beta.24)、[CLI の版の選択](https://developers.cloudflare.com/cf/get-started/)
 
-CLI に渡す認証は環境変数の token だけとし、一時 HOME・空の cwd・限定した環境で起動する。project の `.env`・実行可能設定・保存済みログインと、任意 endpoint・Node の起動オプションを引き継がない。endpoint は public の公式 API に固定し、proxy / CA は保持する。token は出力・ログ・エラーに出さず、既知の機密項目を表示前に除外する。[endpoint 変更の注意](https://developers.cloudflare.com/cf/environment-variables/)
+helper を同じ Nix package に同梱し、自身の実体と同じ immutable package の `cf` を絶対パスで起動する。caller の PATH から実行ファイルを選ばず、版確認には token を渡さない。CLI に渡す認証は環境変数の token だけとし、一時 HOME・空の cwd・限定した環境で起動する。project の `.env`・実行可能設定・保存済みログインと、任意 endpoint・Node の起動オプションを引き継がない。endpoint は public の公式 API に固定し、proxy / CA は保持する。token は出力・ログ・エラーに出さず、既知の機密項目を表示前に除外する。[endpoint 変更の注意](https://developers.cloudflare.com/cf/environment-variables/)
 
 `cf cli search` 本体はローカル index の検索で、docs 検索とは区別する。使用状況 telemetry は無効化し、検索語は初期対象の固定 product 語彙だけにする。
 

@@ -33,3 +33,18 @@ setup() {
     [ "$status" -eq 0 ]
   done
 }
+
+@test "Nix の検査 helper は PATH 上の偽 cf ではなく同梱 CLI を使う" {
+  mkdir -p untrusted
+  cat >untrusted/cf <<'SH'
+#!/bin/sh
+printf '%s\n' 'UNTRUSTED_CF_MUST_NOT_RUN'
+exit 1
+SH
+  chmod +x untrusted/cf
+  run --separate-stderr env PATH="$PWD/untrusted:$PATH" cloudflare-inspect cli search 'd1 databases'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *UNTRUSTED_CF_MUST_NOT_RUN* ]]
+  run jq -e 'type == "array" and length > 0' <<<"$output"
+  [ "$status" -eq 0 ]
+}

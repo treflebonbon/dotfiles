@@ -50,7 +50,7 @@ def read_cf(arguments, *, search=False):
     account = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
     if not search and (not token or not re.fullmatch(r"[a-fA-F0-9]{32}", account)):
         raise ValueError("Read のみの CLOUDFLARE_API_TOKEN と対象の CLOUDFLARE_ACCOUNT_ID が必要です。")
-    inherited = ("PATH", "LANG", "LC_ALL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+    inherited = ("LANG", "LC_ALL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
                  "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "NIX_SSL_CERT_FILE")
     environment = {key: os.environ[key] for key in inherited if key in os.environ}
     scratch = Path("/tmp/codex")
@@ -66,7 +66,7 @@ def read_cf(arguments, *, search=False):
                            CLOUDFLARE_API_BASE_URL="https://api.cloudflare.com/client/v4",
                            CLOUDFLARE_COMPLIANCE_REGION="public")
         def invoke(args):
-            result = subprocess.run(["cf", *args], capture_output=True, text=True, timeout=120,
+            result = subprocess.run([str(Path(__file__).resolve().with_name("cf")), *args], capture_output=True, text=True, timeout=120,
                                     cwd=temporary, env=environment)
             if result.returncode:
                 raise ValueError("cf の参照に失敗しました。Read 権限・対象・接続状態を確認してください。")
