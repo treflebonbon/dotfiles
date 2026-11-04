@@ -226,10 +226,12 @@ setup() {
     ! grep -Fq '## 設計→実装ワークフロー' "$root"
     ! grep -Fq '## ブラウザ操作ツール' "$root"
     ! grep -Fq '## Google Cloud / GitHub の調査' "$root"
+    ! grep -Fq '## Google Cloud / Cloudflare / GitHub の調査' "$root"
   done
   for instructions in "$GLOBAL_CLAUDE" "$GLOBAL_CODEX"; do
     grep -Fq '## 設計→実装ワークフロー' "$instructions"
-    grep -Fq '## Google Cloud / GitHub の調査' "$instructions"
+    grep -Fq '## Google Cloud / Cloudflare / GitHub の調査' "$instructions"
+    grep -Fq '`cloudflare-inspect`' "$instructions"
     ! grep -Fq '`runtime/' "$instructions"
   done
   grep -Fq 'status: accepted' "$PROJECT_ROOT/docs/adr/0078-keep-repo-instructions-out-of-home.md"

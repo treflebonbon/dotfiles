@@ -1,11 +1,11 @@
 ---
 type: concept
-title: Google Cloud と GitHub の調査
+title: Google Cloud・Cloudflare・GitHub の調査
 description: 既存の認証を使う調査コマンド、設定の機密項目の除外、未対応操作の実行前確認
-tags: [gcloud, github, codex, claude-code, permissions]
+tags: [gcloud, cloudflare, github, codex, claude-code, permissions]
 ---
 
-# Google Cloud と GitHub の調査
+# Google Cloud・Cloudflare・GitHub の調査
 
 通常の Codex と Claude Code は、既存の認証でアクセスできる Google Cloud プロジェクトと GitHub repo を調査できる。private repo も含む。新しいアクセス権の付与や認証設定の変更は、調査許可に含まれない。`codex-worktree` の raw 隔離版は別の認証・通信境界を使い、この入口の対象外。
 
@@ -52,6 +52,40 @@ gcloud-inspect monitoring time-series list \
 ```
 
 開始・終了にはタイムゾーン付きの日時を指定する。1ページの件数は既定100、最大1000。レスポンスに `nextPageToken` があれば、同じ条件に `--page-token TOKEN` を追加して次のページを読む。
+
+## Cloudflare
+
+通常の `cf <引数>` と公式別名 `cloudflare <引数>` は、共通の `gcloud-inspect-hook` が `cloudflare-inspect <引数>` へ書き換える。エージェントは通常のコマンド名から調査でき、操作・引数の許可と機密項目の除外は helper が行う。単独のリテラル引数だけを受理し、複合 shell・展開・代入・リダイレクトなどは Google Cloud と同じく理由つきで拒否する。専用入口の直接呼出しも可能。
+
+自動許可する API 操作は次の4件。`--page` は1以上、`--per-page` は1〜100（既定100）。コマンドごとの引数は固定版 CLI の確認済みのものだけを通す。
+
+```bash
+cf durable-objects namespaces list --page 1 --per-page 20
+cf d1 list --name example
+cf r2 buckets list --direction asc --per-page 20
+cf workers scripts search --name example
+```
+
+API token は Read のみとし、`CLOUDFLARE_API_TOKEN` と対象 account の32桁の `CLOUDFLARE_ACCOUNT_ID` を実行環境に安全に注入する。token の値をチャット、コマンド履歴、出力、ログに残さない。token がない場合に保存済みのログインへ切り替えない。
+
+token の作成は人が Cloudflare のプロフィール内の API Tokens 画面で custom token を選び、Account 権限の `Workers Scripts: Read`、`D1: Read`、`Workers R2 Storage: Read` だけを付け、Account Resources を調査対象 account に限定する。作成した値は承認済みの秘密値保管先へ直接登録する。権限付与・token 作成・認証設定の変更は自動調査の許可範囲に含めない。[token 作成手順](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/)
+
+`cf cli search` は認証情報を渡さず、`durable objects namespaces`、`d1 databases`、`r2 buckets`、`workers scripts` の固定語彙だけで使う。任意の名前・ドメイン・ID・token は検索語にしない。コマンド検索は同梱 index のローカル処理だが、CLI の使用状況 telemetry は常に `CF_SEND_TELEMETRY=false` と `DO_NOT_TRACK=1` で無効化する。`cf docs search` は今回の許可対象外。
+
+初期対象外の Read 参照は、対象・コマンド・理由を示して人の確認後に `cloudflare-inspect --reviewed` を使う。現行の確認済み追加操作は `d1 get <database-id>`（UUID、任意の `--fields`）のみ。それ以外は確認後も未対応として停止する。追加操作の正式な schema・Read 権限・引数・出力を確認して helper とテストを更新するまで、生 CLI や別経路で代用しない。
+
+```bash
+# この操作・対象について人の確認を得た後に実行する。
+cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef --fields name
+```
+
+`--reviewed` は両 runtime の ask / prompt の対象で、hook は自動付加しない。Write が必要な Workers Logs / `o11y telemetry query` は `--reviewed` でも許可しない。作成・更新・削除・deploy・認証変更・秘密値取得・`--force` も拒否する。既知の `vars`・`bindings`・環境変数・secret/token 類を `[非表示]` にし、実 token の文字列反映も除外する。未知の機密値の完全な自動判別は保証しない。
+
+helper は一時 HOME と空の作業ディレクトリで CLI を起動し、project の `.env`・実行可能設定・保存済み認証を読ませない。endpoint を公式の public API に固定し、`NODE_OPTIONS`・debug・profile・任意 endpoint の上書きを引き継がない。必要な proxy と CA は保持する。`cf` はユーザー環境の Nix package で exact pin し、helper も版を照合する。`CF_DELEGATION=1` で project 内の別版への委譲を止める。更新は満7日以上経過した公開版で、schema と検査・配線の検証後に行う。
+
+hook の失敗・timeout・未信頼時は元の `cf` / `cloudflare` を禁止ルールが拒否し、helper 不在・失敗時は別経路へ fallback しない。`command` / `env` と既知の `/bin` / `/usr/bin` の別名も禁止する。任意の絶対パスや interpreter まで完全に遮断する sandbox ではなく、拒否の迂回を禁止する行動契約は引き続き適用する。
+
+自動検証と両 runtime のダミー検証では実 credential・実サービスを使わない。実サービスでの接続と Read token の権限確認は、受入・live source からの対象限定配備の後の別工程。書込みの 403 を確かめるために破壊的 API を試す場合も、操作・対象・範囲を示して事前確認を得る。未実施の確認は未確認として引き継ぐ。[採用判断](../docs/adr/0083-add-read-only-cloudflare-inspection.md)
 
 ## GitHub
 

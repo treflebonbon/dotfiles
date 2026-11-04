@@ -1,10 +1,10 @@
 #!/usr/bin/env -S python3 -I
 
-"""PreToolUse hook: 単独の gcloud 呼出しを gcloud-inspect へ書換える。
+"""PreToolUse hook: 単独の gcloud / cf 呼出しを検査入口へ書換える。
 
 Claude Code と Codex が共有する。書換えるのは「展開を伴わないリテラル引数だけの単独呼出し」のみ。
-gcloud と認識できても安全に書換えられない入力は deny し、それ以外は何も出力しない（既存ルールに任せる）。
-許可リストや機密項目の除外は gcloud-inspect の責務で、ここでは判定しない。docs/adr/0077 を参照。
+対象 CLI と認識できても安全に書換えられない入力は deny し、それ以外は何も出力しない（既存ルールに任せる）。
+許可リストや機密項目の除外は 各検査入口の責務で、ここでは判定しない。docs/adr/0077 を参照。
 """
 
 import json
@@ -13,29 +13,31 @@ import shlex
 import sys
 from typing import NamedTuple
 
+HELPERS = {"gcloud": "gcloud-inspect", "cf": "cloudflare-inspect", "cloudflare": "cloudflare-inspect"}
+
 REASONS = {
     "compound": (
-        "gcloud を含む複合 shell（cd・&&・パイプ・コマンド置換など）は自動で書換えられません。"
-        "gcloud <引数> を単独で1回呼び出してください。後処理は結果を受け取ってから別の呼出しで行います。"
-        "直接の gcloud や別の実行方法で迂回しないでください。"
+        "{cli} を含む複合 shell（cd・&&・パイプ・コマンド置換など）は自動で書換えられません。"
+        "{cli} <引数> を単独で1回呼び出してください。後処理は結果を受け取ってから別の呼出しで行います。"
+        "直接の {cli} や別の実行方法で迂回しないでください。"
     ),
     "unsupported": (
-        "展開（$・バッククォート・glob・~・{}）、環境変数の代入、リダイレクト、改行・コメントを含む gcloud は"
-        "自動で書換えられません。リテラルの引数だけで gcloud <引数> を単独で1回呼び出してください。"
-        "直接の gcloud や別の実行方法で迂回しないでください。"
+        "展開（$・バッククォート・glob・~・{{}}）、環境変数の代入、リダイレクト、改行・コメントを含む {cli} は"
+        "自動で書換えられません。リテラルの引数だけで {cli} <引数> を単独で1回呼び出してください。"
+        "直接の {cli} や別の実行方法で迂回しないでください。"
     ),
     "reviewed": (
         "先頭の --reviewed は自動変換しません。対象・コマンド・必要な理由をユーザーへ示して確認を得た後、"
-        "gcloud-inspect --reviewed <引数> を明示的に実行してください。"
+        "{helper} --reviewed <引数> を明示的に実行してください。"
     ),
 }
 
 ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
 # 直後の単語もコマンド位置として扱うシェル構文。
 COMMAND_KEYWORDS = {"if", "then", "else", "elif", "do", "while", "until", "time", "!", "{"}
-# 置換の中身で、先頭または演算子・予約語の直後にある gcloud。gcloud-inspect などは含めない。
-NESTED_GCLOUD = re.compile(
-    r"(?:\A|[;&|({`\n]|\$\(|\b(?:if|then|else|elif|do|while|until|time)\b|!\s)\s*gcloud(?![\w./-])"
+# 置換内のコマンド位置にある対象 CLI。検査入口の名前は含めない。
+NESTED_CLI = re.compile(
+    r"(?:\A|[;&|({`\n]|\$\(|\b(?:if|then|else|elif|do|while|until|time)\b|!\s)\s*(gcloud|cf|cloudflare)(?![\w./-])"
 )
 OPERATORS = "\n;|&()"
 WORD_END = " \t" + OPERATORS + "<>"
@@ -59,7 +61,7 @@ class Scan:
         self.structure = False  # 演算子・サブシェルを含む
         self.redirect = False  # リダイレクト・コメントを含む
         self.assignment = False  # 環境変数の代入をコマンドの前に置く
-        self.nested_gcloud = False  # コマンド置換の先頭に gcloud がある
+        self.nested_cli = False  # コマンド置換内の対象 CLI 名
         self.words = []
         self.stopped = False
         self._run()
@@ -100,8 +102,8 @@ class Scan:
         # heredoc の本文と、置換が閉じた後の文字列は走査しない。
         content = self.command[content_start:].split("<<", 1)[0]
         content = content.split("`", 1)[0] if backtick else content[: self._substitution_end(content)]
-        if NESTED_GCLOUD.search(content):
-            self.nested_gcloud = True
+        if match := NESTED_CLI.search(content):
+            self.nested_cli = match[1]
 
     def _heredoc_delimiter(self, i):
         """<< の直後から終端語を読む。(次の位置, (終端語, タブを無視するか)) を返し、読めなければ None。"""
@@ -247,20 +249,22 @@ class Scan:
 
 
 def classify(command):
-    """('rewrite', args) | ('deny', 理由キー) | None を返す。None は何もしない。"""
+    """('rewrite', helper を含む引数列) | ('deny', 案内) | None を返す。"""
     scan = Scan(command)
-    gcloud_words = [w for w in scan.words if w.command_position and w.plain and w.value == "gcloud"]
-    if not (gcloud_words or scan.nested_gcloud):
+    cli_words = [w for w in scan.words if w.command_position and w.plain and w.value in HELPERS]
+    if not (cli_words or scan.nested_cli):
         return None
-    # 先頭以外のコマンド位置にある gcloud（time gcloud など）も、単独の呼出しではない。
-    if scan.structure or scan.nested_gcloud or gcloud_words[0] is not scan.words[0]:
-        return ("deny", "compound")
+    cli = cli_words[0].value if cli_words else scan.nested_cli
+    reason = {key: value.format(cli=cli, helper=HELPERS[cli]) for key, value in REASONS.items()}
+    # 先頭以外のコマンド位置にある対象 CLI（time gcloud など）も、単独の呼出しではない。
+    if scan.structure or scan.nested_cli or cli_words[0] is not scan.words[0]:
+        return ("deny", reason["compound"])
     if scan.assignment or scan.redirect or any(w.bad for w in scan.words):
-        return ("deny", "unsupported")
+        return ("deny", reason["unsupported"])
     args = [w.value for w in scan.words[1:]]
     if args and args[0] == "--reviewed":
-        return ("deny", "reviewed")
-    return ("rewrite", args)
+        return ("deny", reason["reviewed"])
+    return ("rewrite", [HELPERS[cli], *args])
 
 
 def respond(**fields):
@@ -278,9 +282,9 @@ def main():
         return
     kind, detail = decision
     if kind == "deny":
-        respond(permissionDecision="deny", permissionDecisionReason=REASONS[detail])
+        respond(permissionDecision="deny", permissionDecisionReason=detail)
         return
-    rewritten = " ".join(["gcloud-inspect", *map(shlex.quote, detail)])
+    rewritten = " ".join(map(shlex.quote, detail))
     respond(permissionDecision="allow", updatedInput={**tool_input, "command": rewritten})
 
 

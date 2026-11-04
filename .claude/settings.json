@@ -1,7 +1,11 @@
 {
   "permissions": {
-    "allow": ["Skill", "Bash(gcloud-inspect:*)"],
-    "ask": ["Bash(gcloud-inspect --reviewed:*)", "Bash(gh api:*)"],
+    "allow": ["Skill", "Bash(cloudflare-inspect:*)", "Bash(gcloud-inspect:*)"],
+    "ask": [
+      "Bash(cloudflare-inspect --reviewed:*)",
+      "Bash(gcloud-inspect --reviewed:*)",
+      "Bash(gh api:*)"
+    ],
     "deny": [
       "Read(**/.env*)",
       "Read(**/*.pem)",
@@ -32,6 +36,16 @@
       "Bash(git push --force:*)",
       "Bash(git push --force-with-lease:*)",
       "Bash(git reset --hard:*)",
+      "Bash(cf:*)",
+      "Bash(command cf:*)",
+      "Bash(env cf:*)",
+      "Bash(/bin/cf:*)",
+      "Bash(/usr/bin/cf:*)",
+      "Bash(cloudflare:*)",
+      "Bash(command cloudflare:*)",
+      "Bash(env cloudflare:*)",
+      "Bash(/bin/cloudflare:*)",
+      "Bash(/usr/bin/cloudflare:*)",
       "Bash(gcloud:*)",
       "Bash(command gcloud:*)",
       "Bash(env gcloud:*)",
