@@ -182,7 +182,7 @@ root lock metadata、`deployments` の owner／active_owner／共有 owner ledge
 
 ### 過去の更新記録
 
-2026-11-04 の更新では、Modern Web Guidance と Remotion の selected payload を前進させ、upstream から削除された Orca computer-use は既存 revision に固定して保持した。Matt 1.3.2 の公式27件と Impeccable の安定版は維持する。通常 native lock の Matt `package_type` だけの変化は配備 bytes 不変を確認して採用した。公開 skills plugin 0.2.5 は Antigravity の strict validator に失敗したため却下し、0.2.3 の pin record 全体を保持する。ツール・スキルごとの採否と検証は [更新記録](../docs/research/update-tools-skills-20261104.md)を参照する。
+2026-11-04 の更新では、Modern Web Guidance と Remotion の selected payload を前進させ、upstream から削除された Orca computer-use は既存 revision に固定して保持した。Matt 1.3.2 の公式27件と Impeccable の安定版は維持する。通常 native lock の Matt `package_type` だけの変化は配備 bytes 不変を確認して採用した。公開 skills plugin 0.2.5 は Antigravity の strict validator に失敗したため却下し、0.2.3 の pin record 全体を保持する。ツール・スキルごとの採否と検証は [更新記録](https://github.com/treflebonbon/dotfiles/blob/35d779204e6493f13481ce20db90275e0b6a107c/docs/research/update-tools-skills-20261104.md)を参照する。
 
 以下は各時点の記録であり、現行の採用内容は上記 revision と ADR-0071 に従う。
 
