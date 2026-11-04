@@ -80,6 +80,15 @@ def runtime_paths(required, environment):
         module = plugin / "lua/nvim-treesitter/init.lua"
         if not plugin.is_absolute() or not module.is_file():
             raise ValueError("NVIM_TREESITTER_RUNTIME に固定版 plugin の checkout が必要です")
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=all", "--ignored=matching"],
+            cwd=plugin,
+            env=environment,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if status:
+            raise ValueError("NVIM_TREESITTER_RUNTIME の checkout は clean である必要があります")
         paths["treesitter_module"] = str(module)
     return paths
 

@@ -86,7 +86,11 @@ case ${CANONICAL_FIXTURE_MODE:-} in
   source-change) printf 'changed\n' > "$SOURCE/tracked-file" ;;
   head-change) git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit --quiet --allow-empty -m changed ;;
   runtime-change) printf '# changed\n' >> "$IMPECCABLE_BIN" ;;
-  treesitter-change) printf '%s\n' '-- changed' >> "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua" ;;
+  treesitter-change)
+    printf '%s\n' '-- changed' >> "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+    git -C "$NVIM_TREESITTER_RUNTIME" add .
+    git -C "$NVIM_TREESITTER_RUNTIME" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change plugin'
+    ;;
   exit-mismatch) exit 1 ;;
 esac
 SH
@@ -106,6 +110,9 @@ change_treesitter() {
   export NVIM_TREESITTER_RUNTIME="$BATS_TEST_TMPDIR/treesitter"
   mkdir -p "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter"
   : >"$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+  git -C "$NVIM_TREESITTER_RUNTIME" init -q
+  git -C "$NVIM_TREESITTER_RUNTIME" add .
+  git -C "$NVIM_TREESITTER_RUNTIME" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: seed plugin'
   sed -i '1s/16/18/' "$CANONICAL_FIXTURE_TAP"
   cat >>"$CANONICAL_FIXTURE_TAP" <<'TAP'
 ok 17 Treesitter の設定を読み込み、標準 API で選択を拡大・縮小できる
@@ -143,6 +150,50 @@ TAP
 
   assert_failure
   assert_output --partial NVIM_TREESITTER_RUNTIME
+  [ ! -s "$TEST_LOG" ]
+}
+
+@test "Treesitter checkout の変更と ignore で隠れた追加ファイルを検証開始前に拒否する" {
+  change_treesitter
+  local pristine="$NVIM_TREESITTER_RUNTIME" mode
+  for mode in staged unstaged untracked info-ignored config-ignored; do
+    export NVIM_TREESITTER_RUNTIME="$BATS_TEST_TMPDIR/$mode"
+    git clone -q "$pristine" "$NVIM_TREESITTER_RUNTIME"
+    if [[ "$mode" == untracked || "$mode" == *-ignored ]]; then
+      printf 'return {}\n' >"$NVIM_TREESITTER_RUNTIME/untracked.lua"
+      if [[ "$mode" == info-ignored ]]; then
+        printf 'untracked.lua\n' >"$NVIM_TREESITTER_RUNTIME/.git/info/exclude"
+      elif [[ "$mode" == config-ignored ]]; then
+        printf 'untracked.lua\n' >"$BATS_TEST_TMPDIR/global-ignore"
+        git -C "$NVIM_TREESITTER_RUNTIME" config core.excludesFile "$BATS_TEST_TMPDIR/global-ignore"
+      fi
+    else
+      printf '%s\n' '-- changed' >>"$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+      [[ "$mode" != staged ]] || git -C "$NVIM_TREESITTER_RUNTIME" add .
+    fi
+    if [[ "$mode" == *-ignored ]]; then
+      run git -C "$NVIM_TREESITTER_RUNTIME" status --porcelain --untracked-files=all
+      assert_success
+      [ -z "$output" ]
+    fi
+
+    run_canonical
+
+    assert_failure
+    assert_output --partial 'checkout は clean である必要があります'
+    [ ! -s "$TEST_LOG" ]
+  done
+}
+
+@test "Treesitter checkout の Git 状態を確認できなければ検証を開始しない" {
+  change_treesitter
+  export NVIM_TREESITTER_RUNTIME="$BATS_TEST_TMPDIR/not-a-checkout"
+  mkdir -p "$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter"
+  : >"$NVIM_TREESITTER_RUNTIME/lua/nvim-treesitter/init.lua"
+
+  run_canonical
+
+  assert_failure
   [ ! -s "$TEST_LOG" ]
 }
 

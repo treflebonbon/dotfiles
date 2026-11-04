@@ -92,7 +92,7 @@ WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`
 `scripts/runtime_test_checks.py` は `origin/main` との merge-base から公開する HEAD の変更を調べる。Herdr のコピー処理・`codex-repo-state`、Treesitter 設定と各回帰テストを変更した場合、対応する実ランタイムの検証を必須にする。対象パスと必須テスト名の正本はこのスクリプトに置く。スクリプト自身の変更では両方を検証する。
 
 - Bash 対象では `TEST_COMPAT_BASH` に実行可能な Bash 3.2 の絶対パスを指定する。実行して版を確認し、新しい Bash による代用を拒否する。macOS では、版が一致する既存の `/bin/bash` を使える。
-- Treesitter 対象では `NVIM_TREESITTER_RUNTIME` に plugin の checkout の絶対パスを指定する。`private_dot_config/nvim/lua/plugins/lsp.lua` に記載された固定 commit との一致は、既存の実 API テストが確認する。
+- Treesitter 対象では `NVIM_TREESITTER_RUNTIME` に plugin の checkout の絶対パスを指定する。変更や追加ファイル（ignore 対象の生成物も含む）がない検証用 checkout を使う。`private_dot_config/nvim/lua/plugins/lsp.lua` に記載された固定 commit との一致は、既存の実 API テストが確認する。
 
 pre-push は未検証の対象変更で準備不足なら全 Bats の開始前に停止する。全 Bats の成功後も、検証済み tree の記録直前に対象の回帰テストを実行し、欠落・重複・失敗・skip を拒否する。同じ tree の成功記録は従来どおり再利用する。canonical 検証も対応テストを必須一覧へ追加し、準備した Bash と Treesitter module の指紋を前後記録へ含める。対象外の変更では、これらのランタイムを要求しない。
 
@@ -102,10 +102,13 @@ NVIM_TREESITTER_RUNTIME=/absolute/path/to/nvim-treesitter \
 python3 scripts/run-canonical.py --shell default --no-codex-build
 ```
 
-Linux x86_64 で Bash 3.2 が未導入の場合は、検証専用に Debian archive の配布済みバイナリを使える。以下は `curl`・`dpkg-deb`・`sha256sum` がある環境向けで、通常の PATH は変更しない。他の OS／architecture では、その環境で実行できる Bash 3.2 を明示指定する。
+Linux x86_64 で Bash 3.2 が未導入の場合は、検証専用に Debian archive の配布済みバイナリを使える。以下は `curl`・`dpkg-deb`・`sha256sum` がある環境向けで、リポジトリ root から実行する。既存の `ensure_scratch_root()` で一時領域の作成・所有権・権限を確認し、通常の PATH は変更しない。他の OS／architecture では、その環境で実行できる Bash 3.2 を明示指定する。
 
 ```bash
-compat_runtime="$(mktemp -d /tmp/codex/bash32-runtime.XXXXXX)"
+compat_runtime="$(
+  python3 -B -c 'from scripts.verification_env import ensure_scratch_root; ensure_scratch_root()' &&
+    mktemp -d /tmp/codex/bash32-runtime.XXXXXX
+)" &&
 (
 set -eu
 curl --fail --location --silent --show-error \
