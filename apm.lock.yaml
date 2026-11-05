@@ -2414,7 +2414,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: 4aaea19d9cff3e0908e12a8c1d504b8c5ec34610
+  resolved_commit: 8a3536678a528cc012b9e62484290e79d0be410f
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2547,7 +2547,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: a905a311c5adcdf23d05ffb8a60e3d7fcf25b567
+  resolved_commit: dabdb6068df6a1117278aa94105f83c31eeb428a
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -3173,7 +3173,7 @@ dependencies:
 - repo_url: vercel-labs/skills
   name: find-skills
   host: github.com
-  resolved_commit: 9197d919034d19010ae303cf96bf19ad087dd4be
+  resolved_commit: a0a1bb93d342061ce4ddf3e8d88fe8314d9f1f9c
   version: unknown
   virtual_path: skills/find-skills
   is_virtual: true

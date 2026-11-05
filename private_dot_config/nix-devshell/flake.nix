@@ -25,7 +25,7 @@
 
     llm-agents = {
       # Immutable installed AI toolset snapshot; modules/ai.nix enforces safety floors.
-      url = "github:numtide/llm-agents.nix/78f777ba4f6141fca604a5cee3f6ff8dfab09f48";
+      url = "github:numtide/llm-agents.nix/499fb79f92064e92cdb968d12ffeb92d36243b50";
     };
 
     # APM は更新対象から外し、修正済みの既存 output を維持する（ADR-0045）。

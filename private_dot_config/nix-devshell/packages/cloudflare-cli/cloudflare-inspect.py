@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 
-VERSION = "1.0.0-beta.24"
+VERSION = "1.0.0-beta.25"
 OPERATIONS = {
     ("d1", "list"): ("page", "per-page", "name"),
     ("durable-objects", "namespaces", "list"): ("page", "per-page"),
