@@ -49,3 +49,15 @@ pin 更新に伴うテスト期待値と現行 runtime 文書の訂正を含む�
 - **確認済み（Nix 評価）:** 両 flake の `nix flake check --no-build --all-systems` が成功。root の app に `meta` がない既存 warning は残る。
 
 通常 HOME の配備、PR 公開・merge、実 Windows Chrome、モデル呼出しは検証範囲に含めない。
+
+## 最終検証とレビュー
+
+- **確認済み（関連検証）:** `related.tap` は95/95成功、skip0・失敗0。品質 floor、3 system の upstream direct output、修正済み APM の既存 output、Design Hook、Playwright の実 package / runtime、Cloudflare の実 CLI schema と helper の安全境界を含む。root 依存の frozen install、TypeScript 型検査、registry 検査、commit hook も成功した。旧 pin / 版を tests・runtime・現行 package で検索し、取り残しがないことを確認した。
+- **確認済み（独立レビュー）:** 実装 commit `381120c` を固定した Standards / Spec の独立レビューは両軸0件。現在の要件原文・ユーザーの範囲選択・適用 ADR・本記録と不採用候補の理由を両担当へ渡し、予定変更と実差分を照合した。結果は `review-result.json` に保存した。Standards 報告中の旧 pin 検索規約の参照先は `docs/coding-standards.md` ではなく `docs/conventions.md` の更新追跡節であり、親が参照表記を訂正した。
+- **確認済み（canonical）:** clean な `381120c6d2a9ce829ba3ab0b2d6798620ac5562d` で canonical 入口を一度実行した。`lefthook run test` は全802件中777成功・25 skip・失敗0、command / runner / canonical 入口すべて exit0、実測271.631秒。必須の Design Hook 13件と Playwright runtime 2件は全件成功・skipなし。source と runtime の前後 JSON 全体が一致し、証拠照合の `errors` は空だった。TAP SHA-256 は `649021f40df9b48120e2d8eac5bc25ec3a671a6659f8fa0f819c10f879c4798f`。
+
+25件の skip は、実モデル12件、Herdr2件、raw隔離4件、独立言語テンプレート1件、実 Nix app2件、Bash3.2と実 Treesitter 各1件、親テストからだけ有効にする probe1件、Claude実同期1件。Claude実同期は canonical 内で skip だが、別の公式 CLI 検証で2回成功している。実モデル等の opt-in を実行済みとは扱わない。
+
+canonical の本体記録は task worktree の `tmp/canonical-run.s5tyy1kg/`、TAP は `tmp/test-run.vLMcYV/`、環境準備の記録は `/tmp/codex/canonical-env.lic0qdvz/`。結果・前後 JSON・TAP のコピーも共有 scratch の `canonical-{result,before,after}.json` / `canonical.tap` に保持した。
+
+canonical 成功後の変更は本記録への結果追記だけで、実装・依存・テストは変更していない。今回の source 実装・検証・レビューを完了とし、PR 公開・merge・live 配備は未実施として引き継ぐ。
