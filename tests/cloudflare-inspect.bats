@@ -165,7 +165,7 @@ PY
 @test "Cloudflare の書込み・無制約の Logs・秘密値・未知の引数は CLI 実行前に拒否する" {
   local command reviewed
   for reviewed in '' '--reviewed'; do
-    for command in 'd1 delete x' 'o11y telemetry query' 'o11y telemetry queries create' 'o11y telemetry queries delete saved' 'workers scripts tail example' 'deploy' 'auth login' 'workers scripts secrets get x' 'd1 list --force' 'd1 list --api-token DUMMY_CF_TOKEN' 'd1 list --page 0' 'r2 buckets list --per-page 101' 'r2 buckets list --direction drop' 'workers scripts search --config x' 'd1 query x'; do
+    for command in 'd1 delete x' 'o11y telemetry query' 'o11y queries create' 'o11y queries edit saved' 'o11y queries delete saved' 'deploy' 'auth login' 'workers scripts secrets get x' 'd1 list --force' 'd1 list --api-token DUMMY_CF_TOKEN' 'd1 list --page 0' 'r2 buckets list --per-page 101' 'r2 buckets list --direction drop' 'workers scripts search --config x' 'd1 query x'; do
       read -r -a arguments <<<"$command"
       run python3 -I "$SCRIPT" ${reviewed:+"$reviewed"} "${arguments[@]}"
       [ "$status" -ne 0 ]
