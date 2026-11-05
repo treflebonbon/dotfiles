@@ -39,7 +39,7 @@ def redact(value, token):
         result = {}
         for key, item in value.items():
             name = re.sub(r"[^a-z0-9]", "", key.lower())
-            sensitive = name in {"vars", "bindings", "env", "environment", "environmentvariables", "authorization", "cookie", "cookies", "setcookie"} or name.endswith(
+            sensitive = name in {"vars", "bindings", "env", "environment", "environmentvariables", "authorization", "cookie", "cookies", "setcookie", "proxyauthorization", "cfaccessjwtassertion", "xauthkey"} or name.endswith(
                 ("token", "password", "passwd", "secret", "secrets", "privatekey", "apikey", "credential", "credentials")
             )
             result[redact(key, token)] = "[非表示]" if sensitive else redact(item, token)

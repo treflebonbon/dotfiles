@@ -181,6 +181,22 @@ PY
   [[ "$output" != *DUMMY_CF_TOKEN* && "$output" != *DUMMY_AUTH* && "$output" != *DUMMY_COOKIE* ]]
 }
 
+@test "Workers の過去ログの Proxy・Access・Cloudflare 認証ヘッダーを表示しない" {
+  cat >"$CF_TEST_RESPONSE" <<'JSON'
+{"events":{"events":[{"request":{"headers":{"Proxy-Authorization":"DUMMY_PROXY_AUTH","CF-Access-Jwt-Assertion":"DUMMY_ACCESS_JWT","X-Auth-Key":"DUMMY_AUTH_KEY","Content-Type":"application/json"}}}]}}
+JSON
+  run python3 -I "$SCRIPT" o11y telemetry query --worker example \
+    --start 2026-11-01T00:00:00Z --end 2026-11-01T01:00:00Z --limit 1
+  [ "$status" -eq 0 ]
+  run jq -e '.events.events[0].request.headers == {
+    "Proxy-Authorization": "[非表示]",
+    "CF-Access-Jwt-Assertion": "[非表示]",
+    "X-Auth-Key": "[非表示]",
+    "Content-Type": "application/json"
+  }' <<<"$output"
+  [ "$status" -eq 0 ]
+}
+
 @test "Cloudflare の書込み・無制約の Logs・秘密値・未知の引数は CLI 実行前に拒否する" {
   local command reviewed
   for reviewed in '' '--reviewed'; do

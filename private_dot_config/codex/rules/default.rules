@@ -47,7 +47,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["cloudflare-inspect", "--reviewed"],
     decision = "prompt",
-    justification = "追加の Read 参照は対象・操作・理由を示して人に確認する。",
+    justification = "確認付きの Read 参照と過去ログ検索は対象・操作・理由を人に確認する。ログ検索には Workers Observability Write が必要。",
     match = ["cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef"],
 )
 

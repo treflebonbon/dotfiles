@@ -93,7 +93,7 @@ cf o11y telemetry query --worker example --start 2026-11-01T00:00:00Z --end 2026
 cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef --fields name
 ```
 
-`--reviewed` は両 runtime の ask / prompt の対象で、hook は自動付加しない。過去ログ検索は `--reviewed` を付けても同じ制約を守る。それ以外の作成・更新・削除・deploy・認証変更・秘密値取得・`--force` は拒否する。既知の `vars`・`bindings`・環境変数・secret/token 類・Authorization・Cookie を `[非表示]` にし、実 token の文字列反映も除外する。未知の機密値の完全な自動判別は保証しない。
+`--reviewed` は両 runtime の ask / prompt の対象で、hook は自動付加しない。過去ログ検索は `--reviewed` を付けても同じ制約を守る。それ以外の作成・更新・削除・deploy・認証変更・秘密値取得・`--force` は拒否する。既知の `vars`・`bindings`・環境変数・secret/token 類・Authorization・Proxy-Authorization・CF-Access-Jwt-Assertion・X-Auth-Key・Cookie を `[非表示]` にし、実 token の文字列反映も除外する。未知の機密値の完全な自動判別は保証しない。
 
 helper と `cf` は同じユーザー環境の Nix package から配布する。helper は自身の実体と同じ immutable package 内の `cf` を絶対パスで起動し、caller の PATH 上の同名 CLI は信用しない。一時 HOME と空の作業ディレクトリで起動し、project の `.env`・実行可能設定・保存済み認証を読ませない。endpoint を公式の public API に固定し、`NODE_OPTIONS`・debug・profile・任意 endpoint の上書きを引き継がない。必要な proxy と CA は保持する。`cf` はユーザー環境の Nix package で exact pin し、helper も token を渡す前に版を照合する。`CF_DELEGATION=1` で project 内の別版への委譲を止める。更新は満7日以上経過した公開版で、schema と検査・配線の検証後に行う。
 
