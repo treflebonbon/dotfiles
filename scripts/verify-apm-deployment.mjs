@@ -74,19 +74,85 @@ const verifySkillFiles = (directory, runtime, verifiedFiles) => {
   }
 };
 
-const verify = (baseFile, runtimeDirectory, planFile) => {
+const verifyDeployedFiles = (
+  runtime,
+  dependency,
+  skills,
+  verifiedFiles,
+  live
+) => {
+  const { deployed_files: files, deployed_file_hashes: hashes } = dependency;
+  for (const file of Object.keys(hashes)) {
+    assert.ok(files.includes(file), `hash 台帳だけに存在: ${file}`);
+  }
+  for (const file of files) {
+    const match =
+      /^\.(?<target>agents|claude)\/skills\/(?<skill>[^/]+)(?:\/.*)?$/u.exec(
+        file
+      );
+    assert.ok(
+      match && !file.split("/").some((part) => part === ".." || part === "."),
+      `配備先不正: ${file}`
+    );
+    const deployedPath = realpathSync(path.resolve(runtime, file));
+    assert.ok(
+      !live || deployedPath === path.resolve(runtime, file),
+      `live の管理対象に symlink があります: ${file}`
+    );
+    const location = path.relative(runtime, deployedPath);
+    assert.ok(
+      location !== ".." && !location.startsWith(`..${path.sep}`),
+      `runtime 外の配備先: ${file}`
+    );
+    skills[`.${match.groups.target}`].add(match.groups.skill);
+    if (statSync(deployedPath).isDirectory()) {
+      assert.ok(!(file in hashes), `directory に file hash: ${file}`);
+      continue;
+    }
+    assert.ok(
+      statSync(deployedPath).isFile(),
+      `通常 file ではありません: ${file}`
+    );
+    const bytes = readFileSync(deployedPath);
+    // APM は lock に改行を LF へ正規化した hash を記録するが、配備 file は CRLF のまま残る。
+    const actual = [
+      digest(bytes),
+      digest(
+        Buffer.from(bytes.toString("latin1").replaceAll("\r\n", "\n"), "latin1")
+      ),
+    ];
+    assert.ok(actual.includes(hashes[file]), `file hash 不一致: ${file}`);
+    verifiedFiles.add(file);
+    if (file.endsWith("/SKILL.md")) {
+      verifyFrontmatter(bytes, file);
+    }
+  }
+};
+
+const verify = (baseFile, runtimeDirectory, planEntries, live = false) => {
   const runtime = realpathSync(runtimeDirectory);
-  const base = indexDependencies(readYaml(baseFile).dependencies);
-  const candidate = indexDependencies(
-    readYaml(path.join(runtime, "apm.lock.yaml")).dependencies
-  );
+  const runtimeLock = path.join(runtime, "apm.lock.yaml");
+  if (live) {
+    assert.ok(
+      lstatSync(baseFile).isFile() && lstatSync(runtimeLock).isFile(),
+      "live 検証の lock は通常 file にしてください"
+    );
+  }
+  const accepted = readYaml(baseFile);
+  const deployed = readYaml(runtimeLock);
+  if (live) {
+    assert.ok(
+      isDeepStrictEqual(deployed, accepted),
+      "live lock が受入済み lock と一致しません"
+    );
+  }
+  const base = indexDependencies(accepted.dependencies);
+  const candidate = indexDependencies(deployed.dependencies);
   assert.ok(
     isDeepStrictEqual(sorted(candidate.keys()), sorted(base.keys())),
     "dependency の構成が変わっています"
   );
-  const plans = indexDependencies(
-    JSON.parse(readFileSync(planFile, "utf-8")).candidates
-  );
+  const plans = indexDependencies(planEntries);
   for (const identity of plans.keys()) {
     assert.ok(candidate.has(identity), `計画に未知の dependency: ${identity}`);
   }
@@ -140,60 +206,27 @@ const verify = (baseFile, runtimeDirectory, planFile) => {
     } else {
       verifyUnchanged(previous, dependency, identity);
     }
-    for (const file of Object.keys(hashes)) {
-      assert.ok(files.includes(file), `hash 台帳だけに存在: ${file}`);
-    }
-    for (const file of files) {
-      const match =
-        /^\.(?<target>agents|claude)\/skills\/(?<skill>[^/]+)(?:\/.*)?$/u.exec(
-          file
-        );
-      assert.ok(
-        match && !file.split("/").some((part) => part === ".." || part === "."),
-        `配備先不正: ${file}`
-      );
-      const deployedPath = realpathSync(path.resolve(runtime, file));
-      const location = path.relative(runtime, deployedPath);
-      assert.ok(
-        location !== ".." && !location.startsWith(`..${path.sep}`),
-        `runtime 外の配備先: ${file}`
-      );
-      skills[`.${match.groups.target}`].add(match.groups.skill);
-      if (statSync(deployedPath).isDirectory()) {
-        assert.ok(!(file in hashes), `directory に file hash: ${file}`);
-        continue;
-      }
-      assert.ok(
-        statSync(deployedPath).isFile(),
-        `通常 file ではありません: ${file}`
-      );
-      const bytes = readFileSync(deployedPath);
-      // APM は lock に改行を LF へ正規化した hash を記録するが、配備 file は CRLF のまま残る。
-      const actual = [
-        digest(bytes),
-        digest(
-          Buffer.from(
-            bytes.toString("latin1").replaceAll("\r\n", "\n"),
-            "latin1"
-          )
-        ),
-      ];
-      assert.ok(actual.includes(hashes[file]), `file hash 不一致: ${file}`);
-      verifiedFiles.add(file);
-      if (file.endsWith("/SKILL.md")) {
-        verifyFrontmatter(bytes, file);
-      }
-    }
+    verifyDeployedFiles(runtime, dependency, skills, verifiedFiles, live);
   }
+  const unmanaged = [];
   for (const [target, expected] of Object.entries(skills)) {
     const directory = path.join(runtime, target, "skills");
-    const discovered = readdirSync(directory).filter((name) =>
-      statSync(path.join(directory, name)).isDirectory()
-    );
-    assert.ok(
-      isDeepStrictEqual(sorted(discovered), sorted(expected)),
-      `${target} の skill discovery 不一致`
-    );
+    const entries = readdirSync(directory);
+    if (live) {
+      unmanaged.push(
+        ...entries
+          .filter((name) => !expected.has(name))
+          .map((name) => path.join(target, "skills", name))
+      );
+    } else {
+      const discovered = entries.filter((name) =>
+        statSync(path.join(directory, name)).isDirectory()
+      );
+      assert.ok(
+        isDeepStrictEqual(sorted(discovered), sorted(expected)),
+        `${target} の skill discovery 不一致`
+      );
+    }
     for (const name of expected) {
       assert.ok(
         verifiedFiles.has(`${target}/skills/${name}/SKILL.md`),
@@ -202,18 +235,30 @@ const verify = (baseFile, runtimeDirectory, planFile) => {
       verifySkillFiles(path.join(directory, name), runtime, verifiedFiles);
     }
   }
+  if (live) {
+    console.log(`管理外の配備先: ${JSON.stringify(sorted(unmanaged))}`);
+  }
   console.log(
     `PASS: dependency ${candidate.size}、skill .agents=${skills[".agents"].size} .claude=${skills[".claude"].size}、追加${added}・削除${removed}`
   );
 };
 
 try {
+  const args = process.argv.slice(2);
   assert.equal(
-    process.argv.length,
-    5,
-    "使用法: bun scripts/verify-apm-deployment.mjs BASE_LOCK RUNTIME PLAN.json"
+    args.length,
+    3,
+    "使用法: bun scripts/verify-apm-deployment.mjs BASE_LOCK RUNTIME PLAN.json | --live ACCEPTED_LOCK HOME"
   );
-  verify(...process.argv.slice(2));
+  if (args[0] === "--live") {
+    verify(args[1], args[2], [], true);
+  } else {
+    verify(
+      args[0],
+      args[1],
+      JSON.parse(readFileSync(args[2], "utf-8")).candidates
+    );
+  }
 } catch (error) {
   console.error(`REJECT: ${error.message}`);
   process.exitCode = 1;

@@ -18,6 +18,7 @@ import json, os, pathlib, sys
 fixture = pathlib.Path(__file__).resolve().parent.parent
 if sys.argv[1:] == ['--version']:
     assert 'CLOUDFLARE_API_TOKEN' not in os.environ
+    assert 'CLOUDFLARE_ACCOUNT_ID' not in os.environ
     print((fixture / 'version').read_text().strip() if (fixture / 'version').exists() else '1.0.0-beta.25')
     raise SystemExit(0)
 assert os.environ['CF_SEND_TELEMETRY'] == 'false'
@@ -41,6 +42,52 @@ print((fixture / 'response.json').read_text())
 PY
   chmod +x "$BATS_TEST_TMPDIR/bin/cf"
   printf '%s\n' '[{"name":"example","uuid":"db-id"}]' >"$CF_TEST_RESPONSE"
+}
+
+@test "Cloudflare の版表示は認証情報なしで同梱 CLI だけを呼ぶ" {
+  run env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID python3 -I "$SCRIPT" --version
+  [ "$status" -eq 0 ]
+  [ "$output" = 1.0.0-beta.25 ]
+  [ ! -e "$CF_TEST_LOG" ]
+}
+
+@test "Cloudflare の版表示は hook と helper を通して両別名から呼べる" {
+  local cli payload command
+  for cli in cf cloudflare; do
+    payload=$(jq -nc --arg command "$cli --version" '{tool_name:"Bash",tool_input:{command:$command}}')
+    run "$PROJECT_ROOT/private_dot_local/bin/executable_gcloud-inspect-hook" <<<"$payload"
+    [ "$status" -eq 0 ]
+    [ "$(jq -r .hookSpecificOutput.permissionDecision <<<"$output")" = allow ]
+    command=$(jq -r .hookSpecificOutput.updatedInput.command <<<"$output")
+    [ "$command" = 'cloudflare-inspect --version' ]
+
+    run bash -c "$command"
+    [ "$status" -eq 0 ]
+    [ "$output" = 1.0.0-beta.25 ]
+  done
+  [ ! -e "$CF_TEST_LOG" ]
+}
+
+@test "Cloudflare の版表示は追加引数と reviewed を受け入れない" {
+  local arguments
+  for arguments in '--version --force' '--version --body DUMMY_SECRET' '--version=other' '--reviewed --version'; do
+    read -r -a fields <<<"$arguments"
+    run python3 -I "$SCRIPT" "${fields[@]}"
+    [ "$status" -ne 0 ]
+    [[ "$output" != *DUMMY_SECRET* ]]
+  done
+  [ ! -e "$CF_TEST_LOG" ]
+}
+
+@test "Cloudflare の版表示は同梱 CLI の版不一致を秘密値を出さずに拒否する" {
+  printf '%s\n' 'wrong DUMMY_CF_TOKEN DUMMY_SECRET' >"$BATS_TEST_TMPDIR/version"
+
+  run python3 -I "$SCRIPT" --version
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'検証済み pin と一致しません'* ]]
+  [[ "$output" != *DUMMY_CF_TOKEN* && "$output" != *DUMMY_SECRET* ]]
+  [ ! -e "$CF_TEST_LOG" ]
 }
 
 @test "Cloudflare の既知の機密項目と token の反映を表示しない" {

@@ -29,6 +29,8 @@ helper を同じ Nix package に同梱し、自身の実体と同じ immutable p
 
 `cf cli search` 本体はローカル index の検索で、docs 検索とは区別する。使用状況 telemetry は無効化し、検索語は初期対象の固定 product 語彙だけにする。
 
+2026-11-05 の振り返りで合意した改善として、単独の `cf --version` と公式別名の版表示を検査入口で扱う。同じ immutable package 内のCLIの実際の版を既存のpinと照合し、成功した値だけを返す。認証情報は渡さず、外部APIは呼ばない。追加引数と `--reviewed` との併用は拒否し、既存のAPI操作・構文・fallbackの境界を維持する。
+
 ## 検証と配備
 
 自動検証ではダミーの JSON と CLI を使い、書込みが呼ばれないこと、機密項目除外、エラー処理、構文・引数の保存、両 runtime の許可設定を固定する。実 runtime のダミー検証は opt-in とし、skip を成功扱いしない。token が書込みを拒否することだけを helper の安全性の証明にしない。

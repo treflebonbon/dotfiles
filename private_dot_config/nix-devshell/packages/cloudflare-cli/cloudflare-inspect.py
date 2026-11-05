@@ -47,10 +47,10 @@ def redact(value, token):
     return value.replace(token, "[非表示]") if isinstance(value, str) and token else value
 
 
-def read_cf(arguments, *, search=False):
+def read_cf(arguments, *, local=False):
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
     account = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
-    if not search and (not token or not re.fullmatch(r"[a-fA-F0-9]{32}", account)):
+    if not local and (not token or not re.fullmatch(r"[a-fA-F0-9]{32}", account)):
         raise ValueError("必要な調査権限を持つ CLOUDFLARE_API_TOKEN と対象の CLOUDFLARE_ACCOUNT_ID が必要です。")
     inherited = ("LANG", "LC_ALL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
                  "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "NIX_SSL_CERT_FILE")
@@ -73,9 +73,12 @@ def read_cf(arguments, *, search=False):
             if result.returncode:
                 raise ValueError("cf の参照に失敗しました。必要な調査権限・対象・接続状態を確認してください。")
             return result.stdout
-        if invoke(["--version"]).strip() != VERSION:
+        version = invoke(["--version"]).strip()
+        if version != VERSION:
             raise ValueError("cf の版が検証済み pin と一致しません。ユーザー環境を更新してください。")
-        if not search:
+        if arguments == ["--version"]:
+            return version
+        if not local:
             environment.update(CLOUDFLARE_API_TOKEN=token, CLOUDFLARE_ACCOUNT_ID=account)
         try:
             value = json.loads(invoke(arguments))
@@ -119,7 +122,11 @@ def main(arguments):
               "\n過去ログ: o11y telemetry query --worker NAME --start ISO日時 --end ISO日時 [--limit 100]" +
               "\n  最大24時間・1000件。日時のタイムゾーンは必須。" +
               "\n確認後の追加参照: --reviewed d1 get <database-id> [--fields FIELDS]" +
+              "\n版表示: --version（認証不要、ローカルのみ）" +
               "\n検索: cli search <固定語彙>\n  " + " / ".join(SEARCH_TERMS))
+        return 0
+    if arguments == ["--version"]:
+        print(read_cf(arguments, local=True))
         return 0
     reviewed = arguments[:1] == ["--reviewed"]
     if reviewed:
@@ -130,7 +137,7 @@ def main(arguments):
     if arguments[:2] == ["cli", "search"]:
         if len(arguments) != 3 or arguments[2] not in SEARCH_TERMS:
             raise ValueError("コマンド検索には --help に示した固定の product 語彙だけを指定してください。")
-        print(read_cf(arguments, search=True))
+        print(read_cf(arguments, local=True))
         return 0
     command = next((key for key in OPERATIONS | REVIEWED if arguments[:len(key)] == list(key)), None)
     if command is None or command in REVIEWED and not reviewed:

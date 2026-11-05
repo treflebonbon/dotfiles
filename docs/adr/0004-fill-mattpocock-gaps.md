@@ -30,7 +30,7 @@ Accepted (2026-07-03)。ワークフローチェーンを単一チェーンと�
   - ワークフローチェーンは **`to-worktree → grill-with-docs → to-prd → to-issues → triage → to-pr`**。実装フェーズに user-invoked skill は無く、model-invoked 層が自動発火する（上流ルール: user-invoked は他の user-invoked を呼ばない）
   - チェーン入口の worktree 隔離は **`to-worktree`** skill として追加（Claude Code は `EnterWorktree` 優先、他ランタイムは `git worktree add .worktrees/<topic>`。2026-07-02 決定の「worktree は自律判断に委譲」を入口 skill として具体化。skill 層は薄く保ち、tdd / to-pr 等の実装系 skill には worktree 手順を組み込まない）
   - 非導入: `implement` / `resolving-merge-conflicts`（README 非掲載の unlisted。`implement` は一度導入したが model-invoked 発火で冗長な5行の糊と判明し除去）、`grilling`（fail-soft、model native に委譲）
-- `apm.yml` `targets` は `claude` / `codex`（apm の `install` は `antigravity` target 非対応）。ただし apm は全 skill を APM-native の共有ハブ `~/.agents/skills/` へ target 非依存で materialize し、そこが Antigravity のグローバル skill dir でもあるため、追加スキルは target 指定なしで 3 ランタイムに可視
+- `apm.yml` `targets` は `claude` / `codex`（apm の `install` は `antigravity` target 非対応）。apm は全 skill を APM-native の共有ハブ `~/.agents/skills/` へ target 非依存で materialize し、Codex はそこを直接読む。2026-11-05 訂正: Antigravity での可視性は採用版で未確認であり、配布先と検証状態は [APM のマルチランタイム配布](../../runtime/skill-harness.md#apm-のマルチランタイム配布) を参照する。
 - 実装後のブラウザ AC 検証 + PR 作成は、軽量 chezmoi ローカル skill **`to-pr`** で補完する:
   - `local-skills/to-pr/` を SoT に、`run_onchange_after_deploy-local-skills.sh.tmpl` が `~/.agents/skills` / `~/.claude/skills` へ materialize（orphan-cleanup の `preserve_local_skills` で保護）。Codex は `~/.agents/skills` を直接読むため、`~/.codex/skills` へは重複配備しない
   - 変更が browser-observable なら `playwright-cli` で AC 検証、非 UI なら検証を skip して draft PR を開く
@@ -40,7 +40,7 @@ Accepted (2026-07-03)。ワークフローチェーンを単一チェーンと�
 
 ## Consequences
 
-- 実装後の検証と PR 公開が skill 化され、Claude / Codex / Antigravity から共通に使える
+- 実装後の検証と PR 公開が skill 化され、Claude / Codex から共通に使える。Antigravity での可視性は上記の訂正に従う。
 - `to-pr` は draft PR + 正直な軽量検証ノートまで。マージ判断・wiki 同期・証跡アーカイブは人間 / 別プロセスに委ねる
 - chezmoi ローカル skill が第 4 の配布経路として確立（apm が唯一の管理点ではなくなった）
 - apm.lock 上、mattpocock 追加 4 skill は上流 HEAD (`e9dea69`) に解決されるが、対象 4 skill は既存 pin (`7a83a3a`) と内容同一のため実害なし

@@ -49,6 +49,8 @@ topic branch の push・PR 公開前に、validated task worktree で `lefthook 
 
 canonical検証の環境準備から開始する場合は、linked task worktree で次の入口を使う。検証する変更をcommitしてcleanにし、関連テストとレビュー指摘の修正を終えたHEADで実行する。通常Linuxでは `--shell default`、WSL2では `--shell wsl` を選ぶ。
 
+採否・判断・関連検証・レビュー結果の追跡ファイルへの記録も、この最終commitまでに終える。canonicalの結果の正本は生成された `result.json` と前後記録・TAPとし、要約はPR本文、公開しない場合は最終報告へ記載する。セッション間で共有する証跡は `/tmp/codex/<task>.XXXXXX/` 配下へコピーして保持する。成功後は検証結果の追記だけを目的に追跡ファイルを変更しない。変更が必要になった場合はcommit後のsourceに既存の再検証規則を適用し、検証済みtreeの判定は維持する。
+
 ```bash
 python3 scripts/run-canonical.py --shell wsl --no-codex-build
 ```
@@ -186,6 +188,8 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
 設定変更でも、本体パッチの追加や package の取得経路を変える場合はツール更新として扱う。既存バイナリで可能な代替案を先に確認し、新しいソースビルドや独自パッチ保守が必要になる時点で、予想ビルド時間と継続保守の負担を提示してユーザーと方針を合わせる。レビューでは、この範囲拡大の判断と根拠も確認する。
 
 更新開始時に既存の調査記録へ、更新単位、適用するADRの箇所、予定する変更（文書訂正を含む）を記録する。更新単位の分離は [ADR-0045](adr/0045-separate-llm-agents-and-apm-update-units.md) に従う。PRを分割したときは、元の差分から外した変更を一件ずつ記録し、採用・却下・保留の扱い、理由、対応先のPR／commit、反映・検証の状態を追跡する。対応先が未定の必要変更は保留とする。
+
+canonicalの実測結果の保存先と記録順序は、本ファイルの「テスト」節に従う。
 
 スナップショットや pin を更新したら、全 Bats の前に旧版・旧 revision を `grep -rn` で探し、tests と runtime に残る固定値を直す。期待値を package や lock から導出できるテストは、固定値を足さずに導出する（`tests/herdr.bats` の版は package から取る）。
 
