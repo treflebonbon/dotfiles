@@ -40,7 +40,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["cloudflare-inspect"],
     decision = "allow",
-    justification = "Cloudflare の確認済み Read 操作と出力を検査する入口。",
+    justification = "Cloudflare の確認済み参照と制限付き過去ログ検索の操作・出力を検査する入口。",
     match = ["cloudflare-inspect d1 list"],
 )
 

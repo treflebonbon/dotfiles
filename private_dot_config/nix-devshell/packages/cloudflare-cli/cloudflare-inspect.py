@@ -3,6 +3,7 @@
 """Cloudflare の確認済み参照操作だけを、機密項目を除外して返す。"""
 
 import argparse
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,7 @@ OPERATIONS = {
 }
 REVIEWED = {("d1", "get"): ("fields",)}
 SEARCH_TERMS = ("durable objects namespaces", "d1 databases", "r2 buckets", "workers scripts")
+LOG_QUERY = ("o11y", "telemetry", "query")
 
 
 class Parser(argparse.ArgumentParser):
@@ -37,7 +39,7 @@ def redact(value, token):
         result = {}
         for key, item in value.items():
             name = re.sub(r"[^a-z0-9]", "", key.lower())
-            sensitive = name in {"vars", "bindings", "env", "environment", "environmentvariables", "authorization"} or name.endswith(
+            sensitive = name in {"vars", "bindings", "env", "environment", "environmentvariables", "authorization", "cookie", "cookies", "setcookie"} or name.endswith(
                 ("token", "password", "passwd", "secret", "secrets", "privatekey", "apikey", "credential", "credentials")
             )
             result[redact(key, token)] = "[非表示]" if sensitive else redact(item, token)
@@ -49,7 +51,7 @@ def read_cf(arguments, *, search=False):
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
     account = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
     if not search and (not token or not re.fullmatch(r"[a-fA-F0-9]{32}", account)):
-        raise ValueError("Read のみの CLOUDFLARE_API_TOKEN と対象の CLOUDFLARE_ACCOUNT_ID が必要です。")
+        raise ValueError("必要な調査権限を持つ CLOUDFLARE_API_TOKEN と対象の CLOUDFLARE_ACCOUNT_ID が必要です。")
     inherited = ("LANG", "LC_ALL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
                  "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "NIX_SSL_CERT_FILE")
     environment = {key: os.environ[key] for key in inherited if key in os.environ}
@@ -69,7 +71,7 @@ def read_cf(arguments, *, search=False):
             result = subprocess.run([str(Path(__file__).resolve().with_name("cf")), *args], capture_output=True, text=True, timeout=120,
                                     cwd=temporary, env=environment)
             if result.returncode:
-                raise ValueError("cf の参照に失敗しました。Read 権限・対象・接続状態を確認してください。")
+                raise ValueError("cf の参照に失敗しました。必要な調査権限・対象・接続状態を確認してください。")
             return result.stdout
         if invoke(["--version"]).strip() != VERSION:
             raise ValueError("cf の版が検証済み pin と一致しません。ユーザー環境を更新してください。")
@@ -82,16 +84,48 @@ def read_cf(arguments, *, search=False):
     return json.dumps(redact(value, token), ensure_ascii=False)
 
 
+def query_logs(arguments):
+    parser = Parser(prog="cloudflare-inspect o11y telemetry query", allow_abbrev=False)
+    parser.add_argument("--worker", required=True)
+    parser.add_argument("--start", required=True)
+    parser.add_argument("--end", required=True)
+    parser.add_argument("--limit", type=int, default=100)
+    options = parser.parse_args(arguments)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,63}", options.worker):
+        raise ValueError("--worker は英数字・ハイフン・アンダースコアの1〜63文字で指定してください。")
+    if not 1 <= options.limit <= 1000:
+        raise ValueError("--limit は1〜1000にしてください。")
+    try:
+        for value in (options.start, options.end):
+            if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,3})?(?:Z|[+-][0-9]{2}:[0-9]{2})", value):
+                raise ValueError
+        start, end = (datetime.fromisoformat(value) for value in (options.start, options.end))
+    except ValueError:
+        raise ValueError("--start と --end はタイムゾーン付きの ISO 8601 日時で指定してください。小数秒はミリ秒までです。") from None
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    if not timedelta(0) < end - start <= timedelta(hours=24) or end > datetime.now(timezone.utc) or start < epoch:
+        raise ValueError("過去の開始・終了日時を昇順で指定し、期間を24時間以内にしてください。")
+    body = {"queryId": "cloudflare-inspect", "timeframe": {"from": (start - epoch) // timedelta(milliseconds=1), "to": (end - epoch) // timedelta(milliseconds=1)},
+            "view": "events", "limit": options.limit, "dry": True,
+            "parameters": {"filters": [{"key": "$metadata.service", "operation": "eq", "type": "string", "value": options.worker}]}}
+    return read_cf([*LOG_QUERY, "--body", json.dumps(body)])
+
+
 def main(arguments):
     if not arguments or arguments == ["--help"]:
         print("使い方: cloudflare-inspect <cf の参照操作> [引数]\n対応操作:\n" +
               "\n".join("  " + " ".join(command) for command in OPERATIONS) +
+              "\n過去ログ: o11y telemetry query --worker NAME --start ISO日時 --end ISO日時 [--limit 100]" +
+              "\n  最大24時間・1000件。日時のタイムゾーンは必須。" +
               "\n確認後の追加参照: --reviewed d1 get <database-id> [--fields FIELDS]" +
               "\n検索: cli search <固定語彙>\n  " + " / ".join(SEARCH_TERMS))
         return 0
     reviewed = arguments[:1] == ["--reviewed"]
     if reviewed:
         arguments = arguments[1:]
+    if arguments[:len(LOG_QUERY)] == list(LOG_QUERY):
+        print(query_logs(arguments[len(LOG_QUERY):]))
+        return 0
     if arguments[:2] == ["cli", "search"]:
         if len(arguments) != 3 or arguments[2] not in SEARCH_TERMS:
             raise ValueError("コマンド検索には --help に示した固定の product 語彙だけを指定してください。")
@@ -99,7 +133,7 @@ def main(arguments):
         return 0
     command = next((key for key in OPERATIONS | REVIEWED if arguments[:len(key)] == list(key)), None)
     if command is None or command in REVIEWED and not reviewed:
-        raise ValueError("自動許可対象外です。操作内容と理由をユーザーへ示して確認してください。Write 操作・Logs・秘密値取得は確認後も受理しません。")
+        raise ValueError("自動許可対象外です。操作内容と理由をユーザーへ示して確認してください。制限付き過去ログ検索以外の Write 操作と秘密値取得は確認後も受理しません。")
     parser = Parser(prog="cloudflare-inspect", allow_abbrev=False)
     if command in REVIEWED:
         parser.add_argument("database_id")

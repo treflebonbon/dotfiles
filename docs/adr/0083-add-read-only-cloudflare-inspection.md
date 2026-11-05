@@ -9,6 +9,8 @@ status: accepted
 
 # Cloudflare の調査を Read token と検査入口に限定する
 
+2026-11-05 更新: Workers の制限付き過去ログ検索については、[ADR-0084](0084-allow-bounded-workers-log-queries.md) で `Workers Observability Write` の例外を認めた。以下の Read のみという決定は初期採用時の記録とし、その他の操作・実行境界は引き続き適用する。
+
 公式 `cf` は API の書込みも扱い、読取り専用モードを持たない。通常の Claude Code / Codex に調査を許可するため、[ADR-0073](0073-allow-investigation-commands.md) の操作・出力検査と、[ADR-0077](0077-route-investigation-commands-through-hooks.md) の通常コマンドからの接続を踏襲する。
 
 ## 決定

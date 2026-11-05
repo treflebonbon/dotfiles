@@ -34,6 +34,13 @@ setup() {
   done
 }
 
+@test "固定版 cf の過去ログ検索は固定した POST endpoint と JSON body を使う" {
+  run --separate-stderr cf schema o11y telemetry query
+  [ "$status" -eq 0 ]
+  run jq -e '.httpMethod == "POST" and .hasRequestBody == true and .path == "/accounts/{account_id}/workers/observability/telemetry/query"' <<<"$output"
+  [ "$status" -eq 0 ]
+}
+
 @test "Nix の検査 helper は PATH 上の偽 cf ではなく同梱 CLI を使う" {
   mkdir -p untrusted
   cat >untrusted/cf <<'SH'
