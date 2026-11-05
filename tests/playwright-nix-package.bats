@@ -141,8 +141,10 @@ FIXTURE
     [ "$status" -eq 0 ]
     [ "$(cat "$OWNER_PROBE_LOG")" = "$package/libexec/$script" ]
 
+    : >"$OWNER_PROBE_LOG"
     before="$("$owner" --identity "$role" status)"
     [[ $before == *'"phase":"active"'* ]]
+    [ ! -s "$OWNER_PROBE_LOG" ]
     for state in managed:headless:4242 unknown query-error; do
       printf '%s\n' "$state" >"$OWNER_PROBE_STATE"
       expected="Chrome state is unconfirmed"
