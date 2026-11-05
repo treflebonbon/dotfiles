@@ -13,7 +13,7 @@ setup() {
   printf '%s\n' '#!/usr/bin/env node' 'console.log("UNTRUSTED_LOCAL_CF")' >node_modules/cf/bin/cf
   run --separate-stderr cf --version
   [ "$status" -eq 0 ]
-  [ "$output" = 1.0.0-beta.24 ]
+  [ "$output" = 1.0.0-beta.25 ]
 }
 
 @test "固定版 cf の schema は確認済み参照操作を GET として定義する" {
