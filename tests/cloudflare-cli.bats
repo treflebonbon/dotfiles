@@ -16,6 +16,12 @@ setup() {
   [ "$output" = 1.0.0-beta.25 ]
 }
 
+@test "Nix の検査 helper は認証情報なしで同梱 CLI の版を返す" {
+  run --separate-stderr env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID cloudflare-inspect --version
+  [ "$status" -eq 0 ]
+  [ "$output" = 1.0.0-beta.25 ]
+}
+
 @test "固定版 cf の schema は確認済み参照操作を GET として定義する" {
   local entry command path
   for entry in \

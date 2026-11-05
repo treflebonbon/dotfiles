@@ -126,6 +126,104 @@ PY
   [ "$status" -eq 0 ]
 }
 
+@test "APM live 検証は管理外スキルを保持して報告し、CRLF を受け入れる" {
+  mutate_fixture crlf
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  mkdir -p "$FIXTURE/runtime/.agents/skills/legacy"
+  printf 'unmanaged fixture\n' >"$FIXTURE/runtime/.agents/skills/legacy/SKILL.md"
+  ln -s "$FIXTURE/unavailable" "$FIXTURE/runtime/.agents/skills/playwright-cli"
+  local before
+  before=$(sha256sum "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/runtime/.agents/skills/legacy/SKILL.md")
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'管理外の配備先:'*'.agents/skills/legacy'* ]]
+  [[ "$output" == *'.agents/skills/playwright-cli'* ]]
+  [[ "$output" == *'skill .agents=2 .claude=2'* ]]
+  [ "$(sha256sum "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/runtime/.agents/skills/legacy/SKILL.md")" = "$before" ]
+  [ -L "$FIXTURE/runtime/.agents/skills/playwright-cli" ]
+}
+
+@test "APM live 検証は受入済み lock の所有権 ledger の drift を拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  python3 - "$FIXTURE/runtime/apm.lock.yaml" <<'PY'
+import json, sys
+from pathlib import Path
+p=Path(sys.argv[1]); lock=json.loads(p.read_text())
+lock['deployments']=[{'owners':['unexpected-owner']}]
+p.write_text(json.dumps(lock))
+PY
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'live lock が受入済み lock と一致しません'* ]]
+}
+
+@test "APM live 検証は HOME 内でも管理対象の symlink を拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  mv "$FIXTURE/runtime/.agents/skills/alpha/SKILL.md" "$FIXTURE/runtime/unmanaged.md"
+  ln -s "$FIXTURE/runtime/unmanaged.md" "$FIXTURE/runtime/.agents/skills/alpha/SKILL.md"
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'live の管理対象に symlink'* ]]
+}
+
+@test "APM live 検証は管理対象の親 directory の symlink を拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  mv "$FIXTURE/runtime/.agents" "$FIXTURE/runtime/other-agents"
+  ln -s "$FIXTURE/runtime/other-agents" "$FIXTURE/runtime/.agents"
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'live の管理対象に symlink'* ]]
+}
+
+@test "APM live 検証は管理対象ファイルの改変を拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  mutate_fixture tamper
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'file hash 不一致'* ]]
+}
+
+@test "APM live 検証は管理対象ファイルの欠落を拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  mv "$FIXTURE/runtime/.agents/skills/alpha/guide.md" "$FIXTURE/guide.md"
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'guide.md'* ]]
+}
+
+@test "APM live 検証は管理スキル内部の台帳外ファイルを拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  printf 'unlisted fixture\n' >"$FIXTURE/runtime/.agents/skills/alpha/extra.py"
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'台帳外の配備file'*'extra.py'* ]]
+}
+
+@test "APM live 検証は配備済み lock の symlink を拒否する" {
+  cp "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/base.yaml"
+  mv "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/deployed.lock"
+  ln -s "$FIXTURE/deployed.lock" "$FIXTURE/runtime/apm.lock.yaml"
+
+  run bun "$VERIFIER" --live "$FIXTURE/base.yaml" "$FIXTURE/runtime"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'lock は通常 file'* ]]
+}
+
 @test "APM deployment verification rejects deployed bytes that disagree with the native hash" {
   mutate_fixture tamper
   run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"

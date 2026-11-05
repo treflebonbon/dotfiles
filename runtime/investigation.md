@@ -84,6 +84,8 @@ cf o11y telemetry query --worker example --start 2026-11-01T00:00:00Z --end 2026
 
 ### その他の操作と実行境界
 
+`cf --version` は単独で呼び、検査入口が同じ immutable package 内のCLIの版を照合して返す。認証情報を渡さず、外部APIを呼ばない。追加引数・`--reviewed` との併用や別版へのfallbackは受理しない。`cloudflare --version` と専用入口の `cloudflare-inspect --version` も同じ処理を通る。
+
 `cf cli search` は認証情報を渡さず、`durable objects namespaces`、`d1 databases`、`r2 buckets`、`workers scripts` の固定語彙だけで使う。任意の名前・ドメイン・ID・token は検索語にしない。コマンド検索は同梱 index のローカル処理だが、CLI の使用状況 telemetry は常に `CF_SEND_TELEMETRY=false` と `DO_NOT_TRACK=1` で無効化する。`cf docs search` は今回の許可対象外。
 
 初期対象外の Read 参照は、対象・コマンド・理由を示して人の確認後に `cloudflare-inspect --reviewed` を使う。現行の確認済み追加操作は `d1 get <database-id>`（UUID、任意の `--fields`）のみ。それ以外は確認後も未対応として停止する。追加操作の正式な schema・Read 権限・引数・出力を確認して helper とテストを更新するまで、生 CLI や別経路で代用しない。
