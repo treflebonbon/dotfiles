@@ -77,7 +77,7 @@ dotfiles の公開補助入口は `scripts/publish-topic.py`。pushと読取り�
 
 ### 検証用の実行境界
 
-Linux／WSL2 の検証コマンドは、task worktree の `scripts/verification_env.py SOURCE -- COMMAND...` から開始する。Nix・commit hook・全 Bats を伴う検証は `scripts/verify-ai-tools.py` が同じ書込み境界を最初の Nix 評価から適用する。通常 HOME を read-only にし、ホスト側では対象 task worktree・Git metadata・`/tmp/codex` だけへ書き込める。`/tmp` の固定利用には namespace 内の専用 tmpfs を与える。条件不足や起動失敗は停止し、無保護の実行へ切り替えない。使い方と実 CLI の受入チェックは [検証手順](../docs/conventions.md#テスト)を読む。
+Linux／WSL2 の検証コマンドは、task worktree の `scripts/verification_env.py SOURCE -- COMMAND...` から開始する。Nix・commit hook・全 Bats を伴う検証は `scripts/verify-ai-tools.py` が同じ書込み境界を最初の Nix 評価から適用する。通常 HOME を read-only にし、ホスト側では対象 task worktree・Git metadata・`/tmp/codex` だけへ書き込める。例外として `--managed-browser` を明示した場合だけ、共通の Managed Chrome 所有権記録へも書き込め、ホストの PID namespace を使うため同じ利用者のホスト process を参照・signal できる（[ADR-0085](../docs/adr/0085-share-managed-chrome-ownership-in-verification.md)）。`/tmp` の固定利用には namespace 内の専用 tmpfs を与える。条件不足や起動失敗は停止し、無保護の実行へ切り替えない。使い方と実 CLI の受入チェックは [検証手順](../docs/conventions.md#テスト)を読む。
 
 canonical検証の準備から始める場合は `scripts/run-canonical.py` を使い、既存の検証本体へつなぐ。導入済みImpeccable hookが必要で、最初のNix評価から同じ境界を適用する。
 

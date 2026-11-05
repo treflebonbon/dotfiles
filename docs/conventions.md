@@ -83,6 +83,12 @@ Managed Chromeの所有権記録は同じWindows資源を共有するため、`B
 
 共通記録先が `/tmp/codex` 以外の `/tmp` 配下にある場合、既存 directory を read-only で引き継ぎ、専用 tmpfs で隠さない。`BROWSER_OWNERSHIP_DIR=/tmp` は専用 `/tmp` と競合するため拒否する。
 
+既定モードは共通記録を read-only で引き継ぎ、PID namespace も分離する。実際の Managed Chrome を操作する検証では `--managed-browser` を明示する。このモードは共通記録先だけを書込み可能にし、caller PID をホストと同じ主体で照合するためホストの PID namespace と `/proc` を使う。同じ利用者のホスト process を参照・signal できるため、必要なときだけ指定する。記録先は絶対 path で指定した、本人所有・厳密に mode 700・symlink なしの既存 `browser-ownership` directory に限り、保護対象そのもの・それを包含する directory は拒否する。条件を満たさない場合は記録先を変更せずに起動を拒否する（[ADR-0085](adr/0085-share-managed-chrome-ownership-in-verification.md)）。
+
+```bash
+python3 scripts/verification_env.py --managed-browser "$PWD" -- COMMAND...
+```
+
 WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`-Command "$script"` の引数で渡す（confirmed、2026-10-23、#496）。stdin（`-Command -`）で渡すと、`-NonInteractive` の有無にかかわらず、エラーも含めて出力が消えた。`MSFT_NetTCPConnection` の `-Filter` に `LocalPort >= …` のような範囲比較を書くと `0x80041017` で失敗するため、`State` などの等価条件だけをプロバイダに渡し、範囲の絞り込みは PowerShell 側の `Where-Object` で行う。
 
 既存バイナリを使う方針の検証では `--no-codex-build` を指定する。最初の devShell 起動前に、選択された Codex output を既存の store または binary cache から確保し、取得できなければ後続の shellHook・コマンドを実行せず停止する。取得ログは `codex-cache.log`、検証中の GC を防ぐ output へのリンクは `codex` に残す。この指定は Codex に適用し、devShell や他の依存関係のビルドは従来どおり許可する。

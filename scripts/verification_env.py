@@ -56,6 +56,33 @@ def _browser_ownership_dir() -> str:
     )
 
 
+def managed_browser_ownership(protected: tuple[Path, ...]) -> Path:
+    # 共通記録だけを書込み可能にするため、作成や chmod の前に専用 directory か確かめる。
+    # 相対指定は検査時の cwd と chdir 後の consumer で別 directory を指すため拒否する。
+    configured = _browser_ownership_dir()
+    ownership = Path(os.path.abspath(configured))
+    try:
+        metadata = ownership.stat(follow_symlinks=False)
+        resolved = ownership.resolve(strict=True)
+    except OSError:
+        metadata = resolved = None
+    if (
+        not os.path.isabs(configured)
+        or metadata is None
+        or resolved != ownership
+        or ownership.name != "browser-ownership"
+        or not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.getuid()
+        or stat.S_IMODE(metadata.st_mode) != 0o700
+        or any(ownership == path or ownership in path.parents for path in protected)
+    ):
+        raise ValueError(
+            "--managed-browser の BROWSER_OWNERSHIP_DIR は、絶対 path で本人所有・mode 700 の"
+            f"既存 browser-ownership directory（symlink 不可）が必要です: {ownership}"
+        )
+    return ownership
+
+
 def create_environment(runtime: Path) -> dict[str, str]:
     environment = _git_environment()
     environment["BROWSER_OWNERSHIP_DIR"] = _browser_ownership_dir()
@@ -83,7 +110,12 @@ def create_environment(runtime: Path) -> dict[str, str]:
 
 
 def sandbox_prefix(
-    source: Path, runtime: Path, original_home: Path, *, read_only: Path | None = None
+    source: Path,
+    runtime: Path,
+    original_home: Path,
+    *,
+    read_only: Path | None = None,
+    managed_browser: bool = False,
 ) -> list[str]:
     if sys.platform != "linux":
         raise ValueError("書込み保護付き検証は Linux / WSL2 が必要です")
@@ -143,10 +175,17 @@ def sandbox_prefix(
     ownership = Path(os.path.abspath(_browser_ownership_dir()))
     if ownership == Path("/tmp"):
         raise ValueError("BROWSER_OWNERSHIP_DIR に /tmp 全体は指定できません")
+    if managed_browser:
+        ownership = managed_browser_ownership(
+            (original_home, scratch, runtime.resolve(strict=True), *writable)
+        )
+    # 所有権記録の caller PID はホストの /proc で照合されるため、明示モードはホストの PID namespace を使う。
+    pid_namespace = [] if managed_browser else ["--unshare-pid"]
+    procfs = [] if managed_browser else ["--proc", "/proc"]
     prefix = [
         bwrap,
         "--unshare-user",
-        "--unshare-pid",
+        *pid_namespace,
         "--unshare-ipc",
         "--unshare-uts",
         "--die-with-parent",
@@ -159,11 +198,13 @@ def sandbox_prefix(
         "--tmpfs",
         "/tmp",
     ]
-    prefix.extend(
-        ["--dev", "/dev", "--proc", "/proc", "--bind", str(scratch), str(scratch)]
-    )
+    prefix.extend(["--dev", "/dev", *procfs, "--bind", str(scratch), str(scratch)])
     # /tmp を固定利用する CLI へ private 領域を与え、既存の所有権記録は隠さない。
-    if ownership.is_relative_to("/tmp") and not ownership.is_relative_to(scratch):
+    if (
+        not managed_browser
+        and ownership.is_relative_to("/tmp")
+        and not ownership.is_relative_to(scratch)
+    ):
         prefix.extend(["--ro-bind-try", str(ownership), str(ownership)])
     prefix.extend(
         [
@@ -174,6 +215,8 @@ def sandbox_prefix(
     )
     for path in writable:
         prefix.extend(["--bind", str(path), str(path)])
+    if managed_browser:
+        prefix.extend(["--bind", str(ownership), str(ownership)])
     if read_only is not None:
         prefix.extend(["--ro-bind", str(read_only), str(read_only)])
     prefix.extend(["--chdir", str(source), "--"])
@@ -187,6 +230,8 @@ def sandbox_prefix(
                 "private_tmp": "/tmp",
                 "read_only_input": str(read_only) if read_only is not None else None,
                 "protection": "read-only-host-filesystem",
+                "managed_browser_ownership": str(ownership) if managed_browser else None,
+                "pid_namespace": "host" if managed_browser else "private",
             },
             ensure_ascii=False,
             indent=2,
@@ -198,6 +243,11 @@ def sandbox_prefix(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--managed-browser",
+        action="store_true",
+        help="共通の Managed Chrome 所有権記録だけを書込み可能にし、ホストの PID namespace を使う",
+    )
     parser.add_argument("source", type=Path)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -207,7 +257,12 @@ def main() -> int:
     runtime = new_runtime("verification-env.")
     print(f"検証ログ: {runtime}", file=sys.stderr, flush=True)
     try:
-        prefix = sandbox_prefix(args.source, runtime, Path(os.environ["HOME"]))
+        prefix = sandbox_prefix(
+            args.source,
+            runtime,
+            Path(os.environ["HOME"]),
+            managed_browser=args.managed_browser,
+        )
         environment = create_environment(runtime)
         result = subprocess.run([*prefix, *command], env=environment)
         status = (
