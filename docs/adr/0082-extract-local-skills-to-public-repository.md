@@ -34,15 +34,17 @@ status: accepted
 
 `dogfood`、`domain-modeling-studio`、`herdr-peer-refactor`、`marp`、`md-agents-review`、`md-claude-review`、`orca-peer-refactor`、`pr-screenshots`、`rop`、`ui-grill-with-docs`、`worktree-gc` の11件を対象とする。
 
-## 現行の固定版と所有権（2026-10-30）
+## 現行の固定版と所有権（2026-11-05）
 
-dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。現在の accepted record は `treflebonbon/skills` の commit `7428e0567c61ba888e0ed7e07a2c02b4a2edc1c2`、tree `e7735ed5a60c63929d3e6ce5d57bfefeae4bf6e7`、version `0.2.3`、NAR `sha256-Z7R7ZdSjxYcekJI3frBVZx6+9R8+3dmnKBFrOOmyPL8=`、267 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。
+dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。現在の accepted record は `treflebonbon/skills` の commit `126690ce21ef2e929236efbb3fa873686fed8131`、tree `a7c72af1037291b9c3df46a0aabbd9ecdfb7b061`、version `0.2.7`、NAR `sha256-RnKzL8lZagIldowvrDV14q7yC+RqpbaaCFvGlqIm+cM=`、283 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。
+
+0.2.7 は所有権 CLI の既定 Windows 資産修正と、開発用指示の配置修正による strict 検証成功を確認して採用する。今回に限り、新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、未実施を明示したうえでユーザーが省略を受け入れた。今後の版の受入条件は変えない。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。live 配備の確認は別工程である。
 
 同じ公開 payload は Git checkout と `.git` を除いた plugin source snapshot の間で、全 tracked file の内容・mode・tree を一致させる。全3 runtime は同じ pin から導入する: Claude Code は `~/.claude/plugins` 配下、Codex は native `~/.codex`・存在する `~/.codex-app`・明示 `CODEX_HOME` の `plugins/cache/treflebonbon/treflebonbon-skills/<version>` を重複なく照合し、Antigravity CLI は `~/.gemini/config/plugins/treflebonbon-skills` と import inventory を照合する。過去の receipt だけではどの runtime の current install も証明しない。
 
 skill 本体、専用補助 CLI、共用 Python module、規範契約、WSL2 browser helper は公開 repository が所有する。dotfiles は single pin、公式 runtime 導入、端末固有の config・Nix wrapper・dispatch、旧配備からの安全な移行を所有する。5つの共用 CLI は `git-push-topic`、`git-push-reviewed`、`gh-review-thread`、`orca-send`、`codex-reviewer`。Nix の browser package は同じ公開 pin の資産を取り込み、上流 Playwright CLI の固定版とその lock・license を管理する（0.1.23 への更新は [2026-11-04 の記録](../research/update-tools-skills-20261104.md)）。第三者 skill は APM で別途導入し、独自 dependency resolver や公開 payload の dotfiles 内コピーは作らない。
 
-公開 repository 自体は別の受入で immutable な `0.2.3` を確定し、公開 quality は Python 70 pass / 4 skip、Node 31 pass、Bats 476 pass / 11 skip、fresh native 33、Nix 不要の導入、公開 archive と pin の一致を確認した。これらは公開 package の結果であり、dotfiles consumer 検証の代用ではない。Linux VM driver の build は成功したが検証 host に `/dev/kvm` がなく guest 実行は未確認である。Antigravity App／IDE、実 Windows Chrome、macOS と aarch64 の runtime 実機確認もこの受入記録では保証しない。
+初期の公開 repository の受入では immutable な `0.2.3` を確定し、公開 quality は Python 70 pass / 4 skip、Node 31 pass、Bats 476 pass / 11 skip、fresh native 33、Nix 不要の導入、公開 archive と pin の一致を確認した。これらは当時の公開 package の結果であり、現在の版や dotfiles consumer 検証の代用ではない。Linux VM driver の build は成功したが検証 host に `/dev/kvm` がなく guest 実行は未確認である。Antigravity App／IDE、実 Windows Chrome、macOS と aarch64 の runtime 実機確認もこの初期の受入記録では保証しない。
 
 ## 受入条件
 

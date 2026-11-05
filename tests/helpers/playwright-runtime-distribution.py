@@ -39,7 +39,19 @@ def environment_for(root, owner, runtime, powershell):
 
 def create_probe(powershell):
     powershell.parent.mkdir(parents=True, exist_ok=True)
-    powershell.write_text("#!/usr/bin/env bash\nprintf 'absent\\n'\n", encoding="utf-8")
+    powershell.write_text(
+        r"""#!/usr/bin/env bash
+request=" $* "
+if [[ $request == *" -Command Test-Path -LiteralPath 'C:\mock.ps1' -PathType Leaf " ]]; then
+  printf 'True\n'
+elif [[ $request == *" -File C:\mock.ps1 -Action Inspect "* ]]; then
+  printf 'absent\n'
+else
+  exit 2
+fi
+""",
+        encoding="utf-8",
+    )
     powershell.chmod(0o755)
 
 
