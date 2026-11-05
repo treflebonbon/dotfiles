@@ -34,7 +34,7 @@ ORCA Agent IDE をメイン IDE として利用するため、[公式ドキュ�
 ## Consequences
 
 - `orca-cli` / `orchestration` / `computer-use` は apm 経由で `~/.agents/skills/`（共有ハブ）と `~/.claude/skills/` に real dir として配備され、chezmoi apply / orphan-cleanup と共存できる状態になった。
-- Codex / Antigravity は共有ハブを直接読むため追加配線なしで同じ skill が可視。
+- Codex は共有ハブを直接読むため追加配線なしで同じ skill が可視。2026-11-05 訂正: Antigravity での可視性は採用版で未確認であり、配布先と検証状態は [APM のマルチランタイム配布](../../runtime/skill-harness.md#apm-のマルチランタイム配布) を参照する。
 - ORCA 公式手順（npx skills add）とは意図的に乖離する。将来 upstream の skill 追加・改名があった場合は `stablyai/orca` の skills/ 一覧と apm.yml を突き合わせて再棚卸しする（ADR-0010 の mattpocock 棚卸しと同型）。
 
 関連: [ADR-0010](0010-productivity-skill-audit.md) / [skill-harness](../../runtime/skill-harness.md)

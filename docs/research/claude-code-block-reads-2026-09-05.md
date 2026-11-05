@@ -10,6 +10,8 @@ timestamp: 2026-09-05
 
 このノートの時刻は JST（Asia/Tokyo）、Anthropic / `llm-agents.nix` の公開時刻は UTC で記録する。外部の二次記事は使わず、Anthropic 公式 docs / 公式 CHANGELOG / 公式 GitHub release と `numtide/llm-agents.nix` の source metadata だけを根拠にした。
 
+2026-11-05 訂正: 共有 hub からの skill discovery の記述を Codex に限定した。Antigravity での可視性は採用版で未確認であり、現在の配布先と検証状態は [APM のマルチランタイム配布](../../runtime/skill-harness.md#apm-のマルチランタイム配布) を参照する。
+
 ## 結論
 
 ### Claude Code
@@ -31,7 +33,7 @@ timestamp: 2026-09-05
 }
 ```
 
-`~/.agents/skills` は Codex / Antigravity が読む共有 skill hub であり、Claude Code の user-level skill discovery は `~/.claude/skills` が担当する。このため Claude の file-tool read を許可するために `~/.agents/skills` を追加する根拠は現時点ではない。`~/.gitconfig`、共有 `.git` metadata、親 checkout も追加しない。Git worktree が共有する metadata は Claude Code の git / worktree runtime が扱うべき境界であり、2.1.260 でこの設定に起因する git config / subagent checkout の不具合が修正されているため、明示的に home 全体を許可するより実動作で確認する。
+`~/.agents/skills` は Codex が読む共有 skill hub であり、Claude Code の user-level skill discovery は `~/.claude/skills` が担当する。このため Claude の file-tool read を許可するために `~/.agents/skills` を追加する根拠は現時点ではない。`~/.gitconfig`、共有 `.git` metadata、親 checkout も追加しない。Git worktree が共有する metadata は Claude Code の git / worktree runtime が扱うべき境界であり、2.1.260 でこの設定に起因する git config / subagent checkout の不具合が修正されているため、明示的に home 全体を許可するより実動作で確認する。
 
 ### version と更新単位
 
@@ -83,7 +85,7 @@ Claude Code は、起動したディレクトリを session の primary working 
 | [`private_dot_config/nix-devshell/flake.lock`](../../private_dot_config/nix-devshell/flake.lock#L58-L80) | `llm-agents.nix` exact revision `7754055…` | upstream [`896d09c…`](https://github.com/numtide/llm-agents.nix/commit/896d09ccef580902e01e716e6f4646421087c252) への tool snapshot 更新候補 |
 | `~/.claude/jobs` | 実在し、`state.json` / `timeline.jsonl` 等を持つ。現行 settings で追加済み | 維持。job read を block 設定で壊さないため必要 |
 | `~/runtime` | 実在し、`index.md` / `ai-runtimes.md` / `skill-harness.md` 等を持つ。global `CLAUDE.md` が参照を要求 | `additionalDirectories` へ追加し、`Edit(~/runtime/**)` deny で read-only にする。validated source worktree を経由しない書込みは許可しない |
-| `~/.agents/skills` | 実在する共有 hub。Codex / Antigravity 向け。Claude 用 `~/.claude/skills` は別に配備済み | Claude の additional directory には追加しない。`Skill` discovery と file-tool read を混同しない |
+| `~/.agents/skills` | 実在する共有 hub。Codex 向け。Claude 用 `~/.claude/skills` は別に配備済み | Claude の additional directory には追加しない。`Skill` discovery と file-tool read を混同しない |
 | `~/.gitconfig` / linked worktree の共通 `.git` | 実在。worktree Git dir は共通 git dir を参照 | path を追加して境界を広げない。2.1.260 の git-config / subagent checkout fix を含む candidate で git smoke を行う |
 
 ### 採用を進める条件
@@ -146,7 +148,7 @@ fixture/
 ### 推論
 
 - この repo の global `CLAUDE.md` が `~/runtime/index.md` を参照させるため、true を採るなら `~/runtime` を additional directory にするのが最小の明示的許可である。
-- Claude の `~/.claude/skills` は user-level discovery であり、Codex / Antigravity 用 `~/.agents/skills` を Claude の additional directory にする必要はない。
+- Claude の `~/.claude/skills` は user-level discovery であり、Codex 用 `~/.agents/skills` を Claude の additional directory にする必要はない。
 - tool snapshot と APM skill payload は ADR-0045 の compatibility / rollback boundary に従い分けるべきである。
 
 ### 未確認

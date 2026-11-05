@@ -156,7 +156,11 @@ _Model-invoked_（実装フェーズで自動発火する discipline 層。上�
 
 このワークフローは per-repo で完結する。ラベル provisioning は dotfiles では持たず、各 repo で `gh label create` または skill のランタイム挙動に任せる。domain doc は mattpocock ネイティブの `GLOSSARY.md`/`docs/adr` を使い、この `runtime/` バンドルとは混ぜない（`runtime/` は home-wide ambient 知識専用）。
 
-**apm のマルチランタイム配布**: `apm.yml` の `targets` は `claude` / `codex`（apm の `install` は `antigravity` target を非対応）。apm は全 skill を APM-native の共有ハブ `~/.agents/skills/` に必ず materialize し（target とは独立）、Claude 向けには `~/.claude/skills/` にも配備する。**Codex と Antigravity はどちらも `~/.agents/skills/` を global skills location として直接読む**（Codex は `codex debug prompt-input` で skill 可視性を実機確認済み）ため、apm skill は追加配線なしで 3 ランタイムに可視。`~/.codex/skills/` は Codex の native location だが、このmanifestが選ぶAPMの配備先は共有ハブであり、過去に配備された real dir が残っていても discovery は `~/.agents/skills/` 側が担う。
+### APM のマルチランタイム配布
+
+`apm.yml` の `targets` は `claude` / `codex`（apm の `install` は `antigravity` target を非対応）。apm は全 skill を APM-native の共有ハブ `~/.agents/skills/` に必ず materialize し（target とは独立）、Claude 向けには `~/.claude/skills/` にも配備する。**Codex は `~/.agents/skills/` を global skills location として直接読む**（`codex debug prompt-input` による実機確認記録は [ADR-0040](../docs/adr/0040-adopt-mattpocock-v1-2-3-full-set.md)）。`~/.codex/skills/` は Codex の native location だが、このmanifestが選ぶAPMの配備先は共有ハブであり、過去に配備された real dir が残っていても discovery は `~/.agents/skills/` 側が担う。
+
+Antigravity の公式 global skills location は `~/.gemini/config/skills/`、workspace 向けは `<workspace-root>/.agents/skills/` である（[公式ガイド](https://antigravity.google/docs/skills?app=cli#cli-skill-locations)）。この repo の採用版が共有ハブ `~/.agents/skills/` を global に discovery するかは未確認（unconfirmed）。APM skill の Antigravity での可視性は、採用版での discovery 確認後に判断する。
 
 ### APM lock の生成
 
@@ -224,7 +228,7 @@ manifestの一致と対象ファイルの反映は `chezmoi verify`、公開plug
 
 ### Impeccable と Design Hook
 
-**Impeccable**: UI の設計・評価・改善を担う user-invoked / model-invoked skill。検証済み commit に pin し、共有ハブ経由で Codex / Antigravity、Claude skill dir 経由で Claude Code へ配布する。新規 UI の create / shape flow は `PRODUCT.md` / `DESIGN.md` の context setup へ誘導し、既存 UI の scoped 改善は context 文書がなくてもブロックしない。直接の前身である `frontend-design` は責務の重複を避けるため撤去した。
+**Impeccable**: UI の設計・評価・改善を担う user-invoked / model-invoked skill。検証済み commit に pin し、共有ハブ経由で Codex、Claude skill dir 経由で Claude Code へ配布する。Antigravity の可視性は [APM のマルチランタイム配布](#apm-のマルチランタイム配布) の検証状態に従う。新規 UI の create / shape flow は `PRODUCT.md` / `DESIGN.md` の context setup へ誘導し、既存 UI の scoped 改善は context 文書がなくてもブロックしない。直接の前身である `frontend-design` は責務の重複を避けるため撤去した。
 
 **Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の `scripts/impeccable hook` を `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。Nix が `IMPECCABLE_BIN` に固定 engine の絶対 path を渡し、管理 command は実行可能な engine と launcher の存在を確認してから呼ぶ。engine がなければ launcher の自動取得へ進まず無言で終了する。runtime 側は stdin の `hook_event_name` でイベントを、`turn_id` で Codex を判別する。Claude Stop は従来の `hookSpecificOutput.additionalContext`、Codex Stop は native の top-level `decision` / `reason` を返し、managed command は両方を fail-open でそのまま通す。
 
