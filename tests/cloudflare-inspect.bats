@@ -96,10 +96,111 @@ SH
   [ "$(wc -l <"$CF_TEST_LOG")" -eq 4 ]
 }
 
-@test "Cloudflare の書込み・Logs・秘密値・未知の引数は CLI 実行前に拒否する" {
+@test "Workers の過去ログは dataset・Worker・期間を固定し100件を保存せず検索する" {
+  printf '%s\n' '{"events":{"events":[{"message":"failure"}],"count":1}}' >"$CF_TEST_RESPONSE"
+  run python3 -I "$SCRIPT" o11y telemetry query --worker example \
+    --start 2026-11-01T09:00:00.123+09:00 --end 2026-11-01T01:00:00.123Z
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.events.events[0].message' <<<"$output")" = failure ]
+  run jq -se '
+    .[0][0:4] == ["o11y", "telemetry", "query", "--body"]
+    and (.[0][4] | fromjson) == {
+      queryId: "cloudflare-inspect",
+      timeframe: {from: 1793491200123, to: 1793494800123},
+      view: "events", limit: 100, dry: true,
+      parameters: {datasets: ["cloudflare-workers"], filters: [{key: "$metadata.service", operation: "eq", type: "string", value: "example"}]}
+    }
+  ' "$CF_TEST_LOG"
+  [ "$status" -eq 0 ]
+}
+
+@test "Workers の過去ログは24時間・1000件まで指定できる" {
+  run python3 -I "$SCRIPT" o11y telemetry query --worker example \
+    --start 2026-11-01T00:00:00Z --end 2026-11-02T00:00:00Z --limit 1000
+  [ "$status" -eq 0 ]
+  run jq -se '(.[0][4] | fromjson) | .limit == 1000 and .timeframe == {from: 1793491200000, to: 1793577600000}' "$CF_TEST_LOG"
+  [ "$status" -eq 0 ]
+}
+
+@test "Workers の過去ログは255文字までの Worker 名を完全一致で指定できる" {
+  local length worker
+  for length in 1 63 64 255; do
+    worker="$(printf '%*s' "$length" '' | tr ' ' a)"
+    run python3 -I "$SCRIPT" o11y telemetry query --worker "$worker" \
+      --start 2026-11-01T00:00:00Z --end 2026-11-01T01:00:00Z
+    [ "$status" -eq 0 ]
+    run jq -se --arg worker "$worker" '
+      (.[-1][4] | fromjson) | .parameters == {
+        datasets: ["cloudflare-workers"],
+        filters: [{key: "$metadata.service", operation: "eq", type: "string", value: $worker}]
+      }
+    ' "$CF_TEST_LOG"
+    [ "$status" -eq 0 ]
+  done
+}
+
+@test "Workers の過去ログは範囲外・不正な日時・検索条件の上書きを実行前に拒否する" {
+  run python3 -I - "$SCRIPT" "$CF_TEST_LOG" <<'PY'
+from pathlib import Path
+import subprocess, sys
+base = ['--worker', 'example', '--start', '2026-11-01T00:00:00Z', '--end', '2026-11-01T01:00:00Z']
+cases = [
+    [], base[2:], base[:2] + base[4:], base[:4],
+    base + ['--limit', '0'], base + ['--limit', '1001'], base + ['--limit', '1.5'],
+    base + ['--worker', '*'], base + ['--worker', ''], base + ['--worker', 'a\nb'],
+    base + ['--worker', 'a' * 256],
+    base + ['--start', '2026-11-01'], base + ['--end', 'invalid DUMMY_CF_TOKEN'],
+    base + ['--start', '2026-11-01T01:00:00Z'],
+    base + ['--start', '2026-11-01T02:00:00Z'],
+    base + ['--end', '2026-11-02T00:00:00.001Z'],
+    base + ['--start', '1969-12-31T23:00:00Z', '--end', '1970-01-01T00:00:00Z'],
+    base + ['--start', '9999-01-01T00:00:00Z', '--end', '9999-01-01T01:00:00Z'],
+    base + ['--start', '2026-11-01T00:00:00.0001Z', '--end', '2026-11-01T00:00:00.0002Z'],
+    base + ['--end', '2026-11-01T01:00:00.0000001Z'],
+    base + ['--body', '{}'], base + ['--parameters', '{}'],
+    base + ['--dataset', 'r2'], base + ['--datasets', '["r2"]'],
+    base + ['--query-id', 'saved'], base + ['--dry', 'false'], base + ['--view', 'calculations'],
+    base + ['--account-id', 'other'], base + ['--cursor', 'next'], base + ['--all'],
+]
+for reviewed in ([], ['--reviewed']):
+    for arguments in cases:
+        result = subprocess.run([sys.executable, '-I', sys.argv[1], *reviewed, 'o11y', 'telemetry', 'query', *arguments], capture_output=True, text=True)
+        assert result.returncode != 0, arguments
+        assert 'DUMMY_CF_TOKEN' not in result.stdout + result.stderr, arguments
+        assert 'Traceback' not in result.stderr, arguments
+        assert not Path(sys.argv[2]).exists(), arguments
+PY
+  [ "$status" -eq 0 ]
+}
+
+@test "Workers の過去ログも token と既知の認証情報を表示しない" {
+  printf '%s\n' '{"events":{"events":[{"message":"DUMMY_CF_TOKEN","request":{"headers":{"authorization":"DUMMY_AUTH","cookie":"DUMMY_COOKIE","set-cookie":"DUMMY_COOKIE"}}}]}}' >"$CF_TEST_RESPONSE"
+  run python3 -I "$SCRIPT" o11y telemetry query --worker example \
+    --start 2026-11-01T00:00:00Z --end 2026-11-01T01:00:00Z --limit 1
+  [ "$status" -eq 0 ]
+  [[ "$output" != *DUMMY_CF_TOKEN* && "$output" != *DUMMY_AUTH* && "$output" != *DUMMY_COOKIE* ]]
+}
+
+@test "Workers の過去ログの Proxy・Access・Cloudflare 認証ヘッダーを表示しない" {
+  cat >"$CF_TEST_RESPONSE" <<'JSON'
+{"events":{"events":[{"request":{"headers":{"Proxy-Authorization":"DUMMY_PROXY_AUTH","CF-Access-Jwt-Assertion":"DUMMY_ACCESS_JWT","X-Auth-Key":"DUMMY_AUTH_KEY","Content-Type":"application/json"}}}]}}
+JSON
+  run python3 -I "$SCRIPT" o11y telemetry query --worker example \
+    --start 2026-11-01T00:00:00Z --end 2026-11-01T01:00:00Z --limit 1
+  [ "$status" -eq 0 ]
+  run jq -e '.events.events[0].request.headers == {
+    "Proxy-Authorization": "[非表示]",
+    "CF-Access-Jwt-Assertion": "[非表示]",
+    "X-Auth-Key": "[非表示]",
+    "Content-Type": "application/json"
+  }' <<<"$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "Cloudflare の書込み・無制約の Logs・秘密値・未知の引数は CLI 実行前に拒否する" {
   local command reviewed
   for reviewed in '' '--reviewed'; do
-    for command in 'd1 delete x' 'o11y telemetry query' 'deploy' 'auth login' 'workers scripts secrets get x' 'd1 list --force' 'd1 list --api-token DUMMY_CF_TOKEN' 'd1 list --page 0' 'r2 buckets list --per-page 101' 'r2 buckets list --direction drop' 'workers scripts search --config x' 'd1 query x'; do
+    for command in 'd1 delete x' 'o11y telemetry query' 'o11y queries create' 'o11y queries edit saved' 'o11y queries delete saved' 'deploy' 'auth login' 'workers scripts secrets get x' 'd1 list --force' 'd1 list --api-token DUMMY_CF_TOKEN' 'd1 list --page 0' 'r2 buckets list --per-page 101' 'r2 buckets list --direction drop' 'workers scripts search --config x' 'd1 query x'; do
       read -r -a arguments <<<"$command"
       run python3 -I "$SCRIPT" ${reviewed:+"$reviewed"} "${arguments[@]}"
       [ "$status" -ne 0 ]
