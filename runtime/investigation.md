@@ -72,13 +72,13 @@ token の作成は人が Cloudflare のプロフィール内の API Tokens 画�
 
 ### Workers の過去ログ検索
 
-hook 経由の次の操作を自動許可する。`--worker`、`--start`、`--end` は必須。Worker は1つの名前の完全一致、日時はタイムゾーン付き ISO 8601（小数秒はミリ秒まで）で指定する。開始は1970年以降、終了は現在以前、期間は正の長さで最大24時間。`--limit` は1〜1000（既定100）。名前は英数字・ハイフン・アンダースコアの1〜63文字を受理する。
+hook 経由の次の操作を自動許可する。`--worker`、`--start`、`--end` は必須。Worker は1つの名前の完全一致、日時はタイムゾーン付き ISO 8601（小数秒はミリ秒まで）で指定する。開始は1970年以降、終了は現在以前、期間は正の長さで最大24時間。`--limit` は1〜1000（既定100）。名前は英数字・ハイフン・アンダースコアの1〜255文字を受理する。`workers.dev` の DNS 名に対する63文字制限は、過去ログ検索には適用しない。[Worker 名の制限](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/#limitations)
 
 ```bash
 cf o11y telemetry query --worker example --start 2026-11-01T00:00:00Z --end 2026-11-01T01:00:00Z --limit 100
 ```
 
-この引数は検査入口の制限付き形式であり、生 CLI の引数へそのまま渡さない。helper が `$metadata.service` の完全一致フィルタ、Unix ミリ秒の期間、取得件数、`view: events`、`dry: true` を固定 JSON に組み立て、同梱 CLI の `--body` に渡す。`dry: true` は検索を実行しつつ結果を保存しない API の指定で、CLI の `--dry-run` とは別。呼出元の `--body`、保存済み query ID、任意のフィルタ・view・account・ページングによる上書きは受理しない。追加の期間は、各呼出しで同じ制約を検査する。
+この引数は検査入口の制限付き形式であり、生 CLI の引数へそのまま渡さない。helper が `cloudflare-workers` に固定した dataset、`$metadata.service` の完全一致フィルタ、Unix ミリ秒の期間、取得件数、`view: events`、`dry: true` を固定 JSON に組み立て、同梱 CLI の `--body` に渡す。dataset を固定して、同名の R2 バケットなどのログを検索対象から除く。`dry: true` は検索を実行しつつ結果を保存しない API の指定で、CLI の `--dry-run` とは別。呼出元の `--body`、保存済み query ID、任意の dataset・フィルタ・view・account・ページングによる上書きは受理しない。追加の期間は、各呼出しで同じ制約を検査する。
 
 ログ検索 API は `Workers Observability Write` を要求するため、token 自体は Read のみではない。自動許可の境界は helper の操作・引数検査であり、ログ収集設定の変更、保存クエリの作成・削除、リアルタイム監視、その他の書込みには広げない。過去ログが収集されていない Worker の設定も自動変更しない。[API 仕様](https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/)、[採用判断](../docs/adr/0084-allow-bounded-workers-log-queries.md)
 

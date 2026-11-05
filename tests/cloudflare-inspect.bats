@@ -96,7 +96,7 @@ SH
   [ "$(wc -l <"$CF_TEST_LOG")" -eq 4 ]
 }
 
-@test "Workers の過去ログは Worker と期間を固定し100件を保存せず検索する" {
+@test "Workers の過去ログは dataset・Worker・期間を固定し100件を保存せず検索する" {
   printf '%s\n' '{"events":{"events":[{"message":"failure"}],"count":1}}' >"$CF_TEST_RESPONSE"
   run python3 -I "$SCRIPT" o11y telemetry query --worker example \
     --start 2026-11-01T09:00:00.123+09:00 --end 2026-11-01T01:00:00.123Z
@@ -108,7 +108,7 @@ SH
       queryId: "cloudflare-inspect",
       timeframe: {from: 1793491200123, to: 1793494800123},
       view: "events", limit: 100, dry: true,
-      parameters: {filters: [{key: "$metadata.service", operation: "eq", type: "string", value: "example"}]}
+      parameters: {datasets: ["cloudflare-workers"], filters: [{key: "$metadata.service", operation: "eq", type: "string", value: "example"}]}
     }
   ' "$CF_TEST_LOG"
   [ "$status" -eq 0 ]
@@ -122,6 +122,23 @@ SH
   [ "$status" -eq 0 ]
 }
 
+@test "Workers の過去ログは255文字までの Worker 名を完全一致で指定できる" {
+  local length worker
+  for length in 1 63 64 255; do
+    worker="$(printf '%*s' "$length" '' | tr ' ' a)"
+    run python3 -I "$SCRIPT" o11y telemetry query --worker "$worker" \
+      --start 2026-11-01T00:00:00Z --end 2026-11-01T01:00:00Z
+    [ "$status" -eq 0 ]
+    run jq -se --arg worker "$worker" '
+      (.[-1][4] | fromjson) | .parameters == {
+        datasets: ["cloudflare-workers"],
+        filters: [{key: "$metadata.service", operation: "eq", type: "string", value: $worker}]
+      }
+    ' "$CF_TEST_LOG"
+    [ "$status" -eq 0 ]
+  done
+}
+
 @test "Workers の過去ログは範囲外・不正な日時・検索条件の上書きを実行前に拒否する" {
   run python3 -I - "$SCRIPT" "$CF_TEST_LOG" <<'PY'
 from pathlib import Path
@@ -131,6 +148,7 @@ cases = [
     [], base[2:], base[:2] + base[4:], base[:4],
     base + ['--limit', '0'], base + ['--limit', '1001'], base + ['--limit', '1.5'],
     base + ['--worker', '*'], base + ['--worker', ''], base + ['--worker', 'a\nb'],
+    base + ['--worker', 'a' * 256],
     base + ['--start', '2026-11-01'], base + ['--end', 'invalid DUMMY_CF_TOKEN'],
     base + ['--start', '2026-11-01T01:00:00Z'],
     base + ['--start', '2026-11-01T02:00:00Z'],
@@ -140,6 +158,7 @@ cases = [
     base + ['--start', '2026-11-01T00:00:00.0001Z', '--end', '2026-11-01T00:00:00.0002Z'],
     base + ['--end', '2026-11-01T01:00:00.0000001Z'],
     base + ['--body', '{}'], base + ['--parameters', '{}'],
+    base + ['--dataset', 'r2'], base + ['--datasets', '["r2"]'],
     base + ['--query-id', 'saved'], base + ['--dry', 'false'], base + ['--view', 'calculations'],
     base + ['--account-id', 'other'], base + ['--cursor', 'next'], base + ['--all'],
 ]

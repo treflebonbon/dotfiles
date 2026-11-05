@@ -91,8 +91,8 @@ def query_logs(arguments):
     parser.add_argument("--end", required=True)
     parser.add_argument("--limit", type=int, default=100)
     options = parser.parse_args(arguments)
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,63}", options.worker):
-        raise ValueError("--worker は英数字・ハイフン・アンダースコアの1〜63文字で指定してください。")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,255}", options.worker):
+        raise ValueError("--worker は英数字・ハイフン・アンダースコアの1〜255文字で指定してください。")
     if not 1 <= options.limit <= 1000:
         raise ValueError("--limit は1〜1000にしてください。")
     try:
@@ -107,7 +107,8 @@ def query_logs(arguments):
         raise ValueError("過去の開始・終了日時を昇順で指定し、期間を24時間以内にしてください。")
     body = {"queryId": "cloudflare-inspect", "timeframe": {"from": (start - epoch) // timedelta(milliseconds=1), "to": (end - epoch) // timedelta(milliseconds=1)},
             "view": "events", "limit": options.limit, "dry": True,
-            "parameters": {"filters": [{"key": "$metadata.service", "operation": "eq", "type": "string", "value": options.worker}]}}
+            "parameters": {"datasets": ["cloudflare-workers"],
+                           "filters": [{"key": "$metadata.service", "operation": "eq", "type": "string", "value": options.worker}]}}
     return read_cf([*LOG_QUERY, "--body", json.dumps(body)])
 
 
