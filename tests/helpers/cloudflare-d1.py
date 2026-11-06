@@ -4,6 +4,7 @@ import contextlib
 import copy
 from email.message import Message
 import hashlib
+from http.client import BadStatusLine, IncompleteRead, LineTooLong
 import importlib.machinery
 import importlib.util
 import io
@@ -57,6 +58,7 @@ class D1(unittest.TestCase):
             "order_by": [{"column": "state", "direction": "asc"}],
             "parameters": {"category": {"type": "string", "max_length": 16, "values": ["ready"]}},
             "max_rows": 100,
+            "max_plan_rows": 100,
             "timeout_seconds": 30,
         }
         self.file = self.root / "definition.json"
@@ -70,6 +72,7 @@ class D1(unittest.TestCase):
         }]}
         self.calls = self.root / "http.jsonl"
         self.http_status = 200
+        self.http_exception = None
         self.request_delay = 0
         self.real_transport = False
         self.fail_replace = None
@@ -93,6 +96,8 @@ class D1(unittest.TestCase):
             output.write(json.dumps({"url": request.full_url, "method": request.method,
                                      "body": body}) + "\n")
         time.sleep(self.request_delay)
+        if self.http_exception is not None:
+            raise self.http_exception
         if self.execute_sql:
             with sqlite3.connect(":memory:") as database:
                 database.executescript("CREATE TABLE fixture_records (state TEXT, category TEXT); "
@@ -114,7 +119,7 @@ class D1(unittest.TestCase):
         headers["Proxy-Authenticate"] = 'Basic realm="fixture"'
         return FixtureResponse(io.BytesIO(raw), headers, request.full_url, status)
 
-    def invoke(self, *extra):
+    def invoke(self, *extra, with_params=True):
         self.write(self.file, self.definition)
         if self.definition_raw is not None:
             self.file.write_bytes(self.definition_raw)
@@ -141,6 +146,7 @@ class D1(unittest.TestCase):
             return replace(*args, **kwargs)
 
         exchange = helper.http_exchange if self.real_transport else self.exchange
+        params = ["--params-file", str(self.params)] if with_params else []
         with patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "DUMMY_CF_TOKEN",
                                      "CLOUDFLARE_ACCOUNT_ID": "0123456789abcdef0123456789abcdef", **self.environment}, clear=True), \
                 patch.object(os, "replace", replace_record), \
@@ -150,7 +156,7 @@ class D1(unittest.TestCase):
                 patch.object(urllib.request.HTTPSHandler, "https_open", lambda handler, request: self.https_open(handler, request)), \
                 contextlib.redirect_stdout(output):
             status = helper.main(["--reviewed", "d1", "read", "--definition", str(self.file),
-                                  "--sha256", expected, "--params-file", str(self.params), *extra])
+                                  "--sha256", expected, *params, *extra])
         return status, json.loads(output.getvalue())
 
     def test_select(self):
@@ -196,6 +202,24 @@ class D1(unittest.TestCase):
         self.assertNotIn("private-payload", record)
         self.assertEqual(json.loads(record)["status"], "failed")
 
+    def test_http_protocol_failure(self):
+        errors = (IncompleteRead(b"DUMMY_CF_TOKEN private-payload"),
+                  BadStatusLine("DUMMY_CF_TOKEN private-payload"), LineTooLong("DUMMY_CF_TOKEN private-payload"))
+        for index, error in enumerate(errors, 1):
+            with self.subTest(error=type(error).__name__):
+                self.http_exception = error
+                status, summary = self.invoke()
+                self.assertNotEqual(status, 0)
+                self.assertEqual(summary["stop_reason"], "request_failed")
+                self.assertEqual(summary["attempts_started"], 1)
+                self.assertIsNone(summary["returned_count"])
+                self.assertEqual(len(self.calls.read_text().splitlines()), index)
+                record = Path(summary["record"]).read_text()
+                self.assertEqual(json.loads(record)["status"], "failed")
+                self.assertEqual(json.loads(record)["stop_reason"], "request_failed")
+                self.assertNotIn("private-payload", record + json.dumps(summary))
+                self.assertNotIn("DUMMY_CF_TOKEN", record + json.dumps(summary))
+
     def test_sql_boundaries(self):
         self.execute_sql = True
         value = "ready' OR 1=1 --"
@@ -204,7 +228,7 @@ class D1(unittest.TestCase):
         status, summary = self.invoke()
         self.assertEqual(status, 0)
         self.assertEqual(summary["returned_count"], 0)
-        status, summary = self.invoke("--mode", "explain")
+        status, summary = self.invoke("--mode", "explain", "--limit", "1")
         self.assertEqual(status, 0)
         plan = json.loads(Path(summary["record"]).read_text())["query_plan"]
         self.assertGreater(len(plan), 0)
@@ -323,6 +347,9 @@ class D1(unittest.TestCase):
             lambda d: d["parameters"]["category"].update(type="number"),
             lambda d: d["parameters"]["category"].update(values=["other"]),
             lambda d: d.update(max_rows=1001),
+            lambda d: d.update(max_plan_rows=1001),
+            lambda d: d.update(max_plan_rows=True),
+            lambda d: d.pop("max_plan_rows"),
             lambda d: d.update(timeout_seconds=31),
             lambda d: d.update(order_by=[]),
         ]
@@ -350,6 +377,17 @@ class D1(unittest.TestCase):
                 self.assertNotEqual(status, 0)
                 self.assertEqual(summary["attempts_started"], 0)
                 self.assertFalse(self.calls.exists())
+
+    def test_parameters_optional(self):
+        status, summary = self.invoke(with_params=False)
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["attempts_started"], 0)
+        self.assertFalse(self.calls.exists())
+        self.definition.update(parameters={}, where=[])
+        status, summary = self.invoke(with_params=False)
+        self.assertEqual(status, 0)
+        self.assertEqual(summary["attempts_started"], 1)
+        self.assertEqual(json.loads(self.calls.read_text())["body"]["params"], [])
 
     def test_storage_failure(self):
         for replacement, attempts in [(1, 0), (2, 0), (3, 1)]:
@@ -383,6 +421,18 @@ class D1(unittest.TestCase):
         self.assertEqual(summary["stop_reason"], "invalid_response")
         plan["id"] = 2
         self.response["result"][0]["results"] = [plan, plan]
+        status, summary = self.invoke("--mode", "explain", "--limit", "1")
+        self.assertEqual(status, 0)
+        self.assertEqual(summary["returned_count"], 2)
+        self.assertEqual(summary["stop_reason"], "complete")
+        self.definition["max_plan_rows"] = 2
+        status, summary = self.invoke("--mode", "explain", "--limit", "1")
+        self.assertEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "complete")
+        audit = json.loads(Path(summary["record"]).read_text())
+        self.assertEqual(audit["limit"], 1)
+        self.assertEqual(audit["result_limit"], 2)
+        self.definition["max_plan_rows"] = 1
         status, summary = self.invoke("--mode", "explain", "--limit", "1")
         self.assertNotEqual(status, 0)
         self.assertEqual(summary["stop_reason"], "invalid_response")
@@ -418,9 +468,13 @@ class D1(unittest.TestCase):
         self.write(target, self.definition)
         link = self.root / "link.json"
         link.symlink_to(target)
+        hard_link = self.root / "hard.json"
+        os.link(target, hard_link)
+        parent_link = self.root / "parent-link"
+        parent_link.symlink_to(self.root, target_is_directory=True)
         fifo = self.root / "fifo"
         os.mkfifo(fifo)
-        for path in (link, fifo):
+        for path in (link, hard_link, parent_link / "definition.json", fifo):
             with self.subTest(path=path.name):
                 started = time.monotonic()
                 status, summary = self.invoke("--definition", str(path))
@@ -436,6 +490,20 @@ class D1(unittest.TestCase):
         self.assertEqual(self.scratch.stat().st_mode & 0o777, 0o755)
         self.assertFalse(self.calls.exists())
 
+    def test_unsupported_proxy(self):
+        self.real_transport = True
+        for key in ("HTTPS_PROXY", "https_proxy", "ALL_PROXY"):
+            with self.subTest(variable=key):
+                self.environment = {key: "https://DUMMY_PROXY_USER:DUMMY_PROXY_PASS@proxy.invalid:8443", "NO_PROXY": ""}
+                status, summary = self.invoke()
+                self.assertNotEqual(status, 0)
+                self.assertEqual(summary["stop_reason"], "transport_configuration")
+                self.assertEqual(summary["attempts_started"], 0)
+                self.assertFalse(self.calls.exists())
+                record = Path(summary["record"]).read_text()
+                self.assertEqual(json.loads(record)["status"], "failed")
+                self.assertNotIn("DUMMY_PROXY", record + json.dumps(summary))
+
     def test_transport_environment(self):
         self.real_transport = True
         keylog = self.root / "keylog"
@@ -448,6 +516,13 @@ class D1(unittest.TestCase):
         self.assertFalse(keylog.exists())
         self.assertEqual(len(self.calls.read_text().splitlines()), 1)
         self.environment["SSL_CERT_FILE"] = str(self.root / "missing-ca.pem")
+        status, summary = self.invoke()
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "transport_configuration")
+        self.assertEqual(summary["attempts_started"], 0)
+        self.assertEqual(len(self.calls.read_text().splitlines()), 1)
+        self.environment.pop("SSL_CERT_FILE")
+        self.environment["NIX_SSL_CERT_FILE"] = str(self.root / "missing-nix-ca.pem")
         status, summary = self.invoke()
         self.assertNotEqual(status, 0)
         self.assertEqual(summary["stop_reason"], "transport_configuration")

@@ -125,6 +125,7 @@ hook の失敗・timeout・未信頼時は元の `cf` / `cloudflare` を禁止�
     "category": { "type": "string", "max_length": 16, "values": ["ready"] }
   },
   "max_rows": 100,
+  "max_plan_rows": 100,
   "timeout_seconds": 30
 }
 ```
@@ -138,13 +139,15 @@ cloudflare-inspect --reviewed d1 read --definition /absolute/definition.json \
   --sha256 CONFIRMED_SHA256 --params-file /absolute/params.json --mode select --limit 100
 ```
 
-`--mode explain` は別の承認済み操作として選ぶ。SELECT 時に自動で EXPLAIN を追加しない。既定件数は min(100, max_rows)、共通最大1000件。全体期限は定義の timeout_seconds（1〜30秒）で、親 process が定義読込みから通信・保存までの子 process を監督する。期限切れの子は停止するが、サーバ側の処理終了を保証しない。取得件数・LIMIT・EXPLAIN を走査量や費用の保証と呼ばない。LIMIT と同数なら `limit_reached_unknown` として続きの有無を推定せず、N+1 件や cursor で続きを調べない。
+`--mode explain` は別の承認済み操作として選ぶ。SELECT 時に自動で EXPLAIN を追加しない。SELECT の既定件数は min(100, max_rows)、共通最大1000件。`--limit` は EXPLAIN 時も計画対象の SELECT に適用し、計画行数には適用しない。計画の応答は定義の max_plan_rows（必須、1〜1000、上の例では100）以内の非空の全体だけを受理し、超過時に切り詰めて成功扱いしない。max_rows と max_plan_rows は独立した上限として人が確認する。旧形式の定義には max_plan_rows を加えて内容と hash を再確認する。private 記録の limit は SQL の LIMIT、result_limit は選んだモードの応答行数上限を表す。公開 returned_count も SELECT ではデータ行、EXPLAIN では計画行の件数となる。
 
-HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。送信開始予定を先に flush してから通信し、成功または失敗を確定記録へ更新する。中断・期限切れでは private 記録が `pending / interrupted_or_deadline` のまま残る場合があり、開始予定/開始済みと実際の送信到達・サーバ側の結果を区別する。socket の timeout だけを全体期限と扱わない。HTTP エラーや保存失敗を成功扱いせず、応答・例外の原文をログへ出さない。
+全体期限は定義の timeout_seconds（1〜30秒）で、親 process が定義読込みから通信・保存までの子 process を監督する。期限切れの子は停止するが、サーバ側の処理終了を保証しない。取得件数・LIMIT・EXPLAIN を走査量や費用の保証と呼ばない。SELECT の返却件数が LIMIT と同数なら `limit_reached_unknown` として続きの有無を推定せず、N+1 件や cursor で続きを調べない。EXPLAIN は計画行数が上限と同数でも、検証した全体の取得を `complete` と記録する。
+
+HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。送信開始予定を先に flush してから通信し、成功または失敗を確定記録へ更新する。途中切断や不正な status line などの HTTP protocol 例外は、開始済み1試行の `failed / request_failed` として確定し、再送しない。中断・期限切れでは private 記録が `pending / interrupted_or_deadline` のまま残る場合があり、開始予定/開始済みと実際の送信到達・サーバ側の結果を区別する。socket の timeout だけを全体期限と扱わない。HTTP エラーや保存失敗を成功扱いせず、応答・例外の原文をログへ出さない。
 
 記録は、検査済み `/tmp/codex` 内の一意な `cloudflare-inspect.<乱数>/record.json`（directory は0700、file は0600）だけに保存する。既存ファイル・任意保存先・Git による追跡対象判定は使わない。公開 JSON は status、返却件数、統計、試行開始数、終了理由と、業務名を含まない一般的な記録 locator だけ。許可行・SQL/params・対象・query plan・実効 helper の実体 path/SHA-256・cf exact pin は private 記録で照合する。credential は private 記録にも含めない。実 token の文字列反映は保存前に除外するが、未知の秘密値の自動分類ではなく、人が許可列を選ぶ契約を前提とする。
 
-Python の TLS client は `SSL_CERT_FILE`（未指定なら `NIX_SSL_CERT_FILE`）と `SSL_CERT_DIR` を使い、未指定時は標準 CA を使う。HTTP/HTTPS/ALL_PROXY と小文字形・NO_PROXY の既存設定を使う。未対応の proxy scheme は停止し、proxy 認証 challenge の再送は行わない。`NODE_EXTRA_CA_CERTS` は Python の CA とみなさず、`SSLKEYLOGFILE`・Node/debug/profile・任意 endpoint 設定を有効にしない。
+Python の TLS client は `SSL_CERT_FILE`（未指定なら `NIX_SSL_CERT_FILE`）と `SSL_CERT_DIR` を使い、未指定時は標準 CA を使う。HTTP/HTTPS/ALL_PROXY と小文字形・NO_PROXY の既存設定を使う。proxy URL の scheme は `http://` のみを許可する（例: `HTTPS_PROXY=http://proxy:8080`）。urllib が CONNECT 前に proxy への TLS を開始しないため、`https://` proxy は送信前に拒否する。その他の未対応 scheme も停止し、proxy 認証 challenge の再送は行わない。`NODE_EXTRA_CA_CERTS` は Python の CA とみなさず、`SSLKEYLOGFILE`・Node/debug/profile・任意 endpoint 設定を有効にしない。
 
 R2 object 一覧は [#581](https://github.com/treflebonbon/dotfiles/issues/581) の設計対象で、ここから代行しない。実サービスでの受入れは対象・操作・件数・時間・費用範囲を定めた別確認とし、未 merge の task worktree から配備しない。
 

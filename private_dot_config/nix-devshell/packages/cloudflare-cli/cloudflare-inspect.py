@@ -5,6 +5,7 @@
 import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
+from http.client import HTTPException
 import json
 import math
 import multiprocessing
@@ -105,7 +106,7 @@ def d1_plan(options, account):
         raise ValueError("確認済み定義の hash と一致しません。")
     definition = strict_json(raw)
     require_exact_keys(definition, ("version", "account_id", "database_id", "table", "allowed_columns", "select",
-                      "where", "order_by", "parameters", "max_rows", "timeout_seconds"))
+                      "where", "order_by", "parameters", "max_rows", "max_plan_rows", "timeout_seconds"))
     if type(definition["version"]) is not int or definition["version"] != 1:
         raise ValueError("未対応の定義です。")
     if not isinstance(account, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", account) or definition["account_id"] != account:
@@ -124,7 +125,7 @@ def d1_plan(options, account):
     allowed = set(definition["allowed_columns"])
     if not set(definition["select"]) <= allowed:
         raise ValueError("許可外の投影列です。")
-    for name, maximum in (("max_rows", 1000), ("timeout_seconds", 30)):
+    for name, maximum in (("max_rows", 1000), ("max_plan_rows", 1000), ("timeout_seconds", 30)):
         if type(definition[name]) is not int or not 1 <= definition[name] <= maximum:
             raise ValueError("件数または期限の上限が不正です。")
     limit = options.limit if options.limit is not None else min(100, definition["max_rows"])
@@ -234,7 +235,8 @@ def d1_opener():
     for name in ("http", "https"):
         if name in proxies:
             proxy = urlsplit(proxies[name])
-            if proxy.scheme not in ("http", "https") or not proxy.hostname or proxy.query or proxy.fragment or proxy.path not in ("", "/"):
+            # urllib は CONNECT 前に proxy 側の TLS を開始しない。
+            if proxy.scheme != "http" or not proxy.hostname or proxy.query or proxy.fragment or proxy.path not in ("", "/"):
                 raise ValueError("未対応の proxy 設定です。")
     # 認証 challenge を再送する handler は登録しない。
     return build_opener(ProxyHandler(proxies), HTTPSHandler(context=context), D1NoRedirect())
@@ -304,13 +306,14 @@ def d1_parser():
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--params-file")
     parser.add_argument("--mode", choices=("select", "explain"), default="select")
-    parser.add_argument("--limit", type=int)
+    parser.add_argument("--limit", type=int, help="SELECT の LIMIT。計画行数の上限は定義の max_plan_rows。")
     return parser
 
 
 def perform_d1(arguments, notify, started):
     options = d1_parser().parse_args(arguments)
     definition, body, limit = d1_plan(options, os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
+    result_limit = definition["max_plan_rows"] if options.mode == "explain" else limit
     deadline = started + definition["timeout_seconds"]
     notify({"deadline": deadline})
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
@@ -321,7 +324,7 @@ def perform_d1(arguments, notify, started):
     audit = {"utc": datetime.now(timezone.utc).isoformat(), "mode": options.mode, "status": "pending",
              "stop_reason": "interrupted_or_deadline", "attempts_started": 0, "definition_sha256": options.sha256,
              "account_id": definition["account_id"], "database_id": definition["database_id"], "query": body,
-             "limit": limit, "timeout_seconds": definition["timeout_seconds"], "returned_count": None,
+             "limit": limit, "result_limit": result_limit, "timeout_seconds": definition["timeout_seconds"], "returned_count": None,
              "rows_read": None, "rows_written": None, "duration": None,
              "query_plan": None, "query_plan_reason": "not_requested" if options.mode == "select" else "not_completed",
              "implementation": {"cli_pin": VERSION, "api_contract": "d1-query-v1", "helper_path": str(Path(__file__).resolve()),
@@ -352,8 +355,9 @@ def perform_d1(arguments, notify, started):
             raise ValueError("D1 の参照に失敗しました。")
         reason = "invalid_response"
         columns = definition["select"] if options.mode == "select" else ["id", "parent", "notused", "detail"]
-        rows, meta = d1_result(strict_json(raw), columns, limit, options.mode)
-        audit.update(status="success", returned_count=len(rows), stop_reason="limit_reached_unknown" if len(rows) == limit else "complete", **meta)
+        rows, meta = d1_result(strict_json(raw), columns, result_limit, options.mode)
+        audit.update(status="success", returned_count=len(rows),
+                     stop_reason="limit_reached_unknown" if options.mode == "select" and len(rows) == limit else "complete", **meta)
         if options.mode == "select":
             audit["results"] = rows
         else:
@@ -361,7 +365,7 @@ def perform_d1(arguments, notify, started):
         reason = "record_failed"
         record.write(redact(audit, token))
         return {key: audit[key] for key in ("status", "returned_count", "stop_reason", "attempts_started", "rows_read", "rows_written", "duration")} | {"record": record.path}
-    except (ValueError, OSError, RecursionError):
+    except (ValueError, OSError, RecursionError, HTTPException):
         audit.update(status="failed", stop_reason=reason)
         if not request_started:
             audit["attempts_started"] = 0

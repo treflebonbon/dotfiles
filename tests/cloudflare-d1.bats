@@ -44,6 +44,12 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ]
 }
 
+@test "D1 は TLS 接続できない https scheme の proxy を送信前に拒否する" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_unsupported_proxy
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "D1 の EXPLAIN は専用 schema と件数制限で検証し計画を公開しない" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_explain
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
@@ -58,6 +64,12 @@ bats_require_minimum_version 1.5.0
 
 @test "D1 の不正な定義・hash・bind・列・件数を送信前に拒否する" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_invalid_definition
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "D1 の params ファイルは引数なしの定義でだけ省略できる" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_parameters_optional
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
@@ -100,6 +112,12 @@ bats_require_minimum_version 1.5.0
 
 @test "D1 の HTTP エラーを再試行せず匿名の失敗と private 記録を返す" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_http_failure
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "D1 の途中切断や不正な HTTP 応答でも送信後の失敗記録を確定する" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_http_protocol_failure
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
