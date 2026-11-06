@@ -129,7 +129,7 @@ hook の失敗・timeout・未信頼時は元の `cf` / `cloudflare` を禁止�
 }
 ```
 
-引数ファイルはこの例なら `{"category":"ready"}`。parameters が空なら省略できる。bind は許可値を列挙した文字列のみで、数値・null・bool を文字列化しない。条件は AND で結び、演算子は `= != < <= > >=`、並び順は `asc/desc`。投影・条件・並び順の列はすべて allowed_columns 内に固定する。本文・資格情報・個人情報やその生成材料となる列を、人の確認で許可リストから除外する。識別子は英字/underscore で始まる英数字/underscore の128文字以内で、`sqlite_*`・`_cf_*` は使えない。star、JOIN、副問合せ、関数、集計、任意式、PRAGMA、複数 statement、更新、DDL は生成しない。
+引数ファイルはこの例なら `{"category":"ready"}`。parameters が空なら省略できる。bind は許可値を列挙した文字列のみで、数値・null・bool を文字列化しない。条件は AND で結び、演算子は `= != < <= > >=`、並び順は1〜16項目の `asc/desc` を固定し、空の order_by は拒否する。投影・条件・並び順の列はすべて allowed_columns 内に固定する。本文・資格情報・個人情報やその生成材料となる列を、人の確認で許可リストから除外する。識別子は英字/underscore で始まる英数字/underscore の128文字以内で、`sqlite_*`・`_cf_*` は使えない。star、JOIN、副問合せ、関数、集計、任意式、PRAGMA、複数 statement、更新、DDL は生成しない。
 
 ```bash
 # 内容を確認した hash と今回の操作・対象について、人の承認を得た後に実行する。

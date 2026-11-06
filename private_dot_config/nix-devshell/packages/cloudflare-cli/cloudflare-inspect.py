@@ -87,7 +87,7 @@ def private_bytes(path):
     return raw
 
 
-def keys(value, expected):
+def require_exact_keys(value, expected):
     if not isinstance(value, dict) or set(value) != set(expected):
         raise ValueError("定義の項目が不正です。")
 
@@ -104,7 +104,7 @@ def d1_plan(options, account):
     if not re.fullmatch(r"[a-f0-9]{64}", options.sha256) or hashlib.sha256(raw).hexdigest() != options.sha256:
         raise ValueError("確認済み定義の hash と一致しません。")
     definition = strict_json(raw)
-    keys(definition, ("version", "account_id", "database_id", "table", "allowed_columns", "select",
+    require_exact_keys(definition, ("version", "account_id", "database_id", "table", "allowed_columns", "select",
                       "where", "order_by", "parameters", "max_rows", "timeout_seconds"))
     if type(definition["version"]) is not int or definition["version"] != 1:
         raise ValueError("未対応の定義です。")
@@ -134,10 +134,10 @@ def d1_plan(options, account):
     values = strict_json(private_bytes(options.params_file)) if options.params_file else {}
     if not isinstance(parameters, dict) or len(parameters) > 16:
         raise ValueError("引数定義が不正です。")
-    keys(values, parameters)
+    require_exact_keys(values, parameters)
     for name, rule in parameters.items():
         identifier(name)
-        keys(rule, ("type", "max_length", "values"))
+        require_exact_keys(rule, ("type", "max_length", "values"))
         if (rule["type"] != "string" or type(rule["max_length"]) is not int or not 1 <= rule["max_length"] <= 4096
                 or not isinstance(rule["values"], list) or not rule["values"] or len(rule["values"]) > 256):
             raise ValueError("文字列引数の型・許可値が不正です。")
@@ -147,11 +147,11 @@ def d1_plan(options, account):
         if not isinstance(values[name], str) or values[name] not in rule["values"]:
             raise ValueError("許可外の引数値です。")
     where, order, bound, used = [], [], [], set()
-    for collection in ("where", "order_by"):
-        if not isinstance(definition[collection], list) or len(definition[collection]) > 16:
+    for collection, minimum in (("where", 0), ("order_by", 1)):
+        if not isinstance(definition[collection], list) or not minimum <= len(definition[collection]) <= 16:
             raise ValueError("条件または並び順が不正です。")
     for condition in definition["where"]:
-        keys(condition, ("column", "operator", "parameter"))
+        require_exact_keys(condition, ("column", "operator", "parameter"))
         column = identifier(condition["column"])
         if condition["column"] not in allowed or condition["operator"] not in ("=", "!=", "<", "<=", ">", ">="):
             raise ValueError("許可外の条件です。")
@@ -165,7 +165,7 @@ def d1_plan(options, account):
     if used != set(parameters):
         raise ValueError("未使用の引数定義です。")
     for item in definition["order_by"]:
-        keys(item, ("column", "direction"))
+        require_exact_keys(item, ("column", "direction"))
         column = identifier(item["column"])
         if item["column"] not in allowed or item["direction"] not in ("asc", "desc"):
             raise ValueError("許可外の並び順です。")
@@ -260,11 +260,12 @@ def d1_result(value, columns, limit, mode):
             or not isinstance(value.get("result"), list) or len(value["result"]) != 1):
         raise ValueError("D1 の応答が不正です。")
     result = value["result"][0]
-    keys(result, ("success", "results", "meta"))
-    if result["success"] is not True or not isinstance(result["results"], list) or len(result["results"]) > limit:
+    require_exact_keys(result, ("success", "results", "meta"))
+    if (result["success"] is not True or not isinstance(result["results"], list) or len(result["results"]) > limit
+            or mode == "explain" and not result["results"]):
         raise ValueError("D1 の結果が不正です。")
     for row in result["results"]:
-        keys(row, columns)
+        require_exact_keys(row, columns)
         if mode == "explain" and (any(type(row[key]) is not int or row[key] < 0 for key in ("id", "parent", "notused"))
                                   or not isinstance(row["detail"], str)):
             raise ValueError("D1 の実行計画が不正です。")
@@ -310,7 +311,8 @@ def d1_parser():
 def perform_d1(arguments, notify, started):
     options = d1_parser().parse_args(arguments)
     definition, body, limit = d1_plan(options, os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
-    notify({"deadline": started + definition["timeout_seconds"]})
+    deadline = started + definition["timeout_seconds"]
+    notify({"deadline": deadline})
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
     if not token or any(ord(c) < 32 for c in token):
         raise ValueError("D1 Read の token が必要です。")
@@ -337,10 +339,14 @@ def perform_d1(arguments, notify, started):
         audit["attempts_started"] = 1
         reason = "record_failed"
         record.write(redact(audit, token))
+        reason = "deadline_exceeded"
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ValueError("D1 の全体期限を過ぎています。")
         notify({"attempts_started": 1})
         request_started = True
         reason = "request_failed"
-        status, raw = http_exchange(opener, request, definition["timeout_seconds"])
+        status, raw = http_exchange(opener, request, remaining)
         if status != 200:
             reason = "http_error"
             raise ValueError("D1 の参照に失敗しました。")

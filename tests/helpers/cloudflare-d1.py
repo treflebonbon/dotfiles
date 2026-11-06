@@ -73,6 +73,7 @@ class D1(unittest.TestCase):
         self.request_delay = 0
         self.real_transport = False
         self.fail_replace = None
+        self.first_record_delay = 0
         self.definition_mode = 0o600
         self.definition_raw = None
         self.environment = {}
@@ -110,6 +111,7 @@ class D1(unittest.TestCase):
         headers = Message()
         headers["Location"] = "https://untrusted.invalid/"
         headers["Content-Type"] = "application/json"
+        headers["Proxy-Authenticate"] = 'Basic realm="fixture"'
         return FixtureResponse(io.BytesIO(raw), headers, request.full_url, status)
 
     def invoke(self, *extra):
@@ -132,6 +134,8 @@ class D1(unittest.TestCase):
         def replace_record(*args, **kwargs):
             nonlocal replacements
             replacements += 1
+            if replacements == 1:
+                time.sleep(self.first_record_delay)
             if self.fail_replace is not None and replacements >= self.fail_replace:
                 raise OSError("DUMMY_CF_TOKEN private-storage-error")
             return replace(*args, **kwargs)
@@ -239,6 +243,16 @@ class D1(unittest.TestCase):
         self.assertEqual(audit["stop_reason"], "interrupted_or_deadline")
         self.assertEqual(audit["status"], "pending")
 
+    def test_expired_before_request(self):
+        self.definition["timeout_seconds"] = 1
+        self.first_record_delay = 1.2
+        self.delay_deadline_notice = True
+        status, summary = self.invoke()
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "deadline_exceeded")
+        self.assertEqual(summary["attempts_started"], 0)
+        self.assertFalse(self.calls.exists())
+
     def test_redirect(self):
         self.real_transport = True
         self.http_status = 302
@@ -248,6 +262,19 @@ class D1(unittest.TestCase):
         self.assertEqual(summary["stop_reason"], "http_error")
         self.assertEqual(summary["attempts_started"], 1)
         self.assertEqual(len(self.calls.read_text().splitlines()), 1)
+
+    def test_proxy_challenge(self):
+        self.real_transport = True
+        self.environment = {"HTTPS_PROXY": "http://DUMMY_PROXY_USER:DUMMY_PROXY_PASS@proxy.invalid:8080", "NO_PROXY": ""}
+        self.expected_proxy = "proxy.invalid:8080"
+        self.http_status = 407
+        status, summary = self.invoke()
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "http_error")
+        self.assertEqual(summary["attempts_started"], 1)
+        self.assertEqual(len(self.calls.read_text().splitlines()), 1)
+        self.assertNotIn("DUMMY_PROXY", json.dumps(summary))
+        self.assertNotIn("DUMMY_PROXY", Path(summary["record"]).read_text())
 
     def test_invalid_response(self):
         valid = copy.deepcopy(self.response)
@@ -297,6 +324,7 @@ class D1(unittest.TestCase):
             lambda d: d["parameters"]["category"].update(values=["other"]),
             lambda d: d.update(max_rows=1001),
             lambda d: d.update(timeout_seconds=31),
+            lambda d: d.update(order_by=[]),
         ]
         for index, change in enumerate(cases):
             with self.subTest(index=index):
@@ -344,6 +372,11 @@ class D1(unittest.TestCase):
         self.assertIsNone(audit["query_plan_reason"])
         self.assertNotIn("SCAN", json.dumps(summary))
         self.assertTrue(json.loads(self.calls.read_text().splitlines()[0])["body"]["sql"].startswith("EXPLAIN QUERY PLAN SELECT"))
+        self.response["result"][0]["results"] = []
+        status, summary = self.invoke("--mode", "explain")
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "invalid_response")
+        self.response["result"][0]["results"] = [plan]
         self.response["result"][0]["results"][0]["id"] = "invalid"
         status, summary = self.invoke("--mode", "explain")
         self.assertNotEqual(status, 0)
@@ -369,6 +402,7 @@ class D1(unittest.TestCase):
                 self.definition_mode = mode
                 status, summary = self.invoke()
                 self.assertNotEqual(status, 0)
+                self.assertEqual(summary["stop_reason"], "invalid_request")
                 self.assertEqual(summary["attempts_started"], 0)
                 self.assertFalse(self.calls.exists())
         self.definition_mode = 0o600
@@ -377,6 +411,7 @@ class D1(unittest.TestCase):
                 self.definition_raw = raw
                 status, summary = self.invoke()
                 self.assertNotEqual(status, 0)
+                self.assertEqual(summary["stop_reason"], "invalid_request")
                 self.assertEqual(summary["attempts_started"], 0)
         self.definition_raw = None
         target = self.root / "symlink-target.json"
@@ -390,11 +425,13 @@ class D1(unittest.TestCase):
                 started = time.monotonic()
                 status, summary = self.invoke("--definition", str(path))
                 self.assertNotEqual(status, 0)
+                self.assertEqual(summary["stop_reason"], "invalid_request")
                 self.assertLess(time.monotonic() - started, 3)
                 self.assertEqual(summary["attempts_started"], 0)
         self.scratch.chmod(0o755)
         status, summary = self.invoke()
         self.assertNotEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "invalid_request")
         self.assertEqual(summary["attempts_started"], 0)
         self.assertEqual(self.scratch.stat().st_mode & 0o777, 0o755)
         self.assertFalse(self.calls.exists())
