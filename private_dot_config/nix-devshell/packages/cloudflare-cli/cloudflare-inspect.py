@@ -12,12 +12,15 @@ import os
 from pathlib import Path
 import re
 import secrets
+import ssl
 import stat
 import subprocess
 import sys
 import tempfile
 import time
-from urllib.request import Request
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener, getproxies_environment
 
 
 VERSION = "1.0.0-beta.25"
@@ -32,6 +35,7 @@ SEARCH_TERMS = ("durable objects namespaces", "d1 databases", "r2 buckets", "wor
 LOG_QUERY = ("o11y", "telemetry", "query")
 D1_SCRATCH = Path("/tmp/codex")
 D1_MAX_JSON = 65536
+D1_MAX_RESPONSE = 8 * 1024 * 1024
 
 
 def strict_json(raw):
@@ -210,11 +214,47 @@ class D1Record:
         os.close(self.directory)
 
 
+class D1NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def d1_opener():
+    # create_default_context() は SSLKEYLOGFILE も読むため、TLS client を直接作る。
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    cafile = os.environ.get("SSL_CERT_FILE") or os.environ.get("NIX_SSL_CERT_FILE")
+    capath = os.environ.get("SSL_CERT_DIR")
+    if cafile or capath:
+        context.load_verify_locations(cafile=cafile, capath=capath)
+    else:
+        context.load_default_certs()
+    proxies = getproxies_environment()
+    if "https" not in proxies and "all" in proxies:
+        proxies["https"] = proxies["all"]
+    for name in ("http", "https"):
+        if name in proxies:
+            proxy = urlsplit(proxies[name])
+            if proxy.scheme not in ("http", "https") or not proxy.hostname or proxy.query or proxy.fragment or proxy.path not in ("", "/"):
+                raise ValueError("未対応の proxy 設定です。")
+    # 認証 challenge を再送する handler は登録しない。
+    return build_opener(ProxyHandler(proxies), HTTPSHandler(context=context), D1NoRedirect())
+
+
 def http_exchange(opener, request, timeout):
-    raise OSError("D1 transport は未実装です。")
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            if response.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
+                raise ValueError("JSON の応答が必要です。")
+            raw = response.read(D1_MAX_RESPONSE + 1)
+            if len(raw) > D1_MAX_RESPONSE:
+                raise ValueError("D1 の応答が大きすぎます。")
+            return response.status, raw
+    except HTTPError as error:
+        error.close()
+        return error.code, b""
 
 
-def d1_result(value, columns, limit):
+def d1_result(value, columns, limit, mode):
     if (not isinstance(value, dict) or set(value) - {"success", "errors", "messages", "result"}
             or value.get("success") is not True or value.get("errors") != [] or value.get("messages") != []
             or not isinstance(value.get("result"), list) or len(value["result"]) != 1):
@@ -225,6 +265,9 @@ def d1_result(value, columns, limit):
         raise ValueError("D1 の結果が不正です。")
     for row in result["results"]:
         keys(row, columns)
+        if mode == "explain" and (any(type(row[key]) is not int or row[key] < 0 for key in ("id", "parent", "notused"))
+                                  or not isinstance(row["detail"], str)):
+            raise ValueError("D1 の実行計画が不正です。")
         for item in row.values():
             if type(item) not in (str, int, float, bool, type(None)) or isinstance(item, float) and not math.isfinite(item):
                 raise ValueError("D1 の行が不正です。")
@@ -235,21 +278,26 @@ def d1_result(value, columns, limit):
         raise ValueError("D1 の meta が不正です。")
     for key in ("rows_read", "rows_written", "duration"):
         number = meta.get(key)
-        if type(number) not in (int, float) or not math.isfinite(number) or number < 0:
+        if (type(number) not in (int, float) or number < 0 or number > 2**63 - 1
+                or not math.isfinite(number) or key != "duration" and type(number) is not int):
             raise ValueError("D1 の実行統計が不正です。")
     if meta["rows_written"] != 0 or meta.get("changed_db", False) is not False or meta.get("changes", 0) != 0:
         raise ValueError("D1 の書込みを検出しました。")
     return result["results"], {key: meta[key] for key in ("rows_read", "rows_written", "duration")}
 
 
-def perform_d1(arguments, notify, started):
+def d1_parser():
     parser = Parser(prog="cloudflare-inspect --reviewed d1 read", allow_abbrev=False)
     parser.add_argument("--definition", required=True)
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--params-file")
     parser.add_argument("--mode", choices=("select", "explain"), default="select")
     parser.add_argument("--limit", type=int)
-    options = parser.parse_args(arguments)
+    return parser
+
+
+def perform_d1(arguments, notify, started):
+    options = d1_parser().parse_args(arguments)
     definition, body, limit = d1_plan(options, os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
     notify({"deadline": started + definition["timeout_seconds"]})
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
@@ -260,26 +308,34 @@ def perform_d1(arguments, notify, started):
     audit = {"utc": datetime.now(timezone.utc).isoformat(), "mode": options.mode, "status": "pending",
              "stop_reason": "interrupted_or_deadline", "attempts_started": 0, "definition_sha256": options.sha256,
              "account_id": definition["account_id"], "database_id": definition["database_id"], "query": body,
+             "limit": limit, "timeout_seconds": definition["timeout_seconds"], "returned_count": None,
+             "rows_read": None, "rows_written": None, "duration": None,
              "query_plan": None, "query_plan_reason": "not_requested" if options.mode == "select" else "not_completed",
-             "implementation": {"cli_pin": VERSION, "helper_path": str(Path(__file__).resolve()),
+             "implementation": {"cli_pin": VERSION, "api_contract": "d1-query-v1", "helper_path": str(Path(__file__).resolve()),
                                 "helper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}}
     reason = "record_failed"
+    request_started = False
     try:
         record.write(redact(audit, token))
         request = Request("https://api.cloudflare.com/client/v4/accounts/" + definition["account_id"] +
                           "/d1/database/" + definition["database_id"] + "/query", method="POST",
-                          data=json.dumps(body).encode(), headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
+                          data=json.dumps(body).encode(), headers={"Authorization": "Bearer " + token, "Content-Type": "application/json",
+                                                                  "Accept": "application/json", "User-Agent": "dotfiles-cloudflare-inspect/" + VERSION})
+        reason = "transport_configuration"
+        opener = d1_opener()
         audit["attempts_started"] = 1
+        reason = "record_failed"
         record.write(redact(audit, token))
         notify({"attempts_started": 1})
+        request_started = True
         reason = "request_failed"
-        status, raw = http_exchange(None, request, definition["timeout_seconds"])
+        status, raw = http_exchange(opener, request, definition["timeout_seconds"])
         if status != 200:
             reason = "http_error"
             raise ValueError("D1 の参照に失敗しました。")
         reason = "invalid_response"
         columns = definition["select"] if options.mode == "select" else ["id", "parent", "notused", "detail"]
-        rows, meta = d1_result(strict_json(raw), columns, limit if options.mode == "select" else 1000)
+        rows, meta = d1_result(strict_json(raw), columns, limit, options.mode)
         audit.update(status="success", returned_count=len(rows), stop_reason="limit_reached_unknown" if len(rows) == limit else "complete", **meta)
         if options.mode == "select":
             audit["results"] = rows
@@ -290,9 +346,14 @@ def perform_d1(arguments, notify, started):
         return {key: audit[key] for key in ("status", "returned_count", "stop_reason", "attempts_started", "rows_read", "rows_written", "duration")} | {"record": record.path}
     except (ValueError, OSError, RecursionError):
         audit.update(status="failed", stop_reason=reason)
+        if not request_started:
+            audit["attempts_started"] = 0
         audit.pop("results", None)
         audit["query_plan"] = None
-        record.write(redact(audit, token))
+        try:
+            record.write(redact(audit, token))
+        except OSError:
+            audit["stop_reason"] = "record_failed"
         return {key: audit.get(key) for key in ("status", "returned_count", "stop_reason", "attempts_started", "rows_read", "rows_written", "duration")} | {"record": record.path}
     finally:
         record.close()
@@ -340,6 +401,17 @@ def inspect_d1(arguments):
         if worker.is_alive():
             worker.kill()
         worker.join()
+        if state["stop_reason"] == "deadline_exceeded":
+            # deadline より先に送られた開始通知を捨てて、架空の0試行にしない。
+            while receiver.poll():
+                try:
+                    notice = receiver.recv()
+                except EOFError:
+                    break
+                notice = notice.get("result", notice)
+                for key in ("record", "attempts_started"):
+                    if key in notice:
+                        state[key] = notice[key]
         receiver.close()
     return state
 
@@ -440,6 +512,8 @@ def main(arguments):
               "\n過去ログ: o11y telemetry query --worker NAME --start ISO日時 --end ISO日時 [--limit 100]" +
               "\n  最大24時間・1000件。日時のタイムゾーンは必須。" +
               "\n確認後の追加参照: --reviewed d1 get <database-id> [--fields FIELDS]" +
+              "\n限定読取り: --reviewed d1 read --definition PATH --sha256 HASH [--params-file PATH] [--mode select|explain] [--limit N]" +
+              "\n  確認済み宣言形式のみ。最大1000件・1 HTTP試行・全体30秒。" +
               "\n版表示: --version（認証不要、ローカルのみ）" +
               "\n検索: cli search <固定語彙>\n  " + " / ".join(SEARCH_TERMS))
         return 0
@@ -452,6 +526,9 @@ def main(arguments):
     if arguments[:2] == ["d1", "read"]:
         if not reviewed:
             raise ValueError("D1 の限定参照は操作ごとの確認後に --reviewed を指定してください。")
+        if arguments[2:] == ["--help"]:
+            d1_parser().print_help()
+            return 0
         summary = inspect_d1(arguments[2:])
         print(json.dumps(summary, ensure_ascii=False))
         return int(summary["status"] != "success")
