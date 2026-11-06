@@ -9,7 +9,7 @@ status: accepted
 
 # 限定参照の読取り定義と実行上限を固定する
 
-[#580](https://github.com/treflebonbon/dotfiles/issues/580) の triage で、2026-11-06 に読取り定義・実行上限・対象範囲・通信経路を合意した。#580 は D1 の限定参照を先行し、R2 は取得禁止を満たす入口と認証契約を設計する別 Issue に分ける。以下は実装前の契約であり、現在の helper が対応済みとは扱わない。
+[#580](https://github.com/treflebonbon/dotfiles/issues/580) の triage で、2026-11-06 に読取り定義・実行上限・対象範囲・通信経路を合意した。#580 は D1 の限定参照を先行し、R2 は取得禁止を満たす入口と認証契約を設計する [#581](https://github.com/treflebonbon/dotfiles/issues/581) に分ける。以下を実装の契約とし、対応する操作・引数・利用手順は[調査手順](../../runtime/investigation.md)に記載する。
 
 D1 の初期対応は、単一テーブル、明示した列、値の bind、比較条件、固定した並び順、LIMIT からなる狭い宣言形式に限定する。helper が SELECT を生成し、その SELECT または EXPLAIN QUERY PLAN のいずれか1つを選ぶ。JOIN・副問合せ・関数・集計・任意 SQL は初期対象から外す。承認済みの SQL 文字列を広く受理する方式より、取得列と単一 statement を実行前に検証しやすい境界を優先する。
 
@@ -28,3 +28,5 @@ D1 の新しい限定参照に限り、helper 内に公式 Query API の固定 H
 本文・資格情報・個人情報やその生成材料となる列、および R2 の HTTP/custom metadata の取得禁止は維持する。公開出力へ ID/key を混入させず、許可項目の private 保存と公開集計を分ける。実サービスでの受入れ、資格情報の作成・変更、再配備はこの合意に含めない。Read 権限、操作ごとの確認、未対応操作を別経路で代行しない境界は [ADR-0083](0083-add-read-only-cloudflare-inspection.md) と[調査手順](../../runtime/investigation.md)を引き継ぐ。
 
 private 保存は、本人所有・private・symlink なしと検査した `/tmp/codex` 内に helper が作る、業務名を含まない一意の作業 directory に限定する。directory は mode0700、記録は mode0600 の新規通常ファイルとし、既存ファイルを上書きしない。任意保存先や Git による追跡対象判定を追加しない。生成した一般的な保存先 locator は呼出元へ返せるが、資源 ID・業務名・定義の内容は含めない。
+
+実装では固定版 cf の同梱 schema と[公式 Query API](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)を照合し、文字列配列の params と単一結果の応答契約を採用した。公式では任意の rows_read・rows_written・duration も、この入口では必須とし、欠落や未知・不整合な schema は失敗にする。EXPLAIN は [SQLite の4列構造](https://www.sqlite.org/eqp.html)に従い、id・parent・notused の整数と detail の文字列を採用し、ローカルの SQLite 合成データでも結果列を確認する。detail の内容を解析して費用を推定しない。実サービスの応答と配備済み実体は、このローカル検証だけで確認済みとは扱わない。

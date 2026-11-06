@@ -12,6 +12,7 @@ import multiprocessing.connection
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import sys
 import time
 import unittest
@@ -63,7 +64,9 @@ class D1(unittest.TestCase):
         self.write(self.params, {"category": "ready"})
         self.response: dict[str, Any] = {"success": True, "errors": [], "messages": [], "result": [{
             "success": True, "results": [{"state": "available"}],
-            "meta": {"rows_read": 7, "rows_written": 0, "duration": 0.5},
+            "meta": {"rows_read": 7, "rows_written": 0, "duration": 0.5, "changed_db": False,
+                     "changes": 0, "last_row_id": 0, "size_after": 4096, "served_by_colo": "LHR",
+                     "served_by_primary": True, "served_by_region": "EEUR", "timings": {"sql_duration_ms": 0.5}},
         }]}
         self.calls = self.root / "http.jsonl"
         self.http_status = 200
@@ -75,6 +78,7 @@ class D1(unittest.TestCase):
         self.environment = {}
         self.expected_proxy = None
         self.delay_deadline_notice = False
+        self.execute_sql = False
 
     def write(self, path, value):
         if path.exists():
@@ -83,10 +87,20 @@ class D1(unittest.TestCase):
         path.chmod(0o600)
 
     def exchange(self, opener, request, timeout):
+        body = json.loads(request.data)
         with self.calls.open("a") as output:
             output.write(json.dumps({"url": request.full_url, "method": request.method,
-                                     "body": json.loads(request.data)}) + "\n")
+                                     "body": body}) + "\n")
         time.sleep(self.request_delay)
+        if self.execute_sql:
+            with sqlite3.connect(":memory:") as database:
+                database.executescript("CREATE TABLE fixture_records (state TEXT, category TEXT); "
+                                       "INSERT INTO fixture_records VALUES ('available', 'ready');")
+                try:
+                    cursor = database.execute(body["sql"], body["params"])
+                except sqlite3.Error:
+                    return 400, b""
+                self.response["result"][0]["results"] = [dict(zip([item[0] for item in cursor.description], row)) for row in cursor.fetchall()]
         return self.http_status, json.dumps(self.response).encode()
 
     def https_open(self, handler, request):
@@ -178,6 +192,27 @@ class D1(unittest.TestCase):
         self.assertNotIn("private-payload", record)
         self.assertEqual(json.loads(record)["status"], "failed")
 
+    def test_sql_boundaries(self):
+        self.execute_sql = True
+        value = "ready' OR 1=1 --"
+        self.definition["parameters"]["category"]["values"] = [value]
+        self.write(self.params, {"category": value})
+        status, summary = self.invoke()
+        self.assertEqual(status, 0)
+        self.assertEqual(summary["returned_count"], 0)
+        status, summary = self.invoke("--mode", "explain")
+        self.assertEqual(status, 0)
+        plan = json.loads(Path(summary["record"]).read_text())["query_plan"]
+        self.assertGreater(len(plan), 0)
+        self.assertEqual(set(plan[0]), {"id", "parent", "notused", "detail"})
+        self.definition["select"] = ["missing"]
+        self.definition["allowed_columns"].append("missing")
+        status, summary = self.invoke()
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["stop_reason"], "http_error")
+        self.assertEqual(summary["attempts_started"], 1)
+        self.assertEqual(len(self.calls.read_text().splitlines()), 3)
+
     def test_delayed_deadline_notice(self):
         self.definition["timeout_seconds"] = 1
         self.request_delay = 5
@@ -223,6 +258,11 @@ class D1(unittest.TestCase):
             lambda r: r["result"][0]["meta"].update(duration=float("nan")),
             lambda r: r["result"][0]["meta"].pop("rows_written"),
             lambda r: r["result"][0]["meta"].update(unknown=1),
+            lambda r: r["result"][0]["meta"].update(changes=False),
+            lambda r: r["result"][0]["meta"].update(served_by_primary="yes"),
+            lambda r: r["result"][0]["meta"].update(served_by_region="unknown"),
+            lambda r: r["result"][0]["meta"].update(timings={"sql_duration_ms": "invalid"}),
+            lambda r: r["result"][0]["meta"].update(timings={"unknown": 0}),
             lambda r: r["result"][0]["results"][0].update(unapproved="private-payload"),
             lambda r: r["result"].append(r["result"][0]),
             lambda r: r.update(success=False),
@@ -271,6 +311,14 @@ class D1(unittest.TestCase):
         for extra in [("--sha256", "0" * 64), ("--limit", "101"), ("--limit", "0"), ("--body", "{}")]:
             with self.subTest(extra=extra):
                 status, summary = self.invoke(*extra)
+                self.assertNotEqual(status, 0)
+                self.assertEqual(summary["attempts_started"], 0)
+                self.assertFalse(self.calls.exists())
+        self.definition["parameters"]["category"]["values"] = ["17", "True", "None"]
+        for value in (17, True, None):
+            with self.subTest(value=value):
+                self.write(self.params, {"category": value})
+                status, summary = self.invoke()
                 self.assertNotEqual(status, 0)
                 self.assertEqual(summary["attempts_started"], 0)
                 self.assertFalse(self.calls.exists())

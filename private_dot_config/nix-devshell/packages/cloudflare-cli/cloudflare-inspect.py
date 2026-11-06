@@ -274,13 +274,24 @@ def d1_result(value, columns, limit, mode):
     meta = result["meta"]
     known = {"rows_read", "rows_written", "duration", "changed_db", "changes", "last_row_id", "served_by_colo",
              "served_by_primary", "served_by_region", "size_after", "timings"}
-    if not isinstance(meta, dict) or set(meta) - known:
+    if not isinstance(meta, dict) or set(meta) - known or not {"rows_read", "rows_written", "duration"} <= set(meta):
         raise ValueError("D1 の meta が不正です。")
-    for key in ("rows_read", "rows_written", "duration"):
-        number = meta.get(key)
-        if (type(number) not in (int, float) or number < 0 or number > 2**63 - 1
-                or not math.isfinite(number) or key != "duration" and type(number) is not int):
+    timings = meta.get("timings", {})
+    if not isinstance(timings, dict) or set(timings) - {"sql_duration_ms"}:
+        raise ValueError("D1 の timings が不正です。")
+    numbers = meta | timings
+    for key in ("rows_read", "rows_written", "duration", "changes", "last_row_id", "size_after", "sql_duration_ms"):
+        if key not in numbers:
+            continue
+        number = numbers[key]
+        if (type(number) not in (int, float) or number < (-2**63 if key == "last_row_id" else 0) or number > 2**63 - 1
+                or not math.isfinite(number) or key not in ("duration", "sql_duration_ms") and type(number) is not int):
             raise ValueError("D1 の実行統計が不正です。")
+    for key, kind in (("served_by_colo", str), ("served_by_primary", bool)):
+        if key in meta and type(meta[key]) is not kind:
+            raise ValueError("D1 の実行元が不正です。")
+    if "served_by_region" in meta and meta["served_by_region"] not in ("WNAM", "ENAM", "WEUR", "EEUR", "APAC", "OC"):
+        raise ValueError("D1 の region が不正です。")
     if meta["rows_written"] != 0 or meta.get("changed_db", False) is not False or meta.get("changes", 0) != 0:
         raise ValueError("D1 の書込みを検出しました。")
     return result["results"], {key: meta[key] for key in ("rows_read", "rows_written", "duration")}

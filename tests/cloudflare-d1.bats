@@ -26,6 +26,12 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ]
 }
 
+@test "D1 の bind は SQL にならず、存在しない列を文字列として成功させない" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_sql_boundaries
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "D1 は private ファイル・保存先・JSON の境界を送信前に検査する" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_private_boundaries
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
