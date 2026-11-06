@@ -237,6 +237,212 @@ PY
   [[ "$output" == *"BROWSER_OWNERSHIP_DIR"* ]]
 }
 
+@test "default verification keeps a HOME-located browser ownership record read-only" {
+  [ -n "${MANAGED_CHROME_OWNER:-}" ]
+  local original="$BATS_TEST_TMPDIR/original-home"
+  mkdir -p -m 700 "$original/.local/run/browser-ownership"
+  run env -u BROWSER_OWNERSHIP_DIR HOME="$original" XDG_RUNTIME_DIR="$original/.local/run" \
+    python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    "$MANAGED_CHROME_OWNER" --identity fixture status
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *EROFS* ]]
+  [ -z "$(ls -A "$original/.local/run/browser-ownership")" ]
+}
+
+@test "default verification runs in a private PID namespace" {
+  run python3 "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" -- \
+    bash -c 'readlink /proc/self/ns/pid >"$0/pidns"' "$SOURCE"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ -n "$(cat "$SOURCE/pidns")" ]
+  [ "$(cat "$SOURCE/pidns")" != "$(readlink /proc/self/ns/pid)" ]
+}
+
+@test "managed browser mode shares only the inherited ownership record with host PID identity" {
+  [ -n "${MANAGED_CHROME_OWNER:-}" ]
+  local original="$BATS_TEST_TMPDIR/original-home"
+  local ownership="$original/.local/run/browser-ownership"
+  mkdir -p -m 700 "$ownership"
+  printf preserved >"$original/sentinel"
+  printf preserved >"$original/.local/run/sibling"
+  printf preserved >"$ownership/other-consumer"
+  run env -u BROWSER_OWNERSHIP_DIR HOME="$original" XDG_RUNTIME_DIR="$original/.local/run" \
+    HOST_PID=$$ python3 "$PROJECT_ROOT/scripts/verification_env.py" --managed-browser "$SOURCE" -- \
+    bash -c '
+      set -eu
+      test "$BROWSER_OWNERSHIP_DIR" = "$0"
+      kill -0 "$HOST_PID"
+      test "$("$MANAGED_CHROME_OWNER" --identity fixture status)" = null
+      token=$("$MANAGED_CHROME_OWNER" --identity fixture reserve --role dogfood --id run \
+        --mode headless --profile fixture-profile --endpoint auto --pid "$HOST_PID")
+      cp "$0"/identity-*.json "$1/reserved.json"
+      if "$MANAGED_CHROME_OWNER" --identity fixture recover 2>"$1/recover.err"; then exit 41; fi
+      "$MANAGED_CHROME_OWNER" --identity fixture release "$token"
+      for path in "$2/sentinel" "$2/.local/run/sibling"; do
+        if printf changed 2>/dev/null >"$path"; then exit 42; fi
+      done
+    ' "$ownership" "$SOURCE" "$original"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  grep -q "live startup reservation" "$SOURCE/recover.err"
+  python3 - "$SOURCE/reserved.json" "$$" <<'PY'
+import json, sys
+owner = json.load(open(sys.argv[1]))
+pid = int(sys.argv[2])
+stat = open(f"/proc/{pid}/stat").read()
+assert owner["caller"]["pid"] == pid
+assert owner["caller"]["start"] == stat[stat.rindex(")") + 2:].split()[19]
+PY
+  [ "$(cat "$original/sentinel")" = preserved ]
+  [ "$(cat "$original/.local/run/sibling")" = preserved ]
+  [ "$(cat "$ownership/other-consumer")" = preserved ]
+  [ -z "$(find "$ownership" -name 'identity-*')" ]
+  local runtime
+  runtime=$(sed -n 's/^検証ログ: //p' <<<"$output")
+  python3 - "$runtime/boundary.json" "$ownership" <<'PY'
+import json, sys
+boundary = json.load(open(sys.argv[1]))
+assert boundary["managed_browser_ownership"] == sys.argv[2]
+assert boundary["pid_namespace"] == "host"
+PY
+}
+
+@test "managed browser mode shares /tmp and runtime-dir records that default mode keeps read-only" {
+  local scratch="$BATS_TEST_TMPDIR/codex"
+  local uid
+  uid=$(id -u)
+  mkdir -m 700 "$scratch"
+  # ホストの /tmp と /run を触らないよう、記録先ごと隔離した namespace の中で確かめる。
+  run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs /run --perms 0700 --dir "/run/user/$uid" \
+    --bind "$scratch" /tmp/codex --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" -- \
+    bash -c '
+      set -eu
+      for parent in /tmp/fixture-records "/run/user/$2"; do
+        mkdir -p -m 700 "$parent/browser-ownership"
+        printf preserved >"$parent/browser-ownership/other-consumer"
+        env HOME="$BATS_TEST_TMPDIR/original-home" BROWSER_OWNERSHIP_DIR="$parent/browser-ownership" \
+          python3 "$0" "$1" -- bash -c "
+            test \"\$(cat \"\$BROWSER_OWNERSHIP_DIR/other-consumer\")\" = preserved
+            if printf changed 2>/dev/null >\"\$BROWSER_OWNERSHIP_DIR/default\"; then exit 41; fi"
+        env HOME="$BATS_TEST_TMPDIR/original-home" BROWSER_OWNERSHIP_DIR="$parent/browser-ownership" \
+          python3 "$0" --managed-browser "$1" -- bash -c "
+            test \"\$(cat \"\$BROWSER_OWNERSHIP_DIR/other-consumer\")\" = preserved
+            printf shared >\"\$BROWSER_OWNERSHIP_DIR/managed\""
+        test "$(cat "$parent/browser-ownership/managed")" = shared
+        test ! -e "$parent/browser-ownership/default"
+      done
+    ' "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" "$uid"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "managed browser mode rejects unsafe ownership directories before changing them" {
+  local original="$BATS_TEST_TMPDIR/original-home"
+  local run_dir="$original/.local/run"
+  local scratch="$BATS_TEST_TMPDIR/codex"
+  mkdir -p -m 700 "$run_dir/real/browser-ownership" "$scratch"
+  mkdir -m 755 "$run_dir/browser-ownership"
+  ln -s "$run_dir/real/browser-ownership" "$BATS_TEST_TMPDIR/browser-ownership"
+  ln -s "$run_dir/real" "$BATS_TEST_TMPDIR/linked-parent"
+  mkdir -p -m 700 "$run_dir/other/child" "$run_dir/other/browser-ownership"
+  ln -s "$run_dir/other/child" "$run_dir/real/link"
+  # mode 0 は並列テストの /tmp/codex 探索を妨げないよう、専用の private tmpfs に作る。
+  run bwrap --unshare-user --ro-bind / / --dev /dev --tmpfs /tmp --bind "$scratch" /tmp/codex \
+    --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" -- \
+    bash -c '
+      set -eu
+      mode_roots=()
+      mkdir -p /tmp/modes/file
+      printf preserved >/tmp/modes/file/browser-ownership
+      chmod 700 /tmp/modes/file/browser-ownership
+      mode_roots+=(/tmp/modes/file/browser-ownership)
+      for mode in 500 0 1700 2700; do
+        mkdir -p "/tmp/modes/$mode/browser-ownership"
+        chmod "$mode" "/tmp/modes/$mode/browser-ownership"
+        mode_roots+=("/tmp/modes/$mode/browser-ownership")
+      done
+      for candidate in / "$2" "$3" "$3/browser-ownership" "$BATS_TEST_TMPDIR/browser-ownership" \
+        "$BATS_TEST_TMPDIR/linked-parent/browser-ownership" "$3/missing/browser-ownership" \
+        "$3/real/link/../browser-ownership" \
+        relative/browser-ownership "${mode_roots[@]}"; do
+        if HOME="$2" BROWSER_OWNERSHIP_DIR="$candidate" python3 "$0" --managed-browser "$1" -- \
+          touch "$1/ran" 2>"$BATS_TEST_TMPDIR/reject.err"; then
+          echo "accepted: $candidate" >&2; exit 41
+        fi
+        grep -q BROWSER_OWNERSHIP_DIR "$BATS_TEST_TMPDIR/reject.err"
+        # 通常ファイルは directory 検査そのものが拒否した場合だけ成立とみなす（後段の失敗で偽陽性にしない）。
+        if [ "$candidate" = /tmp/modes/file/browser-ownership ]; then
+          grep -q "既存 browser-ownership directory" "$BATS_TEST_TMPDIR/reject.err"
+        fi
+        test ! -e "$1/ran"
+      done
+      for mode in 500 0 1700 2700; do
+        test "$(stat -c %a "/tmp/modes/$mode/browser-ownership")" = "$mode"
+      done
+      test "$(cat /tmp/modes/file/browser-ownership)" = preserved
+      test "$(stat -c %a /tmp/modes/file/browser-ownership)" = 700
+    ' "$PROJECT_ROOT/scripts/verification_env.py" "$SOURCE" "$original" "$run_dir"
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ "$(stat -c %a "$run_dir/browser-ownership")" = 755 ]
+  [ ! -e "$run_dir/missing" ]
+  [ -z "$(ls -A "$run_dir/real/browser-ownership")" ]
+  [ -z "$(ls -A "$run_dir/other/browser-ownership")" ]
+}
+
+@test "managed browser ownership helper rejects other owners, protected roots and their ancestors" {
+  local base="$BATS_TEST_TMPDIR/records"
+  mkdir -p -m 700 "$base/browser-ownership/home" "$base/other/browser-ownership"
+  run env BROWSER_OWNERSHIP_DIR="$base/other/browser-ownership" python3 -I - \
+    "$PROJECT_ROOT/scripts" "$base" <<'PY'
+import os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import verification_env as env
+
+base = Path(sys.argv[2])
+ownership = base / "other" / "browser-ownership"
+assert env.managed_browser_ownership((base / "other",)) == ownership  # 子孫は許可する
+for protected in (ownership, ownership / "scratch"):
+    try:
+        env.managed_browser_ownership((protected,))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(f"accepted protected path {protected}")
+os.getuid = lambda: 0xFFFF
+try:
+    env.managed_browser_ownership(())
+except ValueError:
+    pass
+else:
+    raise AssertionError("accepted another owner")
+PY
+
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
+@test "managed browser mode rejects a relative ownership directory resolved from another cwd" {
+  local caller="$BATS_TEST_TMPDIR/caller"
+  mkdir -p -m 700 "$caller/state/browser-ownership"
+  cd "$caller"
+  run env HOME="$BATS_TEST_TMPDIR/original-home" BROWSER_OWNERSHIP_DIR=state/browser-ownership \
+    python3 "$PROJECT_ROOT/scripts/verification_env.py" --managed-browser "$SOURCE" -- \
+    touch "$BATS_TEST_TMPDIR/ran"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *BROWSER_OWNERSHIP_DIR* ]]
+  [ ! -e "$SOURCE/state" ]
+  [ ! -e "$BATS_TEST_TMPDIR/ran" ]
+  [ -z "$(ls -A "$caller/state/browser-ownership")" ]
+}
+
 @test "verification browser ownership fixture runs with default tmp and no shared scratch" {
   run bwrap --unshare-user --unshare-pid --ro-bind / / --dev /dev --proc /proc \
     --tmpfs /tmp --dir /tmp/verification-fixture-home -- \
