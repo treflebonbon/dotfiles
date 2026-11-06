@@ -348,6 +348,8 @@ PY
   mkdir -m 755 "$run_dir/browser-ownership"
   ln -s "$run_dir/real/browser-ownership" "$BATS_TEST_TMPDIR/browser-ownership"
   ln -s "$run_dir/real" "$BATS_TEST_TMPDIR/linked-parent"
+  mkdir -p -m 700 "$run_dir/other/child" "$run_dir/other/browser-ownership"
+  ln -s "$run_dir/other/child" "$run_dir/real/link"
   # mode 0 は並列テストの /tmp/codex 探索を妨げないよう、専用の private tmpfs に作る。
   run bwrap --unshare-user --ro-bind / / --dev /dev --tmpfs /tmp --bind "$scratch" /tmp/codex \
     --bind "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" -- \
@@ -365,9 +367,10 @@ PY
       done
       for candidate in / "$2" "$3" "$3/browser-ownership" "$BATS_TEST_TMPDIR/browser-ownership" \
         "$BATS_TEST_TMPDIR/linked-parent/browser-ownership" "$3/missing/browser-ownership" \
+        "$3/real/link/../browser-ownership" \
         relative/browser-ownership "${mode_roots[@]}"; do
         if HOME="$2" BROWSER_OWNERSHIP_DIR="$candidate" python3 "$0" --managed-browser "$1" -- \
-          touch "$BATS_TEST_TMPDIR/ran" 2>"$BATS_TEST_TMPDIR/reject.err"; then
+          touch "$1/ran" 2>"$BATS_TEST_TMPDIR/reject.err"; then
           echo "accepted: $candidate" >&2; exit 41
         fi
         grep -q BROWSER_OWNERSHIP_DIR "$BATS_TEST_TMPDIR/reject.err"
@@ -375,7 +378,7 @@ PY
         if [ "$candidate" = /tmp/modes/file/browser-ownership ]; then
           grep -q "既存 browser-ownership directory" "$BATS_TEST_TMPDIR/reject.err"
         fi
-        test ! -e "$BATS_TEST_TMPDIR/ran"
+        test ! -e "$1/ran"
       done
       for mode in 500 0 1700 2700; do
         test "$(stat -c %a "/tmp/modes/$mode/browser-ownership")" = "$mode"
@@ -389,6 +392,7 @@ PY
   [ "$(stat -c %a "$run_dir/browser-ownership")" = 755 ]
   [ ! -e "$run_dir/missing" ]
   [ -z "$(ls -A "$run_dir/real/browser-ownership")" ]
+  [ -z "$(ls -A "$run_dir/other/browser-ownership")" ]
 }
 
 @test "managed browser ownership helper rejects other owners, protected roots and their ancestors" {

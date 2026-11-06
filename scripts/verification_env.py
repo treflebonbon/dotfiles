@@ -60,7 +60,8 @@ def managed_browser_ownership(protected: tuple[Path, ...]) -> Path:
     # 共通記録だけを書込み可能にするため、作成や chmod の前に専用 directory か確かめる。
     # 相対指定は検査時の cwd と chdir 後の consumer で別 directory を指すため拒否する。
     configured = _browser_ownership_dir()
-    ownership = Path(os.path.abspath(configured))
+    # symlink の後の .. を検査前の正規化で消さない。
+    ownership = Path(configured)
     try:
         metadata = ownership.stat(follow_symlinks=False)
         resolved = ownership.resolve(strict=True)
