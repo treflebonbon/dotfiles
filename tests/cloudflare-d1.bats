@@ -14,6 +14,26 @@ bats_require_minimum_version 1.5.0
   [[ "$output" == *--sha256* ]]
 }
 
+@test "D1 の短い help と引数併用の help は失敗 JSON を混ぜず成功終了する" {
+  local script="$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/packages/cloudflare-cli/cloudflare-inspect.py"
+  local help_flag
+  for help_flag in -h --help; do
+    run env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID python3 -I "$script" --reviewed d1 read "$help_flag"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *--definition* ]]
+    [[ "$output" != *'"status"'* ]]
+    run env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID python3 -I "$script" --reviewed d1 read \
+      --definition /nonexistent/PRIVATE_HELP_FIXTURE --sha256 dummy --limit 1 "$help_flag"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *--sha256* ]]
+    [[ "$output" != *PRIVATE_HELP_FIXTURE* ]]
+    [[ "$output" != *'"status"'* ]]
+    run env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID python3 -I "$script" d1 read "$help_flag"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *操作ごとの確認* ]]
+  done
+}
+
 @test "D1 の固定読取り定義から許可列を1回だけ取得して private 記録を残す" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_select
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3

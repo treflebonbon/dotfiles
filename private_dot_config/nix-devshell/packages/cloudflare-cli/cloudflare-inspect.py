@@ -547,7 +547,7 @@ def main(arguments):
     if arguments[:2] == ["d1", "read"]:
         if not reviewed:
             raise ValueError("D1 の限定参照は操作ごとの確認後に --reviewed を指定してください。")
-        if arguments[2:] == ["--help"]:
+        if any(argument in ("-h", "--help") for argument in arguments[2:]):
             d1_parser().print_help()
             return 0
         summary = inspect_d1(arguments[2:])
