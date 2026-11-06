@@ -11,6 +11,8 @@ status: accepted
 
 2026-11-05 更新: Workers の制限付き過去ログ検索については、[ADR-0084](0084-allow-bounded-workers-log-queries.md) で `Workers Observability Write` の例外を認めた。以下の Read のみという決定は初期採用時の記録とし、その他の操作・実行境界は引き続き適用する。
 
+2026-11-06 更新: D1 の新しい限定参照に限る固定 HTTP 入口の設計上の例外を [ADR-0086](0086-constrain-storage-inspection-definitions.md) で定めた。実装・利用手順の更新前に対応済みとは扱わず、それ以外の操作は同梱 CLI と既存の承認境界を維持する。
+
 公式 `cf` は API の書込みも扱い、読取り専用モードを持たない。通常の Claude Code / Codex に調査を許可するため、[ADR-0073](0073-allow-investigation-commands.md) の操作・出力検査と、[ADR-0077](0077-route-investigation-commands-through-hooks.md) の通常コマンドからの接続を踏襲する。
 
 ## 決定
