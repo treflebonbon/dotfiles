@@ -4,14 +4,24 @@
 
 import argparse
 from datetime import datetime, timedelta, timezone
+import hashlib
+from http.client import HTTPException
 import json
+import math
+import multiprocessing
 import os
 from pathlib import Path
 import re
+import secrets
+import ssl
 import stat
 import subprocess
 import sys
 import tempfile
+import time
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener, getproxies_environment
 
 
 VERSION = "1.0.0-beta.25"
@@ -24,6 +34,407 @@ OPERATIONS = {
 REVIEWED = {("d1", "get"): ("fields",)}
 SEARCH_TERMS = ("durable objects namespaces", "d1 databases", "r2 buckets", "workers scripts")
 LOG_QUERY = ("o11y", "telemetry", "query")
+D1_SCRATCH = Path("/tmp/codex")
+D1_MAX_JSON = 65536
+D1_MAX_RESPONSE = 8 * 1024 * 1024
+
+
+def strict_json(raw):
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError("重複した JSON 項目です。")
+            result[key] = value
+        return result
+
+    def invalid_constant(value):
+        raise ValueError("有限の JSON 値が必要です。")
+
+    return json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid_constant)
+
+
+def private_directory(path):
+    path = Path(path)
+    if not path.is_absolute() or ".." in path.parts:
+        raise ValueError("絶対 path の通常 directory が必要です。")
+    descriptor = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in path.parts[1:]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def private_bytes(path):
+    path = Path(path)
+    parent = private_directory(path.parent)
+    try:
+        descriptor = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
+    finally:
+        os.close(parent)
+    with os.fdopen(descriptor, "rb") as source:
+        metadata = os.fstat(source.fileno())
+        if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid()
+                or stat.S_IMODE(metadata.st_mode) != 0o600 or metadata.st_nlink != 1):
+            raise ValueError("本人所有・mode0600 の通常ファイルが必要です。")
+        raw = source.read(D1_MAX_JSON + 1)
+    if len(raw) > D1_MAX_JSON:
+        raise ValueError("定義または引数が大きすぎます。")
+    return raw
+
+
+def require_exact_keys(value, expected):
+    if not isinstance(value, dict) or set(value) != set(expected):
+        raise ValueError("定義の項目が不正です。")
+
+
+def identifier(value):
+    if (not isinstance(value, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", value)
+            or value.lower().startswith(("sqlite_", "_cf_"))):
+        raise ValueError("許可された識別子が必要です。")
+    return "[" + value + "]"
+
+
+def d1_plan(options, account):
+    raw = private_bytes(options.definition)
+    if not re.fullmatch(r"[a-f0-9]{64}", options.sha256) or hashlib.sha256(raw).hexdigest() != options.sha256:
+        raise ValueError("確認済み定義の hash と一致しません。")
+    definition = strict_json(raw)
+    require_exact_keys(definition, ("version", "account_id", "database_id", "table", "allowed_columns", "select",
+                      "where", "order_by", "parameters", "max_rows", "max_plan_rows", "timeout_seconds"))
+    if type(definition["version"]) is not int or definition["version"] != 1:
+        raise ValueError("未対応の定義です。")
+    if not isinstance(account, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", account) or definition["account_id"] != account:
+        raise ValueError("対象 account が一致しません。")
+    database = definition["database_id"]
+    if not isinstance(database, str) or not re.fullmatch(r"[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}", database):
+        raise ValueError("対象 database が不正です。")
+    for name in ("allowed_columns", "select"):
+        columns = definition[name]
+        if not isinstance(columns, list) or not 1 <= len(columns) <= 32:
+            raise ValueError("許可列が不正です。")
+        for column in columns:
+            identifier(column)
+        if len(set(columns)) != len(columns):
+            raise ValueError("列が重複しています。")
+    allowed = set(definition["allowed_columns"])
+    if not set(definition["select"]) <= allowed:
+        raise ValueError("許可外の投影列です。")
+    for name, maximum in (("max_rows", 1000), ("max_plan_rows", 1000), ("timeout_seconds", 30)):
+        if type(definition[name]) is not int or not 1 <= definition[name] <= maximum:
+            raise ValueError("件数または期限の上限が不正です。")
+    limit = options.limit if options.limit is not None else min(100, definition["max_rows"])
+    if not 1 <= limit <= definition["max_rows"]:
+        raise ValueError("許可外の取得件数です。")
+    parameters = definition["parameters"]
+    values = strict_json(private_bytes(options.params_file)) if options.params_file else {}
+    if not isinstance(parameters, dict) or len(parameters) > 16:
+        raise ValueError("引数定義が不正です。")
+    require_exact_keys(values, parameters)
+    for name, rule in parameters.items():
+        identifier(name)
+        require_exact_keys(rule, ("type", "max_length", "values"))
+        if (rule["type"] != "string" or type(rule["max_length"]) is not int or not 1 <= rule["max_length"] <= 4096
+                or not isinstance(rule["values"], list) or not rule["values"] or len(rule["values"]) > 256):
+            raise ValueError("文字列引数の型・許可値が不正です。")
+        for value in rule["values"]:
+            if not isinstance(value, str) or len(value) > rule["max_length"] or any(ord(c) < 32 for c in value):
+                raise ValueError("文字列引数の許可値が不正です。")
+        if not isinstance(values[name], str) or values[name] not in rule["values"]:
+            raise ValueError("許可外の引数値です。")
+    where, order, bound, used = [], [], [], set()
+    for collection, minimum in (("where", 0), ("order_by", 1)):
+        if not isinstance(definition[collection], list) or not minimum <= len(definition[collection]) <= 16:
+            raise ValueError("条件または並び順が不正です。")
+    for condition in definition["where"]:
+        require_exact_keys(condition, ("column", "operator", "parameter"))
+        column = identifier(condition["column"])
+        if condition["column"] not in allowed or condition["operator"] not in ("=", "!=", "<", "<=", ">", ">="):
+            raise ValueError("許可外の条件です。")
+        name = condition["parameter"]
+        identifier(name)
+        if name not in parameters:
+            raise ValueError("未定義の引数です。")
+        used.add(name)
+        bound.append(values[name])
+        where.append(column + " " + condition["operator"] + " ?")
+    if used != set(parameters):
+        raise ValueError("未使用の引数定義です。")
+    for item in definition["order_by"]:
+        require_exact_keys(item, ("column", "direction"))
+        column = identifier(item["column"])
+        if item["column"] not in allowed or item["direction"] not in ("asc", "desc"):
+            raise ValueError("許可外の並び順です。")
+        order.append(column + " " + item["direction"].upper())
+    sql = "SELECT " + ", ".join(identifier(column) for column in definition["select"]) + " FROM " + identifier(definition["table"])
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    if order:
+        sql += " ORDER BY " + ", ".join(order)
+    sql += " LIMIT " + str(limit)
+    if options.mode == "explain":
+        sql = "EXPLAIN QUERY PLAN " + sql
+    return definition, {"sql": sql, "params": bound}, limit
+
+
+class D1Record:
+    def __init__(self):
+        D1_SCRATCH.mkdir(mode=0o700, exist_ok=True)
+        parent = private_directory(D1_SCRATCH)
+        try:
+            metadata = os.fstat(parent)
+            if metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o700:
+                raise ValueError("本人所有の private directory が必要です。")
+            name = "cloudflare-inspect." + secrets.token_hex(12)
+            os.mkdir(name, mode=0o700, dir_fd=parent)
+            self.directory = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            os.fchmod(self.directory, 0o700)
+        finally:
+            os.close(parent)
+        self.path = str(D1_SCRATCH / name / "record.json")
+        descriptor = os.open("record.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=self.directory)
+        os.close(descriptor)
+
+    def write(self, value):
+        name = ".record-" + secrets.token_hex(12)
+        descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=self.directory)
+        with os.fdopen(descriptor, "w") as output:
+            os.fchmod(output.fileno(), 0o600)
+            json.dump(value, output, ensure_ascii=False, allow_nan=False)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(name, "record.json", src_dir_fd=self.directory, dst_dir_fd=self.directory)
+        os.fsync(self.directory)
+
+    def close(self):
+        os.close(self.directory)
+
+
+class D1NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def d1_opener():
+    # create_default_context() は SSLKEYLOGFILE も読むため、TLS client を直接作る。
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    cafile = os.environ.get("SSL_CERT_FILE") or os.environ.get("NIX_SSL_CERT_FILE")
+    capath = os.environ.get("SSL_CERT_DIR")
+    if cafile or capath:
+        context.load_verify_locations(cafile=cafile, capath=capath)
+    else:
+        context.load_default_certs()
+    proxies = getproxies_environment()
+    if "https" not in proxies and "all" in proxies:
+        proxies["https"] = proxies["all"]
+    for name in ("http", "https"):
+        if name in proxies:
+            proxy = urlsplit(proxies[name])
+            # urllib は CONNECT 前に proxy 側の TLS を開始しない。
+            if proxy.scheme != "http" or not proxy.hostname or proxy.query or proxy.fragment or proxy.path not in ("", "/"):
+                raise ValueError("未対応の proxy 設定です。")
+    # 認証 challenge を再送する handler は登録しない。
+    return build_opener(ProxyHandler(proxies), HTTPSHandler(context=context), D1NoRedirect())
+
+
+def http_exchange(opener, request, timeout):
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            if response.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
+                raise ValueError("JSON の応答が必要です。")
+            raw = response.read(D1_MAX_RESPONSE + 1)
+            if len(raw) > D1_MAX_RESPONSE:
+                raise ValueError("D1 の応答が大きすぎます。")
+            return response.status, raw
+    except HTTPError as error:
+        error.close()
+        return error.code, b""
+
+
+def d1_result(value, columns, limit, mode):
+    if (not isinstance(value, dict) or set(value) - {"success", "errors", "messages", "result"}
+            or value.get("success") is not True or value.get("errors") != [] or value.get("messages") != []
+            or not isinstance(value.get("result"), list) or len(value["result"]) != 1):
+        raise ValueError("D1 の応答が不正です。")
+    result = value["result"][0]
+    require_exact_keys(result, ("success", "results", "meta"))
+    if (result["success"] is not True or not isinstance(result["results"], list) or len(result["results"]) > limit
+            or mode == "explain" and not result["results"]):
+        raise ValueError("D1 の結果が不正です。")
+    for row in result["results"]:
+        require_exact_keys(row, columns)
+        if mode == "explain" and (any(type(row[key]) is not int or row[key] < 0 for key in ("id", "parent", "notused"))
+                                  or not isinstance(row["detail"], str)):
+            raise ValueError("D1 の実行計画が不正です。")
+        for item in row.values():
+            if type(item) not in (str, int, float, bool, type(None)) or isinstance(item, float) and not math.isfinite(item):
+                raise ValueError("D1 の行が不正です。")
+    meta = result["meta"]
+    known = {"rows_read", "rows_written", "duration", "changed_db", "changes", "last_row_id", "served_by_colo",
+             "served_by_primary", "served_by_region", "size_after", "timings"}
+    if not isinstance(meta, dict) or set(meta) - known or not {"rows_read", "rows_written", "duration"} <= set(meta):
+        raise ValueError("D1 の meta が不正です。")
+    timings = meta.get("timings", {})
+    if not isinstance(timings, dict) or set(timings) - {"sql_duration_ms"}:
+        raise ValueError("D1 の timings が不正です。")
+    numbers = meta | timings
+    for key in ("rows_read", "rows_written", "duration", "changes", "last_row_id", "size_after", "sql_duration_ms"):
+        if key not in numbers:
+            continue
+        number = numbers[key]
+        if (type(number) not in (int, float) or number < (-2**63 if key == "last_row_id" else 0) or number > 2**63 - 1
+                or not math.isfinite(number) or key not in ("duration", "sql_duration_ms") and type(number) is not int):
+            raise ValueError("D1 の実行統計が不正です。")
+    for key, kind in (("served_by_colo", str), ("served_by_primary", bool)):
+        if key in meta and type(meta[key]) is not kind:
+            raise ValueError("D1 の実行元が不正です。")
+    if "served_by_region" in meta and meta["served_by_region"] not in ("WNAM", "ENAM", "WEUR", "EEUR", "APAC", "OC"):
+        raise ValueError("D1 の region が不正です。")
+    if meta["rows_written"] != 0 or meta.get("changed_db", False) is not False or meta.get("changes", 0) != 0:
+        raise ValueError("D1 の書込みを検出しました。")
+    return result["results"], {key: meta[key] for key in ("rows_read", "rows_written", "duration")}
+
+
+def d1_parser():
+    parser = Parser(prog="cloudflare-inspect --reviewed d1 read", allow_abbrev=False)
+    parser.add_argument("--definition", required=True)
+    parser.add_argument("--sha256", required=True)
+    parser.add_argument("--params-file")
+    parser.add_argument("--mode", choices=("select", "explain"), default="select")
+    parser.add_argument("--limit", type=int, help="SELECT の LIMIT。計画行数の上限は定義の max_plan_rows。")
+    return parser
+
+
+def perform_d1(arguments, notify, started):
+    options = d1_parser().parse_args(arguments)
+    definition, body, limit = d1_plan(options, os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
+    result_limit = definition["max_plan_rows"] if options.mode == "explain" else limit
+    deadline = started + definition["timeout_seconds"]
+    notify({"deadline": deadline})
+    token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+    if not token or any(ord(c) < 32 for c in token):
+        raise ValueError("D1 Read の token が必要です。")
+    record = D1Record()
+    notify({"record": record.path})
+    audit = {"utc": datetime.now(timezone.utc).isoformat(), "mode": options.mode, "status": "pending",
+             "stop_reason": "interrupted_or_deadline", "attempts_started": 0, "definition_sha256": options.sha256,
+             "account_id": definition["account_id"], "database_id": definition["database_id"], "query": body,
+             "limit": limit, "result_limit": result_limit, "timeout_seconds": definition["timeout_seconds"], "returned_count": None,
+             "rows_read": None, "rows_written": None, "duration": None,
+             "query_plan": None, "query_plan_reason": "not_requested" if options.mode == "select" else "not_completed",
+             "implementation": {"cli_pin": VERSION, "api_contract": "d1-query-v1", "helper_path": str(Path(__file__).resolve()),
+                                "helper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}}
+    reason = "record_failed"
+    request_started = False
+    try:
+        record.write(redact(audit, token))
+        request = Request("https://api.cloudflare.com/client/v4/accounts/" + definition["account_id"] +
+                          "/d1/database/" + definition["database_id"] + "/query", method="POST",
+                          data=json.dumps(body).encode(), headers={"Authorization": "Bearer " + token, "Content-Type": "application/json",
+                                                                  "Accept": "application/json", "User-Agent": "dotfiles-cloudflare-inspect/" + VERSION})
+        reason = "transport_configuration"
+        opener = d1_opener()
+        audit["attempts_started"] = 1
+        reason = "record_failed"
+        record.write(redact(audit, token))
+        reason = "deadline_exceeded"
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ValueError("D1 の全体期限を過ぎています。")
+        notify({"attempts_started": 1})
+        request_started = True
+        reason = "request_failed"
+        status, raw = http_exchange(opener, request, remaining)
+        if status != 200:
+            reason = "http_error"
+            raise ValueError("D1 の参照に失敗しました。")
+        reason = "invalid_response"
+        columns = definition["select"] if options.mode == "select" else ["id", "parent", "notused", "detail"]
+        rows, meta = d1_result(strict_json(raw), columns, result_limit, options.mode)
+        audit.update(status="success", returned_count=len(rows),
+                     stop_reason="limit_reached_unknown" if options.mode == "select" and len(rows) == limit else "complete", **meta)
+        if options.mode == "select":
+            audit["results"] = rows
+        else:
+            audit.update(query_plan=rows, query_plan_reason=None)
+        reason = "record_failed"
+        record.write(redact(audit, token))
+        return {key: audit[key] for key in ("status", "returned_count", "stop_reason", "attempts_started", "rows_read", "rows_written", "duration")} | {"record": record.path}
+    except (ValueError, OSError, RecursionError, HTTPException):
+        audit.update(status="failed", stop_reason=reason)
+        if not request_started:
+            audit["attempts_started"] = 0
+        audit.pop("results", None)
+        audit["query_plan"] = None
+        try:
+            record.write(redact(audit, token))
+        except OSError:
+            audit["stop_reason"] = "record_failed"
+        return {key: audit.get(key) for key in ("status", "returned_count", "stop_reason", "attempts_started", "rows_read", "rows_written", "duration")} | {"record": record.path}
+    finally:
+        record.close()
+
+
+def d1_worker(sender, arguments, started):
+    try:
+        result = perform_d1(arguments, sender.send, started)
+    except Exception:
+        # 定義・transport・保存の例外本文に含まれる利用環境の値を IPC へ渡さない。
+        result = {"status": "failed", "stop_reason": "invalid_request"}
+    try:
+        sender.send({"result": result})
+    finally:
+        sender.close()
+
+
+def inspect_d1(arguments):
+    started = time.monotonic()
+    deadline = started + 30
+    context = multiprocessing.get_context("fork")
+    receiver, sender = context.Pipe(duplex=False)
+    worker = context.Process(target=d1_worker, args=(sender, arguments, started))
+    state = {"status": "failed", "stop_reason": "request_failed", "attempts_started": 0, "record": None}
+    worker.start()
+    sender.close()
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not receiver.poll(remaining):
+                state["stop_reason"] = "deadline_exceeded"
+                break
+            try:
+                message = receiver.recv()
+            except EOFError:
+                break
+            if "deadline" in message:
+                deadline = min(deadline, message["deadline"])
+            elif "result" in message:
+                state.update(message["result"])
+                break
+            else:
+                state.update(message)
+    finally:
+        if worker.is_alive():
+            worker.kill()
+        worker.join()
+        if state["stop_reason"] == "deadline_exceeded":
+            # deadline より先に送られた開始通知を捨てて、架空の0試行にしない。
+            while receiver.poll():
+                try:
+                    notice = receiver.recv()
+                except EOFError:
+                    break
+                notice = notice.get("result", notice)
+                for key in ("record", "attempts_started"):
+                    if key in notice:
+                        state[key] = notice[key]
+        receiver.close()
+    return state
 
 
 class Parser(argparse.ArgumentParser):
@@ -122,6 +533,8 @@ def main(arguments):
               "\n過去ログ: o11y telemetry query --worker NAME --start ISO日時 --end ISO日時 [--limit 100]" +
               "\n  最大24時間・1000件。日時のタイムゾーンは必須。" +
               "\n確認後の追加参照: --reviewed d1 get <database-id> [--fields FIELDS]" +
+              "\n限定読取り: --reviewed d1 read --definition PATH --sha256 HASH [--params-file PATH] [--mode select|explain] [--limit N]" +
+              "\n  確認済み宣言形式のみ。最大1000件・1 HTTP試行・全体30秒。" +
               "\n版表示: --version（認証不要、ローカルのみ）" +
               "\n検索: cli search <固定語彙>\n  " + " / ".join(SEARCH_TERMS))
         return 0
@@ -131,6 +544,15 @@ def main(arguments):
     reviewed = arguments[:1] == ["--reviewed"]
     if reviewed:
         arguments = arguments[1:]
+    if arguments[:2] == ["d1", "read"]:
+        if not reviewed:
+            raise ValueError("D1 の限定参照は操作ごとの確認後に --reviewed を指定してください。")
+        if any(argument in ("-h", "--help") for argument in arguments[2:]):
+            d1_parser().print_help()
+            return 0
+        summary = inspect_d1(arguments[2:])
+        print(json.dumps(summary, ensure_ascii=False))
+        return int(summary["status"] != "success")
     if arguments[:len(LOG_QUERY)] == list(LOG_QUERY):
         print(query_logs(arguments[len(LOG_QUERY):]))
         return 0

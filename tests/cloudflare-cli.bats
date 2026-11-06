@@ -47,6 +47,27 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "固定版 cf の同梱 D1 schema と限定参照の固定 endpoint が一致する" {
+  run python3 -I - <<'PY'
+import json
+from pathlib import Path
+import shutil
+root = Path(shutil.which('cloudflare-inspect')).resolve().parents[1]
+schemas = json.loads((root / 'lib/node_modules/dotfiles-cloudflare-cli/node_modules/cf/dist/_meta/schemas.json').read_text())['schemas']
+query = schemas['d1 query']
+assert query['httpMethod'] == 'POST' and query['hasRequestBody'] is True
+assert query['path'] == '/accounts/{account_id}/d1/database/{database_id}/query'
+assert {field['name'] for field in query['requestBodyFields']} == {'sql', 'params', 'batch'}
+PY
+  [ "$status" -eq 0 ]
+}
+
+@test "Nix の限定 D1 入口が合成 fixture で実体 path と SHA を記録する" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" --installed D1.test_select
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "Nix の検査 helper は PATH 上の偽 cf ではなく同梱 CLI を使う" {
   mkdir -p untrusted
   cat >untrusted/cf <<'SH'

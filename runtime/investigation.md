@@ -88,7 +88,7 @@ cf o11y telemetry query --worker example --start 2026-11-01T00:00:00Z --end 2026
 
 `cf cli search` は認証情報を渡さず、`durable objects namespaces`、`d1 databases`、`r2 buckets`、`workers scripts` の固定語彙だけで使う。任意の名前・ドメイン・ID・token は検索語にしない。コマンド検索は同梱 index のローカル処理だが、CLI の使用状況 telemetry は常に `CF_SEND_TELEMETRY=false` と `DO_NOT_TRACK=1` で無効化する。`cf docs search` は今回の許可対象外。
 
-初期対象外の Read 参照は、対象・コマンド・理由を示して人の確認後に `cloudflare-inspect --reviewed` を使う。現行の確認済み追加操作は `d1 get <database-id>`（UUID、任意の `--fields`）のみ。それ以外は確認後も未対応として停止する。追加操作の正式な schema・Read 権限・引数・出力を確認して helper とテストを更新するまで、生 CLI や別経路で代用しない。
+初期対象外の Read 参照は、対象・コマンド・理由を示して人の確認後に `cloudflare-inspect --reviewed` を使う。確認済み追加操作は `d1 get <database-id>`（UUID、任意の `--fields`）と、下記の限定形式の `d1 read`。それ以外は確認後も未対応として停止する。追加操作の正式な schema・Read 権限・引数・出力を確認して helper とテストを更新するまで、生 CLI や別経路で代用しない。
 
 ```bash
 # この操作・対象について人の確認を得た後に実行する。
@@ -97,11 +97,59 @@ cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef --fiel
 
 `--reviewed` は両 runtime の ask / prompt の対象で、hook は自動付加しない。過去ログ検索は `--reviewed` を付けても同じ制約を守る。それ以外の作成・更新・削除・deploy・認証変更・秘密値取得・`--force` は拒否する。既知の `vars`・`bindings`・環境変数・secret/token 類・Authorization・Proxy-Authorization・CF-Access-Jwt-Assertion・X-Auth-Key・Cookie を `[非表示]` にし、実 token の文字列反映も除外する。未知の機密値の完全な自動判別は保証しない。
 
-helper と `cf` は同じユーザー環境の Nix package から配布する。helper は自身の実体と同じ immutable package 内の `cf` を絶対パスで起動し、caller の PATH 上の同名 CLI は信用しない。一時 HOME と空の作業ディレクトリで起動し、project の `.env`・実行可能設定・保存済み認証を読ませない。endpoint を公式の public API に固定し、`NODE_OPTIONS`・debug・profile・任意 endpoint の上書きを引き継がない。必要な proxy と CA は保持する。`cf` はユーザー環境の Nix package で exact pin し、helper も token を渡す前に版を照合する。`CF_DELEGATION=1` で project 内の別版への委譲を止める。更新は満7日以上経過した公開版で、schema と検査・配線の検証後に行う。
+helper と `cf` は同じユーザー環境の Nix package から配布する。限定 `d1 read` 以外は、helper 自身の実体と同じ immutable package 内の `cf` を絶対パスで起動し、caller の PATH 上の同名 CLI は信用しない。一時 HOME と空の作業ディレクトリで起動し、project の `.env`・実行可能設定・保存済み認証を読ませない。endpoint を公式の public API に固定し、`NODE_OPTIONS`・debug・profile・任意 endpoint の上書きを引き継がない。必要な proxy と CA は保持する。`cf` はユーザー環境の Nix package で exact pin し、CLI を使う操作では token を渡す前に版を照合する。`CF_DELEGATION=1` で project 内の別版への委譲を止める。更新は満7日以上経過した公開版で、schema と検査・配線の検証後に行う。
 
 hook の失敗・timeout・未信頼時は元の `cf` / `cloudflare` を禁止ルールが拒否し、helper 不在・失敗時は別経路へ fallback しない。`command` / `env` と既知の `/bin` / `/usr/bin` の別名も禁止する。任意の絶対パスや interpreter まで完全に遮断する sandbox ではなく、拒否の迂回を禁止する行動契約は引き続き適用する。
 
 自動検証と両 runtime のダミー検証では実 credential・実サービスを使わない。実サービスでの接続と必要な token 権限の確認は、受入・live source からの対象限定配備の後の別工程。書込みの 403 を確かめるために破壊的 API を試す場合も、操作・対象・範囲を示して事前確認を得る。未実施の確認は未確認として引き継ぐ。[初期の採用判断](../docs/adr/0083-add-read-only-cloudflare-inspection.md)、[ログ検索の例外](../docs/adr/0084-allow-bounded-workers-log-queries.md)
+
+### D1 の固定読取り定義
+
+`d1 read` は [ADR-0086](../docs/adr/0086-constrain-storage-inspection-definitions.md) で認めた限定入口。単一 SELECT またはその EXPLAIN QUERY PLAN のいずれか1つを、helper 内の固定 HTTP transport から公式 Query API へ POST する。任意 SQL、JSON body、endpoint、認証切替、追加問合せ、retry、redirect、失敗時の fallback は受け付けない。必要な権限は `D1 Read`。[公式 Query API](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)、[EXPLAIN の説明](https://developers.cloudflare.com/d1/best-practices/use-indexes/)
+
+人は利用環境の Git 管理外の private な場所で定義を編集し、対象・投影列・WHERE/ORDER BY の列と演算子・引数の許可値・上限を内容まで確認する。その時点の生バイト列の SHA-256 を private な承認記録へ控え、操作を承認するときに期待値と照合する。agent が実行直前に計算した hash だけを承認済みと扱わない。helper は承認記録を読み込まず、期待 hash の値だけを受理する。同じ uid の人と agent を機械的に区別する保証ではない。
+
+次は架空の合成 fixture。実際の名称・schema・値・定義・個別計画を公開資料へ写さない。定義・引数は本人所有、mode0600、symlink なしの通常ファイルを絶対 path で指定する。親 path の symlink、hard link、64 KiB 超、重複した JSON key、不正な型や未知の定義項目も拒否する。
+
+```json
+{
+  "version": 1,
+  "account_id": "0123456789abcdef0123456789abcdef",
+  "database_id": "01234567-89ab-cdef-0123-456789abcdef",
+  "table": "fixture_records",
+  "allowed_columns": ["state", "category"],
+  "select": ["state"],
+  "where": [{ "column": "category", "operator": "=", "parameter": "category" }],
+  "order_by": [{ "column": "state", "direction": "asc" }],
+  "parameters": {
+    "category": { "type": "string", "max_length": 16, "values": ["ready"] }
+  },
+  "max_rows": 100,
+  "max_plan_rows": 100,
+  "timeout_seconds": 30
+}
+```
+
+引数ファイルはこの例なら `{"category":"ready"}`。parameters が空なら省略できる。bind は許可値を列挙した文字列のみで、数値・null・bool を文字列化しない。条件は AND で結び、演算子は `= != < <= > >=`、並び順は1〜16項目の `asc/desc` を固定し、空の order_by は拒否する。投影・条件・並び順の列はすべて allowed_columns 内に固定する。本文・資格情報・個人情報やその生成材料となる列を、人の確認で許可リストから除外する。識別子は英字/underscore で始まる英数字/underscore の128文字以内で、`sqlite_*`・`_cf_*` は使えない。star、JOIN、副問合せ、関数、集計、任意式、PRAGMA、複数 statement、更新、DDL は生成しない。
+
+```bash
+# 内容を確認した hash と今回の操作・対象について、人の承認を得た後に実行する。
+# CONFIRMED_SHA256 は承認記録から渡す64桁の小文字hexに置き換える。
+cloudflare-inspect --reviewed d1 read --definition /absolute/definition.json \
+  --sha256 CONFIRMED_SHA256 --params-file /absolute/params.json --mode select --limit 100
+```
+
+`--mode explain` は別の承認済み操作として選ぶ。SELECT 時に自動で EXPLAIN を追加しない。SELECT の既定件数は min(100, max_rows)、共通最大1000件。`--limit` は EXPLAIN 時も計画対象の SELECT に適用し、計画行数には適用しない。計画の応答は定義の max_plan_rows（必須、1〜1000、上の例では100）以内の非空の全体だけを受理し、超過時に切り詰めて成功扱いしない。max_rows と max_plan_rows は独立した上限として人が確認する。旧形式の定義には max_plan_rows を加えて内容と hash を再確認する。private 記録の limit は SQL の LIMIT、result_limit は選んだモードの応答行数上限を表す。公開 returned_count も SELECT ではデータ行、EXPLAIN では計画行の件数となる。
+
+全体期限は定義の timeout_seconds（1〜30秒）で、親 process が定義読込みから通信・保存までの子 process を監督する。期限切れの子は停止するが、サーバ側の処理終了を保証しない。取得件数・LIMIT・EXPLAIN を走査量や費用の保証と呼ばない。SELECT の返却件数が LIMIT と同数なら `limit_reached_unknown` として続きの有無を推定せず、N+1 件や cursor で続きを調べない。EXPLAIN は計画行数が上限と同数でも、検証した全体の取得を `complete` と記録する。
+
+HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。送信開始予定を先に flush してから通信し、成功または失敗を確定記録へ更新する。途中切断や不正な status line などの HTTP protocol 例外は、開始済み1試行の `failed / request_failed` として確定し、再送しない。中断・期限切れでは private 記録が `pending / interrupted_or_deadline` のまま残る場合があり、開始予定/開始済みと実際の送信到達・サーバ側の結果を区別する。socket の timeout だけを全体期限と扱わない。HTTP エラーや保存失敗を成功扱いせず、応答・例外の原文をログへ出さない。
+
+記録は、検査済み `/tmp/codex` 内の一意な `cloudflare-inspect.<乱数>/record.json`（directory は0700、file は0600）だけに保存する。既存ファイル・任意保存先・Git による追跡対象判定は使わない。公開 JSON は status、返却件数、統計、試行開始数、終了理由と、業務名を含まない一般的な記録 locator だけ。許可行・SQL/params・対象・query plan・実効 helper の実体 path/SHA-256・cf exact pin は private 記録で照合する。credential は private 記録にも含めない。実 token の文字列反映は保存前に除外するが、未知の秘密値の自動分類ではなく、人が許可列を選ぶ契約を前提とする。
+
+Python の TLS client は `SSL_CERT_FILE`（未指定なら `NIX_SSL_CERT_FILE`）と `SSL_CERT_DIR` を使い、未指定時は標準 CA を使う。HTTP/HTTPS/ALL_PROXY と小文字形・NO_PROXY の既存設定を使う。proxy URL の scheme は `http://` のみを許可する（例: `HTTPS_PROXY=http://proxy:8080`）。urllib が CONNECT 前に proxy への TLS を開始しないため、`https://` proxy は送信前に拒否する。その他の未対応 scheme も停止し、proxy 認証 challenge の再送は行わない。`NODE_EXTRA_CA_CERTS` は Python の CA とみなさず、`SSLKEYLOGFILE`・Node/debug/profile・任意 endpoint 設定を有効にしない。
+
+R2 object 一覧は [#581](https://github.com/treflebonbon/dotfiles/issues/581) の設計対象で、ここから代行しない。実サービスでの受入れは対象・操作・件数・時間・費用範囲を定めた別確認とし、未 merge の task worktree から配備しない。
 
 ## GitHub
 

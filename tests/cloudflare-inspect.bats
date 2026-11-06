@@ -334,7 +334,7 @@ PY
 
 @test "Cloudflare の検査入口を許可し reviewed を確認、生 CLI を拒否する" {
   local command expected
-  for command in 'cloudflare-inspect d1 list' 'cloudflare-inspect --reviewed d1 get db' 'cf d1 list' 'cloudflare d1 list' 'command cf d1 list' 'env cloudflare d1 list' '/usr/bin/cf d1 list'; do
+  for command in 'cloudflare-inspect d1 list' 'cloudflare-inspect --reviewed d1 get db' 'cloudflare-inspect --reviewed d1 read --definition /fixture.json --sha256 fixture' 'cf d1 list' 'cloudflare d1 list' 'command cf d1 list' 'env cloudflare d1 list' '/usr/bin/cf d1 list'; do
     case "$command" in
     'cloudflare-inspect --reviewed'*) expected=prompt ;;
     'cloudflare-inspect '*) expected=allow ;;
