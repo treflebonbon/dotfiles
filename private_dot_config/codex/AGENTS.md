@@ -60,7 +60,7 @@ Force pushes are prohibited by policy. Direct raw `git push` commands and common
 
 ## Google Cloud / Cloudflare / GitHub の調査
 
-Google Cloud の自動調査は `gcloud-inspect`、Cloudflare は通常の `cf` を hook で `cloudflare-inspect` へ接続する。Cloudflare は Read 権限を基本とし、Worker・期間・件数を制限する過去ログ検索に限り `Workers Observability Write` を認める。GitHub は明示的に許可された `gh` の参照コマンドを使う。未対応の調査操作は、ユーザーへ内容を示して実行前に確認し、auto 判定や別の実行方法で代用しない。秘密値・認証値の取得と機密項目の除外解除は禁止。操作一覧と手順は `~/runtime/investigation.md` を読む。
+Google Cloud の自動調査は `gcloud-inspect`、Cloudflare は通常の `cf` を hook で `cloudflare-inspect` へ接続する。Cloudflare は Read 権限を基本とし、Worker・期間・件数を制限する過去ログ検索に限り `Workers Observability Write` を認める。R2 object の一覧は事前に承認した定義と短期の一覧専用資格情報を使う `--reviewed` 操作で、通常の `cf` からも確認を省略しない。GitHub は明示的に許可された `gh` の参照コマンドを使う。未対応の調査操作は、ユーザーへ内容を示して実行前に確認し、auto 判定や別の実行方法で代用しない。秘密値・認証値の取得と機密項目の除外解除は禁止。操作一覧と手順は `~/runtime/investigation.md` を読む。
 
 ## Clarifying questions
 

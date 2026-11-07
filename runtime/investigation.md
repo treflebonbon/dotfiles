@@ -88,7 +88,7 @@ cf o11y telemetry query --worker example --start 2026-11-01T00:00:00Z --end 2026
 
 `cf cli search` は認証情報を渡さず、`durable objects namespaces`、`d1 databases`、`r2 buckets`、`workers scripts` の固定語彙だけで使う。任意の名前・ドメイン・ID・token は検索語にしない。コマンド検索は同梱 index のローカル処理だが、CLI の使用状況 telemetry は常に `CF_SEND_TELEMETRY=false` と `DO_NOT_TRACK=1` で無効化する。`cf docs search` は今回の許可対象外。
 
-初期対象外の Read 参照は、対象・コマンド・理由を示して人の確認後に `cloudflare-inspect --reviewed` を使う。確認済み追加操作は `d1 get <database-id>`（UUID、任意の `--fields`）と、下記の限定形式の `d1 read`。それ以外は確認後も未対応として停止する。追加操作の正式な schema・Read 権限・引数・出力を確認して helper とテストを更新するまで、生 CLI や別経路で代用しない。
+初期対象外の Read 参照は、対象・コマンド・理由を示して人の確認後に `cloudflare-inspect --reviewed` を使う。確認済み追加操作は `d1 get <database-id>`（UUID、任意の `--fields`）、下記の限定形式の `d1 read`、および R2 object の限定一覧である。それ以外は確認後も未対応として停止する。追加操作の正式な schema・権限・引数・出力を確認して helper とテストを更新するまで、生 CLI や別経路で代用しない。
 
 ```bash
 # この操作・対象について人の確認を得た後に実行する。
@@ -97,7 +97,7 @@ cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef --fiel
 
 `--reviewed` は両 runtime の ask / prompt の対象で、hook は自動付加しない。過去ログ検索は `--reviewed` を付けても同じ制約を守る。それ以外の作成・更新・削除・deploy・認証変更・秘密値取得・`--force` は拒否する。既知の `vars`・`bindings`・環境変数・secret/token 類・Authorization・Proxy-Authorization・CF-Access-Jwt-Assertion・X-Auth-Key・Cookie を `[非表示]` にし、実 token の文字列反映も除外する。未知の機密値の完全な自動判別は保証しない。
 
-helper と `cf` は同じユーザー環境の Nix package から配布する。限定 `d1 read` 以外は、helper 自身の実体と同じ immutable package 内の `cf` を絶対パスで起動し、caller の PATH 上の同名 CLI は信用しない。一時 HOME と空の作業ディレクトリで起動し、project の `.env`・実行可能設定・保存済み認証を読ませない。endpoint を公式の public API に固定し、`NODE_OPTIONS`・debug・profile・任意 endpoint の上書きを引き継がない。必要な proxy と CA は保持する。`cf` はユーザー環境の Nix package で exact pin し、CLI を使う操作では token を渡す前に版を照合する。`CF_DELEGATION=1` で project 内の別版への委譲を止める。更新は満7日以上経過した公開版で、schema と検査・配線の検証後に行う。
+helper と `cf` は同じユーザー環境の Nix package から配布する。限定 `d1 read` と R2 object list 以外は、helper 自身の実体と同じ immutable package 内の `cf` を絶対パスで起動し、caller の PATH 上の同名 CLI は信用しない。一時 HOME と空の作業ディレクトリで起動し、project の `.env`・実行可能設定・保存済み認証を読ませない。endpoint を公式の public API に固定し、`NODE_OPTIONS`・debug・profile・任意 endpoint の上書きを引き継がない。必要な proxy と CA は保持する。`cf` はユーザー環境の Nix package で exact pin し、CLI を使う操作では token を渡す前に版を照合する。`CF_DELEGATION=1` で project 内の別版への委譲を止める。更新は満7日以上経過した公開版で、schema と検査・配線の検証後に行う。
 
 hook の失敗・timeout・未信頼時は元の `cf` / `cloudflare` を禁止ルールが拒否し、helper 不在・失敗時は別経路へ fallback しない。`command` / `env` と既知の `/bin` / `/usr/bin` の別名も禁止する。任意の絶対パスや interpreter まで完全に遮断する sandbox ではなく、拒否の迂回を禁止する行動契約は引き続き適用する。
 
@@ -149,7 +149,41 @@ HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。�
 
 Python の TLS client は `SSL_CERT_FILE`（未指定なら `NIX_SSL_CERT_FILE`）と `SSL_CERT_DIR` を使い、未指定時は標準 CA を使う。HTTP/HTTPS/ALL_PROXY と小文字形・NO_PROXY の既存設定を使う。proxy URL の scheme は `http://` のみを許可する（例: `HTTPS_PROXY=http://proxy:8080`）。urllib が CONNECT 前に proxy への TLS を開始しないため、`https://` proxy は送信前に拒否する。その他の未対応 scheme も停止し、proxy 認証 challenge の再送は行わない。`NODE_EXTRA_CA_CERTS` は Python の CA とみなさず、`SSLKEYLOGFILE`・Node/debug/profile・任意 endpoint 設定を有効にしない。
 
-R2 object 一覧は [#581](https://github.com/treflebonbon/dotfiles/issues/581) の設計対象で、ここから代行しない。実サービスでの受入れは対象・操作・件数・時間・費用範囲を定めた別確認とし、未 merge の task worktree から配備しない。
+R2 object 一覧の契約は [ADR-0087](../docs/adr/0087-allow-constrained-r2-object-listing.md) に定める。実サービスでの受入れは対象・操作・件数・時間・費用範囲を定めた別確認とし、未 merge の task worktree から配備しない。
+
+### R2 object の限定一覧
+
+`r2 objects list` は固定読取り定義に記録した単一 bucket・非空 `/` 終端 prefix・許可 field・上限に対して、S3 `ListObjectsV2` を先頭1ページだけ呼ぶ。[R2 の S3 API](https://developers.cloudflare.com/r2/api/s3/api/)、[ListObjectsV2](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)。初期範囲は default jurisdiction のみ。REST 一覧や `cf` の汎用 R2 操作、AWS CLI、SDK、object 本文、HTTP/custom metadata、2ページ目以降は使わない。
+
+人は利用環境の Git 管理外に mode0600 の定義を作り、内容を確認してその生 bytes の SHA-256 を承認記録へ控える。agent が直前に計算した値だけでは操作承認にならない。例は全項目が架空である。
+
+```json
+{
+  "version": 1,
+  "account_id": "0123456789abcdef0123456789abcdef",
+  "bucket": "fixture-assets",
+  "prefix": "reports/",
+  "jurisdiction": "default",
+  "fields": ["key", "size", "etag", "last_modified"],
+  "max_keys": 100,
+  "timeout_seconds": 30,
+  "max_credential_remaining_seconds": 900
+}
+```
+
+操作ごとに対象・fields・件数・期限を確認し、承認した hash を指定して `cloudflare-inspect --reviewed r2 objects list --definition PATH --sha256 HASH [--limit N]` を実行する。既定件数は `min(100, max_keys)`、`--limit` は1〜定義上限、`max_keys` は1〜1000、全体期限は1〜30秒、残存資格情報の上限は1〜900秒。`--reviewed` は runtime の人による確認を要求する。`cf` hook はこれを自動追加せず、reviewed なしの呼出しは helper が通信前に拒否する。
+
+親 R2 credential は対象 bucket に限定した Read 権限とし、その secret は人が agent session の外で保持する。人が local signing で `actions: ["ListObjectsV2"]`、単一 bucket、承認済み prefix 1件に限定した一時 credential を発行し、helper に渡すのは `CLOUDFLARE_R2_ACCESS_KEY_ID`、`CLOUDFLARE_R2_SECRET_ACCESS_KEY`、`CLOUDFLARE_R2_SESSION_TOKEN` の3値だけ。親 secret を agent に渡さず、credential 値をチャット・引数・履歴・ログへ出さない。[一時資格情報の形式と local signing](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/)、[公式の発行例](https://developers.cloudflare.com/r2/examples/authenticate-r2-temp-credentials/)。
+
+helper は送信前に JWT の header/claim・derived secret・bucket/prefix/action/audience・有効期限の局所整合性を検査する。これは親鍵による署名真正性の検証でも、人の承認でも、Cloudflare 側の claim 強制の証明でもない。`paths.prefixPaths` は定義の prefix 1件と一致させ、`objectPaths` は省略または空配列だけを許す。`iat` は現在から60秒を超えて先にならず、`exp` は現在より先で定義上限以内でなければならない。session token 自体も secret として扱う。
+
+資格情報の局所検査に失敗した場合は外部サービスへ届かず、private 失敗記録には prefix や対象条件を含めず定義 hash で追跡する。
+
+通信は固定 path-style HTTPS GET、SigV4 region `auto` / service `s3`、`Accept-Encoding: identity`、明示した1 HTTP 試行だけ。retry・redirect・refresh・fallback はしない。応答の namespace/要素・target・件数・prefix・型・継続状態を検査し、未知 XML・DOCTYPE/ENTITY・圧縮・8 MiB 超・不正値は items を保存せず失敗する。`NextContinuationToken` は検証以外に使わず、保存・公開しない。`IsTruncated=true` は `truncated` として終え、続きの要求を送らない。
+
+R2 helper 子 process へ渡す環境は上記3 credential、必要な proxy/CA と locale に限り、`CLOUDFLARE_API_TOKEN`、`AWS_*`、`SSLKEYLOGFILE`、保存済み認証、任意 endpoint/debug 設定を継承しない。これは OS 隔離の保証ではなく、親鍵を agent の実効環境外に置く運用前提も必要である。既存 D1 などの共有 token 配置は変更しない。
+
+private 記録は `/tmp/codex` 下の新規0700 directory と0600 file に固定し、定義・対象・条件・許可 items・試行・写像済み error class を保存する。credential 3値、JWT、raw XML、元の error body、continuation token は保存しない。公開 JSON は匿名の status・returned_count・attempts_started・end_reason・一般的な record locator のみ。件数や期限は走査量・費用の保証ではなく、実 R2 での actions/prefix/audience 強制・実資格情報・配備は別途承認する。
 
 ## GitHub
 
