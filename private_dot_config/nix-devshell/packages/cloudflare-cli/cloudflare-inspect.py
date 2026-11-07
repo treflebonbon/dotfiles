@@ -658,10 +658,7 @@ def perform_r2(arguments, notify, started):
     notify({"record_locator": record.path})
     audit = {"utc": datetime.now(timezone.utc).isoformat(), "operation": "r2 objects list", "status": "pending",
              "end_reason": "interrupted_or_deadline", "attempts_started": 0, "definition_sha256": options.sha256,
-             "account_id": definition["account_id"], "bucket": definition["bucket"], "prefix": definition["prefix"],
-             "jurisdiction": definition["jurisdiction"], "fields": definition["fields"], "max_keys": definition["max_keys"],
-             "requested_max_keys": limit, "timeout_seconds": definition["timeout_seconds"],
-             "max_credential_remaining_seconds": definition["max_credential_remaining_seconds"], "returned_count": None,
+             "returned_count": None,
              "http_status": None, "service_error_code": None,
              "implementation": {"api_contract": "r2-listobjects-v2-v1", "helper_path": str(Path(__file__).resolve()),
                                 "helper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}}
@@ -670,6 +667,10 @@ def perform_r2(arguments, notify, started):
     try:
         record.write(redact_r2(audit, credentials))
         credentials.update(r2_credentials(definition))
+        audit.update(account_id=definition["account_id"], bucket=definition["bucket"], prefix=definition["prefix"],
+                     jurisdiction=definition["jurisdiction"], fields=definition["fields"], max_keys=definition["max_keys"],
+                     requested_max_keys=limit, timeout_seconds=definition["timeout_seconds"],
+                     max_credential_remaining_seconds=definition["max_credential_remaining_seconds"])
         request = r2_request(definition, limit, credentials)
         reason = "transport_configuration"
         opener = d1_opener()

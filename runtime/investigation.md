@@ -177,6 +177,8 @@ R2 object 一覧の契約は [ADR-0087](../docs/adr/0087-allow-constrained-r2-ob
 
 helper は送信前に JWT の header/claim・derived secret・bucket/prefix/action/audience・有効期限の局所整合性を検査する。これは親鍵による署名真正性の検証でも、人の承認でも、Cloudflare 側の claim 強制の証明でもない。`paths.prefixPaths` は定義の prefix 1件と一致させ、`objectPaths` は省略または空配列だけを許す。`iat` は現在から60秒を超えて先にならず、`exp` は現在より先で定義上限以内でなければならない。session token 自体も secret として扱う。
 
+資格情報の局所検査に失敗した場合は外部サービスへ届かず、private 失敗記録には prefix や対象条件を含めず定義 hash で追跡する。
+
 通信は固定 path-style HTTPS GET、SigV4 region `auto` / service `s3`、`Accept-Encoding: identity`、明示した1 HTTP 試行だけ。retry・redirect・refresh・fallback はしない。応答の namespace/要素・target・件数・prefix・型・継続状態を検査し、未知 XML・DOCTYPE/ENTITY・圧縮・8 MiB 超・不正値は items を保存せず失敗する。`NextContinuationToken` は検証以外に使わず、保存・公開しない。`IsTruncated=true` は `truncated` として終え、続きの要求を送らない。
 
 R2 helper 子 process へ渡す環境は上記3 credential、必要な proxy/CA と locale に限り、`CLOUDFLARE_API_TOKEN`、`AWS_*`、`SSLKEYLOGFILE`、保存済み認証、任意 endpoint/debug 設定を継承しない。これは OS 隔離の保証ではなく、親鍵を agent の実効環境外に置く運用前提も必要である。既存 D1 などの共有 token 配置は変更しない。

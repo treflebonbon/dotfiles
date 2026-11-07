@@ -277,6 +277,10 @@ class R2(unittest.TestCase):
         for secret in (ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN, JWT, "NextToken-SENSITIVE", "<ListBucketResult"):
             self.assertNotIn(secret, audit)
         value = json.loads(audit)
+        self.assertEqual((value["account_id"], value["bucket"], value["prefix"]),
+                         (ACCOUNT_ID, BUCKET, PREFIX))
+        self.assertEqual((value["fields"], value["requested_max_keys"], value["timeout_seconds"]),
+                         (self.definition["fields"], self.definition["max_keys"], self.definition["timeout_seconds"]))
         self.assertEqual(value["items"], [{"key": "reports/annual report.csv", "size": 4}])
         self.assertEqual(set(value["items"][0]), set(self.definition["fields"]))
         self.assertEqual(value["status"], "complete")
@@ -384,45 +388,80 @@ class R2(unittest.TestCase):
                 self.assertEqual(summary["attempts_started"], 0)
                 self.assertFalse(self.calls.exists())
 
-    def test_credential_values_are_redacted_before_and_after_scope_validation(self):
+    def test_credential_values_are_not_recorded_before_scope_validation(self):
+        credential_values = (
+            ("access key ID", ACCESS_KEY_ID), ("secret access key", SECRET_ACCESS_KEY),
+            ("session token", SESSION_TOKEN), ("parsed JWT", JWT),
+        )
+        cases = [
+            (name, value, make_credentials()) for name, value in credential_values
+        ]
+        padded_session_token = base64.b64decode(SESSION_TOKEN)
+        while len(padded_session_token) % 3 == 0:
+            padded_session_token += b"x"
+        padded_session_token = base64.b64encode(padded_session_token).decode("ascii")
+        self.assertTrue(padded_session_token.endswith("="))
+        cases.extend((
+            ("trailing malformed base64", JWT, {**make_credentials(),
+                "CLOUDFLARE_R2_SESSION_TOKEN": SESSION_TOKEN + "!"}),
+            ("missing base64 padding", JWT, {**make_credentials(),
+                "CLOUDFLARE_R2_SESSION_TOKEN": padded_session_token[:-1]}),
+        ))
+        target_fields = {
+            "account_id", "bucket", "prefix", "jurisdiction", "fields", "max_keys",
+            "requested_max_keys", "timeout_seconds", "max_credential_remaining_seconds",
+        }
         original_write = helper.D1Record.write
-        for name, prefix_part in (
-            ("access key ID", ACCESS_KEY_ID),
-            ("secret access key", SECRET_ACCESS_KEY),
-            ("session token", SESSION_TOKEN),
-            ("parsed JWT", JWT),
-        ):
+        for name, prefix_part, credentials in cases:
             with self.subTest(value=name):
                 self.definition["prefix"] = prefix_part + "/"
                 self.clear_calls()
-                write_log = self.root / "record-writes.jsonl"
-                write_log.unlink(missing_ok=True)
-                credential_values = (
-                    ("access key ID", ACCESS_KEY_ID), ("secret access key", SECRET_ACCESS_KEY),
-                    ("session token", SESSION_TOKEN), ("parsed JWT", JWT),
+                pending_log = self.root / "pending-observation.jsonl"
+                pending_log.unlink(missing_ok=True)
+                supplied_credentials = (
+                    ("access key ID", credentials["CLOUDFLARE_R2_ACCESS_KEY_ID"]),
+                    ("secret access key", credentials["CLOUDFLARE_R2_SECRET_ACCESS_KEY"]),
+                    ("session token", credentials["CLOUDFLARE_R2_SESSION_TOKEN"]),
+                    ("parsed JWT", JWT),
                 )
 
-                def capture_write(record, value):
-                    encoded = json.dumps(value, ensure_ascii=False)
-                    leaked_names = [name for name, credential in credential_values if credential in encoded]
-                    with write_log.open("a") as output:
-                        output.write(json.dumps(leaked_names) + "\n")
+                def capture_pending(record, value):
+                    if value["status"] == "pending":
+                        encoded = json.dumps(value, ensure_ascii=False)
+                        observation = {
+                            "status": value["status"],
+                            "end_reason": value["end_reason"],
+                            "attempts_started": value["attempts_started"],
+                            "definition_sha256": value["definition_sha256"],
+                            "target_fields": sorted(target_fields.intersection(value)),
+                            "credential_matches": [credential in encoded for _, credential in supplied_credentials],
+                        }
+                        with pending_log.open("a") as output_file:
+                            output_file.write(json.dumps(observation) + "\n")
                     return original_write(record, value)
 
-                with patch.object(helper.D1Record, "write", capture_write):
-                    status, output = self.invoke()
+                with patch.object(helper.D1Record, "write", capture_pending):
+                    status, output = self.invoke(environment=credentials)
 
                 summary = json.loads(output)
                 self.assertNotEqual(status, 0)
-                self.assertEqual((summary["end_reason"], summary["attempts_started"]),
-                                 ("credential_validation", 0))
-                captured_writes = write_log.read_text().splitlines()
-                write_log.unlink()
-                self.assertEqual(len(captured_writes), 2)
-                self.assertEqual([json.loads(line) for line in captured_writes], [[], []])
-                stored = output + Path(summary["record_locator"]).read_text()
-                for credential_name, credential in credential_values:
-                    self.assertFalse(credential in stored, f"{credential_name} was stored")
+                self.assertEqual((summary["status"], summary["end_reason"], summary["attempts_started"]),
+                                 ("failed", "credential_validation", 0))
+                pending = next(observation for observation in map(json.loads, pending_log.read_text().splitlines())
+                               if observation["status"] == "pending")
+                self.assertEqual((pending["end_reason"], pending["attempts_started"], pending["definition_sha256"]),
+                                 ("interrupted_or_deadline", 0,
+                                  hashlib.sha256(self.file.read_bytes()).hexdigest()))
+                self.assertFalse(any(pending["credential_matches"]))
+                self.assertEqual(pending["target_fields"], [])
+                record_text = Path(summary["record_locator"]).read_text()
+                record = json.loads(record_text)
+                self.assertEqual(record["status"], "failed")
+                self.assertEqual(record["attempts_started"], 0)
+                self.assertEqual(record["definition_sha256"], hashlib.sha256(self.file.read_bytes()).hexdigest())
+                for credential_name, credential in supplied_credentials:
+                    self.assertNotIn(credential, output + record_text, f"{credential_name} was stored")
+                self.assertTrue(target_fields.isdisjoint(record))
                 self.assertFalse(self.calls.exists())
 
     def test_definition_hash_shape_and_bounds_fail_before_http(self):
@@ -622,6 +661,8 @@ class R2(unittest.TestCase):
             self.assertIsNotNone(summary["record_locator"])
             record = json.loads(Path(summary["record_locator"]).read_text())
             self.assertEqual((record["http_status"], record["service_error_code"]), (503, "unknown"))
+            self.assertEqual((record["account_id"], record["bucket"], record["prefix"]),
+                             (ACCOUNT_ID, BUCKET, PREFIX))
             self.assertNotIn("PRIVATE_ERROR_BODY", output + json.dumps(record))
             self.assertNotIn("made-up", output + json.dumps(record))
 
