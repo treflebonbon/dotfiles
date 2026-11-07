@@ -31,6 +31,9 @@ bats_require_minimum_version 1.5.0
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-r2.py" "$BATS_TEST_TMPDIR" R2.test_official_empty_or_omitted_object_paths_and_rejects_credential_mismatch_before_http
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-r2.py" "$BATS_TEST_TMPDIR" R2.test_credential_values_are_redacted_before_and_after_scope_validation
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-r2.py" "$BATS_TEST_TMPDIR" R2.test_definition_hash_shape_and_bounds_fail_before_http
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
@@ -44,6 +47,9 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-r2.py" "$BATS_TEST_TMPDIR" R2.test_invalid_xml_transport_encoding_and_metadata_never_store_items
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-r2.py" "$BATS_TEST_TMPDIR" R2.test_unknown_xml_encoding_preserves_attempt_and_classifies_http_error
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }

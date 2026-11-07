@@ -435,6 +435,22 @@ def r2_credentials(definition):
             "session_token": session_token, "jwt": jwt, "expires": expires}
 
 
+def r2_redaction_values():
+    values = dict(zip(("access_key_id", "secret_access_key", "session_token"),
+                      (os.environ.get(name, "") for name in R2_CREDENTIAL_ENV)))
+    session_token = values["session_token"]
+    if session_token and len(session_token) <= R2_MAX_SESSION_TOKEN:
+        try:
+            encoded = base64.b64decode(session_token, validate=True)
+            if base64.b64encode(encoded).decode("ascii") == session_token:
+                token_text = encoded.decode("ascii")
+                if token_text.startswith("jwt/") and len(token_text[4:]) <= R2_MAX_JWT:
+                    values["jwt"] = token_text[4:]
+        except (binascii.Error, UnicodeError, ValueError):
+            pass
+    return values
+
+
 def r2_quote(value):
     return quote(value, safe="-_.~", encoding="utf-8", errors="strict")
 
@@ -493,15 +509,16 @@ def r2_exchange(opener, request, timeout):
 
 
 def r2_error_code(raw, headers):
+    document = r2_xml_document(raw)
     if (len(raw) > R2_MAX_RESPONSE or headers.get("content-encoding", "") not in ("", "identity")
             or headers.get("content-type", "").split(";", 1)[0].strip().lower() not in ("application/xml", "text/xml")
-            or not r2_xml_is_safe(raw)):
+            or document is None):
         return "unknown"
     try:
-        root = ET.fromstring(raw)
+        root = ET.fromstring(document)
         code_nodes = [child for child in root if child.tag in ("Code", "{" + R2_NAMESPACE + "}Code")]
         code = code_nodes[0].text if root.tag in ("Error", "{" + R2_NAMESPACE + "}Error") and len(code_nodes) == 1 else None
-    except (ET.ParseError, ValueError, RecursionError):
+    except (ET.ParseError, LookupError, ValueError, RecursionError):
         return "unknown"
     return code if isinstance(code, str) and code in R2_ERROR_CODES else "unknown"
 
@@ -515,12 +532,22 @@ def r2_xml_text(element, *, strip=False):
     return value.strip() if strip else value
 
 
-def r2_xml_is_safe(raw):
+def r2_xml_document(raw):
     try:
-        text = raw.decode("utf-8", "strict").upper()
+        text = raw.decode("utf-8", "strict")
     except UnicodeError:
-        return False
-    return "<!DOCTYPE" not in text and "<!ENTITY" not in text
+        return None
+    upper = text.upper()
+    if "\x00" in text or "<!DOCTYPE" in upper or "<!ENTITY" in upper:
+        return None
+    declaration = re.match(r"\ufeff?<\?xml\s+(.*?)\?>", text, re.IGNORECASE | re.DOTALL)
+    if declaration:
+        attributes = declaration.group(1)
+        encoding = re.search(r"\bencoding\s*=\s*(['\"])(.*?)\1", attributes, re.IGNORECASE)
+        if (re.search(r"\bencoding\b", attributes, re.IGNORECASE)
+                and (encoding is None or encoding.group(2).lower() != "utf-8")):
+            return None
+    return text
 
 
 def r2_decode_url(value):
@@ -533,11 +560,12 @@ def r2_decode_url(value):
 
 
 def r2_page(raw, headers, definition, limit):
+    document = r2_xml_document(raw)
     if (len(raw) > R2_MAX_RESPONSE or headers.get("content-encoding", "") not in ("", "identity")
             or headers.get("content-type", "").split(";", 1)[0].strip().lower() not in ("application/xml", "text/xml")
-            or not r2_xml_is_safe(raw)):
+            or document is None):
         raise ValueError("R2 XML の応答形式または上限が不正です。")
-    root = ET.fromstring(raw)
+    root = ET.fromstring(document)
     if root.tag != "{" + R2_NAMESPACE + "}ListBucketResult" or root.attrib or root.text and root.text.strip():
         raise ValueError("R2 XML の応答 root が不正です。")
     single = {}
@@ -607,8 +635,9 @@ def r2_page(raw, headers, definition, limit):
 
 
 def redact_r2(value, credentials):
-    secrets_to_remove = tuple(secret for secret in (credentials.get("access_key_id"), credentials.get("secret_access_key"),
-                                                    credentials.get("session_token"), credentials.get("jwt")) if secret)
+    secrets_to_remove = tuple(sorted((secret for secret in (credentials.get("access_key_id"),
+        credentials.get("secret_access_key"), credentials.get("session_token"), credentials.get("jwt")) if secret),
+        key=len, reverse=True))
     if isinstance(value, list):
         return [redact_r2(item, credentials) for item in value]
     if isinstance(value, dict):
@@ -624,7 +653,7 @@ def perform_r2(arguments, notify, started):
     definition, limit = r2_plan(options)
     deadline = started + definition["timeout_seconds"]
     notify({"deadline": deadline})
-    credentials = {}
+    credentials = r2_redaction_values()
     record = D1Record()
     notify({"record_locator": record.path})
     audit = {"utc": datetime.now(timezone.utc).isoformat(), "operation": "r2 objects list", "status": "pending",
@@ -639,8 +668,8 @@ def perform_r2(arguments, notify, started):
     reason = "credential_validation"
     request_started = False
     try:
-        record.write(audit)
-        credentials = r2_credentials(definition)
+        record.write(redact_r2(audit, credentials))
+        credentials.update(r2_credentials(definition))
         request = r2_request(definition, limit, credentials)
         reason = "transport_configuration"
         opener = d1_opener()
@@ -667,7 +696,7 @@ def perform_r2(arguments, notify, started):
         reason = "record_failed"
         record.write(redact_r2(audit, credentials))
         return {key: audit[key] for key in ("status", "returned_count", "end_reason", "attempts_started")} | {"record_locator": record.path}
-    except (ValueError, OSError, RecursionError, HTTPException, ET.ParseError, UnicodeError):
+    except (ValueError, OSError, RecursionError, HTTPException, ET.ParseError, LookupError, UnicodeError):
         audit.update(status="failed", end_reason=reason)
         if not request_started:
             audit["attempts_started"] = 0

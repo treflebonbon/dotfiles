@@ -384,6 +384,47 @@ class R2(unittest.TestCase):
                 self.assertEqual(summary["attempts_started"], 0)
                 self.assertFalse(self.calls.exists())
 
+    def test_credential_values_are_redacted_before_and_after_scope_validation(self):
+        original_write = helper.D1Record.write
+        for name, prefix_part in (
+            ("access key ID", ACCESS_KEY_ID),
+            ("secret access key", SECRET_ACCESS_KEY),
+            ("session token", SESSION_TOKEN),
+            ("parsed JWT", JWT),
+        ):
+            with self.subTest(value=name):
+                self.definition["prefix"] = prefix_part + "/"
+                self.clear_calls()
+                write_log = self.root / "record-writes.jsonl"
+                write_log.unlink(missing_ok=True)
+                credential_values = (
+                    ("access key ID", ACCESS_KEY_ID), ("secret access key", SECRET_ACCESS_KEY),
+                    ("session token", SESSION_TOKEN), ("parsed JWT", JWT),
+                )
+
+                def capture_write(record, value):
+                    encoded = json.dumps(value, ensure_ascii=False)
+                    leaked_names = [name for name, credential in credential_values if credential in encoded]
+                    with write_log.open("a") as output:
+                        output.write(json.dumps(leaked_names) + "\n")
+                    return original_write(record, value)
+
+                with patch.object(helper.D1Record, "write", capture_write):
+                    status, output = self.invoke()
+
+                summary = json.loads(output)
+                self.assertNotEqual(status, 0)
+                self.assertEqual((summary["end_reason"], summary["attempts_started"]),
+                                 ("credential_validation", 0))
+                captured_writes = write_log.read_text().splitlines()
+                write_log.unlink()
+                self.assertEqual(len(captured_writes), 2)
+                self.assertEqual([json.loads(line) for line in captured_writes], [[], []])
+                stored = output + Path(summary["record_locator"]).read_text()
+                for credential_name, credential in credential_values:
+                    self.assertFalse(credential in stored, f"{credential_name} was stored")
+                self.assertFalse(self.calls.exists())
+
     def test_definition_hash_shape_and_bounds_fail_before_http(self):
         valid = json.loads(json.dumps(self.definition))
         cases = [
@@ -515,6 +556,16 @@ class R2(unittest.TestCase):
              {"content-type": "application/xml", "content-encoding": "identity"}),
             ("unknown object element", xml_page(object_extra="<Unapproved>private</Unapproved>"),
              {"content-type": "application/xml", "content-encoding": "identity"}),
+            ("BOMless UTF-16LE with DOCTYPE and entity",
+             ('<?xml version="1.0" encoding="UTF-16LE"?>'
+              '<!DOCTYPE ListBucketResult [<!ENTITY entity_size "4">]>'
+              + xml_page().decode().replace("<Size>4</Size>", "<Size>&entity_size;</Size>")).encode("utf-16-le"),
+             {"content-type": "application/xml", "content-encoding": "identity"}),
+            ("BOMless UTF-16BE with DOCTYPE and entity",
+             ('<?xml version="1.0" encoding="UTF-16BE"?>'
+              '<!DOCTYPE ListBucketResult [<!ENTITY entity_size "4">]>'
+              + xml_page().decode().replace("<Size>4</Size>", "<Size>&entity_size;</Size>")).encode("utf-16-be"),
+             {"content-type": "application/xml", "content-encoding": "identity"}),
             ("non-UTF8 XML", xml_page().decode().encode("utf-16"),
              {"content-type": "application/xml", "content-encoding": "identity"}),
             ("compressed response", valid,
@@ -545,6 +596,34 @@ class R2(unittest.TestCase):
         self.assertNotEqual(status, 0)
         self.assertEqual(summary["attempts_started"], 1)
         self.assertNotIn("items", json.loads(Path(summary["record_locator"]).read_text()))
+
+    def test_unknown_xml_encoding_preserves_attempt_and_classifies_http_error(self):
+        self.exchange_body = b'<?xml version="1.0" encoding="made-up"?>' + xml_page()
+        status, output = self.invoke()
+        summary = json.loads(output)
+        with self.subTest(response="success"):
+            self.assertNotEqual(status, 0)
+            self.assertEqual((summary["status"], summary["end_reason"], summary["attempts_started"]),
+                             ("failed", "invalid_response", 1))
+            self.assertIsNotNone(summary["record_locator"])
+            record = json.loads(Path(summary["record_locator"]).read_text())
+            self.assertNotIn("items", record)
+            self.assertNotIn("made-up", output + json.dumps(record))
+
+        self.exchange_status = 503
+        self.exchange_body = (b'<?xml version="1.0" encoding="made-up"?>'
+                              b'<Error><Code>AccessDenied</Code><Message>PRIVATE_ERROR_BODY</Message></Error>')
+        status, output = self.invoke()
+        summary = json.loads(output)
+        with self.subTest(response="HTTP error"):
+            self.assertNotEqual(status, 0)
+            self.assertEqual((summary["status"], summary["end_reason"], summary["attempts_started"]),
+                             ("failed", "http_error", 1))
+            self.assertIsNotNone(summary["record_locator"])
+            record = json.loads(Path(summary["record_locator"]).read_text())
+            self.assertEqual((record["http_status"], record["service_error_code"]), (503, "unknown"))
+            self.assertNotIn("PRIVATE_ERROR_BODY", output + json.dumps(record))
+            self.assertNotIn("made-up", output + json.dumps(record))
 
     def test_real_transport_stub_never_redirects_retries_or_leaks_error_bodies(self):
         self.exchange_status = 302
