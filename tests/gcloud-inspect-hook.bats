@@ -51,6 +51,12 @@ print({
   done
 }
 
+@test "cf の R2 object 一覧も helper に渡し reviewed の自動付加をしない" {
+  run -0 hook "cf r2 objects list --definition /fixture.json --sha256 fixture"
+  [ "$(field decision <<<"$output")" = "allow" ]
+  [ "$(field command <<<"$output")" = "cloudflare-inspect r2 objects list --definition /fixture.json --sha256 fixture" ]
+}
+
 @test "cf の未対応構文と reviewed は案内つきで拒否し、文字列への言及は変更しない" {
   local command
   for command in 'cf d1 list | jq .' 'TOKEN=x cf d1 list' 'cf d1 list >out' 'cf d1 list --name $NAME' 'cf --reviewed d1 get id' 'echo "$(cf d1 list)"' 'cloudflare d1 list; echo x'; do

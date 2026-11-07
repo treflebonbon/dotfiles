@@ -40,15 +40,18 @@ prefix_rule(
 prefix_rule(
     pattern = ["cloudflare-inspect"],
     decision = "allow",
-    justification = "Cloudflare の確認済み参照と制限付き過去ログ検索の操作・出力を検査する入口。",
-    match = ["cloudflare-inspect d1 list"],
+    justification = "Cloudflare の確認済み参照と制限付き過去ログ検索の操作・出力を検査する入口。R2 object 一覧は reviewed が必要。",
+    match = ["cloudflare-inspect d1 list", "cloudflare-inspect r2 objects list"],
 )
 
 prefix_rule(
     pattern = ["cloudflare-inspect", "--reviewed"],
     decision = "prompt",
-    justification = "確認付きの Read 参照と過去ログ検索は対象・操作・理由を人に確認する。ログ検索には Workers Observability Write が必要。",
-    match = ["cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef"],
+    justification = "確認付きの Read 参照、過去ログ検索、R2 object 一覧は対象・操作・理由を人に確認する。ログ検索には Workers Observability Write が必要。",
+    match = [
+        "cloudflare-inspect --reviewed d1 get 01234567-89ab-cdef-0123-456789abcdef",
+        "cloudflare-inspect --reviewed r2 objects list --definition /fixture.json --sha256 fixture",
+    ],
 )
 
 prefix_rule(

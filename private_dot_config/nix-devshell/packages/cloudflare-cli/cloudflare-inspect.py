@@ -3,8 +3,11 @@
 """Cloudflare の確認済み参照操作だけを、機密項目を除外して返す。"""
 
 import argparse
+import base64
+import binascii
 from datetime import datetime, timedelta, timezone
 import hashlib
+import hmac
 from http.client import HTTPException
 import json
 import math
@@ -19,8 +22,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
+from urllib.parse import quote, unquote_to_bytes, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener, getproxies_environment
 
 
@@ -32,11 +36,25 @@ OPERATIONS = {
     ("workers", "scripts", "search"): ("page", "per-page", "name", "id", "order-by"),
 }
 REVIEWED = {("d1", "get"): ("fields",)}
+R2_LIST = ("r2", "objects", "list")
 SEARCH_TERMS = ("durable objects namespaces", "d1 databases", "r2 buckets", "workers scripts")
 LOG_QUERY = ("o11y", "telemetry", "query")
 D1_SCRATCH = Path("/tmp/codex")
 D1_MAX_JSON = 65536
 D1_MAX_RESPONSE = 8 * 1024 * 1024
+R2_MAX_JWT = 8192
+R2_MAX_SESSION_TOKEN = 16384
+R2_MAX_RESPONSE = 8 * 1024 * 1024
+R2_NAMESPACE = "http://s3.amazonaws.com/doc/2006-03-01/"
+R2_CREDENTIAL_ENV = ("CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_SESSION_TOKEN")
+R2_TRANSPORT_ENV = ("LANG", "LC_ALL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+                    "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR",
+                    "NIX_SSL_CERT_FILE")
+R2_ERROR_CODES = frozenset({
+    "AccessDenied", "AuthorizationHeaderMalformed", "ExpiredToken", "InvalidAccessKeyId", "InvalidArgument",
+    "InvalidToken", "NoSuchBucket", "RequestTimeout", "SignatureDoesNotMatch", "SlowDown", "ServiceUnavailable",
+    "InternalError", "PermanentRedirect",
+})
 
 
 def strict_json(raw):
@@ -310,6 +328,417 @@ def d1_parser():
     return parser
 
 
+def r2_parser():
+    parser = Parser(prog="cloudflare-inspect --reviewed r2 objects list", allow_abbrev=False)
+    parser.add_argument("--definition", required=True)
+    parser.add_argument("--sha256", required=True)
+    parser.add_argument("--limit", type=int)
+    return parser
+
+
+def r2_plan(options):
+    raw = private_bytes(options.definition)
+    if not re.fullmatch(r"[a-f0-9]{64}", options.sha256) or hashlib.sha256(raw).hexdigest() != options.sha256:
+        raise ValueError("確認済み定義の hash と一致しません。")
+    definition = strict_json(raw)
+    require_exact_keys(definition, ("version", "account_id", "bucket", "prefix", "jurisdiction", "fields",
+                                    "max_keys", "timeout_seconds", "max_credential_remaining_seconds"))
+    if type(definition["version"]) is not int or definition["version"] != 1:
+        raise ValueError("未対応の R2 定義です。")
+    if not isinstance(definition["account_id"], str) or not re.fullmatch(r"[a-f0-9]{32}", definition["account_id"]):
+        raise ValueError("対象 account が不正です。")
+    bucket = definition["bucket"]
+    if not isinstance(bucket, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket):
+        raise ValueError("対象 bucket が不正です。")
+    prefix = definition["prefix"]
+    if (not isinstance(prefix, str) or not prefix.endswith("/") or len(prefix.encode("utf-8")) > 1024
+            or any(ord(char) < 32 or ord(char) == 127 for char in prefix)):
+        raise ValueError("非空で slash 終端の prefix が必要です。")
+    if definition["jurisdiction"] != "default":
+        raise ValueError("default jurisdiction だけを受理します。")
+    fields = definition["fields"]
+    allowed = ("key", "size", "etag", "last_modified")
+    if (not isinstance(fields, list) or not fields or len(fields) > len(allowed)
+            or any(not isinstance(field, str) or field not in allowed for field in fields)
+            or len(set(fields)) != len(fields)):
+        raise ValueError("fields は重複のない許可項目の非空部分集合にしてください。")
+    for name, maximum in (("max_keys", 1000), ("timeout_seconds", 30), ("max_credential_remaining_seconds", 900)):
+        if type(definition[name]) is not int or not 1 <= definition[name] <= maximum:
+            raise ValueError("件数または期限の上限が不正です。")
+    limit = options.limit if options.limit is not None else min(100, definition["max_keys"])
+    if not 1 <= limit <= definition["max_keys"]:
+        raise ValueError("--limit は定義の max_keys 以下にしてください。")
+    return definition, limit
+
+
+def r2_base64url(segment):
+    if not isinstance(segment, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", segment):
+        raise ValueError("session token の JWT 形式が不正です。")
+    try:
+        decoded = base64.b64decode(segment + "=" * (-len(segment) % 4), altchars=b"-_", validate=True)
+    except (binascii.Error, ValueError):
+        raise ValueError("session token の JWT 形式が不正です。") from None
+    if base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii") != segment:
+        raise ValueError("session token の JWT 形式が不正です。")
+    return decoded
+
+
+def r2_credentials(definition):
+    access_key_id, secret_access_key, session_token = (os.environ.get(name, "") for name in R2_CREDENTIAL_ENV)
+    if (not re.fullmatch(r"[A-Za-z0-9]{1,256}", access_key_id)
+            or any(ord(char) < 33 or ord(char) > 126 for char in secret_access_key)
+            or not secret_access_key or len(secret_access_key) > 256
+            or not session_token or len(session_token) > R2_MAX_SESSION_TOKEN
+            or any(ord(char) < 33 or ord(char) > 126 for char in session_token)):
+        raise ValueError("R2 の専用一時資格情報3値が必要です。")
+    try:
+        encoded_token = base64.b64decode(session_token, validate=True)
+        if base64.b64encode(encoded_token).decode("ascii") != session_token:
+            raise ValueError
+        token_text = encoded_token.decode("ascii")
+    except (binascii.Error, UnicodeError, ValueError):
+        raise ValueError("R2 の session token 形式が不正です。") from None
+    if not token_text.startswith("jwt/"):
+        raise ValueError("R2 の session token 形式が不正です。")
+    jwt = token_text[4:]
+    if not jwt or len(jwt) > R2_MAX_JWT:
+        raise ValueError("R2 の session token が長すぎます。")
+    pieces = jwt.split(".")
+    if len(pieces) != 3 or len(r2_base64url(pieces[2])) != 32:
+        raise ValueError("R2 の session token の JWT 形式が不正です。")
+    try:
+        header = strict_json(r2_base64url(pieces[0]).decode("utf-8"))
+        claims = strict_json(r2_base64url(pieces[1]).decode("utf-8"))
+    except (UnicodeError, ValueError, RecursionError):
+        raise ValueError("R2 の session token の JWT JSON が不正です。") from None
+    if header != {"alg": "HS256", "typ": "JWT"}:
+        raise ValueError("R2 の session token の header が不正です。")
+    require_exact_keys(claims, ("iss", "sub", "aud", "iat", "exp", "actions", "bucket", "paths"))
+    host = definition["account_id"] + ".r2.cloudflarestorage.com"
+    if (claims["iss"] != access_key_id or claims["sub"] != definition["account_id"] or claims["aud"] != host
+            or claims["bucket"] != definition["bucket"] or claims["actions"] != ["ListObjectsV2"]):
+        raise ValueError("R2 の一時資格情報 scope が定義と一致しません。")
+    paths = claims["paths"]
+    if (not isinstance(paths, dict) or set(paths) not in ({"prefixPaths"}, {"prefixPaths", "objectPaths"})
+            or paths["prefixPaths"] != [definition["prefix"]]
+            or "objectPaths" in paths and paths["objectPaths"] != []):
+        raise ValueError("R2 の一時資格情報 paths が定義と一致しません。")
+    issued, expires = claims["iat"], claims["exp"]
+    now = int(time.time())
+    if (type(issued) is not int or type(expires) is not int or issued >= expires or issued > now + 60
+            or expires <= now or expires > now + definition["max_credential_remaining_seconds"]):
+        raise ValueError("R2 の一時資格情報の期限が定義と一致しません。")
+    derived_secret = hashlib.sha256(jwt.encode("ascii")).hexdigest()
+    if not hmac.compare_digest(secret_access_key, derived_secret):
+        raise ValueError("R2 の一時資格情報の局所整合性検査に失敗しました。")
+    return {"access_key_id": access_key_id, "secret_access_key": secret_access_key,
+            "session_token": session_token, "jwt": jwt, "expires": expires}
+
+
+def r2_quote(value):
+    return quote(value, safe="-_.~", encoding="utf-8", errors="strict")
+
+
+def r2_signing_key(secret, day):
+    key = hmac.new(("AWS4" + secret).encode("ascii"), day.encode("ascii"), hashlib.sha256).digest()
+    key = hmac.new(key, b"auto", hashlib.sha256).digest()
+    key = hmac.new(key, b"s3", hashlib.sha256).digest()
+    return hmac.new(key, b"aws4_request", hashlib.sha256).digest()
+
+
+def r2_request(definition, limit, credentials):
+    host = definition["account_id"] + ".r2.cloudflarestorage.com"
+    day_time = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    day = day_time[:8]
+    query = sorted((r2_quote(name), r2_quote(value)) for name, value in (
+        ("list-type", "2"), ("prefix", definition["prefix"]), ("max-keys", str(limit)), ("encoding-type", "url")))
+    canonical_query = "&".join(name + "=" + value for name, value in query)
+    payload_hash = hashlib.sha256(b"").hexdigest()
+    signed_headers = "host;x-amz-content-sha256;x-amz-date;x-amz-security-token"
+    canonical_headers = ("host:" + host + "\n" + "x-amz-content-sha256:" + payload_hash + "\n"
+                         + "x-amz-date:" + day_time + "\n" + "x-amz-security-token:" + credentials["session_token"] + "\n")
+    canonical_request = "\n".join(("GET", "/" + definition["bucket"], canonical_query, canonical_headers,
+                                    signed_headers, payload_hash))
+    scope = day + "/auto/s3/aws4_request"
+    string_to_sign = "AWS4-HMAC-SHA256\n" + day_time + "\n" + scope + "\n" + hashlib.sha256(canonical_request.encode()).hexdigest()
+    signature = hmac.new(r2_signing_key(credentials["secret_access_key"], day), string_to_sign.encode(), hashlib.sha256).hexdigest()
+    authorization = ("AWS4-HMAC-SHA256 Credential=" + credentials["access_key_id"] + "/" + scope
+                     + ", SignedHeaders=" + signed_headers + ", Signature=" + signature)
+    url = "https://" + host + "/" + definition["bucket"] + "?" + canonical_query
+    return Request(url, method="GET", headers={
+        "Accept-Encoding": "identity",
+        "Authorization": authorization,
+        "X-Amz-Content-Sha256": payload_hash,
+        "X-Amz-Date": day_time,
+        "X-Amz-Security-Token": credentials["session_token"],
+    })
+
+
+def r2_exchange(opener, request, timeout):
+    def read(response):
+        encoding = (response.headers.get("Content-Encoding", "") or "").strip().lower()
+        raw = b"" if encoding not in ("", "identity") else response.read(R2_MAX_RESPONSE + 1)
+        return raw, {"content-type": response.headers.get("Content-Type", ""), "content-encoding": encoding}
+
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            raw, headers = read(response)
+            return response.status, raw, headers
+    except HTTPError as error:
+        try:
+            raw, headers = read(error)
+        finally:
+            error.close()
+        return error.code, raw, headers
+
+
+def r2_error_code(raw, headers):
+    if (len(raw) > R2_MAX_RESPONSE or headers.get("content-encoding", "") not in ("", "identity")
+            or headers.get("content-type", "").split(";", 1)[0].strip().lower() not in ("application/xml", "text/xml")
+            or not r2_xml_is_safe(raw)):
+        return "unknown"
+    try:
+        root = ET.fromstring(raw)
+        code_nodes = [child for child in root if child.tag in ("Code", "{" + R2_NAMESPACE + "}Code")]
+        code = code_nodes[0].text if root.tag in ("Error", "{" + R2_NAMESPACE + "}Error") and len(code_nodes) == 1 else None
+    except (ET.ParseError, ValueError, RecursionError):
+        return "unknown"
+    return code if isinstance(code, str) and code in R2_ERROR_CODES else "unknown"
+
+
+def r2_xml_text(element, *, strip=False):
+    if element.attrib or len(element):
+        raise ValueError("R2 XML の要素形式が不正です。")
+    value = element.text or ""
+    if element.tail and element.tail.strip():
+        raise ValueError("R2 XML の要素形式が不正です。")
+    return value.strip() if strip else value
+
+
+def r2_xml_is_safe(raw):
+    try:
+        text = raw.decode("utf-8", "strict").upper()
+    except UnicodeError:
+        return False
+    return "<!DOCTYPE" not in text and "<!ENTITY" not in text
+
+
+def r2_decode_url(value):
+    if re.search(r"%(?![a-fA-F0-9]{2})", value):
+        raise ValueError("R2 XML の URL encoded key が不正です。")
+    try:
+        return unquote_to_bytes(value).decode("utf-8", "strict")
+    except UnicodeError:
+        raise ValueError("R2 XML の URL encoded key が不正です。") from None
+
+
+def r2_page(raw, headers, definition, limit):
+    if (len(raw) > R2_MAX_RESPONSE or headers.get("content-encoding", "") not in ("", "identity")
+            or headers.get("content-type", "").split(";", 1)[0].strip().lower() not in ("application/xml", "text/xml")
+            or not r2_xml_is_safe(raw)):
+        raise ValueError("R2 XML の応答形式または上限が不正です。")
+    root = ET.fromstring(raw)
+    if root.tag != "{" + R2_NAMESPACE + "}ListBucketResult" or root.attrib or root.text and root.text.strip():
+        raise ValueError("R2 XML の応答 root が不正です。")
+    single = {}
+    contents = []
+    allowed_root = {"Name", "Prefix", "KeyCount", "MaxKeys", "IsTruncated", "EncodingType", "NextContinuationToken"}
+    for child in root:
+        if child.tag == "{" + R2_NAMESPACE + "}Contents":
+            if child.attrib or child.text and child.text.strip() or child.tail and child.tail.strip():
+                raise ValueError("R2 XML の Contents が不正です。")
+            contents.append(child)
+            continue
+        if not isinstance(child.tag, str) or not child.tag.startswith("{" + R2_NAMESPACE + "}"):
+            raise ValueError("R2 XML に未知 namespace があります。")
+        name = child.tag[len("{" + R2_NAMESPACE + "}"):]
+        if name not in allowed_root or name in single:
+            raise ValueError("R2 XML に未知または重複した要素があります。")
+        single[name] = r2_xml_text(child, strip=True)
+    required = {"Name", "Prefix", "KeyCount", "MaxKeys", "IsTruncated", "EncodingType"}
+    if set(single) - required - {"NextContinuationToken"} or not required <= set(single):
+        raise ValueError("R2 XML の必須要素が不正です。")
+    if (single["Name"] != definition["bucket"] or r2_decode_url(single["Prefix"]) != definition["prefix"]
+            or single["EncodingType"] != "url" or single["MaxKeys"] != str(limit)
+            or not re.fullmatch(r"0|[1-9][0-9]{0,3}", single["KeyCount"])):
+        raise ValueError("R2 XML の対象または件数が一致しません。")
+    if single["IsTruncated"] not in ("true", "false"):
+        raise ValueError("R2 XML の継続状態が不正です。")
+    truncated = single["IsTruncated"] == "true"
+    continuation = single.get("NextContinuationToken")
+    if (truncated and (not continuation or len(continuation) > 4096 or any(ord(char) < 32 for char in continuation))
+            or not truncated and continuation is not None):
+        raise ValueError("R2 XML の継続情報が不正です。")
+    if int(single["KeyCount"]) != len(contents) or len(contents) > limit:
+        raise ValueError("R2 XML の key count と Contents が一致しません。")
+    items = []
+    allowed_object = {"Key", "LastModified", "ETag", "Size", "StorageClass"}
+    for content in contents:
+        values = {}
+        for child in content:
+            if not isinstance(child.tag, str) or not child.tag.startswith("{" + R2_NAMESPACE + "}"):
+                raise ValueError("R2 XML の Contents に未知 namespace があります。")
+            name = child.tag[len("{" + R2_NAMESPACE + "}"):]
+            if name not in allowed_object or name in values:
+                raise ValueError("R2 XML の Contents に未知または重複した要素があります。")
+            values[name] = r2_xml_text(child, strip=name != "Key")
+        if not {"Key", "LastModified", "ETag", "Size"} <= set(values):
+            raise ValueError("R2 XML の Contents に必須要素がありません。")
+        key = r2_decode_url(values["Key"])
+        if (not key.startswith(definition["prefix"]) or len(key.encode("utf-8")) > 1024
+                or any(ord(char) < 32 or ord(char) == 127 for char in key)):
+            raise ValueError("R2 XML の object key が許可 prefix 外です。")
+        if (not re.fullmatch(r"0|[1-9][0-9]{0,18}", values["Size"]) or int(values["Size"]) > 2**63 - 1
+                or not values["ETag"] or len(values["ETag"]) > 1024
+                or any(ord(char) < 32 for char in values["ETag"])):
+            raise ValueError("R2 XML の object metadata 型が不正です。")
+        timestamp = values["LastModified"]
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?(?:Z|[+-][0-9]{2}:[0-9]{2})", timestamp):
+            raise ValueError("R2 XML の LastModified が不正です。")
+        try:
+            parsed_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("R2 XML の LastModified が不正です。") from None
+        if parsed_time.tzinfo is None:
+            raise ValueError("R2 XML の LastModified が不正です。")
+        projected = {"key": key, "size": int(values["Size"]), "etag": values["ETag"], "last_modified": timestamp}
+        items.append({field: projected[field] for field in definition["fields"]})
+    return items, truncated
+
+
+def redact_r2(value, credentials):
+    secrets_to_remove = tuple(secret for secret in (credentials.get("access_key_id"), credentials.get("secret_access_key"),
+                                                    credentials.get("session_token"), credentials.get("jwt")) if secret)
+    if isinstance(value, list):
+        return [redact_r2(item, credentials) for item in value]
+    if isinstance(value, dict):
+        return {key: redact_r2(item, credentials) for key, item in value.items()}
+    if isinstance(value, str):
+        for secret in secrets_to_remove:
+            value = value.replace(secret, "[非表示]")
+    return value
+
+
+def perform_r2(arguments, notify, started):
+    options = r2_parser().parse_args(arguments)
+    definition, limit = r2_plan(options)
+    deadline = started + definition["timeout_seconds"]
+    notify({"deadline": deadline})
+    credentials = {}
+    record = D1Record()
+    notify({"record_locator": record.path})
+    audit = {"utc": datetime.now(timezone.utc).isoformat(), "operation": "r2 objects list", "status": "pending",
+             "end_reason": "interrupted_or_deadline", "attempts_started": 0, "definition_sha256": options.sha256,
+             "account_id": definition["account_id"], "bucket": definition["bucket"], "prefix": definition["prefix"],
+             "jurisdiction": definition["jurisdiction"], "fields": definition["fields"], "max_keys": definition["max_keys"],
+             "requested_max_keys": limit, "timeout_seconds": definition["timeout_seconds"],
+             "max_credential_remaining_seconds": definition["max_credential_remaining_seconds"], "returned_count": None,
+             "http_status": None, "service_error_code": None,
+             "implementation": {"api_contract": "r2-listobjects-v2-v1", "helper_path": str(Path(__file__).resolve()),
+                                "helper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}}
+    reason = "credential_validation"
+    request_started = False
+    try:
+        record.write(audit)
+        credentials = r2_credentials(definition)
+        request = r2_request(definition, limit, credentials)
+        reason = "transport_configuration"
+        opener = d1_opener()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            reason = "deadline_exceeded"
+            raise ValueError("R2 の全体期限を過ぎています。")
+        audit["attempts_started"] = 1
+        reason = "record_failed"
+        record.write(redact_r2(audit, credentials))
+        notify({"attempts_started": 1})
+        request_started = True
+        reason = "request_failed"
+        status, raw, headers = r2_exchange(opener, request, remaining)
+        audit["http_status"] = status
+        if status != 200:
+            audit["service_error_code"] = r2_error_code(raw, headers)
+            reason = "http_error"
+            raise ValueError("R2 object list request failed")
+        reason = "invalid_response"
+        items, truncated = r2_page(raw, headers, definition, limit)
+        audit.update(status="truncated" if truncated else "complete", end_reason="truncated" if truncated else "complete",
+                     returned_count=len(items), items=items)
+        reason = "record_failed"
+        record.write(redact_r2(audit, credentials))
+        return {key: audit[key] for key in ("status", "returned_count", "end_reason", "attempts_started")} | {"record_locator": record.path}
+    except (ValueError, OSError, RecursionError, HTTPException, ET.ParseError, UnicodeError):
+        audit.update(status="failed", end_reason=reason)
+        if not request_started:
+            audit["attempts_started"] = 0
+        audit.pop("items", None)
+        try:
+            record.write(redact_r2(audit, credentials))
+        except OSError:
+            audit["end_reason"] = "record_failed"
+        return {key: audit.get(key) for key in ("status", "returned_count", "end_reason", "attempts_started")} | {"record_locator": record.path}
+    finally:
+        record.close()
+
+
+def r2_worker(sender, arguments, started, environment):
+    os.environ.clear()
+    os.environ.update(environment)
+    try:
+        result = perform_r2(arguments, sender.send, started)
+    except Exception:
+        result = {"status": "failed", "end_reason": "invalid_request", "attempts_started": 0, "record_locator": None}
+    try:
+        sender.send({"result": result})
+    finally:
+        sender.close()
+
+
+def inspect_r2(arguments):
+    started = time.monotonic()
+    deadline = started + 30
+    environment = {name: os.environ[name] for name in R2_CREDENTIAL_ENV + R2_TRANSPORT_ENV if name in os.environ}
+    context = multiprocessing.get_context("fork")
+    receiver, sender = context.Pipe(duplex=False)
+    worker = context.Process(target=r2_worker, args=(sender, arguments, started, environment))
+    state = {"status": "failed", "end_reason": "request_failed", "attempts_started": 0, "record_locator": None}
+    worker.start()
+    sender.close()
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not receiver.poll(remaining):
+                state["end_reason"] = "deadline_exceeded"
+                break
+            try:
+                message = receiver.recv()
+            except EOFError:
+                break
+            if "deadline" in message:
+                deadline = min(deadline, message["deadline"])
+            elif "result" in message:
+                state.update(message["result"])
+                break
+            else:
+                state.update(message)
+    finally:
+        if worker.is_alive():
+            worker.kill()
+        worker.join()
+        if state["end_reason"] == "deadline_exceeded":
+            while receiver.poll():
+                try:
+                    notice = receiver.recv()
+                except EOFError:
+                    break
+                notice = notice.get("result", notice)
+                for key in ("record_locator", "attempts_started"):
+                    if key in notice:
+                        state[key] = notice[key]
+        receiver.close()
+    return state
+
+
 def perform_d1(arguments, notify, started):
     options = d1_parser().parse_args(arguments)
     definition, body, limit = d1_plan(options, os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
@@ -535,6 +964,8 @@ def main(arguments):
               "\n確認後の追加参照: --reviewed d1 get <database-id> [--fields FIELDS]" +
               "\n限定読取り: --reviewed d1 read --definition PATH --sha256 HASH [--params-file PATH] [--mode select|explain] [--limit N]" +
               "\n  確認済み宣言形式のみ。最大1000件・1 HTTP試行・全体30秒。" +
+              "\n限定読取り: --reviewed r2 objects list --definition PATH --sha256 HASH [--limit N]" +
+              "\n  確認済み宣言形式のみ。先頭1ページ・1 HTTP試行・全体30秒。" +
               "\n版表示: --version（認証不要、ローカルのみ）" +
               "\n検索: cli search <固定語彙>\n  " + " / ".join(SEARCH_TERMS))
         return 0
@@ -553,6 +984,15 @@ def main(arguments):
         summary = inspect_d1(arguments[2:])
         print(json.dumps(summary, ensure_ascii=False))
         return int(summary["status"] != "success")
+    if arguments[:len(R2_LIST)] == list(R2_LIST):
+        if not reviewed:
+            raise ValueError("R2 の限定参照は操作ごとの確認後に --reviewed を指定してください。")
+        if any(argument in ("-h", "--help") for argument in arguments[len(R2_LIST):]):
+            r2_parser().print_help()
+            return 0
+        summary = inspect_r2(arguments[len(R2_LIST):])
+        print(json.dumps(summary, ensure_ascii=False))
+        return int(summary["status"] == "failed")
     if arguments[:len(LOG_QUERY)] == list(LOG_QUERY):
         print(query_logs(arguments[len(LOG_QUERY):]))
         return 0
