@@ -73,6 +73,7 @@ class D1(unittest.TestCase):
         self.calls = self.root / "http.jsonl"
         self.http_status = 200
         self.http_exception = None
+        self.response_raw = None
         self.request_delay = 0
         self.real_transport = False
         self.fail_replace = None
@@ -98,6 +99,8 @@ class D1(unittest.TestCase):
         time.sleep(self.request_delay)
         if self.http_exception is not None:
             raise self.http_exception
+        if self.response_raw is not None:
+            return self.http_status, self.response_raw
         if self.execute_sql:
             with sqlite3.connect(":memory:") as database:
                 database.executescript("CREATE TABLE fixture_records (state TEXT, category TEXT); "
@@ -302,33 +305,55 @@ class D1(unittest.TestCase):
 
     def test_invalid_response(self):
         valid = copy.deepcopy(self.response)
+        sentinel = "INVALID_RESPONSE_SECRET_SENTINEL"
         cases = [
-            lambda r: r["result"][0]["meta"].update(rows_written=1),
-            lambda r: r["result"][0]["meta"].update(rows_read=0.5),
-            lambda r: r["result"][0]["meta"].update(rows_read=True),
-            lambda r: r["result"][0]["meta"].update(duration=float("nan")),
-            lambda r: r["result"][0]["meta"].pop("rows_written"),
-            lambda r: r["result"][0]["meta"].update(unknown=1),
-            lambda r: r["result"][0]["meta"].update(changes=False),
-            lambda r: r["result"][0]["meta"].update(served_by_primary="yes"),
-            lambda r: r["result"][0]["meta"].update(served_by_region="unknown"),
-            lambda r: r["result"][0]["meta"].update(timings={"sql_duration_ms": "invalid"}),
-            lambda r: r["result"][0]["meta"].update(timings={"unknown": 0}),
-            lambda r: r["result"][0]["results"][0].update(unapproved="private-payload"),
-            lambda r: r["result"].append(r["result"][0]),
-            lambda r: r.update(success=False),
+            ("json", lambda r: setattr(self, "response_raw", b'{"result":' + sentinel.encode())),
+            ("top_level", lambda r: r.update(unapproved=sentinel)),
+            ("top_level", lambda r: r.update(success=False)),
+            ("result", lambda r: r["result"][0].update(success=False)),
+            ("result", lambda r: r["result"].append(r["result"][0])),
+            ("row", lambda r: r["result"][0]["results"][0].update(unapproved=sentinel)),
+            ("statistics", lambda r: r["result"][0]["meta"].update(rows_read=sentinel)),
+            ("statistics", lambda r: r["result"][0]["meta"].update(rows_read=0.5)),
+            ("statistics", lambda r: r["result"][0]["meta"].update(rows_read=True)),
+            ("json", lambda r: r["result"][0]["meta"].update(duration=float("nan"))),
+            ("statistics", lambda r: r["result"][0]["meta"].pop("rows_written")),
+            ("statistics", lambda r: r["result"][0]["meta"].update(unknown=1)),
+            ("statistics", lambda r: r["result"][0]["meta"].update(changes=False)),
+            ("statistics", lambda r: r["result"][0]["meta"].update(served_by_primary="yes")),
+            ("statistics", lambda r: r["result"][0]["meta"].update(served_by_region="unknown")),
+            ("statistics", lambda r: r["result"][0]["meta"].update(timings={"sql_duration_ms": "invalid"})),
+            ("statistics", lambda r: r["result"][0]["meta"].update(timings={"unknown": 0})),
+            ("write", lambda r: r["result"][0]["meta"].update(rows_written=1)),
+            ("write", lambda r: r["result"][0]["meta"].update(changed_db=True)),
+            ("write", lambda r: r["result"][0]["meta"].update(changes=1)),
         ]
-        for index, change in enumerate(cases):
-            with self.subTest(index=index):
+        allowed_diagnostics = {stage for stage, _ in cases}
+        for index, (diagnostic, change) in enumerate(cases):
+            with self.subTest(index=index, diagnostic=diagnostic):
                 self.response = copy.deepcopy(valid)
+                self.response_raw = None
                 change(self.response)
                 status, summary = self.invoke()
                 self.assertNotEqual(status, 0)
                 self.assertEqual(summary["stop_reason"], "invalid_response")
                 self.assertEqual(summary["attempts_started"], 1)
+                self.assertEqual(len(self.calls.read_text().splitlines()), index + 1)
+                self.assertNotIn("response_validation_failure", summary)
                 audit = json.loads(Path(summary["record"]).read_text())
                 self.assertEqual(audit["status"], "failed")
+                self.assertEqual(audit["response_validation_failure"], diagnostic)
+                self.assertIn(audit["response_validation_failure"], allowed_diagnostics)
                 self.assertNotIn("results", audit)
+                record = Path(summary["record"]).read_text()
+                self.assertNotIn(sentinel, record + json.dumps(summary))
+
+        self.response = copy.deepcopy(valid)
+        self.response_raw = None
+        status, summary = self.invoke()
+        self.assertEqual(status, 0)
+        self.assertEqual(len(self.calls.read_text().splitlines()), len(cases) + 1)
+        self.assertNotIn("response_validation_failure", json.loads(Path(summary["record"]).read_text()))
 
     def test_invalid_definition(self):
         valid = copy.deepcopy(self.definition)
