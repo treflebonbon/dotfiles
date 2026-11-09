@@ -8,10 +8,10 @@
 
 buildNpmPackage {
   pname = "cloudflare-cli";
-  version = "1.0.0-beta.25";
+  version = "1.0.0-beta.26";
 
   src = ./cloudflare-cli;
-  npmDepsHash = "sha256-PuCNYhXbteBGnh3+J2Ec728xFVfA7wO9r57UTnCEZBw=";
+  npmDepsHash = "sha256-qeJQs5KA9Mdv24a++X7rst00oM08bfNiA13+imAoNdo=";
   npmFlags = [ "--ignore-scripts" ];
   dontNpmBuild = true;
   nativeBuildInputs = [ makeWrapper ];

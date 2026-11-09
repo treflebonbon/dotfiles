@@ -28,7 +28,7 @@ from urllib.parse import quote, unquote_to_bytes, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener, getproxies_environment
 
 
-VERSION = "1.0.0-beta.25"
+VERSION = "1.0.0-beta.26"
 OPERATIONS = {
     ("d1", "list"): ("page", "per-page", "name"),
     ("durable-objects", "namespaces", "list"): ("page", "per-page"),

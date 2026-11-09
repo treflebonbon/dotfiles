@@ -44,7 +44,7 @@ assert_lock_entry() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#414603bf14c7a344edb466bb1f85690c77ce8b7d' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#924bbd194d02e5e15a227e75b5901fb0d7a4ecad' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -58,8 +58,8 @@ assert_lock_entry() {
 
   grep -Fq 'apm_version: 0.35.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: 414603bf14c7a344edb466bb1f85690c77ce8b7d' "$lock"
-  grep -Fq 'content_hash: sha256:d3b31fcb1df5d1c7b9e1bbfe89e0c34263c98c21765bc2a833082f225b1b4b7c' "$lock"
+  grep -Fq 'resolved_commit: 924bbd194d02e5e15a227e75b5901fb0d7a4ecad' "$lock"
+  grep -Fq 'content_hash: sha256:69dad8516bb098cc34dc4511502b1f0805a3dc065f73b5f86b50b763f188ea2f' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/impeccable' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/impeccable' "$lock"
@@ -102,7 +102,7 @@ assert_lock_entry() {
   # floating の revision は形式を検査し、受け入れた payload は content hash で固定する。
 
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#341268561baaff256927c931ec8215dbd30e3cee' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#c7cb2fdcacd134fb2ccb9b7a44f9ffa44e467271' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#a2824c67f8b4585c294a8101db9f9f0ad3c643f8' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2' "$manifest"
   grep -Fq 'herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
@@ -116,13 +116,13 @@ assert_lock_entry() {
     'sha256:4013ac03e5f1d53df1e9d93e525247529291a748082085a02ee51533def1a11e'
   assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
     '[0-9a-f]{40}' \
-    'sha256:69e2ac9eb2bbe2881df26acc53b46b39a15cfda206f5357e5f9c83feb0fadcc7'
+    'sha256:ed995819b2b6531f889c7b5ced45b29ca6d516c0d96cc6f4e0a9594cdf6fe10d'
   assert_lock_entry "$lock" 'anthropics/skills' 'skill-creator' \
     '[0-9a-f]{40}' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    'c7cb2fdcacd134fb2ccb9b7a44f9ffa44e467271' \
-    'sha256:d43226e1aeb2a2dadefe88c22cbe1340343162a78bcc7b9a932a4ab36d6e7a12'
+    'a2824c67f8b4585c294a8101db9f9f0ad3c643f8' \
+    'sha256:cd4c16cb51f8ec4b6a0697a7377e604090032e6d52fb459025427ac02ee33ad8'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
     '[0-9a-f]{40}' \
     'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'
@@ -137,7 +137,7 @@ assert_lock_entry() {
     'sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
     '[0-9a-f]{40}' \
-    'sha256:591831560700d73c2bc1ca6658dddb6e91f1b52264d116e8ab9095ec3a80bdf0'
+    'sha256:97fd59628dc19c1d5cafeee6a18d44e3ba764c7a7ece24570e6c1a8f7486ebc1'
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
       awk '{
