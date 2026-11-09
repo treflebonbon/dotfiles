@@ -43,7 +43,7 @@ pin 更新に伴うテスト期待値と現行 runtime 文書の訂正を含む�
 
 - **確認済み（metadata / cache）:** `base-matrix.json` / `candidate-matrix.json` で6ツール×3 systemの新旧版・derivation・outputを照合した。独立 APM の3 systemのderivation・outputは全て不変。Numtide cache への18 output照会は成功した（`cache-query.exit-code` は0）。`cache-realise.exit-code` も0で、Linuxの6 outputは `--max-jobs 0 --builders ''` により取得済み。独自buildへのfallbackはなく、ARM / Darwinの実機起動は未確認。
 - **確認済み（APM）:** 共通生成スクリプト・frozen前後の SHA-256 `9fc12c9696dd1c0e3cb10116de24a732a47315630f873c70c9192fea1f8c037d` 不変・audit 10/10が成功。配備比較は21 dependency、両target各47 skill、追加0・削除0。`apm-ledger-result.json` でroot metadataと全1516件の所有権不変、候補4件の68 hash recordのみの変更、候補外14件の完全不変と3件のfloating revisionのみの変更を独立に照合した。共有owner recordは0件。これらの成功後にnative lockをsourceへコピーした。
-- **確認済み（公式 asset / npm）:** wazaの3 binaryとImpeccableのLinux x86_64 / Darwin arm64 binaryを取得した。Impeccableは公開スキルに同梱されたchecksumと一致する。Linux arm64 assetはHTTP 504が継続し、実downloadの照合は未確認だが、公開スキルの固定checksumをNix hashに使う（`assets-verified.json`）。Linux raw binaryの版表示はwaza 0.40.1 / engine 0.1.19。Cloudflareはnative npm lock生成・install scriptなしのfrozen install・既存 `prefetch-npm-deps` による依存hash取得と、7操作のschema全体不変を確認した。実credential・実APIは呼んでいない。
+- **確認済み（公式 asset / npm）:** wazaとImpeccableの対応3 systemの全6 binaryを取得した（`assets-verified.json` は全件 `download_verified: true`）。Impeccableの3 binaryは公開スキルに同梱されたchecksumと一致する。Linux arm64は初回と再試行でHTTP 504になったが、公式releaseのasset一覧で存在とchecksumを確認後、同じ公式assetの `?download=1` URLで取得し、SHA-256 `73b5662e42f060aba716016c34a7274cc49a998cd0d5da8b84a95d9e4edea729` の一致を確認した。この取得不確実性は解消済みであり、ARM実機での起動は別途未確認である。Linux raw binaryの版表示はwaza 0.40.1 / engine 0.1.19。Cloudflareはnative npm lock生成・install scriptなしのfrozen install・既存 `prefetch-npm-deps` による依存hash取得と、7操作のschema全体不変を確認した。実credential・実APIは呼んでいない。
 - **確認済み（Nix評価）:** 両flakeの `nix flake check --no-build --all-systems` が成功した。root appの既存meta warningは残る。
 
 **確認済み（Design Hook）:** 候補の公式 engine 0.1.19とAPM launcherを使い、`design-gate.tap` の13件全てが成功・skipなし。Claude / Codexのper-edit / Stop出力、quiet・機密／生成file除外、dedupe・silent convergence、global新規projectとmonorepo / symlink、設定とcacheの所有境界を維持している。
@@ -52,4 +52,8 @@ pin 更新に伴うテスト期待値と現行 runtime 文書の訂正を含む�
 
 **確認済み（CLI / 公式同期）:** 候補devShellが選ぶ6 CLIの実体pathと版表示が一致した。Claude Code 2.1.319で公開plugin0.2.7を公式導入し、管理設定をrender後に2回再同期した。両回とも設定bytesと283 files、inventory・version・payload照合を維持した（`/tmp/codex/claude-plugin-native.rsbgmzhv/result.json`）。cache取得前に開始した2つの検証入口は、同じCodexの重複取得を待っていたためSIGTERMで中断し、取得済みoutputを確認後に同じ入口から再開した。中断を検証成功とは扱わない。
 
-関連テストと独立レビューを実施後、確定したcleanなcommitでcanonical検証を一度実行する。canonical結果は生成された `result.json`・前後記録・TAPを正本として最終報告に記載し、成功後にこの文書への結果追記だけの変更は行わない。
+**確認済み（関連検証）:** `related.tap` は87/87成功・skip0・失敗0で、実行入口 `/tmp/codex/ai-tools-fbjb7itl/exit-code` も0。Design Hookの13件を合わせて個別検証は100件成功した。品質floor、3 systemのupstream direct output、修正済みAPMの既存outputとBrotli closure、Impeccable engine、Playwrightの実package / runtime、Cloudflareの実CLI schemaとhelperの安全境界を含む。Nixが組み立てたwaza 0.40.1 / cf beta.26 / code-review-graph 2.3.9の版表示、root依存のfrozen install、TypeScript型検査、整形・registry検査、commit hookも成功した。tests・runtime・現行packageの旧pin / 版を検索し、更新対象の取り残しがないことを確認した。
+
+**確認済み（独立レビュー）:** 実装commit `0459d857ee18cf8f16c4525b73d5c23ee15aa335` を固定し、Standards / Specを独立したreviewerで並列に検証した。現在の依頼原文・実装判断・適用ADR・本記録・不採用候補の扱いを両担当へ渡した。両軸とも同じARM Linux asset取得の記録訂正1件を指摘し、上記の確認済み結果へ訂正した。他の規約違反・smell・要件欠落・範囲拡大・誤動作の指摘はない。
+
+個別検証・採否・レビュー指摘の反映を終えたcleanな最終commitでcanonical検証を一度実行する。canonical結果は生成された `result.json`・前後記録・TAPを正本として最終報告に記載し、成功後にこの文書への結果追記だけの変更は行わない。
