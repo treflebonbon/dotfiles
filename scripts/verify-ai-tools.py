@@ -73,11 +73,17 @@ def main():
     separator = cli.index("--") if "--" in cli else len(cli)
     arguments = parser.parse_args(cli[:separator])
     command = cli[separator + 1 :]
-    # SIGTERM / SIGHUP は atexit を飛ばす。SystemExit に変えて後始末を走らせ、subprocess.run に子を止めさせる。
-    for signum in (signal.SIGTERM, signal.SIGHUP):
-        signal.signal(signum, lambda received, _frame: sys.exit(128 + received))
     source = arguments.source.resolve(strict=True)
     runtime = new_runtime("ai-tools-")
+
+    def interrupted(received, _frame):
+        status = 128 + received
+        (runtime / "exit-code").write_text(f"{status}\n")
+        raise SystemExit(status)
+
+    # SIGTERM / SIGHUP は atexit を飛ばす。SystemExit に変えて後始末を走らせ、subprocess.run に子を止めさせる。
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, interrupted)
     print(f"検証ログ: {runtime}", flush=True)
     try:
         prefix = sandbox_prefix(
