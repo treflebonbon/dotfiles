@@ -15,7 +15,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 | 作業 | 参照先 | 完了条件 |
 | --- | --- | --- |
-| 開始・復旧 | [Worktree の開始と復旧](#worktree-の開始と復旧) | root・branch・HEAD・Git metadata・status を確認する。 |
+| 開始・復旧 | [Worktree の開始と復旧](#worktree-の開始と復旧) | root・branch・HEAD・Git metadata・status を確認する。再利用する branch は PR の merge 状態も確認する（GitHub を使えないローカル作業では公開前まで延期できる）。 |
 | ツール・スキル更新の採否 | `docs/conventions.md` の「ツール・スキル更新の追跡とレビュー」、ADR-0045 | 更新単位ごとの採否と検証範囲を追跡する。 |
 | APM lock の更新 | [APM lock の生成](#apm-lock-の生成) | 隔離runtimeでnative生成・frozen不変・auditを通す。 |
 | APM候補の照合 | [APM の配備比較](#apm-の配備比較) | 予定した追加・削除、全配備file、discoveryを照合する。 |
@@ -87,7 +87,7 @@ canonical検証の準備から始める場合は `scripts/run-canonical.py` を�
 
 検証コマンドや検証用 Codex を起動する前に、前節「検証用の実行境界」の入口を選ぶ。
 
-Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に `git fetch origin` し、physical root、ブランチ、HEAD（`origin/<default>` との一致を含む。native 作成は fetch 前の古い参照から作ることがある）、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
+Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に `git fetch origin` し、physical root、ブランチ、HEAD（`origin/<default>` との一致を含む。native 作成は fetch 前の古い参照から作ることがある）、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。既存の branch を再利用するときは、その branch の PR が merge 済みでないかを `gh pr list --head <branch> --state all --json number,state,headRefName` で確認し、状態を文字で読む。MERGED なら squash 後の履歴は branch と一致せず、`git-push-topic` も拒否するため、積まずに `origin/<default>` から新しい branch を切り、必要な commit だけを持ち込む。隔離内の `gh pr list` は `--head` を拒否し、`--state` も受けず、open な PR しか返さないため、この確認は隔離の起動前にホストで済ませる。新しい branch が要るときは、その branch で GitHub policy を登録してから起動する。policy は1 topic に固定されるので、隔離 session の途中では branch を切り替えない。GitHub を使えないローカル作業では、この確認を公開前まで延期できる。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
 
 - **Herdr**: 明示依頼時に `herdr` スキルを使い、`HERDR_ENV=1` を確認して native worktree・pane を管理する。Codex の隔離起動は、対象 pane の shell prompt から `codex-worktree` を実行する。既存 linked worktree を受け取る adapter なので `--worktree` は渡さない。pane の cwd と返却された ID を確認し、background 起動は `--no-focus` を使う。agent 認識と入力可能状態を親が確認してから依頼を引き継ぐ。隔離内では Herdr socket を公開せず、Herdr の制御は親が担当する。
 - **Orca**: native worktree と Agent Picker の built-in agent 起動を使い、permission mode は Orca に委ねる。自律 workflow は shipped Yolo、確認を残す場合は Manual と Orca Source Control を使う。Orca native Codex は `codex-orca` / `codex-worktree` を使わない。worktree は review / recovery の境界であり OS sandbox ではないため、Yolo は信頼できる repository / host に限る。runtime 自己認識で Orca を識別し、`ORCA_*` environment の汎用判定は導入しない。Orca primary checkout からの実装は native worktree の新しい agent session で開始する。
