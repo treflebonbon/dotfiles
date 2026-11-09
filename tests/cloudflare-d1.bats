@@ -100,7 +100,7 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ]
 }
 
-@test "D1 の未知 schema・非0の rows_written・不正な統計を成功にしない" {
+@test "D1 の応答拒否は成功にせず private 記録へ固定分類だけを残す" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_invalid_response
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]

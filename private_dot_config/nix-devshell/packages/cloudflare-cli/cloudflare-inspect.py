@@ -274,32 +274,45 @@ def http_exchange(opener, request, timeout):
         return error.code, b""
 
 
+class D1ResponseValidationError(ValueError):
+    def __init__(self, classification):
+        self.classification = classification
+        super().__init__("D1 の応答が不正です。")
+
+
 def d1_result(value, columns, limit, mode):
+    def exact_keys(item, expected, classification):
+        try:
+            require_exact_keys(item, expected)
+        except ValueError:
+            raise D1ResponseValidationError(classification) from None
+
     if (not isinstance(value, dict) or set(value) - {"success", "errors", "messages", "result"}
-            or value.get("success") is not True or value.get("errors") != [] or value.get("messages") != []
-            or not isinstance(value.get("result"), list) or len(value["result"]) != 1):
-        raise ValueError("D1 の応答が不正です。")
+            or value.get("success") is not True or value.get("errors") != [] or value.get("messages") != []):
+        raise D1ResponseValidationError("top_level")
+    if not isinstance(value.get("result"), list) or len(value["result"]) != 1:
+        raise D1ResponseValidationError("result")
     result = value["result"][0]
-    require_exact_keys(result, ("success", "results", "meta"))
+    exact_keys(result, ("success", "results", "meta"), "result")
     if (result["success"] is not True or not isinstance(result["results"], list) or len(result["results"]) > limit
             or mode == "explain" and not result["results"]):
-        raise ValueError("D1 の結果が不正です。")
+        raise D1ResponseValidationError("result")
     for row in result["results"]:
-        require_exact_keys(row, columns)
+        exact_keys(row, columns, "row")
         if mode == "explain" and (any(type(row[key]) is not int or row[key] < 0 for key in ("id", "parent", "notused"))
                                   or not isinstance(row["detail"], str)):
-            raise ValueError("D1 の実行計画が不正です。")
+            raise D1ResponseValidationError("row")
         for item in row.values():
             if type(item) not in (str, int, float, bool, type(None)) or isinstance(item, float) and not math.isfinite(item):
-                raise ValueError("D1 の行が不正です。")
+                raise D1ResponseValidationError("row")
     meta = result["meta"]
     known = {"rows_read", "rows_written", "duration", "changed_db", "changes", "last_row_id", "served_by_colo",
              "served_by_primary", "served_by_region", "size_after", "timings"}
     if not isinstance(meta, dict) or set(meta) - known or not {"rows_read", "rows_written", "duration"} <= set(meta):
-        raise ValueError("D1 の meta が不正です。")
+        raise D1ResponseValidationError("statistics")
     timings = meta.get("timings", {})
     if not isinstance(timings, dict) or set(timings) - {"sql_duration_ms"}:
-        raise ValueError("D1 の timings が不正です。")
+        raise D1ResponseValidationError("statistics")
     numbers = meta | timings
     for key in ("rows_read", "rows_written", "duration", "changes", "last_row_id", "size_after", "sql_duration_ms"):
         if key not in numbers:
@@ -307,14 +320,14 @@ def d1_result(value, columns, limit, mode):
         number = numbers[key]
         if (type(number) not in (int, float) or number < (-2**63 if key == "last_row_id" else 0) or number > 2**63 - 1
                 or not math.isfinite(number) or key not in ("duration", "sql_duration_ms") and type(number) is not int):
-            raise ValueError("D1 の実行統計が不正です。")
+            raise D1ResponseValidationError("statistics")
     for key, kind in (("served_by_colo", str), ("served_by_primary", bool)):
         if key in meta and type(meta[key]) is not kind:
-            raise ValueError("D1 の実行元が不正です。")
+            raise D1ResponseValidationError("statistics")
     if "served_by_region" in meta and meta["served_by_region"] not in ("WNAM", "ENAM", "WEUR", "EEUR", "APAC", "OC"):
-        raise ValueError("D1 の region が不正です。")
+        raise D1ResponseValidationError("statistics")
     if meta["rows_written"] != 0 or meta.get("changed_db", False) is not False or meta.get("changes", 0) != 0:
-        raise ValueError("D1 の書込みを検出しました。")
+        raise D1ResponseValidationError("write")
     return result["results"], {key: meta[key] for key in ("rows_read", "rows_written", "duration")}
 
 
@@ -814,7 +827,16 @@ def perform_d1(arguments, notify, started):
             raise ValueError("D1 の参照に失敗しました。")
         reason = "invalid_response"
         columns = definition["select"] if options.mode == "select" else ["id", "parent", "notused", "detail"]
-        rows, meta = d1_result(strict_json(raw), columns, result_limit, options.mode)
+        try:
+            value = strict_json(raw)
+        except (ValueError, RecursionError):
+            audit["response_validation_failure"] = "json"
+            raise
+        try:
+            rows, meta = d1_result(value, columns, result_limit, options.mode)
+        except D1ResponseValidationError as error:
+            audit["response_validation_failure"] = error.classification
+            raise
         audit.update(status="success", returned_count=len(rows),
                      stop_reason="limit_reached_unknown" if options.mode == "select" and len(rows) == limit else "complete", **meta)
         if options.mode == "select":

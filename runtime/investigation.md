@@ -145,6 +145,8 @@ cloudflare-inspect --reviewed d1 read --definition /absolute/definition.json \
 
 HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。送信開始予定を先に flush してから通信し、成功または失敗を確定記録へ更新する。途中切断や不正な status line などの HTTP protocol 例外は、開始済み1試行の `failed / request_failed` として確定し、再送しない。中断・期限切れでは private 記録が `pending / interrupted_or_deadline` のまま残る場合があり、開始予定/開始済みと実際の送信到達・サーバ側の結果を区別する。socket の timeout だけを全体期限と扱わない。HTTP エラーや保存失敗を成功扱いせず、応答・例外の原文をログへ出さない。
 
+HTTP transport の検査を通過して受信した HTTP 200 応答の JSON 解析または内容検証に失敗した場合、公開 `stop_reason` は従来どおり `invalid_response` とし、private 記録に `response_validation_failure` として `json`、`top_level`、`result`、`row`、`statistics`、`write` の固定分類だけを残す。transport の検査失敗はこの分類対象ではない。応答本文、例外本文、未知キーや値は分類に含めず、成功記録にはこの項目を加えない。
+
 記録は、検査済み `/tmp/codex` 内の一意な `cloudflare-inspect.<乱数>/record.json`（directory は0700、file は0600）だけに保存する。既存ファイル・任意保存先・Git による追跡対象判定は使わない。公開 JSON は status、返却件数、統計、試行開始数、終了理由と、業務名を含まない一般的な記録 locator だけ。許可行・SQL/params・対象・query plan・実効 helper の実体 path/SHA-256・cf exact pin は private 記録で照合する。credential は private 記録にも含めない。実 token の文字列反映は保存前に除外するが、未知の秘密値の自動分類ではなく、人が許可列を選ぶ契約を前提とする。
 
 Python の TLS client は `SSL_CERT_FILE`（未指定なら `NIX_SSL_CERT_FILE`）と `SSL_CERT_DIR` を使い、未指定時は標準 CA を使う。HTTP/HTTPS/ALL_PROXY と小文字形・NO_PROXY の既存設定を使う。proxy URL の scheme は `http://` のみを許可する（例: `HTTPS_PROXY=http://proxy:8080`）。urllib が CONNECT 前に proxy への TLS を開始しないため、`https://` proxy は送信前に拒否する。その他の未対応 scheme も停止し、proxy 認証 challenge の再送は行わない。`NODE_EXTRA_CA_CERTS` は Python の CA とみなさず、`SSLKEYLOGFILE`・Node/debug/profile・任意 endpoint 設定を有効にしない。
