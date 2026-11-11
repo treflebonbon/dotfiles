@@ -710,6 +710,42 @@ EOF
   grep -Fq '"**/.env*" = "deny"' "$home/.codex/config.toml"
 }
 
+@test "managed Codex sandboxes execute the published CLI through its cache link without exposing adjacent cache files" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local profile codex_path bash_path env_path
+  mkdir -p "$workspace" "$home/.codex" "$home/.cache" "$home/.local/bin"
+  prepare_codex_permission_roots "$home"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.codex/config.toml" "$home"
+  codex_path="$(readlink -f "$(command -v codex)")"
+  bash_path="$(command -v bash)"
+  env_path="$(command -v env)"
+  ln -s "$codex_path" "$home/.cache/nix-devshell-global-env.bash.codex"
+  ln -s /home/probe/.cache/nix-devshell-global-env.bash.codex "$home/.local/bin/codex"
+  printf 'private fixture\n' >"$home/.cache/private.txt"
+
+  for profile in dotfiles-secure dotfiles-peer; do
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P "$profile" -C "$workspace" -- \
+      "$env_path" PATH=/home/probe/.local/bin "$bash_path" --noprofile --norc -c \
+      'command -v codex; codex --version'
+
+    if [ "$status" -ne 0 ]; then
+      printf '%s\n' "$output" >&3
+    fi
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'/home/probe/.local/bin/codex'* ]]
+    [[ "$output" == *'codex-cli '* ]]
+
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P "$profile" -C "$workspace" -- \
+      sh -c 'cat "$HOME/.cache/private.txt"'
+
+    [ "$status" -ne 0 ]
+    [[ "$output" != *'private fixture'* ]]
+  done
+}
+
 @test "dotfiles-secure sandbox starts without declaring protected home-tree access" {
   local home="$BATS_TEST_TMPDIR/home"
   local workspace="$BATS_TEST_TMPDIR/workspace"
