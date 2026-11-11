@@ -1,5 +1,6 @@
 import fcntl
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import sys
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,6 +65,7 @@ class PublicationTests(unittest.TestCase):
 
     def observation(self, **changes):
         return {
+            "number": 7,
             "headRefOid": self.head,
             "headRefName": "topic",
             "state": "OPEN",
@@ -92,6 +95,94 @@ class PublicationTests(unittest.TestCase):
 
     def verify(self, timeout=30):
         return publication.verify(self.record, 7, timeout)
+
+    def inspect(self, answer, pr=None):
+        def command(argv, **kwargs):
+            if Path(argv[0]).name == "gh":
+                self.assertEqual(
+                    argv[:3], ["gh", "pr", "list" if pr is None else "view"]
+                )
+                self.assertEqual(kwargs["timeout"], 30)
+                if pr is None:
+                    self.assertEqual(argv[argv.index("--head") + 1], "topic")
+                    self.assertEqual(argv[argv.index("--state") + 1], "all")
+                else:
+                    self.assertEqual(argv[3], str(pr))
+                if isinstance(answer, Exception):
+                    raise answer
+                return subprocess.CompletedProcess(argv, 0, json.dumps(answer), "")
+            self.assertEqual(Path(argv[0]).name, "git")
+            return REAL_RUN(argv, **kwargs)
+
+        with patch.object(publication.subprocess, "run", side_effect=command):
+            return publication.inspect_topic(self.work, "fixture/repo", pr)
+
+    def test_inspection_matches_explicit_pr_without_a_publication_record(self):
+        (self.work / "untracked").write_text("ongoing work")
+        result = self.inspect(self.observation(), pr=7)
+        self.assertEqual(result["status"], "confirmed")
+        self.assertEqual(result["head"], self.head)
+        self.assertEqual(result["branch"], "topic")
+        self.assertEqual(result["observations"], [self.observation()])
+        self.assertEqual(list(self.record.iterdir()), [])
+        self.assertEqual(self.git(self.work, "status", "--porcelain"), "?? untracked")
+
+    def test_inspection_distinguishes_missing_ambiguous_and_mismatched_prs(self):
+        cases = [
+            ([], "not_created"),
+            ([self.observation()], "confirmed"),
+            ([self.observation(), self.observation(number=8)], "ambiguous"),
+            ([self.observation(headRefName="other-topic")], "mismatch"),
+            ([self.observation(headRefOid="0" * 40)], "mismatch"),
+        ]
+        for observations, expected in cases:
+            with self.subTest(status=expected, observations=observations):
+                result = self.inspect(observations)
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(result["observations"], observations)
+
+    def test_inspection_propagates_api_errors_and_rejects_malformed_responses(self):
+        error = subprocess.CalledProcessError(1, "gh")
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.inspect(error)
+        for answer in ({}, None, [None], [self.observation(headRefOid="invalid")]):
+            with self.subTest(answer=answer), self.assertRaises(ValueError):
+                self.inspect(answer)
+        with self.assertRaises(ValueError):
+            self.inspect(self.observation(number=8), pr=7)
+
+    def test_inspection_rejects_wrong_repo_and_ignores_inherited_git_redirects(self):
+        with self.assertRaises(ValueError):
+            publication.inspect_topic(self.work, "different/repo")
+        with patch.dict(
+            os.environ,
+            {"GIT_DIR": str(self.base / ".git"), "GIT_WORK_TREE": str(self.base)},
+        ):
+            self.assertEqual(
+                self.inspect(self.observation(), pr=7)["status"], "confirmed"
+            )
+
+    def test_inspection_cli_reports_json_and_a_nonzero_status_for_mismatches(self):
+        for status in ("confirmed", "not_created", "mismatch", "ambiguous"):
+            result = {"status": status}
+            with (
+                self.subTest(status=status),
+                patch.object(
+                    sys,
+                    "argv",
+                    ["publish-topic.py", "inspect", "--repo", "fixture/repo", "--pr", "7"],
+                ),
+                patch.object(
+                    publication, "inspect_topic", return_value=result
+                ) as inspect,
+                redirect_stdout(io.StringIO()) as output,
+            ):
+                self.assertEqual(
+                    publication.main(),
+                    0 if status in ("confirmed", "not_created") else 1,
+                )
+                self.assertEqual(json.loads(output.getvalue()), result)
+                inspect.assert_called_once_with(Path.cwd(), "fixture/repo", 7)
 
     def test_delayed_observation_preserves_push_and_records_both_heads(self):
         self.answers = [self.observation(headRefOid="0" * 40), self.observation()]

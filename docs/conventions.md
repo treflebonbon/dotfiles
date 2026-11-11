@@ -37,7 +37,7 @@ Linux の `tests/skills-plugin.bats` の検証と `tests/codex-tmp.bats` の san
 
 テスト入口は明示的に TAP 形式を使い、試行ごとに `tmp/test-run.*/` へ `tap.log`、環境確認・install のログ（`setup.log`）、選択された Python・with-env の実体パス（`environment`）、終了コード（`exit-code`）を保存する。環境確認や install が失敗した場合も記録し、Bats 未実行なら TAP ログは空になる。lefthook が出力をまとめて表示する場合も、このログで実行中の進捗を確認できる。進捗はログ全体の TAP 結果行から集計する。成功はスキップ指定のない `ok` 行、失敗は `not ok` 行、スキップは `# skip` 指定付きの `ok` 行として数える。入口は Bats が正常終了した後も、計画が1つで結果件数と一致し、結果番号が1から連続し、失敗結果や中断宣言がないことを確認する。不整合な TAP は終了コード1で拒否し、元のログを残す。Bats が正常終了する空 suite（`--allow-empty-suite` の `1..0`）は受け入れる。完了時は保存された終了コードも確認する。再実行の結果は初回の結果と分けて報告する。
 
-進捗は `scripts/test-status.sh [tmp/test-run.*]` で確認する。最新の `tmp/test-run.*/` の `exit-code` の有無で完了を判定し、成功・失敗・スキップ・計画件数を表示する。プロセス検索（`pgrep` など）は使わない。
+進捗は `scripts/test-status.sh [tmp/test-run.*]` で確認する。最新の `tmp/test-run.*/` の `exit-code` の有無で完了を判定し、成功・失敗・スキップ・計画件数を表示する。プロセス検索（`pgrep` など）は使わない。長時間の検証は通常60秒間隔で確認し、状態が変わったときに経過を報告する。新しいエラーや進行停止の根拠が出た場合は、該当実行のログを詳しく調べる。コード・文書は `rg -n` で対象を特定して必要な範囲を読み、ツール出力の切り詰めが生じた場合は範囲を狭めて読み直す。
 
 実機のモデルを呼ぶ検証（`tests/live-hook.bats`。両方なら `GCLOUD_INSPECT_HOOK_LIVE="claude codex" CODEX_BYPASS_HOOK_TRUST=1 bats tests/live-hook.bats`。Codex は `CODEX_BYPASS_HOOK_TRUST=1` が必要）は既定で skip し、環境変数で opt-in する。Cloudflare の書換え後の allow・deny・ask / prompt、hook と helper の失敗は `CLOUDFLARE_INSPECT_HOOK_LIVE="claude codex"` で有効にする。保護付き検証入口の一時 HOME から実 CLI の既存認証を使う場合は、`LIVE_HOOK_CODEX_AUTH` と `LIVE_HOOK_CLAUDE_AUTH` にそれぞれの credential file の絶対パスだけを渡す。CLI が内部で利用する symlink を作り、値は読み出さない。差分テスト（`tests/gcloud-inspect-hook.bats`）は既定でも100件を毎回実行し、`GCLOUD_INSPECT_HOOK_FUZZ=1` で5000件に増やす。道具は `tests/helpers/live-hook-*.sh`。
 
@@ -65,6 +65,8 @@ python3 scripts/run-canonical.py --shell wsl --no-codex-build
 
 進捗は `python3 scripts/verify-canonical.py --status <canonical-run-directory>` でJSON表示する。この操作は保存記録を読むだけで、全Batsやruntime検査を開始しない。`state` は完了記録がなければ `incomplete`、`result.json` の終了コードが0なら `passed`、非0なら `failed`。`plan`／`pass`／`skip`／`fail` と `exit_code` を表示し、完了前の終了コードは `null`、完了後は記録の終了コードをコマンドの終了コードにも使う。`incomplete` は実行中か中断済みかを区別せず、TAPの全結果が出そろっても成功とはしない。JSON・終了コード・TAP集計形式の不正や、異なる実行のrunner参照は非0終了で拒否する。成功記録の件数合計と失敗0件も確認する。現在のsourceやruntimeの再検証は行わない。
 
+canonical の進捗には、この実行が渡した `canonical-path` と `runner-path` を使う。TAP は並列テストの結果を順番に表示するため、件数が増えない状態だけでは停止と判断しない。
+
 検証は Linux／WSL2 の linked task worktree から、[verify-ai-tools.py](../scripts/verify-ai-tools.py) を使って開始する。最初の Nix 評価より前に、一時 HOME・全 XDG・TMP と bubblewrap の書込み境界を用意する。コマンドと子プロセスから見えるホスト filesystem を read-only にし、ホスト側の書込み先は対象 task worktree、その Git metadata（common dir を含む）、`/tmp/codex` に限定する。`/tmp` を固定利用する CLI には namespace 内の専用 tmpfs を与え、その中へ共有 `/tmp/codex` を bind する。専用 `/tmp` の内容はホストへ残らない。Nix store の `bwrap` がない、linked worktree の所属が不正、または OS 境界を作れない場合は停止する。通常 Linux は `--shell default`、WSL2 は `--shell wsl` を指定する。Linux 以外の保護付き検証起動は未対応で拒否する。
 
 ```bash
@@ -77,6 +79,21 @@ Nix の準備を要しない調査・検証コマンドには [verification_env.
 
 ```bash
 python3 scripts/verification_env.py "$PWD" -- rg -n --fixed-strings 'chezmoi apply' docs runtime
+```
+
+単体 Bats の診断で分離 stderr を保持する場合は、作業用記録内の `TMPDIR` と Bats の `--no-tempdir-cleanup` を組み合わせる。次の例は Bun の1件を実行し、成功・失敗のどちらでも終了コードとログを残す。`verification_env.py` が後片付けする一時環境とは別に、記録内の `bats-tmp/bats-run-*/` へ Bats の出力を保持する。`run --separate-stderr` の生ログは、その配下の `test/*/separate-stderr-*` に残る。
+
+```bash
+diagnostic_record="$(mktemp -d /tmp/codex/bats-diagnostic.XXXXXX)"
+mkdir "$diagnostic_record/bats-tmp"
+diagnostic_status=0
+python3 scripts/verification_env.py "$PWD" -- \
+  env TMPDIR="$diagnostic_record/bats-tmp" bats --tap --no-tempdir-cleanup \
+  --filter '^standalone Bun template selects the patched Bun runtime$' \
+  tests/runtime-security.bats \
+  >"$diagnostic_record/stdout.log" 2>"$diagnostic_record/stderr.log" || diagnostic_status=$?
+printf '%s\n' "$diagnostic_status" >"$diagnostic_record/exit-code"
+printf '診断記録 %s\n' "$diagnostic_record"
 ```
 
 Managed Chromeの所有権記録は同じWindows資源を共有するため、`BROWSER_OWNERSHIP_DIR` は呼出元の共通記録先を保持する。未指定なら隔離前の `XDG_RUNTIME_DIR`、`TMPDIR`、`/tmp` の順で `browser-ownership` を解決し、最初のNix評価から後続コマンドまで同じ値を渡す。HOME/XDGを手動で分離する場合も、分離前にこの記録先を引き継ぐ。別の空の記録先を使うと、使用中のCDP portの予約を参照できなくなる。例外として `tests/dogfood.bats` は利用者の記録を汚さないよう `BATS_TEST_TMPDIR` 配下を使う。そのため実際のDogfood session や、Cleanup 失敗で残ったテストの Chrome と同時に動くと、`port-conflict` で失敗することがある。
@@ -158,6 +175,23 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build --read-on
 GitHub Actions で全 Bats とそのための Nix cache 準備は実行しない。OSV の [PR scan](../.github/workflows/osv-scanner-pr.yml) と [full scan](../.github/workflows/osv-scanner-full.yml) は引き続き GitHub Actions で実行する。PR タイトルの Conventional Commits 検査（[`ci.yml`](../.github/workflows/ci.yml) の `conventional-commits`、token は `GITHUB_TOKEN`）も GitHub Actions で実行する。
 
 品質 floor 判定は `tests/ai-quality-floor.bats` が実際の Nix package 出力を通して検証する。床上げ時は `modules/ai.nix` の値と、このテストの独立した期待値を更新する（[ADR-0047](adr/0047-test-quality-floors-through-package-outputs.md)）。
+
+## 引継ぎ対象の照合
+
+引継ぎ文書の作成前に、validated task worktree で `publish-topic.py inspect` を実行し、root・branch・HEAD と PR の対応を JSON に保存する。番号が分かる場合は `--pr NUMBER` を渡す。省略時は現在の branch の PR を検索する。ユーザー devShell が提供する `TREFLEBONBON_SKILLS_LIB` と既存の GitHub 認証を使う。
+
+```bash
+export GH_CONFIG_DIR="${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}"
+handoff_record="$(mktemp -d /tmp/codex/handoff.XXXXXX)"
+handoff_status=0
+python3 scripts/verification_env.py "$PWD" -- \
+  python3 scripts/publish-topic.py inspect --repo treflebonbon/dotfiles \
+  >"$handoff_record/identity.json" 2>"$handoff_record/stderr.log" || handoff_status=$?
+printf '%s\n' "$handoff_status" >"$handoff_record/exit-code"
+printf '引継ぎ対象の記録 %s\n' "$handoff_record"
+```
+
+`confirmed` は PR の branch・HEAD が一致、`not_created` は検索結果0件、`mismatch` は branch または HEAD の不一致、`ambiguous` は複数候補を表す。前者2つは exit 0、不一致と複数候補は exit 1。API・認証・入力エラーも非0終了し、stderr を保存する。PR の `state` は観測値として記録する。引継ぎには照合結果と記録先を含め、照合不能はその理由を書く。ローカルの指定 HEAD に対する検証は、PR との対応状況を明記して続行できる。
 
 ## topic branch の公開と確認
 

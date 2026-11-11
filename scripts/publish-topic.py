@@ -1,4 +1,4 @@
-"""topic branch の push と、読み取り専用の PR 公開確認を別々に記録する。"""
+"""topic branch の引継ぎ対象を照合し、push と PR 公開確認を別々に記録する。"""
 
 import argparse
 from contextlib import contextmanager
@@ -60,6 +60,83 @@ def valid_repo(repo):
         raise ValueError("repository は OWNER/REPO で指定してください")
 
 
+def topic_identity(source, repo):
+    valid_repo(repo)
+    context, _ = dependencies()
+    try:
+        worktree = context.Repository.discover(source, linked_only=True)
+    except context.InvalidContext as error:
+        raise ValueError("validated linked task worktree が必要です") from error
+    environment = context.git_environment()
+
+    def git(*args):
+        return subprocess.check_output(
+            ["git", *args], cwd=worktree.root, env=environment, text=True
+        ).strip()
+
+    origin = git("remote", "get-url", "origin")
+    if origin.removesuffix(".git").casefold() != f"https://github.com/{repo}".casefold():
+        raise ValueError("origin と指定した repository が一致しません")
+    branch = git("branch", "--show-current")
+    if not branch or branch in ("main", "master"):
+        raise ValueError("topic branch が必要です")
+    return {
+        "source": str(worktree.root),
+        "repo": repo,
+        "branch": branch,
+        "head": git("rev-parse", "HEAD"),
+    }
+
+
+def inspect_topic(source, repo, pr=None):
+    if pr is not None and pr < 1:
+        raise ValueError("PR 番号は正の整数が必要です")
+    identity = topic_identity(source, repo)
+    context, _ = dependencies()
+    fields = "number,headRefOid,headRefName,state,url"
+    command = ["gh", "pr"]
+    if pr is None:
+        command.extend(["list", "--head", identity["branch"], "--state", "all"])
+    else:
+        command.extend(["view", str(pr)])
+    response = subprocess.run(
+        [*command, "--repo", repo, "--json", fields],
+        env=context.git_environment(),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    observations = json.loads(response.stdout)
+    if pr is not None:
+        observations = [observations]
+    if not isinstance(observations, list) or any(
+        not isinstance(item, dict)
+        or type(item.get("number")) is not int
+        or item["number"] < 1
+        or (pr is not None and item["number"] != pr)
+        or not all(
+            isinstance(item.get(key), str)
+            for key in ("headRefOid", "headRefName", "state", "url")
+        )
+        or not re.fullmatch(r"[0-9a-fA-F]{40}", item["headRefOid"])
+        for item in observations
+    ):
+        raise ValueError("PR API の応答形式が不正です")
+    status = "not_created"
+    if len(observations) > 1:
+        status = "ambiguous"
+    elif observations:
+        observed = observations[0]
+        status = (
+            "confirmed"
+            if observed["headRefName"] == identity["branch"]
+            and observed["headRefOid"] == identity["head"]
+            else "mismatch"
+        )
+    return {**identity, "status": status, "observations": observations}
+
+
 @contextmanager
 def locked_record(directory):
     path = record_path(directory)
@@ -86,34 +163,18 @@ def _push(source, repo, path):
     if any(path.parent.iterdir()):
         raise ValueError("新しい空の記録 directory を指定してください")
     context, public = dependencies()
-    try:
-        worktree = context.Repository.discover(source, linked_only=True)
-    except context.InvalidContext as error:
-        raise ValueError("validated linked task worktree が必要です") from error
+    identity = topic_identity(source, repo)
     environment = context.git_environment()
-
-    def git(*args):
-        return subprocess.check_output(
-            ["git", *args], cwd=worktree.root, env=environment, text=True
-        ).strip()
-
-    if git("status", "--porcelain"):
+    if subprocess.check_output(
+        ["git", "status", "--porcelain"],
+        cwd=identity["source"],
+        env=environment,
+        text=True,
+    ).strip():
         raise ValueError("公開する task worktree を commit して clean にしてください")
-    origin = git("remote", "get-url", "origin")
-    if (
-        origin.removesuffix(".git").casefold()
-        != f"https://github.com/{repo}".casefold()
-    ):
-        raise ValueError("origin と指定した repository が一致しません")
-    branch = git("branch", "--show-current")
-    if not branch or branch in ("main", "master"):
-        raise ValueError("公開には topic branch が必要です")
     receipt = {
         "schema_version": 1,
-        "source": str(worktree.root),
-        "repo": repo,
-        "branch": branch,
-        "head": git("rev-parse", "HEAD"),
+        **identity,
         "push": {"status": "started"},
         "verification": None,
     }
@@ -137,7 +198,7 @@ def _push(source, repo, path):
     ):
         result = subprocess.run(
             [str(public / "bin/git-push-topic")],
-            cwd=worktree.root,
+            cwd=identity["source"],
             env=environment,
             stdout=output,
             stderr=error,
@@ -245,6 +306,11 @@ def _verify(path, pr, timeout):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    inspection = commands.add_parser(
+        "inspect", help="引継ぎ用に現在の branch・HEAD・PR を照合する"
+    )
+    inspection.add_argument("--repo", required=True)
+    inspection.add_argument("--pr", type=int, help="照合する PR（省略時は branch から検索）")
     publish = commands.add_parser("push", help="topic を1回だけ push して記録する")
     publish.add_argument("--repo", required=True)
     publish.add_argument(
@@ -260,6 +326,10 @@ def main():
     )
     arguments = parser.parse_args()
     try:
+        if arguments.command == "inspect":
+            result = inspect_topic(Path.cwd(), arguments.repo, arguments.pr)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["status"] in ("confirmed", "not_created") else 1
         if arguments.command == "push":
             directory = arguments.record or new_runtime("topic-publication.")
             return push(Path.cwd(), arguments.repo, directory)
