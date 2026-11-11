@@ -2,7 +2,7 @@
 
 ## 要件と更新単位
 
-ユーザーが skills の release PR #28 をマージしたことを受け、受入済みの公開版を dotfiles に採用する。変更範囲は `skills-plugin.json` の単一 pin、ADR-0082 の現行版、今回の採用記録とする。AI ツール・nixpkgs・APM の lock と第三者 skill は今回の更新対象外である。
+ユーザーが skills の release PR #28 をマージしたことを受け、受入済みの公開版を dotfiles に採用する。変更範囲は `skills-plugin.json` の単一 pin、ADR-0082 の現行版、今回の採用記録、および新版の公開入口へ追従する既存 consumer テストとする。AI ツール・nixpkgs・APM の lock と第三者 skill は今回の更新対象外である。
 
 適用する契約は [ADR-0082 の現行の固定版と所有権・runtime 導入更新の運用契約](../adr/0082-extract-local-skills-to-public-repository.md) と、[検証・追跡手順](../conventions.md) である。同じ immutable source の owner / repo / rev / tree / version / NAR hash / file count を揃え、全 Bats を clean な最終 HEAD で実行する。未 merge の task source は live 配備に使わない。
 
@@ -32,6 +32,14 @@ pin の旧 record 全体は Git 履歴から復元できる。0.2.8 の更新時
 実装 commit `485283ade043d54957100fb7ce15784b6cb6cfd9` を、固定点 `563758ae834c854f512938b816bd9658ebd46e17` から Standards / Spec の2軸で確認した。Standards は指摘0件。Spec は差分の不整合・scope creep の指摘はなく、最終 HEAD の全 Bats が未完了であることを公開前 gate として1件指摘した。
 
 この記録を含む最終 commit を clean にした後、元の standalone Bun template の1件を通常の Bats 経路で確認し、同じ HEAD で `python3 scripts/run-canonical.py --shell wsl --no-codex-build` を実行する。生成された `result.json` の終了コード・失敗件数と前後記録を照合し、Spec の gate を完了してから公開する。canonical 後は結果の追記だけの source 変更を行わず、結果を PR 本文と共有 QA に記録する。
+
+## 初回 canonical が検出した consumer テストの不整合
+
+HEAD `6fa8fe35fca9ed890a9b5f536b3e8707e64ca64b` で元の standalone Bun template の1件は通常経路で成功した。同じ HEAD の初回 canonical は214.43秒、835 pass / 25 skip / 1 fail、終了コード1だった。失敗は `pinned skills package exposes the Domain Modeling Studio TypeScript consumer assets` の1件で、旧 `scripts/extract-typescript.py` の存在確認だった。分離した stderr と初回 JSON / TAP は `/tmp/codex/adopt-skills-0210.WODFpJ/canonical-initial` と `bun-single` に保持している。
+
+失敗した1件を同じ Nix 環境の単独 Bats で2回再現した。Nix が実際に使う source の全288ファイルは公開版と一致し、旧 Python 入口は存在せず、TypeScript 入口と参照文書が一致していた。公開版が案内する `bun run --config=/dev/null --no-env-file .../extract-typescript.ts --help` は終了コード0だった。これにより、古い期待値を原因と確認し、別 source の参照と公開 package の資産欠損を除外した。
+
+既存テストの資産名を `.ts` にし、呼出しを上の公式 Bun 手順へ変更した。修正後の同じ単独 Bats は1件成功・skipなし・終了コード0を確認した。資産の存在確認と正常終了の assertion は維持し、互換用の旧入口や skip は追加しない。この修正の独立レビューを行い、記録を含む clean な最終 HEAD で元の Bun 1件・全 canonical を改めて実行する。初回の失敗は成功記録へ置き換えず、最終結果とは分ける。
 
 ## 後続の配備
 
