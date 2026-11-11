@@ -50,6 +50,39 @@ herdr
 
 関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [llm-agents の Herdr package](https://github.com/numtide/llm-agents.nix/tree/main/packages/herdr)
 
+## Windows Herdr App から WSL2 を使う
+
+Windows App と local core は[公式ダウンロード](https://herdr.dev/download/)からユーザー単位で導入する。installer は local core がない場合に追加する。WSL2 側の remote core は別 machine として登録する。導入後の正本は App の Help にある同じ版の User Guide と `hc --skill`（core manual）。App の画面・space・terminal 設定は App のユーザープロファイルが所有し、chezmoi には取り込まない。
+
+公式 core は [WSL machine の手順](https://raw.githubusercontent.com/herdrdev/herdr-core/master/docs/machines.md)に沿って Windows の `wsl.exe` 経由で接続できる。接続例は、未使用の machine 名を選んで Windows PowerShell から実行する。この例の distro、Linux user、socket path はこの実機で観測した値なので、別の WSL 環境では `wsl.exe -d <distro> -e sh -c 'id; printf "%s\\n" "$XDG_RUNTIME_DIR"'` などで対象 user と runtime を確認し、remote core が実際に使う socket に合わせる。
+
+```powershell
+$hc = Join-Path $env:LOCALAPPDATA 'Programs\herdr-core\hc.exe'
+$via = 'wsl.exe -d Ubuntu-24.04 -e sh -c "export HC_SOCKET=/home/ubuntu/.local/run/herdr-core/default.sock PATH=/home/ubuntu/.local/bin:$PATH; exec sh -c \"$0\""'
+& $hc machine add --name wsl-ubuntu-24-04 --via $via --install
+```
+
+`--via` は SSH ではなく、`wsl.exe` と引数を使う transport である。`--install` は公式 release の core を remote に配置する。既に登録済みなら接続状態を App の machine 一覧か `hc machine ls` で確認し、同名 machine を重ねて追加しない。この環境では素の非 login `wsl.exe -e sh -c` の runtime path が `/run/user/1000`、`PATH` に `~/.local/bin` が含まれず、remote core の socket は `~/.local/run/herdr-core/default.sock` にあったため、machine の transport command で `HC_SOCKET` と `PATH` を補っている。
+
+App の machine を選び、既存 repository を開く。linked worktree も既存 checkout として Open Worktree から選べる。App が開いた shell で次を実行し、意図した working root と branch を確かめる。
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git branch --show-current
+command -v bash nix hc claude codex-worktree codex-reviewer
+```
+
+App の terminal / agent menu はユーザーの login / interactive shell を使うため、この環境では Bash、Nix、`hc`、Claude Code、既存 Codex entry points が解決した。Windows 側の parent `hc run` は別経路で、profile 初期化が必要なら command に `bash -lc` を明示する。例:
+
+```powershell
+& $hc run --on wsl-ubuntu-24-04 --cwd /home/ubuntu/orca/workspaces/dotfiles/herdr-app-593 -- bash -lc 'pwd; command -v bash nix hc codex-worktree codex-reviewer'
+```
+
+Claude Code は対象 App terminal の空の prompt から `claude` を実行する。対話画面が開くことを確かめ、モデル接続を opt-in していない場合は task text を送らない。資格情報の値を確認・表示する必要はない。
+
+App を閉じても terminal を保持するのは remote core であり、App window を閉じる前に terminal の address・space・working root を記録する。App を再度開き、machine に接続して同じ terminal が残っていることを確認する。core / WSL を停止すると terminal 内の process も終了するため、再接続確認では App だけを閉じる。既存 TUI の供給・設定・データはこの App の設定から移行・変更しない。App と core の更新はそれぞれの公式配布経路を使い、ソース build や独自の chezmoi 設定同期を追加しない。
+
 ### Herdr からの agent 起動
 
 新しい pane の shell prompt から Claude Code / Codex を対話モードで起動する手順。確度は confirmed（実測）／inferred（推論）／unconfirmed（未確認）で区別する（[#458](https://github.com/treflebonbon/dotfiles/issues/458)）。
