@@ -79,6 +79,20 @@ App の terminal / agent menu はユーザーの login / interactive shell を�
 & $hc run --on wsl-ubuntu-24-04 --cwd /home/ubuntu/orca/workspaces/dotfiles/herdr-app-593 -- bash -lc 'pwd; command -v bash nix hc codex-worktree codex-reviewer'
 ```
 
+#### App terminal からの Codex 起動
+
+App menu の通常 Codex 起動を使わず、接続先 WSL の validated linked worktree を terminal として開き、`pwd` と `git rev-parse --show-toplevel` で root を確かめてから既存 entry point を使う。実装役は `codex-worktree`、読み取り専用レビュー役は `codex-reviewer`。どちらも Herdr core の terminal に接続するため `--no-daemon` を渡す。
+
+```bash
+# App が開いた linked worktree の terminal で、役割ごとに別 terminal から実行する。
+codex-worktree --no-daemon
+codex-reviewer --no-daemon
+```
+
+`codex-worktree` は validated worktree から実行する raw 経路で、専用 HOME を使い、ホストの秘密値・無関係な worktree・Herdr core 制御 socket を隔離内へ渡さない。`codex-reviewer` は対象 worktree の Git dir と common dir を read-only で Codex に加える既存経路だが、raw 実装役と同じ秘密隔離を提供しない。reviewer は公開情報のレビューに限って使い、秘密隔離が必要な実装には `codex-worktree` を使う（[ADR-0044](../docs/adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)、[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
+
+親からのレビュー依頼は raw 隔離の外で Windows 側の標準 `hc run` を使い、`--cwd` に同じ validated linked worktree を指定して `codex-reviewer --no-daemon` を起動する。WSL の通常 terminal と異なり `hc run` は login shell を自動で通さない場合があるため、`bash -lc` で `hc` と entry point が解決することを確認する。今回の依頼が `hc run` の launch task として配送されたか program argv として渡ったかを導入版で識別し、起動結果の `first_message.sent` と一緒に記録する。`first_message.sent: false` は依頼が配送されていない状態なので、`hc read` で起動状態を確認し、準備完了後に親から送る。配送失敗後に盲目的に再送しない。`hc wait` の `message`・`timeout`・終了 status を区別する。`message` は親への新しい入力であり `hc read` から取る出力ではない。`timeout` は確認時点の通知なので、必要なら `hc wait` を続ける。今回の依頼に対応する出力を `hc read` で確認し、起動直後の `idle` / `done` や待機の終了だけでは回答完了としない。`hc read` が `incomplete` と示した場合は成功扱いせず、`blocked` の terminal へ強制入力しない。raw 実装役から `hc send` したり core 制御 socket を持ち込んだりする必要はない。
+
 Claude Code は対象 App terminal の空の prompt から `claude` を実行する。対話画面が開くことを確かめ、モデル接続を opt-in していない場合は task text を送らない。資格情報の値を確認・表示する必要はない。
 
 App を閉じても terminal を保持するのは remote core であり、App window を閉じる前に terminal の address・space・working root を記録する。App を再度開き、machine に接続して同じ terminal が残っていることを確認する。core / WSL を停止すると terminal 内の process も終了するため、再接続確認では App だけを閉じる。既存 TUI の供給・設定・データはこの App の設定から移行・変更しない。App と core の更新はそれぞれの公式配布経路を使い、ソース build や独自の chezmoi 設定同期を追加しない。
