@@ -64,12 +64,28 @@ $via = 'wsl.exe -d Ubuntu-24.04 -e sh -c "export HC_SOCKET=/home/ubuntu/.local/r
 
 `--via` は SSH ではなく、`wsl.exe` と引数を使う transport である。`--install` は公式 release の core を remote に配置する。既に登録済みなら接続状態を App の machine 一覧か `hc machine ls` で確認し、同名 machine を重ねて追加しない。この環境では素の非 login `wsl.exe -e sh -c` の runtime path が `/run/user/1000`、`PATH` に `~/.local/bin` が含まれず、remote core の socket は `~/.local/run/herdr-core/default.sock` にあったため、machine の transport command で `HC_SOCKET` と `PATH` を補っている。
 
-App の machine を選び、既存 repository を開く。linked worktree も既存 checkout として Open Worktree から選べる。App が開いた shell で次を実行し、意図した working root と branch を確かめる。
+App の machine を選び、既存 repository を開く。linked worktree も既存 checkout として Open Worktree から選べる。作成と再利用は次の手順に従う。
+
+### App 標準 worktree の作成と再利用
+
+作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App の既定保存先は接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` で、Herdr TUI の既定 `worktrees.directory` `~/.herdr/worktrees` と重なる。同じ repository の App/TUI worktree は同じ Git common dir に登録される。
+
+App で対象 repository の space を右クリックし、New worktree を選んで branch 名を入力する。既存 branch は再作成せず、その branch を checkout する。保存先は repository 名と branch 名から決まり、App のダイアログに個別 path 欄はない。branch が別 checkout で使用中なら Git error で作成が失敗し、保存先 directory が既にあっても App は上書きしない。衝突時は branch・directory・既存ファイルと Git 状態を確認し、強制再作成や自動削除をしない。
+
+TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
+
+`worktree-gc.sh` の単一 repository 診断は既定では repo-local root を調べる。App/TUI worktree の所有権と既存保護理由を確認するときは、診断対象 `--roots` に対象 repository の `~/.herdr/worktrees/<repo>` を明示して `--diagnose` を実行する。確認は削除を伴わず、保持する worktree に `--apply` を使わない。GC の保護条件と外部 root の扱いは [ADR-0056](../docs/adr/0056-worktree-gc-home-wide-fanout.md) に従い、skill や GC の実装は変更しない。
+
+作成後または既存 checkout を開いた後、App terminal で次を実行し、working root・branch・HEAD・Git metadata・状態を確認する。
 
 ```bash
 pwd
 git rev-parse --show-toplevel
 git branch --show-current
+git rev-parse HEAD
+git rev-parse --git-dir
+git rev-parse --git-common-dir
+git status --short --branch
 command -v bash nix hc claude codex-worktree codex-reviewer
 ```
 
