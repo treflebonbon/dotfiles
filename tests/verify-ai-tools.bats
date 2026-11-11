@@ -25,6 +25,10 @@ with open(os.environ['AI_FIXTURE_LOG'], 'a') as log:
         ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'BROWSER_OWNERSHIP_DIR', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'FORCE_COLOR']}
     row['argv'] = sys.argv[1:]
     log.write(json.dumps(row) + '\n')
+if os.environ.get('AI_FIXTURE_MODE') == sys.argv[1] + '-hang':
+    Path(os.environ['AI_FIXTURE_LOG'] + '.ready').touch()
+    import time
+    time.sleep(60)
 if sys.argv[1] == 'eval':
     mode = os.environ.get('AI_FIXTURE_MODE')
     if mode == 'write-original-home':
@@ -60,10 +64,6 @@ else:
     if os.environ.get('AI_FIXTURE_MODE') == 'startup-signal':
         print('fixture startup signal', file=sys.stderr, flush=True)
         os.kill(os.getpid(), 15)
-    if os.environ.get('AI_FIXTURE_MODE') == 'startup-hang':
-        Path(os.environ['AI_FIXTURE_LOG'] + '.ready').touch()
-        import time
-        time.sleep(60)
     Path(os.environ['HOME'], '.agents').mkdir(exist_ok=True)
     Path(os.environ['HOME'], '.agents', 'hook').write_text('isolated')
     command = sys.argv[sys.argv.index('--command') + 1:]
@@ -731,27 +731,34 @@ PY
   done
 }
 
-@test "AI candidate verification removes isolated directories when terminated mid-run" {
-  AI_FIXTURE_MODE=startup-hang PATH="$BIN:$PATH" HOME="$BATS_TEST_TMPDIR/original-home" \
-    python3 "$PROBE" "$SOURCE" >/dev/null 2>&1 &
-  local pid=$!
-  local waited=0
-  while [ ! -e "$AI_FIXTURE_LOG.ready" ]; do
-    sleep 0.1
-    waited=$((waited + 1))
-    [ "$waited" -lt 100 ]
-  done
-  kill -TERM "$pid"
-  local status=0
-  wait "$pid" || status=$?
+@test "AI candidate verification records parent interruption and removes isolated directories at every Nix stage" {
+  local stage received expected pid waited status runtime name
+  for stage in eval build develop; do
+    for received in TERM HUP; do
+      expected=143
+      [ "$received" != HUP ] || expected=129
+      export AI_FIXTURE_LOG="$BATS_TEST_TMPDIR/$stage-$received.jsonl"
+      AI_FIXTURE_MODE="$stage-hang" PATH="$BIN:$PATH" HOME="$BATS_TEST_TMPDIR/original-home" \
+        python3 "$PROBE" "$SOURCE" --no-codex-build >/dev/null 2>&1 &
+      pid=$!
+      waited=0
+      while [ ! -e "$AI_FIXTURE_LOG.ready" ]; do
+        sleep 0.1
+        waited=$((waited + 1))
+        [ "$waited" -lt 100 ]
+      done
+      kill -"$received" "$pid"
+      status=0
+      wait "$pid" || status=$?
 
-  [ "$status" -eq 143 ]
-  local runtime
-  runtime="$(runtime_from_fixture_log)"
-  [ -n "$runtime" ]
-  local name
-  for name in home config data runtime cache state tmp; do
-    [ ! -e "$runtime/$name" ]
+      [ "$status" -eq "$expected" ]
+      runtime="$(runtime_from_fixture_log)"
+      [ -n "$runtime" ]
+      [ "$(cat "$runtime/exit-code")" -eq "$expected" ]
+      for name in home config data runtime cache state tmp; do
+        [ ! -e "$runtime/$name" ]
+      done
+      [ ! -e "$SOURCE/tmp" ]
+    done
   done
-  [ ! -e "$SOURCE/tmp" ]
 }
