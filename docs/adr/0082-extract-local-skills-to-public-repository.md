@@ -34,9 +34,9 @@ status: accepted
 
 `dogfood`、`domain-modeling-studio`、`herdr-peer-refactor`、`marp`、`md-agents-review`、`md-claude-review`、`orca-peer-refactor`、`pr-screenshots`、`rop`、`ui-grill-with-docs`、`worktree-gc` の11件を対象とする。
 
-## 現行の固定版と所有権（2026-11-11）
+## 現行の固定版と所有権（2026-11-12）
 
-dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.2.8 の固定版は `treflebonbon/skills` の commit `a0157fc6a64d039e273c306a9682c3d7d24c9f29`、tree `39d832e825be2ca3f6a50e1d028c151bfc58e541`、NAR `sha256-LvN0sr5SwyTWy4+eODeqn4qgl9hKOV54gdZ2vtOFUk8=`、283 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.2.8 の検証結果と実機での確認範囲は[更新記録](../research/update-tools-skills-20261111.md)を参照する。
+dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.2.10 の固定版は `treflebonbon/skills` の commit `fd2a50c558288b3661e5066b94b1196453ef9269`、tree `f3f3431db98cdca1a6132accef176ef288920365`、NAR `sha256-wCLbOs2NNdGJhGq2IlNr+NI4g1CcU+Cr8pXM9+vCtVw=`、288 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.2.10 の受入・公開版の同一性と dotfiles 側の採用記録は[更新記録](../research/update-skills-plugin-20261112.md)を参照する。
 
 2026-11-05 の 0.2.7 では、所有権 CLI の既定 Windows 資産と開発用指示の配置の修正を検証した。新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、0.2.7 に限って未実施のままユーザーが省略を受け入れた。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。
 

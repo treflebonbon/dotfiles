@@ -6,13 +6,13 @@
   local file
 
   for file in \
-    scripts/extract-typescript.py \
+    scripts/extract-typescript.ts \
     references/typescript-evidence.md \
     references/rop-semantics.md \
     references/effect-ts.md \
     references/rust.md; do
     [ -f "$skill/$file" ]
   done
-  run python3 "$skill/scripts/extract-typescript.py" --help
+  run bun run --config=/dev/null --no-env-file "$skill/scripts/extract-typescript.ts" --help
   [ "$status" -eq 0 ]
 }
