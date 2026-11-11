@@ -142,15 +142,32 @@ class PublicationTests(unittest.TestCase):
                 self.assertEqual(result["status"], expected)
                 self.assertEqual(result["observations"], observations)
 
-    def test_inspection_propagates_api_errors_and_rejects_malformed_responses(self):
+    def test_inspection_reports_api_errors_and_rejects_malformed_responses(self):
         error = subprocess.CalledProcessError(1, "gh")
-        with self.assertRaises(subprocess.CalledProcessError):
+        with self.assertRaises(ValueError):
             self.inspect(error)
         for answer in ({}, None, [None], [self.observation(headRefOid="invalid")]):
             with self.subTest(answer=answer), self.assertRaises(ValueError):
                 self.inspect(answer)
         with self.assertRaises(ValueError):
             self.inspect(self.observation(number=8), pr=7)
+
+    def test_inspection_records_safe_authentication_and_http_diagnostics(self):
+        cases = [
+            (4, "Authorization: Bearer fixture-sensitive-value", "認証が必要"),
+            (1, "HTTP 401: fixture-sensitive-value", "HTTP 401"),
+            (17, "HTTP 403: fixture-sensitive-value", "HTTP 403"),
+            (1, "HTTP 503: fixture-sensitive-value", "HTTP 503"),
+            (1, "unexpected fixture-sensitive-value", "API コマンド失敗"),
+        ]
+        for code, stderr, expected in cases:
+            error = subprocess.CalledProcessError(code, "gh", stderr=stderr)
+            with self.subTest(code=code), self.assertRaises(ValueError) as raised:
+                self.inspect(error)
+            message = str(raised.exception)
+            self.assertIn(expected, message)
+            self.assertIn(f"exit {code}", message)
+            self.assertNotIn("fixture-sensitive-value", message)
 
     def test_inspection_rejects_wrong_repo_and_ignores_inherited_git_redirects(self):
         with self.assertRaises(ValueError):
@@ -201,7 +218,11 @@ class PublicationTests(unittest.TestCase):
         binary = self.root / "bin"
         binary.mkdir()
         gh = binary / "gh"
-        gh.write_text("#!/bin/sh\nprintf 'fixture API failure\\n' >&2\nexit 17\n")
+        gh.write_text(
+            "#!/bin/sh\n"
+            "printf 'HTTP 403: Authorization: Bearer fixture-sensitive-value\\n' >&2\n"
+            "exit 17\n"
+        )
         gh.chmod(0o700)
         receipt = self.root / "handoff-path"
         environment = os.environ.copy()
@@ -222,7 +243,10 @@ class PublicationTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, record)
         self.assertEqual((record / "exit-code").read_text(), "1\n")
         self.assertEqual((record / "identity.json").read_text(), "")
-        self.assertIn("公開処理を停止しました", (record / "stderr.log").read_text())
+        diagnostic = (record / "stderr.log").read_text()
+        self.assertIn("HTTP 403", diagnostic)
+        self.assertIn("exit 17", diagnostic)
+        self.assertNotIn("fixture-sensitive-value", diagnostic)
 
     def test_delayed_observation_preserves_push_and_records_both_heads(self):
         self.answers = [self.observation(headRefOid="0" * 40), self.observation()]

@@ -191,7 +191,7 @@ printf '%s\n' "$handoff_status" >"$handoff_record/exit-code"
 printf '引継ぎ対象の記録 %s\n' "$handoff_record"
 ```
 
-`confirmed` は PR の branch・HEAD が一致、`not_created` は検索結果0件、`mismatch` は branch または HEAD の不一致、`ambiguous` は複数候補を表す。前者2つは exit 0、不一致と複数候補は exit 1。API・認証・入力エラーも非0終了し、stderr を保存する。PR の `state` は観測値として記録する。引継ぎには照合結果と記録先を含め、照合不能はその理由を書く。ローカルの指定 HEAD に対する検証は、PR との対応状況を明記して続行できる。
+`confirmed` は PR の branch・HEAD が一致、`not_created` は検索結果0件、`mismatch` は branch または HEAD の不一致、`ambiguous` は複数候補を表す。前者2つは exit 0、不一致と複数候補は exit 1。API・認証・入力エラーも非0終了し、stderr を保存する。`gh` の失敗は終了コードと、認証要求（exit 4）・HTTP 400〜599・一般の API コマンド失敗を固定形式の診断情報として記録する。PR の `state` は観測値として記録する。引継ぎには照合結果と記録先を含め、照合不能はその理由を書く。ローカルの指定 HEAD に対する検証は、PR との対応状況を明記して続行できる。
 
 ## topic branch の公開と確認
 

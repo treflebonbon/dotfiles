@@ -17,3 +17,16 @@
 - Linux では候補 devShell の6 CLI の実体パスと版表示を照合した。Claude Code、Codex、Antigravity CLI の公式 CLI で 0.2.8 を隔離環境に導入した。Claude Code 2.1.322 で2回再同期し、管理設定と283ファイルが一致した。記録は `/tmp/codex/claude-plugin-native.2hsk7ljt/result.json` に保存した。
 - Nix の取得停滞後は同じ署名付き Numtide 配布物を取得し直した。検証時の一時 flake registry は、`nix develop --file` が参照する `nixpkgs` を、その時点の `nixpkgs-unstable` と同じ `4fe25e12eb9f` の Nix store source に解決する。
 - Fable 5.2 の実モデル呼出しと、ADR-0082 が求める新規モデルセッションでの全 33 件のスキル呼出しは未確認。0.2.7 での省略承認は引き継がない。ローカル検証のログは `/tmp/codex/update-tools-skills-20261111.ihDtTo/` に保存する。
+
+## カスタム browser runtime cache の更新
+
+0.2.7 で `WSL2_BROWSER_DEPS_DIR` を設定していた場合、0.2.8 では runtime の指紋が変わるため、旧 cache の照合が失敗する。引数なしの `wsl2-browser-prepare` も先に既存 cache を検証するので、旧 path を指定したままの再実行では停止する。
+
+旧 cache を保持したまま、利用するシェルと環境変数の設定元で `WSL2_BROWSER_DEPS_DIR` を解除する。`skills_checkout` に検証済み 0.2.8 checkout の絶対 path を設定して、次を実行する。既定の cache は新しい指紋ごとの path に準備される。
+
+```bash
+unset WSL2_BROWSER_DEPS_DIR
+"$skills_checkout/packages/wsl2-browser/bin/wsl2-browser-prepare"
+```
+
+カスタム配置を継続する場合は、`WSL2_BROWSER_DEPS_DIR` を plugin 外の新しい未作成の絶対 path に変更してから、同じ引数なしの準備コマンドを実行する。準備処理自身が directory を作成する。既存の空 directory も検証済み marker がないと拒否されるため、移行先は未作成の path を指定する。 [0.2.8 の cache 選択・検証と準備処理](https://github.com/treflebonbon/skills/blob/a0157fc6a64d039e273c306a9682c3d7d24c9f29/packages/wsl2-browser/libexec/runtime-path.mjs)

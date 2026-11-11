@@ -110,14 +110,25 @@ def inspect_topic(source, repo, pr=None):
         command.extend(["list", "--head", identity["branch"], "--state", "all"])
     else:
         command.extend(["view", str(pr)])
-    response = subprocess.run(
-        [*command, "--repo", repo, "--json", fields],
-        env=context.git_environment(),
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=True,
-    )
+    try:
+        response = subprocess.run(
+            [*command, "--repo", repo, "--json", fields],
+            env=context.git_environment(),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        # 認証値の漏えいを防ぐため、stderr から許可した診断値だけを記録する。
+        http_status = re.search(r"\bHTTP ([45][0-9]{2})\b", error.stderr or "")
+        if error.returncode == 4:
+            reason = "認証が必要"
+        elif http_status:
+            reason = f"HTTP {http_status[1]}"
+        else:
+            reason = "API コマンド失敗"
+        raise ValueError(f"PR API の照合失敗（exit {error.returncode}、{reason}）") from None
     observations = json.loads(response.stdout)
     if pr is not None:
         observations = [observations]
