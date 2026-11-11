@@ -100,6 +100,22 @@ LINK
   [ "$(cat "$FAKE_HOME/.local/bin/codex")" = user-owned ]
 }
 
+@test "公開と同時に作られたユーザーのリンクも警告して保持する" {
+  cat >"$TEST_BIN_DIR/mv" <<'MOVE'
+#!/bin/bash
+/bin/mv "$@" || exit 1
+if [ "$2" = "$HOME/.cache/nix-devshell-global-env.bash.codex" ]; then
+  /bin/ln -s "$HOME/user-codex" "$HOME/.local/bin/codex"
+fi
+MOVE
+
+  deploy
+
+  assert_success
+  assert_output --partial '公開中に作られた'
+  [ "$(readlink "$FAKE_HOME/.local/bin/codex")" = "$FAKE_HOME/user-codex" ]
+}
+
 @test "ユーザーの通常ファイルとリンクを保持して警告し配備を続行する" {
   local entry="$FAKE_HOME/.local/bin/codex" kind target
   mkdir -p "$(dirname "$entry")"

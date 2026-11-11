@@ -95,7 +95,8 @@ _nix_devshell_sync_codex() {
       { [ ! -e "$managed" ] || [ -L "$managed" ]; } && [ ! -d "$managed" ] &&
       temporary=$(mktemp "${cache}.tmp.XXXXXX") &&
       ln -sfn "$target" "$temporary" && mv "$temporary" "$managed"; then
-      if [ -L "$entry" ] || ln -s "$managed" "$entry"; then
+      if { [ -L "$entry" ] && [ "$(readlink "$entry")" = "$managed" ]; } ||
+        ln -s "$managed" "$entry"; then
         return 0
       fi
       if [ -e "$entry" ] || [ -L "$entry" ]; then
