@@ -61,6 +61,7 @@ def valid_repo(repo):
 
 
 def topic_identity(source, repo):
+    """linked task worktree の origin・topic を確認し、引継ぎ用の識別情報を返す。"""
     valid_repo(repo)
     context, _ = dependencies()
     try:
@@ -89,6 +90,7 @@ def topic_identity(source, repo):
 
 
 def valid_pr_observation(observed):
+    """PR 応答の識別フィールドと40桁の commit OID を検査する。"""
     return (
         isinstance(observed, dict)
         and all(
@@ -100,6 +102,7 @@ def valid_pr_observation(observed):
 
 
 def inspect_topic(source, repo, pr=None):
+    """現在の topic と PR の対応を読み取り、照合結果と観測値を返す。"""
     if pr is not None and pr < 1:
         raise ValueError("PR 番号は正の整数が必要です")
     identity = topic_identity(source, repo)
@@ -173,6 +176,7 @@ def push(source, repo, directory):
 
 
 def _push(source, repo, path):
+    """新規の公開記録に状態を保存し、clean な topic を一度だけ push する。"""
     if path.exists():
         raise ValueError(
             "既存の公開記録は verify で再開してください。push は再実行しません"
@@ -236,6 +240,7 @@ def verify(directory, pr, timeout):
 
 
 def _verify(path, pr, timeout):
+    """保存した公開記録と PR を期限内に照合し、観測履歴を更新する。"""
     receipt = json.loads(path.read_text())
     if (
         receipt.get("schema_version") != 1
@@ -314,6 +319,7 @@ def _verify(path, pr, timeout):
 
 
 def main():
+    """引継ぎ対象の確認・topic 公開・PR 照合の CLI 入口を実行する。"""
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     inspection = commands.add_parser(

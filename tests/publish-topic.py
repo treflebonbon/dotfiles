@@ -98,7 +98,9 @@ class PublicationTests(unittest.TestCase):
         return publication.verify(self.record, 7, timeout)
 
     def inspect(self, answer, pr=None):
+        """fixture の PR 応答で inspect を実行し、参照コマンドの引数を検証する。"""
         def command(argv, **kwargs):
+            """git は fixture で実行し、gh には指定された応答を返す。"""
             if Path(argv[0]).name == "gh":
                 self.assertEqual(
                     argv[:3], ["gh", "pr", "list" if pr is None else "view"]
@@ -129,6 +131,7 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.git(self.work, "status", "--porcelain"), "?? untracked")
 
     def test_inspection_distinguishes_missing_ambiguous_and_mismatched_prs(self):
+        """候補数と branch・HEAD の違いが期待する状態へ分類されることを確認する。"""
         cases = [
             ([], "not_created"),
             ([self.observation()], "confirmed"),
@@ -143,6 +146,7 @@ class PublicationTests(unittest.TestCase):
                 self.assertEqual(result["observations"], observations)
 
     def test_inspection_reports_api_errors_and_rejects_malformed_responses(self):
+        """API 失敗と不正応答がエラーとして報告されることを確認する。"""
         error = subprocess.CalledProcessError(1, "gh")
         with self.assertRaises(ValueError):
             self.inspect(error)
@@ -153,6 +157,7 @@ class PublicationTests(unittest.TestCase):
             self.inspect(self.observation(number=8), pr=7)
 
     def test_inspection_records_safe_authentication_and_http_diagnostics(self):
+        """固定診断が終了コード・認証要求・HTTP 状態を表し、認証値を保護する。"""
         cases = [
             (4, "Authorization: Bearer fixture-sensitive-value", "認証が必要"),
             (1, "HTTP 401: fixture-sensitive-value", "HTTP 401"),
@@ -181,6 +186,7 @@ class PublicationTests(unittest.TestCase):
             )
 
     def test_inspection_cli_reports_json_and_a_nonzero_status_for_mismatches(self):
+        """CLI の JSON 出力と、照合状態に応じた終了コードを確認する。"""
         for status in ("confirmed", "not_created", "mismatch", "ambiguous"):
             result = {"status": status}
             with (
@@ -204,6 +210,7 @@ class PublicationTests(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform == "linux", "verification_env requires Linux")
     def test_handoff_instructions_preserve_api_failure_logs(self):
+        """実際の引継ぎ手順で、API 失敗の診断ログと終了コードが保存されることを確認する。"""
         instructions = (ROOT / "docs/conventions.md").read_text()
         block = next(
             block
