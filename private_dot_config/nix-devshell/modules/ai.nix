@@ -104,6 +104,7 @@ in
   env = {
     DISABLE_TELEMETRY = "1";
     CODEX_ISOLATION_CA_BUNDLE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    NIX_DEVSHELL_CODEX_BIN = "${codex}/bin/codex";
     IMPECCABLE_BIN = "${impeccable}/bin/impeccable";
   };
 

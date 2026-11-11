@@ -71,6 +71,44 @@ _nix_devshell_discard_temps() (
   rm -f -- "$1".tmp.* "$1".err.*
 )
 
+_nix_devshell_sync_codex() {
+  local cache="$1" selected_output="$2" log="$3"
+  [ "$selected_output" = wsl ] || return 0
+  local entry="$HOME/.local/bin/codex" managed="${cache}.codex" target temporary=""
+  if target=$(
+    exec 9>&-
+    unset NIX_DEVSHELL_CODEX_BIN
+    set +u
+    # shellcheck source=/dev/null
+    . "$cache" >/dev/null || exit 1
+    printf '%s\n' "${NIX_DEVSHELL_CODEX_BIN:-}"
+  ); then
+    [ -n "$target" ] || return 0
+    # 専用の間接リンクを管理対象の識別に使い、Nix store への user link は保持する。
+    if { [ -e "$entry" ] || [ -L "$entry" ]; } &&
+      { [ ! -L "$entry" ] || [ "$(readlink "$entry")" != "$managed" ]; }; then
+      printf 'refresh-nix-devshell-cache: %s を保持し Codex の公開を省略します（管理対象外）。\n' "$entry" | tee -a "$log" >&2 || true
+      return 0
+    fi
+    if [[ "$target" = /* ]] && [ -f "$target" ] && [ -x "$target" ] &&
+      mkdir -p "$HOME/.local/bin" "$(dirname "$log")" &&
+      { [ ! -e "$managed" ] || [ -L "$managed" ]; } && [ ! -d "$managed" ] &&
+      temporary=$(mktemp "${cache}.tmp.XXXXXX") &&
+      ln -sfn "$target" "$temporary" && mv "$temporary" "$managed"; then
+      if [ -L "$entry" ] || ln -s "$managed" "$entry"; then
+        return 0
+      fi
+      if [ -e "$entry" ] || [ -L "$entry" ]; then
+        printf 'refresh-nix-devshell-cache: 公開中に作られた %s を保持します。\n' "$entry" | tee -a "$log" >&2 || true
+        return 0
+      fi
+    fi
+  fi
+  rm -f -- "$temporary"
+  printf 'refresh-nix-devshell-cache: Codex の公開に失敗しました（%s）。再実行してください。\n' "$entry" | tee -a "$log" >&2 || true
+  return 1
+}
+
 _nix_devshell_refresh_locked() {
   local DIR="${1:-$HOME/.config/nix-devshell}"
   local CACHE="${2:-$HOME/.cache/nix-devshell-global-env.bash}"
@@ -123,7 +161,10 @@ _nix_devshell_refresh_locked() {
     fi
     if [ -f "$CACHE" ] && [ -L "$profile" ] && [ -e "$profile" ]; then
       cached_id=$(tail -n 1 "$CACHE") || cached_id=""
-      [ "$cached_id" != "# nix-devshell-input-v1: $input_id" ] || return 0
+      if [ "$cached_id" = "# nix-devshell-input-v1: $input_id" ]; then
+        _nix_devshell_sync_codex "$CACHE" "$selected_output" "$LOG"
+        return
+      fi
     fi
 
     printf 'refresh-nix-devshell-cache: re-evaluating devshell (first run may take several minutes; downloads stream below)\n' >&2
@@ -171,7 +212,8 @@ _nix_devshell_refresh_locked() {
       if [ -s "$err" ]; then cat "$err" >>"$LOG" || true; fi
       rm -f "$err" || true
       printf 'refresh-nix-devshell-cache: cache refreshed\n'
-      return 0
+      _nix_devshell_sync_codex "$CACHE" "$selected_output" "$LOG"
+      return
     fi
     break
   done
