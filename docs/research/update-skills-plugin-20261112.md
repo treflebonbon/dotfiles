@@ -41,6 +41,8 @@ HEAD `6fa8fe35fca9ed890a9b5f536b3e8707e64ca64b` で元の standalone Bun templat
 
 既存テストの資産名を `.ts` にし、呼出しを上の公式 Bun 手順へ変更した。修正後の同じ単独 Bats は1件成功・skipなし・終了コード0を確認した。資産の存在確認と正常終了の assertion は維持し、互換用の旧入口や skip は追加しない。この修正の独立レビューを行い、記録を含む clean な最終 HEAD で元の Bun 1件・全 canonical を改めて実行する。初回の失敗は成功記録へ置き換えず、最終結果とは分ける。
 
+修正 commit `b563b8957a6b8bbee8c7902a8cf79d1e9469d719` を含む4ファイルの差分も独立に再レビューした。Standards は指摘0件、Spec は機能上の要件漏れ・scope creep・実装誤りを認めず、同じ「最終 clean HEAD の全 canonical 完了」の公開前 gate 1件だけが残ると確認した。この結果を含む記録を commit してから最終検証へ進む。
+
 ## 後続の配備
 
 PR merge 後に live source から対象限定の diff / apply、Nix cache の更新、必要な Codex 同期、両 current-state verifier を実行する。今回の記録時点では通常環境の pin は0.2.8で、live 配備・受入専用ログイン領域・worktree の削除は行っていない。旧配備の撤去は既存 gate と明示承認の範囲に従う。
