@@ -34,11 +34,11 @@ status: accepted
 
 `dogfood`、`domain-modeling-studio`、`herdr-peer-refactor`、`marp`、`md-agents-review`、`md-claude-review`、`orca-peer-refactor`、`pr-screenshots`、`rop`、`ui-grill-with-docs`、`worktree-gc` の11件を対象とする。
 
-## 現行の固定版と所有権（2026-11-05）
+## 現行の固定版と所有権（2026-11-11）
 
-dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。現在の accepted record は `treflebonbon/skills` の commit `126690ce21ef2e929236efbb3fa873686fed8131`、tree `a7c72af1037291b9c3df46a0aabbd9ecdfb7b061`、version `0.2.7`、NAR `sha256-RnKzL8lZagIldowvrDV14q7yC+RqpbaaCFvGlqIm+cM=`、283 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。
+dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.2.8 の固定版は `treflebonbon/skills` の commit `a0157fc6a64d039e273c306a9682c3d7d24c9f29`、tree `39d832e825be2ca3f6a50e1d028c151bfc58e541`、NAR `sha256-LvN0sr5SwyTWy4+eODeqn4qgl9hKOV54gdZ2vtOFUk8=`、283 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.2.8 の検証結果と実機での確認範囲は[更新記録](../research/update-tools-skills-20261111.md)を参照する。
 
-0.2.7 は所有権 CLI の既定 Windows 資産修正と、開発用指示の配置修正による strict 検証成功を確認して採用する。今回に限り、新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、未実施を明示したうえでユーザーが省略を受け入れた。今後の版の受入条件は変えない。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。live 配備の確認は別工程である。
+2026-11-05 の 0.2.7 では、所有権 CLI の既定 Windows 資産と開発用指示の配置の修正を検証した。新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、0.2.7 に限って未実施のままユーザーが省略を受け入れた。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。
 
 同じ公開 payload は Git checkout と `.git` を除いた plugin source snapshot の間で、全 tracked file の内容・mode・tree を一致させる。全3 runtime は同じ pin から導入する: Claude Code は `~/.claude/plugins` 配下、Codex は native `~/.codex`・存在する `~/.codex-app`・明示 `CODEX_HOME` の `plugins/cache/treflebonbon/treflebonbon-skills/<version>` を重複なく照合し、Antigravity CLI は `~/.gemini/config/plugins/treflebonbon-skills` と import inventory を照合する。過去の receipt だけではどの runtime の current install も証明しない。
 
