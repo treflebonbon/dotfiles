@@ -19,13 +19,19 @@
 
 0.2.8 → 0.2.10 で、native session 証跡の検査、PR check の参照と docstring 診断、Codex inventory の marketplace 指定を取り込む。0.2.9 から 0.2.10 への変更は Codex inventory の修正であり、公開版の [CHANGELOG](https://github.com/treflebonbon/skills/blob/fd2a50c558288b3661e5066b94b1196453ef9269/CHANGELOG.md) に対応する。
 
-pin の旧 record 全体は Git 履歴から復元できる。0.2.8 の更新時に残した [過去の記録](update-tools-skills-20261111.md) は、その版の検証として保持する。公開版との source 同一性に加えて、以下の個別検証が成功した。独立レビューと最終 HEAD の全 Bats は続けて行う。結果の正本は各実行が生成する JSON / TAP とし、最終 commit 後の canonical 結果は PR 本文に記録する。
+pin の旧 record 全体は Git 履歴から復元できる。0.2.8 の更新時に残した [過去の記録](update-tools-skills-20261111.md) は、その版の検証として保持する。公開版との source 同一性に加えて、以下の個別検証が成功した。独立レビューは下記の結果を得た。最終 HEAD の全 Bats は公開前 gate として続けて行う。結果の正本は各実行が生成する JSON / TAP とし、最終 commit 後の canonical 結果は PR 本文に記録する。
 
 ## dotfiles 側の個別検証
 
 - 両 flake の `nix flake check --no-build --all-systems` は成功した。
 - 新 pin の資産を使う検証環境で6 CLI の実体と版表示を照合した。plugin の改ざん検出と Nix Playwright 配線の Bats は2件成功した。ビルド済み Playwright package を要求する2件は、この個別実行では未指定のため skip であり、後続の canonical で package を準備して確認する。
 - Claude Code 2.1.322 の公式導入後、管理設定と固定 payload を保った2回の再同期が成功した。結果は `/tmp/codex/claude-plugin-native.88eqe081/result.json` に保存した。通常 HOME の導入内容と元 checkout は変更していない。
+
+## 独立レビューと公開前 gate
+
+実装 commit `485283ade043d54957100fb7ce15784b6cb6cfd9` を、固定点 `563758ae834c854f512938b816bd9658ebd46e17` から Standards / Spec の2軸で確認した。Standards は指摘0件。Spec は差分の不整合・scope creep の指摘はなく、最終 HEAD の全 Bats が未完了であることを公開前 gate として1件指摘した。
+
+この記録を含む最終 commit を clean にした後、元の standalone Bun template の1件を通常の Bats 経路で確認し、同じ HEAD で `python3 scripts/run-canonical.py --shell wsl --no-codex-build` を実行する。生成された `result.json` の終了コード・失敗件数と前後記録を照合し、Spec の gate を完了してから公開する。canonical 後は結果の追記だけの source 変更を行わず、結果を PR 本文と共有 QA に記録する。
 
 ## 後続の配備
 
