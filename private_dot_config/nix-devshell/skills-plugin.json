@@ -1,9 +1,9 @@
 {
   "owner": "treflebonbon",
   "repo": "skills",
-  "rev": "a0157fc6a64d039e273c306a9682c3d7d24c9f29",
-  "version": "0.2.8",
-  "nar_hash": "sha256-LvN0sr5SwyTWy4+eODeqn4qgl9hKOV54gdZ2vtOFUk8=",
-  "tree": "39d832e825be2ca3f6a50e1d028c151bfc58e541",
-  "file_count": 283
+  "rev": "fd2a50c558288b3661e5066b94b1196453ef9269",
+  "version": "0.2.10",
+  "nar_hash": "sha256-wCLbOs2NNdGJhGq2IlNr+NI4g1CcU+Cr8pXM9+vCtVw=",
+  "tree": "f3f3431db98cdca1a6132accef176ef288920365",
+  "file_count": 288
 }
