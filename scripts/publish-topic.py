@@ -88,6 +88,17 @@ def topic_identity(source, repo):
     }
 
 
+def valid_pr_observation(observed):
+    return (
+        isinstance(observed, dict)
+        and all(
+            isinstance(observed.get(key), str)
+            for key in ("headRefOid", "headRefName", "state", "url")
+        )
+        and re.fullmatch(r"[0-9a-fA-F]{40}", observed["headRefOid"]) is not None
+    )
+
+
 def inspect_topic(source, repo, pr=None):
     if pr is not None and pr < 1:
         raise ValueError("PR 番号は正の整数が必要です")
@@ -111,15 +122,10 @@ def inspect_topic(source, repo, pr=None):
     if pr is not None:
         observations = [observations]
     if not isinstance(observations, list) or any(
-        not isinstance(item, dict)
+        not valid_pr_observation(item)
         or type(item.get("number")) is not int
         or item["number"] < 1
         or (pr is not None and item["number"] != pr)
-        or not all(
-            isinstance(item.get(key), str)
-            for key in ("headRefOid", "headRefName", "state", "url")
-        )
-        or not re.fullmatch(r"[0-9a-fA-F]{40}", item["headRefOid"])
         for item in observations
     ):
         raise ValueError("PR API の応答形式が不正です")
@@ -263,14 +269,7 @@ def _verify(path, pr, timeout):
                 check=True,
             )
             observed = json.loads(response.stdout)
-            if (
-                not isinstance(observed, dict)
-                or not all(
-                    isinstance(observed.get(key), str)
-                    for key in ("headRefOid", "headRefName", "state", "url")
-                )
-                or not re.fullmatch(r"[0-9a-fA-F]{40}", observed["headRefOid"])
-            ):
+            if not valid_pr_observation(observed):
                 raise ValueError("PR API の応答形式が不正です")
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             verification.update(status="api_error", error=type(error).__name__)

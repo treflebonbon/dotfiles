@@ -4,6 +4,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -183,6 +184,45 @@ class PublicationTests(unittest.TestCase):
                 )
                 self.assertEqual(json.loads(output.getvalue()), result)
                 inspect.assert_called_once_with(Path.cwd(), "fixture/repo", 7)
+
+    @unittest.skipUnless(sys.platform == "linux", "verification_env requires Linux")
+    def test_handoff_instructions_preserve_api_failure_logs(self):
+        instructions = (ROOT / "docs/conventions.md").read_text()
+        block = next(
+            block
+            for block in re.findall(r"```bash\n(.*?)\n```", instructions, re.S)
+            if "handoff_record=" in block
+        )
+        block = block.replace("treflebonbon/dotfiles", "fixture/repo")
+        block += '\nprintf "%s" "$handoff_record" > "$HANDOFF_FIXTURE_RECEIPT"\n'
+        (self.work / "scripts").symlink_to(ROOT / "scripts", target_is_directory=True)
+        original_home = self.root / "home"
+        original_home.mkdir()
+        binary = self.root / "bin"
+        binary.mkdir()
+        gh = binary / "gh"
+        gh.write_text("#!/bin/sh\nprintf 'fixture API failure\\n' >&2\nexit 17\n")
+        gh.chmod(0o700)
+        receipt = self.root / "handoff-path"
+        environment = os.environ.copy()
+        environment.update(
+            HOME=str(original_home),
+            PATH=f"{binary}:{environment['PATH']}",
+            HANDOFF_FIXTURE_RECEIPT=str(receipt),
+        )
+        result = REAL_RUN(
+            ["bash", "-eu", "-c", block],
+            cwd=self.work,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = Path(receipt.read_text())
+        self.addCleanup(shutil.rmtree, record)
+        self.assertEqual((record / "exit-code").read_text(), "1\n")
+        self.assertEqual((record / "identity.json").read_text(), "")
+        self.assertIn("公開処理を停止しました", (record / "stderr.log").read_text())
 
     def test_delayed_observation_preserves_push_and_records_both_heads(self):
         self.answers = [self.observation(headRefOid="0" * 40), self.observation()]
