@@ -3,6 +3,14 @@
 2026-11-12 時点の task source と隔離 fixture の検証記録。
 これは live 配備の完了報告ではない。
 
+- root: `/home/ubuntu/orca/workspaces/dotfiles/herdr-app-596`
+- branch: `test/herdr-app-596`
+- base: `34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63`
+- 実装 commit: `f9aa716ec1d2e21e902476cb9cb6928572bb0114`
+- normal merge: `feat/herdr-app-migration` の
+  `95a90ac21f60058da71c61c72d0c352514fd3d8a`
+- 検証時の merge HEAD: `2f2142a5aa5465f3f3cd37980ec2455a0910e1db`
+
 ## 実装範囲
 
 - 通常 devShell の Herdr TUI 供給、TUI 用 APM skill、copy-env plugin
@@ -44,7 +52,8 @@ Herdr command が呼ばれないこと、TUI binary / hook / skill / permission 
 
 ### AC 4 — APM の公式生成・frozen・audit・配備照合
 
-**確認済み。** APM 公式 lock 生成、frozen install、`apm audit --ci` 10/10、candidate/base 配備比較を確認した。新 dependency はなく、TUI skill の 4 file だけが削除対象になった。
+**確認済み。** APM 公式 lock 生成、frozen install、`apm audit --ci` 10/10、candidate/base 配備比較を確認した。新 dependency はなく、TUI skill の 4 file だけが削除対象になった。Org policy は fixture remote から
+private `.github-private` を読めず、強制評価が skip された。これは APM audit の10検査とは別の状態として下記に記録した。
 
 ### AC 5 — raw 隔離・Git 境界と必須 check
 
@@ -64,7 +73,8 @@ Herdr command が呼ばれないこと、TUI binary / hook / skill / permission 
 
 ### AC 8 — App / Windows local / WSL remote の更新と失敗対応
 
-**一部確認。** 隔離 WSL core fixture で `hc update --from` の 0.1.19→ 0.1.20、無効 binary の拒否、古い 0.1.19 候補の no-op を確認した。
+**一部確認。** 隔離 WSL core fixture で `hc update --from` の
+0.1.19→0.1.20、無効 binary の拒否、古い 0.1.19 候補の no-op を確認した。
 既定の latest release download、通信 / checksum failure、rollback、Windows App / local core updater の実行は未確認。
 
 ### AC 9 — 固定版 TUI への復旧
@@ -81,10 +91,9 @@ Herdr command が呼ばれないこと、TUI binary / hook / skill / permission 
 
 ### AC 11 — check、共通構成、live 手順
 
-**source check 済み、live / canonical 待ち。** 3 supported systems の
-共通 Nix 構成評価と targeted check は成功した。full canonical / full Bats
-と受入後の live source apply は task 側で実行せず、最終統合後に親が行う。
-live 未実行を移行完了とは扱わない。
+**source check 済み、live / full suite 待ち。** 3 supported systems の
+共通 Nix 構成評価、targeted check、`runtime_test_checks.py` の必須 Bash / Treesitter 検証3/3、canonical harness Bats 47/47 は成功した。full canonical runner / full Bats と受入後の live source apply は task 側で
+実行せず、最終統合後に親が行う。live 未実行を移行完了とは扱わない。
 
 ### AC 12 — ADR、用語集、利用手順
 
@@ -101,13 +110,22 @@ live 未実行を移行完了とは扱わない。
 - `tests/apm-runtime.bats`、`tests/plan-apm-deployment.bats`、
   `tests/verify-apm-deployment.bats` は 54/54 pass。
   log root: `/tmp/codex/verification-env.shvwoh3j`。
-- lock SHA-256 は次の値。
+- task branch の公式生成候補 lock SHA-256 は次の値。
 
   `73dc23164c19046d8286e40ec019dbd42eac3a72df08a82ad54991e3f0cb9415`
 
   隔離 runtime は dependency 20、`.agents` / `.claude` とも skill 46、
   APM audit 10/10。candidate deploy verifier は追加 0・削除 4 を確認した。
   log: `/tmp/codex/ai-tools-us3bwxjj/startup.log`。
+
+- normal merge 後の最終 lock は current integration branch が採用していた
+  native lock `4b93ce2ed94771780a6d3ebcd512342569b155db0eeb320390a1350aa770cc64`
+  を選んだ。`73dc...` に含まれた4件の floating `resolved_commit` 更新を
+  持ち込まず、base `34fa46f...` と比べ Herdr dependency と4配備 file
+  だけを削除する。最終 lock でも frozen install 前後の SHA は不変、APM audit は10/10、配備 helper は dependency 20、各 target 46 skills、追加0・
+  削除4を確認した。log: `/tmp/codex/ai-tools-uxglq2mk/startup.log`。
+  同じ隔離 runtime で `apm audit --ci` を再実行した結果は
+  `/tmp/codex/ai-tools-4laa20bf/startup.log`。org policy は private `.github-private` の読取り権がなく強制評価されなかった。
 
 - `tests/codex-config.bats`、`tests/secret-isolation.bats`、
   `tests/verify-ai-tools.bats` は 92/92 pass、exit 0。
@@ -118,8 +136,20 @@ live 未実行を移行完了とは扱わない。
   `tests/verify-canonical.bats` は 34/34 pass。どちらも protected `verify-ai-tools.py --shell wsl --no-codex-build` 経由。
   logs: `/tmp/codex/ai-tools-13zj7hil/startup.log`、
   `/tmp/codex/ai-tools-rs0uiifz/startup.log`。
+- merge 後の APM / retirement / Nix runtime security suite は 63/63 pass。
+  内訳は APM 54、`tests/herdr-retirement.bats` 3、runtime security 6。
+  log: `/tmp/codex/ai-tools-_0np2okv/startup.log`。
+- merge 後の canonical harness Bats は 47/47 pass。log: `/tmp/codex/ai-tools-d3g9ne26/startup.log`。
+- merge 後の Codex config / secret isolation / AI tool verification suite は
+  92/92 pass。log: `/tmp/codex/ai-tools-iwqjg7jx/startup.log`。
+- merge 後の pre-push / wiring tests は 30/30 pass。log root: `/tmp/codex/verification-env.bc5ks4mu`。
+- `scripts/runtime_test_checks.py` は Bash 3.2 と固定 Treesitter checkout を
+  渡して実行し、Codex repo state と Treesitter の3件すべてが pass、skip
+  なし。Treesitter checkout は commit `0195cd62fa89950f34c0e0d648ea7897ab85d4d3`。log: `/tmp/codex/ai-tools-mh6__i93/startup.log`。
+- merge commit の pre-commit hook は protected Nix entry 経由で pass。
+  log: `/tmp/codex/ai-tools-f_1qzd99c/startup.log`。
 - `git diff --check` と `git diff --cached --check` は pass。
-  commit 前に再実行する。
+  merge 前に実行した。
 
 ### chezmoi candidate / 復旧 fixture
 
@@ -127,6 +157,8 @@ live 未実行を移行完了とは扱わない。
   fixture の旧 user data は残った。
   `.chezmoiignore` を旧 `.herdr` state の保持に合わせた後も exit 0。
   result: `/tmp/codex/verification-env.yq38w9gr/exit-code`。
+- integration branch の `tests/herdr-retirement.bats` でも history と既存
+  worktree marker を保持した apply を確認した。
 - 復旧 fixture は base source の `git show` 内容を使った。0.9.5 TUI package、
   同梱 APM skill、登録 hook、旧 command、permission を戻した。APM lock SHA
   は不変、audit 10/10、配備照合は dependency 21 / `.agents` 47 / `.claude` 47。TUI skill は指定 revision で両 target に戻った。
@@ -140,7 +172,8 @@ live 未実行を移行完了とは扱わない。
   の 0.1.19 から `hc update --from` で更新した。private runtime socket 上の
   core restart 後も live terminal `t1` が継続した。
   log: `/tmp/codex/verification-env.8f5ylnnp`。
-- 無効 fixture binary は `not a working hc` と拒否され、fixture の 0.1.20 core と live terminal は保たれた。
+- 無効 fixture binary は `not a working hc` と拒否され、fixture の
+  0.1.20 core と live terminal は保たれた。
   log: `/tmp/codex/verification-env._vysercg`。
 - 0.1.20 に古い 0.1.19 binary を渡すと `now == was == hc 0.1.20` の
   no-op として報告され、terminal は継続した。
@@ -166,20 +199,29 @@ live 未実行を移行完了とは扱わない。
   された。保護付き Nix gate へ切替えた後、fixture source に
   `tests/codex-repo-state.bats` がなく test 20 が失敗した。setup で実 source file をコピーする修正を加え、最後に両 canonical Bats を再確認した。
 - touched Markdown 全体の lint では複数の既存 ADR・runtime doc・template に
-  MD013 long line と MD025 heading が残った。今回の report は修正後、単体の
-  `markdownlint-cli2` で通過した。report lint log: `/tmp/codex/ai-tools-zefvg1ru/startup.log`。
+  MD013 long line と MD025 heading が残った。今回の report は単体の
+  `markdownlint-cli2` で通過した。log: `/tmp/codex/ai-tools-zefvg1ru/startup.log`。
 - `scripts/test-docs.sh` は `.chezmoiignore` が docs-only exception 外のため
   exit 2 を返し、doc-only test を実行しなかった。full suite は未実行。
+- 最初の commit hook は未導入の `oxlint` / `oxfmt` package 解決で失敗した。
+  protected Nix entry で frozen Bun dependencies を準備後に再実行したが、
+  verifier complexity 28 の lint error で停止したため helper に処理を分割し、
+  APM 54件と pre-commit を再確認して commit した。
+- integration merge の既定 message は Conventional Commits の形式でなく
+  `commit-msg` hook が拒否した。`chore: merge Herdr App integration` にして
+  normal merge commit を作成した。
+- 最終 APM install の初回 fixture は install 出力先と helper の runtime
+  引数を分けており、配備 file の不在で失敗した。隔離 runtime を cwd にして
+  frozen install / audit / helper をやり直し、最終 lock を確認した。
 
 ## 残作業と反映境界
 
-- Integration tip `feat/herdr-app-migration` は task base より先へ進んでいた。
-  task commit 後に通常 merge し、clean 状態を確認する。
+- Integration tip `feat/herdr-app-migration` は normal merge commit `2f2142a5aa5465f3f3cd37980ec2455a0910e1db` で取り込んだ。
 - merge 後、変更対象だけを live source の `chezmoi diff` で確認し、受入・
   merge 後に `chezmoi apply <対象の配備先パス>`、環境再読込、配備結果を
   照合する。task source から live へ apply しない。
-- App / Windows local core の更新、WSL の既定 latest update と通信 / checksum failure、rollback、full canonical / full suite は未実行のまま
-  親へ渡す。
+- App / Windows local core の更新、WSL の既定 latest update と通信 / checksum failure、rollback、full canonical runner / full suite、受入後の
+  live source 配備は未実行のまま親へ渡す。
 
 ## 変更一覧と理由
 
@@ -211,6 +253,10 @@ live 未実行を移行完了とは扱わない。
   `docs/adr/0088-migrate-herdr-tui-to-app.md`、`runtime/*.md`、
   `templates/{bun,elixir,gleam,go,perl,rust}/DEVELOPMENT.md` — 現行 App 利用、
   未対応 TUI skill、歴史資料、更新・復旧・未確認範囲を区別する。
+- current integration の `tests/herdr-retirement.bats` と、追加された ADR / research の歴史記録を通常 merge で保持した。ADR-0088 の復旧 baseline には
+  Nix 0.9.5、APM skill revision、copy-env source / hook の旧固定値を記録する。
+- ADR-0057 / 0063 と Herdr / AI tool の research 記録は、旧検証の歴史を残し
+  現行 App の運用案内と混同しないよう通常 merge で更新した。
 
 ## 参照証跡
 
