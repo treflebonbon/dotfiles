@@ -467,3 +467,5 @@ git -C "$source_root" show \
 - 保護付き `verify-ai-tools.py --shell wsl --no-codex-build` から retirement・APM runtime・autonomous peer contract の関連 Bats を実行し、29/29 成功、skip0、exit0を確認した。実ログは `/tmp/codex/ai-tools-koyj2q1y/startup.log` と `exit-code`。
 
 修正後の独立再レビューと clean commit の最終 canonical 結果は後続の生成記録・PR 本文へ保存する。merge、live 配備、実環境の旧配備物撤去は未実施。
+
+再レビューでは、規約の元 P3×3と仕様の元 P2×1・P3×3の解消を Claude Opus が確認した。追加で指摘された現行 runtime ガイドの供給一覧からも Herdr TUI を除いた。日付付きの歴史記録は保持した。固定復旧 patch の context が将来の隣接変更で適用不能になる保守上の制限と軽微な fixture の重複は記録し、今回の修正を不要な共通化へ広げていない。
