@@ -52,12 +52,12 @@ setup() {
   jq -e '[.[] | .[] | .[]] | length == 12' <<<"$output"
 }
 
-# 更新対象6件は upstream の出力を使い、APMは別テストで更新前の修正済み出力を照合する。
+# 更新対象5件は upstream の出力を使い、APMは別テストで更新前の修正済み出力を照合する。
 @test "llm-agents tools use unmodified upstream outputs on all supported systems" {
   run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
       flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
-      names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "herdr" "code-review-graph" ];
+      names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "code-review-graph" ];
     in builtins.mapAttrs (system: shells:
       map (name:
         let
@@ -72,7 +72,7 @@ setup() {
     ) flake.devShells
   '
   [ "$status" -eq 0 ]
-  jq -e 'length == 3 and all(.[]; length == 6)' <<<"$output"
+  jq -e 'length == 3 and all(.[]; length == 5)' <<<"$output"
 }
 
 @test "APM retains the pre-update outputs and patched Brotli closure" {
@@ -157,7 +157,7 @@ setup() {
       repo = builtins.getFlake root;
       user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
       # APM は専用テストで既存 output を照会し、この検査ではビルドしない。
-      separatelyChecked = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "herdr" "code-review-graph" ];
+      separatelyChecked = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "code-review-graph" ];
       packages = flake: builtins.filter
         (package: !(builtins.elem (package.pname or "") separatelyChecked))
         flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;

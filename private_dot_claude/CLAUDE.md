@@ -79,7 +79,7 @@ Google Cloud の自動調査は `gcloud-inspect`、Cloudflare は通常の `cf` 
 
 ## 設計→実装ワークフロー
 
-実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `~/runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
+実装は task worktree で行い、作成・選択は実行環境の native 機構に任せる。作業開始時の確認、Herdr App / Orca / Claude Code / Codex の起動経路、Git 管理情報を参照できない場合の復旧は `~/runtime/skill-harness.md` の「Worktree の開始と復旧」を読む。以降の phase は同じ checkout で続ける。
 
 - 要件未確定: `grill-with-docs` → `to-spec` → `to-tickets` → `implement-spec`（仕様全体）または `implement`（個別 ticket）
 - 要件確定済み: `implement`。PR 本文は `pr`、振り返りは `retro`

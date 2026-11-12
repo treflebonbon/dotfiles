@@ -118,9 +118,6 @@ in
     llm.copilot-cli
     llm.antigravity-cli
 
-    # --- Terminal Workspaces ---
-    llm.herdr
-
     # --- Code Review Context ---
     # CLI only. Each repository decides whether to build a graph and add a
     # project-scoped MCP entry; never run the upstream global installer here.

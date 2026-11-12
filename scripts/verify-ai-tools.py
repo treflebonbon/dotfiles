@@ -19,7 +19,6 @@ TOOLS = {
     "copilot-cli": "copilot",
     "antigravity-cli": "agy",
     "apm": "apm",
-    "herdr": "herdr",
 }
 EXPRESSION = """let
   source = builtins.getEnv "AI_TOOL_SOURCE";

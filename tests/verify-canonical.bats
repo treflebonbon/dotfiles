@@ -208,10 +208,10 @@ TAP
 }
 
 @test "Bash 対象変更時は未準備の Bash 3.2 で canonical を開始しない" {
-  mkdir -p "$SOURCE/.herdr"
-  printf 'version = "test"\n' >"$SOURCE/.herdr/herdr-plugin.toml"
+  mkdir -p "$SOURCE/private_dot_local/bin"
+  printf '#!/usr/bin/env bash\n' >"$SOURCE/private_dot_local/bin/executable_codex-repo-state"
   git -C "$SOURCE" add .
-  git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change Herdr'
+  git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change Codex repo state'
   unset TEST_COMPAT_BASH
 
   run_canonical

@@ -1054,24 +1054,6 @@ dependencies:
     .claude/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md: sha256:cb5500844c63ee8cf869c33493d3965515a6236df6482daf449abfa74cdcb22d
     .claude/skills/modern-web-guidance/guides/webmcp/webmcp.md: sha256:ed20a7cb5bb400b186e234ec0f4ffa0d923ded078447777ff42499cce902afa9
   content_hash: sha256:4013ac03e5f1d53df1e9d93e525247529291a748082085a02ee51533def1a11e
-- repo_url: herdrdev/herdr
-  name: herdr
-  host: github.com
-  resolved_commit: 2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01
-  resolved_ref: 2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01
-  version: unknown
-  virtual_path: skills/herdr
-  is_virtual: true
-  package_type: claude_skill
-  deployed_files:
-  - .agents/skills/herdr
-  - .agents/skills/herdr/SKILL.md
-  - .claude/skills/herdr
-  - .claude/skills/herdr/SKILL.md
-  deployed_file_hashes:
-    .agents/skills/herdr/SKILL.md: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
-    .claude/skills/herdr/SKILL.md: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
-  content_hash: sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18
 - repo_url: mattpocock/skills
   name: mattpocock-skills
   host: github.com
@@ -3818,24 +3800,6 @@ deployments:
   - mattpocock/skills
   active_owner: mattpocock/skills
   content_hash: sha256:5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28
-- kind: project-relative
-  target: claude
-  value: .claude/skills/herdr
-  runtime: null
-  scope: project
-  owners:
-  - herdrdev/herdr/skills/herdr
-  active_owner: herdrdev/herdr/skills/herdr
-  content_hash: null
-- kind: project-relative
-  target: claude
-  value: .claude/skills/herdr/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - herdrdev/herdr/skills/herdr
-  active_owner: herdrdev/herdr/skills/herdr
-  content_hash: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
 - kind: project-relative
   target: claude
   value: .claude/skills/impeccable
@@ -10640,24 +10604,6 @@ deployments:
   - mattpocock/skills
   active_owner: mattpocock/skills
   content_hash: sha256:5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28
-- kind: project-relative
-  target: codex
-  value: .agents/skills/herdr
-  runtime: null
-  scope: project
-  owners:
-  - herdrdev/herdr/skills/herdr
-  active_owner: herdrdev/herdr/skills/herdr
-  content_hash: null
-- kind: project-relative
-  target: codex
-  value: .agents/skills/herdr/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - herdrdev/herdr/skills/herdr
-  active_owner: herdrdev/herdr/skills/herdr
-  content_hash: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
 - kind: project-relative
   target: codex
   value: .agents/skills/impeccable

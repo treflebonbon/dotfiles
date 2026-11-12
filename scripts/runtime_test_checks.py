@@ -9,7 +9,6 @@ import sys
 
 
 BASH_TESTS = (
-    "Herdr event copies .env without inherited Git variables",
     "codex repo state works without inherited Git variables",
 )
 TREESITTER_TESTS = (
@@ -17,9 +16,7 @@ TREESITTER_TESTS = (
     "固定版 Treesitter の実 API でも設定と選択が動く",
 )
 BASH_PATHS = {
-    ".herdr/herdr-plugin.toml",
     "private_dot_local/bin/executable_codex-repo-state",
-    "tests/herdr-copy-env.bats",
     "tests/codex-repo-state.bats",
     "scripts/runtime_test_checks.py",
 }
@@ -107,7 +104,7 @@ def main():
         if required and not arguments.validate_only:
             files = []
             if any(name in required for name in BASH_TESTS):
-                files.extend(("tests/herdr-copy-env.bats", "tests/codex-repo-state.bats"))
+                files.append("tests/codex-repo-state.bats")
             if any(name in required for name in TREESITTER_TESTS):
                 files.append("tests/nvim-treesitter.bats")
             pattern = "^(" + "|".join(map(re.escape, required)) + ")$"

@@ -78,7 +78,7 @@ if args[0] == 'eval':
         Path(os.environ['FIXTURE_SENTINEL']).write_text('changed')
     print(json.dumps([{'name':name,'version':'fixture',
         'path':str(Path(os.environ['FIXTURE_BIN'])/name)}
-        for name in ('claude','codex','copilot','agy','apm','herdr')]))
+        for name in ('claude','codex','copilot','agy','apm')]))
 elif args[0] == 'build':
     if os.environ.get('FIXTURE_MODE') == 'build-failure':
         sys.exit(17)
@@ -100,7 +100,7 @@ else
 fi
 SH
   local tool
-  for tool in claude codex copilot agy apm herdr; do
+  for tool in claude codex copilot agy apm; do
     printf '#!/bin/sh\nprintf "fixture\\n"\n' >"$FIXTURE_BIN/$tool"
   done
   chmod +x "$FIXTURE_BIN"/*

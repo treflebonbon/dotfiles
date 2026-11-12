@@ -34,11 +34,22 @@ TUI の状態・履歴・既存 worktree は保持する。導入や接続の検
 
 整理後に復旧が必要になった場合は、validated task worktree で復旧変更を作り、受入後に live source から対象を限定して配備する。整理前と同じ固定版の TUI 供給、同梱 skill の固定版、copy-env plugin の source と登録、関連する許可設定を整合した状態へ戻し、保持した旧状態を確認して利用を再開する。整理 commit の revert はこの結果を得る手段の一つで、Herdr 公式の手順ではない。無関係な AI ツールの版や設定を巻き戻さず、元の固定版を供給できない場合は別の版を無断で代用しない。データの削除、branch の破壊的な巻戻し、無関係な設定変更は含めない。
 
+### 復旧 baseline
+
+移行直前の dotfiles source baseline は `34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63`。復旧変更はこの commit から次の TUI 固定値と source を選び、現在の他の設定へ重ねる。
+
+- Nix: `private_dot_config/nix-devshell/flake.lock` の `llm-agents` revision `2b6455a7711d6dc90e42e555c1ddb504481268f4` に含まれる `llm.herdr` 0.9.5。lock 全体は戻さず、現在の `ai.nix` の `llm.herdr` package entry だけを復元する。
+- APM: `herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`。移行直前 lock の skill `content_hash` は `sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18`。現在の manifest にこの dependency だけを追加し、`runtime/skill-harness.md` の隔離生成・frozen install・audit 手順で lock を再生成する。旧 `apm.lock.yaml` 全体をコピーしない。
+- Copy-env: `.herdr/herdr-plugin.toml` の `dotfiles.copy-env` 0.2.0 と `run_after_setup-herdr.sh`。この baseline の同名ファイルを復元し、chezmoi の設定反映後に登録状態を確認する。
+- Claude permission: `private_dot_claude/settings.json.tmpl` の `Bash(herdr worktree remove:*)` 一件だけを戻す。`.chezmoiignore` の `.herdr` 除外は維持する。
+
+テストする場合は移行後 source の一時 fixture に対して上記だけを戻し、Nix の版、APM の frozen/audit、plugin source と登録対象、permission、他の package / dependency の不変を確認する。fixture は専用の一時 HOME と APM 配備先を使う。ライブ HOME、稼働中の App/core、既存 `.herdr` データは復旧試験に使わない。実際の復旧では無関係なファイルを baseline から一括 checkout せず、復元対象の差分だけをレビューする。
+
 実装は validated task worktree で行う。未 merge の task source から `chezmoi apply` しない。受入後の live source から、変更対象に限定して配備・通常環境を再読み込みする既存の境界を維持する。
 
 ## 受入条件
 
-以下を移行完了の条件として合意した。現時点で動作確認済みの一覧ではない。
+以下を移行完了の条件として合意した。#594/#595 実機結果と #596 source checks の確認範囲は後段に記す。
 
 1. 公式バイナリの Windows App／local core と WSL2 側 core を導入でき、`wsl.exe` の公式 transport で接続できる。SSH server の追加を前提にしない。
 2. App から WSL2 内のリポジトリと既存 worktree を開き、新しい task worktree を作成できる。その terminal で Bash と既存の Nix ツールを使える。
@@ -53,14 +64,22 @@ TUI の状態・履歴・既存 worktree は保持する。導入や接続の検
 2026-11-11 の確認結果。以下の公式資料の記載と、ローカルの観測を区別する。
 
 - [公式 FAQ](https://herdr.dev/#questions) は、App が `herdr-core` を使う別プログラムで、TUI とエージェントを共有しないと説明している。既存の TUI セッションが App へそのまま表示される前提にはしない。
-- App 標準の worktree 機能は、接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` に作成し、既存の checkout は Open worktree で開く（[App AGENTS.md](https://github.com/herdrdev/herdr-app/blob/master/defaults/AGENTS.md)）。TUI の既定 root `~/.herdr/worktrees` と重なることを受け入れ、独自 mod・保存先の変更・自動削除は追加しない。同名 branch・path の衝突時の挙動、選択 checkout を基点とする作成、TUI が作成した checkout の再利用、worktree-gc（[ADR-0056](0056-worktree-gc-home-wide-fanout.md)）の所有権・保護条件は、2026-11-11 の #594 実機検証（WSL2、App 0.1.15、TUI 0.9.5）で確認した。手順は [runtime 利用案内](../../runtime/ai-runtimes.md#app-標準-worktree-の作成と再利用) に記録した。保持する worktree に Remove worktree を使わず、TUI 依存の整理で `~/.herdr` 配下のデータを削除しない。
-- [Core Machines](https://github.com/herdrdev/herdr-core/blob/master/docs/machines.md) に、Windows から `wsl.exe` を `--via` に指定して WSL 内の core へ接続する経路がある。App がこの machine を利用することは [App の model](https://github.com/herdrdev/herdr-app/blob/master/defaults/AGENTS.md#the-model-spaces-tabs-terminals) と整合するが、この環境での一連の接続は未検証。
-- [App の公式 updater](https://github.com/herdrdev/herdr-app/blob/master/src/update.rs) は App と local core を扱う。WSL 側 core は別 machine なので、App の更新だけで更新済みとは扱わず、公式の remote core 更新手順も運用に含める。
-- 現ホストは WSL2。PATH 上には Nix 由来の Herdr TUI 0.9.5 があり、`hc` と `herdr-app` は見つからなかった。Windows 側の既知の標準インストール先にも App／core は見つからなかったが、任意の場所への導入までは確認していない。
-- WSL の一覧には `Ubuntu-24.04` がある。対象ディストリビューションと current user の対応を実装時に再確認する。
-- `codex-worktree` は既にホストの制御 socket を隔離内へ公開しない。[既存の隔離契約](../../runtime/ai-runtimes.md#新規-worktree-への-env-コピー) と [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) の保護を、新 App の通常起動だけで満たせるとは扱わない。
-- [core のマニュアル](https://github.com/herdrdev/herdr-core/blob/master/crates/herdr-core/src/SKILL.md) は、Codex に `--no-daemon` を指定しないとコマンドが hc の外で実行されると説明している。現行 CLI の help と固定版の両起動経路の引数検査では、この指定を使えることを確認した。App/core 経由の実起動、共有 daemon を経由しないこと、必要な隔離と OSC 7501 による状態報告は未検証である。
-- 親の待機は `hc wait` を使い、message・timeout などの結果を区別する。起動時の依頼文が launch task として配送されるか、program の argv になるかと、`hc read` で応答を取得できる範囲を導入版で確認する。idle への遷移や待機の終了だけで回答完了とせず、子が `hc send` を使えない場合も親が今回の依頼への応答を確認する。実用に必要な状態報告や結果取得を満たせず公開 plugin の改修が必要になった場合は、合意範囲を広げず相談する。
+- App 標準の worktree 機能は、接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` に作成し、既存の checkout は Open worktree で開く（[App AGENTS.md](https://github.com/herdrdev/herdr-app/blob/v0.1.15/defaults/AGENTS.md)）。TUI の既定 root `~/.herdr/worktrees` と重なることを受け入れ、独自 mod・保存先の変更・自動削除は追加しない。同名 branch・path の衝突時の挙動、選択 checkout を基点とする作成、TUI が作成した checkout の再利用、worktree-gc（[ADR-0056](0056-worktree-gc-home-wide-fanout.md)）の所有権・保護条件は、2026-11-11 の #594 実機検証（WSL2、App 0.1.15、TUI 0.9.5）で確認した。手順は [runtime 利用案内](../../runtime/ai-runtimes.md#app-標準-worktree-の作成と再利用) に記録した。保持する worktree に Remove worktree を使わず、TUI 依存の整理で `~/.herdr` 配下のデータを削除しない。
+- [Core Machines](https://github.com/herdrdev/herdr-core/blob/v0.1.20/docs/machines.md) の `wsl.exe` `--via` 経路は #594/#595 で Windows App 0.1.15 から WSL2 machine への接続に使った。App terminal で既存・新規 linked worktree を開き、Bash・Nix・Codex の起動と親側 `hc run` を確認した。
+- [App の公式 updater](https://github.com/herdrdev/herdr-app/blob/v0.1.15/src/update.rs) は App と App 所有の local core を扱う。App update は download と SHA-256 を確認してから再起動で適用し、初回起動で同 generation の local core を更新する。package manager 所有の local core は App が更新しない。WSL 側 core は別 machine なので、App の更新だけで更新済みとは扱わず、公式の `hc machine update` 手順も運用に含める。
+- 2026-11-11 の初期確認では WSL PATH 上に Nix 由来 Herdr TUI 0.9.5 があり、`hc` と `herdr-app` は未検出だった。翌日の #594/#595 では Windows App 0.1.15、Windows/WSL core 0.1.20、WSL Codex 0.167.0 を確認した。
+- #595 では remote machine `wsl-ubuntu-24-04` に接続し、App terminal の `codex-worktree --no-daemon` と reviewer `codex-reviewer --no-daemon` を公開 fixture で実行した。raw wrapper の file/index/commit 返却と host HEAD 照合を確認し、reviewer の `git update-index --force-write-index` は read-only filesystem により拒否された。
+- `codex-worktree` は既にホストの制御 socket を隔離内へ公開しない。[既存の隔離契約](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) と [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) の保護は、新 App の通常起動だけで満たせるとは扱わない。
+- [core のマニュアル](https://github.com/herdrdev/herdr-core/blob/v0.1.20/crates/herdr-core/src/SKILL.md) に従い、両起動経路で `--no-daemon` を使った。#595 では実起動と必要な隔離を確認した。親の `hc wait` は timeout/working の後に done へ進み、`hc read` の stitched 応答から今回の marker と公開 file の読取りを確認した。別の no-model fixture での `reason=message` は実 reviewer の回答と区別した。
+- #595 の同じ reviewer process で `plugin contents changed; hook approval required` が再発した。承認後のモデル応答・Git boundary は確認したが、hook warning は解消済みと扱わず、正確な mismatch 原因は未確定である。
+- 導入版の App home `AGENTS.md` と `hc --skill` を正本として再確認する（[公式ガイド](https://herdr.dev/guide/)）。App / Windows / WSL の再起動をまたぐ agent 継続は保証しない。App/local core/remote core の更新失敗を導入版へ注入して確認する試験は未実施で、runtime guide は公式手順に沿った復旧方法を記載する。
 - 本 ADR の master 版資料は調査時点の参考である。導入時は、導入版の App home の `AGENTS.md` と `hc --skill` を正本として再確認する（[公式ガイド](https://herdr.dev/guide/)）。`wsl.exe` 経由の非 login shell と App menu の起動環境を区別し、menu と親の `hc run` の両方で Bash・Nix・`hc`・既存の Codex 起動経路を利用できることを実測する。
 
-全機能の同等再実装は独自連携の保守を継続するため選ばず、TUI との恒久併用や試用だけでの完了も選ばなかった。2026-11-11 の `grill-with-docs` で設計全体の共有理解と受入条件を確認し、合意した。導入・設定変更・既存資産の撤去は後続の実装フェーズで行う。
+全機能の同等再実装は独自連携の保守を継続するため選ばず、TUI との恒久併用や試用だけでの完了も選ばなかった。2026-11-11 の `grill-with-docs` で設計全体の共有理解と受入条件を確認し、合意した。
+
+## #596 実装・復旧 fixture の確認
+
+- 変更前 source baseline `34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63` を一時 archive し、Herdr package / copy-env / registration の旧 Bats 34件を実行した。32件成功、opt-in App integration と Bash 3.2 指定の2件は実行せず skip。Nix は 0.9.5 を全対応 system / shell で返した。
+- 同じ baseline から隔離した APM fixture で 21 dependencies の `apm install --frozen --target claude,codex --https` と `apm audit --ci` が成功し、audit 10/10、lock SHA-256 は不変。Herdr skill は revision `2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`、content hash `sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18` で復旧可能なことを確認した。
+- 現行 candidate lock は移行前 lock を初期値にした隔離 runtime で native 生成し、frozen install 前後の SHA-256 が不変、audit 10/10。除かれたのは Herdr dependency と両 target の4 ledger row だけで、残る 1,512 deployment entries は元 lock と一致した。APM deployment helper は dependency の構成変更を受け付けないため、比較用 base から意図した Herdr entry だけを外して `plan` / `verify` を実行し、候補外 drift 0、20 dependency、各 target 46 skill を確認した。
+- `chezmoi apply` の回帰 fixture は Herdr を含まない source から既存 `~/.herdr/history` と worktree marker を保持する。通常 HOME、App/core の live 更新・失敗注入、TUI state は変更していない。

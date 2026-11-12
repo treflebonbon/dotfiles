@@ -12,49 +12,17 @@ tags: [ai, claude-code, codex, nix, llm-agents]
 AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`modules/ai.nix`）:
 
 - **LLM CLI**: claude-code, codex, copilot-cli, antigravity
-- **ワークフロー**: herdr
 - **コードレビュー補助**: code-review-graph（CLI のみ常設、利用はリポジトリ単位で opt-in）
 
 第三者 skill / plugin は APM、`treflebonbon-skills` は固定版の公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリと dotfiles 固有の配線を供給する。固定版 pin は `~/.config/nix-devshell/skills-plugin.json` に一つだけ置き、共用 CLI・raw Codex 入口・browser 補助資産は同じ immutable source を使う。移行前 copy の撤去許可には、まず `sync-codex-managed-config --verify-only` で各 managed Codex home の exact current version cache grant と deny を現行 config から照合し、続けて `sync-skills-plugin --verify-only` で current pin、source snapshot、receipt、Claude Code・各 Codex home・Antigravity CLI の現在の inventory と payload を照合する。後者の成功 JSON `source` が検証済み source path であり、receipt の過去成功だけでは current install を証明しない。旧 CLI は既知の baseline と一致する固定 snapshot だけへ fallback し、raw 起動は固定 source が欠ける場合に停止する。移行・復旧・適用範囲は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を参照する。
 
-## Herdr の手動利用
+Herdr TUI の Nix 供給、APM skill、copy-env 登録、TUI 用コマンドは退役済みで、既存の `~/.herdr` 状態は保持する。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
 
-Herdr は `llm-agents.nix` の immutable snapshot と lock で固定し、ユーザー devShell の `default` / `wsl` から供給する。`inputs.llm-agents.packages.${system}.herdr` を直接参照して Numtide の binary cache と同じ derivation を使う。cache が利用できない更新候補は保留し、自前の Rust / Zig ビルドへ進まない。
-
-任意のプロジェクトディレクトリで起動する。
-
-```bash
-herdr
-```
-
-既定の background session を起動または再接続し、pane 内でシェルを利用できる。初回の案内から任意の agent integration 設定が開いた場合は、追加せず `Esc` で閉じて使い始める。global 設定、復元用 hook、追加 skill、ログイン時の自動起動は dotfiles から追加しない。
-
-`Ctrl-b` を押してから `q` を押すと detach する。pane 内の処理は継続し、もう一度 `herdr` を実行すると同じセッションへ戻る。
-
-0.9.0 では標準の状態検出と `update.manifest_check` の既定を維持し、画像機能も上流既定の有効状態で使う。`terminal.kitty_graphics` は端末の対応状況に依存するため、描画に問題がある端末では個人設定で `false` にできる。dotfiles は端末別 override を配備しない。今回の確認範囲は隔離した文字端末での再接続と画像 API の有効性までであり、対応端末の画像描画品質は[検証記録](../docs/research/ai-tool-snapshot-243.md)に未確認として残す。
-
-更新は validated task worktree 内でユーザー環境用 flake の `llm-agents` の採用 revision を変更し、その flake のディレクトリで行う。
-
-```bash
-nix flake update llm-agents
-```
-
-revision 固定のため、lock の更新だけでは別 snapshot の release へ進まない。Herdr の採用版を変える場合は `tests/herdr.bats` の期待版も更新する。同じ snapshot に含まれる他の AI ツールの差分と品質 floor も、[既存の更新手順](../docs/adr/0045-separate-llm-agents-and-apm-update-units.md)に沿って確認する。対応 system の Nix 評価、host の package 取得・ビルドと起動を検証し、受入後に live source から `chezmoi apply` して通常のユーザー環境を再読み込みする。Nix 管理の Herdr は Nix 経由で更新する。
-
-更新済みのコマンドが利用できても、稼働中の server は旧版のままの場合がある。既定セッションの pane 内の作業を終えてから、次を実行する。停止時には pane 内のプロセスも終了する。
-
-```bash
-herdr server stop
-herdr
-```
-
-関連: [公式 Quick start](https://herdr.dev/docs/quick-start/) / [llm-agents の Herdr package](https://github.com/numtide/llm-agents.nix/tree/main/packages/herdr)
-
-## Windows Herdr App から WSL2 を使う
+## Windows Herdr App と WSL2 core
 
 Windows App と local core は[公式ダウンロード](https://herdr.dev/download/)からユーザー単位で導入する。installer は local core がない場合に追加する。WSL2 側の remote core は別 machine として登録する。導入後の正本は App の Help にある同じ版の User Guide と `hc --skill`（core manual）。App の画面・space・terminal 設定は App のユーザープロファイルが所有し、chezmoi には取り込まない。
 
-公式 core は [WSL machine の手順](https://raw.githubusercontent.com/herdrdev/herdr-core/master/docs/machines.md)に沿って Windows の `wsl.exe` 経由で接続できる。接続例は、未使用の machine 名を選んで Windows PowerShell から実行する。この例の distro、Linux user、socket path はこの実機で観測した値なので、別の WSL 環境では `wsl.exe -d <distro> -e sh -c 'id; printf "%s\\n" "$XDG_RUNTIME_DIR"'` などで対象 user と runtime を確認し、remote core が実際に使う socket に合わせる。
+公式 core は [WSL machine の手順](https://github.com/herdrdev/herdr-core/blob/v0.1.20/docs/machines.md)に沿って Windows の `wsl.exe` 経由で接続できる。接続例は、未使用の machine 名を選んで Windows PowerShell から実行する。この例の distro、Linux user、socket path はこの実機で観測した値なので、別の WSL 環境では `wsl.exe -d <distro> -e sh -c 'id; printf "%s\\n" "$XDG_RUNTIME_DIR"'` などで対象 user と runtime を確認し、remote core が実際に使う socket に合わせる。
 
 ```powershell
 $hc = Join-Path $env:LOCALAPPDATA 'Programs\herdr-core\hc.exe'
@@ -68,13 +36,13 @@ App の machine を選び、既存 repository を開く。linked worktree も既
 
 ### App 標準 worktree の作成と再利用
 
-作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App の既定保存先は接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` で、Herdr TUI の既定 `worktrees.directory` `~/.herdr/worktrees` と重なる。同じ repository の App/TUI worktree は同じ Git common dir に登録される。
+作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App の既定保存先は接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` で、以前の TUI の `~/.herdr/worktrees` と重なり、既存 checkout も同じ Git common dir に登録される。
 
 App で対象 repository の space を右クリックし、New worktree を選んで branch 名を入力する。既存 branch は再作成せず、その branch を checkout する。保存先は repository 名と branch 名から決まり、App のダイアログに個別 path 欄はない。branch が別 checkout で使用中なら Git error で作成が失敗し、保存先 directory が既にあっても App は上書きしない。衝突時は branch・directory・既存ファイルと Git 状態を確認し、強制再作成や自動削除をしない。
 
-TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
+以前の TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
 
-`worktree-gc.sh` の単一 repository 診断は既定では repo-local root を調べる。App/TUI worktree の所有権と既存保護理由を確認するときは、診断対象 `--roots` に対象 repository の `~/.herdr/worktrees/<repo>` を明示して `--diagnose` を実行する。確認は削除を伴わず、保持する worktree に `--apply` を使わない。GC の保護条件と外部 root の扱いは [ADR-0056](../docs/adr/0056-worktree-gc-home-wide-fanout.md) に従い、skill や GC の実装は変更しない。
+`worktree-gc.sh` の単一 repository 診断は既定では repo-local root を調べる。App worktree と保持した既存 worktree の所有権と既存保護理由を確認するときは、診断対象 `--roots` に対象 repository の `~/.herdr/worktrees/<repo>` を明示して `--diagnose` を実行する。確認は削除を伴わず、保持する worktree に `--apply` を使わない。GC の保護条件と外部 root の扱いは [ADR-0056](../docs/adr/0056-worktree-gc-home-wide-fanout.md) に従い、skill や GC の実装は変更しない。
 
 作成後または既存 checkout を開いた後、App terminal で次を実行し、working root・branch・HEAD・Git metadata・状態を確認する。
 
@@ -136,59 +104,19 @@ Claude Code は対象 App terminal の空の prompt から `claude` を実行す
 
 App を閉じても terminal を保持するのは remote core であり、App window を閉じる前に terminal の address・space・working root を記録する。App を再度開き、machine に接続して同じ terminal が残っていることを確認する。core / WSL を停止すると terminal 内の process も終了するため、再接続確認では App だけを閉じる。既存 TUI の供給・設定・データはこの App の設定から移行・変更しない。App と core の更新はそれぞれの公式配布経路を使い、ソース build や独自の chezmoi 設定同期を追加しない。
 
-### Herdr からの agent 起動
+### App と core の更新・失敗時の復旧
 
-新しい pane の shell prompt から Claude Code / Codex を対話モードで起動する手順。確度は confirmed（実測）／inferred（推論）／unconfirmed（未確認）で区別する（[#458](https://github.com/treflebonbon/dotfiles/issues/458)）。
+更新対象は Windows の App、Windows local core、WSL2 remote core の3つに分ける。App の「Settings → Updates」と同版 User Guide を各操作の正本にする。App installer は `%LOCALAPPDATA%\Programs\herdr-app` を PATH に加え、core installer は `%LOCALAPPDATA%\Programs\herdr-core` に `hc.exe` を置く。PowerShell では接続例と同じく `$hc = Join-Path $env:LOCALAPPDATA 'Programs\herdr-core\hc.exe'` を設定する。App 0.1.15 は更新を取得して SHA-256 を検証し、再起動時に適用する。App 更新後の初回起動では、App が所有する同じ generation の Windows local core も更新される。App が package manager 管理と認識した core は自動更新しない。App を更新しただけで WSL2 remote core も更新済みとは扱わない（[App の install/update](https://github.com/herdrdev/herdr-app/blob/v0.1.15/README.md#install)、[App security/update の説明](https://github.com/herdrdev/herdr-app/blob/v0.1.15/docs/security.md)、[Core の Windows install/update](https://github.com/herdrdev/herdr-core/blob/v0.1.20/distribution/install.ps1)、[core machine guide](https://github.com/herdrdev/herdr-core/blob/v0.1.20/docs/machines.md)）。
 
-確認した条件は Herdr 0.9.3、Claude Code 2.1.296、`~/.claude.json` の `defaultToAgentsView: true`。試行ごとの観測は[研究記録](https://github.com/treflebonbon/dotfiles/blob/main/docs/research/herdr-agent-startup-observations.md)にある。
+| 対象 | 更新操作 | 版の確認 | 失敗時 |
+| --- | --- | --- | --- |
+| Windows App | App の「Settings → Updates」で確認し、SHA-256 検証後に App を再起動する。 | App の Help → About と Updates の表示を記録する。 | download / checksum error を Updates で確認し、接続を直して再試行する。自動更新確認は失敗後30分で再試行され、手動確認は Updates から実行できる。新しい版へ切り替わるのは検証後なので、失敗時は現在の App を維持する。起動できない場合は公式 Windows installer から修復する。 |
+| Windows local core | App 更新後の初回起動で、App 所有の core が同じ generation の公式版へ更新される。必要なら PowerShell で `hc.exe update` を実行する。 | App の Updates と `hc.exe --version` を照合する。 | App の core update error を確認して再試行する。Updates に package manager 管理と表示された場合は App から更新せず、その所有者の手順に従う。 |
+| WSL2 remote core | Windows PowerShell から `hc.exe machine update <machine>` を実行する。remote machine の core を更新して再接続する。 | `hc.exe machine ls` の last observed version を確認し、必要なら `hc.exe exec --on <machine> -- hc --version` でも照合する。 | `machine ls` の接続状態・last error を読み、認証切れなら `hc.exe machine login <machine>`、transport・socket が不正なら登録時の `--via` を確認してから再試行する。machine を削除・再登録せず、失敗した更新の版を成功扱いしない。 |
 
-- **Claude Code**: `--name NAME` を付けて起動する。`herdr agent start NAME --kind claude --pane PANE -- --name NAME` で個別の対話 session を開く（confirmed）。`pane run PANE "claude --name NAME"` も対話画面になる（confirmed）。一覧画面については下記を参照。
-- **Codex**: `herdr agent start --kind codex` は使わない。実装役は pane の shell から `codex-worktree`、読み取り専用のレビュー役は `codex-reviewer` で起動する（[契約](skill-harness.md#worktree-の開始と復旧)）。`pane run PANE "codex-reviewer"` の後、`agent list` で codex として認識された（confirmed）。
-- **`agent_pane_busy` が出たとき**:
-  - 観測: split 直後の新しい pane では、shell の子 bash が zombie（`ps` で `Z+`）のまま前面 process group に残ることがある。`pane process-info` には cmdline が `null` の `bash` として出る（confirmed）。busy の原因がこの zombie だというのは inferred（同時に観測したのは 1 回で、Herdr の判定実装は未確認）。zombie の生成元（bashrc の subshell か flyline か）と、revision・`--no-focus` との関係は unconfirmed。
-  - 回避: `herdr pane read PANE` で未確定の入力がない空の shell prompt を、`herdr pane process-info --pane PANE` で shell と zombie 以外の command がないことを確かめる。`herdr pane send-keys PANE enter` で空行を送ってから `agent start` をやり直す（confirmed）。
-  - 最後の手段: `herdr pane run PANE "claude --name NAME"`。ready 判定も agent 名もないので、`herdr agent list` で認識を確かめ、`herdr agent rename PANE NAME` し、対話画面を確認してから `agent prompt` する。
-- **隔離 session での pane 指定**: worktree に隔離された Claude Code では、`herdr pane layout --pane "$HERDR_PANE_ID"` が拒否された（confirmed、[観測](index.md)）。先に `echo "$HERDR_PANE_ID"` で値を取り、`--pane w10:p1` のようにリテラルで渡すと通った（confirmed）。
-- **本文の送信**: 複数行や記号を含む依頼は、本文を UTF-8 ファイルに書き、`herdr-ask NAME --body-file FILE [--timeout MS] [--lines N]` で送る（source: `private_dot_local/bin/executable_herdr-ask`）。`agent prompt --wait` の後、成否にかかわらず `agent read` の最近の出力を表示する。終了コードは、prompt が失敗すればそのコード、成功すれば read のコード。待機の完了は今回の依頼への回答完了を保証しないので、表示された応答を確かめる。timeout でも配送済みのことがあるので、再送する前に状態を確かめる。
-- **背景 session の一覧画面が開くとき**: 引数なしの `pane run PANE "claude"` は一覧（`describe a task for a new session`）を開く（confirmed）。Claude Code は、起動条件を満たすと `defaultToAgentsView === true` で agents view を選ぶ（confirmed: 本体コード）。一覧表示へ進む起動条件の詳細は unconfirmed。この設定は `/config` の "Open agents view by default" で、dotfiles では管理していない個人設定。一覧は子 session の実行中も `idle` なので `agent prompt --wait` の対象にしない。一覧に送った `agent prompt` は新しい background session になり、結果は `~/.claude/jobs/<id>/timeline.jsonl` から読む。
+App の更新と WSL remote core の更新を同じ変更扱いにせず、それぞれの前後の版を記録する。core の更新では既存 terminal を維持する仕様だが、App / Windows / WSL の再起動をまたぐ agent 継続は保証しない。更新に失敗した場合は同じ machine と既存データを保持し、原因と最後に確認できた版を記録する。TUI の設定・履歴・worktree は App の更新・復旧操作から変更しない。
 
-### 新規 worktree への `.env` コピー
-
-dotfiles repo の `.herdr/herdr-plugin.toml` は、`worktree.created` に Bash のコピー処理を直接定義するローカル plugin。外部 plugin の install は不要で、実行には既存ユーザー devShell の Bash・jq・Git・cp を使う。`.herdr` は chezmoi のホーム配備対象から除外する。
-
-受入・merge 後の通常の `chezmoi apply` / `chezmoi update` で、`run_after_setup-herdr.sh` が primary checkout の source にある manifest を自動登録する。Nix 環境キャッシュ更新後に毎回登録状態を確認し、未登録なら有効で登録、同じパスなら変更せず、source の移動時は既存の有効・無効状態を引き継いで再登録する。Herdr サーバー停止中も登録できる。必要コマンドの不在や登録失敗は apply のエラーになり、次回 apply で再試行する。
-
-手動で止める場合は `herdr plugin disable dotfiles.copy-env` を使う。disable は維持するが、unlink は次回 apply で再登録される。`update --apply=false` や scripts を除外した apply では登録しない。task worktree からの登録は拒否する。復旧用の手動登録（有効で登録）は次のとおり。
-
-```bash
-herdr plugin link "$(chezmoi source-path)/.herdr"
-```
-
-登録はユーザー単位で、そのユーザーの Herdr が作成する全リポジトリの新規 worktree が対象になる。各 repo への plugin 配置や登録は不要。Herdr の primary workspace から新しい worktree を作ると、その primary checkout 直下の `.env` 一件を独立した通常ファイルとしてコピーする。既存 worktree の open / focus では実行しない。コピー元の `.env` がなければ正常にスキップする。symlink（リンク切れを含む）、通常ファイル以外、既存のコピー先、Git で ignore されないコピー先は失敗し、別名 dotenv へ fallback しない。
-
-Herdr 0.9.0 のイベントは非同期なので、agent を起動する前に対象 worktree のログが `succeeded` / `exit_code = 0` となり、`copy-env: copied .env to <作成先>` が記録されたことを確認する。`.env` 不在時は `copy-env: skipped (source .env absent)` が記録されるので、成功状態だけでコピー完了と判断しない。
-
-```bash
-herdr plugin log list --plugin dotfiles.copy-env --limit 10
-```
-
-コピー失敗でも worktree 自体は作成される。作成成功や `.env` の存在だけをコピー完了と扱わず、失敗した worktree で agent を起動せずに原因を修正して新しい worktree を作る。イベントは再実行せず、作成後の `.env` も同期・上書きしない。コピー処理の `cd` は plugin の subprocess にだけ作用し、pane の cwd は Herdr が新 worktree に設定する。[コピー仕様の差分・検証記録](../docs/research/herdr-worktree-env-260.md)を参照。
-
-Linux／WSL2 では、コピー成功（`.env` 不在なら正常スキップ）を確認した後、その worktree の Herdr ターミナルから次を実行する。`FULL_SHA` は確認済みの現在の完全な commit SHA、ファイル一覧はそのプロジェクトの公開入力へ置き換える。Git 履歴・設定・hook も含む登録条件は [raw Codex の共通入口](shell-environment.md#raw-codex-のプロジェクト開発環境)に従う。
-
-```bash
-devshell-env trust
-devshell-env admit --git-head FULL_SHA -- flake.nix flake.lock package.json src/index.ts
-codex-worktree
-```
-
-Herdr が worktree とターミナルを所有し、`codex-worktree` が Nix 初期化前に公開入力だけを隔離する。コピー済み `.env`、コピー元、別 worktree、Herdr の環境変数・制御 socket を Codex へ渡さない。`.env` やその別名を `admit` の一覧へ加えない。コピーと起動が競合しても未登録ファイルは隔離内へ入らないが、この性質をコピー成功の確認の代わりにはしない。
-
-Codex 内では `with-env --prepared -- <command>` で秘密なしの環境を使う。Herdr の操作・コピー確認はホスト側の別ターミナルで行う。実値検証は[人間による実値検証](shell-environment.md#人間による実値検証)に従い、確認済みの固定コード・秘密・出力を Codex がアクセスできない別環境へ分離して `with-env` を使う。別ターミナルから同じ作業コードを実行するだけでは条件を満たさない。隔離内へ Herdr CLI・socket やホストの包括的な権限を追加しない。同じ worktree のコードをホストと Codex で並行編集すると返却が失敗するため、終了・返却を確認してから切り替える。
-
-公開コードや flake をホストで変更したときは確認・再登録して `codex-worktree` を再起動する。隔離前提不足、未登録、不正 worktree、初期化失敗は共通入口が拒否する。表示された session の証跡を確認して原因を直し、再登録・再起動する。[共通入口の復旧手順](shell-environment.md#raw-codex-のプロジェクト開発環境)に従い、返却失敗時は保持された結果を確認する。
-
-Herdr の通常の agent picker／`herdr agent start --kind codex` による直接起動、単なる `codex`、既存セッションにはこの非開示保証は適用されない。受入後に配備した `codex-worktree` から新しいセッションを開始する。Linux VM／WSL2 の実 Herdr イベント・ターミナル検証と、モデル接続を含まない検証範囲は [#273 の記録](../docs/research/herdr-codex-isolation-273.md)を参照。
+移行前の固定版へ dotfiles 構成を戻す場合の復旧 baseline と対象限定の手順は [ADR-0088 の復旧節](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧)を参照する。復旧は validated task worktree で source を整合してから行い、受入後に live source の `chezmoi diff` を確認する。未 merge の task source から apply しない。
 
 ## Claude Code / Codex マルチランタイム
 
