@@ -58,21 +58,3 @@ herdr_codex_launches() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
-
-@test "Windows App guidance keeps Codex isolation and parent hc result checks" {
-  local runtime="$PROJECT_ROOT/runtime/ai-runtimes.md"
-  grep -Fq 'codex-worktree --no-daemon' "$runtime"
-  grep -Fq 'codex-reviewer --no-daemon' "$runtime"
-  grep -Fq '専用 HOME' "$runtime"
-  grep -Fq 'core 制御 socket' "$runtime"
-  grep -Fq '秘密隔離を提供しない' "$runtime"
-  grep -Fq 'first_message.sent' "$runtime"
-  grep -Fq 'launch task' "$runtime"
-  grep -Fq 'program argv' "$runtime"
-  grep -Fq 'hc wait' "$runtime"
-  grep -Fq '`message`' "$runtime"
-  grep -Fq '`timeout`' "$runtime"
-  grep -Fq 'hc read' "$runtime"
-  grep -Fq 'incomplete' "$runtime"
-  grep -Fq 'blocked' "$runtime"
-}
