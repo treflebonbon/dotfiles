@@ -16,27 +16,13 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 第三者 skill / plugin は APM、`treflebonbon-skills` は固定版の公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリと dotfiles 固有の配線を供給する。固定版 pin は `~/.config/nix-devshell/skills-plugin.json` に一つだけ置き、共用 CLI・raw Codex 入口・browser 補助資産は同じ immutable source を使う。移行前 copy の撤去許可には、まず `sync-codex-managed-config --verify-only` で各 managed Codex home の exact current version cache grant と deny を現行 config から照合し、続けて `sync-skills-plugin --verify-only` で current pin、source snapshot、receipt、Claude Code・各 Codex home・Antigravity CLI の現在の inventory と payload を照合する。後者の成功 JSON `source` が検証済み source path であり、receipt の過去成功だけでは current install を証明しない。旧 CLI は既知の baseline と一致する固定 snapshot だけへ fallback し、raw 起動は固定 source が欠ける場合に停止する。移行・復旧・適用範囲は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を参照する。
 
-## Herdr TUI の配備範囲
+Herdr TUI の Nix 供給、APM skill、copy-env 登録、TUI 用コマンドは退役済みで、既存の `~/.herdr` 状態は保持する。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
 
-通常利用の案内と管理対象は Herdr App / `herdr-core` である。旧 Herdr TUI、TUI 専用 APM skill、copy-env plugin、`herdr-ask` は dotfiles から供給・登録しない。APM に残る `herdr-peer-refactor` は別の公開 skill で、TUI バイナリやその APM skill の代替ではない。App の安全な起動と既存 worktree の再利用は下記の手順に従う。
-
-この整理はユーザーの `~/.herdr`、TUI の履歴・状態・worktree、稼働中 agent を削除・停止・移送しない。旧 TUI の既存 worktree は同じ path に残り、Git 状態を確認したうえで App の Open worktree から再利用できる。旧 TUI の調査・受入記録は歴史資料として維持する（[ADR-0088](../docs/adr/0088-migrate-herdr-tui-to-app.md)、[Herdr TUI retirement 記録](../docs/research/herdr-app-retirement-596.md)）。
-
-## Windows Herdr App から WSL2 を使う
+## Windows Herdr App と WSL2 core
 
 Windows App と local core は[公式ダウンロード](https://herdr.dev/download/)からユーザー単位で導入する。installer は local core がない場合に追加する。WSL2 側の remote core は別 machine として登録する。導入後の正本は App の Help にある同じ版の User Guide と `hc --skill`（core manual）。App の画面・space・terminal 設定は App のユーザープロファイルが所有し、chezmoi には取り込まない。
 
-### 更新・版確認・障害対応
-
-App、Windows local core、WSL2 remote core は別々の更新対象として扱う。導入版の正本は [Herdr App v0.1.15 User Guide](https://github.com/herdrdev/herdr-app/blob/v0.1.15/defaults/AGENTS.md)、[herdr-core v0.1.20 README](https://github.com/herdrdev/herdr-core/blob/v0.1.20/README.md)、[herdr-core v0.1.20 CLI reference](https://github.com/herdrdev/herdr-core/blob/v0.1.20/docs/commands.md) である。更新前に作業内容と terminal address を記録し、更新後は各対象を別々に確認する。
-
-- **Windows App と App 管理下の local core**: App の Settings → Updates で確認・適用し、再起動後に Help / About で App version を確認する。公式ガイドでは App の初回起動時に App 管理下の local core も同じ release generation へ更新される。Windows local core の version は Windows の公式インストール先にある `hc.exe --version` で確認する。`app.update_core` は App 管理下 core に作用し、WSL core には適用されない。
-- **WSL2 remote core**: 対象 distro / user の WSL terminal で `hc --version` を記録し、公式 CLI の `hc update` を実行してから `hc --version` と App の machine 接続状態を確認する。公式 v0.1.20 guide では更新中も実行中 terminal は継続し、既存 terminal は開始時の core holder の挙動を保つ。初回の `machine add --install` と既存 core の更新を混同しない。
-- **失敗時**: UI / CLI の終了状態と更新後の対象 version を照合し、version が変わらない・確認できない場合は未更新として扱う。App 更新の失敗から WSL core の停止・再起動へ進まない。core の結果が失敗・不明な場合も手動で binary を置き換えたり `server stop` したりせず、作業を保持して公式診断情報と対象 version を確認する。App の再起動だけで WSL core 更新済みとは記録しない。
-
-2026-11-12 の親側観測では Windows App 0.1.15、Windows local core / WSL core `hc` 0.1.20。WSL core は隔離 fixture で公式 installer が取得・checksum 確認した 0.1.19→0.1.20 binary を `hc update --from` に渡し、専用 `HC_SESSION` / runtime socket 上で core の再起動と terminal の継続を確認した。無効な候補 binary は拒否され、現行 0.1.20 と live terminal が保たれた。古い 0.1.19 候補は成功扱いの no-op として報告され、version は変わらず terminal は継続した。既定の最新 release download、通信・checksum 失敗、rollback の実行は未確認である。Windows App と App 管理下 local core の更新実行も、独立した Windows App fixture がないため未確認とし、共有 App / core は更新・停止・再起動していない（[検証記録](../docs/research/herdr-app-retirement-596.md)）。
-
-公式 core は [WSL machine の手順](https://raw.githubusercontent.com/herdrdev/herdr-core/master/docs/machines.md)に沿って Windows の `wsl.exe` 経由で接続できる。接続例は、未使用の machine 名を選んで Windows PowerShell から実行する。この例の distro、Linux user、socket path はこの実機で観測した値なので、別の WSL 環境では `wsl.exe -d <distro> -e sh -c 'id; printf "%s\\n" "$XDG_RUNTIME_DIR"'` などで対象 user と runtime を確認し、remote core が実際に使う socket に合わせる。
+公式 core は [WSL machine の手順](https://github.com/herdrdev/herdr-core/blob/v0.1.20/docs/machines.md)に沿って Windows の `wsl.exe` 経由で接続できる。接続例は、未使用の machine 名を選んで Windows PowerShell から実行する。この例の distro、Linux user、socket path はこの実機で観測した値なので、別の WSL 環境では `wsl.exe -d <distro> -e sh -c 'id; printf "%s\\n" "$XDG_RUNTIME_DIR"'` などで対象 user と runtime を確認し、remote core が実際に使う socket に合わせる。
 
 ```powershell
 $hc = Join-Path $env:LOCALAPPDATA 'Programs\herdr-core\hc.exe'
@@ -50,13 +36,13 @@ App の machine を選び、既存 repository を開く。linked worktree も既
 
 ### App 標準 worktree の作成と再利用
 
-作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App の既定保存先は接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` で、Herdr TUI の既定 `worktrees.directory` `~/.herdr/worktrees` と重なる。同じ repository の App/TUI worktree は同じ Git common dir に登録される。
+作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App の既定保存先は接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` で、以前の TUI の `~/.herdr/worktrees` と重なり、既存 checkout も同じ Git common dir に登録される。
 
 App で対象 repository の space を右クリックし、New worktree を選んで branch 名を入力する。既存 branch は再作成せず、その branch を checkout する。保存先は repository 名と branch 名から決まり、App のダイアログに個別 path 欄はない。branch が別 checkout で使用中なら Git error で作成が失敗し、保存先 directory が既にあっても App は上書きしない。衝突時は branch・directory・既存ファイルと Git 状態を確認し、強制再作成や自動削除をしない。
 
-TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
+以前の TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
 
-`worktree-gc.sh` の単一 repository 診断は既定では repo-local root を調べる。App/TUI worktree の所有権と既存保護理由を確認するときは、診断対象 `--roots` に対象 repository の `~/.herdr/worktrees/<repo>` を明示して `--diagnose` を実行する。確認は削除を伴わず、保持する worktree に `--apply` を使わない。GC の保護条件と外部 root の扱いは [ADR-0056](../docs/adr/0056-worktree-gc-home-wide-fanout.md) に従い、skill や GC の実装は変更しない。
+`worktree-gc.sh` の単一 repository 診断は既定では repo-local root を調べる。App worktree と保持した既存 worktree の所有権と既存保護理由を確認するときは、診断対象 `--roots` に対象 repository の `~/.herdr/worktrees/<repo>` を明示して `--diagnose` を実行する。確認は削除を伴わず、保持する worktree に `--apply` を使わない。GC の保護条件と外部 root の扱いは [ADR-0056](../docs/adr/0056-worktree-gc-home-wide-fanout.md) に従い、skill や GC の実装は変更しない。
 
 作成後または既存 checkout を開いた後、App terminal で次を実行し、working root・branch・HEAD・Git metadata・状態を確認する。
 
@@ -118,9 +104,19 @@ Claude Code は対象 App terminal の空の prompt から `claude` を実行す
 
 App を閉じても terminal を保持するのは remote core であり、App window を閉じる前に terminal の address・space・working root を記録する。App を再度開き、machine に接続して同じ terminal が残っていることを確認する。core / WSL を停止すると terminal 内の process も終了するため、再接続確認では App だけを閉じる。既存 TUI の供給・設定・データはこの App の設定から移行・変更しない。App と core の更新はそれぞれの公式配布経路を使い、ソース build や独自の chezmoi 設定同期を追加しない。
 
-### raw Codex 起動の隔離範囲
+### App と core の更新・失敗時の復旧
 
-Herdr App の terminal から raw Codex を起動するときも、App の標準 agent menu に隔離を代替させず、上記 [App terminal からの Codex 起動](#app-terminal-からの-codex-起動)に従う。実装役は `codex-worktree --no-daemon`、公開差分の読み取り専用 reviewer は `codex-reviewer --no-daemon` を使う。`codex-worktree` が公開入力だけを隔離し、host の secret・他 worktree・core control socket を渡さない契約は [raw Codex の共通入口](shell-environment.md#raw-codex-のプロジェクト開発環境)が正本である。`.env` の自動コピーは提供せず、必要な環境値は作業対象の既存手順で明示的に準備する。TUI の event / copy-env 検証は [#273 の隔離検証記録](../docs/research/herdr-codex-isolation-273.md)と [copy-env の歴史記録](../docs/research/herdr-worktree-env-260.md)に限る。
+更新対象は Windows の App、Windows local core、WSL2 remote core の3つに分ける。App の「Settings → Updates」と同版 User Guide を各操作の正本にする。App installer は `%LOCALAPPDATA%\Programs\herdr-app` を PATH に加え、core installer は `%LOCALAPPDATA%\Programs\herdr-core` に `hc.exe` を置く。PowerShell では接続例と同じく `$hc = Join-Path $env:LOCALAPPDATA 'Programs\herdr-core\hc.exe'` を設定する。App 0.1.15 は更新を取得して SHA-256 を検証し、再起動時に適用する。App 更新後の初回起動では、App が所有する同じ generation の Windows local core も更新される。App が package manager 管理と認識した core は自動更新しない。App を更新しただけで WSL2 remote core も更新済みとは扱わない（[App の install/update](https://github.com/herdrdev/herdr-app/blob/v0.1.15/README.md#install)、[App security/update の説明](https://github.com/herdrdev/herdr-app/blob/v0.1.15/docs/security.md)、[Core の Windows install/update](https://github.com/herdrdev/herdr-core/blob/v0.1.20/distribution/install.ps1)、[core machine guide](https://github.com/herdrdev/herdr-core/blob/v0.1.20/docs/machines.md)）。
+
+| 対象 | 更新操作 | 版の確認 | 失敗時 |
+| --- | --- | --- | --- |
+| Windows App | App の「Settings → Updates」で確認し、SHA-256 検証後に App を再起動する。 | App の Help → About と Updates の表示を記録する。 | download / checksum error を Updates で確認し、接続を直して再試行する。自動更新確認は失敗後30分で再試行され、手動確認は Updates から実行できる。新しい版へ切り替わるのは検証後なので、失敗時は現在の App を維持する。起動できない場合は公式 Windows installer から修復する。 |
+| Windows local core | App 更新後の初回起動で、App 所有の core が同じ generation の公式版へ更新される。必要なら PowerShell で `hc.exe update` を実行する。 | App の Updates と `hc.exe --version` を照合する。 | App の core update error を確認して再試行する。Updates に package manager 管理と表示された場合は App から更新せず、その所有者の手順に従う。 |
+| WSL2 remote core | Windows PowerShell から `hc.exe machine update <machine>` を実行する。remote machine の core を更新して再接続する。 | `hc.exe machine ls` の last observed version を確認し、必要なら `hc.exe exec --on <machine> -- hc --version` でも照合する。 | `machine ls` の接続状態・last error を読み、認証切れなら `hc.exe machine login <machine>`、transport・socket が不正なら登録時の `--via` を確認してから再試行する。machine を削除・再登録せず、失敗した更新の版を成功扱いしない。 |
+
+App の更新と WSL remote core の更新を同じ変更扱いにせず、それぞれの前後の版を記録する。core の更新では既存 terminal を維持する仕様だが、App / Windows / WSL の再起動をまたぐ agent 継続は保証しない。更新に失敗した場合は同じ machine と既存データを保持し、原因と最後に確認できた版を記録する。TUI の設定・履歴・worktree は App の更新・復旧操作から変更しない。
+
+移行前の固定版へ dotfiles 構成を戻す場合の復旧 baseline と対象限定の手順は [ADR-0088 の復旧節](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧)を参照する。復旧は validated task worktree で source を整合してから行い、受入後に live source の `chezmoi diff` を確認する。未 merge の task source から apply しない。
 
 ## Claude Code / Codex マルチランタイム
 

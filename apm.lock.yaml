@@ -1438,7 +1438,7 @@ dependencies:
 - repo_url: mizchi/skills
   name: empirical-prompt-tuning
   host: github.com
-  resolved_commit: 195bb34cb5220c3610ec4ba49007cae2fb10373e
+  resolved_commit: ab4eb2f7a92a13fb37c225ab427f2f492143ace1
   version: unknown
   virtual_path: empirical-prompt-tuning
   is_virtual: true
@@ -2396,7 +2396,7 @@ dependencies:
 - repo_url: shadcn-ui/ui
   name: shadcn
   host: github.com
-  resolved_commit: dd41d19e2f80ff6891951f7ced74c2c9a650b065
+  resolved_commit: 8ab27715521cbd4f87ae6886cd989cbb678f6de7
   version: unknown
   virtual_path: skills/shadcn
   is_virtual: true
@@ -2529,7 +2529,7 @@ dependencies:
 - repo_url: stablyai/orca
   name: orchestration
   host: github.com
-  resolved_commit: e944b31538ee1f96bdf6c0de20795094d998cd03
+  resolved_commit: fb9adc7bc5b1556a9f2528300e8d7b575294f089
   version: unknown
   virtual_path: skills/orchestration
   is_virtual: true
@@ -3155,7 +3155,7 @@ dependencies:
 - repo_url: vercel-labs/skills
   name: find-skills
   host: github.com
-  resolved_commit: e781cb4d07433dfe1d19e924ed45cc61738c55ec
+  resolved_commit: d3701c11b1101251af14c9d148f026e1a47ebe17
   version: unknown
   virtual_path: skills/find-skills
   is_virtual: true

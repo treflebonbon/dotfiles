@@ -7,6 +7,8 @@ tags: [nix, codex, dotenv, verification]
 
 # Issue #274 の検証記録
 
+> 歴史記録。ここにある Herdr TUI 専用テストは #596 で退役した。
+
 2026-09-10。[#274](https://github.com/treflebonbon/dotfiles/issues/274)、親 [#268](https://github.com/treflebonbon/dotfiles/issues/268)。開始点は `63e47ffc471ff5e01f58a8a268ea553b0c9ab976`。依存 [#271](raw-codex-isolation-271.md) の共通入口を変更せず、公開入口の回帰検証と利用手順・テンプレートの移行を行った。未 merge の source から利用者設定を配備していない。
 
 以下の「変更と入力」から「適用と未確認事項」は PR #284 の実装・検証時点の記録。後半に PR #285 の独立した検証と統合後の結果を記載する。

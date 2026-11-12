@@ -187,9 +187,9 @@ devshell-env status              # root・output・登録状態を確認
 devshell-env untrust             # 次回の自動読込みから解除
 ```
 
-dotfiles の WSL2 開発では `nix develop .#wsl` を使います。Claude は後続 Bash に非秘密環境を反映し、flake 編集後は `devshell-env reload`。raw Codex は linked worktree の `codex-worktree` から準備し、編集後は再起動します。Codex Desktop／Orca native Codex に自動環境読込みは追加しません。
+dotfiles の WSL2 開発では `nix develop .#wsl` を使います。Claude は後続 Bash に非秘密環境を反映し、flake 編集後は `devshell-env reload`。raw Codex は linked worktree の `codex-worktree` から準備し、編集後は再起動します。Herdr App terminal からも同じ入口を明示して使います。Codex Desktop／Orca native Codex に自動環境読込みは追加しません。
 
-Linux／WSL2 の raw Codex は、確認した公開ファイルと到達可能な Git 履歴を `devshell-env admit` で登録し、`codex-worktree` から秘密なしで起動します。準備済み環境では `with-env --prepared -- command` を使い、通常変数や無害な fixture で検証します。ホストの dotenv と任意の継承変数は渡しません。既存セッション・直接 Codex・Desktop・Orca／Herdr App の built-in agent 起動には、この隔離を遡及適用しません。
+Linux／WSL2 の raw Codex は、確認した公開ファイルと到達可能な Git 履歴を `devshell-env admit` で登録し、`codex-worktree` から秘密なしで起動します。準備済み環境では `with-env --prepared -- command` を使い、通常変数や無害な fixture で検証します。ホストの dotenv と任意の継承変数は渡しません。既存セッション・直接 Codex・Desktop・Orca native 起動には、この隔離を遡及適用しません。Herdr App からも `codex-worktree` で新規起動した場合だけ対象です。
 
 実値が必要な検証は、人間が確認した固定版のコードを Codex からアクセスできない別環境へ渡し、そこで `nix run .#with-env -- command` を実行します。人間向けの root `.env` 注入、起動元 → devShell → `.env` の優先順は維持します。コード・秘密・出力を分離し、人間が確認した必要な結果だけを共有します。[移行と人間の検証手順](runtime/human-validation.md)を参照してください。Claude の dotenv 注入は対象外です。正式入口の準備失敗を直接実行で迂回しません。
 

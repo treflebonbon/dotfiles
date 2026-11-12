@@ -32,7 +32,6 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - 変数代入そのものが拒否されるかは未確認。
 - 他の変数展開の形に一般化できるかは unconfirmed。
 - #458 の隔離 session（Claude Code 2.1.296）では、git を含まないコマンドも、実行内容を検証できない形だと拒否された。
-- 例は `bash <script>`、`printf … > file`。
 - 実行権限を付けたスクリプトを絶対パスで呼ぶと通った。
 - #468 の隔離 session（同じ 2.1.296、2026-10-23）でも、scratchpad のスクリプトを `bash` で呼ぶと「git を検証できない形」として拒否された（confirmed）。
 - scratchpad のパスに含まれる `-github-com-` が理由かは inferred。
@@ -41,8 +40,9 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - CDP port 19330〜19393 の待ち受けの port・PID・起動時刻・command line を表示する）。
 - `powershell.exe` の直接実行は `!` 経由でも拒否された（confirmed、#490）。
 - ツール・スキル更新の session（Claude Code 2.1.296、2026-10-23）で次の形が拒否された（confirmed）。
-- `nix eval --expr …`、`for` ループ、`sed -i … $f` のように変数を渡す形、`cd <dir> && …` を使う複合。
 - 単一の plain コマンドを 1 呼び出しずつ実行する形、`cp` や `sed -i` にリテラルのパスを渡す形、実行権限つきスクリプトの絶対パス呼出しは通った。
+
+Herdr TUI の操作方法と `herdr-ask` は現行の通常構成から削除した。App 利用は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) を参照し、旧 TUI の調査結果は repo-local な ADR と research 記録に留める。
 
 dotfiles repo 自身の構造・規約は [docs/architecture.md](../docs/architecture.md) / [docs/conventions.md](../docs/conventions.md)（repo ローカル）を参照。
 

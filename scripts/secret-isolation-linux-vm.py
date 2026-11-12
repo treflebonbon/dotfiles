@@ -27,9 +27,7 @@ def main():
     )
     args = parser.parse_args()
     if sum((args.real_services, args.human_validation)) > 1:
-        parser.error(
-            "--real-services and --human-validation select separate verification runs"
-        )
+        parser.error("--real-services and --human-validation select separate verification runs")
     scratch_root = Path("/tmp/codex")
     scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     root_metadata = scratch_root.stat(follow_symlinks=False)

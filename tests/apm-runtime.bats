@@ -107,6 +107,7 @@ assert_lock_entry() {
   grep -Fq 'stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2' "$manifest"
   ! grep -Fq 'herdrdev/herdr/skills/herdr' "$manifest"
   ! grep -Fq 'repo_url: herdrdev/herdr' "$lock"
+  ! grep -Fq 'virtual_path: skills/herdr' "$lock"
   ! grep -Eq '(^|[[:space:]])\.agents/skills/herdr($|[[:space:]])' "$lock"
   ! grep -Eq '(^|[[:space:]])\.claude/skills/herdr($|[[:space:]])' "$lock"
   jq -e '.version == "0.2.10" and .rev == "fd2a50c558288b3661e5066b94b1196453ef9269"' \

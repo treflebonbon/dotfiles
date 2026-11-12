@@ -70,11 +70,11 @@
 
 **固定読取り定義**: 利用環境が管理し、人が対象・取得項目・条件・上限を確認する参照操作の定義。共通 helper の実装や公開資料から分離し、実行時の操作承認とは区別する。 _Avoid_: 任意 SQL, 接続設定, 承認そのもの
 
-**Herdr TUI**: 独自のサーバーで端末とエージェントを実行する従来の Herdr。Herdr App とは別の実行基盤を持つ。現在の dotfiles 管理・通常利用手順ではサポートしない。 _Avoid_: Herdr（単独表記）, 旧 App
+**Herdr TUI**: 独自のサーバーで端末とエージェントを実行する従来の Herdr。通常の dotfiles 構成から供給・登録を外し、既存の状態・履歴と歴史資料だけを保持する。Herdr App とは別の実行基盤を持つ。 _Avoid_: Herdr（単独表記）, 旧 App
 
 **Herdr App**: herdr-core 上の端末とエージェントを操作する GUI クライアント。Herdr TUI とは別のプログラムを指す。 _Avoid_: Herdr（単独表記）, TUI の GUI 版
 
-**Worktree Owner**: task の worktree を作成・選択し、workflow の全 phase を同じ checkout に留める責務を持つ実行環境。Herdr App、Orca、Claude Code、Codex の native 機構がこの責務を持つ。旧 Herdr TUI は過去の owner として扱う。 _Avoid_: worktree launcher, worktree tool, checkout owner
+**Worktree Owner**: task の worktree を作成・選択し、workflow の全 phase を同じ checkout に留める責務を持つ実行環境。Herdr App、Orca、Claude Code、Codex の native 機構がこの責務を持つ。Herdr TUI は過去の owner としてのみ扱う。 _Avoid_: worktree launcher, worktree tool, checkout owner
 
 **Worktree Entry Point**: workflow を validated task worktree から始めるための共通の入口契約。worktree の作成・選択と agent の実行環境の準備を区別し、実行環境から対象 checkout を検証して満たす。独立したスキルの名称ではない。 _Avoid_: Orca worktree command, worktree creator, runtime-specific entry
 

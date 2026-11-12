@@ -8,15 +8,17 @@ timestamp: 2026-09-10
 
 # Herdr の dotenv コピーと raw Codex の隔離起動 — #273
 
-[#273](https://github.com/treflebonbon/dotfiles/issues/273) は、Herdr のホスト側 `.env` コピーを維持し、作成した worktree のターミナルから [#271 の共通入口](raw-codex-isolation-271.md)を使う統合単位。コピー機構・共通 launcher・permission の変更は不要だった。実 Herdr を使う再現可能な検証と、[コピー成功確認から起動・再起動までの利用案内](../../runtime/ai-runtimes.md#新規-worktree-への-env-コピー)を追加した。
+[#273](https://github.com/treflebonbon/dotfiles/issues/273) は、Herdr のホスト側 `.env` コピーを維持し、作成した worktree のターミナルから [#271 の共通入口](raw-codex-isolation-271.md)を使う統合単位。コピー機構・共通 launcher・permission の変更は不要だった。実 Herdr を使う再現可能な検証と、[コピー成功確認から起動・再起動までの利用案内](../../runtime/ai-runtimes.md#windows-herdr-app-と-wsl2-core)を追加した。
+
+> 歴史記録。Herdr TUI の copy-env、登録、隔離試験は #596 で通常構成から退役した。現行の App 手順は [AI runtime guide](../../runtime/ai-runtimes.md#windows-herdr-app-と-wsl2-core) を参照する。削除済み source / test へのリンクは移行直前 commit を指す。
 
 ## 実行経路
 
-[`scripts/herdr-codex-isolation.py`](../../scripts/herdr-codex-isolation.py) は、ダミー repo、専用 HOME／XDG、named session に実 Herdr 0.9.0 server を起動する。管理対象 manifest をダミー primary repo へ登録し、`herdr worktree create` が linked worktree と pane を作る。実イベントの log ID、コピー成功の終了コードと作成先を含む出力、コピー結果・mode 0600 を別々に確認する。
+[`scripts/herdr-codex-isolation.py`](https://github.com/treflebonbon/dotfiles/blob/34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63/scripts/herdr-codex-isolation.py) は、ダミー repo、専用 HOME／XDG、named session に実 Herdr 0.9.0 server を起動する。管理対象 manifest をダミー primary repo へ登録し、`herdr worktree create` が linked worktree と pane を作る。実イベントの log ID、コピー成功の終了コードと作成先を含む出力、コピー結果・mode 0600 を別々に確認する。
 
 確認した pane ID に対する `herdr pane run` で、`HERDR_ENV=1` とターミナルの cwd を検査し、実 `codex-worktree sandbox -- bash task.sh` を実行する。Nix、Codex、Git、bubblewrap は実バイナリ。GitHub／MCP の本番接続や hosted model は使わず、実プロジェクト秘密・認証値も使わない。これはモデルによる自律ターンや Herdr TUI のクリック操作を確認する試験ではない。Codex の `sandbox` サブコマンドは [公式 CLI reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli) にある公開検証入口を使う。
 
-生の `git worktree add` で同型 fixture を作る既存 [`tests/herdr-copy-env.bats`](../../tests/herdr-copy-env.bats) と、実 Herdr イベント・ターミナルを使う [`tests/herdr-codex-isolation.bats`](../../tests/herdr-codex-isolation.bats) を区別する。統合テストは `HERDR_ISOLATION_REAL=1` で明示選択し、前提が欠けた場合の失敗を skip に変えない。通常の Bats 実行での opt-in skip は未実行を意味する。
+生の `git worktree add` で同型 fixture を作る既存 [`tests/herdr-copy-env.bats`](https://github.com/treflebonbon/dotfiles/blob/34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63/tests/herdr-copy-env.bats) と、実 Herdr イベント・ターミナルを使う [`tests/herdr-codex-isolation.bats`](https://github.com/treflebonbon/dotfiles/blob/34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63/tests/herdr-codex-isolation.bats) を区別する。統合テストは `HERDR_ISOLATION_REAL=1` で明示選択し、前提が欠けた場合の失敗を skip に変えない。通常の Bats 実行での opt-in skip は未実行を意味する。
 
 ## 検証対象と観測点
 

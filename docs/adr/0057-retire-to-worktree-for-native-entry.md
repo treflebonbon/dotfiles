@@ -34,7 +34,7 @@ worktree の作成・選択は各 runtime の native 機構が担える。導入
 - 廃止済み `to-worktree` を4つの managed skill homeに置いた隔離 chezmoi apply を2回実行し、旧配備物の除去・再配備されないこと・APM skill の保持を確認した。
 - 契約・配備・Codex config の102件は初回101成功・1失敗。追加した引数拒否テストの呼出し区切りを修正し、失敗したテストを再実行して成功。契約14件も再実行して成功した。
 - 実 Herdr / Nix / Codex の既存隔離テスト2件は成功。起動拒否・公開入力だけの開発・stage / commit・hostへの返却を含む。
-- 新しい `scripts/herdr-codex-isolation.py --interactive --output <未作成path>` は既存ホストログインをgatewayだけで使い、独立したダミーrepositoryで対話起動を検証する。認証ファイルへのホスト側リンクは終了時に除去し、公開入力には含めない。通常テストは従来どおりhosted modelを使わない。
+- 新しい `scripts/herdr-codex-isolation.py --interactive --output <未作成path>` は既存ホストログインをgatewayだけで使い、独立したダミーrepositoryで対話起動を検証する。認証ファイルへのホスト側リンクは終了時に除去し、公開入力には含めない。通常テストは従来どおりhosted modelを使わない。この TUI 専用 script は #596 で撤去した（[移行直前の source](https://github.com/treflebonbon/dotfiles/blob/34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63/scripts/herdr-codex-isolation.py)）。
 - 対話試験の初回は Nix store外のCA bundle指定で登録失敗。既存の公開CA指定へ戻した次の試行はCodexの信頼確認で停止した。ダミーrepositoryだけをfixture configで事前に信頼した試行では、Codex 0.154.0の入力画面まで到達したが、Herdr 0.9.0の`agent list`は空だった。agent APIによる引継ぎ・子での検証・commitは未確認であり、sandboxテストの成功で代用しない。
 
 対話試験の証跡は `/tmp/herdr-native-interactive-3/interactive-terminal.txt`。現行Herdrでの自動引継ぎ完了は保証しない。親はagent認識に失敗した場合、同じ起動を繰り返さずこの制約を報告し、自身で検証できるtask worktreeの作業を継続する。Herdrのsocket公開やsandboxの解除による回避は行わない。
