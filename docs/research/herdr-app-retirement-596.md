@@ -482,3 +482,11 @@ inline 4件、差分外の APM 検査1件、ignore fixture の軽微指摘1件�
 - `.herdr` に配備される source marker を fixture に置き、ignore されることを通常配備の対照とともに検証した。
 
 調査の最初の retirement 実行は終了コード0だったが、lock 比較の assertion failure を `|| printf` が隠していたため成功証拠から除外した。対象テストの診断付き終了判定を失敗時に終了する形へ直した。修正後の保護付き retirement／APM verifier の関連 Bats は37/37成功、skip0、失敗0、exit0。実ログは `/tmp/codex/ai-tools-wrd9dgwi/startup.log` と `exit-code`。保存した fixture は `/tmp/codex/pr597-review-round.haDGCO/bats-diagnostics/bats-run-wZXvfB`。最終 canonical の結果と公開・返信の結果は後続の生成記録に保存し、live 配備・旧配備物撤去・PR merge は実施しない。
+
+## PR #597 再レビュー 5879664793 への対応
+
+復旧後の apply fixture `reactivated_source` に復旧版 `ai.nix` が無く、配備先が TUI なしのままでも plugin 登録だけの検査が通る指摘を確認した。復旧版 module を fixture に含め、復旧時と再 apply 時の両方で配備先との byte 一致を検査する。既存の登録先・無効化状態・冪等性の検査は維持する。
+
+保護付きの対象 Bats は1/1成功、skip0、exit0（`/tmp/codex/ai-tools-dhlimbho/startup.log` と `exit-code`）。保存 fixture に対する別の保護付き確認では、復旧版 module を一時的に欠落させると配備先に TUI なしの内容が残り、新しい比較で不一致になることを確認した。module を戻した apply は配備先と一致し、plugin の無効化状態も保持した。記録は `/tmp/codex/pr597-review2.8HujV9/negative-control-result.json`。すべて一時 source／配備先での検証で、live 配備・TUI 実機操作は行っていない。
+
+最終 clean commit の canonical と公開・返信の結果は生成記録と PR 本文に保存する。

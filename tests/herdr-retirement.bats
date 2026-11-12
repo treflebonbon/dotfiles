@@ -240,8 +240,9 @@ NIX
   chmod +x "$deploy_source/run_after_setup-herdr.sh"
   grep -Fq 'inputs.llm-agents-herdr-recovery.packages.${system}.herdr' "$deploy_source/$ai_source"
   (cd "$deploy_source" && git init -q -b main)
-  mkdir -p "$reactivated_source/.herdr"
+  mkdir -p "$reactivated_source/.herdr" "$reactivated_source/private_dot_config/nix-devshell/modules"
   cp "$source/.chezmoiignore" "$reactivated_source/.chezmoiignore"
+  cp "$source/$ai_source" "$reactivated_source/$ai_source"
   cp "$source/.herdr/herdr-plugin.toml" "$reactivated_source/.herdr/herdr-plugin.toml"
   cp "$source/run_after_setup-herdr.sh" "$reactivated_source/run_after_setup-herdr.sh"
   chmod +x "$reactivated_source/run_after_setup-herdr.sh"
@@ -296,6 +297,7 @@ SH
   mv "$BATS_TEST_TMPDIR/disabled-state.json" "$state"
   run apply_source "$reactivated_source"
   [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
+  cmp -s "$source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$reactivated_source/.herdr" ]
   [ "$(sed -n '7p' "$link_log")" = --disabled ]
   [ "$(wc -l <"$link_log")" -eq 7 ]
@@ -303,6 +305,7 @@ SH
 
   run apply_source "$reactivated_source"
   [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
+  cmp -s "$source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(wc -l <"$link_log")" -eq 7 ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = false ]
 }
