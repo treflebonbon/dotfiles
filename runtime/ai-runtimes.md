@@ -107,7 +107,30 @@ codex-reviewer --no-daemon
 
 `codex-worktree` は validated worktree から実行する raw 経路で、専用 HOME を使い、ホストの秘密値・無関係な worktree・Herdr core 制御 socket を隔離内へ渡さない。`codex-reviewer` は対象 worktree の Git dir と common dir を read-only で Codex に加える既存経路だが、raw 実装役と同じ秘密隔離を提供しない。reviewer は公開情報のレビューに限って使い、秘密隔離が必要な実装には `codex-worktree` を使う（[ADR-0044](../docs/adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)、[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
 
-親からのレビュー依頼は raw 隔離の外で Windows 側の標準 `hc run` を使い、`--cwd` に同じ validated linked worktree を指定して `codex-reviewer --no-daemon` を起動する。WSL の通常 terminal と異なり `hc run` は login shell を自動で通さない場合があるため、`bash -lc` で `hc` と entry point が解決することを確認する。今回の依頼が `hc run` の launch task として配送されたか program argv として渡ったかを導入版で識別し、起動結果の `first_message.sent` と一緒に記録する。`first_message.sent: false` は依頼が配送されていない状態なので、`hc read` で起動状態を確認し、準備完了後に親から送る。配送失敗後に盲目的に再送しない。`hc wait` の `message`・`timeout`・終了 status を区別する。`message` は親への新しい入力であり `hc read` から取る出力ではない。`timeout` は確認時点の通知なので、必要なら `hc wait` を続ける。今回の依頼に対応する出力を `hc read` で確認し、起動直後の `idle` / `done` や待機の終了だけでは回答完了としない。`hc read` が `incomplete` と示した場合は成功扱いせず、`blocked` の terminal へ強制入力しない。raw 実装役から `hc send` したり core 制御 socket を持ち込んだりする必要はない。
+親からのレビュー依頼は raw 隔離の外で Windows 側の標準 `hc run` を使い、`--cwd` に同じ validated linked worktree を指定する。WSL の通常 terminal と異なり `hc run` は login shell を自動で通さない場合があるため、`bash -lc` で `hc` と entry point が解決することを確認する。App の表示に出ていない core-only terminal は、Windows App の標準 CLI `herdr-app do terminal.peek --terminal <machine>/<terminal>` で表示する。実機例は `herdr-app do terminal.peek --terminal wsl-ubuntu-24-04/t1c`。App 設定や terminal layout は変更せず、terminal identity と process を照合する。
+
+`hc run` は Windows の公式 CLI `$hc` から次のように起動できる。`--cwd` には検証済み linked worktree の絶対 path を指定し、出力された terminal address（例: `wsl-ubuntu-24-04/t7`）を以降の操作に使う。
+
+```powershell
+$worktree = '/home/ubuntu/orca/workspaces/dotfiles/<validated-linked-worktree>'
+& $hc run --bg --on wsl-ubuntu-24-04 --cwd $worktree -- bash -lc 'codex-reviewer --no-daemon'
+```
+
+`HERDR_ENV=1` は旧 TUI `herdr` skill が pane 操作の前に確認する条件であり、Windows App / core の標準 `hc` 経路の条件ではない。この App 経路のために設定・偽装しない。
+
+#595 の任意 command 起動では、`hc run -- bash -lc '<command>' MARKER` の末尾 `MARKER` が Bash の `$0` になり、`argc=0` だった。`hc get` でも argv に `MARKER` はあったが `template:null` で `first_message` はなく、Codex の依頼 prompt に届かなかった。任意 command の末尾引数を task 配送として扱わない。起動した process argv と `first_message.sent`（表示される場合）を確認し、未配送なら terminal の状態・画面を `hc get` / `hc read` で確かめてから親の `$hc send` で一度だけ依頼する。例:
+
+```powershell
+$terminal = 'wsl-ubuntu-24-04/t7'
+& $hc get $terminal
+& $hc read --lines 100 $terminal
+& $hc send $terminal '<公開のレビュー依頼と一意な marker>'
+& $hc wait $terminal
+& $hc get $terminal
+& $hc read --lines 100 $terminal
+```
+
+配送失敗後に盲目的に再送しない。`hc wait` の `message`・`timeout`・終了 status を区別する。`message` は親への新しい入力であり `hc read` から取る出力ではない。`timeout` は確認時点の通知なので、必要なら `hc wait` を続ける。今回の依頼に対応する出力を `hc read` で確認し、起動直後の `idle` / `done` や待機の終了だけでは回答完了としない。`hc read` が `incomplete` と示した場合は成功扱いせず、`blocked` の terminal へ強制入力しない。raw 実装役から `hc send` したり core 制御 socket を持ち込んだりする必要はない。
 
 Claude Code は対象 App terminal の空の prompt から `claude` を実行する。対話画面が開くことを確かめ、モデル接続を opt-in していない場合は task text を送らない。資格情報の値を確認・表示する必要はない。
 
