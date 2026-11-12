@@ -249,7 +249,10 @@ live source apply は task 側で
 - Integration tip `feat/herdr-app-migration` は normal merge commit `2f2142a5aa5465f3f3cd37980ec2455a0910e1db` で取り込んだ。
 - merge 後、変更対象だけを live source の `chezmoi diff` で確認し、受入・
   merge 後に `chezmoi apply <対象の配備先パス>`、環境再読込、配備結果を
-  照合する。task source から live へ apply しない。
+  照合する。task source から live へ apply しない。source から消した
+  `herdr-ask` は apply だけでは配備先から消えないため、[旧 TUI 配備物の
+  残存確認・承認付き撤去・完了確認](../../runtime/ai-runtimes.md#切替後の旧-tui-配備物)
+  も行う。旧 APM skill の残存も確認し、未確認・保留なら移行完了としない。
 - Windows App / local core の実更新と current Updates 表示は親へ渡す。
 - full canonical runner / full suite と受入後の live source 配備も親の後続。
 - 既定 latest download の fault 群や通信 / checksum failure、
@@ -451,3 +454,16 @@ git -C "$source_root" show \
   この checkout から live source は変更していない。
 - task worktree の source / report を commit した後も
   `feat/herdr-app-migration` と live 配備状態は変更しない。
+
+## 2026-11-13 Claude Opus レビュー後の修正
+
+規約・仕様を別々の fresh Claude Opus でレビューし、規約 P3×3、仕様 P2×1・P3×3 の報告を確認した。仕様の verifier 説明は曖昧さ、復旧 fixture は将来の保守懸念として扱い、現在の実機不良とは区別した。
+
+- source から旧 `herdr-ask` を消しても apply は配備先から消さず、diff が空でも残ることを、保護付きの使い捨て source／配備先で再現した。live の旧コマンドや skill は変更していない。
+- [切替手順](../../runtime/ai-runtimes.md#切替後の旧-tui-配備物)へ旧コマンド・両 runtime の旧 APM skill の残存確認、固定 baseline との照合、対象を示した撤去承認、完了判定を追加した。未知・変更済み・symlink は保持し、残存や保留があれば未完了とする。APM の prune は実結果で確認し、live verifier の PASS だけでは撤去完了としない。
+- TUI 専用 peer の入口に App 非対応を明記し、計画済み dependency 削除を許す verifier の範囲と5 CLIの説明、ADR の TUI 表記を整合した。
+- 公開 plugin pin の重複した固定値検査を二つのテストから外した。pin 自体と公開 payload は変更していない。
+- `tests/fixtures/herdr/restore-tui.patch` に受入時の TUI 撤去差分だけを固定した。復旧テストは現在 HEAD と昔の baseline の4ファイル全差分を生成せず、この差分だけを一時 source に戻す。別 skill の revision を更新した fixture を用意し、APM の候補外 metadata・配備 ledger、Nix・permission の他設定、現行 flake lock の不変を照合する。固定した復旧 patch が将来の source に適用できない場合は失敗し、全ファイルを古い版へ戻す代替はしない。
+- 保護付き `verify-ai-tools.py --shell wsl --no-codex-build` から retirement・APM runtime・autonomous peer contract の関連 Bats を実行し、29/29 成功、skip0、exit0を確認した。実ログは `/tmp/codex/ai-tools-koyj2q1y/startup.log` と `exit-code`。
+
+修正後の独立再レビューと clean commit の最終 canonical 結果は後続の生成記録・PR 本文へ保存する。merge、live 配備、実環境の旧配備物撤去は未実施。

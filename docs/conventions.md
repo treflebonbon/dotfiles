@@ -73,7 +73,7 @@ canonical の進捗には、この実行が渡した `canonical-path` と `runne
 python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- lefthook run test
 ```
 
-入口は source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。文書 Markdown だけの変更では、末尾を `scripts/test-docs.sh` に置き換える。
+入口は source の `nativeBuildInputs` が選ぶ5 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。文書 Markdown だけの変更では、末尾を `scripts/test-docs.sh` に置き換える。
 
 Nix の準備を要しない調査・検証コマンドには [verification_env.py](../scripts/verification_env.py) を使う。環境変数の切替を省略しても、入口が一時環境と OS 境界を用意する。コマンドは `--` 以降の argv として渡す。
 

@@ -81,19 +81,19 @@ TUI の状態・履歴・既存 worktree は保持する。導入や接続の検
 
 ## #596 実装・復旧 fixture の確認
 
-- 変更前 source baseline `34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63` を一時 archive し、Herdr package / copy-env / registration の旧 Bats 34件を実行した。32件成功、opt-in App integration と Bash 3.2 指定の2件は実行せず skip。Nix は 0.9.5 を全対応 system / shell で返した。
-- 同じ baseline から隔離した APM fixture で 21 dependencies の `apm install --frozen --target claude,codex --https` と `apm audit --ci` が成功し、audit 10/10、lock SHA-256 は不変。Herdr skill は revision `2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`、content hash `sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18` で復旧可能なことを確認した。
+- 変更前 source baseline `34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63` を一時 archive し、Herdr TUI package / copy-env / registration の旧 Bats 34件を実行した。32件成功、opt-in App integration と Bash 3.2 指定の2件は実行せず skip。Nix は 0.9.5 を全対応 system / shell で返した。
+- 同じ baseline から隔離した APM fixture で 21 dependencies の `apm install --frozen --target claude,codex --https` と `apm audit --ci` が成功し、audit 10/10、lock SHA-256 は不変。Herdr TUI skill は revision `2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`、content hash `sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18` で復旧可能なことを確認した。
 - 現行 candidate lock は移行前 lock を初期値にした隔離 runtime で native
   生成し、frozen install 前後の SHA-256 不変、audit 10/10 を確認した。
-  Herdr dependency と両 target の4 ledger rowを除いた。
+  Herdr TUI dependency と両 target の4 ledger rowを除いた。
   残る 1,512 deployment entries は元 lock と一致した。
   - base は baseline commit `34fa46f...` の元 lockを直接取得する。
-  - plan は Herdr dependency の削除1件だけを追加0・削除4として列挙した。
+  - plan は Herdr TUI dependency の削除1件だけを追加0・削除4として列挙した。
   - verifier は元 base と candidate を比較し、削除4以外の drift を拒否する。
   - Bats は未宣言削除、削除 dependency の配備残り、候補外 hash drift、
     exact pin / ref / version drift を拒否する。
   - 照合結果は dependency 20、各 target 46 skill、追加0・削除4。
-- `chezmoi apply` の回帰 fixture は Herdr を含まない source から既存 `~/.herdr/history` と worktree marker を保持する。通常 HOME、App/core の live 更新・失敗注入、TUI state は変更していない。
-- 2026-11-12 の復旧 fixture は retirement 候補を起点にし、baseline から Nix package・APM dependency/lock・Claude permission の差分だけを重ね、削除された copy-env source を復元した。Nix eval は 3 system / default・wsl の全 shell で Herdr 0.9.5 を返し、`flake.lock` の `llm-agents` revision と現行 Matt / Orca dependency は維持された。APM lock の Herdr revision/content hash と無関係な Matt revision を確認した。
+- `chezmoi apply` の回帰 fixture は Herdr TUI を含まない source から既存 `~/.herdr/history` と worktree marker を保持する。通常 HOME、App/core の live 更新・失敗注入、TUI state は変更していない。
+- 2026-11-12 の復旧 fixture は retirement 候補を起点にし、baseline から Nix package・APM dependency/lock・Claude permission の差分だけを重ね、削除された copy-env source を復元した。Nix eval は 3 system / default・wsl の全 shell で Herdr TUI 0.9.5 を返し、`flake.lock` の `llm-agents` revision と現行 Matt / Orca dependency は維持された。APM lock の Herdr TUI revision/content hash と無関係な Matt revision を確認した。
 - 同 fixture の `chezmoi apply` は登録済み copy-env を持つ旧 source → TUI なしの retirement source → 復旧 source の順で実行した。retirement 中は登録と `~/.herdr/history` を保持し、ユーザーが無効化した登録は復旧 source へ移動後も無効のまま、再 apply で重複 link されないことを確認した。
 - 復旧 source の manifest / lock を隔離 APM runtime へ複製して公式の native lock 生成・`apm install --frozen --target claude,codex --https`・`apm audit --ci` を実行した。21 dependencies、生成／frozen 前後の lock SHA-256 `9fc12c9696dd1c0e3cb10116de24a732a47315630f873c70c9192fea1f8c037d` 不変、audit 10/10 成功を確認した。git remote のない fixture のため organization policy enforcement は warning 付き skip。生成 lock は復旧 source と byte 一致し、`verify-apm-deployment.mjs` の空候補照合で drift 0、各 target 47 skill、追加・削除 0 を確認した。

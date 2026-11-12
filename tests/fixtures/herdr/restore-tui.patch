@@ -1,0 +1,115 @@
+diff --git a/apm.lock.yaml b/apm.lock.yaml
+index 63280c5..4931370 100644
+--- a/apm.lock.yaml
++++ b/apm.lock.yaml
+@@ -1054,6 +1054,24 @@ dependencies:
+     .claude/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md: sha256:cb5500844c63ee8cf869c33493d3965515a6236df6482daf449abfa74cdcb22d
+     .claude/skills/modern-web-guidance/guides/webmcp/webmcp.md: sha256:ed20a7cb5bb400b186e234ec0f4ffa0d923ded078447777ff42499cce902afa9
+   content_hash: sha256:4013ac03e5f1d53df1e9d93e525247529291a748082085a02ee51533def1a11e
++- repo_url: herdrdev/herdr
++  name: herdr
++  host: github.com
++  resolved_commit: 2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01
++  resolved_ref: 2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01
++  version: unknown
++  virtual_path: skills/herdr
++  is_virtual: true
++  package_type: claude_skill
++  deployed_files:
++  - .agents/skills/herdr
++  - .agents/skills/herdr/SKILL.md
++  - .claude/skills/herdr
++  - .claude/skills/herdr/SKILL.md
++  deployed_file_hashes:
++    .agents/skills/herdr/SKILL.md: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
++    .claude/skills/herdr/SKILL.md: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
++  content_hash: sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18
+ - repo_url: mattpocock/skills
+   name: mattpocock-skills
+   host: github.com
+@@ -3800,6 +3818,24 @@ deployments:
+   - mattpocock/skills
+   active_owner: mattpocock/skills
+   content_hash: sha256:5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28
++- kind: project-relative
++  target: claude
++  value: .claude/skills/herdr
++  runtime: null
++  scope: project
++  owners:
++  - herdrdev/herdr/skills/herdr
++  active_owner: herdrdev/herdr/skills/herdr
++  content_hash: null
++- kind: project-relative
++  target: claude
++  value: .claude/skills/herdr/SKILL.md
++  runtime: null
++  scope: project
++  owners:
++  - herdrdev/herdr/skills/herdr
++  active_owner: herdrdev/herdr/skills/herdr
++  content_hash: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
+ - kind: project-relative
+   target: claude
+   value: .claude/skills/impeccable
+@@ -10604,6 +10640,24 @@ deployments:
+   - mattpocock/skills
+   active_owner: mattpocock/skills
+   content_hash: sha256:5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28
++- kind: project-relative
++  target: codex
++  value: .agents/skills/herdr
++  runtime: null
++  scope: project
++  owners:
++  - herdrdev/herdr/skills/herdr
++  active_owner: herdrdev/herdr/skills/herdr
++  content_hash: null
++- kind: project-relative
++  target: codex
++  value: .agents/skills/herdr/SKILL.md
++  runtime: null
++  scope: project
++  owners:
++  - herdrdev/herdr/skills/herdr
++  active_owner: herdrdev/herdr/skills/herdr
++  content_hash: sha256:fbd9d502767f7dff29c211505a0bd9ba34e980ed4cc456247e2adc1642883984
+ - kind: project-relative
+   target: codex
+   value: .agents/skills/impeccable
+diff --git a/apm.yml b/apm.yml
+index 165719a..4fc654b 100644
+--- a/apm.yml
++++ b/apm.yml
+@@ -44,3 +44,5 @@ dependencies:
+     - stablyai/orca/skills/orchestration
+     # upstream HEAD では削除済みのため、既存 payload を保持する revision に固定する。
+     - stablyai/orca/skills/computer-use#1bd67185489c66a9e0d841e0134727f171a33764
++    # Herdr 0.9.5 同梱スキルと同じ revision を APM で配布する。
++    - herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01
+diff --git a/private_dot_claude/settings.json.tmpl b/private_dot_claude/settings.json.tmpl
+index 6133c95..361da80 100644
+--- a/private_dot_claude/settings.json.tmpl
++++ b/private_dot_claude/settings.json.tmpl
+@@ -44,6 +44,7 @@
+       "Bash(gh workflow list:*)",
+       "Bash(git-push-topic:*)",
+       "Bash(git worktree remove:*)",
++      "Bash(herdr worktree remove:*)",
+       "Bash(orca worktree rm:*)",
+       "Bash(gh pr create:*)",
+       "Bash(gh pr edit:*)",
+diff --git a/private_dot_config/nix-devshell/modules/ai.nix b/private_dot_config/nix-devshell/modules/ai.nix
+index 71536d4..0da653e 100644
+--- a/private_dot_config/nix-devshell/modules/ai.nix
++++ b/private_dot_config/nix-devshell/modules/ai.nix
+@@ -118,6 +118,9 @@ in
+     llm.copilot-cli
+     llm.antigravity-cli
+
++    # --- Terminal Workspaces ---
++    llm.herdr
++
+     # --- Code Review Context ---
+     # CLI only. Each repository decides whether to build a graph and add a
+     # project-scoped MCP entry; never run the upstream global installer here.

@@ -96,7 +96,6 @@ assert_lock_entry() {
 @test "APM advances validated selected payloads and floating revision-only updates" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local skills_plugin_pin="$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json"
   local manifest_pins
   local lock_refs
 
@@ -110,8 +109,6 @@ assert_lock_entry() {
   ! grep -Fq 'virtual_path: skills/herdr' "$lock"
   ! grep -Eq '(^|[[:space:]])\.agents/skills/herdr($|[[:space:]])' "$lock"
   ! grep -Eq '(^|[[:space:]])\.claude/skills/herdr($|[[:space:]])' "$lock"
-  jq -e '.version == "0.2.10" and .rev == "fd2a50c558288b3661e5066b94b1196453ef9269"' \
-    "$skills_plugin_pin" >/dev/null
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
   ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
   ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"

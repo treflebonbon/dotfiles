@@ -198,7 +198,7 @@ bun "$SOURCE_DIR/scripts/verify-apm-deployment.mjs" \
 }
 ```
 
-helper は dependency 構成の一致、候補の追加・削除の完全一致、全配備 file の実 bytes／hash、runtime 外への path／symlink の拒否、両 target の skill discovery、`SKILL.md` の `name`／`description` frontmatter を検査する。guide Markdown には SKILL 用 frontmatter を要求しない。候補外 dependency は全 metadata を不変とし、更新前に `ref`／`resolved_ref` がない floating dependency の `resolved_commit` だけの変更を許容する。計画に含めた候補の revision／content／その他 metadata の更新は比較から外れるため、期待する pin／版／package type は manifest・native 生成・audit と当該更新 gate で別途照合する。
+helper は既存 dependency の更新と計画済みの dependency 削除を扱い、新規 dependency の追加と予定外の削除を拒否する。dependency 全体を削除する計画は追加0・旧配備 file 全件の削除を要求し、他 owner が保持する file を除いて配備先から消えたことも確認する。候補の追加・削除の完全一致、全配備 file の実 bytes／hash、runtime 外への path／symlink の拒否、両 target の skill discovery、`SKILL.md` の `name`／`description` frontmatter を検査する。guide Markdown には SKILL 用 frontmatter を要求しない。候補外 dependency は全 metadata を不変とし、更新前に `ref`／`resolved_ref` がない floating dependency の `resolved_commit` だけの変更を許容する。計画に含めた候補の revision／content／その他 metadata の更新は比較から外れるため、期待する pin／版／package type は manifest・native 生成・audit と当該更新 gate で別途照合する。
 
 隔離runtimeの比較では、root lock metadata、`deployments` の owner／active_owner／共有 owner ledger の前後比較、payload の意味、未記録 file 全体の列挙、対話 loader は helper の検査範囲外とする。既存の生成・frozen・audit と候補外／共有 owner ledger の独立比較を継続し、helper の PASS だけで全 lock 不変や配備完了とは判定しない。既存 frozen runtime の再利用では source の manifest／lock との byte 一致を先に確認し、`{"candidates":[]}` で追加・削除0を照合する。helper は native lock を読み取るだけで、HOME へ配備せず、既存 runner／hook／下記 Matt 専用 gate へ自動配線しない。
 

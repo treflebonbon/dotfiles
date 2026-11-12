@@ -16,7 +16,23 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 第三者 skill / plugin は APM、`treflebonbon-skills` は固定版の公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリと dotfiles 固有の配線を供給する。固定版 pin は `~/.config/nix-devshell/skills-plugin.json` に一つだけ置き、共用 CLI・raw Codex 入口・browser 補助資産は同じ immutable source を使う。移行前 copy の撤去許可には、まず `sync-codex-managed-config --verify-only` で各 managed Codex home の exact current version cache grant と deny を現行 config から照合し、続けて `sync-skills-plugin --verify-only` で current pin、source snapshot、receipt、Claude Code・各 Codex home・Antigravity CLI の現在の inventory と payload を照合する。後者の成功 JSON `source` が検証済み source path であり、receipt の過去成功だけでは current install を証明しない。旧 CLI は既知の baseline と一致する固定 snapshot だけへ fallback し、raw 起動は固定 source が欠ける場合に停止する。移行・復旧・適用範囲は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を参照する。
 
-Herdr TUI の Nix 供給、APM skill、copy-env 登録、TUI 用コマンドは退役済みで、既存の `~/.herdr` 状態は保持する。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
+Herdr TUI の Nix 供給、APM skill、copy-env 登録、TUI 用コマンドは通常の source 構成から外した。既存の `~/.herdr` 状態は保持する。配備済みの旧コマンドや skill の残存確認は [切替後の旧 TUI 配備物](#切替後の旧-tui-配備物)に従い、source の削除だけで撤去済みとは扱わない。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
+
+## 切替後の旧 TUI 配備物
+
+受入・merge 後に live source から対象限定の apply と必要な APM frozen 同期を終え、通常環境を再読み込みしてから次を確認する。未 merge の task source から live へ反映しない。
+
+1. `~/.local/bin/herdr-ask`、`~/.claude/skills/herdr`、`~/.agents/skills/herdr` の存在を確認する。dangling symlink も残存として扱う。chezmoi は source から削除したファイルを apply だけでは消さず、`chezmoi diff` が空でも旧コマンドが残る。APM の prune は実際の結果で判断する。
+2. 残存する `herdr-ask` は、symlink でない通常ファイルであることを確認し、[ADR-0088 の固定 baseline](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧) の `private_dot_local/bin/executable_herdr-ask` と内容を照合する。一致した対象・退避先を示して撤去の承認を得た後に、その一件だけを PATH 外の private な退避先へ移す。変更済み・未知・読取不能・symlink は自動で扱わず、path と理由を報告して保留する。
+3. APM skill が残る場合も名前だけで削除しない。固定 baseline の配備台帳・hash、現行 APM lock の所有範囲と照合し、既知の旧配備物だけを対象にした撤去案を承認してから扱う。管理外 entry を保持して報告する `verify-apm-deployment.mjs --live` の PASS は、旧 skill の撤去完了を意味しない。
+4. 撤去後は上記3パスに通常ファイル・directory・symlink が無いことと、再読み込みした shell の `command -v herdr-ask` が未検出であることを確認する。別の PATH に見つかった場合も対象を広げず報告する。残存や保留があれば切替は未完了と記録し、`~/.herdr` の状態・履歴・既存 worktree、公開 plugin の `herdr-peer-refactor` は保持する。
+
+一致を確認して承認された旧コマンド一件の退避は、通常 shell から次のように行う。skill の directory や `~/.herdr` をこの操作に追加しない。
+
+```bash
+retired_command_backup="$(mktemp -d /tmp/codex/herdr-tui-command.XXXXXX)"
+mv -- "$HOME/.local/bin/herdr-ask" "$retired_command_backup/herdr-ask"
+```
 
 ## Windows Herdr App と WSL2 core
 

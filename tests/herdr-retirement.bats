@@ -23,22 +23,26 @@ setup() {
     .default == [] and .wsl == [])' <<<"$output"
 }
 
-@test "Herdr TUI registration, skill, command and permission are absent while the public plugin pin stays fixed" {
+@test "Herdr TUI registration, skill, command and permission are absent from source" {
   local settings="$PROJECT_ROOT/private_dot_claude/settings.json.tmpl"
-  local plugin_pin="$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json"
   [ ! -e "$PROJECT_ROOT/.herdr/herdr-plugin.toml" ]
   [ ! -e "$PROJECT_ROOT/run_after_setup-herdr.sh" ]
   [ ! -e "$PROJECT_ROOT/private_dot_local/bin/executable_herdr-ask" ]
   ! grep -Fq 'herdrdev/herdr/skills/herdr' "$PROJECT_ROOT/apm.yml"
   ! grep -Fq 'Bash(herdr worktree remove:*)' "$settings"
-  jq -e '.version == "0.2.10" and .rev == "fd2a50c558288b3661e5066b94b1196453ef9269"' "$plugin_pin"
 }
 
-@test "Herdr-free chezmoi apply preserves existing Herdr state in its deployment target" {
+@test "Herdr TUI cutover requires explicit command retirement and preserves unrelated state" {
   local source="$BATS_TEST_TMPDIR/source" home="$BATS_TEST_TMPDIR/home"
+  local baseline="34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63"
+  local original="$BATS_TEST_TMPDIR/herdr-ask" backup="$BATS_TEST_TMPDIR/backup"
   local chezmoi
   chezmoi="$(command -v chezmoi)"
-  mkdir -p "$source" "$home/.herdr/worktrees/legacy"
+  mkdir -p "$source" "$home/.herdr/worktrees/legacy" "$home/.local/bin" "$backup"
+  git -C "$PROJECT_ROOT" show "$baseline:private_dot_local/bin/executable_herdr-ask" >"$original"
+  cp "$original" "$home/.local/bin/herdr-ask"
+  chmod +x "$home/.local/bin/herdr-ask"
+  printf 'unrelated command\n' >"$home/.local/bin/keep"
   cp "$PROJECT_ROOT/.chezmoiignore" "$source/.chezmoiignore"
   printf 'managed fixture\n' >"$source/dot_fixture"
   printf 'preserved TUI history\n' >"$home/.herdr/history"
@@ -53,6 +57,18 @@ setup() {
   [ "$(cat "$home/.herdr/history")" = 'preserved TUI history' ]
   [ "$(cat "$home/.herdr/worktrees/legacy/marker")" = 'preserved worktree marker' ]
   [ "$(cat "$home/.fixture")" = 'managed fixture' ]
+  cmp -s "$original" "$home/.local/bin/herdr-ask"
+
+  # The documented, approved one-file move is separate from chezmoi apply.
+  mv -- "$home/.local/bin/herdr-ask" "$backup/herdr-ask"
+  [ ! -e "$home/.local/bin/herdr-ask" ]
+  [ ! -L "$home/.local/bin/herdr-ask" ]
+  cmp -s "$original" "$backup/herdr-ask"
+  run env PATH="$home/.local/bin:/usr/bin:/bin" bash --noprofile --norc -c 'command -v herdr-ask'
+  [ "$status" -eq 1 ]
+  [ "$(cat "$home/.local/bin/keep")" = 'unrelated command' ]
+  [ "$(cat "$home/.herdr/history")" = 'preserved TUI history' ]
+  [ "$(cat "$home/.herdr/worktrees/legacy/marker")" = 'preserved worktree marker' ]
 }
 
 @test "the pinned TUI baseline can be restored on the retired source candidate" {
@@ -62,7 +78,8 @@ setup() {
   local reactivated_source="$BATS_TEST_TMPDIR/reactivated-deploy-source"
   local ai_source="private_dot_config/nix-devshell/modules/ai.nix"
   local baseline="34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63"
-  local restore_patch="$BATS_TEST_TMPDIR/recovery.patch"
+  local restore_patch="$PROJECT_ROOT/tests/fixtures/herdr/restore-tui.patch"
+  local before="$BATS_TEST_TMPDIR/recovery-before"
   local home="$BATS_TEST_TMPDIR/recovery-home"
   local bin="$BATS_TEST_TMPDIR/recovery-bin"
   local state="$BATS_TEST_TMPDIR/herdr-state.json"
@@ -83,14 +100,23 @@ setup() {
   [ ! -e "$retired_source/.herdr/herdr-plugin.toml" ]
   ! grep -Fq 'llm.herdr' "$retired_source/$ai_source"
 
-  # Restore only the tracked retirement delta that contains the Nix/APM entries
-  # and Claude permission. Do not roll the rest of the candidate back to baseline.
-  (
-    cd "$PROJECT_ROOT" &&
-      git diff --binary HEAD "$baseline" -- \
-        private_dot_config/nix-devshell/modules/ai.nix \
-        apm.yml apm.lock.yaml private_dot_claude/settings.json.tmpl
-  ) >"$restore_patch"
+  # A later unrelated skill update must survive the fixed TUI-only restoration.
+  run bun --eval '
+    import { readFileSync, writeFileSync } from "node:fs";
+    const root = process.argv.at(-1);
+    const manifest = readFileSync(`${root}/apm.yml`, "utf8");
+    const revision = manifest.match(/mattpocock\/skills#([a-f0-9]{40})/)[1];
+    for (const name of ["apm.yml", "apm.lock.yaml"]) {
+      const file = `${root}/${name}`;
+      writeFileSync(file, readFileSync(file, "utf8").replaceAll(revision, "1".repeat(40)));
+    }
+  ' "$source"
+  [ "$status" -eq 0 ]
+  mkdir -p "$before"
+  (cd "$source" && tar -cf - apm.yml apm.lock.yaml "$ai_source" \
+    private_dot_claude/settings.json.tmpl) | (cd "$before" && tar -xf -)
+
+  # This fixture contains only the original TUI delta, never HEAD-to-baseline drift.
   (cd "$source" && git apply "$restore_patch")
   mkdir -p "$source/.herdr"
   (cd "$PROJECT_ROOT" && git show "$baseline:.herdr/herdr-plugin.toml") >"$source/.herdr/herdr-plugin.toml"
@@ -101,17 +127,34 @@ setup() {
   [ -f "$source/.herdr/herdr-plugin.toml" ]
   cmp -s "$PROJECT_ROOT/.chezmoiignore" "$source/.chezmoiignore"
   grep -Fq 'llm.herdr' "$source/private_dot_config/nix-devshell/modules/ai.nix"
-  [ "$(jq -r '.nodes["llm-agents"].locked.rev' "$source/private_dot_config/nix-devshell/flake.lock")" = \
-    '2b6455a7711d6dc90e42e555c1ddb504481268f4' ]
+  cmp -s "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock" \
+    "$source/private_dot_config/nix-devshell/flake.lock"
   grep -Fq 'herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$source/apm.yml"
   grep -Fq 'content_hash: sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18' \
     "$source/apm.lock.yaml"
   grep -Fq 'resolved_commit: 2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$source/apm.lock.yaml"
-  grep -Fq 'resolved_commit: a496f5513d4a4cf889bc48e189e579f4b0bdf6aa' "$source/apm.lock.yaml"
-  grep -Fq 'mattpocock/skills#a496f5513d4a4cf889bc48e189e579f4b0bdf6aa' "$source/apm.yml"
-  grep -Fq 'stablyai/orca/skills/computer-use#1bd67185489c66a9e0d841e0134727f171a33764' "$source/apm.yml"
   grep -Fq 'Bash(herdr worktree remove:*)' "$source/private_dot_claude/settings.json.tmpl"
   grep -Fq 'Bash(git worktree remove:*)' "$source/private_dot_claude/settings.json.tmpl"
+
+  run bun --eval '
+    import assert from "node:assert/strict";
+    import { readFileSync } from "node:fs";
+    const [before, restored] = process.argv.slice(-2);
+    const text = (root, name) => readFileSync(`${root}/${name}`, "utf8");
+    const yaml = (root, name) => Bun.YAML.parse(text(root, name));
+    const manifest = yaml(restored, "apm.yml");
+    manifest.dependencies.apm = manifest.dependencies.apm.filter(entry => !entry.startsWith("herdrdev/herdr/skills/herdr#"));
+    assert.deepStrictEqual(manifest, yaml(before, "apm.yml"));
+    const lock = yaml(restored, "apm.lock.yaml");
+    lock.dependencies = lock.dependencies.filter(entry => entry.repo_url !== "herdrdev/herdr");
+    lock.deployments = lock.deployments.filter(entry => entry.active_owner !== "herdrdev/herdr/skills/herdr");
+    assert.deepStrictEqual(lock, yaml(before, "apm.lock.yaml"));
+    const nix = "private_dot_config/nix-devshell/modules/ai.nix";
+    assert.equal(text(restored, nix).replace("    # --- Terminal Workspaces ---\n    llm.herdr\n\n", ""), text(before, nix));
+    const settings = "private_dot_claude/settings.json.tmpl";
+    assert.equal(text(restored, settings).replace("      \"Bash(herdr worktree remove:*)\",\n", ""), text(before, settings));
+  ' "$before" "$source"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
 
   run nix eval --json --impure --no-write-lock-file --expr "
     let
