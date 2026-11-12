@@ -221,7 +221,19 @@ const verifySkillInventory = (runtime, skills, verifiedFiles, live) => {
   const unmanaged = [];
   for (const [target, expected] of Object.entries(skills)) {
     const directory = path.join(runtime, target, "skills");
-    const entries = readdirSync(directory);
+    let entries;
+    try {
+      entries = readdirSync(directory);
+    } catch (error) {
+      if (
+        error.code !== "ENOENT" ||
+        expected.size !== 0 ||
+        lstatSync(directory, { throwIfNoEntry: false }) !== undefined
+      ) {
+        throw error;
+      }
+      entries = [];
+    }
     if (live) {
       unmanaged.push(
         ...entries

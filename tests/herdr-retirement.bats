@@ -45,6 +45,8 @@ setup() {
   printf 'unrelated command\n' >"$home/.local/bin/keep"
   cp "$PROJECT_ROOT/.chezmoiignore" "$source/.chezmoiignore"
   printf 'managed fixture\n' >"$source/dot_fixture"
+  mkdir -p "$source/dot_herdr"
+  printf 'ignored marker\n' >"$source/dot_herdr/ignored-marker"
   printf 'preserved TUI history\n' >"$home/.herdr/history"
   printf 'preserved worktree marker\n' >"$home/.herdr/worktrees/legacy/marker"
 
@@ -53,10 +55,11 @@ setup() {
     --config /dev/null --config-format toml --cache "$BATS_TEST_TMPDIR/cache" \
     --persistent-state "$BATS_TEST_TMPDIR/chezmoi-state" apply
 
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
   [ "$(cat "$home/.herdr/history")" = 'preserved TUI history' ]
   [ "$(cat "$home/.herdr/worktrees/legacy/marker")" = 'preserved worktree marker' ]
   [ "$(cat "$home/.fixture")" = 'managed fixture' ]
+  [ ! -e "$home/.herdr/ignored-marker" ]
   cmp -s "$original" "$home/.local/bin/herdr-ask"
 
   # The documented, approved one-file move is separate from chezmoi apply.
@@ -80,6 +83,7 @@ setup() {
   local baseline="34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63"
   local restore_patch="$PROJECT_ROOT/tests/fixtures/herdr/restore-tui.patch"
   local before="$BATS_TEST_TMPDIR/recovery-before"
+  local future="$BATS_TEST_TMPDIR/future-llm"
   local home="$BATS_TEST_TMPDIR/recovery-home"
   local bin="$BATS_TEST_TMPDIR/recovery-bin"
   local state="$BATS_TEST_TMPDIR/herdr-state.json"
@@ -101,23 +105,70 @@ setup() {
   ! grep -Fq 'llm.herdr' "$retired_source/$ai_source"
 
   # A later unrelated skill update must survive the fixed TUI-only restoration.
+  mkdir -p "$future"
+  cat >"$future/flake.nix" <<'NIX'
+{
+  inputs.baseline.url = "github:numtide/llm-agents.nix/2b6455a7711d6dc90e42e555c1ddb504481268f4";
+  outputs = { baseline, ... }: {
+    packages = builtins.mapAttrs (_: packages: builtins.removeAttrs packages [ "herdr" ]) baseline.packages;
+  };
+}
+NIX
   run bun --eval '
+    import assert from "node:assert/strict";
     import { readFileSync, writeFileSync } from "node:fs";
-    const root = process.argv.at(-1);
+    const [root, future] = process.argv.slice(-2);
     const manifest = readFileSync(`${root}/apm.yml`, "utf8");
     const revision = manifest.match(/mattpocock\/skills#([a-f0-9]{40})/)[1];
     for (const name of ["apm.yml", "apm.lock.yaml"]) {
       const file = `${root}/${name}`;
       writeFileSync(file, readFileSync(file, "utf8").replaceAll(revision, "1".repeat(40)));
     }
-  ' "$source"
+    const directory = `${root}/private_dot_config/nix-devshell`;
+    const lock = JSON.parse(readFileSync(`${directory}/flake.lock`, "utf8"));
+    const original = lock.nodes[lock.nodes[lock.root].inputs["llm-agents"]].original;
+    const uri = `github:${original.owner}/${original.repo}/${original.rev}`;
+    const flake = readFileSync(`${directory}/flake.nix`, "utf8");
+    assert.equal(flake.split(uri).length, 2);
+    writeFileSync(`${directory}/flake.nix`, flake.replace(uri, `path:${future}`));
+  ' "$source" "$future"
   [ "$status" -eq 0 ]
+  run --separate-stderr nix flake lock "path:$source/private_dot_config/nix-devshell"
+  [ "$status" -eq 0 ] || { printf '%s\n' "$stderr" >&3; return 1; }
+
+  evaluate_recovery_packages() {
+    nix eval --json --impure --no-write-lock-file --expr "
+      let
+        flake = builtins.getFlake \"path:$source/private_dot_config/nix-devshell\";
+        select = names: shell: map (p: { inherit (p) pname version drvPath; })
+          (builtins.filter (p: builtins.elem (p.pname or \"\") names) shell.nativeBuildInputs);
+        shells = names: builtins.mapAttrs (_: variants: builtins.mapAttrs (_: select names) variants) flake.devShells;
+      in {
+        tui = shells [ \"herdr\" ];
+        ai = shells [ \"claude-code\" \"codex\" \"copilot-cli\" \"antigravity-cli\" ];
+        normalInputHasHerdr = builtins.mapAttrs (_: packages: packages ? herdr) flake.inputs.llm-agents.packages;
+      }
+    "
+  }
+  run --separate-stderr evaluate_recovery_packages
+  [ "$status" -eq 0 ] || { printf '%s\n' "$stderr" >&3; return 1; }
+  printf '%s\n' "$output" >"$BATS_TEST_TMPDIR/packages-before.json"
+  jq -e 'all(.normalInputHasHerdr[]; . == false) and all(.tui[]; .default == [] and .wsl == []) and all(.ai[]; (.default | length) == 4 and (.wsl | length) == 4)' <<<"$output"
+  run --separate-stderr nix flake archive --json --dry-run --no-write-lock-file "path:$source/private_dot_config/nix-devshell"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" >"$BATS_TEST_TMPDIR/inputs-before.json"
   mkdir -p "$before"
   (cd "$source" && tar -cf - apm.yml apm.lock.yaml "$ai_source" \
-    private_dot_claude/settings.json.tmpl) | (cd "$before" && tar -xf -)
+    private_dot_claude/settings.json.tmpl private_dot_config/nix-devshell/flake.nix \
+    private_dot_config/nix-devshell/flake.lock) | (cd "$before" && tar -xf -)
 
   # This fixture contains only the original TUI delta, never HEAD-to-baseline drift.
   (cd "$source" && git apply "$restore_patch")
+  run --separate-stderr nix flake lock "path:$source/private_dot_config/nix-devshell"
+  [ "$status" -eq 0 ] || { printf '%s\n' "$stderr" >&3; return 1; }
+  run --separate-stderr nix flake archive --json --dry-run --no-write-lock-file "path:$source/private_dot_config/nix-devshell"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" >"$BATS_TEST_TMPDIR/inputs-after.json"
   mkdir -p "$source/.herdr"
   (cd "$PROJECT_ROOT" && git show "$baseline:.herdr/herdr-plugin.toml") >"$source/.herdr/herdr-plugin.toml"
   (cd "$PROJECT_ROOT" && git show "$baseline:run_after_setup-herdr.sh") >"$source/run_after_setup-herdr.sh"
@@ -126,9 +177,7 @@ setup() {
   [ -f "$source/run_after_setup-herdr.sh" ]
   [ -f "$source/.herdr/herdr-plugin.toml" ]
   cmp -s "$PROJECT_ROOT/.chezmoiignore" "$source/.chezmoiignore"
-  grep -Fq 'llm.herdr' "$source/private_dot_config/nix-devshell/modules/ai.nix"
-  cmp -s "$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock" \
-    "$source/private_dot_config/nix-devshell/flake.lock"
+  grep -Fq 'inputs.llm-agents-herdr-recovery.packages.${system}.herdr' "$source/$ai_source"
   grep -Fq 'herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$source/apm.yml"
   grep -Fq 'content_hash: sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18' \
     "$source/apm.lock.yaml"
@@ -139,7 +188,7 @@ setup() {
   run bun --eval '
     import assert from "node:assert/strict";
     import { readFileSync } from "node:fs";
-    const [before, restored] = process.argv.slice(-2);
+    const [before, restored, records] = process.argv.slice(-3);
     const text = (root, name) => readFileSync(`${root}/${name}`, "utf8");
     const yaml = (root, name) => Bun.YAML.parse(text(root, name));
     const manifest = yaml(restored, "apm.yml");
@@ -150,24 +199,37 @@ setup() {
     lock.deployments = lock.deployments.filter(entry => entry.active_owner !== "herdrdev/herdr/skills/herdr");
     assert.deepStrictEqual(lock, yaml(before, "apm.lock.yaml"));
     const nix = "private_dot_config/nix-devshell/modules/ai.nix";
-    assert.equal(text(restored, nix).replace("    # --- Terminal Workspaces ---\n    llm.herdr\n\n", ""), text(before, nix));
+    assert.equal(text(restored, nix).replace("    # --- Terminal Workspaces ---\n    inputs.llm-agents-herdr-recovery.packages.${system}.herdr\n\n", ""), text(before, nix));
     const settings = "private_dot_claude/settings.json.tmpl";
     assert.equal(text(restored, settings).replace("      \"Bash(herdr worktree remove:*)\",\n", ""), text(before, settings));
-  ' "$before" "$source"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+    const file = "private_dot_config/nix-devshell/flake.lock";
+    const oldGraph = JSON.parse(text(before, file));
+    const newGraph = JSON.parse(text(restored, file));
+    assert.equal(newGraph.root, oldGraph.root);
+    const inputs = newGraph.nodes[newGraph.root].inputs;
+    const recovery = inputs["llm-agents-herdr-recovery"];
+    assert.equal(newGraph.nodes[recovery].locked.rev, "2b6455a7711d6dc90e42e555c1ddb504481268f4");
+    delete inputs["llm-agents-herdr-recovery"];
+    const oldInputs = oldGraph.nodes[oldGraph.root].inputs;
+    assert.deepStrictEqual(Object.keys(inputs).sort(), Object.keys(oldInputs).sort());
+    const metadata = ({ inputs, ...node }) => node;
+    for (const name of Object.keys(oldInputs)) {
+      assert.deepStrictEqual(metadata(newGraph.nodes[inputs[name]]), metadata(oldGraph.nodes[oldInputs[name]]), name);
+    }
+    const beforeArchive = JSON.parse(readFileSync(`${records}/inputs-before.json`, "utf8"));
+    const afterArchive = JSON.parse(readFileSync(`${records}/inputs-after.json`, "utf8"));
+    delete afterArchive.inputs["llm-agents-herdr-recovery"];
+    assert.deepStrictEqual(afterArchive.inputs, beforeArchive.inputs);
+  ' "$before" "$source" "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
 
-  run nix eval --json --impure --no-write-lock-file --expr "
-    let
-      flake = builtins.getFlake (toString $source/private_dot_config/nix-devshell);
-    in builtins.mapAttrs (_system: shells:
-      builtins.mapAttrs (_name: shell:
-        map (package: { inherit (package) pname version; })
-          (builtins.filter (package: (package.pname or null) == \"herdr\") shell.nativeBuildInputs)
-      ) shells
-    ) flake.devShells
-  "
-  [ "$status" -eq 0 ]
-  jq -e 'all(.[]; .default == [{"pname":"herdr","version":"0.9.5"}] and .wsl == [{"pname":"herdr","version":"0.9.5"}])' <<<"$output"
+  run --separate-stderr evaluate_recovery_packages
+  [ "$status" -eq 0 ] || { printf '%s\n' "$stderr" >&3; return 1; }
+  jq -e 'all(.normalInputHasHerdr[]; . == false) and all(.tui[];
+    [.default[].version] == ["0.9.5"] and [.wsl[].version] == ["0.9.5"])' <<<"$output"
+  jq -S .ai <<<"$output" >"$BATS_TEST_TMPDIR/ai-after.json"
+  jq -S .ai "$BATS_TEST_TMPDIR/packages-before.json" >"$BATS_TEST_TMPDIR/ai-before.json"
+  cmp -s "$BATS_TEST_TMPDIR/ai-before.json" "$BATS_TEST_TMPDIR/ai-after.json"
 
   mkdir -p "$home/.config/nix-devshell/lib" "$home/.herdr/worktrees/legacy" "$bin"
   mkdir -p "$deploy_source/.herdr" "$deploy_source/private_dot_config/nix-devshell/modules"
@@ -176,7 +238,7 @@ setup() {
   cp "$source/.herdr/herdr-plugin.toml" "$deploy_source/.herdr/herdr-plugin.toml"
   cp "$source/run_after_setup-herdr.sh" "$deploy_source/run_after_setup-herdr.sh"
   chmod +x "$deploy_source/run_after_setup-herdr.sh"
-  grep -Fq 'llm.herdr' "$deploy_source/$ai_source"
+  grep -Fq 'inputs.llm-agents-herdr-recovery.packages.${system}.herdr' "$deploy_source/$ai_source"
   (cd "$deploy_source" && git init -q -b main)
   mkdir -p "$reactivated_source/.herdr"
   cp "$source/.chezmoiignore" "$reactivated_source/.chezmoiignore"
@@ -212,7 +274,7 @@ SH
   }
 
   run apply_source "$deploy_source"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
   cmp -s "$deploy_source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
@@ -221,7 +283,7 @@ SH
   # Applying the retired candidate removes the source setup but leaves the old
   # registration and user data untouched until a restoration is requested.
   run apply_source "$retired_source"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
   cmp -s "$retired_source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
@@ -233,14 +295,14 @@ SH
   jq '.result.plugins[0].enabled = false' "$state" >"$BATS_TEST_TMPDIR/disabled-state.json"
   mv "$BATS_TEST_TMPDIR/disabled-state.json" "$state"
   run apply_source "$reactivated_source"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$reactivated_source/.herdr" ]
   [ "$(sed -n '7p' "$link_log")" = --disabled ]
   [ "$(wc -l <"$link_log")" -eq 7 ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = false ]
 
   run apply_source "$reactivated_source"
-  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
   [ "$(wc -l <"$link_log")" -eq 7 ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = false ]
 }

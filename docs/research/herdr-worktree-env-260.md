@@ -22,7 +22,7 @@ Issue [#260](https://github.com/treflebonbon/dotfiles/issues/260) は Herdr で�
 
 ## 採用した設定
 
-[`.herdr/herdr-plugin.toml`](https://github.com/treflebonbon/dotfiles/blob/34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63/.herdr/herdr-plugin.toml) の `[[events]]` で `worktree.created` を購読し、`command` に Bash の処理を定義する。Herdr 公式の plugin 機構は使うが、外部 plugin の install、npm 依存、別ファイルの実行 script は追加しない。実行依存は既存ユーザー devShell が供給する Bash・jq・Git・cp。Python は TOML を読み取るテストにだけ使い、`tomllib` に必要な3.11以上を repo 用 `flake.nix` の `basePackages` から供給する。[公式 manifest 定義](https://github.com/herdrdev/herdr/blob/b99002ac99b09e00b4ca692436cb15a6b0d676f1/src/app/api/plugins/manifest.rs)
+[`.herdr/herdr-plugin.toml`](https://github.com/treflebonbon/dotfiles/blob/8bdc7b155a65b07bd1b22b8635cd54acb9184d9c/.herdr/herdr-plugin.toml) の `[[events]]` で `worktree.created` を購読し、`command` に Bash の処理を定義する。Herdr 公式の plugin 機構は使うが、外部 plugin の install、npm 依存、別ファイルの実行 script は追加しない。実行依存は既存ユーザー devShell が供給する Bash・jq・Git・cp。Python は TOML を読み取るテストにだけ使い、`tomllib` に必要な3.11以上を repo 用 `flake.nix` の `basePackages` から供給する。[公式 manifest 定義](https://github.com/herdrdev/herdr/blob/b99002ac99b09e00b4ca692436cb15a6b0d676f1/src/app/api/plugins/manifest.rs)
 
 コピー元・先は `HERDR_PLUGIN_EVENT_JSON` から取得する。
 

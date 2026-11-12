@@ -100,6 +100,21 @@ elif mutation in ['removed-dependency','leftover-dependency']:
     if mutation=='removed-dependency':
         shutil.rmtree(runtime/'.agents/skills/beta')
         shutil.rmtree(runtime/'.claude/skills/beta')
+elif mutation in ['empty-inventory','empty-inventory-symlink','empty-inventory-file']:
+    base=json.loads((root/'base.yaml').read_text())
+    lock['dependencies']=[]
+    plan={'candidates':[{'repo_url':entry['repo_url'],
+        'virtual_path':entry['virtual_path'],'added':[],
+        'removed':entry['deployed_files']} for entry in base['dependencies']]}
+    (root/'plan.json').write_text(json.dumps(plan))
+    for target in ['.agents','.claude']:
+        shutil.rmtree(runtime/target)
+    if mutation!='empty-inventory':
+        directory=runtime/'.agents/skills'; directory.parent.mkdir()
+        if mutation=='empty-inventory-symlink':
+            directory.symlink_to(root/'missing-target')
+        else:
+            directory.write_text('Not a directory\n')
 elif mutation=='extra-skill':
     directory=runtime/'.agents/skills/untracked'; directory.mkdir()
     (directory/'SKILL.md').write_text('---\nname: untracked\ndescription: Extra\n---\n')
@@ -143,6 +158,33 @@ PY
 
   [ "$status" -eq 1 ]
   [[ "$output" == *'削除fileが残存'* ]]
+}
+
+@test "APM verification accepts absent skill roots after the final dependencies are removed" {
+  mutate_fixture empty-inventory
+
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'skill .agents=0 .claude=0'* ]]
+
+  run bun "$VERIFIER" --live "$FIXTURE/runtime/apm.lock.yaml" "$FIXTURE/runtime"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'skill .agents=0 .claude=0'* ]]
+}
+
+@test "APM empty skill inventory still rejects dangling root symlinks" {
+  mutate_fixture empty-inventory-symlink
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'ENOENT'* ]]
+  [ -L "$FIXTURE/runtime/.agents/skills" ]
+}
+
+@test "APM empty skill inventory still rejects a root that is a regular file" {
+  mutate_fixture empty-inventory-file
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'ENOTDIR'* ]]
 }
 
 @test "APM deployment verification rejects noncandidate hash drift even when bytes match the new hash" {

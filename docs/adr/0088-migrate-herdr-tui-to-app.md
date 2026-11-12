@@ -38,10 +38,43 @@ TUI の状態・履歴・既存 worktree は保持する。導入や接続の検
 
 移行直前の dotfiles source baseline は `34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63`。復旧変更はこの commit から次の TUI 固定値と source を選び、現在の他の設定へ重ねる。
 
-- Nix: `private_dot_config/nix-devshell/flake.lock` の `llm-agents` revision `2b6455a7711d6dc90e42e555c1ddb504481268f4` に含まれる `llm.herdr` 0.9.5。lock 全体は戻さず、現在の `ai.nix` の `llm.herdr` package entry だけを復元する。
+- Nix: 移行直前の `llm-agents` revision `2b6455a7711d6dc90e42e555c1ddb504481268f4` に含まれる Herdr TUI 0.9.5。復旧時だけ専用 input `llm-agents-herdr-recovery` をこの revision に固定し、現在の `llm-agents` input と他の AI ツールは維持する。lock 全体や既存 input を旧版へ戻さない。具体的な設定と照合は次節に記す。
 - APM: `herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`。移行直前 lock の skill `content_hash` は `sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18`。現在の manifest にこの dependency だけを追加し、`runtime/skill-harness.md` の隔離生成・frozen install・audit 手順で lock を再生成する。旧 `apm.lock.yaml` 全体をコピーしない。
 - Copy-env: `.herdr/herdr-plugin.toml` の `dotfiles.copy-env` 0.2.0 と `run_after_setup-herdr.sh`。この baseline の同名ファイルを復元し、chezmoi の設定反映後に登録状態を確認する。
 - Claude permission: `private_dot_claude/settings.json.tmpl` の `Bash(herdr worktree remove:*)` 一件だけを戻す。`.chezmoiignore` の `.herdr` 除外は維持する。
+
+### TUI だけを固定版へ戻す Nix 設定
+
+validated task worktree の repo root で、変更前の lock と Nix が解決した input tree を保存する。以下の操作も既存の保護付き検証入口で行う。
+
+```bash
+recovery_check="$(mktemp -d /tmp/codex/herdr-recovery.XXXXXX)"
+cp private_dot_config/nix-devshell/flake.lock "$recovery_check/flake.lock.before"
+nix flake archive --json --dry-run --no-write-lock-file ./private_dot_config/nix-devshell >"$recovery_check/inputs.before.json"
+```
+
+`private_dot_config/nix-devshell/flake.nix` に、復旧専用の input を追加する。通常構成には追加せず、現在の `llm-agents`、`llm-agents-apm`、`nixpkgs` 等の宣言は変更しない。
+
+```nix
+inputs.llm-agents-herdr-recovery.url = "github:numtide/llm-agents.nix/2b6455a7711d6dc90e42e555c1ddb504481268f4";
+```
+
+同じ worktree の `modules/ai.nix` の package list には、旧 `llm.herdr` ではなく次の entry を追加する。`inputs` と `system` は既存の module 引数を使う。
+
+```nix
+inputs.llm-agents-herdr-recovery.packages.${system}.herdr
+```
+
+repo root で `nix flake lock ./private_dot_config/nix-devshell` を実行する。Nix が生成する node の識別子は付け替わる場合があるため、root の既存 input ごとの `locked`／`original` metadata と、解決後の既存 input tree を比較する。追加は `llm-agents-herdr-recovery` と必要な依存だけとし、専用 input の `locked.rev` が上記 revision であることを確認する。次の比較が失敗する場合や、既存 input の取得元・固定値に差分がある場合は止める。既存の `llm-agents` を `--override-input` で旧版へ戻さない。
+
+```bash
+nix flake archive --json --dry-run --no-write-lock-file ./private_dot_config/nix-devshell >"$recovery_check/inputs.after.json"
+jq -S .inputs "$recovery_check/inputs.before.json" >"$recovery_check/before.json"
+jq -S '.inputs | del(."llm-agents-herdr-recovery")' "$recovery_check/inputs.after.json" >"$recovery_check/after.json"
+cmp "$recovery_check/before.json" "$recovery_check/after.json"
+```
+
+続けて `nix eval --json --impure --expr 'let f = builtins.getFlake (toString ./private_dot_config/nix-devshell); in builtins.mapAttrs (_: shells: builtins.mapAttrs (_: shell: map (p: p.version) (builtins.filter (p: (p.pname or null) == "herdr") shell.nativeBuildInputs)) shells) f.devShells'` を実行し、対応3 system の default／wsl がそれぞれ `["0.9.5"]` であることを確認する。現在の他の AI ツールの package output も変更前と一致することを確認する。固定 input の取得・評価・配布済み binary の確保ができなければ復旧未完了とし、別版や自前ビルドで代用しない。これらの操作も既存の保護付き検証入口で行う。
 
 テストする場合は移行後 source の一時 fixture に対して上記だけを戻し、Nix の版、APM の frozen/audit、plugin source と登録対象、permission、他の package / dependency の不変を確認する。fixture は専用の一時 HOME と APM 配備先を使う。ライブ HOME、稼働中の App/core、既存 `.herdr` データは復旧試験に使わない。実際の復旧では無関係なファイルを baseline から一括 checkout せず、復元対象の差分だけをレビューする。
 

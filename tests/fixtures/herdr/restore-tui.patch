@@ -108,8 +108,16 @@ index 71536d4..0da653e 100644
      llm.antigravity-cli
 
 +    # --- Terminal Workspaces ---
-+    llm.herdr
++    inputs.llm-agents-herdr-recovery.packages.${system}.herdr
 +
      # --- Code Review Context ---
      # CLI only. Each repository decides whether to build a graph and add a
      # project-scoped MCP entry; never run the upstream global installer here.
+diff --git a/private_dot_config/nix-devshell/flake.nix b/private_dot_config/nix-devshell/flake.nix
+--- a/private_dot_config/nix-devshell/flake.nix
++++ b/private_dot_config/nix-devshell/flake.nix
+@@ -4,2 +4,4 @@
+   inputs = {
++    llm-agents-herdr-recovery.url = "github:numtide/llm-agents.nix/2b6455a7711d6dc90e42e555c1ddb504481268f4";
++
+     # Keep the shared package set fixed while AI tools advance through pinned sources.

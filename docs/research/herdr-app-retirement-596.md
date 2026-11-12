@@ -469,3 +469,16 @@ git -C "$source_root" show \
 修正後の独立再レビューと clean commit の最終 canonical 結果は後続の生成記録・PR 本文へ保存する。merge、live 配備、実環境の旧配備物撤去は未実施。
 
 再レビューでは、規約の元 P3×3と仕様の元 P2×1・P3×3の解消を Claude Opus が確認した。追加で指摘された現行 runtime ガイドの供給一覧からも Herdr TUI を除いた。日付付きの歴史記録は保持した。固定復旧 patch の context が将来の隣接変更で適用不能になる保守上の制限と軽微な fixture の重複は記録し、今回の修正を不要な共通化へ広げていない。
+
+## PR #597 レビュー 5878478547 への対応
+
+inline 4件、差分外の APM 検査1件、ignore fixture の軽微指摘1件を確認し、現行 source に残る問題として対応した。
+
+- 復旧時だけ `llm-agents-herdr-recovery` を baseline revision に固定し、TUI の package だけをそこから取得する。現行の通常 input や実 lock を戻す変更はしていない。fixture では通常側の input から `herdr` を除き、専用 input から0.9.5を評価し、他の AI ツールの output を比較する。native lock が node 名を付け替える場合も、既存 root input の `locked`／`original` metadata と native archive が解決する既存 input tree の不変を照合する。
+- #260 当時の manifest のリンクを `8bdc7b155a65b07bd1b22b8635cd54acb9184d9c` へ変更し、version0.1.0、repo 限定、コピー元不在時の失敗を Git の公開 source から確認した。復旧 baseline の0.2.0との区別を保つ。
+- copy-env で除去したのは source 定義と自動登録処理であり、live 登録は残りうること、旧 TUI を再利用する前の一覧確認と人による扱いの判断を記した。登録の削除・無効化や実機の plugin 操作はしていない。
+- raw の未登録・gitignore 済みファイルと、登録した到達可能な Git 履歴に含まれる commit 済み private file の扱いを分け、入力登録前の履歴確認を明記した。実際の private file や秘密値を読んだ検証はしていない。
+- APM の期待 skill が空の場合に限り、不在の skill root を空の一覧として扱う。dangling symlink、通常ファイル、その他の読取エラーは拒否する。通常比較・live 比較の空配備と拒否ケースを fixture で確認した。
+- `.herdr` に配備される source marker を fixture に置き、ignore されることを通常配備の対照とともに検証した。
+
+調査の最初の retirement 実行は終了コード0だったが、lock 比較の assertion failure を `|| printf` が隠していたため成功証拠から除外した。対象テストの診断付き終了判定を失敗時に終了する形へ直した。修正後の保護付き retirement／APM verifier の関連 Bats は37/37成功、skip0、失敗0、exit0。実ログは `/tmp/codex/ai-tools-wrd9dgwi/startup.log` と `exit-code`。保存した fixture は `/tmp/codex/pr597-review-round.haDGCO/bats-diagnostics/bats-run-wZXvfB`。最終 canonical の結果と公開・返信の結果は後続の生成記録に保存し、live 配備・旧配備物撤去・PR merge は実施しない。

@@ -16,9 +16,11 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 第三者 skill / plugin は APM、`treflebonbon-skills` は固定版の公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリと dotfiles 固有の配線を供給する。固定版 pin は `~/.config/nix-devshell/skills-plugin.json` に一つだけ置き、共用 CLI・raw Codex 入口・browser 補助資産は同じ immutable source を使う。移行前 copy の撤去許可には、まず `sync-codex-managed-config --verify-only` で各 managed Codex home の exact current version cache grant と deny を現行 config から照合し、続けて `sync-skills-plugin --verify-only` で current pin、source snapshot、receipt、Claude Code・各 Codex home・Antigravity CLI の現在の inventory と payload を照合する。後者の成功 JSON `source` が検証済み source path であり、receipt の過去成功だけでは current install を証明しない。旧 CLI は既知の baseline と一致する固定 snapshot だけへ fallback し、raw 起動は固定 source が欠ける場合に停止する。移行・復旧・適用範囲は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を参照する。
 
-Herdr TUI の Nix 供給、APM skill、copy-env 登録、TUI 用コマンドは通常の source 構成から外した。既存の `~/.herdr` 状態は保持する。配備済みの旧コマンドや skill の残存確認は [切替後の旧 TUI 配備物](#切替後の旧-tui-配備物)に従い、source の削除だけで撤去済みとは扱わない。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
+Herdr TUI の Nix 供給、APM skill、copy-env の source 定義と自動登録処理、TUI 用コマンドは通常の source 構成から外した。既存の `~/.herdr` 状態は保持する。配備済みの旧コマンドや skill の残存確認は [切替後の旧 TUI 配備物](#切替後の旧-tui-配備物)に従い、source の削除だけで撤去済みとは扱わない。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
 
 ## 切替後の旧 TUI 配備物
+
+既存の `~/.herdr` に copy-env 登録が残る場合がある。TUI が利用できる検証・併用中、または復旧後に旧 TUI を再利用する前に、`herdr plugin list --plugin dotfiles.copy-env --json` で `plugin_root` と `enabled` を確認する。有効な登録と source が残っていれば、新しい worktree へ gitignore 済みの `.env` をコピーしうるため、利用前に人が扱いを決める。状態・履歴を守るため、自動で登録を削除・無効化しない。TUI がなく照合できない場合は未確認として記録し、確認のためだけに再導入・起動しない。
 
 受入・merge 後に live source から対象限定の apply と必要な APM frozen 同期を終え、通常環境を再読み込みしてから次を確認する。未 merge の task source から live へ反映しない。
 
