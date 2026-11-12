@@ -26,7 +26,8 @@
 - TUI 固有の隔離 VM 分岐、専用 test / helper、必須 runtime check の
   依存を削除した。raw Codex 隔離と reviewer の read-only Git metadata
   境界は残した。
-- 拒否 fixture の read-only file、pre-push stub の開いた stdin、canonical test fixture の欠落を修正した。
+- 拒否 fixture の read-only file、pre-push stub の開いた stdin、canonical test fixture
+  の欠落を修正した。
 - 利用手順、用語集、ADR-0088 とこの検証記録を更新した。live source での
   `chezmoi diff` / apply は行っていない。
 
@@ -52,12 +53,15 @@ Herdr command が呼ばれないこと、TUI binary / hook / skill / permission 
 
 ### AC 4 — APM の公式生成・frozen・audit・配備照合
 
-**確認済み。** APM 公式 lock 生成、frozen install、`apm audit --ci` 10/10、candidate/base 配備比較を確認した。新 dependency はなく、TUI skill の 4 file だけが削除対象になった。Org policy は fixture remote から
-private `.github-private` を読めず、強制評価が skip された。これは APM audit の10検査とは別の状態として下記に記録した。
+**確認済み。** APM 公式 lock 生成、frozen install、`apm audit --ci` 10/10、candidate/base
+配備比較を確認した。新 dependency はなく、TUI skill の 4 file だけが削除対象になった。Org policy は fixture remote から
+private `.github-private` を読めず、強制評価が skip された。これは APM audit
+の10検査とは別の状態として下記に記録した。
 
 ### AC 5 — raw 隔離・Git 境界と必須 check
 
-**確認済み。** raw Codex と Git boundary の test を維持した。関連 suite 92/92 pass。削除 test を要求する runtime / pre-push 配線は残っていない。
+**確認済み。** raw Codex と Git boundary の test を維持した。関連 suite 92/92 pass。削除 test
+を要求する runtime / pre-push 配線は残っていない。
 
 ### AC 6 — 公開 plugin、他 skill、baseline、未対応 skill
 
@@ -92,7 +96,9 @@ private `.github-private` を読めず、強制評価が skip された。これ
 ### AC 11 — check、共通構成、live 手順
 
 **source check 済み、live / full suite 待ち。** 3 supported systems の
-共通 Nix 構成評価、targeted check、`runtime_test_checks.py` の必須 Bash / Treesitter 検証3/3、canonical harness Bats 47/47 は成功した。full canonical runner / full Bats と受入後の live source apply は task 側で
+共通 Nix 構成評価、targeted check、`runtime_test_checks.py` の必須 Bash / Treesitter
+検証3/3、canonical harness Bats 47/47 は成功した。full canonical runner / full Bats と受入後の
+live source apply は task 側で
 実行せず、最終統合後に親が行う。live 未実行を移行完了とは扱わない。
 
 ### AC 12 — ADR、用語集、利用手順
@@ -122,7 +128,8 @@ private `.github-private` を読めず、強制評価が skip された。これ
   native lock `4b93ce2ed94771780a6d3ebcd512342569b155db0eeb320390a1350aa770cc64`
   を選んだ。`73dc...` に含まれた4件の floating `resolved_commit` 更新を
   持ち込まず、base `34fa46f...` と比べ Herdr dependency と4配備 file
-  だけを削除する。最終 lock でも frozen install 前後の SHA は不変、APM audit は10/10、配備 helper は dependency 20、各 target 46 skills、追加0・
+  だけを削除する。最終 lock でも frozen install 前後の SHA は不変、APM audit は10/10、配備 helper は
+  dependency 20、各 target 46 skills、追加0・
   削除4を確認した。log: `/tmp/codex/ai-tools-uxglq2mk/startup.log`。
   同じ隔離 runtime で `apm audit --ci` を再実行した結果は
   `/tmp/codex/ai-tools-4laa20bf/startup.log`。org policy は private `.github-private` の読取り権がなく強制評価されなかった。
@@ -161,7 +168,8 @@ private `.github-private` を読めず、強制評価が skip された。これ
   worktree marker を保持した apply を確認した。
 - 復旧 fixture は base source の `git show` 内容を使った。0.9.5 TUI package、
   同梱 APM skill、登録 hook、旧 command、permission を戻した。APM lock SHA
-  は不変、audit 10/10、配備照合は dependency 21 / `.agents` 47 / `.claude` 47。TUI skill は指定 revision で両 target に戻った。
+  は不変、audit 10/10、配備照合は dependency 21 / `.agents` 47 / `.claude` 47。TUI skill
+  は指定 revision で両 target に戻った。
   log: `/tmp/codex/verification-env.fdyv4xho`。
 - 検証は scratch HOME / XDG 内であり、live source、実 user の `.herdr`、
   App / Core を変更していない。
@@ -197,10 +205,11 @@ private `.github-private` を読めず、強制評価が skip された。これ
   30 tests を再実行した。
 - canonical test の初回 `verification_env.py` 実行は `with-env` 不在で拒否
   された。保護付き Nix gate へ切替えた後、fixture source に
-  `tests/codex-repo-state.bats` がなく test 20 が失敗した。setup で実 source file をコピーする修正を加え、最後に両 canonical Bats を再確認した。
+  `tests/codex-repo-state.bats` がなく test 20 が失敗した。setup で実 source file
+  をコピーする修正を加え、最後に両 canonical Bats を再確認した。
 - touched Markdown 全体の lint では複数の既存 ADR・runtime doc・template に
   MD013 long line と MD025 heading が残った。今回の report は単体の
-  `markdownlint-cli2` で通過した。log: `/tmp/codex/ai-tools-zefvg1ru/startup.log`。
+  `markdownlint-cli2` で通過した。log: `/tmp/codex/ai-tools-m3zlfy0n/startup.log`。
 - `scripts/test-docs.sh` は `.chezmoiignore` が docs-only exception 外のため
   exit 2 を返し、doc-only test を実行しなかった。full suite は未実行。
 - 最初の commit hook は未導入の `oxlint` / `oxfmt` package 解決で失敗した。
@@ -253,7 +262,8 @@ private `.github-private` を読めず、強制評価が skip された。これ
   `docs/adr/0088-migrate-herdr-tui-to-app.md`、`runtime/*.md`、
   `templates/{bun,elixir,gleam,go,perl,rust}/DEVELOPMENT.md` — 現行 App 利用、
   未対応 TUI skill、歴史資料、更新・復旧・未確認範囲を区別する。
-- current integration の `tests/herdr-retirement.bats` と、追加された ADR / research の歴史記録を通常 merge で保持した。ADR-0088 の復旧 baseline には
+- current integration の `tests/herdr-retirement.bats` と、追加された ADR / research
+  の歴史記録を通常 merge で保持した。ADR-0088 の復旧 baseline には
   Nix 0.9.5、APM skill revision、copy-env source / hook の旧固定値を記録する。
 - ADR-0057 / 0063 と Herdr / AI tool の research 記録は、旧検証の歴史を残し
   現行 App の運用案内と混同しないよう通常 merge で更新した。
