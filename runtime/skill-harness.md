@@ -45,7 +45,6 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `improve-codebase-architecture` の report が挙動を「バグ」や「非一貫」と断定する前に、その挙動を固定する既存テストと上流の正規化を読み、正規化後にも反例が残るかを確認する。sub-agent の報告は未検証の主張として扱う。既存テストがあるだけで正しい挙動とは判定しない。
 - `improve-codebase-architecture` の提示済み候補について人が peer 協働による改善を明示依頼した場合、固定 plugin の `herdr-peer-refactor` / `orca-peer-refactor` で元候補を固定し、通常 session でも native worktree・peer 相談・独立レビュー・PR まで進める。人が選んだ候補と既存承認を引き継ぐ。選択を委任された場合は peer が提示済み候補から選び、その元候補を pin して進む。上流 skill の探索と人の回答を待つ `grilling` 自体は fork せず変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
 - 同 skill の HTML report は生成後に固定 plugin source の `skills/{herdr,orca}-peer-refactor/scripts/check-architecture-report.py` で静的構造を検査し、実ブラウザで `check-architecture-render.js` を実行してから提示する。source の場所は [契約案内](autonomous-peer-contract.md) から現在の pin に合わせて解決する。Mermaid は `<pre class="mermaid">` 内の raw text とし、nested tag・HTML comment・declaration・processing instruction を許さないが、`&lt;` 等の文字参照は許す。描画検査は入力図数、HTTP 成功応答、各 `.mermaid` container の SVG ちょうど1個、Mermaid の error marker、uncaught error、および console error を機械判定する。favicon.ico の取得失敗だけは console error の例外として除外し、それ以外の console error は提示・pin を止める。Orca 内蔵 page は `orca-cli`、この検証用の外部 browser は `playwright-cli` を使う。静的検査は実描画検査の代わりにならない。提示前に検査していない既存 report は、検査後に同じ artifact を提示し直してから pin する。Markdown artifact の従来経路は維持する。上流 skill と `grilling` 自体は fork・変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
-- `herdr` から Claude / Codex を起動する手順と既知の癖は [Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動) を正本とする。peer 協働の起動の詳細は、[固定版 source の解決方法](autonomous-peer-contract.md)に従って `skills/herdr-peer-refactor/references/herdr.md` を参照する。
 - `find-skills` はインストール手順として `npx skills add -g -y` を案内するが、外部 skill は `apm.yml` / `apm.lock.yaml` 経由でのみ導入する。このコマンドは実行せず、追加候補は `apm.yml` への追記として提示する。
 - `pdf` の SKILL.md は `REFERENCE.md` / `FORMS.md` を指すが、実ファイルは小文字の `reference.md` / `forms.md`。小文字のファイルを読む。
 - `wizard` に書く CLI コマンドは、書く前に `--help` で対話プロンプトと設定ファイルの自動更新の有無を確かめ、それを止めるフラグを付ける（例: `wrangler r2 bucket create` には `--update-config=false`。付けないと、バインディングを設定へ追加するかを尋ね、了承すると repo の設定ファイルを書き換える）。人が wizard を実行し終えたら、`git status` と `git diff` を実行前と比べ、想定外のファイル変更が無いことを確かめる。
@@ -90,9 +89,9 @@ canonical検証の準備から始める場合は `scripts/run-canonical.py` を�
 
 Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に `git fetch origin` し、physical root、ブランチ、HEAD（`origin/<default>` との一致を含む。native 作成は fetch 前の古い参照から作ることがある）、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。既存の branch を再利用するときは、その branch の PR が merge 済みでないかを `gh pr list --head <branch> --state all --json number,state,headRefName` で確認し、状態を文字で読む。MERGED なら squash 後の履歴は branch と一致せず、`git-push-topic` も拒否するため、積まずに `origin/<default>` から新しい branch を切り、必要な commit だけを持ち込む。隔離内の `gh pr list` は `--head` を拒否し、`--state` も受けず、open な PR しか返さないため、この確認は隔離の起動前にホストで済ませる。新しい branch が要るときは、その branch で GitHub policy を登録してから起動する。policy は1 topic に固定されるので、隔離 session の途中では branch を切り替えない。GitHub を使えないローカル作業では、この確認を公開前まで延期できる。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
 
-- **Herdr**: 明示依頼時に `herdr` スキルを使い、`HERDR_ENV=1` を確認して native worktree・pane を管理する。Codex の隔離起動は、対象 pane の shell prompt から `codex-worktree` を実行する。既存 linked worktree を受け取る adapter なので `--worktree` は渡さない。pane の cwd と返却された ID を確認し、background 起動は `--no-focus` を使う。agent 認識と入力可能状態を親が確認してから依頼を引き継ぐ。隔離内では Herdr socket を公開せず、Herdr の制御は親が担当する。
+- **Herdr App**: App で既存 task worktree を開き、その terminal で root と Git 状態を確認する。Codex の秘密隔離が必要なら App の built-in agent menu ではなく、既存の `codex-worktree` を `--no-daemon` 付きで起動する。親が agent を開始・制御する場合は Windows 側の `hc run` / `hc wait` / `hc read` を使い、core socket を隔離内へ公開しない。接続・起動・版確認の手順は [AI runtimes](ai-runtimes.md#windows-herdr-app-から-wsl2-を使う) を正本とする。
 - **Orca**: native worktree と Agent Picker の built-in agent 起動を使い、permission mode は Orca に委ねる。自律 workflow は shipped Yolo、確認を残す場合は Manual と Orca Source Control を使う。Orca native Codex は `codex-orca` / `codex-worktree` を使わない。worktree は review / recovery の境界であり OS sandbox ではないため、Yolo は信頼できる repository / host に限る。runtime 自己認識で Orca を識別し、`ORCA_*` environment の汎用判定は導入しない。Orca primary checkout からの実装は native worktree の新しい agent session で開始する。
-- **読み取り専用レビュー役の Codex**: Herdr などの pane で task worktree の差分をレビューさせる Codex は、その linked worktree を cwd にした shell から `codex-reviewer [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 auto は固定 plugin source の `skills/herdr-peer-refactor/references/auto-session.md` と `contracts/auto-peer-protection.md` にある専用 preflight と起動 wrapper だけを通す。source、専用 home、deny 設定、実効保護がいずれか未確認なら専用 auto を保留し、通常 session へ切り替えない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで足すので、`git status` / `git diff` / `git show` は使えるが、Git 書込みや別 worktree は扱えない。`herdr agent start --kind codex` や単なる `codex` では Git dir を読めない。秘密隔離は提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
+- **読み取り専用レビュー役の Codex**: Herdr App terminal などから task worktree の差分をレビューさせる Codex は、その linked worktree を cwd にした shell から `codex-reviewer [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 auto は固定 plugin source の `skills/herdr-peer-refactor/references/auto-session.md` と `contracts/auto-peer-protection.md` にある専用 preflight と起動 wrapper だけを通す。source、専用 home、deny 設定、実効保護がいずれか未確認なら専用 auto を保留し、通常 session へ切り替えない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで足すので、`git status` / `git diff` / `git show` は使えるが、Git 書込みや別 worktree は扱えない。App の built-in Codex 起動や単なる `codex` ではこの Git metadata 境界と秘密隔離を提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
 - **Claude Code / Codex**: Claude Code は `EnterWorktree`、Codex app は native worktree、Codex CLI の新規作成は導入版の `codex --help` に従い `--worktree` を使う。native 作成と隔離起動は別の責務。raw Codex の秘密隔離が必要な場合は、作成済み linked worktree で既存 `codex-worktree` を使い、その公開入力登録・trust・返却契約に従う。
 
 ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に固定版 public source の `skills/orca-peer-refactor/references/orca.md#worktree-readiness` を確認します。source root は [契約案内](autonomous-peer-contract.md) にある検証済み plugin JSON の `source` から解決し、worker 観測と割当時に固定した期待値の照合成功を待ちます。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要します。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外です。
@@ -108,7 +107,7 @@ Git 管理情報を解決できない場合は編集・Git 書込みを保留し
 
 依頼済みタスクの正規経路での復旧・引継ぎには二重確認を求めない。後継起動前に元担当が編集を停止していることを確認し、同じ worktree を同時編集しない。既存 pane の強制終了、worktree の削除・作り直し、権限拒否の迂回、共有設定の権限拡大は復旧に含めない。新しい根拠や正規経路がない同じ失敗は繰り返さず、最後の検証結果と再開に不足する条件を報告する。
 
-Herdr 0.9.0 では adapter 内の対話 Codex が入力可能でも `agent list` に現れない事例を実測した（[ADR-0057](../docs/adr/0057-retire-to-worktree-for-native-entry.md)）。この場合は自動引継ぎ未完了として報告し、親自身が検証できる task worktree での作業は継続する。
+旧 Herdr TUI 0.9.0 では adapter 内の対話 Codex が入力可能でも `agent list` に現れない事例を実測した（[ADR-0057](../docs/adr/0057-retire-to-worktree-for-native-entry.md)）。これは旧 TUI の歴史的観測であり、App の agent 状態や更新結果を示すものではない。
 
 起動しただけでは引継ぎ完了としない。対話 agent の認識・入力可能状態と、子からの checkout / Git 検証を別々に確認する。`codex-worktree sandbox` の成功は対話 agent 起動の代用にならない。配備済み公開入力・trust・接続前提が不足している場合も、通常環境の秘密値や権限を変更して代用しない。
 
@@ -121,7 +120,7 @@ app-server で実タスクを引き継ぐ親は、同じ隔離 process/thread �
 3. 起動 stderr の隔離 session directory の `config/sessions/` から、その thread ID の rollout を選び、`turn_context` の model／effort／cwd だけを抽出して照合する。effort は TOML の復号値で比較する。hidden reasoning・認証情報は抽出しない。
 4. 一致後に同じ process/thread へ実タスクを送る。`turn/start` の model／effort は省略または readiness と同じ値とする。不一致・観測不能・未対応なら送らず、設定を黙って下げない。設定変更、thread／process の変更・resume 後は readiness と記録確認をやり直す。
 
-CLI の model／effort 指定は利用できるが、CLI 自動引継ぎは未対応。同じ TUI process の有効値観測・readiness からの継続・Herdr の agent 認識を確認するまで対応済みとしない。別 raw 起動の `exec resume` は過去の rollout を持ち込まないため、この gate の継続経路に使わない。確認は runtime 設定とモデル応答までで、バックエンドの実際の推論計算量は保証しない。
+CLI の model／effort 指定は利用できるが、CLI 自動引継ぎは未対応。同じ Codex process の有効値観測と readiness からの継続を確認するまで対応済みとしない。別 raw 起動の `exec resume` は過去の rollout を持ち込まないため、この gate の継続経路に使わない。確認は runtime 設定とモデル応答までで、バックエンドの実際の推論計算量は保証しない。
 
 - wayfinding: 巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作り、frontier が明確になってから Planner / Builder-Evaluator へ合流する
 
@@ -245,7 +244,7 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 **その他 apm skill（保持）**: find-skills, skill-creator, pdf, supabase-postgres-best-practices, empirical-prompt-tuning, effect-ts, security-audit。
 
-**Herdr**: [公式スキル](https://herdr.dev/ja/docs/agent-skill/)を `herdrdev/herdr/skills/herdr` から APM で配布する。採用するrevisionは `apm.yml` / `apm.lock.yaml` を正本とし、`~/.agents/skills/herdr/` と `~/.claude/skills/herdr/` へ展開する。Herdr の操作を明示的に依頼された場合に使い、制御コマンドの前に `HERDR_ENV=1` を確認する。CLI バイナリは nix devshell が供給する。
+**Herdr TUI skill（非対応）**: `herdrdev/herdr/skills/herdr` は TUI 専用 skill であり、この dotfiles repository では導入しない。App ガイドや Herdr App の連携としては扱わず、導入版に対応する App User Guide と `hc --skill` を使う。再導入には TUI package、APM の exact revision、登録 source、関連 permission を一つの validated source 変更で揃える（[ADR-0088](../docs/adr/0088-migrate-herdr-tui-to-app.md)）。
 
 ## Ultracite の project hook
 
@@ -281,7 +280,7 @@ peer 協働や browser 資産の共通契約は public pin が正本。source pa
 
 raw adapter は Linux／WSL2 で `devshell-env trust` と worktree ごとの公開入力登録 `devshell-env admit --git-head FULL_SHA -- FILES` を要求する。`codex-worktree`、`devshell-env codex`、`devshell-env admit` は current pin の receipt・checkout・source を検証した後、固定 plugin source の `bin/codex-worktree` と `bin/devshell-env` を実行する。欠損や不一致時は停止し、旧 raw 実装へ fallback しない。登録した Git 履歴・ファイル・公開設定だけをコピーし、Nix／shellHook より前に専用 HOME・store・process・network の境界を作る。起動元の任意変数は復元せず、root dotenv の read 例外も追加しない。管理 permission と Active Git Metadata Boundary は読み取り専用の requirements に固定する。
 
-終了時に commit・index・通常ファイルを元の worktree へ返す。実行中の host 並行編集、未登録入力との衝突、初期化／隔離の失敗では非0終了して結果を保持する。無保護な fallback は使わない。入力登録・導入条件・再起動・復旧は [利用方法](shell-environment.md#raw-codex-のプロジェクト開発環境) を読む。人間の明示 `with-env` は従来の dotenv 注入を保持し、raw の `with-env --prepared` は秘密なしの環境だけを再利用する。管理 Context7・Serena は明示選択して同じ隔離内で起動し、GitHub は人間が確認した公開 repo・topic・CI/外部連携の方針を登録して限定 gateway へ接続する。必要な認証は host に保持する。[対応 CLI と確認条件](shell-environment.md#隔離内の管理-mcp-と-github) を参照する。Orca／Herdr の native 起動、既存セッションには遡及適用しない。
+終了時に commit・index・通常ファイルを元の worktree へ返す。実行中の host 並行編集、未登録入力との衝突、初期化／隔離の失敗では非0終了して結果を保持する。無保護な fallback は使わない。入力登録・導入条件・再起動・復旧は [利用方法](shell-environment.md#raw-codex-のプロジェクト開発環境) を読む。人間の明示 `with-env` は従来の dotenv 注入を保持し、raw の `with-env --prepared` は秘密なしの環境だけを再利用する。管理 Context7・Serena は明示選択して同じ隔離内で起動し、GitHub は人間が確認した公開 repo・topic・CI/外部連携の方針を登録して限定 gateway へ接続する。必要な認証は host に保持する。[対応 CLI と確認条件](shell-environment.md#隔離内の管理-mcp-と-github) を参照する。Orca／Herdr App の built-in 起動、既存セッションには遡及適用しない。
 
 `sync-codex-managed-config` は native Codex home と explicit `CODEX_HOME` の managed `dotfiles-secure` から、旧 absolute `…/.git = "write"` と `:workspace_roots` の `".git" = "write"` を除去する。Codex self-expanded concrete map は、管理設定に明示されていない absolute root と managed workspace の `"."` mode が一致する場合だけ除去する。明示的に管理する `/tmp/codex` の追加拒否ルール、managed profile の独立 nested deny、`:minimal` など他の scalar baseline、user-defined profile の path rule は保持する。
 

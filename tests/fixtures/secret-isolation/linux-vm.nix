@@ -11,7 +11,6 @@
   bwrapRoot,
   batsRoot,
   chezmoiRoot,
-  herdrRoot ? null,
   withEnvRoot ? null,
   realServices ? false,
 }:
@@ -47,8 +46,7 @@ let
     pkgs.nodejs_24
     pkgs.uv
   ]
-  ++ pkgs.lib.optional (withEnvRoot != null) (toStorePath withEnvRoot)
-  ++ pkgs.lib.optional (herdrRoot != null) (toStorePath herdrRoot);
+  ++ pkgs.lib.optional (withEnvRoot != null) (toStorePath withEnvRoot);
   publicRawTests = "${skillsPluginSource}/tests/raw-codex";
   publicIsolatedGithub = pkgs.lib.optional (builtins.pathExists "${publicRawTests}/isolated-github.bats") "${publicRawTests}/isolated-github.bats";
   probeSource = pkgs.runCommand "secret-isolation-probe-source" { } ''
@@ -63,8 +61,6 @@ let
         install -D -m 0444 ${pkgs.writeText (builtins.baseNameOf name) (builtins.readFile "${repoPath}/${name}")} "$out/${name}"
       '')
       [
-        "scripts/herdr-codex-isolation.py"
-        ".herdr/herdr-plugin.toml"
         "private_dot_config/codex/config.toml.tmpl"
         "private_dot_config/nix-devshell/skills-plugin.json"
         ".chezmoitemplates/local-skills-legacy.json"
@@ -81,8 +77,6 @@ pkgs.testers.runNixOSTest {
   name = "secret-isolation-linux-vm-${
     if withEnvRoot != null then
       "274"
-    else if herdrRoot != null then
-      "273"
     else
       "270"
   }";
@@ -134,21 +128,6 @@ pkgs.testers.runNixOSTest {
     machine.succeed("test \"$(uname -s)\" = Linux")
     machine.succeed("test ! -e /home/ubuntu/.codex")
   ''
-  + pkgs.lib.optionalString (herdrRoot != null) ''
-    herdr_result = machine.execute(
-      "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
-      "env PATH=${pkgs.lib.makeBinPath (cliRoots ++ testTools)} "
-      "TREFLEBONBON_SKILLS_LIB=${skillsPluginSource}/lib/python "
-      "CODEX_ISOLATION_CA_BUNDLE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt "
-      "${toStorePath pythonRoot}/bin/python3 ${probeSource}/scripts/herdr-codex-isolation.py "
-      "--output /home/probe/herdr-273 > /home/probe/herdr-tests.log 2>&1'"
-    )
-    machine.copy_from_machine("/home/probe/herdr-tests.log")
-    machine.copy_from_machine("/home/probe/herdr-273/report.json")
-    for name in ("copied", "restart", "delayed", "untrusted-refused", "primary-refused"):
-      machine.copy_from_machine("/home/probe/herdr-273/" + name + ".log")
-    assert herdr_result[0] == 0, herdr_result
-  ''
   + pkgs.lib.optionalString (withEnvRoot != null) ''
     human_result = machine.execute(
       "su -s ${toStorePath bashRoot}/bin/bash probe -c '"
@@ -161,7 +140,7 @@ pkgs.testers.runNixOSTest {
     machine.copy_from_machine("/home/probe/human-tests.log")
     assert human_result[0] == 0, human_result
   ''
-  + pkgs.lib.optionalString (herdrRoot == null && withEnvRoot == null) ''
+  + pkgs.lib.optionalString (withEnvRoot == null) ''
     ${pkgs.lib.optionalString realServices ''
       import os
       # Transfer only the two selected tool-login files after the Nix image is

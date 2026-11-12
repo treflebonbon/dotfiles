@@ -49,7 +49,7 @@ root `.env` は Git に追加せず、所有者だけにアクセスを許可す
 
 dotfiles と6言語テンプレートは同じ公開 devShell／`with-env` 入口を使う。新規テンプレートの input は #271 の受入済み revision に固定する。既存 repo で更新する場合は `DEVELOPMENT.md` と input の変更を個別に確認し、lock を再生成して秘密なしで検証する。テンプレートの `default` は Linux／WSL2 と macOS の人間向け環境に使える。dotfiles の WSL2 は `nix develop .#wsl`、6テンプレートは `nix develop .#default` を使う。
 
-隔離は Linux／WSL2 の共通 `codex-worktree` 入口から新規起動したセッションに適用する。既存セッション、直接 `codex`、Desktop、Orca／Herdr native 起動、Claude にこの非開示保証を広げない。Herdr 作成済み worktree でも共通入口を明示して起動する。macOS raw は未対応。Claude は既存の非秘密 devShell 起動と permission を維持し、実値検証は上記の人間側で行う。
+隔離は Linux／WSL2 の共通 `codex-worktree` 入口から新規起動したセッションに適用する。既存セッション、直接 `codex`、Desktop、Orca／Herdr App の built-in 起動、Claude にこの非開示保証を広げない。Herdr App で開いた worktree でも共通入口を明示して起動する。macOS raw は未対応。Claude は既存の非秘密 devShell 起動と permission を維持し、実値検証は上記の人間側で行う。
 
 導入は受入・merge 後に live source から配備し、新しい端末・セッションで行う。隔離や初期化に失敗したら停止し、秘密のない診断と入力を確認して再登録・再起動する。無保護起動へ fallback せず、返却に失敗した結果は復旧前に破棄しない。
 

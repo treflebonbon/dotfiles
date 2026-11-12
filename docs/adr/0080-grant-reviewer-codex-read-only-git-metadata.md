@@ -9,7 +9,7 @@ status: accepted
 
 # レビュー役 Codex に linked worktree の Git metadata を read だけで渡す
 
-Herdr pane で起動したレビュー役の Codex は、task worktree で `git status` / `git diff` を実行すると `fatal: not a git repository: (null)` で失敗した（issue #457）。managed profile（`dotfiles-secure` / `dotfiles-peer`）は `":root" = "deny"` で workspace root の外を読ませない。linked worktree の Git dir と common dir は checkout の外にある。実装役の `codex-worktree` は起動時にこの 2 つを write で足すが（[ADR-0044](0044-runtime-owned-worktree-entry-and-codex-activation.md)）、レビュー役の起動経路（`herdr agent start --kind codex`、auto peer の素の `codex`）は足していなかった。
+旧 Herdr TUI pane で起動したレビュー役の Codex は、task worktree で `git status` / `git diff` を実行すると `fatal: not a git repository: (null)` で失敗した（issue #457）。managed profile（`dotfiles-secure` / `dotfiles-peer`）は `":root" = "deny"` で workspace root の外を読ませない。linked worktree の Git dir と common dir は checkout の外にある。実装役の `codex-worktree` は起動時にこの 2 つを write で足すが（[ADR-0044](0044-runtime-owned-worktree-entry-and-codex-activation.md)）、当時のレビュー役の起動経路（`herdr agent start --kind codex`、auto peer の素の `codex`）は足していなかった。
 
 ## Decision
 

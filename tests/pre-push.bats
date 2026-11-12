@@ -66,18 +66,17 @@ change_bash_entry() {
   [ ! -s "$CALLS" ]
 }
 
-@test "runtime gate refuses skipped or missing tests even when Bats succeeds" {
+@test "runtime gate refuses a skipped or missing raw Codex test even when Bats succeeds" {
   change_bash_entry
   local bin="$BATS_TEST_TMPDIR/bin" mode
   mkdir -p "$bin"
   printf '#!/bin/sh\nprintf 3.2\n' >"$bin/bash32"
   cat >"$bin/bats" <<'SH'
 #!/bin/sh
-printf '1..2\nok 1 Herdr event copies .env without inherited Git variables\n'
 if [ "$RUNTIME_TAP_MODE" = skip ]; then
-  printf 'ok 2 codex repo state works without inherited Git variables # skip 未指定\n'
+  printf '1..1\nok 1 codex repo state works without inherited Git variables # skip 未指定\n'
 else
-  printf 'ok 2 unrelated test\n'
+  printf '1..1\nok 1 unrelated test\n'
 fi
 SH
   chmod +x "$bin/bash32" "$bin/bats"
@@ -89,14 +88,14 @@ SH
   done
 }
 
-@test "runtime gate records the tree only after both required tests pass" {
+@test "runtime gate records the tree only after the required raw Codex test passes" {
   change_bash_entry
   local bin="$BATS_TEST_TMPDIR/bin"
   mkdir -p "$bin"
   printf '#!/bin/sh\nprintf 3.2\n' >"$bin/bash32"
   cat >"$bin/bats" <<'SH'
 #!/bin/sh
-printf '1..2\nok 1 Herdr event copies .env without inherited Git variables\nok 2 codex repo state works without inherited Git variables\n'
+printf '1..1\nok 1 codex repo state works without inherited Git variables\n'
 SH
   chmod +x "$bin/bash32" "$bin/bats"
 

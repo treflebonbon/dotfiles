@@ -1,6 +1,7 @@
 // 2 つの APM lock の差分から verify-apm-deployment.mjs 用の PLAN_JSON 下書きを標準出力へ出す。
 // 候補は「floating の resolved_commit だけが前進した場合を除き、いずれかの field が変わった dependency」で、
-// verifier の候補外 drift 判定と同じ基準にする。出力は人が確認してから verifier へ渡す。
+// verifier の候補外 drift 判定と同じ基準にする。削除された dependency は全配備 file を候補に含める。
+// 新しい dependency はこの単位では許可しない。出力は人が確認してから verifier へ渡す。
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
@@ -47,8 +48,8 @@ const plan = (baseFile, candidateFile) => {
   const base = indexDependencies(readYaml(baseFile), "base");
   const candidate = indexDependencies(readYaml(candidateFile), "candidate");
   assert.ok(
-    isDeepStrictEqual(sorted(candidate.keys()), sorted(base.keys())),
-    "dependency の構成が変わっています"
+    difference(sorted(candidate.keys()), sorted(base.keys())).length === 0,
+    "新規 dependency が追加されています"
   );
   const candidates = [];
   for (const [identity, dependency] of candidate) {
@@ -62,6 +63,18 @@ const plan = (baseFile, candidateFile) => {
     candidates.push({
       added: sorted(difference(after, before)),
       removed: sorted(difference(before, after)),
+      repo_url,
+      virtual_path,
+    });
+  }
+  for (const [identity, dependency] of base) {
+    if (candidate.has(identity)) {
+      continue;
+    }
+    const [repo_url, virtual_path] = JSON.parse(identity);
+    candidates.push({
+      added: [],
+      removed: sorted(dependency.deployed_files ?? []),
       repo_url,
       virtual_path,
     });

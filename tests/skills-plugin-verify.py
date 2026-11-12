@@ -815,7 +815,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         ]
         if mode == "private-tmp-checkout":
             command[-1] = "/tmp/verification-public-checkout"
-            for tool in ("codex", "copilot", "agy", "apm", "herdr"):
+            for tool in ("codex", "copilot", "agy", "apm"):
                 entry = cli.parent / tool
                 entry.write_text("#!/bin/sh\nprintf 'fixture\\n'\n")
                 entry.chmod(0o755)
@@ -825,7 +825,7 @@ class VerifyCheckoutTests(unittest.TestCase):
                 "if sys.argv[1] == 'eval':\n"
                 "    print(json.dumps([{'name': name, 'version': 'fixture', "
                 "'path': str(Path(__file__).parent / name)} for name in "
-                "('claude', 'codex', 'copilot', 'agy', 'apm', 'herdr')]))\n"
+                "('claude', 'codex', 'copilot', 'agy', 'apm')]))\n"
                 "else:\n"
                 "    command = sys.argv[sys.argv.index('--command') + 1:]\n"
                 "    os.execvpe(command[0], command, os.environ)\n"

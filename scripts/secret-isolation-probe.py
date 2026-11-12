@@ -108,7 +108,7 @@ def run_probe(output, scenario):
         "architecture": os.uname().machine,
         "tools": {k: str(v) for k, v in tools.items()},
         "versions": {},
-        "unverified": ["other host platform", "hosted inference and real service authentication", "live Herdr worktree input and result transfer"],
+        "unverified": ["other host platform", "hosted inference and real service authentication", "live App/core worktree input and result transfer in this Linux VM probe"],
     }
     for name, path in tools.items():
         binary = "cat" if name == "coreutils" else name

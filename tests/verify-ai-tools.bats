@@ -43,7 +43,7 @@ if sys.argv[1] == 'eval':
         print('invalid-json')
         sys.exit(0)
     metadata = [{'name': name, 'path': os.environ['AI_FIXTURE_BIN'] + '/' + name, 'version': '0.162.1'}
-        for name in ['claude', 'codex', 'copilot', 'agy', 'apm', 'herdr']]
+        for name in ['claude', 'codex', 'copilot', 'agy', 'apm']]
     if mode == 'missing': metadata.pop()
     if mode == 'duplicate': metadata[-1] = metadata[0]
     if mode == 'wrong-type': metadata = None
@@ -70,7 +70,7 @@ else:
     os.execvpe(command[0], command, os.environ)
 PY
   local tool
-  for tool in claude codex copilot agy apm herdr; do
+  for tool in claude codex copilot agy apm; do
     printf '#!/usr/bin/env bash\nprintf "fixture 0.162.1\\n"\n' >"$BIN/$tool"
   done
   chmod +x "$BIN"/*
@@ -546,7 +546,7 @@ PY
     python3 "$PROBE" "$SOURCE" --shell wsl -- bash -c 'printf "verified-command/%s\n" "$(cat "$HOME/.agents/hook")"'
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *'PASS: 6 CLI'* ]]
+  [[ "$output" == *'PASS: 5 CLI'* ]]
   [ ! -e "$BATS_TEST_TMPDIR/original-home/.agents" ]
   local runtime
   runtime="$(runtime_from_output "$output")"

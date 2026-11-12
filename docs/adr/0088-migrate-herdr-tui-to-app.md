@@ -48,9 +48,9 @@ TUI の状態・履歴・既存 worktree は保持する。導入や接続の検
 6. 接続・起動・App／local core／remote core の更新・切替・復旧手順が揃い、TUI を必須とする通常の設定・コマンド・skill 参照が残っていない。保持する旧データ・歴史資料・明示した未対応 skill は区別する。TUI 用の供給と copy-env の自動登録は同じ変更で整理し、途中の状態で `chezmoi apply` が失敗しないようにする。
 7. dotfiles の変更に応じた必須チェックが通り、他 OS に共通する既存構成の検査を含める。実機未確認・opt-in 未実行の項目は成功扱いしない。
 
-## 調査で確認した前提と未検証事項
+## 初期観測で確認した前提と未検証事項（2026-11-11）
 
-2026-11-11 の確認結果。以下の公式資料の記載と、ローカルの観測を区別する。
+以下は #595 の受入前に記録した観測であり、現在の受入状況を示す一覧ではない。後続の実機確認と本 ADR の実装結果は [#596 の検証記録](../research/herdr-app-retirement-596.md) に分けて記録し、公式資料の記載とローカルの観測を区別する。
 
 - [公式 FAQ](https://herdr.dev/#questions) は、App が `herdr-core` を使う別プログラムで、TUI とエージェントを共有しないと説明している。既存の TUI セッションが App へそのまま表示される前提にはしない。
 - App 標準の worktree 機能は、接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` に作成し、既存の checkout は Open worktree で開く（[App AGENTS.md](https://github.com/herdrdev/herdr-app/blob/master/defaults/AGENTS.md)）。TUI の既定 root `~/.herdr/worktrees` と重なることを受け入れ、独自 mod・保存先の変更・自動削除は追加しない。同名 branch・path の衝突時の挙動、選択 checkout を基点とする作成、TUI が作成した checkout の再利用、worktree-gc（[ADR-0056](0056-worktree-gc-home-wide-fanout.md)）の所有権・保護条件は、2026-11-11 の #594 実機検証（WSL2、App 0.1.15、TUI 0.9.5）で確認した。手順は [runtime 利用案内](../../runtime/ai-runtimes.md#app-標準-worktree-の作成と再利用) に記録した。保持する worktree に Remove worktree を使わず、TUI 依存の整理で `~/.herdr` 配下のデータを削除しない。
@@ -58,9 +58,9 @@ TUI の状態・履歴・既存 worktree は保持する。導入や接続の検
 - [App の公式 updater](https://github.com/herdrdev/herdr-app/blob/master/src/update.rs) は App と local core を扱う。WSL 側 core は別 machine なので、App の更新だけで更新済みとは扱わず、公式の remote core 更新手順も運用に含める。
 - 現ホストは WSL2。PATH 上には Nix 由来の Herdr TUI 0.9.5 があり、`hc` と `herdr-app` は見つからなかった。Windows 側の既知の標準インストール先にも App／core は見つからなかったが、任意の場所への導入までは確認していない。
 - WSL の一覧には `Ubuntu-24.04` がある。対象ディストリビューションと current user の対応を実装時に再確認する。
-- `codex-worktree` は既にホストの制御 socket を隔離内へ公開しない。[既存の隔離契約](../../runtime/ai-runtimes.md#新規-worktree-への-env-コピー) と [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) の保護を、新 App の通常起動だけで満たせるとは扱わない。
+- `codex-worktree` は既にホストの制御 socket を隔離内へ公開しない。[既存の隔離契約](../../runtime/ai-runtimes.md#app-terminal-からの-codex-起動) と [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) の保護を、新 App の通常起動だけで満たせるとは扱わない。
 - [core のマニュアル](https://github.com/herdrdev/herdr-core/blob/master/crates/herdr-core/src/SKILL.md) は、Codex に `--no-daemon` を指定しないとコマンドが hc の外で実行されると説明している。現行 CLI の help と固定版の両起動経路の引数検査では、この指定を使えることを確認した。App/core 経由の実起動、共有 daemon を経由しないこと、必要な隔離と OSC 7501 による状態報告は未検証である。
 - 親の待機は `hc wait` を使い、message・timeout などの結果を区別する。起動時の依頼文が launch task として配送されるか、program の argv になるかと、`hc read` で応答を取得できる範囲を導入版で確認する。idle への遷移や待機の終了だけで回答完了とせず、子が `hc send` を使えない場合も親が今回の依頼への応答を確認する。実用に必要な状態報告や結果取得を満たせず公開 plugin の改修が必要になった場合は、合意範囲を広げず相談する。
 - 本 ADR の master 版資料は調査時点の参考である。導入時は、導入版の App home の `AGENTS.md` と `hc --skill` を正本として再確認する（[公式ガイド](https://herdr.dev/guide/)）。`wsl.exe` 経由の非 login shell と App menu の起動環境を区別し、menu と親の `hc run` の両方で Bash・Nix・`hc`・既存の Codex 起動経路を利用できることを実測する。
 
-全機能の同等再実装は独自連携の保守を継続するため選ばず、TUI との恒久併用や試用だけでの完了も選ばなかった。2026-11-11 の `grill-with-docs` で設計全体の共有理解と受入条件を確認し、合意した。導入・設定変更・既存資産の撤去は後続の実装フェーズで行う。
+全機能の同等再実装は独自連携の保守を継続するため選ばず、TUI との恒久併用や試用だけでの完了も選ばなかった。2026-11-11 の `grill-with-docs` で設計全体の共有理解と受入条件を確認し、合意した。#596 では通常 source から TUI 依存を整理し、固定版への復旧と WSL core 更新を隔離 fixture で検証した。Windows App / local core 更新と live source への apply は未実行であり、残る受入条件・確認範囲・履歴は [#596 の検証記録](../research/herdr-app-retirement-596.md) を参照する。

@@ -119,7 +119,6 @@ in
     llm.antigravity-cli
 
     # --- Terminal Workspaces ---
-    llm.herdr
 
     # --- Code Review Context ---
     # CLI only. Each repository decides whether to build a graph and add a

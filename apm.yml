@@ -44,5 +44,3 @@ dependencies:
     - stablyai/orca/skills/orchestration
     # upstream HEAD では削除済みのため、既存 payload を保持する revision に固定する。
     - stablyai/orca/skills/computer-use#1bd67185489c66a9e0d841e0134727f171a33764
-    # Herdr 0.9.5 同梱スキルと同じ revision を APM で配布する。
-    - herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01

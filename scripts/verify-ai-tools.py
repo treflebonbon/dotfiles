@@ -19,7 +19,6 @@ TOOLS = {
     "copilot-cli": "copilot",
     "antigravity-cli": "agy",
     "apm": "apm",
-    "herdr": "herdr",
 }
 EXPRESSION = """let
   source = builtins.getEnv "AI_TOOL_SOURCE";
@@ -211,7 +210,7 @@ def main():
             file=sys.stderr,
         )
     else:
-        print("PASS: 6 CLIの候補outputと実起動が一致しました", flush=True)
+        print("PASS: 5 CLIの候補outputと実起動が一致しました", flush=True)
     return status
 
 

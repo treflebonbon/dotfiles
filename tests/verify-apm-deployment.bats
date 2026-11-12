@@ -6,7 +6,7 @@ setup() {
   FIXTURE="$BATS_TEST_TMPDIR/apm"
   mkdir -p "$FIXTURE"
   python3 - "$FIXTURE" <<'PY'
-import hashlib, json, sys
+import hashlib, json, shutil, sys
 from pathlib import Path
 root=Path(sys.argv[1]); runtime=root/'runtime'
 entries=[]
@@ -39,7 +39,7 @@ PY
 
 mutate_fixture() {
   python3 - "$FIXTURE" "$1" <<'PY'
-import hashlib, json, sys
+import hashlib, json, shutil, sys
 from pathlib import Path
 root=Path(sys.argv[1]); runtime=root/'runtime'; mutation=sys.argv[2]
 lock_path=runtime/'apm.lock.yaml'; lock=json.loads(lock_path.read_text())
@@ -88,6 +88,18 @@ elif mutation in ['planned-removal','leftover-removal']:
     plan=json.loads((root/'plan.json').read_text()); plan['candidates'][0]['removed']=[file]
     (root/'plan.json').write_text(json.dumps(plan))
     if mutation=='leftover-removal': (runtime/file).write_text('Old\n')
+elif mutation in ['removed-dependency','leftover-dependency']:
+    base_path=root/'base.yaml'; base=json.loads(base_path.read_text())
+    removed=next(d for d in base['dependencies'] if d['virtual_path']=='skills/beta')
+    lock['dependencies']=[d for d in lock['dependencies'] if d['virtual_path']!='skills/beta']
+    plan=json.loads((root/'plan.json').read_text())
+    plan['candidates'].append({'repo_url':removed['repo_url'],
+        'virtual_path':removed['virtual_path'],'added':[],
+        'removed':removed['deployed_files']})
+    (root/'plan.json').write_text(json.dumps(plan))
+    if mutation=='removed-dependency':
+        shutil.rmtree(runtime/'.agents/skills/beta')
+        shutil.rmtree(runtime/'.claude/skills/beta')
 elif mutation=='extra-skill':
     directory=runtime/'.agents/skills/untracked'; directory.mkdir()
     (directory/'SKILL.md').write_text('---\nname: untracked\ndescription: Extra\n---\n')
@@ -111,6 +123,26 @@ PY
   run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
   [ "$status" -eq 1 ]
   [[ "$output" == *'予定外の削除'* ]]
+}
+
+@test "APM deployment verification accepts a fully removed dependency" {
+  mutate_fixture removed-dependency
+
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'削除4'* ]]
+  [ ! -e "$FIXTURE/runtime/.agents/skills/beta" ]
+  [ ! -e "$FIXTURE/runtime/.claude/skills/beta" ]
+}
+
+@test "APM deployment verification rejects a removed dependency left on disk" {
+  mutate_fixture leftover-dependency
+
+  run bun "$VERIFIER" "$FIXTURE/base.yaml" "$FIXTURE/runtime" "$FIXTURE/plan.json"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'削除fileが残存'* ]]
 }
 
 @test "APM deployment verification rejects noncandidate hash drift even when bytes match the new hash" {

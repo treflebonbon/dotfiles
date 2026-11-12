@@ -96,6 +96,7 @@ assert_lock_entry() {
 @test "APM advances validated selected payloads and floating revision-only updates" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
+  local skills_plugin_pin="$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json"
   local manifest_pins
   local lock_refs
 
@@ -104,7 +105,12 @@ assert_lock_entry() {
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#341268561baaff256927c931ec8215dbd30e3cee' "$manifest"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#a2824c67f8b4585c294a8101db9f9f0ad3c643f8' "$manifest"
   grep -Fq 'stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2' "$manifest"
-  grep -Fq 'herdrdev/herdr/skills/herdr#2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' "$manifest"
+  ! grep -Fq 'herdrdev/herdr/skills/herdr' "$manifest"
+  ! grep -Fq 'repo_url: herdrdev/herdr' "$lock"
+  ! grep -Eq '(^|[[:space:]])\.agents/skills/herdr($|[[:space:]])' "$lock"
+  ! grep -Eq '(^|[[:space:]])\.claude/skills/herdr($|[[:space:]])' "$lock"
+  jq -e '.version == "0.2.10" and .rev == "fd2a50c558288b3661e5066b94b1196453ef9269"' \
+    "$skills_plugin_pin" >/dev/null
   ! grep -Fq 'anthropics/skills/skills/pdf#0a64e398ec6bb34a494f0c347e8ccae53a862f8e' "$manifest"
   ! grep -Fq 'shadcn-ui/ui/skills/shadcn#683a5a9b370acdb7785a0529434e6a3b8c7e0441' "$manifest"
   ! grep -Fq 'vercel-labs/skills/skills/find-skills#435076e78988e1e6ec40d00b0b1d76bdbbc5419a' "$manifest"
@@ -132,9 +138,6 @@ assert_lock_entry() {
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
     'eb3379ff9909f2856113e9cfdc5223c754f5ffe2' \
     'sha256:71d6a385d1c691e3062e9b448a3bf0447797a759fbb48cac58551d3a22c564a2'
-  assert_lock_entry "$lock" 'herdrdev/herdr' 'herdr' \
-    '2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01' \
-    'sha256:72177e911f55467de8737174072ec6bb08e30bbf62bceabcb69678e944398b18'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
     '[0-9a-f]{40}' \
     'sha256:97fd59628dc19c1d5cafeee6a18d44e3ba764c7a7ece24570e6c1a8f7486ebc1'
