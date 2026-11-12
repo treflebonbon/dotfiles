@@ -110,8 +110,8 @@ App を閉じても terminal を保持するのは remote core であり、App w
 
 | 対象 | 更新操作 | 版の確認 | 失敗時 |
 | --- | --- | --- | --- |
-| Windows App | App の「Settings → Updates」で確認し、SHA-256 検証後に App を再起動する。 | App の Help → About と Updates の表示を記録する。 | download / checksum error を Updates で確認し、接続を直して再試行する。自動更新確認は失敗後30分で再試行され、手動確認は Updates から実行できる。新しい版へ切り替わるのは検証後なので、失敗時は現在の App を維持する。起動できない場合は公式 Windows installer から修復する。 |
-| Windows local core | App 更新後の初回起動で、App 所有の core が同じ generation の公式版へ更新される。必要なら PowerShell で `hc.exe update` を実行する。 | App の Updates と `hc.exe --version` を照合する。 | App の core update error を確認して再試行する。Updates に package manager 管理と表示された場合は App から更新せず、その所有者の手順に従う。 |
+| Windows App | App の「Settings → Updates」で確認し、SHA-256 検証後に App を再起動する。 | App の Help → About と Updates の表示を記録する。 | download / checksum error を Updates で確認し、接続を直して「Check now」で再試行する。接続確認の失敗は更新確認に失敗した旨が表示され、最新状態とは誤表示されない。自動更新確認は失敗後30分で再試行される。新しい版へ切り替わるのは検証後なので、失敗時は現在の App を維持する。起動できない場合は公式 Windows installer から修復する。 |
+| Windows local core | App 更新後の初回起動で、App 所有の core が同じ generation の公式版へ更新される。必要なら PowerShell で `hc.exe update` を実行する。 | App の Updates と `hc.exe --version` を照合する。 | App の Updates に表示される core の失敗状態を確認し、接続を直して「Check now」で再試行する。Updates に package manager 管理と表示された場合は App から更新せず、その所有者の手順に従う。 |
 | WSL2 remote core | Windows PowerShell から `hc.exe machine update <machine>` を実行する。remote machine の core を更新して再接続する。 | `hc.exe machine ls` の last observed version を確認し、必要なら `hc.exe exec --on <machine> -- hc --version` でも照合する。 | `machine ls` の接続状態・last error を読み、認証切れなら `hc.exe machine login <machine>`、transport・socket が不正なら登録時の `--via` を確認してから再試行する。machine を削除・再登録せず、失敗した更新の版を成功扱いしない。 |
 
 App の更新と WSL remote core の更新を同じ変更扱いにせず、それぞれの前後の版を記録する。core の更新では既存 terminal を維持する仕様だが、App / Windows / WSL の再起動をまたぐ agent 継続は保証しない。更新に失敗した場合は同じ machine と既存データを保持し、原因と最後に確認できた版を記録する。TUI の設定・履歴・worktree は App の更新・復旧操作から変更しない。
