@@ -99,12 +99,14 @@ WSL 実測は下記 receipt を参照。すべての通信・checksum fault や 
 
 ### AC 9 — 固定版 TUI への復旧
 
-**部分確認。** `tests/herdr-retirement.bats` の復旧ケースは base `34fa46f...` から TUI 0.9.5、APM skill revision `2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`、copy-env source / 登録、permission
-を選んで restore fixture に戻し、Nix source / APM pin・metadata / hook と
-chezmoi の登録・無効設定保持を確認する。frozen install・audit・配備照合は
-この Bats の実行内容ではなく、別の隔離 APM runtime の証跡として扱う。
-source/apply Bats の補足 receipt は 2026-11-13 の targeted run 40/40。
-無関係な tool / pin は巻き戻していない。
+**部分確認。** 復旧 Bats は base `34fa46f...` の TUI 0.9.5 を選ぶ。
+
+- APM skill revision は `2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01`。
+- source として copy-env、登録 hook、permission を復元する。
+- Nix / APM pin・metadata、hook と登録、無効設定保持を確認する。
+- frozen install / audit / 配備照合は別の隔離 APM runtime で確認した。
+- 2026-11-13 の source/apply Bats は 40/40 pass。
+- 無関係な tool / pin は巻き戻していない。
 
 ### AC 10 — 主境界と source / live の分離
 
@@ -206,8 +208,9 @@ live source apply は task 側で
   no-op として報告され、terminal は継続した。
   log: `/tmp/codex/verification-env.d_a4kbvm`。
 - Windows App 0.1.15 / local core 0.1.20 は読み取り専用で導入版を照合した。
-  独立した Windows updater fixture は成立していないため、通常 App / shared core の更新実行はしない。現行 Updates 表示の再取得も未確認である。
-  導入版の手順は [runtime guide](../../runtime/ai-runtimes.md) を参照。
+- 独立 Windows updater fixture は成立していないため、App / shared core は
+  更新しない。current Updates 表示は未確認。
+- 導入版の手順は [runtime guide](../../runtime/ai-runtimes.md) を参照。
 
 ## 失敗した試行と是正
 
@@ -247,8 +250,10 @@ live source apply は task 側で
 - merge 後、変更対象だけを live source の `chezmoi diff` で確認し、受入・
   merge 後に `chezmoi apply <対象の配備先パス>`、環境再読込、配備結果を
   照合する。task source から live へ apply しない。
-- Windows App / local core の実更新と current Updates 表示、full canonical runner / full suite、受入後の live source 配備は親へ渡す。既定 latest download の fault 群、通信 / checksum failure、downgrade / rollback は
-  この受入の追加条件にしない。
+- Windows App / local core の実更新と current Updates 表示は親へ渡す。
+- full canonical runner / full suite と受入後の live source 配備も親の後続。
+- 既定 latest download の fault 群や通信 / checksum failure、
+  downgrade / rollback は追加条件にしない。
 
 ## 変更一覧と理由
 
@@ -298,17 +303,15 @@ live source apply は task 側で
 
 ### `95a90ac` の作成経路
 
-Git object と integration worktree の reflog では、
-`95a90ac21f60058da71c61c72d0c352514fd3d8a` は
-`feat/herdr-app-migration` 上で 2026-11-12 15:28:16 JST に
-`refactor: retire Herdr TUI integration` として記録され、author / committer はともに `test <test@example.com>` だった。作成元を Git identity
-以上に確かめる公開操作記録は、次の Codex session の public tool call にある。
+- commit: `95a90ac21f60058da71c61c72d0c352514fd3d8a`
+- branch / time: `feat/herdr-app-migration`, 2026-11-12 15:28:16 JST
+- subject: `refactor: retire Herdr TUI integration`
+- Git author / committer: `test <test@example.com>`
+- 作成操作は次の public Codex tool call で確認した。
 
 ```text
-session root: /home/ubuntu/.codex/sessions
-session date: 2026/11/12
-session file:
-rollout-2026-11-12T13-23-53-01a1cdff-6f5f-77b0-b48e-19118bb9ac0e.jsonl
+session: /home/ubuntu/.codex/sessions/2026/11/12/
+  rollout-2026-11-12T13-23-53-01a1cdff-6f5f-77b0-b48e-19118bb9ac0e.jsonl
 item id: ctc_0aad2762e0956e88016af55c7c222087d0abd3a9131871b2d7
 time: 2026-11-12 15:28:13.345 JST
 cwd: /home/ubuntu/orca/workspaces/dotfiles/lancetfish
@@ -316,39 +319,36 @@ command: nix develop .#wsl --command \
   git commit -m 'refactor: retire Herdr TUI integration'
 ```
 
-この操作は integration worktree の commit である。記録からこの Codex session の利用者・agent 名は特定できず、Git の `test` identity も実行主体の
-氏名を示さないため、個人名は未確認とする。
-
-対象 Bats は `tests/herdr-retirement.bats`。source は `git archive HEAD`
-または `git archive HEAD <path>` で候補を一時 directory へ取り出し、そこに
-`git init` する。Git baseline の `git diff` / `git show` は読み取りのみで、
-テスト自体に `git commit` はない。`scripts/test.sh` と Bats `tests/setup_suite.bash` は継承した Git local environment variables を外し、
-Bats suite はその設定を `tests/suite-git-env.bats` でも検査する。よって、
-確認した 15:28 の commit 操作はこの apply fixture の Git ではなく、fixture
-が integration branch へ向いたことを示す証跡も見つからなかった。原因を
-fixture とする推測は未確認であり、記録上の実 commit 操作と区別する。
-
-この補足中に `feat/herdr-app-migration` を変更していない。確認時の
-integration tip は `d5fb373fe7ab441a74ff0eefb1dc6e2c58b637c6` で、この task worktree には通常 merge commit `5b8ee23cbb98656eefdc63d047ddf514d69cf66c` として
-取り込まれている。
+- 作成操作は integration worktree 上で行われた。
+- session と Git identity から実行者の agent / 利用者名は分からない。
+- 対象 Bats は `tests/herdr-retirement.bats`。
+- fixture は `git archive HEAD` で source を一時 directory へ取り出し、
+  local repo に `git init` する。
+- `git diff` / `git show` は読み取りのみで、test 自体に commit はない。
+- `scripts/test.sh` と `tests/setup_suite.bash` は Git local env を解除する。
+- `tests/suite-git-env.bats` はこの fixture 境界を検査する。
+- 15:28 の commit は apply fixture の Git ではない。
+- fixture が integration branch に向いた証拠はなく、原因は断定しない。
+- integration tip: `d5fb373fe7ab441a74ff0eefb1dc6e2c58b637c6`
+- task worktree merge: `5b8ee23cbb98656eefdc63d047ddf514d69cf66c`
+- この補足中に integration branch は変更していない。
 
 ### AC3 / AC9 の fixture 境界と receipt
 
-修正した `tests/herdr-retirement.bats` の復旧ケースは `PROJECT_ROOT` の
-candidate `HEAD` から次の実 source だけを `git archive` し、隔離した
-chezmoi source として使う。
+修正した `tests/herdr-retirement.bats` の復旧 case は candidate `HEAD` から
+実 source を `git archive` して隔離 chezmoi source を作る。
 
 - `.chezmoiignore`
 - `private_dot_config/nix-devshell/modules/ai.nix`
 
-この候補 slice に `run_after_setup-herdr.sh` と
-`.herdr/herdr-plugin.toml` がないこと、`ai.nix` に `llm.herdr` がないことを
-確認する。apply 先も `BATS_TEST_TMPDIR` 配下の HOME で、配備後 `ai.nix` と
-選択した candidate source の bytes が一致し、以前作った copy-env 登録と
-`.herdr/history` が残ることを確認する。比較用の復旧 source は base `34fa46f...` から限定した `git diff` (`ai.nix`, `apm.yml`, `apm.lock.yaml`, Claude permission) と `git show` した plugin manifest / after hook を組み立てる。
-旧 hook の供給・登録を baseline 側で動かした後、candidate slice を apply
-して source hook の不在・既存登録保持を確認し、最後に復旧 source と無効化
-設定保持も確認する。
+- candidate slice に旧 hook と plugin manifest がないことを確認する。
+- candidate `ai.nix` に `llm.herdr` entry がないことを確認する。
+- apply target は `BATS_TEST_TMPDIR` 配下の隔離 HOME。
+- apply 後の `ai.nix` が candidate source と byte 一致することを確認する。
+- 既存 copy-env 登録と `.herdr/history` が残ることを確認する。
+- 復旧 source は base `34fa46f...` の限定差分と旧 hook から組み立てる。
+- baseline source を apply 後、candidate slice を apply して登録保持を確認する。
+- 最後に復旧 source と利用者の無効化設定保持を確認する。
 
 保護付きコマンドと receipt は次の通り。TAP は 40/40 pass、skip なし。
 
@@ -358,15 +358,18 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
   tests/verify-apm-deployment.bats
 ```
 
-receipt: `/tmp/codex/ai-tools-w9_ncy0j/startup.log`。AC3 の旧 synthetic `dot_fixture` test は補助的な user-data 境界 test として残し、candidate
-全体の配備証明には数えない。実 source slice と hook / 供給の連動を確認した
-範囲は上記に限る。AC9 の Bats が確認するのは候補からの固定版復旧 source と
-apply / 登録のふるまいであり、APM `install --frozen`・audit は別の APM fixture の証跡である。
+receipt: `/tmp/codex/ai-tools-w9_ncy0j/startup.log`。
+
+- 旧 synthetic `dot_fixture` test は user-data 境界だけを確認する。
+- その test を candidate 全体の配備証明には数えない。
+- 新 fixture は実 source slice と apply / hook 境界を確認する。
+- AC9 Bats は固定版 source の復旧と apply / 登録動作を確認する。
+- APM `install --frozen` と audit は別 APM fixture の証跡とする。
 
 ### APM base 比較と drift 拒否
 
-隔離 APM run の `/tmp/codex/herdr-596-final-apm.Krj0kE/verify.sh` は、
-次のように baseline commit から元の lock を直接取得する。
+隔離 APM run の script は baseline commit から元 lock を直接取得する。
+script: `/tmp/codex/herdr-596-final-apm.Krj0kE/verify.sh`
 
 ```bash
 git -C "$source_root" show \
@@ -374,57 +377,65 @@ git -C "$source_root" show \
   >"$work_root/base.lock.yaml"
 ```
 
-`cmp` はこの file と同じ commit の `git show ...:apm.lock.yaml` の byte 一致を
-返した。続けて candidate lock を frozen install 前後で比較し、
-`apm audit --ci` の後、元 base file と candidate lock から `plan.json` を作り
-verifier へ渡した。plan の候補は `herdrdev/herdr` / `skills/herdr` の1件のみで、
-`added: []`、`removed` は次の4 path。
+- `cmp` は元 base と同一 commit の `git show` との byte 一致を返した。
+- frozen install の前後で candidate lock の hash が不変だった。
+- 続けて `apm audit --ci`、plan 作成、verifier を実行した。
+- plan は `herdrdev/herdr` / `skills/herdr` の削除1件。
+- `added` は空で、`removed` は次の4 path。
 
 - `.agents/skills/herdr`
 - `.agents/skills/herdr/SKILL.md`
 - `.claude/skills/herdr`
 - `.claude/skills/herdr/SKILL.md`
 
-`/tmp/codex/ai-tools-uxglq2mk/startup.log` は frozen lock SHA `4b93ce2ed94771780a6d3ebcd512342569b155db0eeb320390a1350aa770cc64`、
-APM audit 10/10、および verifier の `dependency 20、skill .agents=46 .claude=46、追加0・削除4` を記録する。Bats は未宣言の配備削除、削除
-dependency の file 残存、候補外 hash drift、候補外 exact pin / ref / version drift を拒否する。これが加工前 base と削除予定集合のみで照合した証拠である。
-以前の ADR の「helper が dependency 構成変更を受け付けないため base を先に
-加工した」という説明は誤りで、ADR-0088 の末尾を上記の実測方式へ合わせて
-修正した。追加・削除以外の source、pin、payload は変更していない。
+- final lock SHA:
+
+  ```text
+  4b93ce2ed94771780a6d3ebcd512342569b155db0eeb320390a1350aa770cc64
+  ```
+
+- Startup receipt: `/tmp/codex/ai-tools-uxglq2mk/startup.log`。
+- APM audit は 10/10。
+- verifier: dependency 20、`.agents` / `.claude` は各46、追加0・削除4。
+- Bats は未宣言削除と削除 dependency の配備残りを拒否する。
+- Bats は候補外 hash drift と exact pin / ref / version drift を拒否する。
+- 以上は未加工 base と削除予定集合で比較した証拠。
+- ADR-0088 の旧「base を加工した」説明を実測方式へ修正した。
+- source、pin、payload は変更していない。
 
 ### AC8 の導入版照合と未確認境界
 
-今回の読み取り専用確認では、次の導入版を得た。
+今回の読み取り専用確認で得た導入版:
 
-- `%LOCALAPPDATA%\Programs\herdr-app\herdr-app.exe` の ProductVersion / FileVersion はともに `0.1.15`。
-- `%LOCALAPPDATA%\Programs\herdr-core\hc.exe --version` は `hc 0.1.20`。
+- App executable: `%LOCALAPPDATA%\Programs\herdr-app\herdr-app.exe`
+- App ProductVersion / FileVersion はともに `0.1.15`。
+- Local core executable: `%LOCALAPPDATA%\Programs\herdr-core\hc.exe`
+- `hc.exe --version`: `hc 0.1.20`。
 - Herdr App process は稼働中。
 
-これらは [runtime/ai-runtimes.md](../../runtime/ai-runtimes.md) の v0.1.15 App install/update と v0.1.20 core guide、Settings → Updates / Help → About / `hc.exe --version` 手順に一致する。app CLI の
-`app.settings --section updates` は `{"ok":true}` を返したが、その後の read-only computer accessibility query では Updates UI element が見つからず、可視画面も
-Updates pane ではなかったため current latest / pending state は確認できなかった。
-App を適用更新・再起動せず、shared local core も update / restart していない。
+- 版の手順は [runtime/ai-runtimes.md](../../runtime/ai-runtimes.md) に記録済み。
+- 版確認には Settings → Updates、Help → About、`hc.exe --version` を使う。
+- `app.settings --section updates` は `{"ok":true}` を返した。
+- read-only accessibility query は Updates 要素を返さなかった。
+- 可視画面も Updates pane でなく、current latest / pending は未確認。
+- App と shared local core は更新・再起動していない。
+- current status は App の Settings → Updates / Help → About で読める。
+- app command 後の画面をこの session では取得できなかった。
+- 公式 source は `HERDR_APP_HOME` と `HERDR_RELEASES_URL` を示す。
+- scratch 専用 core の選択と更新先隔離は未検証。
+- updater source directory: `/tmp/codex/herdr-implement-resume.dEJfG7/`
+- updater source file: `596-updater-primary-source-options.md`
 
-current status を読むには、稼働中 App で Settings → Updates と Help → About を
-表示し、その表示を観測する必要がある。`app.settings --section updates` は
-呼び出したが、computer accessibility query が表示要素を返さなかったため、
-今回の session では画面内容を確認できなかった。独立 updater fixture について
-公式 source は `HERDR_APP_HOME` と `HERDR_RELEASES_URL` の分離口を示すが、
-コピーした App が scratch 内の専用 core を選び、そこだけを更新する境界は
-未検証である。参照: `/tmp/codex/herdr-implement-resume.dEJfG7/596-updater-primary-source-options.md`。
+この補足で使った WSL 実測 receipt:
 
-この補足で使った WSL 実測 receipt は次の通り。
-
-- `/tmp/codex/verification-env.8f5ylnnp`: `hc update --from` で
-  0.1.19→0.1.20。
-- `/tmp/codex/verification-env._vysercg`: 無効候補の拒否と現行 fixture core
-  保持。
-- `/tmp/codex/verification-env.d_a4kbvm`: 古い候補の no-op。
-
-前日の記録では App Updates の Check now が App / core を latest と表示したが、
-current の同じ表示を今回再確認したとは扱わない。実行済みなのは上記 WSL fixture と導入版の read-only 確認である。通常の App / shared core で
-`app.check_updates` / update / restart を行わず、安全に完了できる独立 Windows updater fixture の成功は未確認のまま親へ渡す。全種類の通信・checksum fault
-と core downgrade / rollback を追加要求とはしない。
+- `/tmp/codex/verification-env.8f5ylnnp`: `hc update --from` で0.1.19→0.1.20。
+- `/tmp/codex/verification-env._vysercg`: 無効候補を拒否し、fixture coreを保持。
+- `/tmp/codex/verification-env.d_a4kbvm`: 古い候補は no-op になった。
+- 前日の App Updates は App / core を latest と表示した。
+- その値は前回記録であり current state の再確認ではない。
+- App / shared core では `app.check_updates` / update / restart をしていない。
+- 独立 Windows updater fixture の成功は未確認のまま親へ渡す。
+- 通信 / checksum fault と core downgrade / rollback は追加条件にしない。
 
 ### この補足の check と残る境界
 
@@ -432,9 +443,9 @@ current の同じ表示を今回再確認したとは扱わない。実行済み
   receipt: `/tmp/codex/ai-tools-w9_ncy0j/startup.log`。
   対象は retirement fixture、APM plan、APM verifier。
 - `git diff --check` は pass。
-- 保護付き `markdownlint-cli2` は exit 1、2 file に既存 MD013 / MD025 が
-  計50件あった。lint error はすべて未変更行で、今回変更した行との重なりは
-  0件。receipt: `/tmp/codex/ai-tools-yapje7i0/startup.log`。
+- Markdownlint は exit 1、既存 MD013 / MD025 が計50件。
+- lint error はすべて未変更行。今回変更した行との重なりは0件。
+- Lint receipt: `/tmp/codex/ai-tools-xblb6mfm/startup.log`。
 - full canonical runner、full Bats、live source apply、App / core update は
   今回実行していない。前者と受入後 live source 手順は親の後続工程であり、
   この checkout から live source は変更していない。
