@@ -60,6 +60,7 @@ setup() {
   local deploy_source="$BATS_TEST_TMPDIR/recovery-deploy-source"
   local retired_source="$BATS_TEST_TMPDIR/retired-deploy-source"
   local reactivated_source="$BATS_TEST_TMPDIR/reactivated-deploy-source"
+  local ai_source="private_dot_config/nix-devshell/modules/ai.nix"
   local baseline="34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63"
   local restore_patch="$BATS_TEST_TMPDIR/recovery.patch"
   local home="$BATS_TEST_TMPDIR/recovery-home"
@@ -71,6 +72,16 @@ setup() {
   mkdir -p "$source"
   (cd "$PROJECT_ROOT" && git archive HEAD) | tar -x -C "$source"
   (cd "$source" && git init -q -b main)
+
+  # Build the retired apply fixture from actual candidate source entries, not
+  # a synthetic dotfile. The baseline copy below restores only the old TUI
+  # integration needed to exercise its setup hook.
+  mkdir -p "$retired_source"
+  (cd "$PROJECT_ROOT" && git archive HEAD .chezmoiignore "$ai_source") | tar -x -C "$retired_source"
+  (cd "$retired_source" && git init -q -b main)
+  [ ! -e "$retired_source/run_after_setup-herdr.sh" ]
+  [ ! -e "$retired_source/.herdr/herdr-plugin.toml" ]
+  ! grep -Fq 'llm.herdr' "$retired_source/$ai_source"
 
   # Restore only the tracked retirement delta that contains the Nix/APM entries
   # and Claude permission. Do not roll the rest of the candidate back to baseline.
@@ -116,16 +127,15 @@ setup() {
   jq -e 'all(.[]; .default == [{"pname":"herdr","version":"0.9.5"}] and .wsl == [{"pname":"herdr","version":"0.9.5"}])' <<<"$output"
 
   mkdir -p "$home/.config/nix-devshell/lib" "$home/.herdr/worktrees/legacy" "$bin"
-  mkdir -p "$deploy_source/.herdr"
+  mkdir -p "$deploy_source/.herdr" "$deploy_source/private_dot_config/nix-devshell/modules"
   cp "$source/.chezmoiignore" "$deploy_source/.chezmoiignore"
+  cp "$source/$ai_source" "$deploy_source/$ai_source"
   cp "$source/.herdr/herdr-plugin.toml" "$deploy_source/.herdr/herdr-plugin.toml"
   cp "$source/run_after_setup-herdr.sh" "$deploy_source/run_after_setup-herdr.sh"
   chmod +x "$deploy_source/run_after_setup-herdr.sh"
+  grep -Fq 'llm.herdr' "$deploy_source/$ai_source"
   (cd "$deploy_source" && git init -q -b main)
-  mkdir -p "$retired_source" "$reactivated_source/.herdr"
-  cp "$source/.chezmoiignore" "$retired_source/.chezmoiignore"
-  printf 'retired candidate fixture\n' >"$retired_source/dot_fixture"
-  (cd "$retired_source" && git init -q -b main)
+  mkdir -p "$reactivated_source/.herdr"
   cp "$source/.chezmoiignore" "$reactivated_source/.chezmoiignore"
   cp "$source/.herdr/herdr-plugin.toml" "$reactivated_source/.herdr/herdr-plugin.toml"
   cp "$source/run_after_setup-herdr.sh" "$reactivated_source/run_after_setup-herdr.sh"
@@ -160,6 +170,7 @@ SH
 
   run apply_source "$deploy_source"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  cmp -s "$deploy_source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
   [ "$(wc -l <"$link_log")" -eq 3 ]
@@ -168,6 +179,7 @@ SH
   # registration and user data untouched until a restoration is requested.
   run apply_source "$retired_source"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  cmp -s "$retired_source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
   [ "$(wc -l <"$link_log")" -eq 3 ]
