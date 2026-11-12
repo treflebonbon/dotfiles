@@ -46,19 +46,40 @@ PY
   jq -e '(.candidates[] | select(.virtual_path == "skills/added") | .removed) == [".agents/skills/added/guide.md"]' <<<"$output"
 }
 
-@test "plan rejects a changed dependency set" {
+@test "plan lists a removed dependency and all of its deployed files" {
   python3 -I - "$BATS_TEST_TMPDIR/candidate.json" <<'PY'
 import json, sys
 p = sys.argv[1]
 lock = json.load(open(p))
-lock['dependencies'].pop()
+lock['dependencies'] = [d for d in lock['dependencies'] if d['virtual_path'] != 'skills/same']
+json.dump(lock, open(p, 'w'))
+PY
+
+  run bun "$PLANNER" "$BATS_TEST_TMPDIR/base.json" "$BATS_TEST_TMPDIR/candidate.json"
+
+  [ "$status" -eq 0 ]
+  jq -e '
+    (.candidates[] | select(.virtual_path == "skills/same") | .added) == [] and
+    (.candidates[] | select(.virtual_path == "skills/same") | .removed) == [".agents/skills/same/SKILL.md"]
+  ' <<<"$output"
+}
+
+@test "plan rejects a newly added dependency" {
+  python3 -I - "$BATS_TEST_TMPDIR/candidate.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+lock = json.load(open(p))
+extra = json.loads(json.dumps(lock['dependencies'][0]))
+extra['repo_url'] = 'fixture/new'
+extra['virtual_path'] = 'skills/new'
+lock['dependencies'].append(extra)
 json.dump(lock, open(p, 'w'))
 PY
 
   run bun "$PLANNER" "$BATS_TEST_TMPDIR/base.json" "$BATS_TEST_TMPDIR/candidate.json"
 
   [ "$status" -eq 1 ]
-  [[ "$output" == *'構成が変わっています'* ]]
+  [[ "$output" == *'新規 dependency が追加されています'* ]]
 }
 
 @test "plan rejects duplicate dependencies and malformed locks" {

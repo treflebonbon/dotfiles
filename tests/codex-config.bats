@@ -841,6 +841,9 @@ PY
     one/two/three/.env.production one/two/three/.envrc.local \
     one/two/three/.env-secret one/two/three/.environment \
     private.key credentials.json; do
+    # Earlier denied cases can leave the same fixture path read-only (for example .env/.env.).
+    chmod u+w "$workspace/$path" 2>/dev/null || true
+    rm -f "$workspace/$path"
     printf 'protected\n' >"$workspace/$path"
     run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
       codex sandbox -P dotfiles-secure -C "$workspace" -- \
@@ -851,6 +854,8 @@ PY
     fi
     [ "$status" -ne 0 ]
     [ "$(cat "$workspace/$path")" = "protected" ]
+    # Codex may leave denied fixture paths read-only; restore only this fixture for the next case.
+    chmod u+w "$workspace/$path"
   done
 }
 
@@ -1154,7 +1159,6 @@ assert data["hooks"]["Stop"] == [
 assert "Bash(git-push-topic:*)" in data["permissions"]["allow"]
 for rule in [
     "Bash(git worktree remove:*)",
-    "Bash(herdr worktree remove:*)",
     "Bash(orca worktree rm:*)",
     "Bash(gh pr create:*)",
     "Bash(gh pr edit:*)",
@@ -1169,6 +1173,7 @@ for rule in [
     "Bash(gh label edit:*)",
 ]:
     assert rule in data["permissions"]["allow"]
+assert "Bash(herdr worktree remove:*)" not in data["permissions"]["allow"]
 assert "Bash(git push:*)" in data["permissions"]["deny"]
 for rule in [
     "Bash(/usr/bin/git push:*)",

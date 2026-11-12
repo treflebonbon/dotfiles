@@ -21,20 +21,13 @@ def main():
         help="run fixed human code and concurrent raw Codex with dummy values only",
     )
     parser.add_argument(
-        "--herdr",
-        action="store_true",
-        help="run the real Herdr event/terminal integration without external tool logins",
-    )
-    parser.add_argument(
         "--real-services",
         action="store_true",
         help="run managed MCP and read-only GitHub probes using selected tool login files",
     )
     args = parser.parse_args()
-    if sum((args.herdr, args.real_services, args.human_validation)) > 1:
-        parser.error(
-            "--herdr, --real-services and --human-validation select separate verification runs"
-        )
+    if sum((args.real_services, args.human_validation)) > 1:
+        parser.error("--real-services and --human-validation select separate verification runs")
     scratch_root = Path("/tmp/codex")
     scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     root_metadata = scratch_root.stat(follow_symlinks=False)
@@ -140,8 +133,6 @@ def main():
         ("bats", "batsRoot"),
         ("chezmoi", "chezmoiRoot"),
     ]
-    if args.herdr:
-        selected_tools.append(("herdr", "herdrRoot"))
     for name, argument in selected_tools:
         executable = shutil.which(name)
         if executable is None:

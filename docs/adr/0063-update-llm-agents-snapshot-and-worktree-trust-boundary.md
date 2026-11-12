@@ -25,7 +25,7 @@ status: accepted
 
 - Nix source gate: `nix flake check --no-build --all-systems` が3 system で成功。新しい quality floor の assert（`requireQualityFloor`）が3 system の deep eval を強制するため、shallow eval による偽陽性（ADR-0028 の教訓）は生じない。3 system の overlay 経由 `pkgs.llm-agents.<pkg>.version` 実測が claude-code 2.1.278 / codex 0.155.1 / copilot-cli 1.0.87 / antigravity-cli 1.2.7 / rtk 0.49.0 / apm 0.31.0 / code-review-graph 2.3.9 で一致することを確認した。x86_64-linux (host) では `nix develop` で実ビルドし、claude / codex / copilot / agy / rtk / apm / herdr / code-review-graph の8 CLI 実測 version が snapshot と一致することを確認した。
 - APM gate: `apm.yml` を隔離ディレクトリへコピーし、隔離 `$HOME` で snapshot 供給の apm 0.31.0 により `apm install --https` を実行して lock を再生成した。同じ環境の `apm install --frozen --https` が SHA-256 一致で書き戻しなし、`apm audit --ci` が10/10 通過した。
-- リポジトリ既存の bats full suite が通過。floor 引き上げに伴い `tests/ai-quality-floor.bats`（floor 値・診断メッセージの期待値）、`tests/herdr.bats`（Herdr 期待 version）、`tests/apm-runtime.bats`（apm_version・shadcn/orca 系 lock entry の期待値）を同じ更新単位で追従させた。
+- リポジトリ既存の bats full suite が通過。floor 引き上げに伴い `tests/ai-quality-floor.bats`（floor 値・診断メッセージの期待値）、`tests/herdr.bats`（当時の Herdr 期待 version。#596 で退役）、`tests/apm-runtime.bats`（apm_version・shadcn/orca 系 lock entry の期待値）を同じ更新単位で追従させた。
 - aarch64-linux / aarch64-darwin の実機実行、2.1.273–2.1.277 と 0.155.0 の床上げ根拠そのもの（worktree isolation bypass、permission bypass、WSL sandbox escape 等）を実際の agent session で機能的に再現する smoke は未確認のまま。
 
 ## Deliberately separate

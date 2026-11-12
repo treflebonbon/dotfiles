@@ -8,8 +8,9 @@ setup() {
   project_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   local base="$BATS_TEST_TMPDIR/base"
   export SOURCE="$BATS_TEST_TMPDIR/worktree"
-  mkdir -p "$base/scripts"
+  mkdir -p "$base/scripts" "$base/tests"
   cp "$project_root/scripts/test.sh" "$project_root/scripts/verification_env.py" "$project_root/scripts/scratch-tmpdir.sh" "$project_root/scripts/runtime_test_checks.py" "$base/scripts/"
+  cp "$project_root/tests/codex-repo-state.bats" "$base/tests/"
   if [[ -f "$project_root/scripts/verify-canonical.py" ]]; then
     cp "$project_root/scripts/verify-canonical.py" "$base/scripts/"
   fi
@@ -208,10 +209,9 @@ TAP
 }
 
 @test "Bash 対象変更時は未準備の Bash 3.2 で canonical を開始しない" {
-  mkdir -p "$SOURCE/.herdr"
-  printf 'version = "test"\n' >"$SOURCE/.herdr/herdr-plugin.toml"
+  printf '\n# runtime gate fixture\n' >>"$SOURCE/tests/codex-repo-state.bats"
   git -C "$SOURCE" add .
-  git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change Herdr'
+  git -C "$SOURCE" -c user.name=Fixture -c user.email=fixture@example.test commit -qm 'test: change runtime gate input'
   unset TEST_COMPAT_BASH
 
   run_canonical

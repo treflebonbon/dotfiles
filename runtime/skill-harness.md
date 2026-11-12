@@ -43,9 +43,9 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `pr` は peer 協働の PR 本文に元候補・受入条件と検証結果・非目標・Decisions を含め、issue がある場合だけ `Closes #N` を付ける（[autonomous-peer-contract](autonomous-peer-contract.md)）。
 - `improve-codebase-architecture` は候補提示前に、実 caller の知識が既存 module interface から減り、削除テストでその module の有用性が増す具体的根拠を確認する。caller 数は足切りにせず、sole caller でも根拠があれば候補にできる。根拠のない案と helper 整備・単なる移動だけの案は数合わせに採らない。該当候補がなければ Top recommendation を「該当候補なし」とし、候補選択質問をせず、調査 scope と却下理由を日本語 report に記録して正常完了する。候補が存在しても peer 依頼が未承認のまま未選択なら、その状態を記録して pin・peer-refactor を起動しない。ユーザーが独立検証を明示依頼した場合は妨げない。
 - `improve-codebase-architecture` の report が挙動を「バグ」や「非一貫」と断定する前に、その挙動を固定する既存テストと上流の正規化を読み、正規化後にも反例が残るかを確認する。sub-agent の報告は未検証の主張として扱う。既存テストがあるだけで正しい挙動とは判定しない。
-- `improve-codebase-architecture` の提示済み候補について人が peer 協働による改善を明示依頼した場合、固定 plugin の `herdr-peer-refactor` / `orca-peer-refactor` で元候補を固定し、通常 session でも native worktree・peer 相談・独立レビュー・PR まで進める。人が選んだ候補と既存承認を引き継ぐ。選択を委任された場合は peer が提示済み候補から選び、その元候補を pin して進む。上流 skill の探索と人の回答を待つ `grilling` 自体は fork せず変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
-- 同 skill の HTML report は生成後に固定 plugin source の `skills/{herdr,orca}-peer-refactor/scripts/check-architecture-report.py` で静的構造を検査し、実ブラウザで `check-architecture-render.js` を実行してから提示する。source の場所は [契約案内](autonomous-peer-contract.md) から現在の pin に合わせて解決する。Mermaid は `<pre class="mermaid">` 内の raw text とし、nested tag・HTML comment・declaration・processing instruction を許さないが、`&lt;` 等の文字参照は許す。描画検査は入力図数、HTTP 成功応答、各 `.mermaid` container の SVG ちょうど1個、Mermaid の error marker、uncaught error、および console error を機械判定する。favicon.ico の取得失敗だけは console error の例外として除外し、それ以外の console error は提示・pin を止める。Orca 内蔵 page は `orca-cli`、この検証用の外部 browser は `playwright-cli` を使う。静的検査は実描画検査の代わりにならない。提示前に検査していない既存 report は、検査後に同じ artifact を提示し直してから pin する。Markdown artifact の従来経路は維持する。上流 skill と `grilling` 自体は fork・変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
-- `herdr` から Claude / Codex を起動する手順と既知の癖は [Herdr からの agent 起動](ai-runtimes.md#herdr-からの-agent-起動) を正本とする。peer 協働の起動の詳細は、[固定版 source の解決方法](autonomous-peer-contract.md)に従って `skills/herdr-peer-refactor/references/herdr.md` を参照する。
+- `improve-codebase-architecture` の提示済み候補について人が peer 協働による改善を明示依頼した場合、Orca では固定 plugin の `orca-peer-refactor` を使う。`herdr-peer-refactor` も公開 plugin に保持されるが、Herdr TUI 専用であり App 対応ではない。TUI を別途利用する明示依頼がない限り選ばない。どちらも人が選んだ候補と既存承認を引き継ぎ、上流 skill の探索と `grilling` は fork せず変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
+- `improve-codebase-architecture` の HTML report は固定 plugin source の該当 skill script で構造を検査し、実ブラウザで描画を確認してから提示する。`herdr-peer-refactor` は TUI 専用、`orca-peer-refactor` は Orca 専用である。source path の解決と Mermaid 検査契約は [autonomous-peer-contract](autonomous-peer-contract.md) を参照する。
+- Herdr App の terminal と `hc` は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) に従う。公開 `herdr-peer-refactor` skill は TUI 専用であり、App の起動・協働手順として案内しない。
 - `find-skills` はインストール手順として `npx skills add -g -y` を案内するが、外部 skill は `apm.yml` / `apm.lock.yaml` 経由でのみ導入する。このコマンドは実行せず、追加候補は `apm.yml` への追記として提示する。
 - `pdf` の SKILL.md は `REFERENCE.md` / `FORMS.md` を指すが、実ファイルは小文字の `reference.md` / `forms.md`。小文字のファイルを読む。
 - `wizard` に書く CLI コマンドは、書く前に `--help` で対話プロンプトと設定ファイルの自動更新の有無を確かめ、それを止めるフラグを付ける（例: `wrangler r2 bucket create` には `--update-config=false`。付けないと、バインディングを設定へ追加するかを尋ね、了承すると repo の設定ファイルを書き換える）。人が wizard を実行し終えたら、`git status` と `git diff` を実行前と比べ、想定外のファイル変更が無いことを確かめる。
@@ -90,9 +90,9 @@ canonical検証の準備から始める場合は `scripts/run-canonical.py` を�
 
 Worktree Entry Point は、対象 task worktree を確認して作業を始める契約。独立スキルの呼出しは不要。作成・選択には実行環境の native 機構を使い、既存の task worktree は同じ依頼への所属を確認して再利用する。変更前に `git fetch origin` し、physical root、ブランチ、HEAD（`origin/<default>` との一致を含む。native 作成は fetch 前の古い参照から作ることがある）、status、worktree 固有 Git dir と common dir を read-only に確認し、全 phase を同じ checkout で続ける。既存の branch を再利用するときは、その branch の PR が merge 済みでないかを `gh pr list --head <branch> --state all --json number,state,headRefName` で確認し、状態を文字で読む。MERGED なら squash 後の履歴は branch と一致せず、`git-push-topic` も拒否するため、積まずに `origin/<default>` から新しい branch を切り、必要な commit だけを持ち込む。隔離内の `gh pr list` は `--head` を拒否し、`--state` も受けず、open な PR しか返さないため、この確認は隔離の起動前にホストで済ませる。新しい branch が要るときは、その branch で GitHub policy を登録してから起動する。policy は1 topic に固定されるので、隔離 session の途中では branch を切り替えない。GitHub を使えないローカル作業では、この確認を公開前まで延期できる。親の未コミット変更を移動・上書きしない。説明・読み取り調査は primary checkout や Git 検証不能の環境でも継続できる。
 
-- **Herdr**: 明示依頼時に `herdr` スキルを使い、`HERDR_ENV=1` を確認して native worktree・pane を管理する。Codex の隔離起動は、対象 pane の shell prompt から `codex-worktree` を実行する。既存 linked worktree を受け取る adapter なので `--worktree` は渡さない。pane の cwd と返却された ID を確認し、background 起動は `--no-focus` を使う。agent 認識と入力可能状態を親が確認してから依頼を引き継ぐ。隔離内では Herdr socket を公開せず、Herdr の制御は親が担当する。
+- **Herdr App**: connected machine の standard worktree を App から開き、validated linked worktree の terminal で `codex-worktree` または `codex-reviewer` を起動する。`--no-daemon` と親側の `hc` orchestration を含む詳細は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) を参照する。
 - **Orca**: native worktree と Agent Picker の built-in agent 起動を使い、permission mode は Orca に委ねる。自律 workflow は shipped Yolo、確認を残す場合は Manual と Orca Source Control を使う。Orca native Codex は `codex-orca` / `codex-worktree` を使わない。worktree は review / recovery の境界であり OS sandbox ではないため、Yolo は信頼できる repository / host に限る。runtime 自己認識で Orca を識別し、`ORCA_*` environment の汎用判定は導入しない。Orca primary checkout からの実装は native worktree の新しい agent session で開始する。
-- **読み取り専用レビュー役の Codex**: Herdr などの pane で task worktree の差分をレビューさせる Codex は、その linked worktree を cwd にした shell から `codex-reviewer [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 auto は固定 plugin source の `skills/herdr-peer-refactor/references/auto-session.md` と `contracts/auto-peer-protection.md` にある専用 preflight と起動 wrapper だけを通す。source、専用 home、deny 設定、実効保護がいずれか未確認なら専用 auto を保留し、通常 session へ切り替えない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで足すので、`git status` / `git diff` / `git show` は使えるが、Git 書込みや別 worktree は扱えない。`herdr agent start --kind codex` や単なる `codex` では Git dir を読めない。秘密隔離は提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
+- **読み取り専用レビュー役の Codex**: App/core terminal では validated linked worktree を cwd にした shell から `codex-reviewer --no-daemon [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 peer auto は固定 public source の明示 preflight と起動 wrapper に限り、`herdr-peer-refactor` の TUI-only flow を App へ当てはめない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで加えるので、Git 書込みや別 worktree は扱えず、raw 実装役と同じ秘密隔離も提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
 - **Claude Code / Codex**: Claude Code は `EnterWorktree`、Codex app は native worktree、Codex CLI の新規作成は導入版の `codex --help` に従い `--worktree` を使う。native 作成と隔離起動は別の責務。raw Codex の秘密隔離が必要な場合は、作成済み linked worktree で既存 `codex-worktree` を使い、その公開入力登録・trust・返却契約に従う。
 
 ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に固定版 public source の `skills/orca-peer-refactor/references/orca.md#worktree-readiness` を確認します。source root は [契約案内](autonomous-peer-contract.md) にある検証済み plugin JSON の `source` から解決し、worker 観測と割当時に固定した期待値の照合成功を待ちます。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要します。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外です。
@@ -108,7 +108,7 @@ Git 管理情報を解決できない場合は編集・Git 書込みを保留し
 
 依頼済みタスクの正規経路での復旧・引継ぎには二重確認を求めない。後継起動前に元担当が編集を停止していることを確認し、同じ worktree を同時編集しない。既存 pane の強制終了、worktree の削除・作り直し、権限拒否の迂回、共有設定の権限拡大は復旧に含めない。新しい根拠や正規経路がない同じ失敗は繰り返さず、最後の検証結果と再開に不足する条件を報告する。
 
-Herdr 0.9.0 では adapter 内の対話 Codex が入力可能でも `agent list` に現れない事例を実測した（[ADR-0057](../docs/adr/0057-retire-to-worktree-for-native-entry.md)）。この場合は自動引継ぎ未完了として報告し、親自身が検証できる task worktree での作業は継続する。
+Herdr TUI 0.9.0 adapter の agent 認識失敗は [ADR-0057](../docs/adr/0057-retire-to-worktree-for-native-entry.md) の歴史記録であり、App/core の agent 状態を示す根拠には使わない。App の応答完了は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) の `hc wait` / `hc read` 条件で確認する。
 
 起動しただけでは引継ぎ完了としない。対話 agent の認識・入力可能状態と、子からの checkout / Git 検証を別々に確認する。`codex-worktree sandbox` の成功は対話 agent 起動の代用にならない。配備済み公開入力・trust・接続前提が不足している場合も、通常環境の秘密値や権限を変更して代用しない。
 
@@ -121,7 +121,7 @@ app-server で実タスクを引き継ぐ親は、同じ隔離 process/thread �
 3. 起動 stderr の隔離 session directory の `config/sessions/` から、その thread ID の rollout を選び、`turn_context` の model／effort／cwd だけを抽出して照合する。effort は TOML の復号値で比較する。hidden reasoning・認証情報は抽出しない。
 4. 一致後に同じ process/thread へ実タスクを送る。`turn/start` の model／effort は省略または readiness と同じ値とする。不一致・観測不能・未対応なら送らず、設定を黙って下げない。設定変更、thread／process の変更・resume 後は readiness と記録確認をやり直す。
 
-CLI の model／effort 指定は利用できるが、CLI 自動引継ぎは未対応。同じ TUI process の有効値観測・readiness からの継続・Herdr の agent 認識を確認するまで対応済みとしない。別 raw 起動の `exec resume` は過去の rollout を持ち込まないため、この gate の継続経路に使わない。確認は runtime 設定とモデル応答までで、バックエンドの実際の推論計算量は保証しない。
+CLI の model／effort 指定は利用できるが、CLI 自動引継ぎは未対応。同じ隔離 process/thread の有効値観測と readiness からの継続を確認するまで対応済みとしない。別 raw 起動の `exec resume` は過去の rollout を持ち込まないため、この gate の継続経路に使わない。確認は runtime 設定とモデル応答までで、バックエンドの実際の推論計算量は保証しない。
 
 - wayfinding: 巨大で曖昧な作業は `wayfinder` で調査・決定 ticket の map を作り、frontier が明確になってから Planner / Builder-Evaluator へ合流する
 
@@ -198,7 +198,7 @@ bun "$SOURCE_DIR/scripts/verify-apm-deployment.mjs" \
 }
 ```
 
-helper は dependency 構成の一致、候補の追加・削除の完全一致、全配備 file の実 bytes／hash、runtime 外への path／symlink の拒否、両 target の skill discovery、`SKILL.md` の `name`／`description` frontmatter を検査する。guide Markdown には SKILL 用 frontmatter を要求しない。候補外 dependency は全 metadata を不変とし、更新前に `ref`／`resolved_ref` がない floating dependency の `resolved_commit` だけの変更を許容する。計画に含めた候補の revision／content／その他 metadata の更新は比較から外れるため、期待する pin／版／package type は manifest・native 生成・audit と当該更新 gate で別途照合する。
+helper は既存 dependency の更新と計画済みの dependency 削除を扱い、新規 dependency の追加と予定外の削除を拒否する。dependency 全体を削除する計画は追加0・旧配備 file 全件の削除を要求し、他 owner が保持する file を除いて配備先から消えたことも確認する。候補の追加・削除の完全一致、全配備 file の実 bytes／hash、runtime 外への path／symlink の拒否、両 target の skill discovery、`SKILL.md` の `name`／`description` frontmatter を検査する。guide Markdown には SKILL 用 frontmatter を要求しない。候補外 dependency は全 metadata を不変とし、更新前に `ref`／`resolved_ref` がない floating dependency の `resolved_commit` だけの変更を許容する。計画に含めた候補の revision／content／その他 metadata の更新は比較から外れるため、期待する pin／版／package type は manifest・native 生成・audit と当該更新 gate で別途照合する。
 
 隔離runtimeの比較では、root lock metadata、`deployments` の owner／active_owner／共有 owner ledger の前後比較、payload の意味、未記録 file 全体の列挙、対話 loader は helper の検査範囲外とする。既存の生成・frozen・audit と候補外／共有 owner ledger の独立比較を継続し、helper の PASS だけで全 lock 不変や配備完了とは判定しない。既存 frozen runtime の再利用では source の manifest／lock との byte 一致を先に確認し、`{"candidates":[]}` で追加・削除0を照合する。helper は native lock を読み取るだけで、HOME へ配備せず、既存 runner／hook／下記 Matt 専用 gate へ自動配線しない。
 
@@ -245,7 +245,7 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 **その他 apm skill（保持）**: find-skills, skill-creator, pdf, supabase-postgres-best-practices, empirical-prompt-tuning, effect-ts, security-audit。
 
-**Herdr**: [公式スキル](https://herdr.dev/ja/docs/agent-skill/)を `herdrdev/herdr/skills/herdr` から APM で配布する。採用するrevisionは `apm.yml` / `apm.lock.yaml` を正本とし、`~/.agents/skills/herdr/` と `~/.claude/skills/herdr/` へ展開する。Herdr の操作を明示的に依頼された場合に使い、制御コマンドの前に `HERDR_ENV=1` を確認する。CLI バイナリは nix devshell が供給する。
+**Herdr TUI skill（退役）**: `herdrdev/herdr/skills/herdr` は通常 APM 配備から外した。復旧時に使う旧 revision は `2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01` で、版と copy-env 登録の復旧条件は [ADR-0088](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧) に記録する。`herdr-peer-refactor` は別の公開 plugin skill で TUI 専用のまま保持し、App 対応済みとして案内しない。
 
 ## Ultracite の project hook
 

@@ -18,7 +18,7 @@ setup() {
   mkdir scripts
   cp "$PROJECT_ROOT/lefthook.yml" lefthook.yml
   # 実処理は呼ばず、呼ばれた引数と stdin の ref だけを記録する。
-  printf '#!/usr/bin/env bash\necho "pre-push ${1:-hook} $(cat)" >>"%s"\n' "$CALLS" >scripts/pre-push.sh
+  printf '#!/usr/bin/env bash\ninput=\nif [[ ${1:-hook} != record ]]; then input=$(cat); fi\necho "pre-push ${1:-hook} $input" >>"%s"\n' "$CALLS" >scripts/pre-push.sh
   printf '#!/usr/bin/env bash\necho "bun $*" >>"%s"\nexit "${BUN_STATUS:-0}"\n' "$CALLS" >"$BIN/bun"
   chmod +x scripts/pre-push.sh "$BIN/bun"
   git -c user.name=t -c user.email=t@example.com add -A
@@ -34,7 +34,7 @@ setup() {
 }
 
 @test "the test job installs hooks, runs the Bats, then records the tested tree" {
-  run -0 env PATH="$BIN:$PATH" lefthook run test --no-auto-install
+  run -0 env PATH="$BIN:$PATH" lefthook run test --no-auto-install </dev/null
   [ -f .git/hooks/pre-push ]
   [ "$(grep -c . "$CALLS")" -eq 2 ]
   [ "$(sed -n 1p "$CALLS")" = "bun run test" ]

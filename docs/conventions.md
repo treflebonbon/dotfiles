@@ -73,7 +73,7 @@ canonical の進捗には、この実行が渡した `canonical-path` と `runne
 python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- lefthook run test
 ```
 
-入口は source の `nativeBuildInputs` が選ぶ6 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。文書 Markdown だけの変更では、末尾を `scripts/test-docs.sh` に置き換える。
+入口は source の `nativeBuildInputs` が選ぶ5 CLIの絶対パスと `command -v` を照合する。同じ版の別 output も拒否し、全 CLI の `--version` が成功した後だけ `--` 以降のコマンドを実行する。文書 Markdown だけの変更では、末尾を `scripts/test-docs.sh` に置き換える。
 
 Nix の準備を要しない調査・検証コマンドには [verification_env.py](../scripts/verification_env.py) を使う。環境変数の切替を省略しても、入口が一時環境と OS 境界を用意する。コマンドは `--` 以降の argv として渡す。
 
@@ -114,7 +114,7 @@ WSL から `powershell.exe` へ複数行のスクリプトを渡すときは、`
 
 ### 変更対象の実ランタイム検証
 
-`scripts/runtime_test_checks.py` は `origin/main` との merge-base から公開する HEAD の変更を調べる。Herdr のコピー処理・`codex-repo-state`、Treesitter 設定と各回帰テストを変更した場合、対応する実ランタイムの検証を必須にする。対象パスと必須テスト名の正本はこのスクリプトに置く。スクリプト自身の変更では両方を検証する。
+`scripts/runtime_test_checks.py` は `origin/main` との merge-base から公開する HEAD の変更を調べる。`codex-repo-state`、Treesitter 設定と各回帰テストを変更した場合、対応する実ランタイムの検証を必須にする。対象パスと必須テスト名の正本はこのスクリプトに置く。スクリプト自身の変更では両方を検証する。
 
 - Bash 対象では `TEST_COMPAT_BASH` に実行可能な Bash 3.2 の絶対パスを指定する。実行して版を確認し、新しい Bash による代用を拒否する。macOS では、版が一致する既存の `/bin/bash` を使える。
 - Treesitter 対象では `NVIM_TREESITTER_RUNTIME` に plugin の checkout の絶対パスを指定する。変更や追加ファイル（ignore 対象の生成物も含む）がない検証用 checkout を使う。`private_dot_config/nvim/lua/plugins/lsp.lua` に記載された固定 commit との一致は、既存の実 API テストが確認する。
@@ -231,7 +231,7 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
 
 canonicalの実測結果の保存先と記録順序は、本ファイルの「テスト」節に従う。
 
-スナップショットや pin を更新したら、全 Bats の前に旧版・旧 revision を `grep -rn` で探し、tests と runtime に残る固定値を直す。期待値を package や lock から導出できるテストは、固定値を足さずに導出する（`tests/herdr.bats` の版は package から取る）。
+スナップショットや pin を更新したら、全 Bats の前に旧版・旧 revision を `grep -rn` で探し、tests と runtime に残る固定値を直す。期待値を package や lock から導出できるテストは、固定値を足さずに導出する。
 
 `code-review` のStandards／Spec両軸へ、現在の要件、適用するADRの箇所、調査記録を渡す。各軸は予定した変更と実際の差分を照合し、分割で外した変更の扱いも確認する。過去の調査記録は参考資料と現在の要件を区別する。
 

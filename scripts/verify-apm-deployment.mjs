@@ -129,89 +129,111 @@ const verifyDeployedFiles = (
   }
 };
 
-const verify = (baseFile, runtimeDirectory, planEntries, live = false) => {
-  const runtime = realpathSync(runtimeDirectory);
-  const runtimeLock = path.join(runtime, "apm.lock.yaml");
-  if (live) {
+const verifyPlanOperations = (plan) => {
+  for (const operation of ["added", "removed"]) {
     assert.ok(
-      lstatSync(baseFile).isFile() && lstatSync(runtimeLock).isFile(),
-      "live 検証の lock は通常 file にしてください"
+      Array.isArray(plan[operation]) &&
+        new Set(plan[operation]).size === plan[operation].length,
+      `計画不正: ${operation}`
     );
   }
-  const accepted = readYaml(baseFile);
-  const deployed = readYaml(runtimeLock);
-  if (live) {
+};
+
+const verifyRemovedFiles = (files, retainedFiles, runtime) => {
+  for (const file of files) {
     assert.ok(
-      isDeepStrictEqual(deployed, accepted),
-      "live lock が受入済み lock と一致しません"
+      retainedFiles.has(file) ||
+        !lstatSync(path.resolve(runtime, file), { throwIfNoEntry: false }),
+      `削除fileが残存: ${file}`
     );
   }
-  const base = indexDependencies(accepted.dependencies);
-  const candidate = indexDependencies(deployed.dependencies);
+};
+
+const verifyCandidateDependency = (
+  identity,
+  dependency,
+  { base, plans, retainedFiles, runtime, skills, verifiedFiles, live }
+) => {
+  const previous = base.get(identity);
+  const files = dependency.deployed_files;
+  const hashes = dependency.deployed_file_hashes;
   assert.ok(
-    isDeepStrictEqual(sorted(candidate.keys()), sorted(base.keys())),
-    "dependency の構成が変わっています"
+    Array.isArray(files) && new Set(files).size === files.length,
+    `deployed_files 不正: ${identity}`
   );
-  const plans = indexDependencies(planEntries);
-  for (const identity of plans.keys()) {
-    assert.ok(candidate.has(identity), `計画に未知の dependency: ${identity}`);
-  }
-  const skills = { ".agents": new Set(), ".claude": new Set() };
-  const verifiedFiles = new Set();
-  const retainedFiles = new Set(
-    [...candidate.values()].flatMap((dependency) => dependency.deployed_files)
+  assert.ok(
+    hashes && typeof hashes === "object" && !Array.isArray(hashes),
+    `hash 台帳がありません: ${identity}`
   );
+  const plan = plans.get(identity);
   let added = 0;
   let removed = 0;
-  for (const [identity, dependency] of candidate) {
-    const previous = base.get(identity);
-    const files = dependency.deployed_files;
-    const hashes = dependency.deployed_file_hashes;
+  if (plan) {
+    verifyPlanOperations(plan);
+    const additions = difference(files, previous.deployed_files);
+    const removals = difference(previous.deployed_files, files);
     assert.ok(
-      Array.isArray(files) && new Set(files).size === files.length,
-      `deployed_files 不正: ${identity}`
+      isDeepStrictEqual(sorted(additions), sorted(plan.added)),
+      `予定外の追加: ${identity}`
     );
     assert.ok(
-      hashes && typeof hashes === "object" && !Array.isArray(hashes),
-      `hash 台帳がありません: ${identity}`
+      isDeepStrictEqual(sorted(removals), sorted(plan.removed)),
+      `予定外の削除: ${identity}`
     );
-    const plan = plans.get(identity);
-    if (plan) {
-      for (const operation of ["added", "removed"]) {
-        assert.ok(
-          Array.isArray(plan[operation]) &&
-            new Set(plan[operation]).size === plan[operation].length,
-          `計画不正: ${operation}`
-        );
-      }
-      const additions = difference(files, previous.deployed_files);
-      const removals = difference(previous.deployed_files, files);
-      assert.ok(
-        isDeepStrictEqual(sorted(additions), sorted(plan.added)),
-        `予定外の追加: ${identity}`
-      );
-      assert.ok(
-        isDeepStrictEqual(sorted(removals), sorted(plan.removed)),
-        `予定外の削除: ${identity}`
-      );
-      for (const file of removals) {
-        assert.ok(
-          retainedFiles.has(file) ||
-            !lstatSync(path.resolve(runtime, file), { throwIfNoEntry: false }),
-          `削除fileが残存: ${file}`
-        );
-      }
-      added += additions.length;
-      removed += removals.length;
-    } else {
-      verifyUnchanged(previous, dependency, identity);
-    }
-    verifyDeployedFiles(runtime, dependency, skills, verifiedFiles, live);
+    verifyRemovedFiles(removals, retainedFiles, runtime);
+    added = additions.length;
+    removed = removals.length;
+  } else {
+    verifyUnchanged(previous, dependency, identity);
   }
+  verifyDeployedFiles(runtime, dependency, skills, verifiedFiles, live);
+  return { added, removed };
+};
+
+const verifyRemovedDependencies = (
+  base,
+  candidate,
+  plans,
+  retainedFiles,
+  runtime
+) => {
+  let removed = 0;
+  for (const [identity, previous] of base) {
+    if (candidate.has(identity)) {
+      continue;
+    }
+    const plan = plans.get(identity);
+    assert.ok(plan, `予定外の dependency 削除: ${identity}`);
+    verifyPlanOperations(plan);
+    const files = previous.deployed_files ?? [];
+    assert.ok(
+      isDeepStrictEqual(plan.added, []) &&
+        isDeepStrictEqual(sorted(plan.removed), sorted(files)),
+      `予定外の dependency 削除: ${identity}`
+    );
+    verifyRemovedFiles(files, retainedFiles, runtime);
+    removed += files.length;
+  }
+  return removed;
+};
+
+const verifySkillInventory = (runtime, skills, verifiedFiles, live) => {
   const unmanaged = [];
   for (const [target, expected] of Object.entries(skills)) {
     const directory = path.join(runtime, target, "skills");
-    const entries = readdirSync(directory);
+    let entries;
+    try {
+      entries = readdirSync(directory);
+    } catch (error) {
+      if (
+        error.code !== "ENOENT" ||
+        expected.size !== 0 ||
+        lstatSync(directory, { throwIfNoEntry: false }) !== undefined
+      ) {
+        throw error;
+      }
+      entries = [];
+    }
     if (live) {
       unmanaged.push(
         ...entries
@@ -235,6 +257,67 @@ const verify = (baseFile, runtimeDirectory, planEntries, live = false) => {
       verifySkillFiles(path.join(directory, name), runtime, verifiedFiles);
     }
   }
+  return unmanaged;
+};
+
+const verify = (baseFile, runtimeDirectory, planEntries, live = false) => {
+  const runtime = realpathSync(runtimeDirectory);
+  const runtimeLock = path.join(runtime, "apm.lock.yaml");
+  if (live) {
+    assert.ok(
+      lstatSync(baseFile).isFile() && lstatSync(runtimeLock).isFile(),
+      "live 検証の lock は通常 file にしてください"
+    );
+  }
+  const accepted = readYaml(baseFile);
+  const deployed = readYaml(runtimeLock);
+  if (live) {
+    assert.ok(
+      isDeepStrictEqual(deployed, accepted),
+      "live lock が受入済み lock と一致しません"
+    );
+  }
+  const base = indexDependencies(accepted.dependencies);
+  const candidate = indexDependencies(deployed.dependencies);
+  assert.ok(
+    difference(sorted(candidate.keys()), sorted(base.keys())).length === 0,
+    "新規 dependency が追加されています"
+  );
+  const plans = indexDependencies(planEntries);
+  for (const identity of plans.keys()) {
+    assert.ok(
+      candidate.has(identity) || base.has(identity),
+      `計画に未知の dependency: ${identity}`
+    );
+  }
+  const skills = { ".agents": new Set(), ".claude": new Set() };
+  const verifiedFiles = new Set();
+  const retainedFiles = new Set(
+    [...candidate.values()].flatMap((dependency) => dependency.deployed_files)
+  );
+  let added = 0;
+  let removed = 0;
+  for (const [identity, dependency] of candidate) {
+    const counts = verifyCandidateDependency(identity, dependency, {
+      base,
+      live,
+      plans,
+      retainedFiles,
+      runtime,
+      skills,
+      verifiedFiles,
+    });
+    added += counts.added;
+    removed += counts.removed;
+  }
+  removed += verifyRemovedDependencies(
+    base,
+    candidate,
+    plans,
+    retainedFiles,
+    runtime
+  );
+  const unmanaged = verifySkillInventory(runtime, skills, verifiedFiles, live);
   if (live) {
     console.log(`管理外の配備先: ${JSON.stringify(sorted(unmanaged))}`);
   }

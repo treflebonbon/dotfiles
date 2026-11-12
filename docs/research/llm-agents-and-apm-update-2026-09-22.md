@@ -66,7 +66,7 @@ Copilot CLI・Antigravity CLI・RTK・code-review-graph は package metadata の
 - 3 system の overlay 経由 `pkgs.llm-agents.<pkg>.version` 実測（8パッケージ）: 一致。
 - x86_64-linux の実 `nix develop` build と8 CLI version 起動: 成功。
 - `tests/ai-quality-floor.bats`: quality floor 値（`2.1.277` / `0.155.0`）と診断メッセージの固定値を更新し、7/7 成功。
-- `tests/herdr.bats`: Herdr 期待 version を `0.9.1` へ更新し、1/1 成功。
+- `tests/herdr.bats`（#596 で退役）: 当時の Herdr 期待 version を `0.9.1` へ更新し、1/1 成功。
 - 隔離 cwd/HOME の APM install（非frozen→frozen）と `apm audit --ci` 10/10: 成功。
 - `tests/apm-runtime.bats`: `apm_version`、`shadcn`/`computer-use`/`orchestration` の resolved_commit・content hash 固定値を更新し、5/5（変更対象テスト）を含む23/23 成功。`tests/apm-cache-refresh.bats` は変更なしで成功を維持。
 - `bunx tsc --noEmit`: エラーなし。

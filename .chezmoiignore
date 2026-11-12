@@ -7,7 +7,8 @@
 # Codex CLI plugin のランタイムファイル（chezmoi 管理外）
 .codex
 
-# Repo-local Herdr plugin. Register it from the accepted primary checkout.
+# Keep old Herdr state and repo-local plugin data out of home deployment.
+# App migration does not remove ~/.herdr state, history or worktrees.
 .herdr
 .herdr/**
 

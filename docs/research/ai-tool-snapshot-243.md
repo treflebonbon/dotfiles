@@ -10,6 +10,8 @@ timestamp: 2026-09-08
 
 [Issue #243](https://github.com/treflebonbon/dotfiles/issues/243) の第1更新単位。baseline は `df13f205fca26277b323c7bb5cb7d36c960775be`、実装場所は Orca linked worktree `chore-ai-impeccable`。Tool Snapshot、通常の APM payload、Impeccable 移行を別 PR とし、後続は前段の merge 済み baseline から始める。Issue 全体の完了をこの単位の完了と同一視しない。
 
+> 歴史記録。Herdr TUI と `tests/herdr.bats` は #596 で退役した。ここに記録した TUI の package / server 検証は現行構成の手順ではない。
+
 ## Contract
 
 - 目的: 導入済み AI ツールを immutable snapshot へ更新し、既存の手動利用・設定・品質 floor を維持する。
@@ -60,24 +62,24 @@ Audit は10/10で、organization policy は `treflebonbon/.github-private` が�
 
 証跡はこの worktree の `tmp/issue-243/` に保存する。ローカルの一時ログであり、恒久的な成果物ではない。
 
-| AC                    | 種別         | 実行コマンドまたは確認方法                                                                                                                                       | 結果          | 未確認理由                                                                 |
-| --------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------------------------------------------------------------------- |
-| AC1 更新単位          | workflow     | baseline `df13f20` から Tool Snapshot のみを変更                                                                                                                 | 第1単位       | 後続2単位はこの単位の merge 後                                             |
-| AC2 snapshot          | infra        | 入口の HEAD 確認、release metadata、source / lock / 実 package metadata の照合                                                                                   | 成功          | —                                                                          |
-| AC3 対応環境          | infra / CLI  | `nix flake check ./private_dot_config/nix-devshell --no-build --all-systems`、全6出力 metadata、host 両 devShell の build / `nix develop` から7 CLI version/help | 成功          | aarch64-linux / aarch64-darwin は実機なし                                  |
-| AC4 floor / 設定      | infra        | 品質 floor の既存7テスト、管理設定と AI module の不変性                                                                                                          | 成功          | —                                                                          |
-| AC5 Herdr             | CLI          | 隔離 TUI、detach / reconnect / server restart、状態検出4 fixture、graphics API                                                                                   | 成功          | 画像の実端末描画、実 AI session の全状態、remote manifest 更新成功は未確認 |
-| AC6 通常スキル        | APM          | manifest / lock を baseline から維持                                                                                                                             | 後続単位      | Tool Snapshot merge 後に実装                                               |
-| AC7 native lock       | APM          | 本単位では lock を再生成しない                                                                                                                                   | 後続単位      | 更新済み APM による final manifest の native materialization は次単位      |
-| AC8 discovery         | APM          | 現行 payload を維持                                                                                                                                              | 後続単位      | 更新した payload の discovery は次単位                                     |
-| AC9 Orca guidance     | workflow     | 現行 payload / ローカル契約を維持                                                                                                                                | 後続単位      | Orca payload の更新と guide 確認は次単位                                   |
-| AC10 Impeccable 配布  | infra        | skill / engine を変更しない                                                                                                                                      | 後続単位      | 通常スキル単位の merge 後                                                  |
-| AC11 global hook      | API          | 現行管理 hook を維持                                                                                                                                             | 後続単位      | 新 engine に対する実体検証は第3単位                                        |
-| AC12 hook 動作        | API          | 現行管理 hook を維持                                                                                                                                             | 後続単位      | 同上                                                                       |
-| AC13 fail-open / 所有 | API          | 現行管理 hook / project 所有境界を維持                                                                                                                           | 後続単位      | 同上                                                                       |
-| AC14 実 engine gate   | API          | 新 engine の materialization は実施しない                                                                                                                        | 後続単位      | 同上。skip を移行成功としない                                              |
-| AC15 回帰             | tests / docs | 関連36/36、full Bats 517/517（skipなし）、型検査、Nix / Markdown format、変更 Herdr テストの ShellCheck                                                          | 必須検証成功  | 追加 ShellCheck は baseline と同じ40指摘。下記参照                         |
-| AC16 配備境界         | workflow     | linked worktree 検証、`chezmoi source-path` が primary checkout を指すことを確認                                                                                 | source 側成功 | live apply と通常環境の最終確認は受入・merge 後                            |
+| AC | 種別 | 実行コマンドまたは確認方法 | 結果 | 未確認理由 |
+| --- | --- | --- | --- | --- |
+| AC1 更新単位 | workflow | baseline `df13f20` から Tool Snapshot のみを変更 | 第1単位 | 後続2単位はこの単位の merge 後 |
+| AC2 snapshot | infra | 入口の HEAD 確認、release metadata、source / lock / 実 package metadata の照合 | 成功 | — |
+| AC3 対応環境 | infra / CLI | `nix flake check ./private_dot_config/nix-devshell --no-build --all-systems`、全6出力 metadata、host 両 devShell の build / `nix develop` から7 CLI version/help | 成功 | aarch64-linux / aarch64-darwin は実機なし |
+| AC4 floor / 設定 | infra | 品質 floor の既存7テスト、管理設定と AI module の不変性 | 成功 | — |
+| AC5 Herdr | CLI | 隔離 TUI、detach / reconnect / server restart、状態検出4 fixture、graphics API | 成功 | 画像の実端末描画、実 AI session の全状態、remote manifest 更新成功は未確認 |
+| AC6 通常スキル | APM | manifest / lock を baseline から維持 | 後続単位 | Tool Snapshot merge 後に実装 |
+| AC7 native lock | APM | 本単位では lock を再生成しない | 後続単位 | 更新済み APM による final manifest の native materialization は次単位 |
+| AC8 discovery | APM | 現行 payload を維持 | 後続単位 | 更新した payload の discovery は次単位 |
+| AC9 Orca guidance | workflow | 現行 payload / ローカル契約を維持 | 後続単位 | Orca payload の更新と guide 確認は次単位 |
+| AC10 Impeccable 配布 | infra | skill / engine を変更しない | 後続単位 | 通常スキル単位の merge 後 |
+| AC11 global hook | API | 現行管理 hook を維持 | 後続単位 | 新 engine に対する実体検証は第3単位 |
+| AC12 hook 動作 | API | 現行管理 hook を維持 | 後続単位 | 同上 |
+| AC13 fail-open / 所有 | API | 現行管理 hook / project 所有境界を維持 | 後続単位 | 同上 |
+| AC14 実 engine gate | API | 新 engine の materialization は実施しない | 後続単位 | 同上。skip を移行成功としない |
+| AC15 回帰 | tests / docs | 関連36/36、full Bats 517/517（skipなし）、型検査、Nix / Markdown format、変更 Herdr テストの ShellCheck | 必須検証成功 | 追加 ShellCheck は baseline と同じ40指摘。下記参照 |
+| AC16 配備境界 | workflow | linked worktree 検証、`chezmoi source-path` が primary checkout を指すことを確認 | source 側成功 | live apply と通常環境の最終確認は受入・merge 後 |
 
 Codex / Herdr の direct output は3 systemすべて `nix path-info --store https://cache.numtide.com` で cache に存在する。host は Herdr を cache から取得し、Claude / APM の取得・package 作成と2つの shell derivation を build した。cache 確認を他 platform の native 起動や source build の成功とは扱わない。
 
