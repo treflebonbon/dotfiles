@@ -69,18 +69,21 @@ setup() {
   local chezmoi
 
   mkdir -p "$source"
-  git -C "$PROJECT_ROOT" archive HEAD | tar -x -C "$source"
-  git init -q -b main "$source"
+  (cd "$PROJECT_ROOT" && git archive HEAD) | tar -x -C "$source"
+  (cd "$source" && git init -q -b main)
 
   # Restore only the tracked retirement delta that contains the Nix/APM entries
   # and Claude permission. Do not roll the rest of the candidate back to baseline.
-  git -C "$PROJECT_ROOT" diff --binary HEAD "$baseline" -- \
-    private_dot_config/nix-devshell/modules/ai.nix \
-    apm.yml apm.lock.yaml private_dot_claude/settings.json.tmpl >"$restore_patch"
-  git -C "$source" apply "$restore_patch"
+  (
+    cd "$PROJECT_ROOT" &&
+      git diff --binary HEAD "$baseline" -- \
+        private_dot_config/nix-devshell/modules/ai.nix \
+        apm.yml apm.lock.yaml private_dot_claude/settings.json.tmpl
+  ) >"$restore_patch"
+  (cd "$source" && git apply "$restore_patch")
   mkdir -p "$source/.herdr"
-  git -C "$PROJECT_ROOT" show "$baseline:.herdr/herdr-plugin.toml" >"$source/.herdr/herdr-plugin.toml"
-  git -C "$PROJECT_ROOT" show "$baseline:run_after_setup-herdr.sh" >"$source/run_after_setup-herdr.sh"
+  (cd "$PROJECT_ROOT" && git show "$baseline:.herdr/herdr-plugin.toml") >"$source/.herdr/herdr-plugin.toml"
+  (cd "$PROJECT_ROOT" && git show "$baseline:run_after_setup-herdr.sh") >"$source/run_after_setup-herdr.sh"
   chmod +x "$source/run_after_setup-herdr.sh"
 
   [ -f "$source/run_after_setup-herdr.sh" ]
@@ -118,16 +121,16 @@ setup() {
   cp "$source/.herdr/herdr-plugin.toml" "$deploy_source/.herdr/herdr-plugin.toml"
   cp "$source/run_after_setup-herdr.sh" "$deploy_source/run_after_setup-herdr.sh"
   chmod +x "$deploy_source/run_after_setup-herdr.sh"
-  git init -q -b main "$deploy_source"
+  (cd "$deploy_source" && git init -q -b main)
   mkdir -p "$retired_source" "$reactivated_source/.herdr"
   cp "$source/.chezmoiignore" "$retired_source/.chezmoiignore"
   printf 'retired candidate fixture\n' >"$retired_source/dot_fixture"
-  git init -q -b main "$retired_source"
+  (cd "$retired_source" && git init -q -b main)
   cp "$source/.chezmoiignore" "$reactivated_source/.chezmoiignore"
   cp "$source/.herdr/herdr-plugin.toml" "$reactivated_source/.herdr/herdr-plugin.toml"
   cp "$source/run_after_setup-herdr.sh" "$reactivated_source/run_after_setup-herdr.sh"
   chmod +x "$reactivated_source/run_after_setup-herdr.sh"
-  git init -q -b main "$reactivated_source"
+  (cd "$reactivated_source" && git init -q -b main)
   printf 'ensure_nix_devshell_env() { :; }\n' >"$home/.config/nix-devshell/lib/ensure-env.sh"
   printf 'retained history\n' >"$home/.herdr/history"
   cat >"$bin/herdr" <<'SH'
@@ -146,12 +149,16 @@ SH
   chmod +x "$bin/herdr"
   printf '{"result":{"plugins":[]}}\n' >"$state"
   chezmoi="$(command -v chezmoi)"
+  apply_source() {
+    local fixture_source="$1"
+    env -u CHEZMOI_SOURCE_DIR HOME="$home" PATH="$bin:$PATH" \
+      HERDR_STATE="$state" HERDR_LINK_LOG="$link_log" \
+      "$chezmoi" --source "$fixture_source" --destination "$home" \
+      --config /dev/null --config-format toml --cache "$BATS_TEST_TMPDIR/recovery-cache" \
+      --persistent-state "$BATS_TEST_TMPDIR/recovery-state" apply
+  }
 
-  run env -u CHEZMOI_SOURCE_DIR HOME="$home" PATH="$bin:$PATH" \
-    HERDR_STATE="$state" HERDR_LINK_LOG="$link_log" \
-    "$chezmoi" --source "$deploy_source" --destination "$home" \
-    --config /dev/null --config-format toml --cache "$BATS_TEST_TMPDIR/recovery-cache" \
-    --persistent-state "$BATS_TEST_TMPDIR/recovery-state" apply
+  run apply_source "$deploy_source"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
@@ -159,11 +166,7 @@ SH
 
   # Applying the retired candidate removes the source setup but leaves the old
   # registration and user data untouched until a restoration is requested.
-  run env -u CHEZMOI_SOURCE_DIR HOME="$home" PATH="$bin:$PATH" \
-    HERDR_STATE="$state" HERDR_LINK_LOG="$link_log" \
-    "$chezmoi" --source "$retired_source" --destination "$home" \
-    --config /dev/null --config-format toml --cache "$BATS_TEST_TMPDIR/recovery-cache" \
-    --persistent-state "$BATS_TEST_TMPDIR/recovery-state" apply
+  run apply_source "$retired_source"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
@@ -174,22 +177,14 @@ SH
   # must move the registration without overriding that preference.
   jq '.result.plugins[0].enabled = false' "$state" >"$BATS_TEST_TMPDIR/disabled-state.json"
   mv "$BATS_TEST_TMPDIR/disabled-state.json" "$state"
-  run env -u CHEZMOI_SOURCE_DIR HOME="$home" PATH="$bin:$PATH" \
-    HERDR_STATE="$state" HERDR_LINK_LOG="$link_log" \
-    "$chezmoi" --source "$reactivated_source" --destination "$home" \
-    --config /dev/null --config-format toml --cache "$BATS_TEST_TMPDIR/recovery-cache" \
-    --persistent-state "$BATS_TEST_TMPDIR/recovery-state" apply
+  run apply_source "$reactivated_source"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$reactivated_source/.herdr" ]
   [ "$(sed -n '7p' "$link_log")" = --disabled ]
   [ "$(wc -l <"$link_log")" -eq 7 ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = false ]
 
-  run env -u CHEZMOI_SOURCE_DIR HOME="$home" PATH="$bin:$PATH" \
-    HERDR_STATE="$state" HERDR_LINK_LOG="$link_log" \
-    "$chezmoi" --source "$reactivated_source" --destination "$home" \
-    --config /dev/null --config-format toml --cache "$BATS_TEST_TMPDIR/recovery-cache" \
-    --persistent-state "$BATS_TEST_TMPDIR/recovery-state" apply
+  run apply_source "$reactivated_source"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$(wc -l <"$link_log")" -eq 7 ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = false ]
