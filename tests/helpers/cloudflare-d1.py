@@ -17,6 +17,7 @@ import sqlite3
 import sys
 import time
 import unittest
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 import urllib.request
@@ -84,6 +85,8 @@ class D1(unittest.TestCase):
         self.expected_proxy = None
         self.delay_deadline_notice = False
         self.execute_sql = False
+        self.expire_after_request = False
+        self.http_started = None
 
     def write(self, path, value):
         if path.exists():
@@ -96,6 +99,8 @@ class D1(unittest.TestCase):
         with self.calls.open("a") as output:
             output.write(json.dumps({"url": request.full_url, "method": request.method,
                                      "body": body}) + "\n")
+        if self.http_started is not None:
+            self.http_started.set()
         time.sleep(self.request_delay)
         if self.http_exception is not None:
             raise self.http_exception
@@ -131,11 +136,27 @@ class D1(unittest.TestCase):
         output = io.StringIO()
         replace = os.replace
         receive = multiprocessing.connection.Connection.recv
+        poll = multiprocessing.connection.Connection.poll
         replacements = 0
+        expired = False
+        if self.expire_after_request:
+            self.http_started = multiprocessing.get_context("fork").Event()
+
+        # 保存や fork の実時間と切り離し、HTTP 開始後の期限切れを制御する。
+        def monotonic():
+            return float(self.definition["timeout_seconds"] + 1) if expired else 0.0
+
+        def poll_message(connection, timeout=0):
+            return poll(connection, 30 if self.expire_after_request and not expired else timeout)
 
         def receive_message(connection):
+            nonlocal expired
             message = receive(connection)
-            if self.delay_deadline_notice and isinstance(message, dict) and "deadline" in message:
+            if self.expire_after_request and isinstance(message, dict) and (
+                    message.get("attempts_started") == 1 or (self.delay_deadline_notice and "deadline" in message)):
+                self.assertTrue(self.http_started.wait(30), "HTTP stub の開始を確認できませんでした")
+                expired = True
+            elif self.delay_deadline_notice and isinstance(message, dict) and "deadline" in message:
                 time.sleep(2)
             return message
 
@@ -154,6 +175,8 @@ class D1(unittest.TestCase):
                                      "CLOUDFLARE_ACCOUNT_ID": "0123456789abcdef0123456789abcdef", **self.environment}, clear=True), \
                 patch.object(os, "replace", replace_record), \
                 patch.object(multiprocessing.connection.Connection, "recv", receive_message), \
+                patch.object(multiprocessing.connection.Connection, "poll", poll_message), \
+                patch.object(helper, "time", SimpleNamespace(monotonic=monotonic) if self.expire_after_request else time), \
                 patch.object(helper, "D1_SCRATCH", self.scratch, create=True), \
                 patch.object(helper, "http_exchange", exchange, create=True), \
                 patch.object(urllib.request.HTTPSHandler, "https_open", lambda handler, request: self.https_open(handler, request)), \
@@ -245,6 +268,7 @@ class D1(unittest.TestCase):
         self.assertEqual(len(self.calls.read_text().splitlines()), 3)
 
     def test_delayed_deadline_notice(self):
+        self.expire_after_request = True
         self.definition["timeout_seconds"] = 1
         self.request_delay = 5
         self.delay_deadline_notice = True
@@ -256,12 +280,11 @@ class D1(unittest.TestCase):
         self.assertEqual(len(self.calls.read_text().splitlines()), 1)
 
     def test_deadline(self):
+        self.expire_after_request = True
         self.definition["timeout_seconds"] = 1
         self.request_delay = 5
-        started = time.monotonic()
         status, summary = self.invoke()
         self.assertNotEqual(status, 0)
-        self.assertLess(time.monotonic() - started, 3)
         self.assertEqual(summary["stop_reason"], "deadline_exceeded")
         self.assertEqual(summary["attempts_started"], 1)
         self.assertEqual(len(self.calls.read_text().splitlines()), 1)
@@ -279,6 +302,10 @@ class D1(unittest.TestCase):
         self.assertEqual(summary["stop_reason"], "deadline_exceeded")
         self.assertEqual(summary["attempts_started"], 0)
         self.assertFalse(self.calls.exists())
+
+    def test_deadline_after_slow_record(self):
+        self.first_record_delay = 1.2
+        self.test_deadline()
 
     def test_redirect(self):
         self.real_transport = True

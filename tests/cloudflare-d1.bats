@@ -124,6 +124,12 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ]
 }
 
+@test "D1 の通信中期限テストは記録保存が遅れても開始後の中断を検証する" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_deadline_after_slow_record
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "D1 は親の通知処理が遅れても期限を過ぎた HTTP を開始しない" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_expired_before_request
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
