@@ -26,7 +26,7 @@ Herdr TUI の Nix 供給、APM skill、copy-env の source 定義と自動登録
 
 1. `~/.local/bin/herdr-ask`、`~/.claude/skills/herdr`、`~/.agents/skills/herdr` の存在を確認する。dangling symlink も残存として扱う。chezmoi は source から削除したファイルを apply だけでは消さず、`chezmoi diff` が空でも旧コマンドが残る。APM の prune は実際の結果で判断する。
 2. 残存する `herdr-ask` は、symlink でない通常ファイルであることを確認し、[ADR-0088 の固定 baseline](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧) の `private_dot_local/bin/executable_herdr-ask` と内容を照合する。一致した対象・退避先を示して撤去の承認を得た後に、その一件だけを PATH 外の private な退避先へ移す。変更済み・未知・読取不能・symlink は自動で扱わず、path と理由を報告して保留する。
-3. APM skill が残る場合も名前だけで削除しない。固定 baseline の配備台帳・hash、現行 APM lock の所有範囲と照合し、既知の旧配備物だけを対象にした撤去案を承認してから扱う。管理外 entry を保持して報告する `verify-apm-deployment.mjs --live` の PASS は、旧 skill の撤去完了を意味しない。
+3. APM skill が残る場合も名前だけで削除しない。固定 baseline の配備台帳・hash、現行 APM lock の所有範囲と照合し、既知の旧配備物だけを対象にした撤去案を承認してから、[旧台帳を使う native prune の手順](skill-harness.md#apm-dependency-削除時の-live-配備)に従う。管理外 entry を保持して報告する `verify-apm-deployment.mjs --live` の PASS は、旧 skill の撤去完了を意味しない。
 4. 撤去後は上記3パスに通常ファイル・directory・symlink が無いことと、再読み込みした shell の `command -v herdr-ask` が未検出であることを確認する。別の PATH に見つかった場合も対象を広げず報告する。残存や保留があれば切替は未完了と記録し、`~/.herdr` の状態・履歴・既存 worktree、公開 plugin の `herdr-peer-refactor` は保持する。
 
 一致を確認して承認された旧コマンド一件の退避は、通常 shell から次のように行う。skill の directory や `~/.herdr` をこの操作に追加しない。

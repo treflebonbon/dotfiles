@@ -202,6 +202,21 @@ helper は既存 dependency の更新と計画済みの dependency 削除を扱�
 
 隔離runtimeの比較では、root lock metadata、`deployments` の owner／active_owner／共有 owner ledger の前後比較、payload の意味、未記録 file 全体の列挙、対話 loader は helper の検査範囲外とする。既存の生成・frozen・audit と候補外／共有 owner ledger の独立比較を継続し、helper の PASS だけで全 lock 不変や配備完了とは判定しない。既存 frozen runtime の再利用では source の manifest／lock との byte 一致を先に確認し、`{"candidates":[]}` で追加・削除0を照合する。helper は native lock を読み取るだけで、HOME へ配備せず、既存 runner／hook／下記 Matt 専用 gate へ自動配線しない。
 
+### APM dependency 削除時の live 配備
+
+dependency を削除する配備では、新 lock の反映前に配備済みの旧 `apm.lock.yaml` を `/tmp/codex/<task>.XXXXXX/` の private な作業記録へ保存する。旧台帳と受入済み lock の差分、撤去対象の実体・hash・所有範囲を照合し、対象と退避先を示して必要な撤去承認を得る。未知・変更済み・読取不能・symlink は保持して報告する。
+
+`chezmoi apply` で新 lock を先に反映すると、後続の `apm install --frozen` と `apm prune` が成功しても旧 skill が残る場合がある。旧 owner の記録が新 lock にないためで、live verifier は残った skill を管理外として報告する。PASS だけで撤去完了としない。
+
+承認済みの撤去には既存 APM の native prune を使う。
+
+1. live source の新 `apm.yml` だけを対象限定で反映し、旧 lock を残す。新 lock まで反映済みの場合は、保存済み旧 lock と受入済み lock の差分が予定した dependency・配備 record の削除だけで、その他の metadata が一致することを確認した上で旧 lock を一時的に戻す。不一致なら戻さず、撤去を保留する。
+2. 通常 HOME を cwd にして `apm prune --dry-run` を実行する。dependency・owner・配備先が承認済みの撤去対象だけであることを確認する。dry-run は package 名を表示するが、内部の file は列挙しない。撤去対象として表示された各 `apm_modules` package directory の内容も実行前に確認する。package directory は内容ごと削除されるため、手動追加・変更済み file など保持が必要な内容があれば prune を保留する。全対象の確認と承認がそろってから `apm prune` を実行する。失敗した場合は変更された実体と lock を保存して報告し、再 install や追加削除へ進まない。
+3. 撤去対象の通常ファイル・directory・dangling symlink が無いことと、保持対象が変わらないことを確認する。prune が成功しても残存があれば未完了とする。受入済み lock を live source から対象限定で反映する。上書き確認が必要な場合は、[編集・配備ルール](../docs/architecture.md)に従う。
+4. `apm install --frozen --target claude,codex --https` を実行し、受入済み lock との一致・下記の live 検証・対象限定の `chezmoi verify` を確認する。旧 lock と実行記録は完了まで保持する。
+
+新 lock の反映から始めた場合の残存と、旧台帳を使う native prune の撤去・変更済み file の保持は、`tests/apm-retirement.bats` が一時 HOME の実 CLI で検証する。通常 HOME の配備や撤去をテストから実行しない。
+
 ### live 配備後の APM 確認
 
 live source から対象限定の apply と必要な frozen 同期を終えたら、受入済みlockを基準にHOMEの管理対象を読み取りだけで照合する。`SOURCE_DIR` は検証するhelperのvalidated task worktree、`LIVE_SOURCE` は `chezmoi source-path` が返す受入済みsourceとする。`"$HOME"` は検証入口の起動前に展開し、実際の配備先を渡す。
