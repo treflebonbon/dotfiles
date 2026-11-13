@@ -54,7 +54,31 @@ apply_accepted() {
 }
 
 run_apm() {
-  (cd "$RUNTIME" && "$APM" "$@")
+  (cd "$RUNTIME" && HOME="$RUNTIME" XDG_CACHE_HOME="$RUNTIME/.cache" "$APM" "$@")
+}
+
+@test "APM invocation isolates HOME and cache while preserving caller and arguments" {
+  local caller_home="$HOME" caller_cache="${XDG_CACHE_HOME-}" caller_pwd="$PWD"
+  APM="$FIXTURE/apm-probe"
+  cat >"$APM" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$HOME" "${XDG_CACHE_HOME-}" "$PWD" "$@"
+SH
+  chmod +x "$APM"
+
+  run_apm prune --dry-run >"$FIXTURE/probe.output"
+
+  [ "$HOME" = "$caller_home" ]
+  [ "${XDG_CACHE_HOME-}" = "$caller_cache" ]
+  [ "$PWD" = "$caller_pwd" ]
+  run cat "$FIXTURE/probe.output"
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$RUNTIME" ]
+  [ "${lines[1]}" = "$RUNTIME/.cache" ]
+  [ "${lines[2]}" = "$RUNTIME" ]
+  [ "${lines[3]}" = prune ]
+  [ "${lines[4]}" = --dry-run ]
 }
 
 @test "APM old-ledger prune preserves a modified retired skill" {

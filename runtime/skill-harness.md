@@ -211,7 +211,7 @@ dependency を削除する配備では、新 lock の反映前に配備済みの
 承認済みの撤去には既存 APM の native prune を使う。
 
 1. live source の新 `apm.yml` だけを対象限定で反映し、旧 lock を残す。新 lock まで反映済みの場合は、保存済み旧 lock と受入済み lock の差分が予定した dependency・配備 record の削除だけで、その他の metadata が一致することを確認した上で旧 lock を一時的に戻す。不一致なら戻さず、撤去を保留する。
-2. 通常 HOME を cwd にして `apm prune --dry-run` を実行する。dependency・owner・配備先が承認済みの撤去対象だけであることを確認してから `apm prune` を実行する。失敗した場合は変更された実体と lock を保存して報告し、再 install や追加削除へ進まない。
+2. 通常 HOME を cwd にして `apm prune --dry-run` を実行する。dependency・owner・配備先が承認済みの撤去対象だけであることを確認する。dry-run は package 名を表示するが、内部の file は列挙しない。撤去対象として表示された各 `apm_modules` package directory の内容も実行前に確認する。package directory は内容ごと削除されるため、手動追加・変更済み file など保持が必要な内容があれば prune を保留する。全対象の確認と承認がそろってから `apm prune` を実行する。失敗した場合は変更された実体と lock を保存して報告し、再 install や追加削除へ進まない。
 3. 撤去対象の通常ファイル・directory・dangling symlink が無いことと、保持対象が変わらないことを確認する。prune が成功しても残存があれば未完了とする。受入済み lock を live source から対象限定で反映する。上書き確認が必要な場合は、[編集・配備ルール](../docs/architecture.md)に従う。
 4. `apm install --frozen --target claude,codex --https` を実行し、受入済み lock との一致・下記の live 検証・対象限定の `chezmoi verify` を確認する。旧 lock と実行記録は完了まで保持する。
 
