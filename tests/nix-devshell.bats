@@ -235,7 +235,8 @@ setup() {
   grep -q 'PWCLI_CDP_CLOSE' "$pkg"
   grep -q 'PWCLI_WINDOWS_SCRIPT' "$pkg"
   grep -q 'PWCLI_RUNTIME_COMMAND' "$pkg"
-  grep -q 'BROWSER_ATTACHMENTS_PLAYWRIGHT' "$pkg"
+  run grep -q 'browser-attachments' "$pkg"
+  [ "$status" -eq 1 ]
   grep -q 'references/playwright-cli-wsl.md' "$pkg"
   grep -q 'THIRD_PARTY_NOTICES.md' "$pkg"
   grep -q 'lib.licenses.mit' "$pkg"

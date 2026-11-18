@@ -84,7 +84,6 @@ buildNpmPackage {
       "$out/share/playwright-cli/skills"
     cp -R "$public/libexec/." "$out/libexec/"
     cp "$public/bin/playwright-cli" "$out/libexec/playwright-cli-entrypoint"
-    cp "$public/bin/browser-attachments" "$out/libexec/browser-attachments-entrypoint"
     cp "$public/references/playwright-cli-wsl.md" \
       "$out/share/playwright-cli/references/playwright-cli-wsl.md"
     cp "${skillsPluginSource}/LICENSE" "$out/share/licenses/playwright-cli/LICENSE"
@@ -125,22 +124,6 @@ buildNpmPackage {
       --prefix PATH : ${
         lib.makeBinPath [
           coreutils
-          git
-          nodejs
-          util-linux
-        ]
-      }
-
-    makeWrapper "$out/libexec/browser-attachments-entrypoint" "$out/bin/browser-attachments" \
-      --set-default MANAGED_CHROME_OWNER "$out/bin/managed-chrome-owner" \
-      --set-default PWCLI_WINDOWS_SCRIPT "$out/libexec/playwright-cli-windows.ps1" \
-      --set-default DOGFOOD_WINDOWS_SCRIPT "$out/libexec/dogfood-chrome-windows.ps1" \
-      --set-default MANAGED_CHROME_FLOCK '${util-linux}/bin/flock' \
-      --set-default BROWSER_ATTACHMENTS_PLAYWRIGHT "$pkg/../../playwright-core/index.mjs" \
-      --prefix PATH : ${
-        lib.makeBinPath [
-          coreutils
-          curl
           git
           nodejs
           util-linux

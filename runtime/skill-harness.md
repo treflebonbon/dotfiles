@@ -337,11 +337,11 @@ WSL2 の通常の `playwright-cli open [URL]` は Windows 側の worktree 別 br
 
 `show` / `show --annotate` は人間の明示開始による headed モードを要求し、その worktree の Dashboard を使う。annotation は lease 所有 session だけに結び付く。背景処理は自動 headed 起動・前面化・OS 入力をしない。終了は session 指定の `close` と対象 Dashboard の `show --kill` を使い、`close-all` / `kill-all` は拒否する。明示 remote CDP attach と WSL browser-free の override 制約は維持する。
 
-profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。共有添付 profile は対象にできない。
+profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。旧共有添付 profile は対象にできない（保存済み状態は保持する）。
 
-PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `browser-attachments close` の成功を確認 → `browser-attachments auth` → 手動ログイン → `browser-attachments close`。認証不足の添付失敗で残った headless ブラウザも、最初の close で終了してから headed の認証へ進む。添付 CLI の実行は headless のみ。標準の `pr` は本文作成を担当し、この CLI を自動起動しない。
+PR 本文への画像添付は、標準の `pr` が本文を作った後、直接 `gh pr edit NUMBER --repo OWNER/REPO --attach './after.png#説明'`（複数画像は `--attach` を繰り返す）で行う。掲載位置を指定する場合は最新の本文から原稿を作り、通常の Markdown 画像参照を置いて `--body-file` と同じ画像の `--attach` を渡す。送信直前に本文を再取得し、実行後は本文を読み直して掲載を確認する。一部の画像だけで本文が更新される場合がある。結果不明なら本文の状態を確認してから追加編集を判断する。本文添付は直接実行する操作で、request ID による重複防止は適用されない。`gh` は `pr edit --help` に `--attach` がある版を使う。
 
-任意の画像補足は `pr-screenshots` を明示的に呼ぶ。`browser-attachments comment --repo OWNER/REPO --pr NUMBER --image PATH [--image PATH] --body-file PATH --request-id ID` が全画像を揃えて1コメントを投稿し、PR 本文は更新しない。原稿には画像順に `<!-- screenshot-1 -->` などを1回ずつ置く。同じ ID は画像・原稿も同じ内容で再利用し、投稿済みコメントのマーカーを照会して重複を防ぐ。途中失敗では画像・取得済み URL・理由を残し、送信結果不明なら状態を調べて再送を避ける。
+任意の画像補足は `pr-screenshots` を明示的に呼ぶ。同梱の `scripts/pr-screenshots-comment.mjs` が全画像を揃えて1コメントを `gh pr comment --attach` で投稿し、PR 本文は更新しない。同じ request ID は画像・原稿も同じ内容で再利用し、重複はコメント依頼に対してだけ防ぐ。途中失敗（`partial` / `failed` / `unknown`）では画像・原稿・receipt を残し、結果不明なら PR コメントを照会して再送を避ける。旧 `browser-attachments`・placeholder・添付専用ブラウザの準備は現行手順ではない。旧版で保存した profile・所有権データ・画像・receipt は削除せず、未完了の旧本文添付は対象 PR の現在の本文と照合する。
 
 CLI session の保存先・Dashboard の session 一覧・制御 socket も物理 worktree root ごとに分離する。同じ session 名を別 worktree で使っても相互操作しない。切替前に旧 package で既存 CLI / Dashboard を終了する。Dogfood の自動 CDP port は所有権の予約と同じ lock 内で割り当て、保持中の予約を避ける。明示 port の競合は拒否する。Windows の状態確認が重なる場合、共有の登録 lock は最大30秒待機し、期限超過は状態を保持して失敗する。
 

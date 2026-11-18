@@ -41,7 +41,8 @@ setup() {
   local core="$package/lib/node_modules/playwright-cli-agent/node_modules/playwright-core"
 
   [ -x "$package/bin/playwright-cli" ]
-  [ -x "$package/bin/browser-attachments" ]
+  [ ! -e "$package/bin/browser-attachments" ]
+  [ ! -e "$package/libexec/browser-attachments.mjs" ]
   [ -x "$package/bin/managed-chrome-owner" ]
   [ -f "$package/libexec/playwright-cli-wrapper.sh" ]
   [ -f "$package/libexec/playwright-cli-sockets.patch" ]
@@ -50,7 +51,6 @@ setup() {
   [ -f "$package/share/playwright-cli/references/playwright-cli-wsl.md" ]
   [ -f "$package/share/licenses/playwright-cli/LICENSE" ]
   [ -f "$package/share/licenses/playwright-cli/THIRD_PARTY_NOTICES.md" ]
-  [ -f "$package/libexec/browser-attachments.mjs" ]
   [ -f "$package/libexec/playwright-cli-cdp-close.js" ]
   [ -f "$core/lib/tools/cli-client/program.js" ]
 
@@ -62,10 +62,6 @@ setup() {
   grep -Fq "$package/libexec/playwright-cli-cdp-close" "$package/bin/playwright-cli"
   grep -Fq "$package/libexec/playwright-runtime" "$package/bin/playwright-cli"
   grep -Fq "$package/bin/managed-chrome-owner" "$package/bin/playwright-cli"
-  grep -Fq "$package/libexec/browser-attachments-entrypoint" "$package/bin/browser-attachments"
-  grep -Fq '$package_root/libexec/browser-attachments.mjs' "$package/libexec/browser-attachments-entrypoint"
-  grep -Fq "$package/lib/node_modules/playwright-cli-agent/node_modules/@playwright/cli/../../playwright-core/index.mjs" \
-    "$package/bin/browser-attachments"
   grep -Fq 'Managed Playwright Chrome' "$package/share/playwright-cli/skills/playwright-cli/SKILL.md"
   grep -Fq "package's own source is licensed under the repository's MIT license" \
     "$package/share/licenses/playwright-cli/THIRD_PARTY_NOTICES.md"

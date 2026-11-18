@@ -36,7 +36,7 @@ status: accepted
 
 ## 現行の固定版と所有権（2026-11-12）
 
-dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.3.0 の固定版は `treflebonbon/skills` の commit `c34ef55bc8600493431ea0161d1eaaced4b89aff`、tree `0c8aa3e1cb960e6ea6100ab6364f1e75b0999476`、NAR `sha256-Zf7mVKovX/YJ45BkeoRoX0LYxSqDkD5u2f1REv+oVFk=`、345 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.3.0 の採用記録は[更新記録](../research/update-skills-plugin-20261119.md)、直前の 0.2.10 の受入・公開版の同一性は[旧記録](../research/update-skills-plugin-20261112.md)を参照する。
+dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.4.1 の固定版は `treflebonbon/skills` の commit `0f3ebdd87f32bff94c19f42d81f4721ac9b26ed8`、tree `882353406e0361f33f15ef6822bd7710574ca6c2`、NAR `sha256-OpYXJ0HLNqpZ5ctjOazd6gXhdAnAsf+k4t+MUpR73Wc=`、342 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.3.0・0.4.1 の採用記録は[更新記録](../research/update-skills-plugin-20261119.md)、直前の 0.2.10 の受入・公開版の同一性は[旧記録](../research/update-skills-plugin-20261112.md)を参照する。
 
 2026-11-05 の 0.2.7 では、所有権 CLI の既定 Windows 資産と開発用指示の配置の修正を検証した。新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、0.2.7 に限って未実施のままユーザーが省略を受け入れた。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。
 
@@ -126,7 +126,7 @@ dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語�
 | --- | --- |
 | `herdr-peer-refactor` / `orca-peer-refactor` | Herdr／Orca と必要な `codebase-design`、`grilling`、`tdd`、`code-review`、`pr` 等の外部 skill。実行経路ごとの `jq`、Perl、OpenSSL、tmux も確認する。独自 CLI・契約・専用 auto の保護設定を同梱 |
 | `dogfood` | Node.js・Playwright の固定依存と、必要時の `playwright-cli`／`triage`。WSL2 用のブラウザ補助資産を同梱し、依存準備先を配布物から分離 |
-| `pr-screenshots` | 必要時の `playwright-cli`、GitHub CLI と認証準備。`browser-attachments`・所有権管理・Windows script を同梱 |
+| `pr-screenshots` | 必要時の `playwright-cli`、GitHub CLI（`pr comment --attach` 対応版）と認証準備。コメント用 CLI・所有権管理・Windows script を同梱。旧 `browser-attachments` は 0.4.0 で撤去 |
 | `domain-modeling-studio` | 外部 `domain-modeling` と同梱 `ui-grill-with-docs`。生成時の Node.js、TypeScript 抽出時の Python・`ast-grep`。HTML／同梱資源と生成用の lockfile を移管 |
 | `ui-grill-with-docs` | 外部 `grilling`、`domain-modeling`、`codebase-design`、必要時の `playwright-cli`。質問シートの資源を同梱 |
 | `md-claude-review` / `md-agents-review` | 両者の役割分担と参照を維持。前者の `claude-api` 連携と既存の fallback 条件を明記し、後者へ不要な外部依存を追加しない |
