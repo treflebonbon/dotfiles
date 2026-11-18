@@ -114,7 +114,7 @@ merge を確認した task worktree の片付けは、削除の依頼がある�
      --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
    ```
 
-3. 親は固定済みの path・branch・開始 HEAD と ID を渡し、自分の process から検査する。観測ファイルの値から期待値を作らない。primary checkout、別 worktree、欠落・不正・不一致は拒否される。
+3. 親は固定済みの path・branch・開始 HEAD と ID を渡し（観測 JSON は絶対 path で指定する）、自分の process から検査する。観測ファイルの値から期待値を作らない。primary checkout、別 worktree、欠落・不正・不一致は拒否される。
 
    ```bash
    <package-root>/bin/orca-worker-readiness verify <worker-readiness.json> \
