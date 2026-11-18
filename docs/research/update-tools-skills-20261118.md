@@ -56,7 +56,7 @@ Orca task worktree `/home/ubuntu/orca/workspaces/dotfiles/barnacle`、branch `te
 - Claude Code 2.1.327 では、既存の公式同期 helper による管理 settings の2回再同期が終了0だった。別の新規隔離実行で、Codex 0.169.1 と Antigravity 1.5.11 による公式導入が、それぞれ plugin 0.2.10・288 file で成功した。対話・ログイン・モデル呼出しは行っていない。
 - 独立レビューは実装 commit `20d395a07cc0c6d608e866fd0480bed82f6b0901` を固定し、既存 Codex 接続の GPT-6 Luna / xhigh を明示して Standards / Spec を並列に実行した。両者が root・branch・HEAD・Git metadata を照合した。Standards は D1 helper の旧 beta.26 期待値を1件指摘し、Spec は欠落・範囲拡大・誤実装の指摘0件だった。D1 の期待値は配布 package.json の pin から導出する形へ修正し、同 helper の19テストが全て成功した。実装ロジックの追加はない。
 - 2.1.327 の advisor 内部構造も公開 binary で再検証した。kill switch → experimental env var → feature flag、候補 alias、rank 比較と追加の利用資格条件を確認し、runtime の現行説明と履歴を区別した。実 advisor 呼出しは未確認のままとする。
-- 既存の `/tmp/codex` 公開ログの一部は、明示的な write 許可とユーザーの再承認後も自動審査に読み取りを拒否された。拒否された file を別経路で読まず、必要な現在の source の検証を新しい標準実行から確認した。通常 HOME と live 配備は変更していない。
+- 既存の `/tmp/codex` 公開ログの一部は、明示的な write 許可とユーザーの再承認後も自動審査に読み取りを拒否された。拒否された file を別経路で読まず、必要な現在の source の検証を新しい標準実行から確認した。通常 HOME の管理対象設定と live 配備は変更していない。
 - canonical 用の Impeccable は、固定 commit を Nix store へ新規取得して準備した。native lock の64 file hash と照合し、`.cmd` だけは APM の LF 表現に正規化すると一致した。他63 file と Linux で使う Bash launcher は raw bytes が一致する。Windows での `.cmd` 実行は未確認であり、今回の Linux 検証とは区別する。
 
 ## canonical の初回試行と補正
