@@ -852,7 +852,7 @@ PY
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
   grep -Fq '[plugins."fixture-after-sync@fixture"]' "$TEST_HOME/.codex/config.toml"
-  grep -Fq 'model = "gpt-6.1-sol"' "$TEST_HOME/.codex/config.toml"
+  grep -Fq 'model = "gpt-6.2-sol"' "$TEST_HOME/.codex/config.toml"
 }
 
 @test "Codex 管理設定 repairs target drift and new CODEX_HOME only on explicit sync" {

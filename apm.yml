@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#924bbd194d02e5e15a227e75b5901fb0d7a4ecad
+    - pbakaus/impeccable/.agents/skills/impeccable#acb4cfe14470b1fdf51e855431af618d936b7db8
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -25,9 +25,9 @@ dependencies:
     # cloudflare/security-audit-skill
     - cloudflare/security-audit-skill/skills/security-audit#c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
     # remotion-dev/skills
-    - remotion-dev/skills/skills/remotion-best-practices#a2824c67f8b4585c294a8101db9f9f0ad3c643f8
+    - remotion-dev/skills/skills/remotion-best-practices#6f55706d1069e512430582ad86e4e57dc07afe1b
     # GoogleChrome/modern-web-guidance
-    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#341268561baaff256927c931ec8215dbd30e3cee
+    - GoogleChrome/modern-web-guidance/skills/modern-web-guidance#64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65
     # mizchi/skills
     - mizchi/skills/empirical-prompt-tuning
     # musoukun/skills
@@ -40,7 +40,7 @@ dependencies:
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli#eb3379ff9909f2856113e9cfdc5223c754f5ffe2
+    - stablyai/orca/skills/orca-cli#a1fda35055ff74904f1f75fdd96a330c11377753
     - stablyai/orca/skills/orchestration
     # upstream HEAD では削除済みのため、既存 payload を保持する revision に固定する。
     - stablyai/orca/skills/computer-use#1bd67185489c66a9e0d841e0134727f171a33764

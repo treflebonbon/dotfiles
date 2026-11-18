@@ -192,7 +192,7 @@ for path in sys.argv[1:]:
     with open(path, "rb") as f:
         config = tomllib.load(f)
 
-    assert config["model"] == "gpt-6.1-sol"
+    assert config["model"] == "gpt-6.2-sol"
     assert config["model_reasoning_effort"] == "xhigh"
     assert config["model_reasoning_summary"] == "concise"
     assert config["model_verbosity"] == "medium"
@@ -498,7 +498,7 @@ assert_codex_strict_config() {
   render_codex_managed_config "$PROJECT_ROOT" "$config"
 
   [ -f "$config" ]
-  grep -q '^model = "gpt-6.1-sol"$' "$config"
+  grep -q '^model = "gpt-6.2-sol"$' "$config"
   grep -q '^model_reasoning_effort = ' "$config"
   grep -q '^personality = ' "$config"
   grep -q '^approval_policy = "on-request"$' "$config"
@@ -685,7 +685,7 @@ PY
 
   run env HOME="$home" CODEX_HOME="$codex_home" PATH="$bin:$filtered_path" bash "$CODEX_MANAGED_CONFIG_SYNC"
   [ "$status" -eq 0 ]
-  grep -q '^model = "gpt-6.1-sol"$' "$codex_home/config.toml"
+  grep -q '^model = "gpt-6.2-sol"$' "$codex_home/config.toml"
 }
 
 @test "Codex managed sync fails open when an existing codex_home config cannot be loaded" {
@@ -1423,7 +1423,7 @@ PY
   HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
     bash -c '. "$1"' _ "$home/.bash_profile"
 
-  grep -q '^model = "gpt-6.1-sol"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-6.2-sol"$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
   cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
@@ -1450,7 +1450,7 @@ EOF
     CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
     bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
 
-  grep -q '^model = "gpt-6.1-sol"$' "$home/.codex-app/config.toml"
+  grep -q '^model = "gpt-6.2-sol"$' "$home/.codex-app/config.toml"
   grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
   cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
   cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
@@ -1547,7 +1547,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
@@ -1591,7 +1591,7 @@ EOF
 
   env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
-  grep -q '^model = "gpt-6.1-sol"$' "$home/.codex/config.toml"
+  grep -q '^model = "gpt-6.2-sol"$' "$home/.codex/config.toml"
   grep -q '^model_reasoning_effort = "xhigh"$' "$home/.codex/config.toml"
   grep -q '^personality = "pragmatic"$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
@@ -1672,7 +1672,7 @@ EOF
   mkdir -p "$home/.config/codex" "$codex_home"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 model_reasoning_effort = "xhigh"
 model_reasoning_summary = "concise"
 model_verbosity = "medium"
@@ -2168,7 +2168,7 @@ EOF
   mkdir -p "$home/.config/codex" "$home/.codex"
 
   cat >"$home/.config/codex/config.toml" <<'EOF'
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 EOF
   printf 'model = \n' >"$home/.codex/config.toml"
 
