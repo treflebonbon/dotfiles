@@ -95,13 +95,15 @@ Worktree Entry Point は、対象 task worktree を確認して作業を始め�
 - **読み取り専用レビュー役の Codex**: App/core terminal では validated linked worktree を cwd にした shell から `codex-reviewer --no-daemon [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 peer auto は固定 public source の明示 preflight と起動 wrapper に限り、`herdr-peer-refactor` の TUI-only flow を App へ当てはめない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで加えるので、Git 書込みや別 worktree は扱えず、raw 実装役と同じ秘密隔離も提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
 - **Claude Code / Codex**: Claude Code は `EnterWorktree`、Codex app は native worktree、Codex CLI の新規作成は導入版の `codex --help` に従い `--worktree` を使う。native 作成と隔離起動は別の責務。raw Codex の秘密隔離が必要な場合は、作成済み linked worktree で既存 `codex-worktree` を使い、その公開入力登録・trust・返却契約に従う。
 
-ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に後述の「Orca worktree の準備確認」を行い、worker 観測と割当時に固定した期待値の照合成功を待ちます。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要します。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外です。
+ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に後述の「Orca worktree の準備確認」を行い、照合成功まで worker の診断・編集を待たせます。
 
 Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。worker/coordinator が複数行または shell 記号を含む `status` / `dispatch` 本文を送る場合は、配備された `orca-send`（source: `private_dot_local/bin/executable_orca-send.tmpl`、target: `~/.local/bin/orca-send`）へ `--cli <選択済み Orca 実行ファイル> --body-file <UTF-8本文ファイル> -- <native send 引数>` を渡す。これは選択済み CLI の `orchestration send --body <本文> ...` を shell なしで呼ぶ入口で、native ID・権限・送信結果の契約を保つ。本文のサイズ上限と argv 露出の制約は後述の「`orca-send` の本文」に従う。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。
 
+merge を確認した task worktree の片付けは、削除の依頼があるときに限り、native 機構で行う。Orca では `orca-cli` の解決規則で選んだ実行ファイル(Orca 端末では `$ORCA_CLI_COMMAND`)の `worktree rm --worktree <selector>` を使い、selector は対象 PR の branch または HEAD と一致することを確認した worktree の完全な id(`id:<repoId>::<path>`)で明示する。primary checkout からの raw `git worktree remove` は使わない。削除前に PR の merge、未コミット変更と未 push の commit が無いこと、担当 agent の停止を確認する。実行ファイルが使えない、または権限が足りないときは削除せず、未削除として依頼元へ戻す。force 削除とブランチ削除はこの手順に含めず、別に確認する。
+
 ### Orca worktree の準備確認
 
-ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合に使う。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外。native worktree と Agent Picker の built-in agent 起動、Orca が所有する permission mode は変えない。共用 CLI `orca-worker-readiness`（`record` / `verify`）は固定 plugin の package root `bin/` にあり、`PATH` には入らない。root は `~/.config/nix-devshell/skills-plugin.json` の `rev` から `~/.cache/treflebonbon-skills/marketplaces/<rev>/` とし、`sync-skills-plugin --verify-only` が `status: verified` を返すことを先に確認する。
+ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合に使う。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外。native worktree と Agent Picker の built-in agent 起動、Orca が所有する permission mode は変えない。共用 CLI `orca-worker-readiness`（`record` / `verify`）は固定 plugin の package root `bin/` にあり、`PATH` には入らない。package root（以下 `<package-root>`）は `~/.config/nix-devshell/skills-plugin.json` の `rev` から `~/.cache/treflebonbon-skills/marketplaces/<rev>/` とし、`sync-skills-plugin --verify-only` が `status: verified` を返すことを先に確認する。
 
 1. 親は Task の初回 `--spec` を準備確認だけにし、「native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ」ことだけを指示する。親は native の割当結果から Task / Dispatch / worker handle / worktree の絶対 path と、割当時の branch・開始 HEAD を独立に確定する。
 2. worker は割当直後、ソースを読む前に新しい記録先を作り、自分の cwd から観測を保存する。Task / Dispatch / handle と JSON の絶対 path を親へ報告し、実タスクの説明を受け取るまで待つ。record は既存ファイルを上書きしない。
@@ -125,7 +127,6 @@ Orca で親による監督（完了追跡・質問応答・decision gate）が�
 ### `orca-send` の本文
 
 複数行または shell 記号を含む本文は UTF-8 ファイルに置き、`orca-send --cli <選択済み Orca 実行ファイル> --body-file <本文ファイル> -- <native send 引数>` で送る。helper は shell を使わず、`--body` などの二重指定を拒否する。選択済み CLI の `orchestration send` は `--body` だけを受け付けるため、本文はプロセスの argv に入り、同一ホストのプロセスから見える可能性がある。本文は公開情報に限り、UTF-8 で 8 KiB 以内にする。超える場合は公開証跡ファイルの path と短い要約を送る。native 引数や環境を含む OS の起動上限も適用され、上限内でも起動に失敗した場合は非0終了する。
-merge を確認した task worktree の片付けは、削除の依頼があるときに限り、native 機構で行う。Orca では `orca-cli` の解決規則で選んだ実行ファイル(Orca 端末では `$ORCA_CLI_COMMAND`)の `worktree rm --worktree <selector>` を使い、selector は対象 PR の branch または HEAD と一致することを確認した worktree の完全な id(`id:<repoId>::<path>`)で明示する。primary checkout からの raw `git worktree remove` は使わない。削除前に PR の merge、未コミット変更と未 push の commit が無いこと、担当 agent の停止を確認する。実行ファイルが使えない、または権限が足りないときは削除せず、未削除として依頼元へ戻す。force 削除とブランチ削除はこの手順に含めず、別に確認する。
 
 Git 管理情報を解決できない場合は編集・Git 書込みを保留し、以下を区別する。
 

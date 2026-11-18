@@ -211,7 +211,7 @@ setup() {
   grep -Fq '子が自分の環境で再検証に成功してから' "$RUNTIME"
   grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$RUNTIME"
   grep -Fq '### Orca worktree の準備確認' "$RUNTIME"
-  grep -Fq 'bin/orca-worker-readiness' "$RUNTIME"
+  [ "$(grep -Fc '<package-root>/bin/orca-worker-readiness' "$RUNTIME")" -eq 2 ]
   grep -Fq '### `orca-send` の本文' "$RUNTIME"
   run grep -F 'skills/orca-peer-refactor/references/orca.md#' "$RUNTIME"
   [ "$status" -eq 1 ]
