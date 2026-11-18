@@ -39,9 +39,10 @@ setup() {
   local flake="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.nix"
   local lock="$PROJECT_ROOT/private_dot_config/nix-devshell/flake.lock"
 
-  grep -q 'github:numtide/llm-agents\.nix/2b6455a7711d6dc90e42e555c1ddb504481268f4' "$flake"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].locked.rev == "2b6455a7711d6dc90e42e555c1ddb504481268f4"' "$lock"
-  jq -e '.nodes[.nodes.root.inputs["llm-agents"]].original.rev == "2b6455a7711d6dc90e42e555c1ddb504481268f4"' "$lock"
+  local revision
+  revision=$(jq -er '.nodes[.nodes.root.inputs["llm-agents"]] | select(.locked.rev == .original.rev) | .locked.rev' "$lock")
+  [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
+  grep -Fq "github:numtide/llm-agents.nix/$revision" "$flake"
   jq -e '.nodes[.nodes.root.inputs["llm-agents-apm"]].locked.rev == "959a6e37234ae40e3ae6d4c9a564ec1a8803ccf9"' "$lock"
   jq -e '.nodes[.nodes.root.inputs.nixpkgs].original.ref == "nixpkgs-26.05-darwin"' "$lock"
 }
@@ -256,8 +257,10 @@ setup() {
   grep -q 'playwright-cli-cdp-close.js' "$pkg"
   grep -q 'playwright-cli-program.patch' "$pkg"
   ! grep -Eq 'chromium-[0-9]+' "$pkg"
-  grep -q 'version = "0.1.23";' "$pkg"
-  grep -q '"@playwright/cli": "0.1.23"' "$package_json"
+  local version
+  version=$(jq -er '.dependencies["@playwright/cli"]' "$package_json")
+  grep -Fq "version = \"$version\";" "$pkg"
+  jq -e '.version == .dependencies["@playwright/cli"]' "$package_json"
 }
 
 @test "browser-free Playwright wrapper keeps makeWrapper flags in one shell command" {

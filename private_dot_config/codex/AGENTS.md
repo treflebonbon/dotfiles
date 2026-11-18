@@ -29,7 +29,7 @@ Codex の同一の実効 permission profile では、具体的な path の規則
 
 ## Codex reasoning effort
 
-- 親エージェントは通常作業・設計・レビューで `gpt-6.1-sol` / `xhigh` を使う。切替はユーザーが行う。実効設定が不明な場合はその旨を伝え、切替済みとは扱わない。
+- 親エージェントは通常作業・設計・レビューで `gpt-6.2-sol` / `xhigh` を使う。切替はユーザーが行う。実効設定が不明な場合はその旨を伝え、切替済みとは扱わない。
 - Keep default subagents, including bounded review tasks, at `gpt-6-luna` / `xhigh`. Parent review effort and subagent effort are separate choices.
 
 ## Parallel tool calls

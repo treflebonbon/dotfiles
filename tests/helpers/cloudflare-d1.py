@@ -210,7 +210,9 @@ class D1(unittest.TestCase):
         self.assertEqual(audit["query_plan_reason"], "not_requested")
         self.assertEqual(audit["implementation"]["helper_path"], str(SOURCE.resolve()))
         self.assertEqual(audit["implementation"]["helper_sha256"], hashlib.sha256(SOURCE.read_bytes()).hexdigest())
-        self.assertEqual(audit["implementation"]["cli_pin"], "1.0.0-beta.26")
+        pin = json.loads((Path(__file__).resolve().parents[2] /
+                          "private_dot_config/nix-devshell/packages/cloudflare-cli/package.json").read_text())["dependencies"]["cf"]
+        self.assertEqual(audit["implementation"]["cli_pin"], pin)
         self.assertNotIn("DUMMY_CF_TOKEN", record.read_text())
 
     def test_http_failure(self):

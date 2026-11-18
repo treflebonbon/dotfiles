@@ -47,7 +47,6 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `improve-codebase-architecture` の HTML report は固定 plugin source の該当 skill script で構造を検査し、実ブラウザで描画を確認してから提示する。`herdr-peer-refactor` は TUI 専用、`orca-peer-refactor` は Orca 専用である。source path の解決と Mermaid 検査契約は [autonomous-peer-contract](autonomous-peer-contract.md) を参照する。
 - Herdr App の terminal と `hc` は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) に従う。公開 `herdr-peer-refactor` skill は TUI 専用であり、App の起動・協働手順として案内しない。
 - `find-skills` はインストール手順として `npx skills add -g -y` を案内するが、外部 skill は `apm.yml` / `apm.lock.yaml` 経由でのみ導入する。このコマンドは実行せず、追加候補は `apm.yml` への追記として提示する。
-- `pdf` の SKILL.md は `REFERENCE.md` / `FORMS.md` を指すが、実ファイルは小文字の `reference.md` / `forms.md`。小文字のファイルを読む。
 - `wizard` に書く CLI コマンドは、書く前に `--help` で対話プロンプトと設定ファイルの自動更新の有無を確かめ、それを止めるフラグを付ける（例: `wrangler r2 bucket create` には `--update-config=false`。付けないと、バインディングを設定へ追加するかを尋ね、了承すると repo の設定ファイルを書き換える）。人が wizard を実行し終えたら、`git status` と `git diff` を実行前と比べ、想定外のファイル変更が無いことを確かめる。
 - Builder-Evaluator 内の `code-review` は branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone で fixed point が不明な場合だけ質問する。
 - `code-review` の Spec 軸には、ユーザーが承認した要件原文と後続の修正・追加、実装上の判断、過去の参考記録を区別して渡す。制約の根拠は現在の依頼に照合し、要件違反の指摘には原文または現在適用される仕様の箇所を示す。過去資料や agent の提案を現在の制約として扱う場合は、その採用根拠を明記する。
@@ -248,9 +247,9 @@ manifestの一致と対象ファイルの反映は `chezmoi verify`、公開plug
 
 **Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の `scripts/impeccable hook` を `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。Nix が `IMPECCABLE_BIN` に固定 engine の絶対 path を渡し、管理 command は実行可能な engine と launcher の存在を確認してから呼ぶ。engine がなければ launcher の自動取得へ進まず無言で終了する。runtime 側は stdin の `hook_event_name` でイベントを、`turn_id` で Codex を判別する。Claude Stop は従来の `hookSpecificOutput.additionalContext`、Codex Stop は native の top-level `decision` / `reason` を返し、managed command は両方を fail-open でそのまま通す。
 
-標準 hook の対象ルールは二層で、**両方を配線して初めて両 tier が届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier を編集箇所へ返し、その他の対象ルールは `Stop` へ先送りする。Stop はセッション中に触れた UI ファイルを再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。4.8.1 / engine 0.1.19 は上流既定の advisory 除外を使い、従来の deferred fixture `overused-font` は対象外となるため、`side-tab` で遅延検出を検証する。`Stop` は `stop_hook_active` を見て再入時は即座に抜ける。
+標準 hook の対象ルールは二層で、**両方を配線して初めて両 tier が届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier を編集箇所へ返し、その他の対象ルールは `Stop` へ先送りする。Stop はセッション中に触れた UI ファイルを再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。4.9.1 / engine 0.1.24 は上流既定の advisory 除外を使い、従来の deferred fixture `overused-font` は対象外となるため、`side-tab` で遅延検出を検証する。`Stop` は `stop_hook_active` を見て再入時は即座に抜ける。
 
-Impeccable 4.1.2 は Stop scan 後に fresh finding だけでなく live finding 全体を cache へ同期する。immediate / deferred の両 tier を持つファイルでも初回 deep pass 後の次回の `Stop` は無言になり、新しい finding が現れるまで再報告しない。4.1.1 までの交互再報告は解消済みで、4.8.1 / engine 0.1.19でもこの動作を維持し、`tests/design-hook.bats` は実際の管理 commandからこの silent convergence を検証する。
+Impeccable 4.1.2 は Stop scan 後に fresh finding だけでなく live finding 全体を cache へ同期する。immediate / deferred の両 tier を持つファイルでも初回 deep pass 後の次回の `Stop` は無言になり、新しい finding が現れるまで再報告しない。4.1.1 までの交互再報告は解消済みで、4.9.1 / engine 0.1.24でもこの動作を維持し、`tests/design-hook.bats` は実際の管理 commandからこの silent convergence を検証する。
 
 finding footerはsession内の初回だけfull policyを出し、以後はshort footerにする。full policyが許容する自己修復の境界はfinding単位の`ignore-value`までで、agentは確信のあるfalse positiveまたはユーザーが許容済みの例外に限って使い、理由をユーザーへ示す。file / rule全体を抑制する`ignore-file` / `ignore-rule`はユーザーの明示承認が必要である。
 

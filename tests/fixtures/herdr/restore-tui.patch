@@ -5,7 +5,7 @@ index 63280c5..4931370 100644
 @@ -1054,6 +1054,24 @@ dependencies:
      .claude/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md: sha256:cb5500844c63ee8cf869c33493d3965515a6236df6482daf449abfa74cdcb22d
      .claude/skills/modern-web-guidance/guides/webmcp/webmcp.md: sha256:ed20a7cb5bb400b186e234ec0f4ffa0d923ded078447777ff42499cce902afa9
-   content_hash: sha256:4013ac03e5f1d53df1e9d93e525247529291a748082085a02ee51533def1a11e
+   content_hash: sha256:a5541172ae1110a7f97c5bbe6ae9dbaa747c2b33cbfbeafbb2a7873797e6f530
 +- repo_url: herdrdev/herdr
 +  name: herdr
 +  host: github.com
