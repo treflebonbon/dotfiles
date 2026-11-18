@@ -59,4 +59,10 @@ Orca task worktree `/home/ubuntu/orca/workspaces/dotfiles/barnacle`、branch `te
 - 既存の `/tmp/codex` 公開ログの一部は、明示的な write 許可とユーザーの再承認後も自動審査に読み取りを拒否された。拒否された file を別経路で読まず、必要な現在の source の検証を新しい標準実行から確認した。通常 HOME と live 配備は変更していない。
 - canonical 用の Impeccable は、固定 commit を Nix store へ新規取得して準備した。native lock の64 file hash と照合し、`.cmd` だけは APM の LF 表現に正規化すると一致した。他63 file と Linux で使う Bash launcher は raw bytes が一致する。Windows での `.cmd` 実行は未確認であり、今回の Linux 検証とは区別する。
 
-最後の修正 commit で canonical 検証を一度実行する。結果は生成された `result.json`・前後記録・TAP を正本として最終報告に記載し、成功後に結果追記だけの変更は行わない。
+## canonical の初回試行と補正
+
+`0a417c3` の初回 canonical は `tmp/canonical-run.hf4a67tb/`。834件の計画に対し、APM の旧 revision / content hash を固定した期待値3件の失敗を確認した。失敗確定後にこの task が開始した process group だけを終了し、途中結果の TAP を保持した。完了記録のない中断試行を成功とは扱わない。
+
+`tests/apm-runtime.bats` の既存の承認済み payload の検査を維持し、native install・frozen・audit・全配布 file / ledger 照合を通過した今回の pin / content hash へ期待値を更新した。この file の新規検証は17件成功・1件 skip・失敗0件。skip は現在の agent runtime が source の `.agents` を mount している条件による既存のもの。Orca orchestration の floating 解決先は native install 中に `a22cdd66...` へ進んだが、調査時 `a1fda350...` と `SKILL.md` の Git blob `3dd0a7cf24740d6ff0fceaba1fc6301540a3f8b2` が同じことを GitHub の immutable ref で照合した。
+
+この補正を含む最後の commit で全834件の canonical を新規実行する。結果は生成された `result.json`・前後記録・TAP を正本として最終報告に記載し、成功後に結果追記だけの変更は行わない。
