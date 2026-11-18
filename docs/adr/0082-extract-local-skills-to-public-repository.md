@@ -36,7 +36,7 @@ status: accepted
 
 ## 現行の固定版と所有権（2026-11-12）
 
-dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.2.10 の固定版は `treflebonbon/skills` の commit `fd2a50c558288b3661e5066b94b1196453ef9269`、tree `f3f3431db98cdca1a6132accef176ef288920365`、NAR `sha256-wCLbOs2NNdGJhGq2IlNr+NI4g1CcU+Cr8pXM9+vCtVw=`、288 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.2.10 の受入・公開版の同一性と dotfiles 側の採用記録は[更新記録](../research/update-skills-plugin-20261112.md)を参照する。
+dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_config/nix-devshell/skills-plugin.json) にある単一 pin である。0.3.0 の固定版は `treflebonbon/skills` の commit `c34ef55bc8600493431ea0161d1eaaced4b89aff`、tree `0c8aa3e1cb960e6ea6100ab6364f1e75b0999476`、NAR `sha256-Zf7mVKovX/YJ45BkeoRoX0LYxSqDkD5u2f1REv+oVFk=`、345 files。owner / repo / full `rev` / tree / version / NAR hash / file count を一組として照合し、別の runtime 用 pin は作らない。0.3.0 の採用記録は[更新記録](../research/update-skills-plugin-20261119.md)、直前の 0.2.10 の受入・公開版の同一性は[旧記録](../research/update-skills-plugin-20261112.md)を参照する。
 
 2026-11-05 の 0.2.7 では、所有権 CLI の既定 Windows 資産と開発用指示の配置の修正を検証した。新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、0.2.7 に限って未実施のままユーザーが省略を受け入れた。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。
 

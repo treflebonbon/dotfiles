@@ -210,8 +210,11 @@ setup() {
   grep -Fq '**owner 側では有効、子から参照不能**' "$RUNTIME"
   grep -Fq '子が自分の環境で再検証に成功してから' "$RUNTIME"
   grep -Fq 'Orca native Codex は `codex-orca` / `codex-worktree` を使わない' "$RUNTIME"
-  grep -Fq 'skills/orca-peer-refactor/references/orca.md#worktree-readiness' "$RUNTIME"
-  grep -Fq 'source root は [契約案内](autonomous-peer-contract.md) にある検証済み plugin JSON の `source` から解決し' "$RUNTIME"
+  grep -Fq '### Orca worktree の準備確認' "$RUNTIME"
+  grep -Fq 'bin/orca-worker-readiness' "$RUNTIME"
+  grep -Fq '### `orca-send` の本文' "$RUNTIME"
+  run grep -F 'skills/orca-peer-refactor/references/orca.md#' "$RUNTIME"
+  [ "$status" -eq 1 ]
   grep -Fq 'ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は' "$RUNTIME"
   grep -Fq '同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する' "$RUNTIME"
   grep -Fq 'folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外' "$RUNTIME"
