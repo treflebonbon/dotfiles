@@ -65,4 +65,10 @@ Orca task worktree `/home/ubuntu/orca/workspaces/dotfiles/barnacle`、branch `te
 
 `tests/apm-runtime.bats` の既存の承認済み payload の検査を維持し、native install・frozen・audit・全配布 file / ledger 照合を通過した今回の pin / content hash へ期待値を更新した。この file の新規検証は17件成功・1件 skip・失敗0件。skip は現在の agent runtime が source の `.agents` を mount している条件による既存のもの。Orca orchestration の floating 解決先は native install 中に `a22cdd66...` へ進んだが、調査時 `a1fda350...` と `SKILL.md` の Git blob `3dd0a7cf24740d6ff0fceaba1fc6301540a3f8b2` が同じことを GitHub の immutable ref で照合した。
 
+## canonical の再実行と復旧 fixture の補正
+
+`65107ef` の再実行 `tmp/canonical-run.0mwl_vfs/` は全834件が終了し、810件成功・23件 skip・1件失敗、exit 1だった。失敗は `tests/herdr-retirement.bats` の TUI 復旧検証で、固定 patch の前後文脈にある Modern Web Guidance の旧 content hash が更新後の lock と一致せず、`git apply` が拒否したもの。前後の source 照合エラーは0件だった。
+
+`tests/fixtures/herdr/restore-tui.patch` の文脈にある hash 一行だけを、native APM の各 gate を通過した現在の lock に合わせた。Herdr の固定 revision・復元用の追加行・他 dependency の不変を検査する assertion は維持した。対象 file 全体の新しい保護付き標準検証は終了0だった。
+
 この補正を含む最後の commit で全834件の canonical を新規実行する。結果は生成された `result.json`・前後記録・TAP を正本として最終報告に記載し、成功後に結果追記だけの変更は行わない。
