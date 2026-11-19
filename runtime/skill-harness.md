@@ -297,7 +297,7 @@ finding footerはsession内の初回だけfull policyを出し、以後はshort 
 
 plugin の current-state 検証では、実行時の CLI path / version は記録情報として扱う。CLI の更新だけでは拒否せず、現在の inventory・固定 payload・pin・配備先を照合する。Claude の版更新は、検証済み旧 payload と今回配備した新版 settings の組合せを受け付けるが、未知の source や変更済みの旧 payload は更新前に拒否する。
 
-11件の Agent Skill、5つの共用 CLI、WSL2 browser 資産の正本は公開 `treflebonbon/skills` repository にある。dotfiles の唯一の版選択は `~/.config/nix-devshell/skills-plugin.json` で、Claude Code、Codex、Antigravity CLI の公式 plugin 導入と端末固有の config / Nix / dispatch 配線を管理する。第三者 skill は APM から別途導入し、公開 payload を dotfiles に複製したり、独自の dependency resolver を追加したりしない。
+10件の Agent Skill、5つの共用 CLI、WSL2 browser 資産の正本は公開 `treflebonbon/skills` repository にある。dotfiles の唯一の版選択は `~/.config/nix-devshell/skills-plugin.json` で、Claude Code、Codex、Antigravity CLI の公式 plugin 導入と端末固有の config / Nix / dispatch 配線を管理する。第三者 skill は APM から別途導入し、公開 payload を dotfiles に複製したり、独自の dependency resolver を追加したりしない。
 
 `sync-codex-managed-config --verify-only` は current Codex config の exact cache path / grant / deny を照合し、続く `sync-skills-plugin --verify-only` は current pin、固定 checkout、`.git` を除いた source snapshot、receipt、全 runtime の現在の plugin inventory と payload を照合する。成功時の JSON `source` が検証済み source の起点であり、個別資産はそこから `skills/<name>/...`、`bin/...` を解決する。receipt に過去の成功が残るだけでは現在の導入や旧配備の撤去を許可しない。いずれかが失敗・未確認なら移行前コピーを保持する。詳細な受入 pin と移行契約は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を正本とする。
 
@@ -358,7 +358,7 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 プラグインは「配置（物流）」と「runtime 有効化」を別レイヤーで管理する:
 
 - `apm.yml` — 第三者の外部 plugin / skill の取得（自作の公開 `treflebonbon-skills` は固定版 plugin 同期で管理）
-- **`treflebonbon-skills`** — 11件の skill と共用資産を公開固定版から Claude Code / Codex / Antigravity CLI の公式 plugin 経路へ同期する。pin と runtime-specific な設定・dispatch は dotfiles が所有し、payload の source は公開 repository が所有する（上記「dotfiles 管理の公開 skill plugin」、[ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md)）
+- **`treflebonbon-skills`** — 10件の skill と共用資産を公開固定版から Claude Code / Codex / Antigravity CLI の公式 plugin 経路へ同期する。pin と runtime-specific な設定・dispatch は dotfiles が所有し、payload の source は公開 repository が所有する（上記「dotfiles 管理の公開 skill plugin」、[ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md)）
 - `settings.json` `enabledPlugins` — runtime 有効化フラグ。hook を含む plugin（`security-guidance` / LSP 群 / `codex` / `ponytail`）はここで有効化する
 - `settings.json` `extraKnownMarketplaces` — 外部 marketplace 宣言（`openai-codex` / `ponytail`、[ADR-0058](../docs/adr/0058-adopt-ponytail-plugin.md)）
 
