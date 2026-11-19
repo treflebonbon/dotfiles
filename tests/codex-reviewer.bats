@@ -50,8 +50,7 @@ herdr_codex_launches() {
     "$PROJECT_ROOT/private_dot_config/codex" \
     "$PROJECT_ROOT/private_dot_claude" \
     "$PROJECT_ROOT/private_dot_gemini" \
-    "$PROJECT_ROOT/runtime" \
-    "$SKILLS_ROOT/skills/herdr-peer-refactor"
+    "$PROJECT_ROOT/runtime"
 
   [ "$status" -eq 0 ]
   [ -z "$output" ]
