@@ -16,11 +16,24 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 第三者 skill / plugin は APM、`treflebonbon-skills` は固定版の公式 plugin 同期を使う（→ [skill-harness](skill-harness.md)）。Nix devshell は CLI バイナリと dotfiles 固有の配線を供給する。固定版 pin は `~/.config/nix-devshell/skills-plugin.json` に一つだけ置き、共用 CLI・raw Codex 入口・browser 補助資産は同じ immutable source を使う。移行前 copy の撤去許可には、まず `sync-codex-managed-config --verify-only` で各 managed Codex home の exact current version cache grant と deny を現行 config から照合し、続けて `sync-skills-plugin --verify-only` で current pin、source snapshot、receipt、Claude Code・各 Codex home・Antigravity CLI の現在の inventory と payload を照合する。後者の成功 JSON `source` が検証済み source path であり、receipt の過去成功だけでは current install を証明しない。旧 CLI は既知の baseline と一致する固定 snapshot だけへ fallback し、raw 起動は固定 source が欠ける場合に停止する。移行・復旧・適用範囲は [ADR-0082](../docs/adr/0082-extract-local-skills-to-public-repository.md) を参照する。
 
-Herdr TUI の Nix 供給、APM skill、copy-env の source 定義と自動登録処理、TUI 用コマンドは通常の source 構成から外した。既存の `~/.herdr` 状態は保持する。配備済みの旧コマンドや skill の残存確認は [切替後の旧 TUI 配備物](#切替後の旧-tui-配備物)に従い、source の削除だけで撤去済みとは扱わない。App の現行手順は以下に記録し、旧 TUI の更新手順や調査ログは歴史資料として読む。
+WSL2 のユーザー devShell（`#wsl`）は、現行の Nix snapshot から Herdr TUI 本体を供給する。App 移行時の独自連携の残存確認は、[切替後の旧 TUI 配備物](#切替後の旧-tui-配備物)を参照する。
+
+## WSL2 の Herdr TUI
+
+配備後にグローバル環境キャッシュを更新し、新しい WSL シェルで `command -v herdr` と `herdr --version` を確認してから `herdr` で起動する。TUI の更新は `llm-agents.nix` の固定 snapshot の更新に従う。[キャッシュの更新](shell-environment.md#nix-devshell-グローバル-env-キャッシュ) · [併用方針](../docs/adr/0090-use-herdr-app-and-tui-together.md)
+
+各タスクの worktree は作業を始めた側で管理する。TUI が起動している WSL 環境では、標準の `herdr worktree create` と `herdr worktree open` が使える。作成前に対象 checkout と基点の branch を確認する。App で作成済みの worktree を TUI で使う場合は、既存 checkout の絶対 path を渡す。
+
+```bash
+herdr worktree create --cwd /path/to/repo --branch task-example
+herdr worktree open --path /path/to/existing-checkout
+```
+
+開いたペインで作業ルート・branch・Git common dir を照合する。Codex は対象の linked worktree から実装用の `codex-worktree` または読み取り専用の `codex-reviewer` で起動する。必要な環境変数は利用時に明示的に準備する。App に作業を引き継ぐ場合は、App の Open worktree で同じ checkout を開き、そこでエージェントを起動する。
 
 ## 切替後の旧 TUI 配備物
 
-既存の `~/.herdr` に copy-env 登録が残る場合がある。TUI が利用できる検証・併用中、または復旧後に旧 TUI を再利用する前に、`herdr plugin list --plugin dotfiles.copy-env --json` で `plugin_root` と `enabled` を確認する。有効な登録と source が残っていれば、新しい worktree へ gitignore 済みの `.env` をコピーしうるため、利用前に人が扱いを決める。状態・履歴を守るため、自動で登録を削除・無効化しない。TUI がなく照合できない場合は未確認として記録し、確認のためだけに再導入・起動しない。
+TUI で最初に worktree を作る前に、`herdr plugin list --plugin dotfiles.copy-env --json` で旧登録の `plugin_root` と `enabled` を確認し、登録先の `herdr-plugin.toml` の有無を照合する。参照先の manifest が無い環境では、登録を保持したまま環境変数を明示的に準備する。有効な登録と manifest が残る環境では、新しい worktree へ gitignore 済みの `.env` をコピーしうるため、利用前に人が扱いを決める。
 
 受入・merge 後に live source から対象限定の apply と必要な APM frozen 同期を終え、通常環境を再読み込みしてから次を確認する。未 merge の task source から live へ反映しない。
 
@@ -54,11 +67,11 @@ App の machine を選び、既存 repository を開く。linked worktree も既
 
 ### App 標準 worktree の作成と再利用
 
-作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App の既定保存先は接続先 machine の `~/.herdr/worktrees/<repo>/<branch>` で、以前の TUI の `~/.herdr/worktrees` と重なり、既存 checkout も同じ Git common dir に登録される。
+作成前に対象 space の checkout を確認する。App の New worktree は選択した checkout を基点にし、新しい branch はその checkout の HEAD から作られる。App と TUI の既定保存先は、WSL2 上の `~/.herdr/worktrees/<repo>/<branch>` で重なる。同じリポジトリの checkout は同じ Git common dir に登録される。
 
 App で対象 repository の space を右クリックし、New worktree を選んで branch 名を入力する。既存 branch は再作成せず、その branch を checkout する。保存先は repository 名と branch 名から決まり、App のダイアログに個別 path 欄はない。branch が別 checkout で使用中なら Git error で作成が失敗し、保存先 directory が既にあっても App は上書きしない。衝突時は branch・directory・既存ファイルと Git 状態を確認し、強制再作成や自動削除をしない。
 
-以前の TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
+TUI で作った linked worktree を再利用するときは、対象 repository の space から Open worktree を選び、一覧の既存 checkout を開く。App に既に表示されている checkout を選ぶと、その表示へ戻る。別の Git worktree を追加したり、path を移動したりしない。保持する checkout に Remove worktree を使わない。
 
 `worktree-gc.sh` の単一 repository 診断は既定では repo-local root を調べる。App worktree と保持した既存 worktree の所有権と既存保護理由を確認するときは、診断対象 `--roots` に対象 repository の `~/.herdr/worktrees/<repo>` を明示して `--diagnose` を実行する。確認は削除を伴わず、保持する worktree に `--apply` を使わない。GC の保護条件と外部 root の扱いは [ADR-0056](../docs/adr/0056-worktree-gc-home-wide-fanout.md) に従い、skill や GC の実装は変更しない。
 
@@ -134,7 +147,7 @@ App を閉じても terminal を保持するのは remote core であり、App w
 
 App の更新と WSL remote core の更新を同じ変更扱いにせず、それぞれの前後の版を記録する。core の更新では既存 terminal を維持する仕様だが、App / Windows / WSL の再起動をまたぐ agent 継続は保証しない。更新に失敗した場合は同じ machine と既存データを保持し、原因と最後に確認できた版を記録する。TUI の設定・履歴・worktree は App の更新・復旧操作から変更しない。
 
-移行前の固定版へ dotfiles 構成を戻す場合の復旧 baseline と対象限定の手順は [ADR-0088 の復旧節](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧)を参照する。復旧は validated task worktree で source を整合してから行い、受入後に live source の `chezmoi diff` を確認する。未 merge の task source から apply しない。
+App への移行直後から旧 TUI 構成一式を復旧した検証は、移行時の ADR に記録している。[ADR-0088 の復旧節](../docs/adr/0088-migrate-herdr-tui-to-app.md#切替と復旧)
 
 ## Claude Code / Codex マルチランタイム
 
