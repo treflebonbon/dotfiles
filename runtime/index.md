@@ -41,7 +41,7 @@ chezmoi が `~/runtime/` へ配備するため、home 配下のどの repo で�
 - ツール・スキル更新の session（Claude Code 2.1.296、2026-10-23）で次の形が拒否された（confirmed）。
 - 単一の plain コマンドを 1 呼び出しずつ実行する形、`cp` や `sed -i` にリテラルのパスを渡す形、実行権限つきスクリプトの絶対パス呼出しは通った。
 
-Herdr TUI の操作方法と `herdr-ask` は現行の通常構成から削除した。App 利用は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) を参照し、旧 TUI の調査結果は repo-local な ADR と research 記録に留める。
+Herdr の起動と worktree の作成・再利用は、利用する環境の手順を参照する。[Windows Herdr App](ai-runtimes.md#windows-herdr-app-と-wsl2-core) · [WSL2 の Herdr TUI](ai-runtimes.md#wsl2-の-herdr-tui)
 
 dotfiles repo 自身の構造・規約は [docs/architecture.md](../docs/architecture.md) / [docs/conventions.md](../docs/conventions.md)（repo ローカル）を参照。
 

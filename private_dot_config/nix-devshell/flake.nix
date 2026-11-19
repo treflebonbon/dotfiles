@@ -70,7 +70,7 @@
           wslXdgOpen = pkgs.callPackage ./packages/wsl-xdg-open.nix { };
 
           makeShell =
-            browserless:
+            forWsl:
             let
               moduleArgs = {
                 inherit
@@ -80,8 +80,9 @@
                   system
                   flyline
                   wslXdgOpen
-                  browserless
+                  forWsl
                   ;
+                browserless = forWsl;
               };
 
               fragments = [

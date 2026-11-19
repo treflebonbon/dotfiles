@@ -6,21 +6,24 @@ setup() {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/nix-cache"
 }
 
-@test "user devShells no longer supply Herdr TUI on supported systems or shell variants" {
+@test "the WSL user devShell supplies Herdr TUI from the current AI snapshot on Linux" {
   cd "$PROJECT_ROOT" || return
   run --separate-stderr nix eval --json --impure --no-write-lock-file --expr '
     let
       flake = builtins.getFlake (toString ./private_dot_config/nix-devshell);
-    in builtins.mapAttrs (_system: shells:
+    in builtins.mapAttrs (system: shells:
       builtins.mapAttrs (_name: shell:
-        builtins.filter (package: (package.pname or null) == "herdr")
-          shell.nativeBuildInputs
+        map (package: package.outPath == flake.inputs.llm-agents.packages.${system}.herdr.outPath)
+          (builtins.filter (package: (package.pname or null) == "herdr") shell.nativeBuildInputs)
       ) shells
     ) flake.devShells
   '
-  [ "$status" -eq 0 ]
-  jq -e 'keys == ["aarch64-darwin", "aarch64-linux", "x86_64-linux"] and all(.[];
-    .default == [] and .wsl == [])' <<<"$output"
+  [ "$status" -eq 0 ] || { printf '%s\n' "$stderr" >&3; return 1; }
+  jq -e '. == {
+    "aarch64-darwin": {default: [], wsl: []},
+    "aarch64-linux": {default: [], wsl: [true]},
+    "x86_64-linux": {default: [], wsl: [true]}
+  }' <<<"$output"
 }
 
 @test "Herdr TUI registration, skill, command and permission are absent from source" {
@@ -74,13 +77,14 @@ setup() {
   [ "$(cat "$home/.herdr/worktrees/legacy/marker")" = 'preserved worktree marker' ]
 }
 
-@test "the pinned TUI baseline can be restored on the retired source candidate" {
+@test "historical TUI integration recovery and current deployment preserve copy-env state" {
   local source="$BATS_TEST_TMPDIR/recovery-source"
   local deploy_source="$BATS_TEST_TMPDIR/recovery-deploy-source"
-  local retired_source="$BATS_TEST_TMPDIR/retired-deploy-source"
+  local coexistence_source="$BATS_TEST_TMPDIR/coexistence-deploy-source"
   local reactivated_source="$BATS_TEST_TMPDIR/reactivated-deploy-source"
   local ai_source="private_dot_config/nix-devshell/modules/ai.nix"
   local baseline="34fa46fdd7a7cd8e30b910b2d5c0be5bebf30e63"
+  local retired_baseline="a94bc68014fa79457a9a903f99de5b0a7c1ea587"
   local restore_patch="$PROJECT_ROOT/tests/fixtures/herdr/restore-tui.patch"
   local before="$BATS_TEST_TMPDIR/recovery-before"
   local future="$BATS_TEST_TMPDIR/future-llm"
@@ -91,18 +95,13 @@ setup() {
   local chezmoi
 
   mkdir -p "$source"
-  (cd "$PROJECT_ROOT" && git archive HEAD) | tar -x -C "$source"
+  # The full recovery patch applies to the pre-coexistence configuration.
+  (cd "$PROJECT_ROOT" && git archive "$retired_baseline") | tar -x -C "$source"
   (cd "$source" && git init -q -b main)
 
-  # Build the retired apply fixture from actual candidate source entries, not
-  # a synthetic dotfile. The baseline copy below restores only the old TUI
-  # integration needed to exercise its setup hook.
-  mkdir -p "$retired_source"
-  (cd "$PROJECT_ROOT" && git archive HEAD .chezmoiignore "$ai_source") | tar -x -C "$retired_source"
-  (cd "$retired_source" && git init -q -b main)
-  [ ! -e "$retired_source/run_after_setup-herdr.sh" ]
-  [ ! -e "$retired_source/.herdr/herdr-plugin.toml" ]
-  ! grep -Fq 'llm.herdr' "$retired_source/$ai_source"
+  mkdir -p "$coexistence_source"
+  (cd "$PROJECT_ROOT" && git archive HEAD .chezmoiignore "$ai_source") | tar -x -C "$coexistence_source"
+  (cd "$coexistence_source" && git init -q -b main)
 
   # A later unrelated skill update must survive the fixed TUI-only restoration.
   mkdir -p "$future"
@@ -281,11 +280,10 @@ SH
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
   [ "$(wc -l <"$link_log")" -eq 3 ]
 
-  # Applying the retired candidate removes the source setup but leaves the old
-  # registration and user data untouched until a restoration is requested.
-  run apply_source "$retired_source"
+  # Applying the current source preserves the existing registration and history.
+  run apply_source "$coexistence_source"
   [ "$status" -eq 0 ] || { printf '%s\n' "$output" >&3; return 1; }
-  cmp -s "$retired_source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
+  cmp -s "$coexistence_source/$ai_source" "$home/.config/nix-devshell/modules/ai.nix"
   [ "$(jq -r '.result.plugins[0].plugin_root' "$state")" = "$deploy_source/.herdr" ]
   [ "$(jq -r '.result.plugins[0].enabled' "$state")" = true ]
   [ "$(wc -l <"$link_log")" -eq 3 ]

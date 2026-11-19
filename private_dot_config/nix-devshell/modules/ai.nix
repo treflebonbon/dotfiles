@@ -4,6 +4,7 @@
   lib,
   system,
   browserless ? false,
+  forWsl ? false,
   ...
 }:
 
@@ -114,6 +115,7 @@ in
     codex
   ]
   ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.bubblewrap ]
+  ++ lib.optionals (forWsl && pkgs.stdenv.isLinux) [ llm.herdr ]
   ++ [
     llm.copilot-cli
     llm.antigravity-cli

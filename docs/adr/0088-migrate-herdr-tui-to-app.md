@@ -11,6 +11,8 @@ status: accepted
 
 Herdr TUI から Herdr App へ日常利用を移す。既存の独自連携をそのまま移植する前提は置かず、App の標準機能を基準に必要性を見直す。必要な動作を App で確認した後、日常利用と dotfiles の管理対象から TUI への依存を外す。
 
+その後の併用方針で、TUI 本体の供給と Worktree Owner に関する判断を見直した。[ADR-0090](0090-use-herdr-app-and-tui-together.md)
+
 ## 合意した構成と所有範囲
 
 - 操作には Windows 版 App を使う。App が使う Windows 側 local core に加え、WSL2 側の core を接続先として登録し、Nix・リポジトリ・エージェントは WSL2 を中心に置く。
