@@ -337,10 +337,6 @@ WSL2 の通常の `playwright-cli open [URL]` は Windows 側の worktree 別 br
 
 profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。旧共有添付 profile は対象にできない（保存済み状態は保持する）。
 
-PR 本文への画像添付は、標準の `pr` が本文を作った後、直接 `gh pr edit NUMBER --repo OWNER/REPO --attach './after.png#説明'`（複数画像は `--attach` を繰り返す）で行う。掲載位置を指定する場合は最新の本文から原稿を作り、通常の Markdown 画像参照を置いて `--body-file` と同じ画像の `--attach` を渡す。送信直前に本文を再取得し、実行後は本文を読み直して掲載を確認する。一部の画像だけで本文が更新される場合がある。結果不明なら本文の状態を確認してから追加編集を判断する。本文添付は直接実行する操作で、request ID による重複防止は適用されない。`gh` は `pr edit --help` に `--attach` がある版を使う。
-
-任意の画像補足は `pr-screenshots` を明示的に呼ぶ。同梱の `scripts/pr-screenshots-comment.mjs` が全画像を揃えて1コメントを `gh pr comment --attach` で投稿し、PR 本文は更新しない。同じ request ID は画像・原稿も同じ内容で再利用し、重複はコメント依頼に対してだけ防ぐ。途中失敗（`partial` / `failed` / `unknown`）では画像・原稿・receipt を残し、結果不明なら PR コメントを照会して再送を避ける。旧 `browser-attachments`・placeholder・添付専用ブラウザの準備は現行手順ではない。旧版で保存した profile・所有権データ・画像・receipt は削除せず、未完了の旧本文添付は対象 PR の現在の本文と照合する。
-
 CLI session の保存先・Dashboard の session 一覧・制御 socket も物理 worktree root ごとに分離する。同じ session 名を別 worktree で使っても相互操作しない。切替前に旧 package で既存 CLI / Dashboard を終了する。Dogfood の自動 CDP port は所有権の予約と同じ lock 内で割り当て、保持中の予約を避ける。明示 port の競合は拒否する。Windows の状態確認が重なる場合、共有の登録 lock は最大30秒待機し、期限超過は状態を保持して失敗する。
 
 ### Managed Chrome 所有権の確認と復旧
@@ -352,6 +348,18 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 起動コマンドが戻った後の `settled` でも、呼出元が生存して CDP の準備を待っている間は `recover` による回収を拒否する。起動を一度も試みていない `reserved` の予約は、token が一致する caller の通常 `release` で取り消せる。この取消は起動処理と同じ lock 内で token を無効化するため、初期確認で Chrome 未インストールや port/profile 競合を検出した場合も、問題を解消してそのまま再試行できる。
 
 移行は旧版で managed CLI session・Dashboard・Dogfood run を終了してから、Nix package とローカル Dogfood skill を対応する版へ揃え、devShell を再読込みして MANAGED_CHROME_OWNER / DOGFOOD_WINDOWS_SCRIPT 等の同梱ツール参照を更新する。旧 `owner` や `acquire.lock` が残っている場合は起動を拒否するため、切替前に旧版の終了処理と Windows 側の状態を調査する。記録の削除による起動制限の迂回は行わない。設計判断は [ADR-0047](../docs/adr/0047-centralize-managed-chrome-ownership.md) を参照する。
+
+## PR 画像添付
+
+既存画像はそのまま GitHub CLI で添付できる。`--attach` 対応版と通常の GitHub CLI 認証、対象 repository への push 権限が必要。`gh auth status` と `gh pr comment --help` または `gh pr edit --help` で確認する。撮影が必要な場合は [playwright-cli](#playwright-cli) を使う。 [GitHub CLI の公式手順](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli)
+
+既存 PR のコメントに添付する場合は `pr-screenshots` を明示的に呼ぶ。同梱の `scripts/pr-screenshots-comment.mjs` が短い説明と画像を一つのコメントにまとめ、`gh pr comment --attach` で投稿する。通常の Markdown 画像参照で代替テキストと掲載位置を指定する。同じ依頼の再開・照会には同じ repository・PR・request ID・画像・原稿・receipt 保存先を使う。
+
+`gh` が非0で終了しても、一部の画像だけでコメントが投稿される場合がある。`complete` は説明と全画像の掲載を確認できた結果。`partial` では不足画像と説明・配置の不一致を区別する。`partial`・`failed`・`unknown` では画像・原稿・receipt を保持し、判明したコメント URL と不足分・理由を報告する。結果が不明な間は同じ request ID のコメントを照会し、再送を止める。不足分の補完は明示的な別依頼にする。
+
+PR 本文の末尾に追加する場合は `gh pr edit NUMBER --repo OWNER/REPO --attach './after.png#説明'` を使う。複数画像では `--attach` を繰り返す。掲載位置を指定する場合は最新の本文から通常の Markdown 画像参照を含む原稿を作り、送信直前に本文を再取得して並行編集を取り込む。`--body-file` と画像の `--attach` を渡し、実行後も本文を読み直して掲載を確認する。一部の画像だけで本文が更新される場合があり、結果不明なら現在の本文を確認してから追加編集を判断する。request ID による重複防止はコメント依頼に限る。
+
+旧版から移行する場合は、起動中の添付専用ブラウザを旧版の手順で終了し、既存 profile・所有権データ・画像・原稿・receipt を保持する。未完了・結果不明の旧本文添付は保存記録と現在の PR 本文を照合する。 [公開版の移行手順](https://github.com/treflebonbon/skills/blob/v0.4.1/docs/pr-attachments.md#旧版からの移行)
 
 ## Claude Code plugin の二層管理
 

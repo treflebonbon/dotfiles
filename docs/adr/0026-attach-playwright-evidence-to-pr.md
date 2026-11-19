@@ -9,6 +9,8 @@ status: accepted
 
 # to-pr の Playwright 証跡を GitHub の PR 添付として扱う
 
+> PR 添付の現行手順は [ADR-0089](0089-use-gh-attach-for-pr-images.md) に従う。証跡画像を Git に commit せず GitHub の添付で渡す判断は引き続き有効。
+
 > #301 の [ADR-0059](0059-scope-browser-ownership-and-share-attachments.md) が、単一所有者の全体排他と検証 profile による添付を置き換える。WSL browser-free と手動確立済み認証を使う境界は維持する。
 
 ## Amendment

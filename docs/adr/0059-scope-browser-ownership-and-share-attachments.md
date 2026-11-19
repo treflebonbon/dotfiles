@@ -6,6 +6,8 @@ status: accepted
 
 # ブラウザ所有権を identity ごとに管理し PR 添付を共有する
 
+> [ADR-0089](0089-use-gh-attach-for-pr-images.md) が専用 GitHub profile による PR 添付とその所有権管理を置き換えた。検証と Dogfood の所有権の判断は引き続き有効。
+
 #301 の Agent Brief に基づく。ADR-0058 の先行検証で、独立 Windows profile の分離・保持と、既存専用認証を使う並列添付が成立した。全体排他のままでは worktree の並列作業を支えられない。
 
 ## Decision

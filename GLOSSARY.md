@@ -44,13 +44,11 @@
 
 **Codex 管理設定**: dotfiles が内容の正本を持ち、Codex の各利用環境へまとめて同期する設定の集合。利用環境に固有の信頼設定や実行状態とは区別する。 _Avoid_: Codex の全設定, Codex home, 更新単位
 
-**Managed Playwright Chrome**: WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。worktree ごとの検証状態を、その identity の排他的な CLI session と Dashboard が再利用する。GitHub 添付認証とは別に保持する。 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
+**Managed Playwright Chrome**: WSL2 上の Playwright 操作専用に管理され、通常利用の Chrome と完全に分離された Windows 側の browser identity。worktree ごとの検証状態を、その identity の排他的な CLI session と Dashboard が再利用する。 _Avoid_: Windows Chrome, Playwright 専用 Chrome, WSL Chrome
 
 **Managed Chrome モード**: Managed Playwright Chrome の同一 identity が、排他的に取る headless または headed の実行形態。別の browser identity や別 profile を意味しない。 _Avoid_: headless Chrome, headed Chrome, 別ブラウザー
 
-**Worktree 検証ブラウザ**: 通常の UI 検証で worktree ごとに所有し、検証対象アプリのログイン状態を次回の利用へ引き継ぐブラウザ。GitHub 添付用の共有認証と、Dogfood 試行の一時的な状態とは区別する。 _Avoid_: session 名, 共有添付ブラウザ, Dogfood profile
-
-**共有添付ブラウザ**: PR 画像添付のために、専用ブラウザで手動確立済みの GitHub 認証を複数の添付処理が利用するブラウザ。処理ごとのタブ所有権は誤操作を防ぐ境界であり、認証や storage のセキュリティ分離ではない。 _Avoid_: 通常閲覧用ブラウザ, Worktree 検証ブラウザ, 認証情報の複製
+**Worktree 検証ブラウザ**: 通常の UI 検証で worktree ごとに所有し、検証対象アプリのログイン状態を次回の利用へ引き継ぐブラウザ。 _Avoid_: session 名, Dogfood profile
 
 **Managed Playwright Dashboard**: Managed Playwright Chrome の headed モードを表示面として使う、CLI session とは独立した Playwright の操作画面。annotation は排他 lease を所有する session にだけ結び付く。 _Avoid_: Dashboard tab, show 画面, headless Dashboard
 
@@ -60,9 +58,11 @@
 
 **Dogfood 試行**: 対象の検査を開始してから結果を確定するまでの1回の実行。再試行は同じ検査目的と browser identity を引き継いでも別の試行であり、観測と証跡を区別する。 _Avoid_: Dogfood サイクル, profile identity, 再開レビュー
 
-**Managed Chrome 所有権**: 検証・共有添付・Dogfood の browser identity ごとに利用者・世代・起動状態を記録し、同一 identity または同一実資源の競合を拒否する権利。異なる identity は並行利用できる。Managed Playwright Chrome 内での CLI session の利用権とは区別する。 _Avoid_: Chrome の PID, profile の所有者, CLI session lease
+**Managed Chrome 所有権**: 検証・Dogfood の browser identity ごとに利用者・世代・起動状態を記録し、同一 identity または同一実資源の競合を拒否する権利。異なる identity は並行利用できる。Managed Playwright Chrome 内での CLI session の利用権とは区別する。 _Avoid_: Chrome の PID, profile の所有者, CLI session lease
 
 **WSL2 browser boundary**: WSL2 が browser identity を所有せず、人間向け URL 表示は Windows の通常の既定ブラウザ、自動操作は用途別の Managed Playwright Chrome または Managed Dogfood Chrome へ分離して委譲する環境境界。 _Avoid_: WSL Chrome, WSL browser, Windows Chrome only
+
+**PR 画像添付依頼**: 特定の既存 PR のコメントに掲載する説明と画像のひとまとまり。同じ内容での再開・結果照会は同じ依頼に属し、内容変更や不足画像の補完は別の依頼になる。
 
 **Contract**: issue/PRD が定める「目的・AC・非目標・検証方法・関連ファイル/入口・判断済みtradeoff」の6項目。`ready-for-agent` 化の入口契約。 _Avoid_: 仕様, spec, 要件定義
 
