@@ -128,7 +128,7 @@ dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語�
 | --- | --- |
 | `herdr-peer-refactor` / `orca-peer-refactor` | Herdr／Orca と必要な `codebase-design`、`grilling`、`tdd`、`code-review`、`pr` 等の外部 skill。実行経路ごとの `jq`、Perl、OpenSSL、tmux も確認する。独自 CLI・契約・専用 auto の保護設定を同梱 |
 | `dogfood` | Node.js・Playwright の固定依存と、必要時の `playwright-cli`／`triage`。WSL2 用のブラウザ補助資産を同梱し、依存準備先を配布物から分離 |
-| `pr-screenshots` | 必要時の `playwright-cli`、GitHub CLI（`pr comment --attach` 対応版）と認証準備。コメント用 CLI・所有権管理・Windows script を同梱。旧 `browser-attachments` は 0.4.0 で撤去 |
+| `pr-screenshots` | 同梱のコメント用 CLI が Node.js 20.19 以降、`flock`、`gh pr comment --attach` 対応版と通常の GitHub CLI 認証、対象 repository の push 権限を使う。`playwright-cli` は撮影時に使う。[ADR-0089](0089-use-gh-attach-for-pr-images.md) |
 | `domain-modeling-studio` | 外部 `domain-modeling` と同梱 `ui-grill-with-docs`。生成時の Node.js、TypeScript 抽出時の Python・`ast-grep`。HTML／同梱資源と生成用の lockfile を移管 |
 | `ui-grill-with-docs` | 外部 `grilling`、`domain-modeling`、`codebase-design`、必要時の `playwright-cli`。質問シートの資源を同梱 |
 | `md-claude-review` / `md-agents-review` | 両者の役割分担と参照を維持。前者の `claude-api` 連携と既存の fallback 条件を明記し、後者へ不要な外部依存を追加しない |
@@ -142,7 +142,7 @@ dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語�
 | 機能 | 条件と条件外での扱い |
 | --- | --- |
 | raw Codex の隔離起動 | Linux／WSL2＋Nix＋対象 repo の flake。条件外では起動を保留 |
-| `pr-screenshots` の現行添付ブラウザ経路、WSL2 managed Chrome 経路 | WSL2 と Windows 側の準備が必要。未準備・未認証なら既存の引継ぎ手順を案内 |
+| WSL2 managed Chrome による撮影・Dogfood | WSL2 と Windows 側の準備が必要。未準備なら用途ごとの準備手順を案内 |
 | `worktree-gc` fan-out の `--apply` | Linux／WSL2 で必要な `/proc` 検査が可能な場合だけ。macOS 等では削除を実行せず、利用可能な preview と既存の repo 単位手順を案内 |
 | 専用 auto peer | 対応する runtime の保護設定・実効性確認と、人間による資格情報準備・有効化が必要。未有効・確認不能なら保留 |
 
