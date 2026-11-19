@@ -7,7 +7,7 @@ dependencies:
   apm:
     # スキルと launcher は APM、固定 engine は Nix が供給する（ADR-0053）。
     # pin / engine / Claude・Codex の2イベントを同じ互換性ゲートで検証する。
-    - pbakaus/impeccable/.agents/skills/impeccable#acb4cfe14470b1fdf51e855431af618d936b7db8
+    - pbakaus/impeccable/.agents/skills/impeccable#b49177d32788f2dc585c42831d845dacf1ebed2c
     # vercel-labs/agent-skills
     - vercel-labs/agent-skills/skills/web-design-guidelines
     - vercel-labs/agent-skills/skills/react-best-practices
@@ -40,7 +40,7 @@ dependencies:
     # stablyai/orca — ORCA Agent IDE 連携。orca CLI 自体は Orca アプリが terminal に
     # 注入するため dotfiles では配線しない。公式手順の npx skills add ではなく apm 管理
     # を選ぶ理由と 8 skill 中 3 skill のみ導入する選定理由は ADR-0011 参照。
-    - stablyai/orca/skills/orca-cli#a1fda35055ff74904f1f75fdd96a330c11377753
+    - stablyai/orca/skills/orca-cli#d840256c353f081efc4a1750a292b2dcee9daef3
     - stablyai/orca/skills/orchestration
     # upstream HEAD では削除済みのため、既存 payload を保持する revision に固定する。
     - stablyai/orca/skills/computer-use#1bd67185489c66a9e0d841e0134727f171a33764

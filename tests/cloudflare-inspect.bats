@@ -4,12 +4,14 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  expected_cf_version="$(jq -er '.dependencies.cf' "$PROJECT_ROOT/private_dot_config/nix-devshell/packages/cloudflare-cli/package.json")"
   SCRIPT="$BATS_TEST_TMPDIR/bin/cloudflare-inspect"
   export CF_TEST_LOG="$BATS_TEST_TMPDIR/calls.jsonl"
   export CF_TEST_RESPONSE="$BATS_TEST_TMPDIR/response.json"
   export CLOUDFLARE_API_TOKEN="DUMMY_CF_TOKEN"
   export CLOUDFLARE_ACCOUNT_ID="0123456789abcdef0123456789abcdef"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
+  printf '%s\n' "$expected_cf_version" >"$BATS_TEST_TMPDIR/version"
   install -m 755 "$PROJECT_ROOT/private_dot_config/nix-devshell/packages/cloudflare-cli/cloudflare-inspect.py" "$SCRIPT"
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
   printf '#!%s\n' "$(command -v python3)" >"$BATS_TEST_TMPDIR/bin/cf"
@@ -19,7 +21,7 @@ fixture = pathlib.Path(__file__).resolve().parent.parent
 if sys.argv[1:] == ['--version']:
     assert 'CLOUDFLARE_API_TOKEN' not in os.environ
     assert 'CLOUDFLARE_ACCOUNT_ID' not in os.environ
-    print((fixture / 'version').read_text().strip() if (fixture / 'version').exists() else '1.0.0-beta.29')
+    print((fixture / 'version').read_text().strip())
     raise SystemExit(0)
 assert os.environ['CF_SEND_TELEMETRY'] == 'false'
 assert os.environ['CF_DELEGATION'] == '1'
@@ -47,7 +49,7 @@ PY
 @test "Cloudflare の版表示は認証情報なしで同梱 CLI だけを呼ぶ" {
   run env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID python3 -I "$SCRIPT" --version
   [ "$status" -eq 0 ]
-  [ "$output" = 1.0.0-beta.29 ]
+  [ "$output" = "$expected_cf_version" ]
   [ ! -e "$CF_TEST_LOG" ]
 }
 
@@ -63,7 +65,7 @@ PY
 
     run bash -c "$command"
     [ "$status" -eq 0 ]
-    [ "$output" = 1.0.0-beta.29 ]
+    [ "$output" = "$expected_cf_version" ]
   done
   [ ! -e "$CF_TEST_LOG" ]
 }
@@ -120,7 +122,7 @@ PY
   cat >"$BATS_TEST_TMPDIR/untrusted/cf" <<'SH'
 #!/bin/sh
 if [ "$1" = --version ]; then
-  printf '%s\n' 1.0.0-beta.29
+  cat "${0%/*}/../version"
 else
   printf '%s\n' '{"name":"UNTRUSTED"}'
 fi
@@ -299,7 +301,7 @@ JSON
   run python3 -I "$SCRIPT" d1 list
   [ "$status" -ne 0 ]
   [ ! -e "$CF_TEST_LOG" ]
-  printf '%s\n' 1.0.0-beta.29 >"$BATS_TEST_TMPDIR/version"
+  printf '%s\n' "$expected_cf_version" >"$BATS_TEST_TMPDIR/version"
   printf '%s\n' 'not JSON DUMMY_CF_TOKEN DUMMY_SECRET' >"$CF_TEST_RESPONSE"
   run python3 -I "$SCRIPT" d1 list
   [ "$status" -ne 0 ]

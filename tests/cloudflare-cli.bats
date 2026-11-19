@@ -3,6 +3,7 @@
 bats_require_minimum_version 1.5.0
 
 setup() {
+  expected_cf_version="$(jq -er '.dependencies.cf' "$BATS_TEST_DIRNAME/../private_dot_config/nix-devshell/packages/cloudflare-cli/package.json")"
   mkdir -p "$BATS_TEST_TMPDIR/project"
   cd "$BATS_TEST_TMPDIR/project"
 }
@@ -13,13 +14,13 @@ setup() {
   printf '%s\n' '#!/usr/bin/env node' 'console.log("UNTRUSTED_LOCAL_CF")' >node_modules/cf/bin/cf
   run --separate-stderr cf --version
   [ "$status" -eq 0 ]
-  [ "$output" = 1.0.0-beta.29 ]
+  [ "$output" = "$expected_cf_version" ]
 }
 
 @test "Nix の検査 helper は認証情報なしで同梱 CLI の版を返す" {
   run --separate-stderr env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID cloudflare-inspect --version
   [ "$status" -eq 0 ]
-  [ "$output" = 1.0.0-beta.29 ]
+  [ "$output" = "$expected_cf_version" ]
 }
 
 @test "固定版 cf の schema は確認済み参照操作を GET として定義する" {

@@ -1,8 +1,8 @@
 {
   "name": "playwright-cli-agent",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "private": true,
   "dependencies": {
-    "@playwright/cli": "0.1.24"
+    "@playwright/cli": "0.1.25"
   }
 }
