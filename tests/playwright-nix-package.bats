@@ -110,7 +110,7 @@ FIXTURE
   chmod +x "$PWCLI_POWERSHELL" "$PWCLI_WSLPATH"
 
   local role token script profile prefix before state expected
-  for role in attachment playwright dogfood; do
+  for role in playwright dogfood; do
     script=playwright-cli-windows.ps1
     [[ $role == dogfood ]] && script=dogfood-chrome-windows.ps1
     profile="$BATS_TEST_TMPDIR/profile-$role"

@@ -27,3 +27,11 @@
 ## 検証と未確認範囲
 
 結果は PR 本文に記録する。実 GitHub への添付投稿、実機 WSL2 での撮影、公式 runtime（Claude Code・Codex・Antigravity CLI）の実導入は、この worktree では fixture・Bats の範囲でのみ確認し、実機は未確認として扱う。
+
+## canonical の初回結果と対応
+
+最終 HEAD の初回 canonical は 834 件中 807 pass / 22 skip / 5 fail だった。原因は新版が撤去した資産を期待する旧 consumer テストで、公開 package の欠陥ではない。
+
+- 撤去された `herdr-peer-refactor/references/*` を読む2件（`codex-reviewer.bats`、`autonomous-peer-contract.bats`）は、その参照 assertion だけ外した。peer 規範の残りの整理は #96 に残す。
+- `browser-attachments` の wrapper 撤去に伴い、`DOGFOOD_WINDOWS_SCRIPT` 設定を期待していた `nix-devshell.bats` の2件は assertion を外した（資産自体は `cp -R libexec` で配布される）。
+- `managed-chrome-owner reserve` は新版で `attachment` role を拒否するため、`playwright-nix-package.bats` の role ループから `attachment` を外した。既存の attachment 所有記録は新版でも読み取られ、保持される。
