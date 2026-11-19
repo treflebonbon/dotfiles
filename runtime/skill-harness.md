@@ -43,9 +43,9 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 - `pr` は peer 協働の PR 本文に元候補・受入条件と検証結果・非目標・Decisions を含め、issue がある場合だけ `Closes #N` を付ける（[autonomous-peer-contract](autonomous-peer-contract.md)）。
 - `improve-codebase-architecture` は候補提示前に、実 caller の知識が既存 module interface から減り、削除テストでその module の有用性が増す具体的根拠を確認する。caller 数は足切りにせず、sole caller でも根拠があれば候補にできる。根拠のない案と helper 整備・単なる移動だけの案は数合わせに採らない。該当候補がなければ Top recommendation を「該当候補なし」とし、候補選択質問をせず、調査 scope と却下理由を日本語 report に記録して正常完了する。候補が存在しても peer 依頼が未承認のまま未選択なら、その状態を記録して pin・peer-refactor を起動しない。ユーザーが独立検証を明示依頼した場合は妨げない。
 - `improve-codebase-architecture` の report が挙動を「バグ」や「非一貫」と断定する前に、その挙動を固定する既存テストと上流の正規化を読み、正規化後にも反例が残るかを確認する。sub-agent の報告は未検証の主張として扱う。既存テストがあるだけで正しい挙動とは判定しない。
-- `improve-codebase-architecture` の提示済み候補について人が peer 協働による改善を明示依頼した場合、Orca では固定 plugin の `orca-peer-refactor` を使う。`herdr-peer-refactor` も公開 plugin に保持されるが、Herdr TUI 専用であり App 対応ではない。TUI を別途利用する明示依頼がない限り選ばない。どちらも人が選んだ候補と既存承認を引き継ぎ、上流 skill の探索と `grilling` は fork せず変更しない（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
-- `improve-codebase-architecture` の HTML report は固定 plugin source の該当 skill script で構造を検査し、実ブラウザで描画を確認してから提示する。`herdr-peer-refactor` は TUI 専用、`orca-peer-refactor` は Orca 専用である。source path の解決と Mermaid 検査契約は [autonomous-peer-contract](autonomous-peer-contract.md) を参照する。
-- Herdr App の terminal と `hc` は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) に従う。公開 `herdr-peer-refactor` skill は TUI 専用であり、App の起動・協働手順として案内しない。
+- `improve-codebase-architecture` の提示済み候補について人が peer 協働による改善を明示依頼されても、固定 plugin 0.3.0 以降は `orca-peer-refactor` と `herdr-peer-refactor` を含まない。現行 pin で使える専用の協働経路はない。人が選んだ候補は、通常の `implement` と `code-review`、または明示起動した `orchestration` / `orca-cli` で扱う。上流 skill の探索と `grilling` は fork せず変更しない。peer 規範の整理は #96 で行う（[契約](autonomous-peer-contract.md)、[ADR-0075](../docs/adr/0075-adopt-peer-refactor-skills.md)）。
+- `improve-codebase-architecture` の HTML report は、実ブラウザで描画を確認してから提示する。構造検査 script は使わない。
+- Herdr App の terminal と `hc` は [AI runtime guide](ai-runtimes.md#windows-herdr-app-と-wsl2-core) に従う。`herdr-peer-refactor` は 0.3.0 で公開 plugin から撤去されており、App の起動・協働手順として案内しない。
 - `find-skills` はインストール手順として `npx skills add -g -y` を案内するが、外部 skill は `apm.yml` / `apm.lock.yaml` 経由でのみ導入する。このコマンドは実行せず、追加候補は `apm.yml` への追記として提示する。
 - `wizard` に書く CLI コマンドは、書く前に `--help` で対話プロンプトと設定ファイルの自動更新の有無を確かめ、それを止めるフラグを付ける（例: `wrangler r2 bucket create` には `--update-config=false`。付けないと、バインディングを設定へ追加するかを尋ね、了承すると repo の設定ファイルを書き換える）。人が wizard を実行し終えたら、`git status` と `git diff` を実行前と比べ、想定外のファイル変更が無いことを確かめる。
 - Builder-Evaluator 内の `code-review` は branch の既知の base（通常 `origin/main`）を fixed point として自動採用してよい。standalone で fixed point が不明な場合だけ質問する。
@@ -94,11 +94,38 @@ Worktree Entry Point は、対象 task worktree を確認して作業を始め�
 - **読み取り専用レビュー役の Codex**: App/core terminal では validated linked worktree を cwd にした shell から `codex-reviewer --no-daemon [codex の引数]` で起動する。通常の明示協働では `codex-reviewer --peer`（`dotfiles-peer` profile）を使う。専用 peer auto は固定 public source の明示 preflight と起動 wrapper に限り、`herdr-peer-refactor` の TUI-only flow を App へ当てはめない。通常 reviewer は対象 worktree の Git dir と Git common dir を read だけで加えるので、Git 書込みや別 worktree は扱えず、raw 実装役と同じ秘密隔離も提供しない（[ADR-0080](../docs/adr/0080-grant-reviewer-codex-read-only-git-metadata.md)）。
 - **Claude Code / Codex**: Claude Code は `EnterWorktree`、Codex app は native worktree、Codex CLI の新規作成は導入版の `codex --help` に従い `--worktree` を使う。native 作成と隔離起動は別の責務。raw Codex の秘密隔離が必要な場合は、作成済み linked worktree で既存 `codex-worktree` を使い、その公開入力登録・trust・返却契約に従う。
 
-ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に固定版 public source の `skills/orca-peer-refactor/references/orca.md#worktree-readiness` を確認します。source root は [契約案内](autonomous-peer-contract.md) にある検証済み plugin JSON の `source` から解決し、worker 観測と割当時に固定した期待値の照合成功を待ちます。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要します。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外です。
+ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に後述の「Orca worktree の準備確認」を行い、照合成功まで worker の診断・編集を待たせます。
 
-Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。worker/coordinator が複数行または shell 記号を含む `status` / `dispatch` 本文を送る場合は、配備された `orca-send`（source: `private_dot_local/bin/executable_orca-send.tmpl`、target: `~/.local/bin/orca-send`）へ `--cli <選択済み Orca 実行ファイル> --body-file <UTF-8本文ファイル> -- <native send 引数>` を渡す。これは選択済み CLI の `orchestration send --body <本文> ...` を shell なしで呼ぶ入口で、native ID・権限・送信結果の契約を保つ。本文のサイズ上限と argv 露出の制約は `skills/orca-peer-refactor/references/orca.md#literal-message-body` に従う。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。**ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に `skills/orca-peer-refactor/references/orca.md#worktree-readiness`（固定版 source は [契約案内](autonomous-peer-contract.md) の JSON `source` から解決する）を行い、worker 観測と割当時に固定した期待値の照合成功を待つ。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外。**
+Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。worker/coordinator が複数行または shell 記号を含む `status` / `dispatch` 本文を送る場合は、配備された `orca-send`（source: `private_dot_local/bin/executable_orca-send.tmpl`、target: `~/.local/bin/orca-send`）へ `--cli <選択済み Orca 実行ファイル> --body-file <UTF-8本文ファイル> -- <native send 引数>` を渡す。これは選択済み CLI の `orchestration send --body <本文> ...` を shell なしで呼ぶ入口で、native ID・権限・送信結果の契約を保つ。本文のサイズ上限と argv 露出の制約は後述の「`orca-send` の本文」に従う。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。
 
 merge を確認した task worktree の片付けは、削除の依頼があるときに限り、native 機構で行う。Orca では `orca-cli` の解決規則で選んだ実行ファイル(Orca 端末では `$ORCA_CLI_COMMAND`)の `worktree rm --worktree <selector>` を使い、selector は対象 PR の branch または HEAD と一致することを確認した worktree の完全な id(`id:<repoId>::<path>`)で明示する。primary checkout からの raw `git worktree remove` は使わない。削除前に PR の merge、未コミット変更と未 push の commit が無いこと、担当 agent の停止を確認する。実行ファイルが使えない、または権限が足りないときは削除せず、未削除として依頼元へ戻す。force 削除とブランチ削除はこの手順に含めず、別に確認する。
+
+### Orca worktree の準備確認
+
+ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合に使う。同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する。folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外。native worktree と Agent Picker の built-in agent 起動、Orca が所有する permission mode は変えない。共用 CLI `orca-worker-readiness`（`record` / `verify`）は固定 plugin の package root `bin/` にあり、`PATH` には入らない。package root（以下 `<package-root>`）は `~/.config/nix-devshell/skills-plugin.json` の `rev` から `~/.cache/treflebonbon-skills/marketplaces/<rev>/` とし、`sync-skills-plugin --verify-only` が `status: verified` を返すことを先に確認する。
+
+1. 親は Task の初回 `--spec` を準備確認だけにし、「native Task / Dispatch / handle と現在の checkout を記録して報告し、親の照合まで待つ」ことだけを指示する。親は native の割当結果から Task / Dispatch / worker handle / worktree の絶対 path と、割当時の branch・開始 HEAD を独立に確定する。
+2. worker は割当直後、ソースを読む前に新しい記録先を作り、自分の cwd から観測を保存する。Task / Dispatch / handle と JSON の絶対 path を親へ報告し、実タスクの説明を受け取るまで待つ。record は既存ファイルを上書きしない。
+
+   ```bash
+   readiness_dir=$(mktemp -d /tmp/codex/orca-readiness.XXXXXX)
+   <package-root>/bin/orca-worker-readiness record "$readiness_dir/worker-readiness.json" \
+     --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
+   ```
+
+3. 親は固定済みの path・branch・開始 HEAD と ID を渡し（観測 JSON は絶対 path で指定する）、自分の process から検査する。観測ファイルの値から期待値を作らない。primary checkout、別 worktree、欠落・不正・不一致は拒否される。
+
+   ```bash
+   <package-root>/bin/orca-worker-readiness verify <worker-readiness.json> \
+     --worktree <native-assigned-absolute-path> --branch <assigned-branch> --head <assigned-start-head> \
+     --task <task-id> --dispatch <dispatch-id> --assignee <worker-handle>
+   ```
+
+4. 照合成功後だけ、親は `dispatch:<dispatch-id>` 宛てに実タスク本文を送る。失敗・観測不能時は診断・編集へ進まず、記録を保って親へ報告する。これは native launch や permission boundary を置き換える wrapper ではない。
+
+### `orca-send` の本文
+
+複数行または shell 記号を含む本文は UTF-8 ファイルに置き、`orca-send --cli <選択済み Orca 実行ファイル> --body-file <本文ファイル> -- <native send 引数>` で送る。helper は shell を使わず、`--body` などの二重指定を拒否する。選択済み CLI の `orchestration send` は `--body` だけを受け付けるため、本文はプロセスの argv に入り、同一ホストのプロセスから見える可能性がある。本文は公開情報に限り、UTF-8 で 8 KiB 以内にする。超える場合は公開証跡ファイルの path と短い要約を送る。native 引数や環境を含む OS の起動上限も適用され、上限内でも起動に失敗した場合は非0終了する。
 
 Git 管理情報を解決できない場合は編集・Git 書込みを保留し、以下を区別する。
 
@@ -309,11 +336,11 @@ WSL2 の通常の `playwright-cli open [URL]` は Windows 側の worktree 別 br
 
 `show` / `show --annotate` は人間の明示開始による headed モードを要求し、その worktree の Dashboard を使う。annotation は lease 所有 session だけに結び付く。背景処理は自動 headed 起動・前面化・OS 入力をしない。終了は session 指定の `close` と対象 Dashboard の `show --kill` を使い、`close-all` / `kill-all` は拒否する。明示 remote CDP attach と WSL browser-free の override 制約は維持する。
 
-profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。共有添付 profile は対象にできない。
+profile を初期化する場合は、その worktree で `playwright-cli reset-profile --confirm-identity <identity>` を明示実行する。対象の session・Dashboard・所有権が終了し、Windows 側でも停止を確認できた場合だけ、その worktree profile を削除する。旧共有添付 profile は対象にできない（保存済み状態は保持する）。
 
-PR 添付は `browser-attachments upload --repo OWNER/REPO --pr NUMBER --image PATH --placeholder TEXT --request-id ID` を使う。旧専用 profile の手動 GitHub 認証を添付専用 identity が引き継ぎ、検証 profile へコピーしない。異なる PR は並列、同じ PR の本文更新は直列にし、更新直前の本文を取得する。asset を保存済みなら同じ request ID で本文更新を再開できる。送信結果不明なら二重送信せず調査する。人間の初回認証・期限切れ対応は `browser-attachments close` の成功を確認 → `browser-attachments auth` → 手動ログイン → `browser-attachments close`。認証不足の添付失敗で残った headless ブラウザも、最初の close で終了してから headed の認証へ進む。添付 CLI の実行は headless のみ。標準の `pr` は本文作成を担当し、この CLI を自動起動しない。
+PR 本文への画像添付は、標準の `pr` が本文を作った後、直接 `gh pr edit NUMBER --repo OWNER/REPO --attach './after.png#説明'`（複数画像は `--attach` を繰り返す）で行う。掲載位置を指定する場合は最新の本文から原稿を作り、通常の Markdown 画像参照を置いて `--body-file` と同じ画像の `--attach` を渡す。送信直前に本文を再取得し、実行後は本文を読み直して掲載を確認する。一部の画像だけで本文が更新される場合がある。結果不明なら本文の状態を確認してから追加編集を判断する。本文添付は直接実行する操作で、request ID による重複防止は適用されない。`gh` は `pr edit --help` に `--attach` がある版を使う。
 
-任意の画像補足は `pr-screenshots` を明示的に呼ぶ。`browser-attachments comment --repo OWNER/REPO --pr NUMBER --image PATH [--image PATH] --body-file PATH --request-id ID` が全画像を揃えて1コメントを投稿し、PR 本文は更新しない。原稿には画像順に `<!-- screenshot-1 -->` などを1回ずつ置く。同じ ID は画像・原稿も同じ内容で再利用し、投稿済みコメントのマーカーを照会して重複を防ぐ。途中失敗では画像・取得済み URL・理由を残し、送信結果不明なら状態を調べて再送を避ける。
+任意の画像補足は `pr-screenshots` を明示的に呼ぶ。同梱の `scripts/pr-screenshots-comment.mjs` が全画像を揃えて1コメントを `gh pr comment --attach` で投稿し、PR 本文は更新しない。同じ request ID は画像・原稿も同じ内容で再利用し、重複はコメント依頼に対してだけ防ぐ。途中失敗（`partial` / `failed` / `unknown`）では画像・原稿・receipt を残し、結果不明なら PR コメントを照会して再送を避ける。旧 `browser-attachments`・placeholder・添付専用ブラウザの準備は現行手順ではない。旧版で保存した profile・所有権データ・画像・receipt は削除せず、未完了の旧本文添付は対象 PR の現在の本文と照合する。
 
 CLI session の保存先・Dashboard の session 一覧・制御 socket も物理 worktree root ごとに分離する。同じ session 名を別 worktree で使っても相互操作しない。切替前に旧 package で既存 CLI / Dashboard を終了する。Dogfood の自動 CDP port は所有権の予約と同じ lock 内で割り当て、保持中の予約を避ける。明示 port の競合は拒否する。Windows の状態確認が重なる場合、共有の登録 lock は最大30秒待機し、期限超過は状態を保持して失敗する。
 

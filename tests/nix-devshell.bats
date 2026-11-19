@@ -137,7 +137,6 @@ setup() {
   grep -q 'playwright-driver = if browserless then null' "$ai"
   grep -q 'lib.optionals (!browserless)' "$testing"
   grep -q 'playwright-driver ? null' "$package"
-  grep -q 'dogfood-chrome-windows.ps1' "$package"
   grep -q '_df_select_wsl_flake_output' "$direnvrc"
   grep -q 'use flake .#wsl' "$global_envrc"
   [ -f "$PROJECT_ROOT/.wsl-browser-free" ]
@@ -236,7 +235,8 @@ setup() {
   grep -q 'PWCLI_CDP_CLOSE' "$pkg"
   grep -q 'PWCLI_WINDOWS_SCRIPT' "$pkg"
   grep -q 'PWCLI_RUNTIME_COMMAND' "$pkg"
-  grep -q 'BROWSER_ATTACHMENTS_PLAYWRIGHT' "$pkg"
+  run grep -q 'browser-attachments' "$pkg"
+  [ "$status" -eq 1 ]
   grep -q 'references/playwright-cli-wsl.md' "$pkg"
   grep -q 'THIRD_PARTY_NOTICES.md' "$pkg"
   grep -q 'lib.licenses.mit' "$pkg"
@@ -253,7 +253,6 @@ setup() {
   grep -q -- '--unset PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD' "$pkg"
   grep -Fq 'cp -R "$public/libexec/." "$out/libexec/"' "$pkg"
   grep -q 'libexec/playwright-cli-windows.ps1' "$pkg"
-  grep -q 'libexec/dogfood-chrome-windows.ps1' "$pkg"
   grep -q 'playwright-cli-cdp-close.js' "$pkg"
   grep -q 'playwright-cli-program.patch' "$pkg"
   ! grep -Eq 'chromium-[0-9]+' "$pkg"

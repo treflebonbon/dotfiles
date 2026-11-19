@@ -44,16 +44,13 @@ herdr_codex_launches() {
 }
 
 @test "skills and runtime docs start Codex through codex-reviewer or codex-worktree, not herdr agent start" {
-  local reference="$SKILLS_ROOT/skills/herdr-peer-refactor/references/herdr.md"
   [ -x "$SKILLS_ROOT/bin/codex-reviewer" ]
-  grep -Fq '"$plugin_root/bin/codex-reviewer" --peer' "$reference"
 
   run herdr_codex_launches \
     "$PROJECT_ROOT/private_dot_config/codex" \
     "$PROJECT_ROOT/private_dot_claude" \
     "$PROJECT_ROOT/private_dot_gemini" \
-    "$PROJECT_ROOT/runtime" \
-    "$SKILLS_ROOT/skills/herdr-peer-refactor"
+    "$PROJECT_ROOT/runtime"
 
   [ "$status" -eq 0 ]
   [ -z "$output" ]

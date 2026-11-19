@@ -6,7 +6,6 @@ setup() {
   PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CONTRACT="$PROJECT_ROOT/runtime/autonomous-peer-contract.md"
   local skills_root="$(cd "${TREFLEBONBON_SKILLS_LIB:?run tests in the pinned skills-plugin devShell}/../.." && pwd)"
-  AUTO_SESSION="$skills_root/skills/herdr-peer-refactor/references/auto-session.md"
 }
 
 @test "contract stays indexed and instruction layers point to the fixed plugin source" {
@@ -81,9 +80,6 @@ PY
   ! grep -Fq 'auto-peer.rules' "$sync"
   grep -Fq 'pattern = ["git", "push"]' "$PROJECT_ROOT/private_dot_config/codex/rules/default.rules"
   ! grep -Fq '"git", "push"' "$rules"
-  grep -Fq 'CODEX_HOME="$HOME/.codex-peer" GH_CONFIG_DIR="$HOME/.codex-peer/gh"' "$AUTO_SESSION"
-  # --peer selects dotfiles-peer (tests/codex-reviewer.bats).
-  grep -Fq 'codex-reviewer --peer --disable apps' "$AUTO_SESSION"
   grep -Fq '[apps.github]' "$PROJECT_ROOT/private_dot_config/codex/config.toml.tmpl"
 }
 
