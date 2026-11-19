@@ -306,7 +306,7 @@ prepare_codex_permission_roots() {
     "$home/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
     "$source_root" \
     "$home/.config/nix-devshell" "$home/.config/gh" "$home/.config/git" \
-    "$home/.local/bin" \
+    "$home/.local/bin" "$home/runtime" \
     "$state_home/treflebonbon-skills/plugin-sync" "$legacy_root"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
     "$home/.config/nix-devshell/skills-plugin.json"
@@ -754,6 +754,49 @@ EOF
 
   [ "$status" -ne 0 ]
   [ "$(cat "$home/.ssh/config")" = "protected" ]
+}
+
+@test "dotfiles-secure reads only managed runtime guides and prevents edits to them" {
+  local home="$BATS_TEST_TMPDIR/home"
+  local workspace="$BATS_TEST_TMPDIR/workspace"
+  local guide
+  local guides=(
+    ai-runtimes.md human-validation.md index.md
+    investigation.md shell-environment.md skill-harness.md
+  )
+  mkdir -p "$workspace" "$home/.codex"
+  prepare_codex_permission_roots "$home"
+  for guide in "${guides[@]}"; do
+    printf '%s\n' "$guide" >"$home/runtime/$guide"
+  done
+  printf 'unmanaged fixture\n' >"$home/runtime/unmanaged.md"
+  printf 'private fixture\n' >"$home/runtime/fixture.key"
+  render_codex_managed_config "$PROJECT_ROOT" "$home/.codex/config.toml" "$home"
+
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- \
+    sh -eu -c '
+      for guide do
+        path="$HOME/runtime/$guide"
+        contents="$(cat "$path")"
+        test "$contents" = "$guide"
+        if (printf "changed\n" >"$path") 2>/dev/null; then
+          printf "unexpected write: %s\n" "$guide" >&2
+          exit 1
+        fi
+      done
+      for hidden in unmanaged.md fixture.key; do
+        if cat "$HOME/runtime/$hidden" >/dev/null 2>&1; then
+          printf "unexpected read: %s\n" "$hidden" >&2
+          exit 1
+        fi
+      done
+    ' _ "${guides[@]}"
+
+  if [ "$status" -ne 0 ]; then
+    printf '%s\n' "$output" >&3
+  fi
+  [ "$status" -eq 0 ]
 }
 
 @test "managed dependency policy permits official Node.js downloads and rejects lookalike hosts" {
