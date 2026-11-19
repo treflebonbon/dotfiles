@@ -52,16 +52,13 @@ setup() {
   jq -e '[.[] | .[] | .[]] | length == 12' <<<"$output"
 }
 
-# 管理するAI CLIは upstream の出力を使い、Herdr TUI は供給しない。
-@test "llm-agents tools use unmodified upstream outputs and omit Herdr TUI on all supported systems" {
+@test "llm-agents tools use unmodified upstream outputs on all supported systems" {
   run --separate-stderr nix eval --impure --json --no-write-lock-file --option warn-dirty false --expr '
     let
       flake = builtins.getFlake ((builtins.getEnv "PROJECT_ROOT") + "/private_dot_config/nix-devshell");
       names = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "code-review-graph" ];
     in builtins.mapAttrs (system: shells:
-      let
-        tui = builtins.filter (p: (p.pname or "") == "herdr") shells.wsl.nativeBuildInputs;
-        selectedTools = map (name:
+      map (name:
         let
           selected = builtins.filter (p: (p.pname or "") == name) shells.wsl.nativeBuildInputs;
           package = builtins.head selected;
@@ -70,8 +67,7 @@ setup() {
            assert package.drvPath == upstream.drvPath;
            assert toString package == toString upstream;
            { inherit name; version = package.version; }
-        ) names;
-      in assert builtins.length tui == 0; selectedTools
+      ) names
     ) flake.devShells
   '
   [ "$status" -eq 0 ]
@@ -159,8 +155,8 @@ setup() {
       root = builtins.getEnv "PROJECT_ROOT";
       repo = builtins.getFlake root;
       user = builtins.getFlake (root + "/private_dot_config/nix-devshell");
-      # APM は専用テストで既存 output を照会し、この検査ではビルドしない。
-      separatelyChecked = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "code-review-graph" ];
+      # APM と Herdr は専用テストで output を照会する。
+      separatelyChecked = [ "claude-code" "codex" "copilot-cli" "antigravity-cli" "apm" "code-review-graph" "herdr" ];
       packages = flake: builtins.filter
         (package: !(builtins.elem (package.pname or "") separatelyChecked))
         flake.devShells.${builtins.currentSystem}.wsl.nativeBuildInputs;
@@ -171,7 +167,7 @@ setup() {
             shell.nativeBuildInputs)
           (builtins.attrValues systemShells))
         (builtins.attrValues flake.devShells);
-    in assert noTui repo; assert noTui user; packages repo ++ packages user
+    in assert noTui repo; packages repo ++ packages user
   '
   [ "$status" -eq 0 ]
   local -a packages
