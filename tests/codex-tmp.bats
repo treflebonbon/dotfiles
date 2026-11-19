@@ -20,7 +20,7 @@ setup() {
     "$FIXTURE_HOME/.cache/treflebonbon-skills/marketplaces/$plugin_rev" \
     "$FIXTURE_HOME/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
     "$FIXTURE_HOME/.config/nix-devshell" "$FIXTURE_HOME/.config/gh" \
-    "$FIXTURE_HOME/.config/git" "$FIXTURE_HOME/.codex-peer/gh" \
+    "$FIXTURE_HOME/.config/git" \
     "$FIXTURE_HOME/.local/bin" \
     "$STATE_HOME/treflebonbon-skills/plugin-sync" \
     "$STATE_HOME/treflebonbon-skills/legacy/$legacy_rev"
@@ -32,7 +32,7 @@ setup() {
     "$FIXTURE_HOME/.cache/treflebonbon-skills/marketplaces/$plugin_rev" \
     "$FIXTURE_HOME/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
     "$FIXTURE_HOME/.config/gh" "$FIXTURE_HOME/.config/git" \
-    "$FIXTURE_HOME/.codex-peer/gh" "$FIXTURE_HOME/.local/bin" \
+    "$FIXTURE_HOME/.local/bin" \
     "$STATE_HOME/treflebonbon-skills/plugin-sync" \
     "$STATE_HOME/treflebonbon-skills/legacy/$legacy_rev"; do
     : >"$mount_root/.env"

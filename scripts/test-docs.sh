@@ -51,7 +51,7 @@ mapfile -t related < <(
     grep -lF -e "$file" -e "$(basename "$file")" tests/*.bats || :
   done | sort -u
 )
-contract=(tests/workflow-contract.bats tests/autonomous-peer-contract.bats)
+contract=(tests/workflow-contract.bats)
 mapfile -t files < <(printf '%s\n' "${contract[@]}" "${related[@]}" | sort -u)
 
 printf '対象 Bats:\n' >&2

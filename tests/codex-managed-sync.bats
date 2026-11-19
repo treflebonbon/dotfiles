@@ -569,7 +569,7 @@ SH
   mkdir -p "$TEST_HOME/.codex-app" "$explicit_home"
   for codex_home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
     mkdir -p "$codex_home"
-    printf '[permissions."dotfiles-secure".filesystem."%s"]\n"." = "read"\n[permissions."dotfiles-peer".filesystem."%s"]\n"." = "read"\n' \
+    printf '[permissions."dotfiles-secure".filesystem."%s"]\n"." = "read"\n' \
       "$codex_home/plugins/cache/treflebonbon/treflebonbon-skills" \
       >"$codex_home/config.toml"
   done
@@ -590,7 +590,7 @@ for config_path in sys.argv[1:4]:
         / "plugins/cache/treflebonbon/treflebonbon-skills"
     )
     cache_path = str(cache_root / version)
-    for profile_name in ("dotfiles-secure", "dotfiles-peer"):
+    for profile_name in ("dotfiles-secure",):
         filesystem = config["permissions"][profile_name]["filesystem"]
         assert filesystem[":root"] == "deny"
         assert filesystem[cache_path]["."] == "read"
@@ -661,7 +661,7 @@ records = result["results"]["codex"]
 assert [record["codex_home"] for record in records] == homes
 for record in records:
     assert record["install_path"].endswith(f"/plugins/cache/treflebonbon/treflebonbon-skills/{version}")
-    assert [profile["profile"] for profile in record["profiles"]] == ["dotfiles-secure", "dotfiles-peer"]
+    assert [profile["profile"] for profile in record["profiles"]] == ["dotfiles-secure"]
     assert all("**/credentials.json" in profile["denied_globs"] for profile in record["profiles"])
 PY
 
@@ -726,7 +726,7 @@ PY
   [ "$status" -eq 0 ]
   local config="$TEST_HOME/.codex/config.toml" profile mode root
   cp "$config" "$BATS_TEST_TMPDIR/clean-config.toml"
-  for profile in dotfiles-secure dotfiles-peer; do
+  for profile in dotfiles-secure; do
     for mode in read write; do
       for root in "$TEST_HOME/.codex/plugins/cache" \
         "$TEST_HOME/.codex/plugins/cache/treflebonbon/treflebonbon-skills/old" \

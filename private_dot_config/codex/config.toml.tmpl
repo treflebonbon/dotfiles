@@ -53,12 +53,10 @@ args = [
   "false",
 ]
 
-{{/* dotfiles-peer is dotfiles-secure for an auto codex peer: ~/.config/gh (the writable gh credential) is not readable; only the peer's own read-only gh config dir is. */ -}}
-{{ range $profile := list (dict "name" "dotfiles-secure" "ghRoot" "~/.config/gh") (dict "name" "dotfiles-peer" "ghRoot" "~/.codex-peer/gh") -}}
-[permissions."{{ $profile.name }}"]
+[permissions."dotfiles-secure"]
 extends = ":workspace"
 
-[permissions."{{ $profile.name }}".filesystem]
+[permissions."dotfiles-secure".filesystem]
 glob_scan_max_depth = 16
 ":root" = "deny"
 ":minimal" = "read"
@@ -72,8 +70,8 @@ glob_scan_max_depth = 16
 {{ printf "%q" $pluginSource }} = "read"
 {{ printf "%q" $legacyCliBackup }} = "read"
 
-{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" $profile.ghRoot "/tmp/codex" }}
-[permissions."{{ $profile.name }}".filesystem."{{ $root }}"]
+{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp/codex" }}
+[permissions."dotfiles-secure".filesystem."{{ $root }}"]
 "." = "{{ if or (eq $root ":workspace_roots") (eq $root "/tmp/codex") }}write{{ else }}read{{ end }}"
 {{ if eq $root "/tmp/codex" }}
 {{/* 存在しない共有領域の .env に mount target を作らないため glob にする。 */}}
@@ -112,10 +110,10 @@ glob_scan_max_depth = 16
 "**/service-account*.json" = "deny"
 {{ end }}
 
-[permissions."{{ $profile.name }}".network]
+[permissions."dotfiles-secure".network]
 enabled = true
 
-[permissions."{{ $profile.name }}".network.domains]
+[permissions."dotfiles-secure".network.domains]
 "registry.npmjs.org" = "allow"
 "**.github.com" = "allow"
 "**.githubusercontent.com" = "allow"
@@ -132,7 +130,6 @@ enabled = true
 "**.hex.pm" = "allow"
 "cpan.metacpan.org" = "allow"
 
-{{ end -}}
 
 [plugins."github@openai-curated"]
 enabled = true

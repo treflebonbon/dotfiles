@@ -8,7 +8,7 @@
 
 ## 一時ファイル
 
-セッション間で共有する一時ファイルは `/tmp/codex` 配下に置き、`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。通常の `/tmp` は共有先として許可していない。peer-refactor の公開証跡の保管・復旧は `~/runtime/autonomous-peer-contract.md` に従う。機密ファイル名の拒否と raw の隔離境界は `~/runtime/ai-runtimes.md` を参照する。
+セッション間で共有する一時ファイルは `/tmp/codex` 配下に置き、`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。通常の `/tmp` は共有先として許可していない。機密ファイル名の拒否と raw の隔離境界は `~/runtime/ai-runtimes.md` を参照する。
 
 Codex の同一の実効 permission profile では、具体的な path の規則が祖先 path の規則に優先し、`write` は read も含む。`/tmp` deny と `/tmp/codex` write が併記されている場合、共有先の公開ファイルには後者を適用する。より具体的な機密名 deny と上位 policy の制限は引き続き守り、実際の tool 拒否と未実行の推測を区別する（[公式の優先規則](https://learn.chatgpt.com/docs/permissions)）。
 
@@ -91,8 +91,6 @@ Use Mermaid code blocks, not ASCII art or box-drawing characters.
 Matt Pocock skill の workflow / safety contract、phase boundary、自律実行範囲、PR 公開手順、外部 skill を実行・評価するときのローカル上書きは `~/runtime/skill-harness.md` と関連 ADR を読む。
 
 Agent Skill の導入・更新・source 照合では `~/runtime/skill-harness.md` を読み、dotfiles 管理の固定版公開 plugin と APM 管理の第三者 skill を分ける。
-
-- 元の候補を native peer と改善する規範の正本は固定 plugin source の `contracts/autonomous-peer-contract.md` と `contracts/auto-peer-protection.md`。source の場所と auto の hold 条件は `~/runtime/autonomous-peer-contract.md` を参照する。明示依頼から通常 session でも進め、未承認の不可逆・影響の広い判断は候補ごとに保留して報告する。merge は行わず、人の回答を待つ `grilling` 条項は変更しない。
 
 仕様全体の一括実装では `implement-spec` で一つの Integration Branch／PR に集約し、詳細は `~/runtime/skill-harness.md` の「一括実装」を読む。対象 repo に用語集（`GLOSSARY.md`）や対象領域の ADR があれば、コード探索前に読む。無ければそのまま進む。
 
