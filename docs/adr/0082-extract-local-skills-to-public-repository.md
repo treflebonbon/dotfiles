@@ -118,6 +118,8 @@ dotfiles の ADR・GLOSSARY への相対リンクは、必要な契約・用語�
 
 [ADR-0075](0075-adopt-peer-refactor-skills.md) の元候補固定、通常の明示協働、専用 auto の追加保護は維持し、skill・契約・CLI の正本と配布だけを公開 repository へ移す。専用 auto の実効保護を確認できない場合は保留する。runtime の設定や資格情報を自動で有効化・生成しない。
 
+> 2026-11-19 追記: ADR-0075 は skills repository の [ADR 0004](https://github.com/treflebonbon/skills/blob/main/docs/adr/0004-remove-peer-refactor-skills.md) で superseded となり、peer 協働・専用 auto の規範と保護設定は撤去した。上の段落は当時の判断として残す。
+
 ## 独立導入のために整理する依存
 
 外部依存の版・供給元・必要になる実行経路を、全11件の入口と子プロセスから棚卸しして README に記載する。以下はレビューで確認した移管対象であり、optional な手順の依存を plugin 全体の導入条件にはしない。

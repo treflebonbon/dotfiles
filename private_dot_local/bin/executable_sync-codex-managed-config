@@ -205,6 +205,12 @@ def strip_retired_plugins(existing: dict[str, Any]) -> None:
         existing.pop("plugins", None)
 
 
+def strip_retired_profiles(existing: dict[str, Any]) -> None:
+    permissions = existing.get("permissions")
+    if isinstance(permissions, dict):
+        permissions.pop("dotfiles-peer", None)
+
+
 def strip_retired_sandbox_settings(existing: dict[str, Any], managed: dict[str, Any]) -> None:
     if "default_permissions" not in managed:
         return
@@ -233,6 +239,7 @@ def strip_managed_network_domains(existing: dict[str, Any], managed: dict[str, A
 
 strip_stale_managed_filesystem_rules(existing, managed)
 strip_retired_plugins(existing)
+strip_retired_profiles(existing)
 strip_retired_sandbox_settings(existing, managed)
 strip_managed_network_domains(existing, managed)
 
@@ -300,7 +307,7 @@ def remove_managed_skills_plugin_cache_rules(
     ):
         return
     cache_root = codex_path.parent.resolve() / SKILLS_PLUGIN_CACHE
-    for profile_name in ("dotfiles-secure", "dotfiles-peer"):
+    for profile_name in ("dotfiles-secure",):
         if profile_name not in managed_permissions:
             continue
         profile = existing_permissions.get(profile_name)
@@ -338,7 +345,7 @@ def add_verified_skills_plugin_cache_read(
         for pattern, mode in workspace_rules.items()
         if mode == "deny"
     } if isinstance(workspace_rules, dict) else {}
-    for profile_name in ("dotfiles-secure", "dotfiles-peer"):
+    for profile_name in ("dotfiles-secure",):
         profile = permissions.get(profile_name)
         if not isinstance(profile, dict):
             continue
@@ -530,7 +537,7 @@ for home, record in zip(requested_homes, records, strict=True):
         home / "plugins/cache/treflebonbon",
         cache_root,
     }
-    profile_names = ("dotfiles-secure", "dotfiles-peer")
+    profile_names = ("dotfiles-secure",)
     profile_results = []
     for profile_name in profile_names:
         managed_profile = managed_profiles.get(profile_name)

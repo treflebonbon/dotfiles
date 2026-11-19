@@ -61,7 +61,7 @@ HOME 内の廃止 skill 名や Codex native location の重複候補は、名前
 
 ## 公開 Agent Skills plugin
 
-11件の Agent Skill、共用 CLI、規範契約、WSL2 browser 資産の正本は公開 `treflebonbon/skills` repository である。dotfiles は `private_dot_config/nix-devshell/skills-plugin.json` の単一 pin を使い、Claude Code、Codex、Antigravity CLI の公式 plugin 導入と、端末固有の Nix / config / dispatch 配線を所有する。dotfiles に skill payload の source copy や独自 dependency resolver を置かない。第三者 skill は従来どおり APM から別途導入する。
+10件の Agent Skill、共用 CLI、WSL2 browser 資産の正本は公開 `treflebonbon/skills` repository である。dotfiles は `private_dot_config/nix-devshell/skills-plugin.json` の単一 pin を使い、Claude Code、Codex、Antigravity CLI の公式 plugin 導入と、端末固有の Nix / config / dispatch 配線を所有する。dotfiles に skill payload の source copy や独自 dependency resolver を置かない。第三者 skill は従来どおり APM から別途導入する。
 
 pin の完全な識別情報と、更新・旧配備撤去・復旧条件は [ADR-0082](adr/0082-extract-local-skills-to-public-repository.md) を正本とする。現在の導入状態は `sync-codex-managed-config --verify-only` の current cache path / grant / deny 照合後に `sync-skills-plugin --verify-only` で全 runtime の plugin payload を確認する。成功 receipt のみで現在の導入状態や旧配備撤去を許可しない。旧配備の撤去は両 verifier の成功を同じ hook 実行内で確かめた後だけ行う。
 

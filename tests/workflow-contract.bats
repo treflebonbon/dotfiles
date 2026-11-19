@@ -213,11 +213,15 @@ setup() {
   grep -Fq '### Orca worktree の準備確認' "$RUNTIME"
   [ "$(grep -Fc '<package-root>/bin/orca-worker-readiness' "$RUNTIME")" -eq 2 ]
   grep -Fq '### `orca-send` の本文' "$RUNTIME"
-  run grep -F 'skills/orca-peer-refactor/references/orca.md#' "$RUNTIME"
-  [ "$status" -eq 1 ]
   grep -Fq 'ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は' "$RUNTIME"
   grep -Fq '同じ実行 host の worktree 検証が前提で、remote placement は実行 host 側の独立観測を要する' "$RUNTIME"
   grep -Fq 'folder workspace、および primary checkout での説明・状態確認・読み取り調査は対象外' "$RUNTIME"
+}
+
+@test "runtime docs and instructions carry no retired peer context" {
+  run grep -rnE 'peer-refactor|autonomous-peer|auto-peer|dotfiles-peer|codex-peer|--peer|native peer' \
+    "$PROJECT_ROOT/runtime" "$GLOBAL_CLAUDE" "$GLOBAL_CODEX" "$PROJECT_ROOT/docs/conventions.md"
+  [ "$status" -eq 1 ] || { printf '%s\n' "$output"; false; }
 }
 
 @test "repo-root instructions stay out of home while global sources carry shared contracts" {
@@ -251,16 +255,16 @@ dump = subprocess.run(["lefthook", "dump", "--format", "json"], cwd=sys.argv[1],
 job = next(job for job in json.loads(dump.stdout)["pre-commit"]["jobs"] if job.get("name") == "instruction-contract")
 commands = [shlex.split(part) for part in job["run"].split("&&")]
 assert commands[0][:3] == ["command", "-v", "codex"], commands
-assert commands[1] == ["bats", "tests/workflow-contract.bats", "tests/autonomous-peer-contract.bats"], commands
+assert commands[1] == ["bats", "tests/workflow-contract.bats"], commands
 assert commands[2] == ["bats", "--filter", "Review Round contract", "tests/gh-review-thread.bats"], commands
 # 契約テストが読むファイルの変更で起動する。
 required = {
     "CLAUDE.md", "AGENTS.md", "GLOSSARY.md", ".chezmoiignore", "lefthook.yml", "runtime/*.md",
-    "private_dot_claude/CLAUDE.md", "private_dot_claude/auto-peer-deny.json", "private_dot_claude/settings.json.tmpl",
-    "private_dot_config/codex/AGENTS.md", "private_dot_config/codex/auto-peer.rules",
+    "private_dot_claude/CLAUDE.md", "private_dot_claude/settings.json.tmpl",
+    "private_dot_config/codex/AGENTS.md",
     "private_dot_config/codex/config.toml.tmpl", "private_dot_config/codex/rules/default.rules",
     "private_dot_local/bin/executable_sync-codex-managed-config", "private_dot_gemini/AGENTS.md",
-    "tests/workflow-contract.bats", "tests/autonomous-peer-contract.bats", "tests/gh-review-thread.bats",
+    "tests/workflow-contract.bats", "tests/gh-review-thread.bats",
 }
 missing = sorted(required - set(job["glob"]))
 assert not missing, missing

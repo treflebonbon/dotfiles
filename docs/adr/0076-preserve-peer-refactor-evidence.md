@@ -1,10 +1,12 @@
 ---
 title: peer-refactor の公開証跡を Git common dir に保管する
-status: accepted
+status: superseded
 date: 2026-10-18
 ---
 
 # peer-refactor の公開証跡を Git common dir に保管する
+
+> 2026-11-19 に skills repository の [ADR 0004](https://github.com/treflebonbon/skills/blob/main/docs/adr/0004-remove-peer-refactor-skills.md) が peer-refactor の証跡保管を撤去したため、本決定は superseded。dotfiles 側の契約案内・`auto-peer.rules`・`dotfiles-peer` profile も treflebonbon/skills#96 で撤去した。以下は当時の判断記録として保持し、文中のリンク先は撤去済みのことがある。
 
 gateway のリファクタを再開した際、task worktree と commit は残っていたが、`/tmp/codex` の元レポート・固定 record・peer 記録がなく、公開の照合を継続できなかった。元セッションの tool 入力からレポートと record を復元すると、会話の fingerprint と一致した。ファイルが消えた直接の原因は未確認である。
 

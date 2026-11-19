@@ -573,26 +573,6 @@ assert_codex_strict_config() {
   assert_codex_strict_config "$codex_home"
 }
 
-@test "dotfiles-peer is dotfiles-secure without the writable gh credential and leaves the default profile alone" {
-  local rendered="$BATS_TEST_TMPDIR/config.toml" secure peer
-  render_codex_managed_config "$PROJECT_ROOT" "$rendered"
-
-  # The default stays dotfiles-secure; a peer opts in with -c default_permissions.
-  grep -Fq 'default_permissions = "dotfiles-secure"' "$rendered"
-  secure="$(sed -n '/^\[permissions\."dotfiles-secure"\]/,/^\[permissions\."dotfiles-peer"\]/p' "$rendered" | sed '$d')"
-  peer="$(sed -n '/^\[permissions\."dotfiles-peer"\]/,/^\[plugins\./p' "$rendered" | sed '$d')"
-
-  # dotfiles-secure still reads ~/.config/gh; dotfiles-peer reads only its own gh config dir.
-  grep -Fq '[permissions."dotfiles-secure".filesystem."~/.config/gh"]' <<<"$secure"
-  grep -Fq '[permissions."dotfiles-peer".filesystem."~/.codex-peer/gh"]' <<<"$peer"
-  run grep -F '~/.config/gh' <<<"$peer"
-  [ "$status" -eq 1 ]
-
-  # Apart from the gh root, the two profiles are the same, so a change to one reaches the other.
-  diff <(sed 's/dotfiles-secure/PROFILE/; s#~/\.config/gh#GH_ROOT#' <<<"$secure") \
-    <(sed 's/dotfiles-peer/PROFILE/; s#~/\.codex-peer/gh#GH_ROOT#' <<<"$peer")
-}
-
 assert_ponytail_plugin_installed_and_enabled() {
   local plugin_list_json="$1"
   python3 - "$plugin_list_json" <<'PY'
@@ -724,7 +704,7 @@ EOF
   ln -s /home/probe/.cache/nix-devshell-global-env.bash.codex "$home/.local/bin/codex"
   printf 'private fixture\n' >"$home/.cache/private.txt"
 
-  for profile in dotfiles-secure dotfiles-peer; do
+  for profile in dotfiles-secure; do
     run_codex_with_virtual_home "$home" "$workspace" \
       sandbox -P "$profile" -C "$workspace" -- \
       "$env_path" PATH=/home/probe/.local/bin "$bash_path" --noprofile --norc -c \
@@ -782,7 +762,7 @@ EOF
 import sys, tomllib
 from pathlib import Path
 config = tomllib.loads(Path(sys.argv[1]).read_text())
-for profile in ("dotfiles-secure", "dotfiles-peer"):
+for profile in ("dotfiles-secure",):
     policy = config["permissions"][profile]["network"]["domains"]
     assert policy["nodejs.org"] == "allow", profile
     assert all(
@@ -1624,6 +1604,30 @@ EOF
   ! grep -q 'superpowers@openai-curated' "$home/.codex/config.toml"
   grep -q '^\[plugins\."user-plugin@somewhere"\]$' "$home/.codex/config.toml"
   grep -q '^\[plugins\."github@openai-curated"\]$' "$home/.codex/config.toml"
+}
+
+@test "Codex config merge script removes the retired dotfiles-peer profile" {
+  local home="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$home/.config/codex" "$home/.codex"
+  stage_codex_managed_config "$home"
+
+  cat >"$home/.codex/config.toml" <<'EOF'
+[permissions."dotfiles-peer"]
+extends = ":workspace"
+
+[permissions."dotfiles-peer".filesystem]
+"~/.codex-peer/gh" = "read"
+
+[permissions.user-profile]
+extends = ":workspace"
+EOF
+
+  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+
+  run grep -q 'dotfiles-peer' "$home/.codex/config.toml"
+  [ "$status" -eq 1 ]
+  grep -q '^\[permissions\.user-profile\]$' "$home/.codex/config.toml"
+  grep -q '^\[permissions\.dotfiles-secure\]$' "$home/.codex/config.toml"
 }
 
 @test "Codex config merge script preserves local MCP servers while adding managed ones" {

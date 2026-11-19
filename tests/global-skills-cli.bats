@@ -57,7 +57,7 @@ assert_dispatch() {
 }
 
 @test "codex-reviewer dispatches through the verified public CLI" {
-  assert_dispatch codex-reviewer --peer --model gpt-6
+  assert_dispatch codex-reviewer --no-daemon --model gpt-6
 }
 
 @test "generic devshell-env routes only raw Codex startup through the raw verifier" {

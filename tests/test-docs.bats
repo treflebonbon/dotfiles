@@ -26,7 +26,6 @@ EOF
 @test "a docs-only change plans the contract Bats plus Bats that reference the file" {
   run -0 scripts/test-docs.sh --plan runtime/skill-harness.md
   [[ "$output" == *"tests/workflow-contract.bats"* ]]
-  [[ "$output" == *"tests/autonomous-peer-contract.bats"* ]]
 }
 
 @test "an out-of-scope record is a docs-only change" {

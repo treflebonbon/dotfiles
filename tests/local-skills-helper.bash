@@ -102,7 +102,7 @@ pin = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 homes = [str(Path(path).resolve()) for path in sys.argv[2:]]
 records = [
     {"codex_home": home, "install_path": f"{home}/plugins/cache/treflebonbon/treflebonbon-skills/{pin['version']}",
-     "profiles": [{"profile": "dotfiles-secure"}, {"profile": "dotfiles-peer"}]}
+     "profiles": [{"profile": "dotfiles-secure"}]}
     for home in homes
 ]
 print(json.dumps({"status": "verified", "pin": pin, "codex_homes": homes, "results": {"codex": records}}))

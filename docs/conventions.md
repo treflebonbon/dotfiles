@@ -43,8 +43,6 @@ Linux の `tests/skills-plugin.bats` の検証と `tests/codex-tmp.bats` の san
 
 topic branch の push・PR 公開前に、validated task worktree で `lefthook run test` を実行する。同じソース・依存関係・検証環境で全 Bats が成功済みなら、公開直前の繰り返しは不要。検証後にソース・依存関係・検証環境を変更した場合は再実行する。失敗が残る場合は修正してから公開する。変更が指示・文書 Markdown（`instruction-contract` の glob のうち `*.md` と、triage の却下記録 `.out-of-scope/*.md`。`tests/*.bats`・`lefthook.yml`・`.chezmoiignore`・`*.tmpl`・`*.toml`・実行ファイルは含めない）だけなら、全 Bats の代わりに `scripts/test-docs.sh` で契約テストと変更ファイルを参照する Bats だけを実行して公開できる。入口は対象外の変更を見つけると exit 2 で全 Bats を求める。参照の選別は直接参照（パスまたは basename の文字列一致）だけで、glob・間接参照の Bats は漏れる。例外で公開した後に全 Bats が落ちた事例は、この節の下に件数を足して母数にする。認証・実モデル等の opt-in 検証は既定の skip を維持し、skip を実行済みの検証として扱わない。`pre-commit` は軽い lint と、指示ファイルを変更したときだけ動く契約テスト（`instruction-contract`、数秒）に留める。全 Bats の実行漏れは `pre-push`（`scripts/pre-push.sh`）が止める。CI で Bats を走らせなくなったため、ローカルの自動の関門はこの hook だけになる。`pre-push` は削除だけの push を通し、push 対象の commit の tree が検証済みなら再実行せず、未検証で HEAD の tree なら `scripts/test-docs.sh` を先に呼ぶ（exit 0 なら関連 Bats だけで通り、exit 2 なら `bun run test` で全 Bats を実行する）。検証済みの tree は worktree ごとの git dir の `tested-trees` に記録する。記録は `lefthook run test` の成功時と `pre-push` の成功時で、未 commit・未追跡の変更があるときは検証内容と tree が食い違うため記録しない。`lefthook run test` は `lefthook install` も実行するので、新しい clone や worktree でもこの入口を一度通せば hook が有効になる。事前に `lefthook run test` を通しておけば、push は記録の照合だけで通る（全 Bats は実測で 5〜8 分かかる。[ADR-0079](adr/0079-run-bats-files-in-parallel.md) の実測は約 8 分）。未検証で HEAD 以外の commit を push しようとすると、テストを走らせずに拒否する。未検証の tree で未 commit・未追跡の変更があるときも、テストを走らせずに拒否する（テストと文書判定は作業ツリーに対して走り、push する tree とは別の内容を検証してしまうため）。この hook の判定は `tests/pre-push.bats`、`lefthook.yml` との結線は `tests/pre-push-wiring.bats` で検証する。
 
-アーキテクチャHTML report checkerの実ブラウザ再検証は、全Batsへ組み込まず、repo root で `nix develop ./private_dot_config/nix-devshell --command nix develop . --command scripts/run-architecture-render-smoke.sh` を個別に実行する。`playwright-cli` が管理する一時session、loopback HTTP server、追跡fixtureを使う。実report用 `check-architecture-render.js` を正本とし、既存SKILL.mdの手順と同じ `sed '$s/;$//'` を `run-code` へ渡す一時入力にだけ適用する。Mermaid 11.17.2 をjsDelivrから一時web rootへ取得し、vendoringしない。`curl` / `python3` / `playwright-cli` とjsDelivrへの接続が実行前提であり、未達時は失敗理由を表示する。TAPとconsoleの記録は試行ごとに `.tmp/architecture-render-smoke.*` へ保持する。図なしHTMLはHTTP 200なら成功、HTTP 404なら失敗として検査する。
-
 `assume-unchanged` または `skip-worktree` が付いた tracked file は、`git status` が clean でも実内容の変更を隠せる。未検証 tree の公開前検証はこれらのフラグを拒否し、検証済み記録も作らない。検査は呼出元の directory にかかわらず repo 全体を対象にし、Git status・フラグ列挙の失敗も非0終了する。テスト後にフラグを検出した場合も push を拒否する。フラグを解除してから再検証する。
 
 canonical検証の環境準備から開始する場合は、linked task worktree で次の入口を使う。検証する変更をcommitしてcleanにし、関連テストとレビュー指摘の修正を終えたHEADで実行する。通常Linuxでは `--shell default`、WSL2では `--shell wsl` を選ぶ。
@@ -212,10 +210,6 @@ python3 scripts/verify-ai-tools.py "$PWD" --shell wsl --no-codex-build -- \
 ```
 
 `publication.json` の `push` と `verification` は別の結果とする。同じ記録に対するpush・verifyは排他実行し、先行処理が終了してから最新の記録を読む。観測したHEAD・branch・stateは `observations` に残る。観測が0件の間は、誤指定したPR番号を同じ記録で訂正できる。観測後は照合先を固定し、別PRの履歴を混ぜない。確認が期限切れでもpushの成功は保持し、exit 2で照合待ちを示す。APIエラー・異なるbranch・閉じたPRは別の状態で停止する。`verify` を同じ記録で再開してもpushを実行しない。既存記録での `push` は拒否する。pushの実行上限は1800秒とし、超過時は成否不明の `started` を維持する。中断等で `push.status=started` が残る場合も、読取りで確認し、pushの終了状態を成功へ書き換えない。PR本文更新・返信・resolveは、公開確認後に既存の手順と `gh-review-thread` を使う。
-
-## 自律 agent の peer 協働
-
-- 元の候補を native peer と改善する契約の正本は、固定 plugin source の `contracts/autonomous-peer-contract.md` と `contracts/auto-peer-protection.md`。source の解決方法は [`runtime/autonomous-peer-contract.md`](../runtime/autonomous-peer-contract.md) を参照する（[ADR-0075](adr/0075-adopt-peer-refactor-skills.md)）。
 
 ## 言語バージョンの更新
 
