@@ -185,6 +185,12 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 管理ソースまたは同期処理が変わったときに chezmoi の `run_onchange_after_codex-managed-sync.sh.tmpl` が実行する。配備先の手編集や `CODEX_HOME` の変更だけでは再実行されないため、修復・新しい配備先への同期は `sync-codex-managed-config` を明示実行する。Desktop の初回ログインも同じコマンドを使い、同期済みならログイン時の再同期を省く。公開 Agent Skills の旧配備撤去では live source の after hook を明示実行する。この hook 自身が mutating 同期成功後に `sync-codex-managed-config --verify-only` → `sync-skills-plugin --verify-only` → `legacy_skills retire-known-skills` の順に処理する。path 指定 apply は hook を起動しないため、対象 path の apply 後に hook を render / execute する（手順は [Architecture](../docs/architecture.md#公開-agent-skills-plugin)）。単独の `sync-codex-managed-config` では旧配備を撤去しない。
 
+**手動配備時の hook 確認**
+
+1. 同期直前に、対象の Codex home と作業ディレクトリで `/hooks` または Codex App Server の `hooks/list` を使い、hook の登録元・イベント・有効状態・信頼状態を控える。比較用に `config.toml` の `[hooks.state]` を手元に控える。Orca が hook を登録している場合は、復旧用に `~/.codex/hooks.json` を権限 `0600` のファイルへ退避する。
+2. 同期直後に、同じ Codex home と作業ディレクトリで再確認する。`config.toml` の `[hooks.state]` も前後で比較し、報告には変更箇所の名前と状態を残す。hook の本文・引数やハッシュ値は手元の比較に留める。
+3. Orca の登録が消えた場合は、管理 hook の更新を保ったまま、退避した定義から Orca の登録を復旧して確認する。`modified` または未信頼の hook は、ユーザーが内容を確認して信頼を判断する。[Codex の hook 確認手順](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks)
+
 全配備先の出力生成と事前検証が成功してから、ファイルごとに原子的に置換する。失敗時は診断の `prepare` / `apply` と対象パスを確認する。`prepare` の失敗では既存ファイルを置換しない。`apply` 中の障害では成功済みの更新が残るため、原因修正後にコマンドを再実行して揃える。chezmoi 経由の失敗は次回 apply でも再試行する（[ADR-0051](../docs/adr/0051-sync-codex-managed-settings-as-a-set.md)）。
 
 MCP サーバーは `.mcp.json` / `private_dot_mcp.json` で設定（context7 / serena）。
