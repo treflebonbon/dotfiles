@@ -4,5 +4,7 @@ apm_modules/
 # apm の primitive 作業 dir (使う場合)
 .apm/
 
+**/.claude/settings.local.json
+
 # Sprites CLI のディレクトリごとの選択
 .sprite
