@@ -322,7 +322,11 @@ browser 資産は public pin が正本。source path は `sync-skills-plugin --v
 
 Orca の起動設定を調べるときは、稼働中のインスタンスの Settings → Agents 画面か、そのインスタンスが使う設定ストアを読み取り専用で確認する。Agent Permissions の全体設定とエージェント個別のモードに加え、各エージェントのカスタム起動引数とカスタム環境変数の有無を確認する。旧 `orca-data.json` は移行調査に使う。
 
-意図したモデルと実効モデルが食い違った場合は、同じ起動について Orca の起動経路、Codex CLI の版、モデル・推論強度・プロファイルの起動時指定、最初のターンの実効モデルと推論強度を控える。起動時に指定がなかった項目も記録し、実際の `$CODEX_HOME/config.toml` の対応する値と照合する。起動引数と環境変数から記録する値は照合に必要な非機密項目に絞る。
+意図したモデルと実効モデルが食い違った場合は、同じ起動について Orca の起動経路、Codex CLI の版、モデル・推論強度・プロファイルの起動時指定、最初のターンの実効モデルと推論強度を控える。起動時の cwd、プロジェクトの信頼状態、起動時に指定がなかった項目も記録する。起動引数と環境変数から記録する値は照合に必要な非機密項目に絞る。
+
+ユーザー設定は `$CODEX_HOME/config.toml` を確認し、`CODEX_HOME` が未設定なら `~/.codex/config.toml` を確認する。`--profile` を指定した場合は、同じディレクトリの `<name>.config.toml` も確認する。[Codex の設定と保存先](https://learn.chatgpt.com/docs/config-file/config-advanced#config-and-state-locations)
+
+プロジェクト設定は、信頼済みの場合に限り、プロジェクトルートから起動時の cwd までの各 `.codex/config.toml` でモデルと推論強度を確認する。起動引数、cwd に近い順のプロジェクト設定、指定プロファイル、ユーザー設定の順で照合する。[Codex の設定優先順位](https://learn.chatgpt.com/docs/config-file/config-basic#configuration-precedence)
 
 **Codex Runtime Adapter（raw CLI only）**: `codex-worktree` は current linked worktree の physical root、absolute worktree Git dir、absolute Git common dir を inherited `GIT_*` なしで解決し、Codex の公式 `-C` / `-c` interface へ変換する。`.git` pointer → worktree Git dir → `commondir` → common dir と、common dir 直下の `worktrees/<entry>`、worktree Git dir の `gitdir` back-pointer → top-level `.git` を同じ physical ownership chain として検証する。metadata-file-relative target は受理し、不一致は Codex 未起動で fail closed にする。profile は ambient `CODEX_PERMISSION_PROFILE` や managed config の default に委ねず、top-level agent launch が受理する `-c 'default_permissions="dotfiles-secure"'` で固定する（`-P dotfiles-secure` は `codex sandbox` subcommand の直接検証で使う）。primary checkout、non-Git、unresolved metadata、working root / permission boundary を置換・拡張する caller argument、sandbox / hook trust を迂回する dangerous argument は fail closed とし、Git operation や workflow policy を持たない。`codex-orca` は既存 caller 向けに argv をそのまま転送する compatibility entry だが、Orca native session の entry / activation には使わない。managed `dotfiles-secure` config は secret-path deny と network policy を保持するが static repository Git write exception を持たず、Active Git Metadata Boundary は raw adapter が session ごとにだけ追加する（[ADR-0044](../docs/adr/0044-runtime-owned-worktree-entry-and-codex-activation.md)）。
 
