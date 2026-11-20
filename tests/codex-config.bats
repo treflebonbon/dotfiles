@@ -1610,6 +1610,11 @@ trust_level = "trusted"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
+
+[hooks.state."/example/hooks.json:session_start:0:0"]
+enabled = false
+trusted_hash = "sha256:fixture-definition"
+trusted_content_hash = "sha256:fixture-content"
 EOF
 
   env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
@@ -1627,6 +1632,19 @@ EOF
   grep -q '^"gpt-5.4" = "gpt-5.5"$' "$home/.codex/config.toml"
   grep -q '^\[tui.model_availability_nux\]$' "$home/.codex/config.toml"
   grep -q '^"gpt-5.5" = 4$' "$home/.codex/config.toml"
+
+  python3 - "$home/.codex/config.toml" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+config = tomllib.loads(Path(sys.argv[1]).read_text())
+assert config["hooks"]["state"]["/example/hooks.json:session_start:0:0"] == {
+    "enabled": False,
+    "trusted_hash": "sha256:fixture-definition",
+    "trusted_content_hash": "sha256:fixture-content",
+}
+PY
 }
 
 @test "Codex config merge script removes retired superpowers plugin block" {
