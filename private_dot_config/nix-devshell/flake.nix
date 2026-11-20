@@ -67,6 +67,7 @@
           gwq = pkgs.callPackage ./packages/gwq.nix { };
           gws = pkgs.callPackage ./packages/gws.nix { };
           flyline = pkgs.callPackage ./packages/flyline.nix { };
+          sprite = pkgs.callPackage ./packages/sprite.nix { };
           wslXdgOpen = pkgs.callPackage ./packages/wsl-xdg-open.nix { };
 
           makeShell =
@@ -116,6 +117,7 @@
                 ++ [
                   gws
                   gwq
+                  sprite
                 ];
 
               mergedPackages = builtins.concatLists (map (f: f.packages or [ ]) fragments);
