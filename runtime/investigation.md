@@ -40,7 +40,22 @@ gcloud-inspect --reviewed compute disks describe DISK --project PROJECT_ID --zon
 
 `--reviewed` を付けること自体をユーザーの承認の代わりにしない。Codex の prompt、Claude Code の ask にも登録する。通常の `gcloud` は引数の並べ方による秘密取得や出力制限の迂回を防ぐため、一括禁止を維持する。`command gcloud`、`env gcloud`、`/bin/gcloud`、`/usr/bin/gcloud` も禁止する。
 
-一覧とログは既定で最大100件。`--limit` は1〜1000を指定できる。`--project`、`--region`、`--zone`、`--location`、`--bucket`、`--service`、`--filter`、`--sort-by`、`--freshness`、`--order` を受理するが、実際に使えるオプションは各 gcloud 操作の仕様に従う。出力形式の変更、flags file、認証切替、HTTP ログの出力などは自動許可しない。API の自動有効化も無効にする。
+一覧とログは既定で最大100件。`--limit` は1〜1000を指定できる。`gcloud-inspect` の共通オプションは `--project`、`--limit`、`--filter`、`--sort-by`、`--freshness`、`--order`、`--region`、`--zone`、`--location`、`--bucket`、`--service`。実際に使えるオプションとその組み合わせは各 gcloud 操作の仕様に従う。出力形式の変更、flags file、認証切替、HTTP ログの出力などは自動許可しない。API の自動有効化も無効にする。
+
+### Cloud Logging のログ検索
+
+`logging read` の検索条件は、全体を引用符で囲み、単一の位置引数として渡す。`gcloud-inspect` は条件式をそのまま gcloud に渡し、Cloud Logging が解釈する。`--freshness` が有効なのは、条件式にタイムスタンプを含めず、降順で検索する場合。[Google Cloud CLI の `logging read` リファレンス](https://docs.cloud.google.com/sdk/gcloud/reference/logging/read)
+
+出力は helper が `--format=json` に固定する。呼び出しに `--format` を付けると gcloud を起動する前に拒否される。整形には出力された JSON を `jq` に渡す。
+
+```bash
+gcloud-inspect logging read 'timestamp>="2026-11-01T00:00:00Z" AND httpRequest.requestUrl:"https://example.com/api"' \
+  --project example-project --limit 20 | jq .
+```
+
+hook 経由で通常の `gcloud logging read` を使う場合は単独で実行し、受け取った JSON は別の呼び出しで `jq` に渡す。
+
+### Monitoring の時系列データ
 
 時系列データは固定した Monitoring API の GET を使う。認証トークンは内部で取得し、コマンド引数・結果・エラーへ出力しない。別の宛先への redirect は追跡しない。
 
