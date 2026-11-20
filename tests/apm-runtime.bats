@@ -44,7 +44,7 @@ assert_lock_entry() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#acb4cfe14470b1fdf51e855431af618d936b7db8' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#b49177d32788f2dc585c42831d845dacf1ebed2c' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -58,8 +58,8 @@ assert_lock_entry() {
 
   grep -Fq 'apm_version: 0.35.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: acb4cfe14470b1fdf51e855431af618d936b7db8' "$lock"
-  grep -Fq 'content_hash: sha256:ea4414a977c3cd1e3797dd2187ccf6c4bb6e39d3b9cd847a487e2166c38e09c1' "$lock"
+  grep -Fq 'resolved_commit: b49177d32788f2dc585c42831d845dacf1ebed2c' "$lock"
+  grep -Fq 'content_hash: sha256:b781b2180544625f7b1849d974203bc975976eee7c2e2f38216065798eafd180' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/impeccable' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/impeccable' "$lock"
@@ -103,7 +103,7 @@ assert_lock_entry() {
 
   grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65' "$manifest"
   grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#6f55706d1069e512430582ad86e4e57dc07afe1b' "$manifest"
-  grep -Fq 'stablyai/orca/skills/orca-cli#a1fda35055ff74904f1f75fdd96a330c11377753' "$manifest"
+  grep -Fq 'stablyai/orca/skills/orca-cli#d840256c353f081efc4a1750a292b2dcee9daef3' "$manifest"
   ! grep -Fq 'herdrdev/herdr/skills/herdr' "$manifest"
   ! grep -Fq 'repo_url: herdrdev/herdr' "$lock"
   ! grep -Fq 'virtual_path: skills/herdr' "$lock"
@@ -134,8 +134,8 @@ assert_lock_entry() {
     '[0-9a-f]{40}' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
-    'a1fda35055ff74904f1f75fdd96a330c11377753' \
-    'sha256:e885714460295aee8d4c2b27b8896461a93abeacd288a6dae7b07ffacd3b40c8'
+    'd840256c353f081efc4a1750a292b2dcee9daef3' \
+    'sha256:8764a05bbf6a1bb6ae46e9cce4da8d8e8036460920219213e66f64dea994f249'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
     '[0-9a-f]{40}' \
     'sha256:a237694aa27b56efc5ca6f8c56bc5baec74945ef5d719b269472075608bce026'

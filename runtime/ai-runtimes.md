@@ -18,6 +18,10 @@ AI/LLM ツールは `github:numtide/llm-agents.nix` flake 経由で管理（`mod
 
 WSL2 のユーザー devShell（`#wsl`）は、現行の Nix snapshot から Herdr TUI 本体を供給する。App 移行時の独自連携の残存確認は、[切替後の旧 TUI 配備物](#切替後の旧-tui-配備物)を参照する。
 
+## Antigravity CLI で Gemini 4 Neon を使う
+
+Google AI Pro の有料契約、Google AI Ultra、Gemini Enterprise で Gemini 4 Neon を利用できる。新しい CLI セッションで推論強度 `Extra` を指定するには `agy --model gemini-4-neon-xhigh` で起動する。既存のセッションでは `/model` から選択できる。`GEMINI_API_KEY` 接続での Neon 選択は Antigravity CLI 1.5.12 以降で利用できる。[モデル選択](https://antigravity.google/docs/models) · [CLI の変更履歴](https://antigravity.google/docs/changelog?tab=cli)
+
 ## WSL2 の Herdr TUI
 
 配備後にグローバル環境キャッシュを更新し、新しい WSL シェルで `command -v herdr` と `herdr --version` を確認してから `herdr` で起動する。TUI の更新は `llm-agents.nix` の固定 snapshot の更新に従う。[キャッシュの更新](shell-environment.md#nix-devshell-グローバル-env-キャッシュ) · [併用方針](../docs/adr/0090-use-herdr-app-and-tui-together.md)
