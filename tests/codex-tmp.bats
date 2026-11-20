@@ -21,7 +21,7 @@ setup() {
     "$FIXTURE_HOME/.cache/treflebonbon-skills/checkouts/$plugin_rev" \
     "$FIXTURE_HOME/.config/nix-devshell" "$FIXTURE_HOME/.config/gh" \
     "$FIXTURE_HOME/.config/git" \
-    "$FIXTURE_HOME/.local/bin" \
+    "$FIXTURE_HOME/.local/bin" "$FIXTURE_HOME/runtime" \
     "$STATE_HOME/treflebonbon-skills/plugin-sync" \
     "$STATE_HOME/treflebonbon-skills/legacy/$legacy_rev"
   cp "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json" \
