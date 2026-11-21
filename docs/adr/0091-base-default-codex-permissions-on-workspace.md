@@ -13,7 +13,7 @@ status: accepted
 
 ## 合意済みの方針
 
-- 通常の Codex CLI と管理設定を同期する Codex Desktop の既定を `:workspace` ベースのプロファイルにする。raw の `codex-worktree` と `codex-reviewer` はそれぞれの既存プロファイルを使い、Orca の Agent Picker は Orca が起動権限を所有する。[raw の隔離](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) · [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) · [ADR-0046](0046-separate-orca-native-worktree-entry.md)
+- 通常の Codex CLI と管理設定を同期する Codex Desktop では、`:workspace` を継承する `dotfiles` を既定にする。raw の `codex-worktree` と `codex-reviewer` はそれぞれの既存プロファイルを使い、Orca の Agent Picker は Orca が起動権限を所有する。[raw の隔離](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) · [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) · [ADR-0046](0046-separate-orca-native-worktree-entry.md)
 - 作業中の workspace、`~/ghq/github.com`、`~/orca/workspaces` では、dotenv・鍵など既存の機密ファイル名の読み取りを拒否する。`.envrc` と `.env.example` は参照できるようにする。共有一時領域は [ADR-0074](0074-allow-codex-tmp-workspace.md) に従い `/tmp/codex` に限定し、各セッションの `$TMPDIR` も使えるようにする。
 - 日常用の `glob_scan_max_depth` は6にする。Linux／WSL では、走査上限を越える名前や同じプロセスの起動後に現れたファイルに機密名の拒否は適用されない。`hosts.yml` などパスを指定した拒否は走査深さに依存しない。
 - 日常用は `:workspace` 標準の通信制限を使い、承認が必要な操作は既存の `on-request` / `auto_review` に委ねる。[Codex のネットワーク設定](https://learn.chatgpt.com/docs/permissions#network-permissions)
@@ -26,6 +26,8 @@ status: accepted
 - 通常の sandbox で `hosts.yml` の読み取りが拒否されることをダミーファイルで確認する。
 
 ## 検証状況
+
+以下の実機検証では、候補時の名前 `dotfiles-daily` を使った。
 
 `pyrosome` の一時設定で Git の読み取り、通常の `/tmp` の拒否、`/tmp/codex` と `$TMPDIR` の読み書きを確認した。機密ファイル名の拒否は作業中の workspace、ダミーの `ghq` 配下、`/tmp/codex`、ダミー HOME の指定した認証パスで確認した。実際の WSL 環境では、`ghq` 配下に読み取り不可のディレクトリがあり、深さ7以上の候補は走査中に停止した。深さ6では両ルートを含めた起動と Git の参照が成功した。
 

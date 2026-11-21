@@ -5,7 +5,7 @@ model_verbosity = "medium"
 personality = "pragmatic"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
-default_permissions = "dotfiles-daily"
+default_permissions = "dotfiles"
 
 {{ $pluginPin := mustFromJson (include "private_dot_config/nix-devshell/skills-plugin.json") -}}
 {{ $pluginSource := printf "%s/.cache/treflebonbon-skills/marketplaces/%s" .chezmoi.homeDir $pluginPin.rev -}}
@@ -53,10 +53,10 @@ args = [
   "false",
 ]
 
-[permissions."dotfiles-daily"]
+[permissions."dotfiles"]
 extends = ":workspace"
 
-[permissions."dotfiles-daily".filesystem]
+[permissions."dotfiles".filesystem]
 glob_scan_max_depth = 6
 ":slash_tmp" = "deny"
 "~/.ssh" = "deny"
@@ -70,7 +70,7 @@ glob_scan_max_depth = 6
 "~/.codex/auth.json" = "deny"
 "~/.codex-app/auth.json" = "deny"
 
-[permissions."dotfiles-daily".network]
+[permissions."dotfiles".network]
 enabled = false
 
 [permissions."dotfiles-secure"]
@@ -96,7 +96,7 @@ glob_scan_max_depth = 16
 {{ printf "%q" $pluginSource }} = "read"
 {{ printf "%q" $legacyCliBackup }} = "read"
 
-{{ $secretRoots := dict "dotfiles-daily" (list ":workspace_roots" "~/ghq/github.com" "~/orca/workspaces" "/tmp/codex") "dotfiles-secure" (list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp/codex") }}
+{{ $secretRoots := dict "dotfiles" (list ":workspace_roots" "~/ghq/github.com" "~/orca/workspaces" "/tmp/codex") "dotfiles-secure" (list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp/codex") }}
 {{ range $profile, $roots := $secretRoots }}
 {{ range $root := $roots }}
 [permissions."{{ $profile }}".filesystem."{{ $root }}"]

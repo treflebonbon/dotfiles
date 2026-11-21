@@ -247,8 +247,8 @@ for path in sys.argv[1:]:
 
     assert "sandbox_mode" not in config
     assert "sandbox_workspace_write" not in config
-    assert config["default_permissions"] == "dotfiles-daily"
-    daily = config["permissions"]["dotfiles-daily"]
+    assert config["default_permissions"] == "dotfiles"
+    daily = config["permissions"]["dotfiles"]
     assert daily["extends"] == ":workspace"
     assert daily.get("network", {}).get("enabled", False) is False
     assert daily["filesystem"].get(":root", "read") == "read"
@@ -512,7 +512,7 @@ assert_codex_strict_config() {
   grep -q '^default_tools_approval_mode = "approve"$' "$config"
   grep -q '^destructive_enabled = false$' "$config"
   ! grep -q '^sandbox_mode = ' "$config"
-  grep -q '^default_permissions = "dotfiles-daily"$' "$config"
+  grep -q '^default_permissions = "dotfiles"$' "$config"
   grep -q '^\[features\]' "$config"
   grep -q '^hooks = true$' "$config"
   grep -q '^goals = true$' "$config"

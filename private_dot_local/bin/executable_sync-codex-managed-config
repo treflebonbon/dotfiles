@@ -371,7 +371,7 @@ for key in ("projects", "notice", "tui"):
         sys.exit(1)
 
 permissions = managed.get("permissions")
-daily = permissions.get("dotfiles-daily") if isinstance(permissions, dict) else None
+daily = permissions.get("dotfiles") if isinstance(permissions, dict) else None
 daily_filesystem = daily.get("filesystem") if isinstance(daily, dict) else None
 if isinstance(daily_filesystem, dict) and codex_path.parent not in (
     Path.home() / ".codex", Path.home() / ".codex-app",
