@@ -36,3 +36,9 @@ Desktop の新規 WSL セッションでは `dotfiles-daily` が選択され、`
 ネットワークを無効にした一時 HOME で、Git 2.55.0 と `gh` 2.102.0 にダミーの `hosts.yml` を使わせた。標準の `:workspace` では Git が credential helper を呼び出せた。候補に `hosts.yml` の拒否を加えると、`gh` は設定の読み込みで停止し、Git は終了コード 128 になった。確認したのはファイルに資格情報を置く構成で、実環境の保存方式への影響は未確認。
 
 対話 CLI の一時設定と Desktop の WSL 検証用プロジェクトで `dotfiles-daily` と `on-request` が有効になった。認証付き `git ls-remote` は両方で通常の sandbox からの名前解決に失敗し、承認経路での再試行は `bwrap` の読み取り専用エラーで停止した。Desktop では自動レビューによる承認と、`/tmp/codex` 配下の `.env` を隠すマウントの作成失敗を確認した。Codex 0.170.0 は承認後も読み取り拒否を維持するため、承認経路だけでは `hosts.yml` の読取りは許可されない。[Codex 0.170.0 の承認処理](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/core/src/tools/sandboxing.rs#L240-L281)
+
+### Codex 0.170.0 の Linux sandbox で確認した制約
+
+- 明示的に承認されたコマンドのファイルシステム規則を再現した隔離環境では、`/tmp/codex/task/.env` のダミーファイルを置くと `bwrap` がマウント先を作れず、`true` の起動も失敗した。マウントの失敗はコマンドの実行前に起きるため、認証不要の依存取得にも影響する。[承認後のファイルシステム規則](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/protocol/src/permissions/target.rs#L46-L90)
+- 深さ6以内の別 checkout に読み取り不可のディレクトリを置くと、glob の列挙エラーで正常な workspace のコマンドも起動しなかった。深さ6は実環境で観測した深いディレクトリを走査から外す設定であり、列挙エラーの扱いは Codex 本体が決める。[Linux の glob 列挙](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/linux-sandbox/src/bwrap.rs#L929-L1012)
+- glob の列挙は子 symlink を対象外にする。workspace の `.env` から名前の拒否条件に該当しないダミーファイルへリンクすると、shell からリンク先の内容を取得できた。同じ `.env` を個別に `deny` すると、書き込み可能な symlink を検出して sandbox の起動自体が失敗した。[Linux の deny マウント](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/linux-sandbox/src/bwrap.rs#L1204-L1235)
