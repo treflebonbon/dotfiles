@@ -247,7 +247,12 @@ for path in sys.argv[1:]:
 
     assert "sandbox_mode" not in config
     assert "sandbox_workspace_write" not in config
-    assert config["default_permissions"] == "dotfiles-secure"
+    assert config["default_permissions"] == "dotfiles-daily"
+    daily = config["permissions"]["dotfiles-daily"]
+    assert daily["extends"] == ":workspace"
+    assert daily.get("network", {}).get("enabled", False) is False
+    assert daily["filesystem"].get(":root", "read") == "read"
+    assert daily["filesystem"]["~/.config/gh/hosts.yml"] == "deny"
 
     profile = config["permissions"]["dotfiles-secure"]
     assert profile["extends"] == ":workspace"
@@ -507,7 +512,7 @@ assert_codex_strict_config() {
   grep -q '^default_tools_approval_mode = "approve"$' "$config"
   grep -q '^destructive_enabled = false$' "$config"
   ! grep -q '^sandbox_mode = ' "$config"
-  grep -q '^default_permissions = "dotfiles-secure"$' "$config"
+  grep -q '^default_permissions = "dotfiles-daily"$' "$config"
   grep -q '^\[features\]' "$config"
   grep -q '^hooks = true$' "$config"
   grep -q '^goals = true$' "$config"
@@ -571,6 +576,16 @@ assert_codex_strict_config() {
   assert_codex_strict_config "$home/.codex"
   assert_codex_strict_config "$home/.codex-app"
   assert_codex_strict_config "$codex_home"
+  python3 - "$codex_home" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+target = Path(sys.argv[1]).resolve()
+config = tomllib.loads((target / "config.toml").read_text())
+filesystem = config["permissions"][config["default_permissions"]]["filesystem"]
+assert filesystem[str(target / "auth.json")] == "deny"
+PY
 }
 
 assert_ponytail_plugin_installed_and_enabled() {
@@ -1533,7 +1548,7 @@ PY
 
 @test "Codex config merge script writes managed permission profile" {
   local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex" "$home/.codex"
+  mkdir -p "$home/.config/codex" "$home/.codex" "$home/.codex-app"
   stage_codex_managed_config "$home"
 
   cat >"$home/.codex/config.toml" <<'EOF'
@@ -1551,7 +1566,7 @@ EOF
 
   grep -q '^approval_policy = "on-request"$' "$home/.codex/config.toml"
   grep -q '^approvals_reviewer = "auto_review"$' "$home/.codex/config.toml"
-  assert_dotfiles_permission_profile "$home/.codex/config.toml"
+  assert_dotfiles_permission_profile "$home/.codex/config.toml" "$home/.codex-app/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
   grep -q '^glob_scan_max_depth = 16$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"

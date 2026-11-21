@@ -370,6 +370,14 @@ for key in ("projects", "notice", "tui"):
         print(f"ERROR: managed Codex config must not contain [{key}]", file=sys.stderr)
         sys.exit(1)
 
+permissions = managed.get("permissions")
+daily = permissions.get("dotfiles-daily") if isinstance(permissions, dict) else None
+daily_filesystem = daily.get("filesystem") if isinstance(daily, dict) else None
+if isinstance(daily_filesystem, dict) and codex_path.parent not in (
+    Path.home() / ".codex", Path.home() / ".codex-app",
+):
+    daily_filesystem[str(codex_path.parent / "auth.json")] = "deny"
+
 
 def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     merged = dict(base)
