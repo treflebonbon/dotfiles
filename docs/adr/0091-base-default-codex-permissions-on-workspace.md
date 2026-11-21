@@ -21,9 +21,11 @@ status: accepted
 
 ## 受入条件
 
+- 日常用プロファイルを既定にする PR #620 のマージは、Linux／WSL 上の CLI と Desktop の両方で、既存の `.env` symlink がある workspace でも通常コマンドが起動し、ダミーのリンク先の内容を読み取れないことを確認するまで保留する。
 - 通常の CLI と Desktop の新規セッションで日常用プロファイルが選択される。linked worktree の `git status` と `git rev-parse HEAD` が成功し、通常の sandbox から Git 管理情報の書き込みは拒否される。
 - 両方の checkout 置き場を含む実環境で起動できる。ダミーファイルで機密名の拒否と公開サンプルの読み取りを確認する。`/tmp/codex` と `$TMPDIR` で一時ファイルを読み書きでき、通常の `/tmp` へのアクセスは拒否される。
 - 通常の sandbox で `hosts.yml` の読み取りが拒否されることをダミーファイルで確認する。
+- `.env` symlink の保護に対応した公式 Codex の配布を待つ。その版で symlink の保護、読み取り不可の別 checkout がある場合の起動、承認後の公開依存の取得を再検証する。起動と取得の結果も確認してマージ可否を判断する。
 
 ## 検証状況
 
@@ -42,3 +44,5 @@ Desktop の新規 WSL セッションでは `dotfiles-daily` が選択され、`
 - 明示的に承認されたコマンドのファイルシステム規則を再現した隔離環境では、`/tmp/codex/task/.env` のダミーファイルを置くと `bwrap` がマウント先を作れず、`true` の起動も失敗した。マウントの失敗はコマンドの実行前に起きるため、認証不要の依存取得にも影響する。[承認後のファイルシステム規則](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/protocol/src/permissions/target.rs#L46-L90)
 - 深さ6以内の別 checkout に読み取り不可のディレクトリを置くと、glob の列挙エラーで正常な workspace のコマンドも起動しなかった。深さ6は実環境で観測した深いディレクトリを走査から外す設定であり、列挙エラーの扱いは Codex 本体が決める。[Linux の glob 列挙](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/linux-sandbox/src/bwrap.rs#L929-L1012)
 - glob の列挙は子 symlink を対象外にする。workspace の `.env` から名前の拒否条件に該当しないダミーファイルへリンクすると、shell からリンク先の内容を取得できた。同じ `.env` を個別に `deny` すると、書き込み可能な symlink を検出して sandbox の起動自体が失敗した。[Linux の deny マウント](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/linux-sandbox/src/bwrap.rs#L1204-L1235)
+
+公式安定版 0.171.0 と 0.173.0-alpha.4 のソースでも、glob の列挙は子 symlink を対象外にしている。両版の確認はソースの比較までで、実機での再検証は未実施。[0.171.0 のソース](https://github.com/openai/codex/blob/rust-v0.171.0/codex-rs/linux-sandbox/src/bwrap.rs#L962-L984) · [0.173.0-alpha.4 のソース](https://github.com/openai/codex/blob/rust-v0.173.0-alpha.4/codex-rs/linux-sandbox/src/bwrap.rs#L962-L984)
