@@ -118,10 +118,10 @@ codex_probe() {
     export HOME="$1/home" CODEX_HOME="$1/home/.codex" TMPDIR="$1/session-tmp"
     export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
     repo="$HOME/ghq/github.com/example/repo"
-    other="$HOME/orca/workspaces/example/nested"
+    orca_workspace="$HOME/orca/workspaces/example/nested"
     workspace="$1/workspace"
     unreadable="$repo/tmp/generated/data/private"
-    mkdir -p "$unreadable" "$other" "$HOME/.codex-app"
+    mkdir -p "$unreadable" "$orca_workspace" "$HOME/.codex-app"
     chmod 000 "$unreadable"
     trap "chmod 700 \"$unreadable\"" EXIT
     git init -q "$repo"
@@ -129,7 +129,7 @@ codex_probe() {
       commit -q --allow-empty -m fixture
     git -C "$repo" worktree add -qd "$workspace"
     expected_head="$(git -C "$repo" rev-parse HEAD)"
-    for dir in "$repo" "$other" "$workspace" "$2"; do
+    for dir in "$repo" "$orca_workspace" "$workspace" "$2"; do
       printf "public\n" >"$dir/.env.example"
       printf "dummy-secret\n" >"$dir/.env"
     done
@@ -139,7 +139,7 @@ codex_probe() {
     profile="$(python3 -c "import sys,tomllib; print(tomllib.load(sys.stdin.buffer)[\"default_permissions\"])" \
       <"$CODEX_HOME/config.toml")"
     codex sandbox -P "$profile" -C "$workspace" -- bash -c "$4" _ \
-      "$repo" "$other" "$2" "$3" "$expected_head"
+      "$repo" "$orca_workspace" "$2" "$3" "$expected_head"
   ' _ "$FIXTURE_MOUNT" "$SHARED_TMP" "$OUTSIDE_TMP/public.txt" '
     set -eu
     git --no-optional-locks status --short --branch

@@ -839,11 +839,11 @@ PY
   prepare_codex_permission_roots "$home"
   printf 'protected\n' >"$home/other-repo/.env"
   render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-    codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$home/other-repo/.env"
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- sh -c 'cat "$HOME/other-repo/.env"'
   [ "$status" -ne 0 ]
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-    codex sandbox -P dotfiles-secure -C "$workspace" -- python3 -c 'print("runtime available")'
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- python3 -c 'print("runtime available")'
   [ "$status" -eq 0 ]
   [[ "$output" == *'runtime available'* ]]
 }
@@ -862,8 +862,8 @@ PY
 
   for path in .envrc .env.example one/two/three/.envrc one/two/three/.env.example; do
     printf 'original\n' >"$workspace/$path"
-    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P dotfiles-secure -C "$workspace" -- \
       sh -c 'printf "updated\n" >"$1"' _ "$path"
 
     if [ "$status" -ne 0 ]; then
@@ -883,8 +883,8 @@ PY
     chmod u+w "$workspace/$path" 2>/dev/null || true
     rm -f "$workspace/$path"
     printf 'protected\n' >"$workspace/$path"
-    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P dotfiles-secure -C "$workspace" -- \
       sh -c 'printf "overwritten\n" >"$1"' _ "$path"
 
     if [ "$status" -eq 0 ]; then
