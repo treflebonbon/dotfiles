@@ -576,15 +576,34 @@ assert_codex_strict_config() {
   assert_codex_strict_config "$home/.codex"
   assert_codex_strict_config "$home/.codex-app"
   assert_codex_strict_config "$codex_home"
-  python3 - "$codex_home" <<'PY'
+
+  if [ "$(uname -s)" = Linux ]; then
+    local workspace="$BATS_TEST_TMPDIR/workspace"
+    mkdir -p "$workspace"
+    printf 'dummy-auth\n' >"$codex_home/auth.json"
+    printf 'public fixture\n' >"$codex_home/public.txt"
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P dotfiles -C "$workspace" -- sh -c '
+        test "$(cat "$1/public.txt")" = "public fixture" || exit 2
+        test "$(cat "$1/auth.json" 2>/dev/null || true)" != "dummy-auth" || {
+          printf "custom Codex auth fixture is readable\n" >&2
+          exit 3
+        }
+      ' _ "$codex_home"
+    [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+    [ "$status" -eq 0 ]
+  fi
+
+  python3 - "$codex_home" "$home/.codex" "$home/.codex-app" "$codex_home" <<'PY'
 import sys
 import tomllib
 from pathlib import Path
 
-target = Path(sys.argv[1]).resolve()
-config = tomllib.loads((target / "config.toml").read_text())
-filesystem = config["permissions"][config["default_permissions"]]["filesystem"]
-assert filesystem[str(target / "auth.json")] == "deny"
+auth = str(Path(sys.argv[1]).resolve() / "auth.json")
+for path in sys.argv[2:]:
+    config = tomllib.loads((Path(path) / "config.toml").read_text())
+    filesystem = config["permissions"][config["default_permissions"]]["filesystem"]
+    assert filesystem.get(auth) == "deny", path
 PY
 }
 
