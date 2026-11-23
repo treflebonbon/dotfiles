@@ -3,14 +3,10 @@ set -euo pipefail
 
 codex_home="${CODEX_HOME:-$HOME/.codex}"
 
-# CODEX_HOME が .codex 以外に明示指定されていればそれを追加 cleanup 対象にする。
-# 未指定なら Codex Desktop (.codex-app) の存在チェックで追加ホームを決める。
-# sync-codex-managed-config の dual-home 判定と設計思想を統一。
+# 標準ホーム以外は、CODEX_HOME で明示されたものを対象にする。
 extra_codex_home=""
 if [ "$codex_home" != "$HOME/.codex" ]; then
   extra_codex_home="$codex_home"
-elif [ -d "$HOME/.codex-app" ]; then
-  extra_codex_home="$HOME/.codex-app"
 fi
 
 {{ includeTemplate "local-skills.sh.tmpl" . }}

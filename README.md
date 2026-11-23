@@ -163,7 +163,7 @@ export GIT_AUTHOR_NAME="Your Name"
 
 Codex 管理設定は `private_dot_config/codex/`（config.toml.tmpl / rules / AGENTS.md / hooks.json / environments）を編集し、`run_onchange_after_codex-managed-sync.sh.tmpl` が `~/.config/codex/` 経由で5種類をまとめて同期します。config.toml は既存設定へマージし、他4種類は管理ファイルで置換します。runtime/cache/auth/session/state と project trust は管理対象外です。配備先の追加・修復時は `sync-codex-managed-config` を引数なしで実行します（[同期と復旧の詳細](runtime/ai-runtimes.md#codex-管理設定の同期)）。
 
-Windows Codex Desktop の WSL mode では `CODEX_INTERNAL_ORIGINATOR_OVERRIDE=Codex Desktop` を検出した login shell が `CODEX_HOME=$HOME/.codex-app` を設定し、保存先を WSL native filesystem に置きます。
+Windows Codex Desktop の WSL mode は、WSL の Codex CLI と同じ標準ホーム `~/.codex` を使います。管理同期は標準ホームと明示された `CODEX_HOME` を対象とします。旧 `~/.codex-app` の扱いは [ADR-0051](docs/adr/0051-sync-codex-managed-settings-as-a-set.md) を参照してください。
 
 ## 環境変数
 

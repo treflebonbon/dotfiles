@@ -46,8 +46,6 @@ source = Path(os.environ["PLUGIN_SYNC_SOURCE"]).resolve(strict=True)
 if not homes and "--verify-only" in args:
     home = Path(os.environ["HOME"]).resolve()
     homes = [home / ".codex"]
-    if (home / ".codex-app").is_dir():
-        homes.append(home / ".codex-app")
     if os.environ.get("CODEX_HOME"):
         explicit = Path(os.environ["CODEX_HOME"]).expanduser().resolve()
         if explicit not in homes:
@@ -228,12 +226,23 @@ PY
   cmp "$TEST_HOME/.config/codex/AGENTS.md" "$TEST_HOME/.codex/AGENTS.md"
 }
 
-@test "Codex 管理設定 syncs and seeds an existing Desktop home" {
-  mkdir -p "$TEST_HOME/.codex-app"
+@test "Codex managed sync selects the old home only through explicit CODEX_HOME" {
+  local old_home="$TEST_HOME/.codex-app" before
+  HOME="$TEST_HOME" CODEX_HOME="$old_home" bash "$SYNC_COMMAND"
+  assert_managed_home "$TEST_HOME/.codex"
+  assert_managed_home "$old_home"
+
+  printf 'legacy-only hooks\n' >"$old_home/hooks.json"
+  printf 'dummy legacy authentication\n' >"$old_home/auth.json"
+  before="$(snapshot_tree "$old_home")"
   env -u CODEX_HOME HOME="$TEST_HOME" bash "$SYNC_COMMAND"
   assert_managed_home "$TEST_HOME/.codex"
-  assert_managed_home "$TEST_HOME/.codex-app"
-  [ -f "$TEST_HOME/.codex-app/.managed-config-seeded" ]
+  [ "$(snapshot_tree "$old_home")" = "$before" ]
+
+  HOME="$TEST_HOME" CODEX_HOME="$old_home" bash "$SYNC_COMMAND"
+  assert_managed_home "$old_home"
+  [ "$(cat "$old_home/auth.json")" = 'dummy legacy authentication' ]
+  [ ! -e "$old_home/.managed-config-seeded" ]
 }
 
 @test "Codex 初回同期はキャッシュ内だけにある AI CLI を読み込む" {
@@ -283,7 +292,7 @@ import sys
 from pathlib import Path
 blocks = [block for block in Path(sys.argv[1]).read_bytes().split(b"\0\0") if block]
 calls = [[item.decode() for item in block.split(b"\0") if item] for block in blocks]
-homes = ["--codex-home", f"{sys.argv[2]}/.codex", "--codex-home", f"{sys.argv[2]}/.codex-app", "--codex-home", sys.argv[3]]
+homes = ["--codex-home", f"{sys.argv[2]}/.codex", "--codex-home", sys.argv[3]]
 assert calls == [homes, ["--verify-only", *homes]]
 PY
 }
@@ -414,21 +423,20 @@ SH
 }
 
 @test "Codex 管理設定 validates every home before replacing any existing file" {
-  mkdir -p "$TEST_HOME/.codex" "$TEST_HOME/.codex-app"
+  mkdir -p "$TEST_HOME/.codex" "$TEST_HOME/explicit-codex-home"
   printf 'model = "local"\n' >"$TEST_HOME/.codex/config.toml"
   printf 'local hooks\n' >"$TEST_HOME/.codex/hooks.json"
-  printf 'model = \n' >"$TEST_HOME/.codex-app/config.toml"
+  printf 'model = \n' >"$TEST_HOME/explicit-codex-home/config.toml"
 
-  run env -u CODEX_HOME HOME="$TEST_HOME" bash "$SYNC_COMMAND"
+  run env CODEX_HOME="$TEST_HOME/explicit-codex-home" HOME="$TEST_HOME" bash "$SYNC_COMMAND"
 
   [ "$status" -ne 0 ]
   [ "$(cat "$TEST_HOME/.codex/config.toml")" = 'model = "local"' ]
   [ "$(cat "$TEST_HOME/.codex/hooks.json")" = 'local hooks' ]
-  [ "$(cat "$TEST_HOME/.codex-app/config.toml")" = 'model = ' ]
+  [ "$(cat "$TEST_HOME/explicit-codex-home/config.toml")" = 'model = ' ]
   [ ! -e "$TEST_HOME/.codex/AGENTS.md" ]
-  [ ! -e "$TEST_HOME/.codex-app/.managed-config-seeded" ]
   [[ "$output" == *prepare* ]]
-  [[ "$output" == *"$TEST_HOME/.codex-app/config.toml"* ]]
+  [[ "$output" == *"$TEST_HOME/explicit-codex-home/config.toml"* ]]
   [ -z "$(find "$TEST_HOME" -name '*.tmp.*' -print)" ]
 }
 
@@ -471,8 +479,8 @@ SH
   local bin="$BATS_TEST_TMPDIR/bin"
   local real_mv
   real_mv="$(command -v mv)"
-  mkdir -p "$bin" "$TEST_HOME/.codex-app"
-  printf 'local hooks\n' >"$TEST_HOME/.codex-app/hooks.json"
+  mkdir -p "$bin" "$TEST_HOME/explicit-codex-home"
+  printf 'local hooks\n' >"$TEST_HOME/explicit-codex-home/hooks.json"
   cat >"$bin/mv" <<'SH'
 #!/usr/bin/env bash
 if [ "${@: -1}" = "$FAIL_TARGET" ]; then
@@ -483,21 +491,19 @@ exec "$REAL_MV" "$@"
 SH
   chmod +x "$bin/mv"
 
-  run env -u CODEX_HOME PATH="$bin:$PATH" REAL_MV="$real_mv" \
-    FAIL_TARGET="$TEST_HOME/.codex-app/hooks.json" HOME="$TEST_HOME" bash "$SYNC_COMMAND"
+  run env CODEX_HOME="$TEST_HOME/explicit-codex-home" PATH="$bin:$PATH" REAL_MV="$real_mv" \
+    FAIL_TARGET="$TEST_HOME/explicit-codex-home/hooks.json" HOME="$TEST_HOME" bash "$SYNC_COMMAND"
 
   [ "$status" -ne 0 ]
   assert_managed_home "$TEST_HOME/.codex"
-  [ "$(cat "$TEST_HOME/.codex-app/hooks.json")" = 'local hooks' ]
-  [ ! -e "$TEST_HOME/.codex-app/.managed-config-seeded" ]
+  [ "$(cat "$TEST_HOME/explicit-codex-home/hooks.json")" = 'local hooks' ]
   [[ "$output" == *apply* ]]
-  [[ "$output" == *"$TEST_HOME/.codex-app/hooks.json"* ]]
+  [[ "$output" == *"$TEST_HOME/explicit-codex-home/hooks.json"* ]]
   [ -z "$(find "$TEST_HOME" -name '*.tmp.*' -print)" ]
 
-  env -u CODEX_HOME HOME="$TEST_HOME" bash "$SYNC_COMMAND"
+  env CODEX_HOME="$TEST_HOME/explicit-codex-home" HOME="$TEST_HOME" bash "$SYNC_COMMAND"
   assert_managed_home "$TEST_HOME/.codex"
-  assert_managed_home "$TEST_HOME/.codex-app"
-  [ -f "$TEST_HOME/.codex-app/.managed-config-seeded" ]
+  assert_managed_home "$TEST_HOME/explicit-codex-home"
 }
 
 prepare_chezmoi_fixture() {
@@ -566,8 +572,8 @@ SH
   prepare_chezmoi_fixture
   local explicit_home="$BATS_TEST_TMPDIR/explicit-codex-home"
   local codex_home
-  mkdir -p "$TEST_HOME/.codex-app" "$explicit_home"
-  for codex_home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
+  mkdir -p "$explicit_home"
+  for codex_home in "$TEST_HOME/.codex" "$explicit_home"; do
     mkdir -p "$codex_home"
     printf '[permissions."dotfiles-secure".filesystem."%s"]\n"." = "read"\n' \
       "$codex_home/plugins/cache/treflebonbon/treflebonbon-skills" \
@@ -577,13 +583,13 @@ SH
   run env CODEX_HOME="$explicit_home" "${CHEZMOI_APPLY[@]}"
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
-  python3 - "$TEST_HOME/.codex/config.toml" "$TEST_HOME/.codex-app/config.toml" "$explicit_home/config.toml" \
+  python3 - "$TEST_HOME/.codex/config.toml" "$explicit_home/config.toml" \
     "$TEST_HOME/.config/nix-devshell/skills-plugin.json" <<'PY'
 import json
 import sys, tomllib
 from pathlib import Path
-version = json.loads(Path(sys.argv[4]).read_text())['version']
-for config_path in sys.argv[1:4]:
+version = json.loads(Path(sys.argv[3]).read_text())['version']
+for config_path in sys.argv[1:3]:
     config = tomllib.loads(Path(config_path).read_text())
     cache_root = Path(
         Path(config_path).parent
@@ -634,7 +640,7 @@ PY
   [ "$status" -eq 0 ]
 
   version="$(jq -r '.version' "$PROJECT_ROOT/private_dot_config/nix-devshell/skills-plugin.json")"
-  for home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
+  for home in "$TEST_HOME/.codex" "$explicit_home"; do
     cp "$home/config.toml" "$BATS_TEST_TMPDIR/config-$index.toml"
     install="$home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
     cp -R "$install" "$BATS_TEST_TMPDIR/install-$index"
@@ -654,7 +660,7 @@ from pathlib import Path
 
 result = json.loads(Path(sys.argv[1]).read_text())
 root, explicit, version = sys.argv[2:]
-homes = [str(Path(root, ".codex").resolve()), str(Path(root, ".codex-app").resolve()), str(Path(explicit).resolve())]
+homes = [str(Path(root, ".codex").resolve()), str(Path(explicit).resolve())]
 assert result["status"] == "verified"
 assert result["codex_homes"] == homes
 records = result["results"]["codex"]
@@ -666,7 +672,7 @@ for record in records:
 PY
 
   index=0
-  for home in "$TEST_HOME/.codex" "$TEST_HOME/.codex-app" "$explicit_home"; do
+  for home in "$TEST_HOME/.codex" "$explicit_home"; do
     cmp "$BATS_TEST_TMPDIR/config-$index.toml" "$home/config.toml"
     diff -r "$BATS_TEST_TMPDIR/install-$index" "$home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
     index=$((index + 1))
@@ -877,9 +883,10 @@ PY
 
 @test "chezmoi retries failed Codex 管理設定 sync until the same source succeeds" {
   prepare_chezmoi_fixture
+  export CODEX_HOME="$TEST_HOME/explicit-codex-home"
   "${CHEZMOI_APPLY[@]}"
-  mkdir -p "$TEST_HOME/.codex-app"
-  printf 'model = \n' >"$TEST_HOME/.codex-app/config.toml"
+  mkdir -p "$CODEX_HOME"
+  printf 'model = \n' >"$CODEX_HOME/config.toml"
   printf '\n# Updated instructions\n' >>"$CHEZMOI_SOURCE/private_dot_config/codex/AGENTS.md"
   cp "$TEST_HOME/.codex/AGENTS.md" "$BATS_TEST_TMPDIR/previous-AGENTS.md"
 
@@ -889,14 +896,12 @@ PY
     [ "$status" -ne 0 ]
     [ "$(wc -l <"$SYNC_LOG_PATH")" -eq "$((attempt + 1))" ]
     cmp "$BATS_TEST_TMPDIR/previous-AGENTS.md" "$TEST_HOME/.codex/AGENTS.md"
-    [ ! -e "$TEST_HOME/.codex-app/.managed-config-seeded" ]
   done
 
-  printf 'model = "local"\n' >"$TEST_HOME/.codex-app/config.toml"
+  printf 'model = "local"\n' >"$CODEX_HOME/config.toml"
   "${CHEZMOI_APPLY[@]}"
   [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 6 ]
-  cmp "$TEST_HOME/.config/codex/AGENTS.md" "$TEST_HOME/.codex-app/AGENTS.md"
-  [ -f "$TEST_HOME/.codex-app/.managed-config-seeded" ]
+  cmp "$TEST_HOME/.config/codex/AGENTS.md" "$CODEX_HOME/AGENTS.md"
 
   "${CHEZMOI_APPLY[@]}"
   [ "$(wc -l <"$SYNC_LOG_PATH")" -eq 6 ]

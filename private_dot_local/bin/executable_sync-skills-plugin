@@ -1564,9 +1564,6 @@ def current_codex_homes() -> list[Path]:
     if not home.is_absolute():
         raise PluginSyncError("HOME must be absolute")
     homes = [home / ".codex"]
-    desktop = home / ".codex-app"
-    if desktop.is_dir():
-        homes.append(desktop)
     explicit = os.environ.get("CODEX_HOME")
     if explicit:
         homes.append(Path(explicit).expanduser())

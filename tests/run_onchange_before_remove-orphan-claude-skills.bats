@@ -341,7 +341,7 @@ PY
   [ ! -e "$codex_home/skills/find-skills" ]
 }
 
-@test "removes ai-nix companion symlinks under existing Codex Desktop home (.codex-app) when CODEX_HOME is unset" {
+@test "cleans the old Codex home only through explicit CODEX_HOME" {
   mkdir -p "$FAKE_HOME/.agents/skills" "$FAKE_HOME/.codex/skills" "$FAKE_HOME/.codex-app/skills"
   ln -s "../../.agents/skills/find-skills" "$FAKE_HOME/.codex/skills/find-skills"
   ln -s "../../.agents/skills/find-skills" "$FAKE_HOME/.codex-app/skills/find-skills"
@@ -350,7 +350,11 @@ PY
   run env -u CODEX_HOME CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" bash "$SCRIPT"
   [ "$status" -eq 0 ]
   [ ! -e "$FAKE_HOME/.codex/skills/find-skills" ]
-  [ ! -e "$FAKE_HOME/.codex-app/skills/find-skills" ]
+  [ "$(readlink "$FAKE_HOME/.codex-app/skills/find-skills")" = "../../.agents/skills/find-skills" ]
+
+  run env CODEX_HOME="$FAKE_HOME/.codex-app" CHEZMOI_SOURCE_DIR="$SKILL_SOURCE" HOME="$FAKE_HOME" bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [ ! -L "$FAKE_HOME/.codex-app/skills/find-skills" ]
 }
 
 @test "leaves Codex Desktop home (.codex-app) untouched when it does not exist and CODEX_HOME is unset" {
