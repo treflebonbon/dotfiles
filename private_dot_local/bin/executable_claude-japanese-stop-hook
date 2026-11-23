@@ -1,17 +1,25 @@
 #!/usr/bin/env -S python3 -I
 
-"""Stop hook: 日本語を1文字も含まない英語だけの最終返答を、一度だけ日本語で書き直させる。
+"""Stop hook: 日本語の比率が低い最終返答を、一度だけ日本語で書き直させる。
 
-文字種の有無による補助判定で、言語判定ではない。コードは除いて判定し、入力不正や再入（stop_hook_active）は通す。
+コードを除き、日本語とラテン文字の文字数から比率を求める。入力不正や再入（stop_hook_active）は通す。
 """
 
 import json
 import re
 import sys
 
-CODE = re.compile(r"^(`{3,}|~{3,}).*?^\1|(`+).+?\2", re.DOTALL | re.MULTILINE)
+CODE = re.compile(
+    r"^[ \t]*(?P<fence>(?P<marker>(?P<backtick>`)|~)(?P=marker){2,})(?!(?P=marker))"
+    r"(?(backtick)[^`\n]*|[^\n]*)(?:\n|\Z)"
+    r".*?(?:^[ \t]*(?P=fence)(?P=marker)*[ \t]*\r?$|\Z)"
+    r"|(?P<ticks>`+).+?(?P=ticks)",
+    re.DOTALL | re.MULTILINE,
+)
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
 LATIN = re.compile(r"[A-Za-z]")
+# 最終返答の実測（#619）では、英語の最大が 0.77%、日本語の最小が 15.79%。
+MIN_JAPANESE_RATIO = 0.10
 
 try:
     event = json.load(sys.stdin)
@@ -23,7 +31,9 @@ message = event.get("last_assistant_message")
 if not isinstance(message, str):
     sys.exit(0)
 prose = CODE.sub("", message)
-if LATIN.search(prose) and not JAPANESE.search(prose):
+japanese_count = len(JAPANESE.findall(prose))
+latin_count = len(LATIN.findall(prose))
+if latin_count and japanese_count / (japanese_count + latin_count) < MIN_JAPANESE_RATIO:
     json.dump(
         {
             "decision": "block",
