@@ -1564,7 +1564,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         pin_file = home / ".config/nix-devshell/skills-plugin.json"
         pin_file.parent.mkdir(parents=True)
         pin_file.write_text(json.dumps(pin))
-        fixed = self.temporary / "user/bin/bun"
+        fixed = self.temporary / "user tools/bin/bun"
         project = self.temporary / "project/bin/bun"
         for bun, body in (
             (fixed, 'printf "%s\\n" "user Bun" "$@"'),
@@ -1573,9 +1573,10 @@ class VerifyCheckoutTests(unittest.TestCase):
             bun.parent.mkdir(parents=True)
             bun.write_text(f"#!/bin/sh\n{body}\n")
             bun.chmod(0o755)
-        (cache / "nix-devshell-global-env.bash").write_text(
-            f"NIX_DEVSHELL_BUN_BIN='{fixed}'\nexport NIX_DEVSHELL_BUN_BIN\n"
-            "exit 99\n"
+        cache_file = cache / "nix-devshell-global-env.bash"
+        assignment = f"NIX_DEVSHELL_BUN_BIN='{fixed}'"
+        cache_file.write_text(
+            f"{assignment}\nexport NIX_DEVSHELL_BUN_BIN\nexit 99\n"
         )
         clis = [self.make_mock_claude(), self.make_mock_codex(), self.make_mock_agy()]
         base_path = os.pathsep.join(
@@ -1612,17 +1613,23 @@ class VerifyCheckoutTests(unittest.TestCase):
                         self.assertEqual(
                             result.stdout.splitlines(), ["user Bun", "--help", "with spaces"]
                         )
-            fixed.chmod(0o644)
-            for name in names:
-                with self.subTest(name=name, runtime_missing=True):
-                    result = subprocess.run(
-                        [str(cli), "--run-cli", name, "--", "--help"],
-                        env={**os.environ, "PATH": project_path},
-                        text=True,
-                        capture_output=True,
-                    )
-                    self.assertEqual(result.returncode, 1, result.stderr)
-                    self.assertIn("pinned Bun is unavailable", result.stderr)
+            for invalid_case, line, mode in (
+                ("non-executable Bun", assignment, 0o644),
+                ("unquoted assignment", f"NIX_DEVSHELL_BUN_BIN={project}", 0o755),
+                ("whole assignment quoted", f"'NIX_DEVSHELL_BUN_BIN={project}'", 0o755),
+            ):
+                fixed.chmod(mode)
+                cache_file.write_text(f"{line}\n")
+                for name in names:
+                    with self.subTest(name=name, invalid_case=invalid_case):
+                        result = subprocess.run(
+                            [str(cli), "--run-cli", name, "--", "--help"],
+                            env={**os.environ, "PATH": project_path},
+                            text=True,
+                            capture_output=True,
+                        )
+                        self.assertEqual(result.returncode, 1, result.stderr)
+                        self.assertIn("pinned Bun is unavailable", result.stderr)
 
     def test_global_cli_dispatch_preserves_the_reviewed_entry_name(self) -> None:
         selected = self.source / "bin/git-push-reviewed"

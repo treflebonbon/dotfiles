@@ -2362,7 +2362,7 @@ def resolve_global_cli(
 def user_bun_bin_dir() -> Path:
     cache = Path.home() / ".cache/nix-devshell-global-env.bash"
     error_message = (
-        "pinned Bun is unavailable; refresh the user devShell cache after applying dotfiles"
+        "pinned Bun is unavailable. Refresh the user devShell cache after applying dotfiles."
     )
     try:
         contents = cache.read_text(encoding="utf-8")
@@ -2373,7 +2373,7 @@ def user_bun_bin_dir() -> Path:
     if not match:
         raise PluginSyncError(error_message)
     bun = Path(match[1])
-    if not bun.is_file() or not os.access(bun, os.X_OK):
+    if not os.access(bun, os.X_OK) or not bun.is_file():
         raise PluginSyncError(error_message)
     return bun.parent
 
