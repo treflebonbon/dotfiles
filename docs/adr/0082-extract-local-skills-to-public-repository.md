@@ -40,7 +40,7 @@ dotfiles が導入する正本は、[`skills-plugin.json`](../../private_dot_con
 
 2026-11-05 の 0.2.7 では、所有権 CLI の既定 Windows 資産と開発用指示の配置の修正を検証した。新規モデルセッションでの11 skill × 3 runtime の呼出し33件は、0.2.7 に限って未実施のままユーザーが省略を受け入れた。候補・公開 commit の同一性、公式 CLI、Nix 配布物と dotfiles 側の検証は [#574 の記録](../research/fix-managed-chrome-owner-default-assets-20261105.md)を参照する。
 
-同じ公開 payload は Git checkout と `.git` を除いた plugin source snapshot の間で、全 tracked file の内容・mode・tree を一致させる。全3 runtime は同じ pin から導入する: Claude Code は `~/.claude/plugins` 配下、Codex は native `~/.codex`・存在する `~/.codex-app`・明示 `CODEX_HOME` の `plugins/cache/treflebonbon/treflebonbon-skills/<version>` を重複なく照合し、Antigravity CLI は `~/.gemini/config/plugins/treflebonbon-skills` と import inventory を照合する。過去の receipt だけではどの runtime の current install も証明しない。
+同じ公開 payload は Git checkout と `.git` を除いた plugin source snapshot の間で、全 tracked file の内容・mode・tree を一致させる。全3 runtime は同じ pin から導入する: Claude Code は `~/.claude/plugins` 配下、Codex は [ADR-0051](0051-sync-codex-managed-settings-as-a-set.md) の標準ホームと明示 `CODEX_HOME` の `plugins/cache/treflebonbon/treflebonbon-skills/<version>` を重複なく照合し、Antigravity CLI は `~/.gemini/config/plugins/treflebonbon-skills` と import inventory を照合する。過去の receipt だけではどの runtime の current install も証明しない。
 
 skill 本体、専用補助 CLI、共用 Python module、規範契約、WSL2 browser helper は公開 repository が所有する。dotfiles は single pin、公式 runtime 導入、端末固有の config・Nix wrapper・dispatch、旧配備からの安全な移行を所有する。5つの共用 CLI は `git-push-topic`、`git-push-reviewed`、`gh-review-thread`、`orca-send`、`codex-reviewer`。Nix の browser package は同じ公開 pin の資産を取り込み、上流 Playwright CLI の固定版とその lock・license を管理する（0.1.23 への更新は [2026-11-04 の記録](../research/update-tools-skills-20261104.md)）。第三者 skill は APM で別途導入し、独自 dependency resolver や公開 payload の dotfiles 内コピーは作らない。
 
