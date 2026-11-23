@@ -10,8 +10,10 @@ import re
 import sys
 
 CODE = re.compile(
-    r"^[ \t]*(?P<fence>(?P<marker>[`~])(?P=marker){2,})(?!(?P=marker))[^\n]*\n"
-    r".*?^[ \t]*(?P=fence)(?P=marker)*[ \t]*\r?$|(?P<ticks>`+).+?(?P=ticks)",
+    r"^[ \t]*(?P<fence>(?P<marker>(?P<backtick>`)|~)(?P=marker){2,})(?!(?P=marker))"
+    r"(?(backtick)[^`\n]*|[^\n]*)(?:\n|\Z)"
+    r".*?(?:^[ \t]*(?P=fence)(?P=marker)*[ \t]*\r?$|\Z)"
+    r"|(?P<ticks>`+).+?(?P=ticks)",
     re.DOTALL | re.MULTILINE,
 )
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")

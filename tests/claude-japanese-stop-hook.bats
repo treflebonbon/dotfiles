@@ -57,12 +57,33 @@ bats --filter "English reply with a few Japanese labels" tests/claude-japanese-s
   [ -z "$output" ]
 }
 
+@test "Japanese reply with a code fence ending at EOF passes silently" {
+  local message='確認済みです。
+~~~bash
+bats --filter "English reply with a few Japanese labels" tests/claude-japanese-stop-hook.bats'
+  run "$HOOK" <<<"$(stop_event "$message")"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "English prose after closed code is still checked" {
+  local message
+  for message in \
+    $'~~~text\n確認済みです。\n~~~\nDone.' \
+    $'```確認済みです。```\nDone.'; do
+    run "$HOOK" <<<"$(stop_event "$message")"
+    [ "$status" -eq 0 ]
+    jq -e '.decision == "block"' <<<"$output"
+  done
+}
+
 @test "Japanese, code-only, re-entered and invalid input pass silently" {
   local event
   for event in \
     "$(stop_event 'テストは成功しました。`lefthook run test` を実行済みです。')" \
     "$(stop_event $'```bash\nbats tests/dogfood.bats\n```')" \
     "$(stop_event $'~~~bash\necho hello\n~~~')" \
+    "$(stop_event '~~~bash')" \
     "$(stop_event '``echo `hello` ``')" \
     "$(stop_event 'Done.' true)" \
     'not json'; do
