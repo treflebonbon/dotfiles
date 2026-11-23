@@ -48,6 +48,7 @@ GLOBAL_CLI_NAMES = {
     "orca-send",
     "codex-reviewer",
 }
+BUN_GLOBAL_CLI_NAMES = {"gh-review-thread", "orca-send"}
 RAW_RUNTIME_COMMANDS = {"codex", "admit", "codex-worktree"}
 LEGACY_CLI_REVISION = "6d5b73dd8b9c88531a74e724ca9d83fa34b44b35"
 
@@ -2358,13 +2359,36 @@ def resolve_global_cli(
             ) from backup_error
 
 
+def user_bun_bin_dir() -> Path:
+    cache = Path.home() / ".cache/nix-devshell-global-env.bash"
+    error_message = (
+        "pinned Bun is unavailable; refresh the user devShell cache after applying dotfiles"
+    )
+    try:
+        contents = cache.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise PluginSyncError(error_message) from error
+    # Read the Nix assignment as data so dispatch does not run the cached shellHook.
+    match = re.search(r"^NIX_DEVSHELL_BUN_BIN='(/[^'\n\x00:]+/bin/bun)'$", contents, re.M)
+    if not match:
+        raise PluginSyncError(error_message)
+    bun = Path(match[1])
+    if not bun.is_file() or not os.access(bun, os.X_OK):
+        raise PluginSyncError(error_message)
+    return bun.parent
+
+
 def exec_global_cli(
     name: str, arguments: list[str], codex_homes: Iterable[Path] | None = None
 ) -> None:
     executable, pinned = resolve_global_cli(name, codex_homes)
     argv = [str(executable), *arguments]
+    env = cli_environment()
+    if pinned and name in BUN_GLOBAL_CLI_NAMES:
+        bun_bin = user_bun_bin_dir()
+        env["PATH"] = os.pathsep.join((str(bun_bin), env.get("PATH", os.defpath)))
     try:
-        os.execv(str(executable), argv)
+        os.execve(str(executable), argv, env)
     except OSError as error:
         if not pinned:
             raise PluginSyncError(

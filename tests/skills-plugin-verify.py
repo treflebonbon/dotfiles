@@ -14,7 +14,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from importlib.machinery import SourceFileLoader
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -1538,6 +1538,92 @@ class VerifyCheckoutTests(unittest.TestCase):
         ):
             sync_skills_plugin.read_verified_receipt(receipt_file)
 
+    def test_global_bun_clis_use_the_user_runtime_ahead_of_the_project_runtime(
+        self,
+    ) -> None:
+        names = ("gh-review-thread", "orca-send")
+        for name in names:
+            (self.root / "bin" / name).write_text('#!/bin/sh\nexec bun "$@"\n')
+        git(self.root, "commit", "-qam", "Bun CLI fixture")
+        pin = dict(
+            self.pin,
+            rev=git(self.root, "rev-parse", "HEAD"),
+            tree=git(self.root, "rev-parse", "HEAD^{tree}"),
+        )
+        home = self.temporary / "home"
+        (home / ".claude").mkdir(parents=True)
+        cache = home / ".cache"
+        checkout = cache / "treflebonbon-skills/checkouts" / pin["rev"]
+        shutil.copytree(self.root, checkout)
+        source = sync_skills_plugin.ensure_marketplace_source(
+            checkout, pin, cache / "treflebonbon-skills/marketplaces"
+        )
+        cli = home / ".local/bin/sync-skills-plugin"
+        cli.parent.mkdir(parents=True)
+        shutil.copy2(SCRIPT, cli)
+        pin_file = home / ".config/nix-devshell/skills-plugin.json"
+        pin_file.parent.mkdir(parents=True)
+        pin_file.write_text(json.dumps(pin))
+        fixed = self.temporary / "user/bin/bun"
+        project = self.temporary / "project/bin/bun"
+        for bun, body in (
+            (fixed, 'printf "%s\\n" "user Bun" "$@"'),
+            (project, 'echo "project Bun" >&2\nexit 2'),
+        ):
+            bun.parent.mkdir(parents=True)
+            bun.write_text(f"#!/bin/sh\n{body}\n")
+            bun.chmod(0o755)
+        (cache / "nix-devshell-global-env.bash").write_text(
+            f"NIX_DEVSHELL_BUN_BIN='{fixed}'\nexport NIX_DEVSHELL_BUN_BIN\n"
+            "exit 99\n"
+        )
+        clis = [self.make_mock_claude(), self.make_mock_codex(), self.make_mock_agy()]
+        base_path = os.pathsep.join(
+            [*(str(entry.parent) for entry in clis), os.environ["PATH"]]
+        )
+        normal_path = os.pathsep.join((str(fixed.parent), base_path))
+        project_path = os.pathsep.join((str(project.parent), normal_path))
+        with patch.dict(
+            os.environ,
+            {
+                "HOME": str(home),
+                "CODEX_HOME": str(home / ".codex"),
+                "CLAUDE_CONFIG_DIR": str(home / ".claude"),
+                "CLAUDE_CODE_PLUGIN_CACHE_DIR": str(home / ".claude/plugins"),
+                "XDG_STATE_HOME": str(home / ".local/state"),
+                "NIX_DEVSHELL_BUN_BIN": str(project),
+                "PATH": base_path,
+            },
+        ):
+            sync_skills_plugin.sync_all(
+                [home / ".codex"], pin=pin, checkout=checkout, source_root=source
+            )
+            for name in names:
+                command = [str(cli), "--run-cli", name, "--", "--help", "with spaces"]
+                for label, path in (("project", project_path), ("normal", normal_path)):
+                    with self.subTest(name=name, path=label):
+                        result = subprocess.run(
+                            command,
+                            env={**os.environ, "PATH": path},
+                            text=True,
+                            capture_output=True,
+                        )
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertEqual(
+                            result.stdout.splitlines(), ["user Bun", "--help", "with spaces"]
+                        )
+            fixed.chmod(0o644)
+            for name in names:
+                with self.subTest(name=name, runtime_missing=True):
+                    result = subprocess.run(
+                        [str(cli), "--run-cli", name, "--", "--help"],
+                        env={**os.environ, "PATH": project_path},
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertIn("pinned Bun is unavailable", result.stderr)
+
     def test_global_cli_dispatch_preserves_the_reviewed_entry_name(self) -> None:
         selected = self.source / "bin/git-push-reviewed"
         with (
@@ -1547,22 +1633,32 @@ class VerifyCheckoutTests(unittest.TestCase):
                 return_value={"source": str(self.source)},
             ),
             patch.object(
-                sync_skills_plugin.os, "execv", side_effect=RuntimeError("exec")
-            ) as execv,
+                sync_skills_plugin.os, "execve", side_effect=RuntimeError("exec")
+            ) as execve,
         ):
             with self.assertRaisesRegex(RuntimeError, "exec"):
                 sync_skills_plugin.exec_global_cli("git-push-reviewed", ["--probe"])
 
-        execv.assert_called_once_with(str(selected), [str(selected), "--probe"])
+        execve.assert_called_once_with(
+            str(selected), [str(selected), "--probe"], dict(os.environ)
+        )
 
     def test_each_public_cli_start_failure_recovers_to_its_validated_backup(
         self,
     ) -> None:
+        cache = self.temporary / ".cache/nix-devshell-global-env.bash"
+        cache.parent.mkdir()
+        bun = self.temporary / "user/bin/bun"
+        bun.parent.mkdir(parents=True)
+        bun.write_text("#!/bin/sh\nexit 0\n")
+        bun.chmod(0o755)
+        cache.write_text(f"NIX_DEVSHELL_BUN_BIN='{bun}'\n")
         for name in sorted(sync_skills_plugin.GLOBAL_CLI_NAMES):
             backup = self.temporary / f"legacy/{name}"
             backup.parent.mkdir(parents=True, exist_ok=True)
             backup.write_text("#!/bin/sh\nexit 0\n")
             with (
+                patch.dict(os.environ, {"HOME": str(self.temporary)}),
                 patch.object(
                     sync_skills_plugin,
                     "verify_cli_source",
@@ -1575,26 +1671,22 @@ class VerifyCheckoutTests(unittest.TestCase):
                 ),
                 patch.object(
                     sync_skills_plugin.os,
+                    "execve",
+                    side_effect=OSError("fixture startup failure"),
+                ) as execve,
+                patch.object(
+                    sync_skills_plugin.os,
                     "execv",
-                    side_effect=[
-                        OSError("fixture startup failure"),
-                        RuntimeError("fallback exec"),
-                    ],
+                    side_effect=RuntimeError("fallback exec"),
                 ) as execv,
             ):
                 with self.assertRaisesRegex(RuntimeError, "fallback exec"):
                     sync_skills_plugin.exec_global_cli(name, ["--probe"])
 
-            self.assertEqual(
-                execv.call_args_list,
-                [
-                    call(
-                        str(self.source / "bin" / name),
-                        [str(self.source / "bin" / name), "--probe"],
-                    ),
-                    call(str(backup), [str(backup), "--probe"]),
-                ],
-            )
+            entry = str(self.source / "bin" / name)
+            execve.assert_called_once()
+            self.assertEqual(execve.call_args.args[:2], (entry, [entry, "--probe"]))
+            execv.assert_called_once_with(str(backup), [str(backup), "--probe"])
 
     def test_missing_public_cli_uses_only_the_validated_legacy_backup(self) -> None:
         backup = self.temporary / "legacy/orca-send"
@@ -1612,13 +1704,15 @@ class VerifyCheckoutTests(unittest.TestCase):
                 return_value=backup,
             ),
             patch.object(
-                sync_skills_plugin.os, "execv", side_effect=RuntimeError("exec")
-            ) as execv,
+                sync_skills_plugin.os, "execve", side_effect=RuntimeError("exec")
+            ) as execve,
         ):
             with self.assertRaisesRegex(RuntimeError, "exec"):
                 sync_skills_plugin.exec_global_cli("orca-send", ["--probe"])
 
-        execv.assert_called_once_with(str(backup), [str(backup), "--probe"])
+        execve.assert_called_once_with(
+            str(backup), [str(backup), "--probe"], dict(os.environ)
+        )
 
     def test_global_cli_dispatch_uses_only_a_validated_legacy_backup_on_stale_state(
         self,
@@ -1638,13 +1732,15 @@ class VerifyCheckoutTests(unittest.TestCase):
                 return_value=backup,
             ),
             patch.object(
-                sync_skills_plugin.os, "execv", side_effect=RuntimeError("exec")
-            ) as execv,
+                sync_skills_plugin.os, "execve", side_effect=RuntimeError("exec")
+            ) as execve,
         ):
             with self.assertRaisesRegex(RuntimeError, "exec"):
                 sync_skills_plugin.exec_global_cli("git-push-topic", ["--probe"])
 
-        execv.assert_called_once_with(str(backup), [str(backup), "--probe"])
+        execve.assert_called_once_with(
+            str(backup), [str(backup), "--probe"], dict(os.environ)
+        )
 
     def test_legacy_backup_manifest_and_payload_cannot_be_changed_together(
         self,
