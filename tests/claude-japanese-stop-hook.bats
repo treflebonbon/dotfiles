@@ -46,6 +46,17 @@ bats --filter "English reply with a few Japanese labels" tests/claude-japanese-s
   [ -z "$output" ]
 }
 
+@test "Japanese reply with an indented code fence passes silently" {
+  local message='- 確認済みです。
+  ~~~bash
+  lefthook run test
+  bats --filter "English reply with a few Japanese labels" tests/claude-japanese-stop-hook.bats
+  ~~~~'
+  run "$HOOK" <<<"$(stop_event "$message")"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "Japanese, code-only, re-entered and invalid input pass silently" {
   local event
   for event in \

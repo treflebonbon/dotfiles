@@ -9,7 +9,11 @@ import json
 import re
 import sys
 
-CODE = re.compile(r"^(`{3,}|~{3,}).*?^\1|(`+).+?\2", re.DOTALL | re.MULTILINE)
+CODE = re.compile(
+    r"^[ \t]*(?P<fence>(?P<marker>[`~])(?P=marker){2,})(?!(?P=marker))[^\n]*\n"
+    r".*?^[ \t]*(?P=fence)(?P=marker)*[ \t]*\r?$|(?P<ticks>`+).+?(?P=ticks)",
+    re.DOTALL | re.MULTILINE,
+)
 JAPANESE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
 LATIN = re.compile(r"[A-Za-z]")
 # 最終返答の実測（#619）では、英語の最大が 0.77%、日本語の最小が 15.79%。
