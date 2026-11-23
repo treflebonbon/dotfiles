@@ -58,7 +58,6 @@ extends = ":workspace"
 
 [permissions."dotfiles".filesystem]
 glob_scan_max_depth = 6
-":slash_tmp" = "deny"
 "~/.ssh" = "deny"
 "~/.aws" = "deny"
 "~/.config/gcloud" = "deny"
@@ -100,7 +99,7 @@ glob_scan_max_depth = 16
 {{ range $profile, $roots := $secretRoots }}
 {{ range $root := $roots }}
 [permissions."{{ $profile }}".filesystem."{{ $root }}"]
-{{ if or (eq $root "/tmp/codex") (and (eq $profile "dotfiles-secure") (eq $root ":workspace_roots")) }}
+{{ if and (eq $profile "dotfiles-secure") (or (eq $root "/tmp/codex") (eq $root ":workspace_roots")) }}
 "." = "write"
 {{ else if eq $profile "dotfiles-secure" }}
 "." = "read"

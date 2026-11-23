@@ -144,6 +144,22 @@ def strip_stale_managed_filesystem_rules(
             if isinstance(managed_profile, dict)
             else None
         )
+        if name == "dotfiles" and isinstance(managed_filesystem, dict):
+            # Leave the daily profile's temporary roots to :workspace.
+            if (
+                ":slash_tmp" not in managed_filesystem
+                and filesystem.get(":slash_tmp") == "deny"
+            ):
+                del filesystem[":slash_tmp"]
+            shared_tmp = filesystem.get("/tmp/codex")
+            managed_shared_tmp = managed_filesystem.get("/tmp/codex")
+            if (
+                isinstance(shared_tmp, dict)
+                and isinstance(managed_shared_tmp, dict)
+                and "." not in managed_shared_tmp
+                and shared_tmp.get(".") == "write"
+            ):
+                del shared_tmp["."]
         managed_workspace_roots = (
             managed_filesystem.get(":workspace_roots")
             if isinstance(managed_filesystem, dict)

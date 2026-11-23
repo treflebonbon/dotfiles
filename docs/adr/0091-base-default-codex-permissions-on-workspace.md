@@ -14,7 +14,9 @@ status: accepted
 ## 合意済みの方針
 
 - 通常の Codex CLI と管理設定を同期する Codex Desktop では、`:workspace` を継承する `dotfiles` を既定にする。raw の `codex-worktree` と `codex-reviewer` はそれぞれの既存プロファイルを使い、Orca の Agent Picker は Orca が起動権限を所有する。[raw の隔離](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) · [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) · [ADR-0046](0046-separate-orca-native-worktree-entry.md)
-- 作業中の workspace、`~/ghq/github.com`、`~/orca/workspaces` では、dotenv・鍵など既存の機密ファイル名の読み取りを拒否する。`.envrc` と `.env.example` は参照できるようにする。共有一時領域は [ADR-0074](0074-allow-codex-tmp-workspace.md) に従い `/tmp/codex` に限定し、各セッションの `$TMPDIR` も使えるようにする。
+- 作業中の workspace、`~/ghq/github.com`、`~/orca/workspaces` では、dotenv・鍵など既存の機密ファイル名の読み取りを拒否する。`.envrc` と `.env.example` は参照できるようにする。
+- 日常用の `/tmp` と `$TMPDIR` のアクセスは `:workspace` に委ねる。通常の `/tmp` も OS のファイル権限の範囲で読み書きできる。セッション間の共有先は [ADR-0074](0074-allow-codex-tmp-workspace.md) の `/tmp/codex` とし、起動時の準備と配下の機密名の拒否を維持する。機密名の走査範囲は一時領域では `/tmp/codex` に留める。`dotfiles-secure` の一時領域の規則は引き続き ADR-0074 に従う。
+- 管理同期では、既存の日常用の `":slash_tmp" = "deny"` と `/tmp/codex` の管理済み書き込み指定を取り除き、新規配備と同じ継承結果に揃える。`/tmp/codex` 配下の拒否規則や利用者が追加した設定は保持する。
 - 日常用の `glob_scan_max_depth` は6にする。Linux／WSL では、走査上限を越える名前や同じプロセスの起動後に現れたファイルに機密名の拒否は適用されない。`hosts.yml` などパスを指定した拒否は走査深さに依存しない。
 - 日常用は `:workspace` 標準の通信制限を使い、承認が必要な操作は既存の `on-request` / `auto_review` に委ねる。[Codex のネットワーク設定](https://learn.chatgpt.com/docs/permissions#network-permissions)
 - `~/.config/gh/hosts.yml` の読み取りは、通常の sandbox と承認後の実行で拒否する。認証付きリモート Git は日常用プロファイルで未対応とし、資格情報の保護を維持できる認証経路の設計と受入を後続に移す。
@@ -23,7 +25,8 @@ status: accepted
 
 - 日常用プロファイルを既定にする PR #620 のマージは、Linux／WSL 上の CLI と Desktop の両方で、既存の `.env` symlink がある workspace でも通常コマンドが起動し、ダミーのリンク先の内容を読み取れないことを確認するまで保留する。
 - 通常の CLI と Desktop の新規セッションで日常用プロファイルが選択される。linked worktree の `git status` と `git rev-parse HEAD` が成功し、通常の sandbox から Git 管理情報の書き込みは拒否される。
-- 両方の checkout 置き場を含む実環境で起動できる。ダミーファイルで機密名の拒否と公開サンプルの読み取りを確認する。`/tmp/codex` と `$TMPDIR` で一時ファイルを読み書きでき、通常の `/tmp` へのアクセスは拒否される。
+- 両方の checkout 置き場を含む実環境で起動できる。ダミーファイルで機密名の拒否と公開サンプルの読み取りを確認する。`/tmp`、`/tmp/codex`、設定済みの `$TMPDIR` で一時ファイルを読み書きでき、`$TMPDIR` が未設定でも `mktemp` が成功する。`/tmp/codex` 配下のダミーの機密ファイルは読み取れない。
+- 管理同期の新規・既存両ケースで同じ日常用プロファイルに収束する。既存の `dotfiles-secure` の規則と、利用者が追加した拒否は保持される。
 - 通常の sandbox で `hosts.yml` の読み取りが拒否されることをダミーファイルで確認する。
 - `.env` symlink の保護に対応した公式 Codex の配布を待つ。その版で symlink の保護、読み取り不可の別 checkout がある場合の起動、承認後の公開依存の取得を再検証する。起動と取得の結果も確認してマージ可否を判断する。
 
@@ -57,3 +60,9 @@ Desktop の新規 WSL セッションでは `dotfiles-daily` が選択され、`
 - glob の列挙は子 symlink を対象外にする。workspace の `.env` から名前の拒否条件に該当しないダミーファイルへリンクすると、shell からリンク先の内容を取得できた。同じ `.env` を個別に `deny` すると、書き込み可能な symlink を検出して sandbox の起動自体が失敗した。[Linux の deny マウント](https://github.com/openai/codex/blob/rust-v0.170.0/codex-rs/linux-sandbox/src/bwrap.rs#L1204-L1235)
 
 公式安定版 0.171.0 と 0.173.0-alpha.4 のソースでも、glob の列挙は子 symlink を対象外にしている。両版の確認はソースの比較までで、実機での再検証は未実施。[0.171.0 のソース](https://github.com/openai/codex/blob/rust-v0.171.0/codex-rs/linux-sandbox/src/bwrap.rs#L962-L984) · [0.173.0-alpha.4 のソース](https://github.com/openai/codex/blob/rust-v0.173.0-alpha.4/codex-rs/linux-sandbox/src/bwrap.rs#L962-L984)
+
+### 2026-11-23 の一時領域の再評価
+
+Codex 0.170.0 と管理テンプレートのダミー比較では、日常用の `/tmp` を標準に委ねると、`$TMPDIR` が未設定でも `mktemp` が成功した。承認後のファイルシステム規則を再現した試験でも、`/tmp/codex` にダミーの `.env` がある状態でコマンドが起動し、その内容は拒否された。共有領域外のダミーは読めた。`/tmp` 全体を機密名の走査対象にすると、読み取り不可のディレクトリで sandbox が起動しなかった。
+
+管理同期のダミー比較では、テンプレートから一律拒否を省くだけでは、以前の `deny` が配備済みの設定に残った。候補設定を使った Desktop の実承認と公開依存の取得は、受入時に確認する。

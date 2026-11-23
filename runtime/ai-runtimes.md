@@ -163,7 +163,7 @@ workflow パイプライン（mattpocock skills）は Claude Code の Skill tool
 
 CLI と Desktop の日常用の既定は `:workspace` を継承する `dotfiles`。通常の sandbox で linked worktree の Git 管理情報を参照できる。作業中の workspace、`~/ghq/github.com`、`~/orca/workspaces` には機密ファイル名の拒否を適用する。通信は標準の制限に従い、既存の自動レビューを使う。`~/.config/gh/hosts.yml` の読み取り拒否は承認後も適用する。日常用の認証付きリモート Git は後続で扱う。raw の実装役と読み取り専用のレビュー役は専用の起動経路を使う。[ADR-0091](../docs/adr/0091-base-default-codex-permissions-on-workspace.md)
 
-通常の Codex は、セッション間で共有する一時ファイルに `/tmp/codex` を使う。`SessionStart` hook が所有者と種類を確認し、mode 700 で準備する。配備後は新しい hook の信頼確認が必要で、未信頼なら準備は実行されない。`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。その他の `/tmp` は共有せず、各セッションの `$TMPDIR` は従来どおり利用できる。共有領域にも機密ファイル名の拒否を適用する。Linux での機密名の拒否は、sandbox 起動時に設定された深さまで走査した既存の名前が対象になる。raw `codex-worktree` は隔離内の一時領域を利用し、ホストの `/tmp/codex` を共有しない。[ADR-0074](../docs/adr/0074-allow-codex-tmp-workspace.md)
+セッション間で共有する一時ファイルは `/tmp/codex` に置く。`SessionStart` hook が所有者と種類を確認し、mode 700 で準備する。配備後は新しい hook の信頼確認が必要で、未信頼なら準備は実行されない。`mktemp -d /tmp/codex/<task>.XXXXXX` で作業ごとに分ける。日常用の `dotfiles` は `/tmp` と `$TMPDIR` のアクセスを標準の `:workspace` に委ねる。`dotfiles-secure` は共有領域とセッションの `$TMPDIR` を利用でき、通常の `/tmp` には拒否を適用する。共有領域では両プロファイルで機密ファイル名の拒否を適用する。Linux では sandbox 起動時に設定された深さまで走査した既存の名前が対象になる。raw `codex-worktree` は隔離内の一時領域を利用する。[ADR-0074](../docs/adr/0074-allow-codex-tmp-workspace.md) · [ADR-0091](../docs/adr/0091-base-default-codex-permissions-on-workspace.md)
 
 ### Codex の推論強度と試行
 

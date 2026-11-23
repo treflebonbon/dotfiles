@@ -1490,7 +1490,7 @@ PY
 
 @test "Codex config merge script writes managed permission profile" {
   local home="$BATS_TEST_TMPDIR/home"
-  mkdir -p "$home/.config/codex" "$home/.codex" "$home/.codex-app"
+  mkdir -p "$home/.config/codex" "$home/.codex"
   stage_codex_managed_config "$home"
 
   cat >"$home/.codex/config.toml" <<'EOF'
@@ -1508,7 +1508,7 @@ EOF
 
   grep -q '^approval_policy = "on-request"$' "$home/.codex/config.toml"
   grep -q '^approvals_reviewer = "auto_review"$' "$home/.codex/config.toml"
-  assert_dotfiles_permission_profile "$home/.codex/config.toml" "$home/.codex-app/config.toml"
+  assert_dotfiles_permission_profile "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\]$' "$home/.codex/config.toml"
   grep -q '^glob_scan_max_depth = 16$' "$home/.codex/config.toml"
   grep -q '^\[permissions\.dotfiles-secure\.filesystem\.":workspace_roots"\]$' "$home/.codex/config.toml"

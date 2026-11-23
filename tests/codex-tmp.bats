@@ -140,6 +140,7 @@ codex_probe() {
       <"$CODEX_HOME/config.toml")"
     codex sandbox -P "$profile" -C "$workspace" -- bash -c "$4" _ \
       "$repo" "$orca_workspace" "$2" "$3" "$expected_head"
+    env -u TMPDIR codex sandbox -P "$profile" -C "$workspace" -- bash -c "$5"
   ' _ "$FIXTURE_MOUNT" "$SHARED_TMP" "$OUTSIDE_TMP/public.txt" '
     set -eu
     git --no-optional-locks status --short --branch
@@ -155,16 +156,24 @@ codex_probe() {
     for path in "$HOME/.config/gh/hosts.yml" "$HOME/.codex-app/auth.json"; do
       test "$(cat "$path" 2>/dev/null || true)" != dummy-secret
     done
-    test "$(cat "$4" 2>/dev/null || true)" != outside
+    test "$(cat "$4")" = outside
+    printf "updated\n" >"$4"
     printf "shared\n" >"$3/round-trip"
     printf "session\n" >"$TMPDIR/round-trip"
     test "$(cat "$3/round-trip")" = shared
     test "$(cat "$TMPDIR/round-trip")" = session
+  ' '
+    set -eu
+    scratch="$(mktemp -d)"
+    [[ "$scratch" == /tmp/* ]]
+    printf "fallback\n" >"$scratch/round-trip"
+    test "$(cat "$scratch/round-trip")" = fallback
   '
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
   [ "$(cat "$SHARED_TMP/round-trip")" = shared ]
   [ "$(cat "$SESSION_TMP/round-trip")" = session ]
+  [ "$(cat "$OUTSIDE_TMP/public.txt")" = updated ]
 }
 
 @test "Codex protects sensitive /tmp/codex filenames while public examples remain usable" {
