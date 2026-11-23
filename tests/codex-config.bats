@@ -583,7 +583,7 @@ assert_codex_strict_config() {
     [ "$status" -eq 0 ]
   fi
 
-  python3 - "$codex_home" "$home/.codex" "$home/.codex-app" "$codex_home" <<'PY'
+  python3 - "$codex_home" "$home/.codex" "$codex_home" <<'PY'
 import sys
 import tomllib
 from pathlib import Path
