@@ -28,6 +28,24 @@ stop_event() {
   jq -e '.decision == "block" and (.reason | test("日本語"))' <<<"$output"
 }
 
+@test "English reply with a few Japanese labels is blocked" {
+  run "$HOOK" <<<"$(stop_event 'Updated the menu labels to 「設定」 and 「保存」. All tests passed.')"
+  [ "$status" -eq 0 ]
+  jq -e '.decision == "block"' <<<"$output"
+}
+
+@test "Japanese reply with many identifiers and commands passes silently" {
+  local message='BATS_RUN_SKIPPED、lefthook.yml、scripts/pre-push.sh、private_dot_claude/settings.json.tmpl、tests/claude-japanese-stop-hook.bats を確認済みです。
+`bunx --no-install tsc --noEmit` と `git status --short --branch` も実行済みです。
+~~~bash
+lefthook run test
+bats --filter "English reply with a few Japanese labels" tests/claude-japanese-stop-hook.bats
+~~~'
+  run "$HOOK" <<<"$(stop_event "$message")"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "Japanese, code-only, re-entered and invalid input pass silently" {
   local event
   for event in \
