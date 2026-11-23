@@ -63,6 +63,9 @@ codex_probe() {
   if [[ -n "${OUTSIDE_TMP:-}" ]]; then
     namespace+=(--bind "$OUTSIDE_TMP" "$OUTSIDE_TMP")
   fi
+  if [[ -n "${FIXTURE_MOUNT:-}" ]]; then
+    namespace+=(--tmpfs /run --bind "$BATS_TEST_TMPDIR" "$FIXTURE_MOUNT")
+  fi
   "${namespace[@]}" "$@"
 }
 
@@ -102,6 +105,73 @@ codex_probe() {
   [ "$(cat "$SHARED_TMP/shared.txt")" = updated ]
   [ ! -e "$SHARED_TMP/new.txt" ]
   [ "$(cat "$OUTSIDE_TMP/public.txt")" = outside-public ]
+}
+
+@test "Codex opt-in sandbox reads linked Git metadata and protects secrets and temporary files" {
+  [ "$(uname -s)" = Linux ] || skip "Git metadata と一時領域を別 mount で検査する"
+  FIXTURE_MOUNT=/run/codex-daily-fixture
+  OUTSIDE_TMP="$(mktemp -d /tmp/codex-outside.XXXXXX)"
+  printf 'outside\n' >"$OUTSIDE_TMP/public.txt"
+
+  run codex_probe bash -c '
+    set -eu
+    export HOME="$1/home" CODEX_HOME="$1/home/.codex" TMPDIR="$1/session-tmp"
+    export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+    repo="$HOME/ghq/github.com/example/repo"
+    orca_workspace="$HOME/orca/workspaces/example/nested"
+    workspace="$1/workspace"
+    unreadable="$repo/tmp/generated/data/private"
+    mkdir -p "$unreadable" "$orca_workspace" "$HOME/.codex-app"
+    chmod 000 "$unreadable"
+    trap "chmod 700 \"$unreadable\"" EXIT
+    git init -q "$repo"
+    git -C "$repo" -c user.name=Fixture -c user.email=fixture@example.invalid \
+      commit -q --allow-empty -m fixture
+    git -C "$repo" worktree add -qd "$workspace"
+    expected_head="$(git -C "$repo" rev-parse HEAD)"
+    for dir in "$repo" "$orca_workspace" "$workspace" "$2"; do
+      printf "public\n" >"$dir/.env.example"
+      printf "dummy-secret\n" >"$dir/.env"
+    done
+    printf "dummy-secret\n" >"$HOME/.config/gh/hosts.yml"
+    printf "dummy-secret\n" >"$HOME/.codex-app/auth.json"
+
+    codex sandbox -P dotfiles -C "$workspace" -- bash -c "$4" _ \
+      "$repo" "$orca_workspace" "$2" "$3" "$expected_head"
+    env -u TMPDIR codex sandbox -P dotfiles -C "$workspace" -- bash -c "$5"
+  ' _ "$FIXTURE_MOUNT" "$SHARED_TMP" "$OUTSIDE_TMP/public.txt" '
+    set -eu
+    git --no-optional-locks status --short --branch
+    test "$(git rev-parse HEAD)" = "$5"
+    if git branch unexpected-write >/dev/null 2>&1; then
+      printf "Git metadata is writable\n" >&2
+      exit 1
+    fi
+    for dir in "$1" "$2" "$PWD" "$3"; do
+      test "$(cat "$dir/.env.example")" = public
+      test "$(cat "$dir/.env" 2>/dev/null || true)" != dummy-secret
+    done
+    for path in "$HOME/.config/gh/hosts.yml" "$HOME/.codex-app/auth.json"; do
+      test "$(cat "$path" 2>/dev/null || true)" != dummy-secret
+    done
+    test "$(cat "$4")" = outside
+    printf "updated\n" >"$4"
+    printf "shared\n" >"$3/round-trip"
+    printf "session\n" >"$TMPDIR/round-trip"
+    test "$(cat "$3/round-trip")" = shared
+    test "$(cat "$TMPDIR/round-trip")" = session
+  ' '
+    set -eu
+    scratch="$(mktemp -d)"
+    [[ "$scratch" == /tmp/* ]]
+    printf "fallback\n" >"$scratch/round-trip"
+    test "$(cat "$scratch/round-trip")" = fallback
+  '
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  [ "$(cat "$SHARED_TMP/round-trip")" = shared ]
+  [ "$(cat "$SESSION_TMP/round-trip")" = session ]
+  [ "$(cat "$OUTSIDE_TMP/public.txt")" = updated ]
 }
 
 @test "Codex protects sensitive /tmp/codex filenames while public examples remain usable" {

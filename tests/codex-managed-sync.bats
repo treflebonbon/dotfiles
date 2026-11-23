@@ -568,6 +568,54 @@ SH
   [ "$(wc -l <"$SYNC_LOG_PATH")" -eq "$count" ]
 }
 
+@test "Codex managed sync retires only the old managed daily temporary path rules" {
+  prepare_chezmoi_fixture
+  local explicit_home="$BATS_TEST_TMPDIR/explicit-codex-home"
+  mkdir -p "$TEST_HOME/.codex" "$explicit_home"
+  cat >"$TEST_HOME/.codex/config.toml" <<'EOF'
+[permissions.dotfiles.filesystem]
+":slash_tmp" = "deny"
+
+[permissions.dotfiles.filesystem."/tmp/codex"]
+"." = "write"
+"**/local-secret.txt" = "deny"
+EOF
+  cat >"$explicit_home/config.toml" <<'EOF'
+[permissions.dotfiles.filesystem]
+":slash_tmp" = "read"
+
+[permissions.dotfiles.filesystem."/tmp/codex"]
+"." = "deny"
+EOF
+
+  run env CODEX_HOME="$explicit_home" "${CHEZMOI_APPLY[@]}"
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+  python3 - "$TEST_HOME/.config/codex/config.toml" "$TEST_HOME/.codex/config.toml" \
+    "$explicit_home/config.toml" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+managed, migrated, custom = (
+    tomllib.loads(Path(path).read_text())["permissions"] for path in sys.argv[1:]
+)
+
+daily = managed["dotfiles"]["filesystem"]
+assert ":slash_tmp" not in daily and "." not in daily["/tmp/codex"]
+assert daily["/tmp/codex"]["**/.env"] == "deny"
+migrated_daily = migrated["dotfiles"]["filesystem"]
+assert ":slash_tmp" not in migrated_daily and "." not in migrated_daily["/tmp/codex"]
+assert migrated_daily["/tmp/codex"].pop("**/local-secret.txt") == "deny"
+daily[str(Path(sys.argv[3]).parent / "auth.json")] = "deny"
+assert migrated["dotfiles"] == managed["dotfiles"]
+assert migrated["dotfiles-secure"]["filesystem"][":slash_tmp"] == "deny"
+assert migrated["dotfiles-secure"]["filesystem"]["/tmp/codex"]["."] == "write"
+assert custom["dotfiles"]["filesystem"][":slash_tmp"] == "read"
+assert custom["dotfiles"]["filesystem"]["/tmp/codex"]["."] == "deny"
+PY
+}
+
 @test "Codex permissions read only the verified plugin cache for each managed home" {
   prepare_chezmoi_fixture
   local explicit_home="$BATS_TEST_TMPDIR/explicit-codex-home"

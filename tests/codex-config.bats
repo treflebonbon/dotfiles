@@ -248,6 +248,11 @@ for path in sys.argv[1:]:
     assert "sandbox_mode" not in config
     assert "sandbox_workspace_write" not in config
     assert config["default_permissions"] == "dotfiles-secure"
+    daily = config["permissions"]["dotfiles"]
+    assert daily["extends"] == ":workspace"
+    assert daily.get("network", {}).get("enabled", False) is False
+    assert daily["filesystem"].get(":root", "read") == "read"
+    assert daily["filesystem"]["~/.config/gh/hosts.yml"] == "deny"
 
     profile = config["permissions"]["dotfiles-secure"]
     assert profile["extends"] == ":workspace"
@@ -556,10 +561,43 @@ assert_codex_strict_config() {
 
   assert_codex_strict_config "$home/.config/codex"
 
+  mkdir -p "$home/.codex"
+  printf 'default_permissions = "dotfiles"\n' >"$home/.codex/config.toml"
+  cp "$home/.codex/config.toml" "$codex_home/config.toml"
   HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_strict_config "$home/.codex"
   assert_codex_strict_config "$codex_home"
+
+  if [ "$(uname -s)" = Linux ]; then
+    local workspace="$BATS_TEST_TMPDIR/workspace"
+    mkdir -p "$workspace"
+    printf 'dummy-auth\n' >"$codex_home/auth.json"
+    printf 'public fixture\n' >"$codex_home/public.txt"
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P dotfiles -C "$workspace" -- sh -c '
+        test "$(cat "$1/public.txt")" = "public fixture" || exit 2
+        test "$(cat "$1/auth.json" 2>/dev/null || true)" != "dummy-auth" || {
+          printf "custom Codex auth fixture is readable\n" >&2
+          exit 3
+        }
+      ' _ "$codex_home"
+    [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+    [ "$status" -eq 0 ]
+  fi
+
+  python3 - "$codex_home" "$home/.codex" "$codex_home" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+auth = str(Path(sys.argv[1]).resolve() / "auth.json")
+for path in sys.argv[2:]:
+    config = tomllib.loads((Path(path) / "config.toml").read_text())
+    assert config["default_permissions"] == "dotfiles-secure", path
+    filesystem = config["permissions"]["dotfiles"]["filesystem"]
+    assert filesystem.get(auth) == "deny", path
+PY
 }
 
 assert_ponytail_plugin_installed_and_enabled() {
@@ -813,11 +851,11 @@ PY
   prepare_codex_permission_roots "$home"
   printf 'protected\n' >"$home/other-repo/.env"
   render_codex_managed_config "$PROJECT_ROOT" "$codex_home/config.toml" "$home"
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-    codex sandbox -P dotfiles-secure -C "$workspace" -- cat "$home/other-repo/.env"
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- sh -c 'cat "$HOME/other-repo/.env"'
   [ "$status" -ne 0 ]
-  run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-    codex sandbox -P dotfiles-secure -C "$workspace" -- python3 -c 'print("runtime available")'
+  run_codex_with_virtual_home "$home" "$workspace" \
+    sandbox -P dotfiles-secure -C "$workspace" -- python3 -c 'print("runtime available")'
   [ "$status" -eq 0 ]
   [[ "$output" == *'runtime available'* ]]
 }
@@ -836,8 +874,8 @@ PY
 
   for path in .envrc .env.example one/two/three/.envrc one/two/three/.env.example; do
     printf 'original\n' >"$workspace/$path"
-    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P dotfiles-secure -C "$workspace" -- \
       sh -c 'printf "updated\n" >"$1"' _ "$path"
 
     if [ "$status" -ne 0 ]; then
@@ -857,8 +895,8 @@ PY
     chmod u+w "$workspace/$path" 2>/dev/null || true
     rm -f "$workspace/$path"
     printf 'protected\n' >"$workspace/$path"
-    run env HOME="$home" CODEX_HOME="$codex_home" TMPDIR=/tmp \
-      codex sandbox -P dotfiles-secure -C "$workspace" -- \
+    run_codex_with_virtual_home "$home" "$workspace" \
+      sandbox -P dotfiles-secure -C "$workspace" -- \
       sh -c 'printf "overwritten\n" >"$1"' _ "$path"
 
     if [ "$status" -eq 0 ]; then

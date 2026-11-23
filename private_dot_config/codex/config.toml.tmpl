@@ -53,6 +53,25 @@ args = [
   "false",
 ]
 
+[permissions."dotfiles"]
+extends = ":workspace"
+
+[permissions."dotfiles".filesystem]
+glob_scan_max_depth = 6
+"~/.ssh" = "deny"
+"~/.aws" = "deny"
+"~/.config/gcloud" = "deny"
+"~/.config/gh/hosts.yml" = "deny"
+"~/.kube" = "deny"
+"~/.docker/config.json" = "deny"
+"~/.git-credentials" = "deny"
+"~/.gnupg" = "deny"
+"~/.codex/auth.json" = "deny"
+"~/.codex-app/auth.json" = "deny"
+
+[permissions."dotfiles".network]
+enabled = false
+
 [permissions."dotfiles-secure"]
 extends = ":workspace"
 
@@ -76,15 +95,21 @@ glob_scan_max_depth = 16
 {{ printf "%q" $pluginSource }} = "read"
 {{ printf "%q" $legacyCliBackup }} = "read"
 
-{{ range $root := list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp/codex" }}
-[permissions."dotfiles-secure".filesystem."{{ $root }}"]
-"." = "{{ if or (eq $root ":workspace_roots") (eq $root "/tmp/codex") }}write{{ else }}read{{ end }}"
-{{ if eq $root "/tmp/codex" }}
-{{/* 存在しない共有領域の .env に mount target を作らないため glob にする。 */}}
-"**/.env" = "deny"
-{{ else }}
+{{ $secretRoots := dict "dotfiles" (list ":workspace_roots" "~/ghq/github.com" "~/orca/workspaces" "/tmp/codex") "dotfiles-secure" (list ":workspace_roots" "~/.local/bin" "~/.config/git" "~/.config/gh" "/tmp/codex") }}
+{{ range $profile, $roots := $secretRoots }}
+{{ range $root := $roots }}
+[permissions."{{ $profile }}".filesystem."{{ $root }}"]
+{{ if and (eq $profile "dotfiles-secure") (or (eq $root "/tmp/codex") (eq $root ":workspace_roots")) }}
+"." = "write"
+{{ else if eq $profile "dotfiles-secure" }}
+"." = "read"
+{{ end }}
+{{ if and (eq $profile "dotfiles-secure") (ne $root "/tmp/codex") }}
 ".env" = "deny"
 "*/**/.env" = "deny"
+{{ else }}
+{{/* 存在しない .env に mount target を作らないため glob にする。 */}}
+"**/.env" = "deny"
 {{ end }}
 "**/.env[!.r]*" = "deny"
 "**/.envr" = "deny"
@@ -114,6 +139,7 @@ glob_scan_max_depth = 16
 "**/secret.json" = "deny"
 "**/secrets.json" = "deny"
 "**/service-account*.json" = "deny"
+{{ end }}
 {{ end }}
 
 [permissions."dotfiles-secure".network]

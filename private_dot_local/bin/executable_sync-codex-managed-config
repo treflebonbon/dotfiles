@@ -78,7 +78,7 @@ if [ -n "${CODEX_HOME:-}" ]; then
 fi
 
 merge_config() {
-  python3 - "$managed_config" "$1" "$2" "${3:-}" "${4:-}" <<'PY'
+  python3 - "$managed_config" "$1" "$2" "${3:-}" "${4:-}" "${codex_homes[@]}" <<'PY'
 from __future__ import annotations
 
 import json
@@ -144,6 +144,22 @@ def strip_stale_managed_filesystem_rules(
             if isinstance(managed_profile, dict)
             else None
         )
+        if name == "dotfiles" and isinstance(managed_filesystem, dict):
+            # Leave the daily profile's temporary roots to :workspace.
+            if (
+                ":slash_tmp" not in managed_filesystem
+                and filesystem.get(":slash_tmp") == "deny"
+            ):
+                del filesystem[":slash_tmp"]
+            shared_tmp = filesystem.get("/tmp/codex")
+            managed_shared_tmp = managed_filesystem.get("/tmp/codex")
+            if (
+                isinstance(shared_tmp, dict)
+                and isinstance(managed_shared_tmp, dict)
+                and "." not in managed_shared_tmp
+                and shared_tmp.get(".") == "write"
+            ):
+                del shared_tmp["."]
         managed_workspace_roots = (
             managed_filesystem.get(":workspace_roots")
             if isinstance(managed_filesystem, dict)
@@ -366,6 +382,15 @@ for key in ("projects", "notice", "tui"):
     if key in managed:
         print(f"ERROR: managed Codex config must not contain [{key}]", file=sys.stderr)
         sys.exit(1)
+
+permissions = managed.get("permissions")
+daily = permissions.get("dotfiles") if isinstance(permissions, dict) else None
+daily_filesystem = daily.get("filesystem") if isinstance(daily, dict) else None
+if isinstance(daily_filesystem, dict):
+    standard_homes = {Path.home() / ".codex", Path.home() / ".codex-app"}
+    for home in map(Path, sys.argv[6:]):
+        if home not in standard_homes:
+            daily_filesystem[str(home / "auth.json")] = "deny"
 
 
 def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:

@@ -9,6 +9,8 @@ status: accepted
 
 # Codex の共有一時領域を /tmp/codex に限定する
 
+2026-11-23 追記。日常用の `dotfiles` では、[ADR-0091](0091-base-default-codex-permissions-on-workspace.md) により `/tmp` のアクセスを標準の `:workspace` に委ねる。セッション間の共有先と機密名の拒否は `/tmp/codex` に適用する。以下の `dotfiles-secure` と raw の一時領域の規則は、各用途で引き続き適用する。
+
 Herdr の通常起動で Codex 0.162.1 を検証すると、管理 profile の `":slash_tmp" = "deny"` により、ホストに存在する `/tmp` の通常ファイルが sandbox 内では見えなかった。worktree 内と、そのセッションの `$TMPDIR` 配下の通常ファイルは読み取れた。
 
 当初はスキルが使う任意の `/tmp/...` をそのまま共有し、既存の機密ファイル名の拒否を追加する方針に合意した。しかし、Linux の Codex 0.162.1 では `/tmp/systemd-private-*` などの読めないディレクトリで ripgrep が終了コード 2 を返し、sandbox 全体の起動が失敗した。深さを限定したパターンでも再現し、本体パッチの追加案は新しい source build を必要とした。
