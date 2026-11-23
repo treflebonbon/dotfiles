@@ -380,14 +380,6 @@ with open(path, "w", encoding="utf-8") as stream:
 PY
 }
 
-install_codex_managed_config_sync() {
-  local home="$1"
-  mkdir -p "$home/.local/bin"
-  cp "$PROJECT_ROOT/private_dot_local/bin/executable_sync-codex-managed-config" \
-    "$home/.local/bin/sync-codex-managed-config"
-  chmod +x "$home/.local/bin/sync-codex-managed-config"
-}
-
 prepare_codex_chezmoi_source() {
   local source="$1"
   mkdir -p "$source/private_dot_config/nix-devshell" "$source/private_dot_config" "$source/private_dot_local/bin"
@@ -425,8 +417,6 @@ while index < len(args):
 if not homes and "--verify-only" in args:
     home = Path(os.environ["HOME"]).resolve()
     homes = [home / ".codex"]
-    if (home / ".codex-app").is_dir():
-        homes.append(home / ".codex-app")
     if os.environ.get("CODEX_HOME"):
         extra = Path(os.environ["CODEX_HOME"]).expanduser().resolve()
         if extra not in homes:
@@ -561,7 +551,7 @@ assert_codex_strict_config() {
 @test "Codex strict parser accepts rendered and merged managed config" {
   local home="$BATS_TEST_TMPDIR/home"
   local codex_home="$BATS_TEST_TMPDIR/codex-home"
-  mkdir -p "$home/.config/codex" "$home/.codex-app" "$codex_home"
+  mkdir -p "$home/.config/codex" "$codex_home"
   stage_codex_managed_config "$home"
 
   assert_codex_strict_config "$home/.config/codex"
@@ -569,7 +559,6 @@ assert_codex_strict_config() {
   HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_strict_config "$home/.codex"
-  assert_codex_strict_config "$home/.codex-app"
   assert_codex_strict_config "$codex_home"
 }
 
@@ -1416,18 +1405,11 @@ PY
   done
 }
 
-@test "bash_profile routes Codex Desktop sessions to .codex-app" {
-  local profile="$PROJECT_ROOT/dot_bash_profile.tmpl"
-
-  grep -q 'CODEX_INTERNAL_ORIGINATOR_OVERRIDE' "$profile"
-  grep -q 'CODEX_HOME="$HOME/.codex-app"' "$profile"
-  grep -q 'mkdir -p "$CODEX_HOME/sessions" "$CODEX_HOME/worktrees"' "$profile"
-}
-
-@test "first Codex Desktop login seeds all managed config" {
+@test "Codex Desktop login uses the standard or explicitly selected Codex home" {
   local home="$BATS_TEST_TMPDIR/home"
   local source="$BATS_TEST_TMPDIR/source"
   local config="$BATS_TEST_TMPDIR/chezmoi.yaml"
+  local explicit_home="$home/custom codex home"
   prepare_codex_chezmoi_source "$source"
   mkdir -p "$home"
   printf '{}\n' >"$config"
@@ -1441,77 +1423,18 @@ PY
     apply
 
   [ -f "$home/.codex/config.toml" ]
-  [ ! -d "$home/.codex-app" ]
-
-  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
-    bash -c '. "$1"' _ "$home/.bash_profile"
-
-  grep -q '^model = "gpt-6.2-sol"$' "$home/.codex-app/config.toml"
-  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
-  cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
-  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
-  cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
-  [ -f "$home/.codex-app/.managed-config-seeded" ]
-  [ "$(stat -c %a "$home/.codex-app/config.toml")" = "600" ]
-  [ "$(stat -c %a "$home/.codex-app/hooks.json")" = "600" ]
-  [ "$(stat -c %a "$home/.codex-app/rules/default.rules")" = "600" ]
-  [ "$(stat -c %a "$home/.codex-app/environments/environment.toml")" = "600" ]
-  [ "$(stat -c %a "$home/.codex-app/AGENTS.md")" = "600" ]
-}
-
-@test "existing unsynced Codex Desktop home is backfilled on login" {
-  local home="$BATS_TEST_TMPDIR/home"
-  stage_codex_managed_config "$home"
-  install_codex_managed_config_sync "$home"
-  mkdir -p "$home/.codex-app"
-  cat >"$home/.codex-app/config.toml" <<'EOF'
-[projects."/home/ubuntu/workspace/desktop"]
-trust_level = "trusted"
-EOF
-
-  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
-    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
-    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
-
-  grep -q '^model = "gpt-6.2-sol"$' "$home/.codex-app/config.toml"
-  grep -q '^\[projects\."/home/ubuntu/workspace/desktop"\]$' "$home/.codex-app/config.toml"
-  cmp "$home/.config/codex/hooks.json" "$home/.codex-app/hooks.json"
-  cmp "$home/.config/codex/rules/default.rules" "$home/.codex-app/rules/default.rules"
-  cmp "$home/.config/codex/environments/environment.toml" "$home/.codex-app/environments/environment.toml"
-  cmp "$home/.config/codex/AGENTS.md" "$home/.codex-app/AGENTS.md"
-  [ -f "$home/.codex-app/.managed-config-seeded" ]
-}
-
-@test "seeded Codex Desktop home is not rewritten on later logins" {
-  local home="$BATS_TEST_TMPDIR/home"
-  stage_codex_managed_config "$home"
-  install_codex_managed_config_sync "$home"
-
-  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
-    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
-    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
-  printf 'desktop-local\n' >"$home/.codex-app/hooks.json"
-
-  HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
-    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
-    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
-
-  [ "$(cat "$home/.codex-app/hooks.json")" = "desktop-local" ]
-}
-
-@test "failed Codex Desktop seed remains eligible for retry" {
-  local home="$BATS_TEST_TMPDIR/home"
-  stage_codex_managed_config "$home"
-  install_codex_managed_config_sync "$home"
-  rm "$home/.config/codex/AGENTS.md"
-
-  run env HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
-    CODEX_MANAGED_CONFIG_SYNC="$home/.local/bin/sync-codex-managed-config" \
-    bash -c '. "$1"' _ "$PROJECT_ROOT/dot_bash_profile.tmpl"
-
+  run env -u CODEX_HOME HOME="$home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    bash -c '. "$1"; printf "%s\n" "${CODEX_HOME:-$HOME/.codex}"' _ "$home/.bash_profile"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"failed to seed Codex Desktop managed config"* ]]
-  [ ! -f "$home/.codex-app/.managed-config-seeded" ]
+  [ "$output" = "$home/.codex" ]
+  [ ! -e "$home/.codex-app" ]
+
+  run env HOME="$home" CODEX_HOME="$explicit_home" CODEX_INTERNAL_ORIGINATOR_OVERRIDE="Codex Desktop" \
+    bash -c '. "$1"; printf "%s\n" "$CODEX_HOME"' _ "$home/.bash_profile"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$explicit_home" ]
+  [ ! -e "$home/.codex-app" ]
+  [ ! -e "$explicit_home" ]
 }
 
 @test "Codex environment managed fragment is repo-agnostic" {
@@ -1710,7 +1633,7 @@ EOF
   grep -q '^\[mcp_servers\.serena\]$' "$home/.codex/config.toml"
 }
 
-@test "Codex config merge script also updates existing Codex Desktop home" {
+@test "Codex config merge preserves settings in explicitly selected old home" {
   local home="$BATS_TEST_TMPDIR/home"
   mkdir -p "$home/.config/codex" "$home/.codex" "$home/.codex-app"
   stage_codex_managed_config "$home"
@@ -1720,7 +1643,7 @@ EOF
 trust_level = "trusted"
 EOF
 
-  env -u CODEX_HOME HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  env CODEX_HOME="$home/.codex-app" HOME="$home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_managed_values "$home/.codex/config.toml" "$home/.codex-app/config.toml"
   grep -q '^\[mcp_servers\.context7\]$' "$home/.codex/config.toml"
@@ -1988,7 +1911,7 @@ EOF
 EOF
   done
 
-  env -u CODEX_HOME HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  env CODEX_HOME="$fixture_home/.codex-app" HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
   for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
     assert_dotfiles_permission_profile "$codex_home/config.toml"
     cp "$codex_home/config.toml" "$codex_home/first-sync.toml"
@@ -2040,7 +1963,7 @@ EOF
     done
   done
 
-  env -u CODEX_HOME HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
+  env CODEX_HOME="$fixture_home/.codex-app" HOME="$fixture_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
   for codex_home in "$fixture_home/.codex" "$fixture_home/.codex-app"; do
     cmp "$codex_home/first-sync.toml" "$codex_home/config.toml"
   done
@@ -2059,8 +1982,9 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
-mkdir -p "$HOME/.config/codex/environments" "$HOME/.config/codex/rules" \
-  "$HOME/.codex-app" "$HOME/explicit-codex-home"
+mkdir -p "$HOME/.config/codex/environments" "$HOME/.config/codex/rules" "$HOME/.codex-app" \
+  "$HOME/explicit-codex-home"
+printf '{}\n' >"$HOME/.codex-app/auth.json"
 chezmoi --source /repo --destination "$HOME" execute-template \
   -f /repo/private_dot_config/codex/config.toml.tmpl >"$HOME/.config/codex/config.toml"
 cp /repo/private_dot_config/codex/hooks.json "$HOME/.config/codex/hooks.json"
@@ -2070,9 +1994,13 @@ cp /repo/private_dot_config/codex/environments/environment.toml \
 cp /repo/private_dot_config/codex/AGENTS.md "$HOME/.config/codex/AGENTS.md"
 CODEX_HOME="$HOME/explicit-codex-home" bash \
   /repo/private_dot_local/bin/executable_sync-codex-managed-config
+if codex sandbox -P dotfiles-secure -C /work -- cat "$HOME/.codex-app/auth.json"; then
+  printf 'legacy auth fixture is readable\n' >&2
+  exit 1
+fi
 version="$(python3 -c 'import json; print(json.load(open("/repo/private_dot_config/nix-devshell/skills-plugin.json"))["version"])')"
 
-for codex_home in "$HOME/.codex" "$HOME/.codex-app" "$HOME/explicit-codex-home"; do
+for codex_home in "$HOME/.codex" "$HOME/explicit-codex-home"; do
   install="$codex_home/plugins/cache/treflebonbon/treflebonbon-skills/$version"
   cache_root="$(dirname "$install")"
   printf 'dummy secret\n' >"$install/credentials.json"

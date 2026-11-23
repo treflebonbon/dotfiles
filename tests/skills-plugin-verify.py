@@ -1097,8 +1097,10 @@ class VerifyCheckoutTests(unittest.TestCase):
         claude_config.mkdir(parents=True)
         codex_app = home / ".codex-app"
         codex_app.mkdir(parents=True)
+        old_config = codex_app / "config.toml"
+        old_config.write_text("legacy config\n")
         explicit = self.temporary / "explicit-codex-home"
-        homes = [home / ".codex", codex_app, explicit]
+        homes = [home / ".codex", explicit]
         receipt_file = self.temporary / "state/receipt.json"
         environment = {
             "PATH": f"{claude.parent}:{cli.parent}:{agy.parent}:{os.environ['PATH']}",
@@ -1143,14 +1145,12 @@ class VerifyCheckoutTests(unittest.TestCase):
             }
 
             result = sync_skills_plugin.verify_current_installation(
-                sync_skills_plugin.current_codex_homes(),
                 pin=self.pin,
                 checkout=self.root,
                 source_root=self.source,
                 receipt_file=receipt_file,
             )
             cli_source = sync_skills_plugin.verify_cli_source(
-                sync_skills_plugin.current_codex_homes(),
                 pin=self.pin,
                 checkout=self.root,
                 source_root=self.source,
@@ -1165,6 +1165,8 @@ class VerifyCheckoutTests(unittest.TestCase):
 
         self.assertEqual(result["source"], str(self.source.resolve()))
         self.assertEqual(result["codex_homes"], [str(path.resolve()) for path in homes])
+        self.assertEqual(list(codex_app.iterdir()), [old_config])
+        self.assertEqual(old_config.read_text(), "legacy config\n")
         self.assertEqual(receipt_file.read_bytes(), before)
         self.assertEqual(receipt_file.stat().st_mtime_ns, before_stat.st_mtime_ns)
         self.assertEqual(
@@ -1333,12 +1335,15 @@ class VerifyCheckoutTests(unittest.TestCase):
                     receipt_file=receipt_file,
                 )
 
-            (home / ".codex-app").mkdir()
-            with self.assertRaisesRegex(
-                sync_skills_plugin.PluginSyncError, "current Codex homes"
+            codex_app = home / ".codex-app"
+            codex_app.mkdir()
+            with (
+                patch.dict(os.environ, {"CODEX_HOME": str(codex_app)}),
+                self.assertRaisesRegex(
+                    sync_skills_plugin.PluginSyncError, "current Codex homes"
+                ),
             ):
                 sync_skills_plugin.verify_current_installation(
-                    sync_skills_plugin.current_codex_homes(),
                     pin=self.pin,
                     checkout=self.root,
                     source_root=self.source,
@@ -1508,7 +1513,7 @@ class VerifyCheckoutTests(unittest.TestCase):
         ):
             self.assertEqual(
                 sync_skills_plugin.current_codex_homes(),
-                [home / ".codex", desktop],
+                [home / ".codex"],
             )
 
     def test_current_receipt_does_not_fall_back_to_previous_verified_receipt(
