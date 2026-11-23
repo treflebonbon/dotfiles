@@ -97,7 +97,11 @@ Worktree Entry Point は、対象 task worktree を確認して作業を始め�
 
 ローカル変更につながる診断・実装を Orca の Git task worktree で監督する場合は、着手前に後述の「Orca worktree の準備確認」を行い、照合成功まで worker の診断・編集を待たせます。
 
-Orca で親による監督（完了追跡・質問応答・decision gate）が依頼された場合は既存の `orchestration` skill を使い、通常の端末操作と監督を伴わない所有権移譲には `orca-cli` を使う。具体的なコマンドと現行 API は利用中バイナリの `skills get orchestration` が返す version-matched guide を正本とし、上流 guide をここへ複製しない。worker/coordinator が複数行または shell 記号を含む `status` / `dispatch` 本文を送る場合は、配備された `orca-send`（source: `private_dot_local/bin/executable_orca-send.tmpl`、target: `~/.local/bin/orca-send`）へ `--cli <選択済み Orca 実行ファイル> --body-file <UTF-8本文ファイル> -- <native send 引数>` を渡す。これは選択済み CLI の `orchestration send --body <本文> ...` を shell なしで呼ぶ入口で、native ID・権限・送信結果の契約を保つ。本文のサイズ上限と argv 露出の制約は後述の「`orca-send` の本文」に従う。親は Task / Dispatch で担当試行を識別し、`send` の成功は永続的なキュー登録だけを示すものとして受信・着手とは区別する。`worker_done` は期待する Task / Dispatch と検証証拠を照合してから処理・ack し、応答が不明な場合は同じ試行を調べて guide の既存復旧手順に従う。
+**Orca で terminal agent に依頼を渡し、回答を回収するとき**は、選択済み CLI の `skills get orca-cli`、`skills get orchestration` と `--help` を参照する。通常の端末操作には `orca-cli`、完了追跡・質問応答・decision gate には `orchestration` skill を使う。
+
+- **単発起動・所有権移譲**は `orca-cli` の `agent launch --prompt` を使う。terminal に渡す初回依頼は短い1行にし、複数行の依頼を残す場合は agent が読めるファイルのパスを1行で渡す。
+- **親が回答を回収する依頼**は `orchestration worker-start --spec-file` で始める。親や worker が複数行の本文を追加で送るときは `orchestration send --body-file` を使う。ファイル指定には、選択済み CLI から読めるパスを使う。Windows 側の CLI を WSL2 から呼ぶ例は、`$file` に WSL 側の絶対パスを入れて `--spec-file "$(wslpath -w "$file")"` と渡す。`--body-file` にも同じ変換を使う。Orca 1.4.272 の WSL2 で両方のファイル入力を確認した。この環境では `--spec-file -` が PowerShell bridge で拒否された。標準のファイル入力が使えず `send --body` が使える場合は、[`orca-send` の本文](#orca-send-の本文)を参照する。
+- **到達と回答回収**は個別に確かめる。`send` の成功で確認できるのはキュー登録までで、依頼の到達は worker の応答で確かめる。worker から Orca CLI を呼べる環境では、判断に必要な回答を `worker_done` の本文で返す。親は期待する Task / Dispatch と検証証拠を照合して処理・ack し、応答が不明なら同じ試行を調べて guide の復旧手順に従う。`worker-read --dispatch` では transcript、非対応の場合は端末出力を確認できる。長文の省略や端末の再描画があるため、全文や証跡の受け渡しが必要な場合は、依頼時に親子双方が読める報告先を指定する。Codex のセッション間で共有する一時ファイルは [共有一時領域の規約](ai-runtimes.md#claude-code--codex-マルチランタイム)に従う。
 
 merge を確認した task worktree の片付けは、削除の依頼があるときに限り、native 機構で行う。Orca では `orca-cli` の解決規則で選んだ実行ファイル(Orca 端末では `$ORCA_CLI_COMMAND`)の `worktree rm --worktree <selector>` を使い、selector は対象 PR の branch または HEAD と一致することを確認した worktree の完全な id(`id:<repoId>::<path>`)で明示する。primary checkout からの raw `git worktree remove` は使わない。削除前に PR の merge、未コミット変更と未 push の commit が無いこと、担当 agent の停止を確認する。実行ファイルが使えない、または権限が足りないときは削除せず、未削除として依頼元へ戻す。force 削除とブランチ削除はこの手順に含めず、別に確認する。
 
@@ -126,7 +130,7 @@ merge を確認した task worktree の片付けは、削除の依頼がある�
 
 ### `orca-send` の本文
 
-複数行または shell 記号を含む本文は UTF-8 ファイルに置き、`orca-send --cli <選択済み Orca 実行ファイル> --body-file <本文ファイル> -- <native send 引数>` で送る。helper は shell を使わず、`--body` などの二重指定を拒否する。選択済み CLI の `orchestration send` は `--body` だけを受け付けるため、本文はプロセスの argv に入り、同一ホストのプロセスから見える可能性がある。本文は公開情報に限り、UTF-8 で 8 KiB 以内にする。超える場合は公開証跡ファイルの path と短い要約を送る。native 引数や環境を含む OS の起動上限も適用され、上限内でも起動に失敗した場合は非0終了する。
+互換手順では本文を UTF-8 ファイルに置き、`orca-send --cli <選択済み Orca 実行ファイル> --body-file <本文ファイル> -- <native send 引数>` で送る。helper は shell を介さず、本文を選択済み CLI の `orchestration send --body` に渡す。`--body` などの二重指定を拒否し、native の ID・権限・送信結果の契約を保つ。本文はプロセスの argv に入り、同一ホストのプロセスから見える可能性がある。本文は公開情報に限り、UTF-8 で 8 KiB 以内にする。超える場合は公開証跡ファイルの path と短い要約を送る。native 引数や環境を含む OS の起動上限も適用され、上限内でも起動に失敗した場合は非0終了する。
 
 Git 管理情報を解決できない場合は編集・Git 書込みを保留し、以下を区別する。
 
