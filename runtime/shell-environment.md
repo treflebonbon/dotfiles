@@ -9,7 +9,7 @@ tags: [bash, zsh, shell, flyline, starship, atuin, ghq]
 
 Linux / Dev Container のログインシェルは **bash**（[ADR-0001](../docs/adr/0001-bash-over-zsh.md)）。macOS は zsh を維持する（[ADR-0020](../docs/adr/0020-macos-keeps-zsh-login-shell.md)）。
 
-- `dot_bash_profile.tmpl` → `~/.bash_profile` — login shell。PATH / XDG_RUNTIME_DIR フォールバック / nix-daemon 読み込み / Codex Desktop 用 CODEX_HOME、末尾で `~/.bashrc` を source。
+- `dot_bash_profile.tmpl` → `~/.bash_profile` — login shell。PATH / XDG_RUNTIME_DIR フォールバック / nix-daemon 読み込み、末尾で `~/.bashrc` を source。
 - `dot_bashrc.tmpl` → `~/.bashrc` — 対話 shell。ツール init と関数を定義。
 - `dot_zshrc.tmpl` → `~/.zshrc` — macOS zsh 用の対話 shell。atuin と zsh-native plugins を初期化する。
 
