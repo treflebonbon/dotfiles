@@ -107,7 +107,7 @@ codex_probe() {
   [ "$(cat "$OUTSIDE_TMP/public.txt")" = outside-public ]
 }
 
-@test "Codex daily sandbox reads linked Git metadata and protects secrets and temporary files" {
+@test "Codex opt-in sandbox reads linked Git metadata and protects secrets and temporary files" {
   [ "$(uname -s)" = Linux ] || skip "Git metadata と一時領域を別 mount で検査する"
   FIXTURE_MOUNT=/run/codex-daily-fixture
   OUTSIDE_TMP="$(mktemp -d /tmp/codex-outside.XXXXXX)"
@@ -136,11 +136,9 @@ codex_probe() {
     printf "dummy-secret\n" >"$HOME/.config/gh/hosts.yml"
     printf "dummy-secret\n" >"$HOME/.codex-app/auth.json"
 
-    profile="$(python3 -c "import sys,tomllib; print(tomllib.load(sys.stdin.buffer)[\"default_permissions\"])" \
-      <"$CODEX_HOME/config.toml")"
-    codex sandbox -P "$profile" -C "$workspace" -- bash -c "$4" _ \
+    codex sandbox -P dotfiles -C "$workspace" -- bash -c "$4" _ \
       "$repo" "$orca_workspace" "$2" "$3" "$expected_head"
-    env -u TMPDIR codex sandbox -P "$profile" -C "$workspace" -- bash -c "$5"
+    env -u TMPDIR codex sandbox -P dotfiles -C "$workspace" -- bash -c "$5"
   ' _ "$FIXTURE_MOUNT" "$SHARED_TMP" "$OUTSIDE_TMP/public.txt" '
     set -eu
     git --no-optional-locks status --short --branch

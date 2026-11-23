@@ -5,7 +5,7 @@ model_verbosity = "medium"
 personality = "pragmatic"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
-default_permissions = "dotfiles"
+default_permissions = "dotfiles-secure"
 
 {{ $pluginPin := mustFromJson (include "private_dot_config/nix-devshell/skills-plugin.json") -}}
 {{ $pluginSource := printf "%s/.cache/treflebonbon-skills/marketplaces/%s" .chezmoi.homeDir $pluginPin.rev -}}

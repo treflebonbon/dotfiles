@@ -247,7 +247,7 @@ for path in sys.argv[1:]:
 
     assert "sandbox_mode" not in config
     assert "sandbox_workspace_write" not in config
-    assert config["default_permissions"] == "dotfiles"
+    assert config["default_permissions"] == "dotfiles-secure"
     daily = config["permissions"]["dotfiles"]
     assert daily["extends"] == ":workspace"
     assert daily.get("network", {}).get("enabled", False) is False
@@ -502,7 +502,7 @@ assert_codex_strict_config() {
   grep -q '^default_tools_approval_mode = "approve"$' "$config"
   grep -q '^destructive_enabled = false$' "$config"
   ! grep -q '^sandbox_mode = ' "$config"
-  grep -q '^default_permissions = "dotfiles"$' "$config"
+  grep -q '^default_permissions = "dotfiles-secure"$' "$config"
   grep -q '^\[features\]' "$config"
   grep -q '^hooks = true$' "$config"
   grep -q '^goals = true$' "$config"
@@ -561,6 +561,9 @@ assert_codex_strict_config() {
 
   assert_codex_strict_config "$home/.config/codex"
 
+  mkdir -p "$home/.codex"
+  printf 'default_permissions = "dotfiles"\n' >"$home/.codex/config.toml"
+  cp "$home/.codex/config.toml" "$codex_home/config.toml"
   HOME="$home" CODEX_HOME="$codex_home" bash "$CODEX_MANAGED_CONFIG_SYNC"
 
   assert_codex_strict_config "$home/.codex"
@@ -591,7 +594,8 @@ from pathlib import Path
 auth = str(Path(sys.argv[1]).resolve() / "auth.json")
 for path in sys.argv[2:]:
     config = tomllib.loads((Path(path) / "config.toml").read_text())
-    filesystem = config["permissions"][config["default_permissions"]]["filesystem"]
+    assert config["default_permissions"] == "dotfiles-secure", path
+    filesystem = config["permissions"]["dotfiles"]["filesystem"]
     assert filesystem.get(auth) == "deny", path
 PY
 }

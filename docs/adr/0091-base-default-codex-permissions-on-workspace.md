@@ -13,7 +13,8 @@ status: accepted
 
 ## 合意済みの方針
 
-- 通常の Codex CLI と管理設定を同期する Codex Desktop では、`:workspace` を継承する `dotfiles` を既定にする。raw の `codex-worktree` と `codex-reviewer` はそれぞれの既存プロファイルを使い、Orca の Agent Picker は Orca が起動権限を所有する。[raw の隔離](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) · [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) · [ADR-0046](0046-separate-orca-native-worktree-entry.md)
+- PR #620 では CLI と Desktop の管理設定の既定を `dotfiles-secure` に据え置き、`:workspace` を継承する `dotfiles` を追加する。CLI で候補を試すときは `codex -c 'default_permissions="dotfiles"'` でセッション単位に選ぶ。`.env` symlink を含む workspace や機密を扱う作業では `dotfiles-secure` を使う。`dotfiles` の既定化は後続 PR で受入条件を満たした後に行う。
+- raw の `codex-worktree` と `codex-reviewer` はそれぞれの既存プロファイルを使い、Orca の Agent Picker は Orca が起動権限を所有する。[raw の隔離](../../runtime/shell-environment.md#raw-codex-のプロジェクト開発環境) · [ADR-0080](0080-grant-reviewer-codex-read-only-git-metadata.md) · [ADR-0046](0046-separate-orca-native-worktree-entry.md)
 - 作業中の workspace、`~/ghq/github.com`、`~/orca/workspaces` では、dotenv・鍵など既存の機密ファイル名の読み取りを拒否する。`.envrc` と `.env.example` は参照できるようにする。
 - 日常用の `/tmp` と `$TMPDIR` のアクセスは `:workspace` に委ねる。通常の `/tmp` も OS のファイル権限の範囲で読み書きできる。セッション間の共有先は [ADR-0074](0074-allow-codex-tmp-workspace.md) の `/tmp/codex` とし、起動時の準備と配下の機密名の拒否を維持する。機密名の走査範囲は一時領域では `/tmp/codex` に留める。`dotfiles-secure` の一時領域の規則は引き続き ADR-0074 に従う。
 - 管理同期では、既存の日常用の `":slash_tmp" = "deny"` と `/tmp/codex` の管理済み書き込み指定を取り除き、新規配備と同じ継承結果に揃える。`/tmp/codex` 配下の拒否規則や利用者が追加した設定は保持する。
@@ -21,14 +22,18 @@ status: accepted
 - 日常用は `:workspace` 標準の通信制限を使い、承認が必要な操作は既存の `on-request` / `auto_review` に委ねる。[Codex のネットワーク設定](https://learn.chatgpt.com/docs/permissions#network-permissions)
 - `~/.config/gh/hosts.yml` の読み取りは、通常の sandbox と承認後の実行で拒否する。認証付きリモート Git は日常用プロファイルで未対応とし、資格情報の保護を維持できる認証経路の設計と受入を後続に移す。
 
-## 受入条件
+## PR #620 の受入条件
 
-- 日常用プロファイルを既定にする PR #620 のマージは、Linux／WSL 上の CLI と Desktop の両方で、既存の `.env` symlink がある workspace でも通常コマンドが起動し、ダミーのリンク先の内容を読み取れないことを確認するまで保留する。
-- 通常の CLI と Desktop の新規セッションで日常用プロファイルが選択される。linked worktree の `git status` と `git rev-parse HEAD` が成功し、通常の sandbox から Git 管理情報の書き込みは拒否される。
+- 標準の `~/.codex` と明示した `CODEX_HOME` への同期後も既定は `dotfiles-secure` となり、既定の拒否規則と利用者が追加した拒否が保持される。CLI と Desktop 用の管理設定は標準の `~/.codex` に揃える。
+- CLI で `dotfiles` を明示選択すると、linked worktree の `git status` と `git rev-parse HEAD` が成功し、通常の sandbox から Git 管理情報の書き込みは拒否される。
 - 両方の checkout 置き場を含む実環境で起動できる。ダミーファイルで機密名の拒否と公開サンプルの読み取りを確認する。`/tmp`、`/tmp/codex`、設定済みの `$TMPDIR` で一時ファイルを読み書きでき、`$TMPDIR` が未設定でも `mktemp` が成功する。`/tmp/codex` 配下のダミーの機密ファイルは読み取れない。
-- 管理同期の新規・既存両ケースで同じ日常用プロファイルに収束する。既存の `dotfiles-secure` の規則と、利用者が追加した拒否は保持される。
+- 管理同期の新規・既存両ケースで同じ `dotfiles` プロファイルに収束する。以前の `dotfiles` の管理済み一時領域規則と既定指定は移行される。
 - 通常の sandbox で `hosts.yml` の読み取りが拒否されることをダミーファイルで確認する。
-- `.env` symlink の保護に対応した公式 Codex の配布を待つ。その版で symlink の保護、読み取り不可の別 checkout がある場合の起動、承認後の公開依存の取得を再検証する。起動と取得の結果も確認してマージ可否を判断する。
+
+## 既定化の受入条件
+
+- 公式 Codex の対応版で、Linux／WSL 上の CLI と Desktop の両方で、既存の `.env` symlink があっても通常コマンドが起動し、ダミーのリンク先の内容を読み取れないことを確認する。
+- 同じ候補版で、読み取り不可の別 checkout がある場合の起動、承認後の sandbox 起動と公開依存の取得を再検証する。両方の新規セッションで `dotfiles` が選択されることを確認し、既定化の可否を判断する。
 
 ### 候補版の再検証
 
