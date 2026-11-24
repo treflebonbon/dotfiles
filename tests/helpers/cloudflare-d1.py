@@ -336,29 +336,31 @@ class D1(unittest.TestCase):
         valid = copy.deepcopy(self.response)
         sentinel = "INVALID_RESPONSE_SECRET_SENTINEL"
         cases = [
-            ("json", lambda r: setattr(self, "response_raw", b'{"result":' + sentinel.encode())),
-            ("top_level", lambda r: r.update(unapproved=sentinel)),
-            ("top_level", lambda r: r.update(success=False)),
-            ("result", lambda r: r["result"][0].update(success=False)),
-            ("result", lambda r: r["result"].append(r["result"][0])),
-            ("row", lambda r: r["result"][0]["results"][0].update(unapproved=sentinel)),
-            ("statistics", lambda r: r["result"][0]["meta"].update(rows_read=sentinel)),
-            ("statistics", lambda r: r["result"][0]["meta"].update(rows_read=0.5)),
-            ("statistics", lambda r: r["result"][0]["meta"].update(rows_read=True)),
-            ("json", lambda r: r["result"][0]["meta"].update(duration=float("nan"))),
-            ("statistics", lambda r: r["result"][0]["meta"].pop("rows_written")),
-            ("statistics", lambda r: r["result"][0]["meta"].update(unknown=1)),
-            ("statistics", lambda r: r["result"][0]["meta"].update(changes=False)),
-            ("statistics", lambda r: r["result"][0]["meta"].update(served_by_primary="yes")),
-            ("statistics", lambda r: r["result"][0]["meta"].update(served_by_region="unknown")),
-            ("statistics", lambda r: r["result"][0]["meta"].update(timings={"sql_duration_ms": "invalid"})),
-            ("statistics", lambda r: r["result"][0]["meta"].update(timings={"unknown": 0})),
-            ("write", lambda r: r["result"][0]["meta"].update(rows_written=1)),
-            ("write", lambda r: r["result"][0]["meta"].update(changed_db=True)),
-            ("write", lambda r: r["result"][0]["meta"].update(changes=1)),
+            ("json", None, lambda r: setattr(self, "response_raw", b'{"result":' + sentinel.encode())),
+            ("top_level", None, lambda r: r.update(unapproved=sentinel)),
+            ("top_level", None, lambda r: r.update(success=False)),
+            ("result", None, lambda r: r["result"][0].update(success=False)),
+            ("result", None, lambda r: r["result"].append(r["result"][0])),
+            ("row", None, lambda r: r["result"][0]["results"][0].update(unapproved=sentinel)),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(rows_read=sentinel)),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(rows_read=0.5)),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(rows_read=True)),
+            ("json", None, lambda r: r["result"][0]["meta"].update(duration=float("nan"))),
+            ("statistics", "missing_required_fields", lambda r: r["result"][0]["meta"].pop("rows_written")),
+            ("statistics", "invalid_meta", lambda r: r["result"][0].update(meta=sentinel)),
+            ("statistics", "unexpected_binding_fields", lambda r: r["result"][0]["meta"].update(served_by=sentinel)),
+            ("statistics", "unexpected_binding_fields", lambda r: r["result"][0]["meta"].update(total_attempts=1)),
+            ("statistics", "unexpected_meta_fields", lambda r: r["result"][0]["meta"].update({sentinel: 1, "total_attempts": 1})),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(changes=False)),
+            ("statistics", "invalid_serving_metadata", lambda r: r["result"][0]["meta"].update(served_by_primary="yes")),
+            ("statistics", "invalid_serving_metadata", lambda r: r["result"][0]["meta"].update(served_by_region="unknown")),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(timings={"sql_duration_ms": "invalid"})),
+            ("statistics", "invalid_timings", lambda r: r["result"][0]["meta"].update(timings={sentinel: 0})),
+            ("write", None, lambda r: r["result"][0]["meta"].update(rows_written=1)),
+            ("write", None, lambda r: r["result"][0]["meta"].update(changed_db=True)),
+            ("write", None, lambda r: r["result"][0]["meta"].update(changes=1)),
         ]
-        allowed_diagnostics = {stage for stage, _ in cases}
-        for index, (diagnostic, change) in enumerate(cases):
+        for index, (diagnostic, statistics_failure, change) in enumerate(cases):
             with self.subTest(index=index, diagnostic=diagnostic):
                 self.response = copy.deepcopy(valid)
                 self.response_raw = None
@@ -369,10 +371,14 @@ class D1(unittest.TestCase):
                 self.assertEqual(summary["attempts_started"], 1)
                 self.assertEqual(len(self.calls.read_text().splitlines()), index + 1)
                 self.assertNotIn("response_validation_failure", summary)
+                self.assertNotIn("statistics_validation_failure", summary)
                 audit = json.loads(Path(summary["record"]).read_text())
                 self.assertEqual(audit["status"], "failed")
                 self.assertEqual(audit["response_validation_failure"], diagnostic)
-                self.assertIn(audit["response_validation_failure"], allowed_diagnostics)
+                if statistics_failure is None:
+                    self.assertNotIn("statistics_validation_failure", audit)
+                else:
+                    self.assertEqual(audit["statistics_validation_failure"], statistics_failure)
                 self.assertNotIn("results", audit)
                 record = Path(summary["record"]).read_text()
                 self.assertNotIn(sentinel, record + json.dumps(summary))
@@ -382,7 +388,9 @@ class D1(unittest.TestCase):
         status, summary = self.invoke()
         self.assertEqual(status, 0)
         self.assertEqual(len(self.calls.read_text().splitlines()), len(cases) + 1)
-        self.assertNotIn("response_validation_failure", json.loads(Path(summary["record"]).read_text()))
+        audit = json.loads(Path(summary["record"]).read_text())
+        self.assertNotIn("response_validation_failure", audit)
+        self.assertNotIn("statistics_validation_failure", audit)
 
     def test_invalid_definition(self):
         valid = copy.deepcopy(self.definition)
