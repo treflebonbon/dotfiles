@@ -56,7 +56,7 @@ HOME 内の廃止 skill 名や Codex native location の重複候補は、名前
 
 混同しないこと:
 
-- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（chezmoi / lefthook / cocogitto / shellcheck / shfmt / oxfmt / bats / parallel / bun / playwright-driver など lint・format・test 一式）。validated task worktree の root で `nix develop .#default`、WSL2 では `nix develop .#wsl`（browser binary なし）へ明示的に入る。Claude hook・raw Codex adapter・`with-env` は marker `.wsl-browser-free` と WSL を見て `#wsl` を選択する。加えて per-repo flake の `templates` output（go/rust/elixir/perl/gleam/bun）を公開する。
+- **リポジトリ自体** (`./flake.nix`) — chezmoi 編集用の devShell（chezmoi / lefthook / cocogitto / shellcheck / shfmt / oxfmt / bats / parallel / bun / playwright-driver など lint・format・test 一式）。validated task worktree の root で `nix develop .#default`、WSL2 では `nix develop .#wsl`（browser binary なし）へ明示的に入る。依存が未導入の worktree では、初回コミット前に devShell 内で `bun install --frozen-lockfile` を実行し、`oxfmt.config.ts` が参照する npm パッケージを揃える。Claude hook・raw Codex adapter・`with-env` は marker `.wsl-browser-free` と WSL を見て `#wsl` を選択する。加えて per-repo flake の `templates` output（go/rust/elixir/perl/gleam/bun）を公開する。
 - **ユーザー環境** (`private_dot_config/nix-devshell/flake.nix` → `~/.config/nix-devshell/flake.nix`) — 汎用ランタイム（node / python3 / bun）+ 横断ツール + AI ツール。`.#default` は従来のローカル browser 互換経路、`.#wsl` は Playwright browser を closure に含めず Managed Windows CDP adapter だけを配布する。初回セットアップとユーザー環境キャッシュは WSL2 で `.#wsl` を選択する。bash／zsh はこのキャッシュで共通ツールを利用し、direnv 自動 hook は登録しない。direnv と nix-direnv は既存 `.envrc` の明示利用用に維持する。プロジェクト言語（go/rust/elixir/perl/gleam）の toolchain は持たない。
 
 ## 公開 Agent Skills plugin
