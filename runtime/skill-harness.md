@@ -73,6 +73,14 @@ _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本
 
 実際の remote default branch を `git ls-remote --symref origin HEAD` で解決し、topic branch を `git-push-topic` で公開する。本文は新しい一時ファイルへ書き、`gh pr create --base <default-branch> --title <title> --body-file <file>`、既存 PR は `gh pr edit --body-file <file>` を使う。実装依頼だけで PR 公開を自動追加せず、force push・default branch への直接 push・PR merge は既存規則に従う。
 
+push のログを保存するときは、`mktemp` で作業専用ディレクトリとログファイルを作る。push と pre-push フックは呼び出し元の `umask` で実行する。
+
+```bash
+topic_push_dir="$(mktemp -d /tmp/codex/topic-push.XXXXXX)" &&
+  topic_push_log="$(mktemp "$topic_push_dir/push.XXXXXX")" &&
+  git-push-topic >"$topic_push_log" 2>&1
+```
+
 dotfiles の公開補助入口は `scripts/publish-topic.py`。pushと読取り専用の確認を分け、確認待ちからの再開でpushを繰り返さない。認証selectorの引継ぎと記録の扱いは [公開手順](../docs/conventions.md#topic-branch-の公開と確認)を読む。
 
 ### 検証用の実行境界
