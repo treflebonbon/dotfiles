@@ -160,7 +160,17 @@ cloudflare-inspect --reviewed d1 read --definition /absolute/definition.json \
 
 HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。送信開始予定を先に flush してから通信し、成功または失敗を確定記録へ更新する。途中切断や不正な status line などの HTTP protocol 例外は、開始済み1試行の `failed / request_failed` として確定し、再送しない。中断・期限切れでは private 記録が `pending / interrupted_or_deadline` のまま残る場合があり、開始予定/開始済みと実際の送信到達・サーバ側の結果を区別する。socket の timeout だけを全体期限と扱わない。HTTP エラーや保存失敗を成功扱いせず、応答・例外の原文をログへ出さない。
 
-HTTP transport の検査を通過して受信した HTTP 200 応答の JSON 解析または内容検証に失敗した場合、公開 `stop_reason` は従来どおり `invalid_response` とし、private 記録に `response_validation_failure` として `json`、`top_level`、`result`、`row`、`statistics`、`write` の固定分類だけを残す。transport の検査失敗はこの分類対象ではない。応答本文、例外本文、未知キーや値は分類に含めず、成功記録にはこの項目を加えない。
+HTTP transport の検査を通過して受信した HTTP 200 応答の JSON 解析または内容検証に失敗した場合、公開 `stop_reason` は従来どおり `invalid_response` とし、private 記録に `response_validation_failure` として `json`、`top_level`、`result`、`row`、`statistics`、`write` の固定分類を残す。transport の検査失敗はこの分類対象ではない。応答本文、例外本文、未知キーや値は分類に含めず、成功記録にはこの項目を加えない。
+
+`response_validation_failure` が `statistics` の場合だけ、private 記録の `statistics_validation_failure` に最初に検出した不一致の固定分類を残す。
+
+- `invalid_meta` は `meta` の型が object 以外。
+- `unexpected_binding_fields` は許可一覧外の項目が Worker Binding の仕様にある `served_by`、`total_attempts` の範囲内。これらの項目も REST 入口では拒否する。[Worker Binding の仕様](https://developers.cloudflare.com/d1/worker-api/return-object/)
+- `unexpected_meta_fields` は上記以外の許可一覧外の項目を含む場合。
+- `missing_required_fields` は必須の `rows_read`、`rows_written`、`duration` の欠落。
+- `invalid_timings` は `timings` の型または項目の不一致。
+- `invalid_numeric_value` は数値項目の型または範囲の不一致。
+- `invalid_serving_metadata` は処理先に関する項目の型またはリージョン値の不一致。
 
 記録は、検査済み `/tmp/codex` 内の一意な `cloudflare-inspect.<乱数>/record.json`（directory は0700、file は0600）だけに保存する。既存ファイル・任意保存先・Git による追跡対象判定は使わない。公開 JSON は status、返却件数、統計、試行開始数、終了理由と、業務名を含まない一般的な記録 locator だけ。許可行・SQL/params・対象・query plan・実効 helper の実体 path/SHA-256・cf exact pin は private 記録で照合する。credential は private 記録にも含めない。実 token の文字列反映は保存前に除外するが、未知の秘密値の自動分類ではなく、人が許可列を選ぶ契約を前提とする。
 

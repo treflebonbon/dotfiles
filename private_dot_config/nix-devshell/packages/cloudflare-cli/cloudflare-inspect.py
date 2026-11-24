@@ -275,8 +275,9 @@ def http_exchange(opener, request, timeout):
 
 
 class D1ResponseValidationError(ValueError):
-    def __init__(self, classification):
+    def __init__(self, classification, statistics_failure=None):
         self.classification = classification
+        self.statistics_failure = statistics_failure
         super().__init__("D1 の応答が不正です。")
 
 
@@ -308,11 +309,18 @@ def d1_result(value, columns, limit, mode):
     meta = result["meta"]
     known = {"rows_read", "rows_written", "duration", "changed_db", "changes", "last_row_id", "served_by_colo",
              "served_by_primary", "served_by_region", "size_after", "timings"}
-    if not isinstance(meta, dict) or set(meta) - known or not {"rows_read", "rows_written", "duration"} <= set(meta):
-        raise D1ResponseValidationError("statistics")
+    if not isinstance(meta, dict):
+        raise D1ResponseValidationError("statistics", "invalid_meta")
+    unexpected = set(meta) - known
+    if unexpected:
+        reason = ("unexpected_binding_fields" if unexpected <= {"served_by", "total_attempts"}
+                  else "unexpected_meta_fields")
+        raise D1ResponseValidationError("statistics", reason)
+    if not {"rows_read", "rows_written", "duration"} <= set(meta):
+        raise D1ResponseValidationError("statistics", "missing_required_fields")
     timings = meta.get("timings", {})
     if not isinstance(timings, dict) or set(timings) - {"sql_duration_ms"}:
-        raise D1ResponseValidationError("statistics")
+        raise D1ResponseValidationError("statistics", "invalid_timings")
     numbers = meta | timings
     for key in ("rows_read", "rows_written", "duration", "changes", "last_row_id", "size_after", "sql_duration_ms"):
         if key not in numbers:
@@ -320,12 +328,12 @@ def d1_result(value, columns, limit, mode):
         number = numbers[key]
         if (type(number) not in (int, float) or number < (-2**63 if key == "last_row_id" else 0) or number > 2**63 - 1
                 or not math.isfinite(number) or key not in ("duration", "sql_duration_ms") and type(number) is not int):
-            raise D1ResponseValidationError("statistics")
+            raise D1ResponseValidationError("statistics", "invalid_numeric_value")
     for key, kind in (("served_by_colo", str), ("served_by_primary", bool)):
         if key in meta and type(meta[key]) is not kind:
-            raise D1ResponseValidationError("statistics")
+            raise D1ResponseValidationError("statistics", "invalid_serving_metadata")
     if "served_by_region" in meta and meta["served_by_region"] not in ("WNAM", "ENAM", "WEUR", "EEUR", "APAC", "OC"):
-        raise D1ResponseValidationError("statistics")
+        raise D1ResponseValidationError("statistics", "invalid_serving_metadata")
     if meta["rows_written"] != 0 or meta.get("changed_db", False) is not False or meta.get("changes", 0) != 0:
         raise D1ResponseValidationError("write")
     return result["results"], {key: meta[key] for key in ("rows_read", "rows_written", "duration")}
@@ -836,6 +844,8 @@ def perform_d1(arguments, notify, started):
             rows, meta = d1_result(value, columns, result_limit, options.mode)
         except D1ResponseValidationError as error:
             audit["response_validation_failure"] = error.classification
+            if error.statistics_failure is not None:
+                audit["statistics_validation_failure"] = error.statistics_failure
             raise
         audit.update(status="success", returned_count=len(rows),
                      stop_reason="limit_reached_unknown" if options.mode == "select" and len(rows) == limit else "complete", **meta)
