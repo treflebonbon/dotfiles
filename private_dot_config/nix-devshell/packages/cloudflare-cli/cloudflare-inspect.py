@@ -307,15 +307,12 @@ def d1_result(value, columns, limit, mode):
             if type(item) not in (str, int, float, bool, type(None)) or isinstance(item, float) and not math.isfinite(item):
                 raise D1ResponseValidationError("row")
     meta = result["meta"]
-    known = {"rows_read", "rows_written", "duration", "changed_db", "changes", "last_row_id", "served_by_colo",
-             "served_by_primary", "served_by_region", "size_after", "timings"}
+    known = {"rows_read", "rows_written", "duration", "changed_db", "changes", "last_row_id", "size_after", "timings",
+             "served_by", "served_by_colo", "served_by_primary", "served_by_region", "total_attempts"}
     if not isinstance(meta, dict):
         raise D1ResponseValidationError("statistics", "invalid_meta")
-    unexpected = set(meta) - known
-    if unexpected:
-        reason = ("unexpected_binding_fields" if unexpected <= {"served_by", "total_attempts"}
-                  else "unexpected_meta_fields")
-        raise D1ResponseValidationError("statistics", reason)
+    if set(meta) - known:
+        raise D1ResponseValidationError("statistics", "unexpected_meta_fields")
     if not {"rows_read", "rows_written", "duration"} <= set(meta):
         raise D1ResponseValidationError("statistics", "missing_required_fields")
     timings = meta.get("timings", {})
@@ -329,7 +326,9 @@ def d1_result(value, columns, limit, mode):
         if (type(number) not in (int, float) or number < (-2**63 if key == "last_row_id" else 0) or number > 2**63 - 1
                 or not math.isfinite(number) or key not in ("duration", "sql_duration_ms") and type(number) is not int):
             raise D1ResponseValidationError("statistics", "invalid_numeric_value")
-    for key, kind in (("served_by_colo", str), ("served_by_primary", bool)):
+    if "total_attempts" in meta and (type(meta["total_attempts"]) is not int or meta["total_attempts"] < 1):
+        raise D1ResponseValidationError("statistics", "invalid_numeric_value")
+    for key, kind in (("served_by", str), ("served_by_colo", str), ("served_by_primary", bool)):
         if key in meta and type(meta[key]) is not kind:
             raise D1ResponseValidationError("statistics", "invalid_serving_metadata")
     if "served_by_region" in meta and meta["served_by_region"] not in ("WNAM", "ENAM", "WEUR", "EEUR", "APAC", "OC"):

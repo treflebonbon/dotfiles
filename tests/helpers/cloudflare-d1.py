@@ -215,6 +215,29 @@ class D1(unittest.TestCase):
         self.assertEqual(audit["implementation"]["cli_pin"], pin)
         self.assertNotIn("DUMMY_CF_TOKEN", record.read_text())
 
+    def test_optional_response_metadata(self):
+        base_meta = self.response["result"][0]["meta"]
+        served_by = "D1_BACKEND_FIXTURE"
+        for request_count, fields in enumerate((
+                {"served_by": served_by},
+                {"total_attempts": 1},
+                {"served_by": served_by, "total_attempts": 3},
+        ), 1):
+            with self.subTest(fields=tuple(fields)):
+                self.response["result"][0]["meta"] = base_meta | fields
+                status, summary = self.invoke()
+                self.assertEqual(status, 0, summary["stop_reason"])
+                self.assertEqual(summary["attempts_started"], 1)
+                self.assertEqual(summary["returned_count"], 1)
+                self.assertEqual(summary["rows_read"], 7)
+                self.assertEqual(len(self.calls.read_text().splitlines()), request_count)
+                record = Path(summary["record"]).read_text()
+                audit = json.loads(record)
+                self.assertEqual(audit["results"], [{"state": "available"}])
+                output = record + json.dumps(summary)
+                for private_detail in ("served_by", "total_attempts", served_by):
+                    self.assertNotIn(private_detail, output)
+
     def test_http_failure(self):
         self.http_status = 503
         self.response = {"error": "DUMMY_CF_TOKEN private-payload"}
@@ -334,6 +357,7 @@ class D1(unittest.TestCase):
 
     def test_invalid_response(self):
         valid = copy.deepcopy(self.response)
+        valid["result"][0]["meta"].update(served_by="fixture", total_attempts=1)
         sentinel = "INVALID_RESPONSE_SECRET_SENTINEL"
         cases = [
             ("json", None, lambda r: setattr(self, "response_raw", b'{"result":' + sentinel.encode())),
@@ -348,9 +372,12 @@ class D1(unittest.TestCase):
             ("json", None, lambda r: r["result"][0]["meta"].update(duration=float("nan"))),
             ("statistics", "missing_required_fields", lambda r: r["result"][0]["meta"].pop("rows_written")),
             ("statistics", "invalid_meta", lambda r: r["result"][0].update(meta=sentinel)),
-            ("statistics", "unexpected_binding_fields", lambda r: r["result"][0]["meta"].update(served_by=sentinel)),
-            ("statistics", "unexpected_binding_fields", lambda r: r["result"][0]["meta"].update(total_attempts=1)),
-            ("statistics", "unexpected_meta_fields", lambda r: r["result"][0]["meta"].update({sentinel: 1, "total_attempts": 1})),
+            ("statistics", "invalid_serving_metadata", lambda r: r["result"][0]["meta"].update(served_by={sentinel: 1})),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(total_attempts=sentinel)),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(total_attempts=True)),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(total_attempts=1.0)),
+            ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(total_attempts=0)),
+            ("statistics", "unexpected_meta_fields", lambda r: r["result"][0]["meta"].update({sentinel: 1})),
             ("statistics", "invalid_numeric_value", lambda r: r["result"][0]["meta"].update(changes=False)),
             ("statistics", "invalid_serving_metadata", lambda r: r["result"][0]["meta"].update(served_by_primary="yes")),
             ("statistics", "invalid_serving_metadata", lambda r: r["result"][0]["meta"].update(served_by_region="unknown")),
