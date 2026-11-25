@@ -40,6 +40,12 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ]
 }
 
+@test "D1 の任意応答項目 served_by と total_attempts を検証し記録には残さない" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_optional_response_metadata
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
+
 @test "D1 の期限通知が遅れても開始済みの HTTP を0試行と報告しない" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_delayed_deadline_notice
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3

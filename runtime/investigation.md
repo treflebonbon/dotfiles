@@ -165,12 +165,13 @@ HTTP transport の検査を通過して受信した HTTP 200 応答の JSON 解�
 `response_validation_failure` が `statistics` の場合だけ、private 記録の `statistics_validation_failure` に最初に検出した不一致の固定分類を残す。
 
 - `invalid_meta` は `meta` の型が object 以外。
-- `unexpected_binding_fields` は許可一覧外の項目が Worker Binding の仕様にある `served_by`、`total_attempts` の範囲内。これらの項目も REST 入口では拒否する。[Worker Binding の仕様](https://developers.cloudflare.com/d1/worker-api/return-object/)
-- `unexpected_meta_fields` は上記以外の許可一覧外の項目を含む場合。
+- `unexpected_meta_fields` は許可一覧外の項目を含む場合。
 - `missing_required_fields` は必須の `rows_read`、`rows_written`、`duration` の欠落。
 - `invalid_timings` は `timings` の型または項目の不一致。
 - `invalid_numeric_value` は数値項目の型または範囲の不一致。
 - `invalid_serving_metadata` は処理先に関する項目の型またはリージョン値の不一致。
+
+`meta` 中の `served_by`（文字列）と `total_attempts`（正の整数）は任意項目として検証し、公開結果と private 記録への保存対象から外す。クライアントの HTTP 試行数は送信開始境界の記録を使う。旧版の `unexpected_binding_fields` は、この2項目の片方または両方だけが当時の許可一覧外だった場合の分類。[Worker Binding の仕様](https://developers.cloudflare.com/d1/worker-api/return-object/)
 
 記録は、検査済み `/tmp/codex` 内の一意な `cloudflare-inspect.<乱数>/record.json`（directory は0700、file は0600）だけに保存する。既存ファイル・任意保存先・Git による追跡対象判定は使わない。公開 JSON は status、返却件数、統計、試行開始数、終了理由と、業務名を含まない一般的な記録 locator だけ。許可行・SQL/params・対象・query plan・実効 helper の実体 path/SHA-256・cf exact pin は private 記録で照合する。credential は private 記録にも含めない。実 token の文字列反映は保存前に除外するが、未知の秘密値の自動分類ではなく、人が許可列を選ぶ契約を前提とする。
 
