@@ -26,7 +26,7 @@ tags: [skills, apm, mattpocock, playwright, claude-code, antigravity]
 
 `apm.yml` / `apm.lock.yaml` が外部 skill を `~/.claude/skills/` へ展開する。lockfile の再生成は下記「APM lock の生成」の手順に従う（`apm lock` 単体では不十分）。配備は `apm install --frozen` が `run_onchange_after_apm-install.sh.tmpl` から冪等に走る。
 
-**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa`（上流 plugin manifest version `1.3.2`）から APM で配備する。公式セットと標準workflowは [ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md) に従い、`ask-matt` の案内更新は [検証記録](../docs/research/update-mattpocock-20261005.md)、wizard更新の採用は [検証記録](../docs/research/mattpocock-pr-20261013.md)、1.3.2のfresh context案内などの採用は [2026-10-31の更新記録](../docs/research/update-tools-skills-20261031.md) を参照する。Matt の `package_type` は APM の native 出力に従い、lock の更新経路によって `apm_package` と `marketplace_plugin` の間で変わる（2026-10-09 の native lock は `marketplace_plugin`）。どちらも pin・selected payload・配備 ledger は同じで、手で書き換えない。
+**mattpocock 設計→実装ワークフロー** (`mattpocock/skills/skills/engineering/`)。公式27 skillを exact revision `6f7f7831a625f040a8e06a0e7954826b87ce775a`（上流 plugin manifest version `1.3.2`）から APM で配備する。公式セットと標準workflowは [ADR-0071](../docs/adr/0071-adopt-mattpocock-standard-workflow.md) に従い、`ask-matt` の案内更新は [検証記録](../docs/research/update-mattpocock-20261005.md)、wizard更新の採用は [検証記録](../docs/research/mattpocock-pr-20261013.md)、1.3.2のfresh context案内などの採用は [2026-10-31の更新記録](../docs/research/update-tools-skills-20261031.md) を参照する。Matt の `package_type` は APM の native 出力に従い、lock の更新経路によって `apm_package` と `marketplace_plugin` の間で変わる（2026-10-09 の native lock は `marketplace_plugin`）。どちらも pin・selected payload・配備 ledger は同じで、手で書き換えない。
 
 _User-invoked_（明示起動のみ、orchestration 層。メインフロー1本 + on-ramp 2つで構成する — 詳細は [ADR-0014](../docs/adr/0014-triage-not-after-to-issues.md)、上流 `ask-matt` の main-flow/on-ramp 構造に整合）:
 
@@ -287,7 +287,7 @@ manifestの一致と対象ファイルの反映は `chezmoi verify`、公開plug
 
 **Design Hook**: user-global に **2 イベント**を配線する。per-edit は Claude Code の `Edit|Write|MultiEdit` / Codex の `Edit|Write|apply_patch` に対する `PostToolUse`（timeout 5s）、deep pass はセッション終端の `Stop`（`matcher` なし・timeout 30s。上流 manifest に合わせた値）。Claude は `~/.claude/skills/impeccable/`、Codex は共有ハブ `~/.agents/skills/impeccable/` の `scripts/impeccable hook` を `IMPECCABLE_HOOK_QUIET=1` で呼ぶ。Nix が `IMPECCABLE_BIN` に固定 engine の絶対 path を渡し、管理 command は実行可能な engine と launcher の存在を確認してから呼ぶ。engine がなければ launcher の自動取得へ進まず無言で終了する。runtime 側は stdin の `hook_event_name` でイベントを、`turn_id` で Codex を判別する。Claude Stop は従来の `hookSpecificOutput.additionalContext`、Codex Stop は native の top-level `decision` / `reason` を返し、managed command は両方を fail-open でそのまま通す。
 
-標準 hook の対象ルールは二層で、**両方を配線して初めて両 tier が届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier を編集箇所へ返し、その他の対象ルールは `Stop` へ先送りする。Stop はセッション中に触れた UI ファイルを再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。現行の 4.10.0 / engine 0.1.27 は上流既定の advisory 除外を使い、遅延検出は `side-tab` で検証する。`Stop` は `stop_hook_active` を見て再入時は即座に抜ける。
+標準 hook の対象ルールは二層で、**両方を配線して初めて両 tier が届く**（[ADR-0029](../docs/adr/0029-impeccable-pin-advance-with-stop-hook.md)）。per-edit は immediate tier を編集箇所へ返し、その他の対象ルールは `Stop` へ先送りする。Stop はセッション中に触れた UI ファイルを再走査して fresh finding をまとめて返す（per-edit が既に出した分は dedupe。何も残っていなければ無言）。現行の 4.11.1 / engine 0.1.31 は上流既定の advisory 除外を使い、遅延検出は `side-tab` で検証する。`Stop` は `stop_hook_active` を見て再入時は即座に抜ける。
 
 Impeccable 4.1.2 以降は Stop scan 後に live finding 全体を cache へ同期する。immediate / deferred の両 tier を持つファイルでも初回 deep pass 後の次回の `Stop` は無言になり、新しい finding が現れるまで再報告しない。`tests/design-hook.bats` は実際の管理 command からこの挙動を検証する。
 
@@ -375,7 +375,7 @@ WSL2 の Playwright と Dogfood は、Nix browser package に同梱する `manag
 
 PR 本文の末尾に追加する場合は `gh pr edit NUMBER --repo OWNER/REPO --attach './after.png#説明'` を使う。複数画像では `--attach` を繰り返す。掲載位置を指定する場合は最新の本文から通常の Markdown 画像参照を含む原稿を作り、送信直前に本文を再取得して並行編集を取り込む。`--body-file` と画像の `--attach` を渡し、実行後も本文を読み直して掲載を確認する。一部の画像だけで本文が更新される場合があり、結果不明なら現在の本文を確認してから追加編集を判断する。request ID による重複防止はコメント依頼に限る。
 
-旧版から移行する場合は、起動中の添付専用ブラウザを旧版の手順で終了し、既存 profile・所有権データ・画像・原稿・receipt を保持する。未完了・結果不明の旧本文添付は保存記録と現在の PR 本文を照合する。 [公開版の移行手順](https://github.com/treflebonbon/skills/blob/v0.4.1/docs/pr-attachments.md#旧版からの移行)
+旧版から移行する場合は、起動中の添付専用ブラウザを旧版の手順で終了し、既存 profile・所有権データ・画像・原稿・receipt を保持する。未完了・結果不明の旧本文添付は保存記録と現在の PR 本文を照合する。 [公開版の移行手順](https://github.com/treflebonbon/skills/blob/v0.4.2/docs/pr-attachments.md#旧版からの移行)
 
 ## Claude Code plugin の二層管理
 

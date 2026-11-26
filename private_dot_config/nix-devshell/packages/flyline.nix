@@ -10,15 +10,15 @@ let
   releases = {
     x86_64-linux = {
       asset = "libflyline-v${version}-x86_64-unknown-linux-gnu.tar.gz";
-      hash = "sha256-/2ZsPI2YLjoLsI0aUVoZ2kcZr0chZJIgyb49AI8mC+s=";
+      hash = "sha256-QLMMiKq8i68j5Uevn/0ziMv6SwRN8atT8rqZema/Q2o=";
     };
     aarch64-linux = {
       asset = "libflyline-v${version}-aarch64-unknown-linux-gnu.tar.gz";
-      hash = "sha256-2hoHeqJ9K9yuEmuiQt/8KDccMu3Y3cbvR/A/R52/WRk=";
+      hash = "sha256-S9SYgFdNerVwD+5Xm3Ex/Hyq5GjTbTkeKYbLNw0aeBY=";
     };
   };
 
-  version = "1.10.0";
+  version = "1.11.0";
   release = releases.${system} or (throw "flyline is not packaged for ${system}");
 in
 stdenvNoCC.mkDerivation {

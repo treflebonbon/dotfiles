@@ -44,7 +44,7 @@ assert_lock_entry() {
 @test "APM selects validated Impeccable and retains specialist UI skills" {
   local manifest="$PROJECT_ROOT/apm.yml"
 
-  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#b49177d32788f2dc585c42831d845dacf1ebed2c' "$manifest"
+  grep -Fq 'pbakaus/impeccable/.agents/skills/impeccable#2fc5e1459efbbf06d92c7306517c286bf12490cf' "$manifest"
   ! grep -Fq 'anthropics/skills/skills/frontend-design' "$manifest"
 
   local skill
@@ -58,8 +58,8 @@ assert_lock_entry() {
 
   grep -Fq 'apm_version: 0.35.0' "$lock"
   grep -Fq 'repo_url: pbakaus/impeccable' "$lock"
-  grep -Fq 'resolved_commit: b49177d32788f2dc585c42831d845dacf1ebed2c' "$lock"
-  grep -Fq 'content_hash: sha256:b781b2180544625f7b1849d974203bc975976eee7c2e2f38216065798eafd180' "$lock"
+  grep -Fq 'resolved_commit: 2fc5e1459efbbf06d92c7306517c286bf12490cf' "$lock"
+  grep -Fq 'content_hash: sha256:9249805a16768bfd884231ca2ed37af4b8af635112c32c4e2e778d148a787e38' "$lock"
   grep -Fq 'virtual_path: .agents/skills/impeccable' "$lock"
   grep -Fq '.agents/skills/impeccable/scripts/impeccable' "$lock"
   grep -Fq '.claude/skills/impeccable/scripts/impeccable' "$lock"
@@ -69,7 +69,7 @@ assert_lock_entry() {
 @test "APM pins the official Matt Pocock full set" {
   local manifest="$PROJECT_ROOT/apm.yml"
   local lock="$PROJECT_ROOT/apm.lock.yaml"
-  local revision="a496f5513d4a4cf889bc48e189e579f4b0bdf6aa"
+  local revision="6f7f7831a625f040a8e06a0e7954826b87ce775a"
   local skill
 
   grep -Fq "mattpocock/skills#$revision" "$manifest"
@@ -79,7 +79,7 @@ assert_lock_entry() {
   grep -Fq 'name: mattpocock-skills' "$lock"
   assert_lock_entry "$lock" 'mattpocock/skills' 'mattpocock-skills' \
     "$revision" \
-    'sha256:d2c8efe424482ed9b171ed5f61a3315bf7fca87ee88184a0d164477e956ddd45'
+    'sha256:e0a1824452961598ee30acba728674744e6d8c967f75efb702baec3586032f42'
   for skill in \
     ask-matt diagnosing-bugs grill-with-docs triage improve-codebase-architecture \
     setup-matt-pocock-skills tdd to-spec to-tickets wayfinder implement implement-spec pr retro prototype \
@@ -101,9 +101,9 @@ assert_lock_entry() {
 
   # floating の revision は形式を検査し、受け入れた payload は content hash で固定する。
 
-  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65' "$manifest"
-  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#6f55706d1069e512430582ad86e4e57dc07afe1b' "$manifest"
-  grep -Fq 'stablyai/orca/skills/orca-cli#d840256c353f081efc4a1750a292b2dcee9daef3' "$manifest"
+  grep -Fq 'GoogleChrome/modern-web-guidance/skills/modern-web-guidance#2b4aa13a72dd47cd135b06ce5abfccd92e19b24f' "$manifest"
+  grep -Fq 'remotion-dev/skills/skills/remotion-best-practices#a3f4098a2afd0e13f6a6f8c8760e275f75457ea9' "$manifest"
+  grep -Fq 'stablyai/orca/skills/orca-cli#ed149abb125c1c3a5c8d1a9bb94e325054eeb9d0' "$manifest"
   ! grep -Fq 'herdrdev/herdr/skills/herdr' "$manifest"
   ! grep -Fq 'repo_url: herdrdev/herdr' "$lock"
   ! grep -Fq 'virtual_path: skills/herdr' "$lock"
@@ -116,8 +116,8 @@ assert_lock_entry() {
   ! grep -Fq 'stablyai/orca/skills/orchestration#9c01e09ecc9d3c1203968ace9945d16edfb35dd2' "$manifest"
 
   assert_lock_entry "$lock" 'googlechrome/modern-web-guidance' 'modern-web-guidance' \
-    '64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65' \
-    'sha256:a5541172ae1110a7f97c5bbe6ae9dbaa747c2b33cbfbeafbb2a7873797e6f530'
+    '2b4aa13a72dd47cd135b06ce5abfccd92e19b24f' \
+    'sha256:f7cddafe7598139720c16559377396aa2ab2f2784fb7cf53a642df86302072d9'
   assert_lock_entry "$lock" 'anthropics/skills' 'pdf' \
     '[0-9a-f]{40}' \
     'sha256:497a959da9488ad7e05ca032c4c36db183cde6548c9c0014d87137827d30f2e5'
@@ -125,8 +125,8 @@ assert_lock_entry() {
     '[0-9a-f]{40}' \
     'sha256:b2bfe91d69ca99994c0566baede889e7d2b9bb8791c6b6106c5d387392f717f6'
   assert_lock_entry "$lock" 'remotion-dev/skills' 'remotion-best-practices' \
-    '6f55706d1069e512430582ad86e4e57dc07afe1b' \
-    'sha256:b530993269a324cf27f8151030db11ff0e4f405f0d6e52e596f40aec3b94b57a'
+    'a3f4098a2afd0e13f6a6f8c8760e275f75457ea9' \
+    'sha256:341beeb604f151237625f5ab8089aa339ffc68e25ef5aa52786181d4c0de7490'
   assert_lock_entry "$lock" 'shadcn-ui/ui' 'shadcn' \
     '[0-9a-f]{40}' \
     'sha256:e976181d1ffe560455eb3c7bd83cec5f111a23b32128c20718fd0db6e071fb2d'
@@ -134,11 +134,11 @@ assert_lock_entry() {
     '[0-9a-f]{40}' \
     'sha256:1130dcb48ca8c1cf00e1c15242e95f0141cad5299b9fc2ebbcd2779c8c2f3194'
   assert_lock_entry "$lock" 'stablyai/orca' 'orca-cli' \
-    'd840256c353f081efc4a1750a292b2dcee9daef3' \
-    'sha256:8764a05bbf6a1bb6ae46e9cce4da8d8e8036460920219213e66f64dea994f249'
+    'ed149abb125c1c3a5c8d1a9bb94e325054eeb9d0' \
+    'sha256:7937f8f508206f9e962e1fdf1dd32efc368026a784674098ca3b7bd3d19f396a'
   assert_lock_entry "$lock" 'stablyai/orca' 'orchestration' \
     '[0-9a-f]{40}' \
-    'sha256:a237694aa27b56efc5ca6f8c56bc5baec74945ef5d719b269472075608bce026'
+    'sha256:30c8457d510430e4dc718e591ae38ed056fd01333bf4c1407ac98a875d63c98f'
   manifest_pins="$(
     sed -nE 's/^[[:space:]]*-[[:space:]]+([^#[:space:]]+)#([0-9a-f]{40})[[:space:]]*$/\1 \2/p' "$manifest" |
       awk '{

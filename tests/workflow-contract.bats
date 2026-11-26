@@ -181,7 +181,10 @@ setup() {
   grep -Fq 'cross-skill 呼出しは Skill tool と skill 名を明示する' "$GLOBAL_CLAUDE"
   grep -Fq '別の user-invoked skill から自動実行せず' "$GLOBAL_CLAUDE"
 
-  grep -Fq 'a496f5513d4a4cf889bc48e189e579f4b0bdf6aa' "$RUNTIME"
+  local revision
+  revision="$(sed -nE 's@^[[:space:]]*-[[:space:]]+mattpocock/skills#([a-f0-9]{40})$@\1@p' "$PROJECT_ROOT/apm.yml")"
+  [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+  grep -Fq "exact revision \`$revision\`" "$RUNTIME"
   grep -Fq '複数質問の間を horizontal rule (`---`) で区切る' "$RUNTIME"
   grep -Fq 'Skill tool と skill 名を明示する' "$RUNTIME"
   grep -Fq '`setup-matt-pocock-skills` を自動実行せず' "$RUNTIME"
