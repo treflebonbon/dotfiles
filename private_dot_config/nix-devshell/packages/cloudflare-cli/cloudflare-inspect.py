@@ -8,7 +8,7 @@ import binascii
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
-from http.client import HTTPException
+from http.client import HTTPException, HTTPResponse, IncompleteRead
 import json
 import math
 import multiprocessing
@@ -281,7 +281,13 @@ def http_exchange(opener, request, timeout):
             content_type = error.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             encoding = error.headers.get("Content-Encoding", "").strip().lower()
             if content_type == "application/json" and encoding in ("", "identity"):
-                return error.code, error.read(D1_MAX_ERROR_RESPONSE + 1)
+                raw = error.read(D1_MAX_ERROR_RESPONSE + 1)
+                response = error.fp
+                # HTTPResponse.read(amount) は Content-Length に足りない EOF でも短い本文を返す。
+                if (len(raw) <= D1_MAX_ERROR_RESPONSE and isinstance(response, HTTPResponse)
+                        and response.length):
+                    raise IncompleteRead(b"", response.length)
+                return error.code, raw
         except (OSError, HTTPException):
             raise D1ErrorBodyReadFailure(error.code) from None
         finally:

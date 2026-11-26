@@ -4,7 +4,7 @@ import contextlib
 import copy
 from email.message import Message
 import hashlib
-from http.client import BadStatusLine, IncompleteRead, LineTooLong
+from http.client import BadStatusLine, HTTPResponse, IncompleteRead, LineTooLong
 import importlib.machinery
 import importlib.util
 import io
@@ -310,6 +310,48 @@ class D1(unittest.TestCase):
         self.assertNotIn("service_error_code", audit)
         self.assertNotIn("service_error_code", summary)
         self.assertNotIn("private-payload", raw_record)
+
+    def test_http_error_body_content_length(self):
+        self.real_transport = True
+        self.http_status = 403
+        payload = b'{"errors": [{"code": 10000}]}'
+        oversized = payload + b" " * (16 * 1024 + 1)
+        cases = (
+            (len(payload) + 100, payload, "request_failed", None),
+            (len(oversized), payload, "request_failed", None),
+            (len(payload), payload, "http_error", 10000),
+            (None, payload, "http_error", 10000),
+            (len(oversized), oversized, "http_error", None),
+        )
+
+        for index, (length, body, reason, service_code) in enumerate(cases, 1):
+            with self.subTest(length=length, received=len(body)):
+                self.response_raw = body
+
+                def https_open(_handler, request):
+                    _, raw = self.exchange(None, request, 30)
+                    headers = b"HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nConnection: close\r\n"
+                    if length is not None:
+                        headers += f"Content-Length: {length}\r\n".encode()
+                    stream = io.BytesIO(headers + b"\r\n" + raw)
+                    response = HTTPResponse(SimpleNamespace(makefile=lambda *_: stream))
+                    response.begin()
+                    response.url = request.full_url
+                    response.msg = response.reason
+                    return response
+
+                with patch.object(self, "https_open", https_open):
+                    status, summary = self.invoke()
+
+                self.assertEqual(status, 1)
+                self.assertEqual(summary["stop_reason"], reason)
+                self.assertEqual(summary["attempts_started"], 1)
+                self.assertEqual(len(self.calls.read_text().splitlines()), index)
+                audit = json.loads(Path(summary["record"]).read_text())
+                self.assertEqual(audit["stop_reason"], reason)
+                self.assertEqual(audit["http_status"], 403)
+                self.assertEqual(audit.get("service_error_code"), service_code)
+                self.assertNotIn("service_error_code", summary)
 
     def test_http_protocol_failure(self):
         errors = (IncompleteRead(b"DUMMY_CF_TOKEN private-payload"),

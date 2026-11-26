@@ -159,3 +159,9 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
+
+@test "D1 は Content-Length 未満のエラー本文を途中切断として記録する" {
+  run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_http_error_body_content_length
+  [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
+  [ "$status" -eq 0 ]
+}
