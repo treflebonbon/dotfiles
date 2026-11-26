@@ -205,6 +205,7 @@ class D1(unittest.TestCase):
         self.assertEqual(record.stat().st_mode & 0o777, 0o600)
         self.assertEqual(record.parent.stat().st_mode & 0o777, 0o700)
         audit = json.loads(record.read_text())
+        self.assertNotIn("http_status", audit)
         self.assertEqual(audit["results"], [{"state": "available"}])
         self.assertEqual(audit["query_plan"], None)
         self.assertEqual(audit["query_plan_reason"], "not_requested")
@@ -239,19 +240,28 @@ class D1(unittest.TestCase):
                     self.assertNotIn(private_detail, output)
 
     def test_http_failure(self):
-        self.http_status = 503
-        self.response = {"error": "DUMMY_CF_TOKEN private-payload"}
-        status, summary = self.invoke()
-        self.assertNotEqual(status, 0)
-        self.assertEqual(summary["status"], "failed")
-        self.assertEqual(summary["stop_reason"], "http_error")
-        self.assertEqual(summary["attempts_started"], 1)
-        self.assertEqual(len(self.calls.read_text().splitlines()), 1)
-        self.assertNotIn("private-payload", json.dumps(summary))
-        record = Path(summary["record"]).read_text()
-        self.assertNotIn("DUMMY_CF_TOKEN", record)
-        self.assertNotIn("private-payload", record)
-        self.assertEqual(json.loads(record)["status"], "failed")
+        self.real_transport = True
+        self.response = {"errors": [{"code": 10000, "message": "DUMMY_CF_TOKEN private-payload"}]}
+        expected_summary = {"status": "failed", "stop_reason": "http_error", "attempts_started": 1,
+                            "returned_count": None, "rows_read": None, "rows_written": None, "duration": None}
+        for index, http_status in enumerate((403, 503), 1):
+            with self.subTest(http_status=http_status):
+                self.http_status = http_status
+                status, summary = self.invoke()
+                self.assertEqual(status, 1)
+                record = Path(summary.pop("record"))
+                self.assertEqual(summary, expected_summary)
+                self.assertEqual(len(self.calls.read_text().splitlines()), index)
+                self.assertEqual(record.stat().st_mode & 0o777, 0o600)
+                self.assertEqual(record.parent.stat().st_mode & 0o777, 0o700)
+                raw_record = record.read_text()
+                audit = json.loads(raw_record)
+                self.assertEqual((audit["status"], audit["stop_reason"]), ("failed", "http_error"))
+                self.assertIs(type(audit["http_status"]), int)
+                self.assertEqual(audit["http_status"], http_status)
+                for detail in ("DUMMY_CF_TOKEN", "private-payload", '"errors"', '"code"',
+                               "untrusted.invalid", "Proxy-Authenticate"):
+                    self.assertNotIn(detail, raw_record)
 
     def test_http_protocol_failure(self):
         errors = (IncompleteRead(b"DUMMY_CF_TOKEN private-payload"),
@@ -266,8 +276,11 @@ class D1(unittest.TestCase):
                 self.assertIsNone(summary["returned_count"])
                 self.assertEqual(len(self.calls.read_text().splitlines()), index)
                 record = Path(summary["record"]).read_text()
-                self.assertEqual(json.loads(record)["status"], "failed")
-                self.assertEqual(json.loads(record)["stop_reason"], "request_failed")
+                audit = json.loads(record)
+                self.assertEqual(audit["status"], "failed")
+                self.assertEqual(audit["stop_reason"], "request_failed")
+                self.assertNotIn("http_status", audit)
+                self.assertNotIn("http_status", summary)
                 self.assertNotIn("private-payload", record + json.dumps(summary))
                 self.assertNotIn("DUMMY_CF_TOKEN", record + json.dumps(summary))
 

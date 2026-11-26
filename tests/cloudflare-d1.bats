@@ -142,13 +142,13 @@ bats_require_minimum_version 1.5.0
   [ "$status" -eq 0 ]
 }
 
-@test "D1 の HTTP エラーを再試行せず匿名の失敗と private 記録を返す" {
+@test "D1 は HTTP 403 と 503 を再試行せずステータス番号を private 記録だけに残す" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_http_failure
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
 }
 
-@test "D1 の途中切断や不正な HTTP 応答でも送信後の失敗記録を確定する" {
+@test "D1 の途中切断や不正な HTTP 応答はステータス番号なしで失敗を記録する" {
   run python3 -I "$BATS_TEST_DIRNAME/helpers/cloudflare-d1.py" "$BATS_TEST_TMPDIR" D1.test_http_protocol_failure
   [ "$status" -eq 0 ] || printf '%s\n' "$output" >&3
   [ "$status" -eq 0 ]
