@@ -48,3 +48,5 @@ flyline の明示的な `enable -d flyline` 後に Bash が終了する条件で
 `e417d45` を開始点 `c91da1f` からの差分として、`gpt-6-luna / xhigh` を指定した2つの独立レビューで確認した。Standards と Spec はともに指摘0件だった。
 
 コミット後の関連検証では Herdr の復旧用 patch が歴史的な `a94bc68` のソースと一致しなかった。このテストが固定 commit を展開することを確認し、今回変更した2つの文脈 hash を開始点の内容に戻した。復旧用 patch は開始点とバイト単位で一致し、Herdr 関連4件が通った。
+
+最終確認の初回では、`tests/mattpocock-update-gate.bats` が一箇所で旧版の content hash を期待していた。専用ゲートと最終 native install で照合した新 hash に期待値をそろえ、対象ファイルの全テストを再実行した。APM の更新前後で変化した revision と hash を機械的に検索し、旧値の残りは Herdr の固定履歴用 patch だけと確認した。

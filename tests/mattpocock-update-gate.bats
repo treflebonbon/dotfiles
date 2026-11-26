@@ -101,7 +101,7 @@ EOF
   [ -n "$pin_line" ]
   ! grep -Eq 'mattpocock/skills#(@latest|main|v[0-9])' "$MANIFEST"
   [ "$(grep -Fc "resolved_commit: $revision" "$LOCK")" -eq 1 ]
-  grep -Fq 'content_hash: sha256:d2c8efe424482ed9b171ed5f61a3315bf7fca87ee88184a0d164477e956ddd45' "$LOCK"
+  grep -Fq 'content_hash: sha256:e0a1824452961598ee30acba728674744e6d8c967f75efb702baec3586032f42' "$LOCK"
   grep -Fq 'active_owner: mattpocock/skills' "$LOCK"
   ! grep -R -Eiq 'npx[[:space:]]+skills|enabledPlugins.*mattpocock|mattpocock.*enabledPlugins' \
     "$PROJECT_ROOT/private_dot_claude" "$PROJECT_ROOT/private_dot_config" 2>/dev/null
