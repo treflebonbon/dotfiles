@@ -41,4 +41,10 @@ flyline の明示的な `enable -d flyline` 後に Bash が終了する条件で
 - repo と user の両 flake を3 systemで評価した。WSL2 の隔離 devShell で対象5 CLI の Nix output と起動時の版が一致し、Herdr と code-review-graph の版表示も成功した。品質 floor・Brotli 修正済み APM・Impeccable の固定版を含む関連 Bats 14件と TypeScript 型検査が通った。
 - 公開 plugin を候補 CLI の公式経路で隔離 HOME に導入した。Codex と Antigravity CLI は10スキルと全458ファイル、Claude Code は2回の再同期で設定と同じ固定配布物を確認した。検証は Linux x86_64 / WSL2 で行い、他 system は Nix 評価・キャッシュ・配布物の照合までとした。
 - Cloudflare CLI の実 package と registry lock の Bats では、認証情報を使わず、版・CLI 委譲の抑止・schema・D1 の合成応答を確認した。既存 helper の Bats 25件も成功した。
-- 最終 APM lock は native install で生成した。frozen install 前後で SHA-256 が一致し、audit 10件、20依存、両 target 各46スキルの配備を照合した。更新計画は追加14・削除2、台帳1522 → 1534件、予定どおり142件の hash が変わり、共有 owner と既存所有権を確認した。通常スキルの一次検証から最終生成までに orchestration の浮動解決先が `e05ac7b` → `58b7280` へ進み、選択内容と配備 hash は一致した。
+- 最終 APM lock は native install で生成した。frozen install 前後で SHA-256 が一致し、audit 10件、20依存、両 target 各46スキルの配備を照合した。更新計画は追加14・削除2、台帳1522 → 1534件、予定どおり142件の hash が変わり、複数 owner の行は0件で、既存所有権を確認した。通常スキルの一次検証から最終生成までに orchestration の浮動解決先が `e05ac7b` → `58b7280` へ進み、選択内容と配備 hash は一致した。
+
+## レビューと復旧 fixture
+
+`e417d45` を開始点 `c91da1f` からの差分として、`gpt-6-luna / xhigh` を指定した2つの独立レビューで確認した。Standards と Spec はともに指摘0件だった。
+
+コミット後の関連検証では Herdr の復旧用 patch が歴史的な `a94bc68` のソースと一致しなかった。このテストが固定 commit を展開することを確認し、今回変更した2つの文脈 hash を開始点の内容に戻した。復旧用 patch は開始点とバイト単位で一致し、Herdr 関連4件が通った。

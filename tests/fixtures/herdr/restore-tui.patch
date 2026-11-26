@@ -3,9 +3,9 @@ index 63280c5..4931370 100644
 --- a/apm.lock.yaml
 +++ b/apm.lock.yaml
 @@ -1054,6 +1054,24 @@ dependencies:
-     .claude/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md: sha256:bef5b816376264a7ca56e3fac88ddb97ae5b763e011faccee686d64dd13a1fd7
+     .claude/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md: sha256:cb5500844c63ee8cf869c33493d3965515a6236df6482daf449abfa74cdcb22d
      .claude/skills/modern-web-guidance/guides/webmcp/webmcp.md: sha256:ed20a7cb5bb400b186e234ec0f4ffa0d923ded078447777ff42499cce902afa9
-   content_hash: sha256:f7cddafe7598139720c16559377396aa2ab2f2784fb7cf53a642df86302072d9
+   content_hash: sha256:a5541172ae1110a7f97c5bbe6ae9dbaa747c2b33cbfbeafbb2a7873797e6f530
 +- repo_url: herdrdev/herdr
 +  name: herdr
 +  host: github.com
