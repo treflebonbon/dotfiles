@@ -8,7 +8,7 @@ import binascii
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
-from http.client import HTTPException
+from http.client import HTTPException, HTTPResponse, IncompleteRead
 import json
 import math
 import multiprocessing
@@ -42,6 +42,7 @@ LOG_QUERY = ("o11y", "telemetry", "query")
 D1_SCRATCH = Path("/tmp/codex")
 D1_MAX_JSON = 65536
 D1_MAX_RESPONSE = 8 * 1024 * 1024
+D1_MAX_ERROR_RESPONSE = 16 * 1024
 R2_MAX_JWT = 8192
 R2_MAX_SESSION_TOKEN = 16384
 R2_MAX_RESPONSE = 8 * 1024 * 1024
@@ -260,6 +261,12 @@ def d1_opener():
     return build_opener(ProxyHandler(proxies), HTTPSHandler(context=context), D1NoRedirect())
 
 
+class D1ErrorBodyReadFailure(HTTPException):
+    def __init__(self, http_status):
+        super().__init__()
+        self.http_status = http_status
+
+
 def http_exchange(opener, request, timeout):
     try:
         with opener.open(request, timeout=timeout) as response:
@@ -270,8 +277,37 @@ def http_exchange(opener, request, timeout):
                 raise ValueError("D1 の応答が大きすぎます。")
             return response.status, raw
     except HTTPError as error:
-        error.close()
+        try:
+            content_type = error.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            encoding = error.headers.get("Content-Encoding", "").strip().lower()
+            if content_type == "application/json" and encoding in ("", "identity"):
+                raw = error.read(D1_MAX_ERROR_RESPONSE + 1)
+                response = error.fp
+                # HTTPResponse.read(amount) は Content-Length に足りない EOF でも短い本文を返す。
+                if (len(raw) <= D1_MAX_ERROR_RESPONSE and isinstance(response, HTTPResponse)
+                        and response.length):
+                    raise IncompleteRead(b"", response.length)
+                return error.code, raw
+        except (OSError, HTTPException):
+            raise D1ErrorBodyReadFailure(error.code) from None
+        finally:
+            error.close()
         return error.code, b""
+
+
+def d1_service_error_code(raw):
+    if not raw or len(raw) > D1_MAX_ERROR_RESPONSE:
+        return None
+    try:
+        document = strict_json(raw)
+    except (ValueError, RecursionError):
+        return None
+    errors = document.get("errors") if isinstance(document, dict) else None
+    if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+        code = errors[0].get("code")
+        if type(code) is int and 0 < code < 2**31:
+            return code
+    return None
 
 
 class D1ResponseValidationError(ValueError):
@@ -832,6 +868,8 @@ def perform_d1(arguments, notify, started):
         if status != 200:
             reason = "http_error"
             audit["http_status"] = status
+            if (code := d1_service_error_code(raw)) is not None:
+                audit["service_error_code"] = code
             raise ValueError("D1 の参照に失敗しました。")
         reason = "invalid_response"
         columns = definition["select"] if options.mode == "select" else ["id", "parent", "notused", "detail"]
@@ -856,8 +894,10 @@ def perform_d1(arguments, notify, started):
         reason = "record_failed"
         record.write(redact(audit, token))
         return {key: audit[key] for key in ("status", "returned_count", "stop_reason", "attempts_started", "rows_read", "rows_written", "duration")} | {"record": record.path}
-    except (ValueError, OSError, RecursionError, HTTPException):
+    except (ValueError, OSError, RecursionError, HTTPException) as error:
         audit.update(status="failed", stop_reason=reason)
+        if isinstance(error, D1ErrorBodyReadFailure):
+            audit["http_status"] = error.http_status
         if not request_started:
             audit["attempts_started"] = 0
         audit.pop("results", None)
