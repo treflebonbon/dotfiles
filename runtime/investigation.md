@@ -160,6 +160,8 @@ cloudflare-inspect --reviewed d1 read --definition /absolute/definition.json \
 
 HTTP の開始境界で1試行を記録する。送信前の拒否は0試行。送信開始予定を先に flush してから通信し、成功または失敗を確定記録へ更新する。途中切断や不正な status line などの HTTP protocol 例外は、開始済み1試行の `failed / request_failed` として確定し、再送しない。中断・期限切れでは private 記録が `pending / interrupted_or_deadline` のまま残る場合があり、開始予定/開始済みと実際の送信到達・サーバ側の結果を区別する。socket の timeout だけを全体期限と扱わない。HTTP エラーや保存失敗を成功扱いせず、応答・例外の原文をログへ出さない。
 
+HTTP エラーの private 記録には `http_status` を保存する。エラー本文の読取りが通信例外で中断したときは `request_failed` とし、受信済みの `http_status` を保存する。非圧縮の JSON 応答が16 KiB以内で、先頭の `errors[0].code` が正の32ビット符号付き整数なら、`service_error_code` も保存する。公開集計は従来の `http_error` を使う。応答本文・ヘッダー・メッセージは保存しない。
+
 HTTP transport の検査を通過して受信した HTTP 200 応答の JSON 解析または内容検証に失敗した場合、公開 `stop_reason` は従来どおり `invalid_response` とし、private 記録に `response_validation_failure` として `json`、`top_level`、`result`、`row`、`statistics`、`write` の固定分類を残す。transport の検査失敗はこの分類対象ではない。応答本文、例外本文、未知キーや値は分類に含めず、成功記録にはこの項目を加えない。
 
 `response_validation_failure` が `statistics` の場合だけ、private 記録の `statistics_validation_failure` に最初に検出した不一致の固定分類を残す。
