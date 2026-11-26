@@ -831,6 +831,7 @@ def perform_d1(arguments, notify, started):
         status, raw = http_exchange(opener, request, remaining)
         if status != 200:
             reason = "http_error"
+            audit["http_status"] = status
             raise ValueError("D1 の参照に失敗しました。")
         reason = "invalid_response"
         columns = definition["select"] if options.mode == "select" else ["id", "parent", "notused", "detail"]
